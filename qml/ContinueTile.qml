@@ -20,6 +20,7 @@
 import QtQuick
 import QtQuick.Effects
 import "ContinueCovers.js" as ContinueCovers
+import "CatalogueVisualMetrics.js" as Metrics
 
 Item {
     id: tile
@@ -46,8 +47,12 @@ Item {
     readonly property color c2: entry.c2 !== undefined ? entry.c2 : "#111"
     property string cover: (entry.cover !== undefined && ("" + entry.cover).length) ? entry.cover : ""
 
-    width: isHome ? 340 : 132
-    height: isHome ? 148 : 196
+    // "world" tiles share the catalogue gallery poster geometry (148x222) so Continue reads as one
+    // family with the shelves below it; "home" keeps its 340x148 landscape glass card.
+    readonly property int worldW: Metrics.gallery.posterWidth
+    readonly property int worldH: Math.round(Metrics.gallery.posterWidth * Metrics.gallery.posterRatio)
+    width: isHome ? 340 : worldW
+    height: isHome ? 148 : worldH
 
     Theme { id: theme }
 
@@ -149,18 +154,36 @@ Item {
         }
     }
 
-    // ═════════════════ WORLD variant — portrait cover tile ═════════════════
+    // ═════════════════ WORLD variant — portrait cover tile (catalogue finish) ═════════════════
+    // Two cheap offset depth plates behind the art (match the gallery posters; flat rounded rects,
+    // NO GPU blur), deepening slightly on hover.
     Rectangle {
         visible: !tile.isHome
+        x: 0; y: 3; width: tile.width; height: tile.height; radius: 13
+        color: Qt.rgba(0, 0, 0, rootMa.containsMouse ? 0.42 : 0.28)
+        Behavior on color { ColorAnimation { duration: 200 } }
+    }
+    Rectangle {
+        visible: !tile.isHome
+        x: -2; y: rootMa.containsMouse ? 11 : 7; width: tile.width + 4; height: tile.height; radius: 15
+        color: Qt.rgba(0, 0, 0, rootMa.containsMouse ? 0.20 : 0.10)
+        Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        Behavior on color { ColorAnimation { duration: 200 } }
+    }
+    // The in-tile content (cover + scrim + title/sub + progress) rendered through ONE rounded mask,
+    // so the corners are GENUINELY cropped — the old rectangular clip let cover art paint over the
+    // border. Keeps the Continue cover pipeline (c1/c2 gradient + one retry) and all in-tile metadata.
+    Item {
+        id: worldContent
+        visible: !tile.isHome
         anchors.fill: parent
-        radius: 12; clip: true
-        color: "transparent"
-        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
-        CoverArt { anchors.fill: parent }
+        layer.enabled: true
+        layer.effect: MultiEffect { maskEnabled: true; maskSource: worldMask; maskThresholdMin: 0.5 }
+        CoverArt { anchors.fill: parent; decodeW: 296; decodeH: 444 }
         // bottom scrim keeps the in-tile metadata readable over ANY cover art
         Rectangle {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 78
+            height: 82
             gradient: Gradient {
                 GradientStop { position: 0; color: "transparent" }
                 GradientStop { position: 0.4; color: Qt.rgba(0, 0, 0, 0.35) }
@@ -189,6 +212,21 @@ Item {
             height: 4; color: Qt.rgba(1, 1, 1, 0.2)
             Rectangle { width: parent.width * tile.prog; height: parent.height; color: theme.gold }
         }
+    }
+    // stable rounded mask source (no animation) — a texture provider, not drawn directly
+    Item {
+        id: worldMask
+        visible: false
+        anchors.fill: parent
+        layer.enabled: true
+        Rectangle { anchors.fill: parent; radius: 12; color: "black" }
+    }
+    // resting inset edge: 1px white 8% (the gold 2px hover edge is the shared hover rect below)
+    Rectangle {
+        visible: !tile.isHome
+        anchors.fill: parent
+        radius: 12; color: "transparent"
+        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
     }
 
     // ── shared: whole-tile hover (film + gold edge) ──

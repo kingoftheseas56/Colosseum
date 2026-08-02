@@ -28,6 +28,10 @@ Assert-Contains $ct 'kind === "manga"' "AniList fallback must be manga-gated."
 Assert-Lacks $ct 'kind === "manga" || kind === "comic"' "Comics must NOT be searched on AniList as manga (audit fix)."
 Assert-Contains $ct 'Remove from Continue' "Remove control must announce itself."
 
+# --- harmonized catalogue finish (2026-08-03): genuine rounded crop + shared gallery geometry ---
+Assert-Contains $ct 'maskSource: worldMask' "World tile must GENUINELY round its corners with a mask (not the old rectangular clip)."
+Assert-Contains $ct 'CatalogueVisualMetrics.js' "World tile geometry must derive from the shared gallery tokens (148x222)."
+
 # --- Home migrated, inline card dead ---
 $main = Read-File "qml/Main.qml"
 Assert-Lacks $main 'component ContinueCard' "Main.qml must not keep the inline ContinueCard (ContinueTile owns it)."
@@ -52,5 +56,18 @@ Assert-Contains $tk 'a.sort(function(x, y) { return (y.updatedAt || 0) - (x.upda
 Assert-Contains $tk 'a.slice(0, 12)' "Tankoban row must be capped at 12."
 Assert-Contains (Read-File "qml/BiblioWorld.qml") '"Continue Reading"' "Biblio row must be titled Continue Reading."
 Assert-Contains (Read-File "qml/TheatreWorld.qml") '"Continue Watching"' "Theatre keeps Continue Watching."
+
+# --- runtime: geometry (148x222) + progress/title/watched preserved under the harmonized finish ---
+$qmlExe = "C:\Qt\6.11.1\msvc2022_64\bin\qml.exe"
+if (Test-Path -LiteralPath $qmlExe) {
+    $env:QT_FORCE_STDERR_LOGGING = "1"
+    $qmlInc = Join-Path $root "qml"
+    $harness = Join-Path $root "tests\continue_tile_finish_harness.qml"
+    $out = cmd /c "`"$qmlExe`" -platform offscreen -I `"$qmlInc`" `"$harness`" 2>&1" | Out-String
+    if ($LASTEXITCODE -ne 0 -or $out -notlike "*CONTINUE_TILE_FINISH_OK*") {
+        Write-Host $out
+        throw "continue_tile_finish_harness failed (exit $LASTEXITCODE)"
+    }
+}
 
 Write-Host "Continue-tile unification contract checks passed."

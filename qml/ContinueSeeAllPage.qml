@@ -207,8 +207,9 @@ Item {
             Grid {
                 id: grid
                 width: parent.width
-                columns: Math.max(4, Math.floor(width / 150))
-                columnSpacing: 18; rowSpacing: 22
+                // 148px world tiles + 20px gap (harmonized to the catalogue gallery poster)
+                columns: Math.max(4, Math.floor(width / 168))
+                columnSpacing: 20; rowSpacing: 22
                 Repeater {
                     model: root.shownItems
                     delegate: ContinueTile {

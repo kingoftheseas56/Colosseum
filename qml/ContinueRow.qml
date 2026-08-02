@@ -4,9 +4,13 @@
 // Watched entries sink below unfinished ones so the front of the row is always continuable.
 
 import QtQuick
+import "CatalogueVisualMetrics.js" as Metrics
 
 Column {
     id: cont
+
+    // the resume tiles now share the catalogue gallery poster geometry (see ContinueTile world variant)
+    readonly property int tileHeight: Math.round(Metrics.gallery.posterWidth * Metrics.gallery.posterRatio)
 
     property string title: "Continue"
     property var items: []              // Progress entries: { id, kind, title|caption, sub, cover, c1, c2, progress, watched, resume }
@@ -40,7 +44,7 @@ Column {
     }
 
     Flickable {
-        width: parent.width; height: 196
+        width: parent.width; height: cont.tileHeight
         contentWidth: row.width; contentHeight: height
         clip: true
         flickableDirection: Flickable.HorizontalFlick
@@ -48,7 +52,7 @@ Column {
 
         Row {
             id: row
-            spacing: 18
+            spacing: Metrics.gallery.cardGap
             Repeater {
                 model: cont.ordered
                 delegate: ContinueTile {
