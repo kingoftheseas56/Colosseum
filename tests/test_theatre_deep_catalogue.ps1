@@ -93,11 +93,11 @@ switch ($Stage) {
     "All" {
         Stage-PosterPolicy
         Stage-RoundedPoster
+        Stage-Cards
         Stage-GalleryRail
         Stage-LazyShelves
         Stage-Rules
         Stage-ApiRows
-        Stage-Cards
         Stage-SeeAll
         Stage-Preferences
         Stage-Page
