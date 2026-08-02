@@ -38,10 +38,18 @@ var COMICS_CATALOGS = [
 var BUILTIN_SECTION = "Tankoban";
 var BUILTIN_ATTRIBUTION = "Tankoban built-in catalogue";
 
-// in-session live-refresh cache (spec 5.4). Keyed by type+catalog+filter so a refresh
-// is deduplicated; an entry older than CACHE_MS is reused only as a fallback.
+// in-session live-refresh cache (spec 5.4). Keyed by catalog+filter+explicit flag so a
+// refresh is deduplicated per state (a sfw=true response never serves an opted-in
+// session); liveInFlight prevents duplicate concurrent requests for the same key. A
+// fresh entry (< CACHE_MS) is merged into the next bundled delivery; while one exists
+// (or a request is in flight) no new refresh fires.
 var liveCache = {};
+var liveInFlight = {};
 var CACHE_MS = 15 * 60 * 1000;
+function liveCacheKey(state, showExplicit) {
+    return state.catalogKey + "|" + state.filterGroup + "|" + state.filterKey
+         + "|" + (showExplicit ? "x" : "s");
+}
 
 // Jikan endpoint base. sfw derives from the global preference (spec 5.3/6.3):
 // showExplicit=false -> sfw=true (the conservative default); showExplicit=true ->
@@ -122,6 +130,31 @@ function mergeByIDentity(bundled, live) {
     }
     var out = [];
     for (var k in byId) out.push(byId[k]);
+    return out;
+}
+
+// The WALL's merge: overlay live metadata onto the bundled cards IN PLACE by stable
+// MAL id. The bundled ORDER is preserved — covers never move under the user's hand
+// (spec 5.4) — and availability keeps the bundled truth (acquisition is local
+// knowledge Jikan does not have). A live row with no stable id touches nothing.
+// mergeByIDentity above remains the full replace-merge for callers that want the
+// live SET; the wall wants enrichment without reordering.
+function enrichByIdentity(cards, liveRows) {
+    var byId = {};
+    for (var i = 0; i < (liveRows || []).length; i++) {
+        var l = liveRows[i];
+        var id = (l && l.mal_id !== undefined && l.mal_id !== null) ? String(l.mal_id) : "";
+        if (id.length) byId[id] = l;
+    }
+    var out = [];
+    for (var j = 0; j < cards.length; j++) {
+        var c = cards[j];
+        var live = byId[c.id];
+        if (!live) { out.push(c); continue; }
+        var merged = normalizeManga(live);
+        merged.availability = c.availability;   // bundled acquisition truth survives
+        out.push(merged);
+    }
     return out;
 }
 
@@ -311,38 +344,65 @@ function fetchMangaPage(deps, state, cursor, generation, done) {
         var card = normalizeManga(rows[i]);
         if (Policy.visible("tankoban", card.raw, deps.showExplicit)) items.push(card);
     }
-    var hasNext = (native && native.nextOffset !== undefined)
-                  && native.nextOffset > offset + items.length;   // more pages exist
+    // NATIVE owns the exhaustion signal (rows < limit at the SQL layer). The old
+    // `nextOffset > offset + items.length` comparison read FALSE on a full unfiltered
+    // page (both sides equal) and killed paging at page one — it only ever looked
+    // alive when the policy filter shortened items below rows. Trust the source.
+    var exhausted = !native || native.exhausted === true;
     // Trending honestly falls back: native returns fallbackCatalog:"popular" until
     // two comparable snapshots exist; we surface the warning and DO NOT invent momentum.
     var warning = "";
     if (state.catalogKey === "trending") warning = JIKAN_TRENDING_FALLBACK_WARNING;
+    // ── cached live overlay (spec 5.4) ──
+    // A fresh in-session Jikan result enriches the bundled first page IN PLACE by
+    // stable MAL id — bundled order preserved (covers never jump), availability
+    // keeps the bundled truth. This is the "refreshed ordering applies on the next
+    // reload" path: the cache was written by an earlier refresh; this reload reads it.
+    var freshness = "bundled";
+    var cacheKey = liveCacheKey(state, deps.showExplicit);
+    if (!axis && offset === 0) {
+        var cached = liveCache[cacheKey];
+        if (cached && (Date.now() - cached.fetchedAt) < CACHE_MS && cached.items.length) {
+            // defense-in-depth: a live overlay could carry a classification the bundled
+            // row lacked, so the policy gate re-runs on the enriched cards too.
+            items = enrichByIdentity(items, cached.items).filter(function(c) {
+                return Policy.visible("tankoban", c.raw, deps.showExplicit);
+            });
+            freshness = "cached";
+        }
+    }
     done(generation, {
         items: items,
-        nextCursor: hasNext ? native.nextOffset : null,
-        exhausted: !hasNext,
-        freshness: "bundled",
+        nextCursor: exhausted ? null : native.nextOffset,
+        exhausted: exhausted,
+        freshness: freshness,
         warning: warning
     });
 
     // ── non-blocking Jikan refresh (spec 5.3/5.4) ──
-    // Fires ONLY after the bundled wall landed. A live response merges by stable MAL
-    // id; it never replaces a bundled row by title similarity. The refresh result is
-    // cached for the next reload; it does not reorder a wall the user is already
-    // touching (the shell owns that interaction fence).
+    // Fires ONLY after the bundled wall landed, and only when no fresh cache entry
+    // exists and no request for this state is already in flight (dedup per spec 5.4).
+    // A live response merges by stable MAL id on the NEXT reload; it never replaces a
+    // bundled row by title similarity and never reorders the wall mid-interaction
+    // (the shell owns that fence; the enrich overlay preserves order regardless).
     if (deps.xhrFactory && !axis && offset === 0) {
-        try {
-            var xhr = deps.xhrFactory();
-            var url = jikanUrl(state.catalogKey, offset, deps.showExplicit);
-            xhr.open("GET", url);
-            xhr.onload = function() {
-                var live = parseJikanResponse(xhr.responseText);
-                var cacheKey = state.catalogKey + "|" + state.filterGroup + "|" + state.filterKey;
-                liveCache[cacheKey] = { fetchedAt: Date.now(), items: live };
-            };
-            xhr.onerror = function() { /* leave bundled wall; one quiet warning max */ };
-            xhr.send();
-        } catch (e) { /* never let a refresh failure blank the wall */ }
+        var fresh = liveCache[cacheKey]
+                    && (Date.now() - liveCache[cacheKey].fetchedAt) < CACHE_MS;
+        if (!fresh && !liveInFlight[cacheKey]) {
+            liveInFlight[cacheKey] = true;
+            try {
+                var xhr = deps.xhrFactory();
+                var url = jikanUrl(state.catalogKey, offset, deps.showExplicit);
+                xhr.open("GET", url);
+                xhr.onload = function() {
+                    var live = parseJikanResponse(xhr.responseText);
+                    if (live.length) liveCache[cacheKey] = { fetchedAt: Date.now(), items: live };
+                    delete liveInFlight[cacheKey];
+                };
+                xhr.onerror = function() { delete liveInFlight[cacheKey]; /* leave bundled wall */ };
+                xhr.send();
+            } catch (e) { delete liveInFlight[cacheKey]; /* never let a refresh failure blank the wall */ }
+        }
     }
 }
 
@@ -368,13 +428,14 @@ function fetchComicsPage(deps, state, cursor, generation, done) {
         var card = normalizeComic(rows[i]);
         if (Policy.visible("tankoban", card.raw, deps.showExplicit)) items.push(card);
     }
-    var hasNext = (native && native.nextOffset !== undefined)
-                  && native.nextOffset > offset + items.length;
+    // NATIVE owns the exhaustion signal (rows < limit at the SQL layer) — see the
+    // manga path for why the old nextOffset comparison killed paging at page one.
+    var exhausted = !native || native.exhausted === true;
     // Comics have NO live dependency (spec 3.3: no new Comic Vine / Metron runtime dep).
     done(generation, {
         items: items,
-        nextCursor: hasNext ? native.nextOffset : null,
-        exhausted: !hasNext,
+        nextCursor: exhausted ? null : native.nextOffset,
+        exhausted: exhausted,
         freshness: "bundled",
         warning: ""
     });

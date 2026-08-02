@@ -79,7 +79,7 @@ Item {
         // Tankoban copy — the wall's empty-state wording.
         textNoCatalogue: "Nothing to browse here yet."
         textCatalogueEmpty: "This catalogue answered with nothing."
-        textFilterEmpty: "Nothing here matches this filter."
+        textFilterEmpty: "No series match this filter."
         noticeMissingFormat: "That source is no longer available — showing the built-in catalogue instead."
         // route the shell's normalized card by type to the existing series doors.
         onItemOpenRequested: function(item) {

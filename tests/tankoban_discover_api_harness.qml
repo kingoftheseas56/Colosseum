@@ -45,6 +45,9 @@ Item {
             if (axis === "demographic") return demographicFacets
             return []
         }
+        // extraRows > 0 appends synthetic filler so the dataset spans multiple 24-row
+        // pages — the honest-paging cases below flip this on and off.
+        property int extraRows: 0
         function discoverPage(cat, fAxis, fKey, inclExp, off, lim) {
             pageCalls++
             var fallback = cat === "trending" ? "popular" : ""
@@ -55,12 +58,22 @@ Item {
                 { mal_id: 2, title: "Solo Leveling", type: "Manhwa", score: 8.5, scored_by: 400, members: 2000, favorites: 50, year: 2018, start_date: "2018-03", cover: "https://c/sl.jpg", classifications: ["Action"], explicit: false, availability: false },
                 { mal_id: 3, title: "Explicit Series", type: "Manga", score: 7.0, scored_by: 10, members: 100, favorites: 1, year: 2020, start_date: "2020-01", cover: "https://c/x.jpg", classifications: ["Hentai"], explicit: true, availability: false }
             ]
+            for (var x = 0; x < extraRows; x++)
+                rows.push({ mal_id: 100 + x, title: "Filler " + x, type: "Manga", score: 6.0,
+                            scored_by: 50, members: 500 - x, favorites: 0, year: 2000,
+                            start_date: "2000-01", cover: "", classifications: ["Action"],
+                            explicit: false, availability: false })
             // a facet filter scopes the synthetic set so we can prove filter threading.
             // The adapter contract sends a STABLE LOWER-CASE filter key (see buildFilterOptions
             // → stableKey); a real native SQL query matches case-insensitively, so the fake does too.
             if (fAxis === "demographic" && fKey && fKey.toLowerCase() === "seinen")
                 rows = [rows[0]]
-            return { items: rows, nextOffset: off + rows.length, exhausted: true,
+            // HONEST native paging semantics (mirrors MalCatalog::discoverPage exactly):
+            // slice by offset/limit; exhausted = a short page; nextOffset = off + returned.
+            // The old always-exhausted fake masked the page-one paging bug — never again.
+            var page = rows.slice(off, off + lim)
+            return { items: page, nextOffset: off + page.length,
+                     exhausted: page.length < lim,
                      freshness: "bundled", fallbackCatalog: fallback }
         }
     }
@@ -99,16 +112,22 @@ Item {
         }
     }
 
-    // fake XMLHttpRequest for the Jikan refresh path. We never auto-fire; the adapter
-    // is observed to construct the URL only (and only AFTER the bundled page landed).
+    // fake XMLHttpRequest for the Jikan refresh path. Never auto-fires; the adapter is
+    // observed to construct the URL only (and only AFTER the bundled page landed). The
+    // last instance is retained so the cached-merge test can fire onload manually.
     property var xhrLog: []
+    property var lastXhr: null
     function makeFakeXhr() {
-        return {
+        var x = {
+            responseText: "",
+            onload: null, onerror: null,
             open: function(method, url) { root.xhrLog.push({method: method, url: url}) },
             setRequestHeader: function() {},
-            send: function() { /* never completes in the harness; bundled wall stays */ },
+            send: function() { /* never completes on its own; the test fires onload */ },
             abort: function() {}
         }
+        root.lastXhr = x
+        return x
     }
 
     Timer {
@@ -244,8 +263,31 @@ Item {
         truthy(titles.indexOf("Berserk") >= 0, "fetchPage manga: Berserk (non-explicit) stays visible")
         truthy(titles.indexOf("Explicit Series") < 0, "fetchPage manga: Hentai row hidden when showExplicit=false")
         truthy(titles.indexOf("Solo Leveling") >= 0, "fetchPage manga: Manhwa stays visible")
-        truthy(captured.page.nextCursor !== null, "fetchPage manga: nextCursor present (offset-based)")
-        falsy(captured.page.exhausted, "fetchPage manga: not exhausted (native reported more via nextOffset<total semantics)")
+        // native said the 3-row dataset fit in one 24-row page -> exhausted, no cursor.
+        // (The exhaustion signal is NATIVE's `exhausted`, never a nextOffset comparison —
+        // that comparison read false on a full unfiltered page and killed paging at page 1.)
+        truthy(captured.page.exhausted, "fetchPage manga: short page -> exhausted (native's signal trusted)")
+        truthy(captured.page.nextCursor === null, "fetchPage manga: exhausted page carries no cursor")
+
+        // ── honest pagination: a FULL page must keep paging (the page-one bug's negative control) ──
+        // Run with showExplicit=true so NO row is policy-filtered: items === rows === 24,
+        // which is exactly the case where the old nextOffset comparison read "exhausted"
+        // after page one. (With filtering, items < rows masked the bug — never rely on it.)
+        fakeMal.extraRows = 30                       // dataset now 33 rows -> pages of 24 + 9
+        var pageAdapter = Api.create(fakeMal, fakeComics, [], true, makeFakeXhr)
+        var fullPage = null
+        pageAdapter.fetchPage({type:"manga", catalogKey:"popular", filterGroup:"", filterKey:""},
+                              null, 11, function(gen, page){ fullPage = page })
+        eq(fullPage.items.length, 24, "fetchPage manga full page: 24 unfiltered items delivered")
+        falsy(fullPage.exhausted, "fetchPage manga full page: NOT exhausted (paging continues past page 1)")
+        eq(fullPage.nextCursor, 24, "fetchPage manga full page: cursor advances to the native nextOffset")
+        var secondPage = null
+        pageAdapter.fetchPage({type:"manga", catalogKey:"popular", filterGroup:"", filterKey:""},
+                              fullPage.nextCursor, 12, function(gen, page){ secondPage = page })
+        truthy(secondPage.exhausted, "fetchPage manga page 2: short tail -> exhausted")
+        truthy(secondPage.items.length > 0, "fetchPage manga page 2: tail rows delivered")
+        eq(secondPage.items[0].id, String(100 + 24 - 3), "fetchPage manga page 2: continues where page 1 ended (no dup/skip)")
+        fakeMal.extraRows = 0                        // reset for the blocks below
 
         // Trending falls back honestly: warns + reuses Popular, never invents momentum.
         var trendCaptured = null
@@ -293,6 +335,39 @@ Item {
         var expTitles = expCaptured.items.map(function(it){ return it.title })
         truthy(expTitles.indexOf("Explicit Series") >= 0,
                "fetchPage manga showExplicit=true: Hentai row now visible")
+
+        // ── cached live overlay: the refresh lands on the NEXT reload, order-preserved ──
+        // (negative control for the write-only-cache bug: before the fix, the Jikan
+        // response was cached but never read, so live data never reached the wall.)
+        root.lastXhr = null
+        var pre = null
+        adapter.fetchPage({type:"manga", catalogKey:"top-rated", filterGroup:"", filterKey:""},
+                          null, 13, function(gen, page){ pre = page })
+        eq(pre.freshness, "bundled", "cached overlay: first delivery is bundled")
+        truthy(root.lastXhr !== null, "cached overlay: a refresh XHR was primed after the bundled page")
+        var inFlightLog = root.xhrLog.length
+        var mid = null
+        adapter.fetchPage({type:"manga", catalogKey:"top-rated", filterGroup:"", filterKey:""},
+                          null, 14, function(gen, page){ mid = page })
+        eq(root.xhrLog.length, inFlightLog, "cached overlay: in-flight refresh deduplicated (no second XHR)")
+        // the live response lands: Berserk enriched by stable MAL id; a title-only row is ignored.
+        root.lastXhr.responseText = JSON.stringify({ data: [
+            { mal_id: 1, title: "Berserk (live)", type: "Manga", score: 9.9, year: 1989,
+              images: { jpg: { image_url: "https://c/live.jpg" } } },
+            { title: "Title-only guess", type: "Manga" } ] })
+        root.lastXhr.onload()
+        var post = null
+        adapter.fetchPage({type:"manga", catalogKey:"top-rated", filterGroup:"", filterKey:""},
+                          null, 15, function(gen, page){ post = page })
+        eq(post.freshness, "cached", "cached overlay: reload after refresh delivers cached freshness")
+        eq(post.items[0].title, "Berserk (live)", "cached overlay: live metadata enriches by stable MAL id")
+        eq(post.items[0].id, "1", "cached overlay: bundled order preserved (Berserk still first)")
+        eq(post.items.length, 2, "cached overlay: a title-only live row never adds or replaces")
+        var afterLog = root.xhrLog.length
+        var again = null
+        adapter.fetchPage({type:"manga", catalogKey:"top-rated", filterGroup:"", filterKey:""},
+                          null, 16, function(gen, page){ again = page })
+        eq(root.xhrLog.length, afterLog, "cached overlay: a fresh cache suppresses a new refresh")
 
         // ── no Comic Vine / Metron runtime dependency, no download action from the adapter ──
         var src = Api.SOURCE  // the adapter exposes its source for a static contract grep
