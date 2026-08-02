@@ -25,11 +25,16 @@ the existing wrapper. The wrapper's single hardcoded VidKing origin becomes a **
 origin supplied by the app-owned registry** (never by a remote manifest). Everything else — the bridge,
 `HostedPlayerPage`, session integration, Progress, Continue — is unchanged and shared.
 
-**Why keyless / no pre-check:** Agent 4-commissioned probe (2026-08-02) proved hosted providers cannot
-be honestly pre-checked for availability — VidKing's source-finder is token-gated, encrypted
-("STREAMCRYPTO"), and cracking it would cross the "documented interface only, no scraping" line and
-become a brittle self-maintained scraper. The dead-end memory below is the honest substitute: we do not
-predict availability, we **remember confirmed failures** for a short window.
+**Why keyless / no pre-check:** the 2026-08-02 probe
+(`docs/superpowers/plans/2026-08-02-vidking-source-resolver-probe.md`, commit `b9c481f`) proved hosted
+providers cannot be honestly pre-checked for availability — VidKing's resolver is keyless-reachable but a
+deliberately-encrypted, seed-rotating, nine-engine anti-scrape protocol ("STREAMCRYPTO", `enc=2`); cracking
+it is a maintenance trap that crosses the "documented interface only, no scraping" line. The dead-end
+memory below is the honest substitute: we do not predict availability, we **remember confirmed failures**
+for a short window. The probe also confirmed the documented `PLAYER_EVENT` sets carry **no error /
+no-source event** (both providers: `play|pause|seeked|ended|timeupdate` only) — a dead-end is knowable
+ONLY by the absence of any play/timeupdate event within the startup window, which is why the startup guard
+below is the primary failure signal, not an event.
 
 ## Global Constraints (delta from VidKing)
 
@@ -161,8 +166,11 @@ eq(mod.rowsFor([{id:'net.vidlink.player',enabled:true,manifest:{resources:['host
   `isDead` returns true only within TTL. No network/shell/other capability. Expose as context property
   `DeadEnds` in `main.cpp`.
 - [ ] **Step 4 — wire write.** In `HostedPlayerPage`, on the SAME confirmed-failure path that shows the honest
-  panel (load failure / VidKing-or-VidLink `error` / 20s startup guard), call `DeadEnds.record(providerId, mediaId)`.
-  Never record on user-initiated Back or successful playback.
+  panel, call `DeadEnds.record(providerId, mediaId)`. Note (probe `b9c481f`): neither provider emits an
+  error/no-source event, so the **20s startup guard — no `play`/`timeupdate` arrived — is the primary and usually
+  the ONLY failure signal**; wrapper load failure is the secondary one. Do NOT wait for a provider `error` event
+  that will never come. Never record on user-initiated Back or on successful playback (any `play`/`timeupdate`
+  clears the guard).
 - [ ] **Step 5 — wire read.** `HostedPlayerApi.rowsFor` (or `SourcesSheet` where it composes hosted rows) drops
   a provider's row when `DeadEnds.isDead(providerId, mediaId)`. A row hidden this way reappears once the TTL lapses.
   A brand-new title always shows the row at least once. Add a contract assertion.
