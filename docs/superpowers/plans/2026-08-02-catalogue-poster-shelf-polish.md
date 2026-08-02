@@ -16,7 +16,9 @@
 - The approved mock is `docs/superpowers/specs/assets/2026-08-02-theatre-catalogue-polish-mock.html`.
 - Vertical scroll physics are out of scope; do not modify `qml/ScrollGlide.qml`, `tests/scroll_glide_harness.qml`, or `tests/test_scroll_glide_p0.ps1`.
 - Do not change catalogue ranking, row definitions, extension placement, explicit-content rules, hero/Continue content, or See-all paging.
+- Preserve the existing Cold Ripple wallpaper/vignette, `WorldPage`, clock/date `TopBar`, glass medium capsule, Theatre's gold medium pill, `TheatreTabBar`, Fraunces/Segoe typography roles, `#f0c44a` house gold, page margins, Customize control, Genre mosaic, and oversized Top 10 numerals.
 - IMDb rating and attribution remain pointer-hover-only; keyboard focus must not reveal them.
+- Theatre cards show poster and title only at rest; do not add a year, genre, source, rating, badge, or subtitle line.
 - Use no permanent rating badge, centered play ring, Unicode poster-control glyph, per-card blurred shadow, `ShaderEffectSource`, or animated mask.
 - Gallery values are exact: 148 px poster width, 2:3 art, 12 px radius, 20 px card gap, 46 px shelf gap, 18 px header gap, 13 px two-line title, 7 px hover lift, 260 ms hover, and 280 ms image reveal.
 - Poster decode scale is `clamp(Screen.devicePixelRatio, 1.0, 2.0)`; the normal 148×222 card therefore decodes at no more than 296×444.
@@ -41,7 +43,7 @@
 ### Modified files
 
 - `qml/TheatreApi.js` — preserve Metahub poster size while retaining live-host normalization.
-- `qml/CataloguePosterCard.qml` — classic/gallery profile, shared image component, title/subtitle, hover/focus/accessibility.
+- `qml/CataloguePosterCard.qml` — classic/gallery profile, shared image component, title, hover/focus/accessibility.
 - `qml/PosterRail.qml` — gallery geometry, keyboard navigation, and horizontal-position seam.
 - `qml/CataloguePosterGrid.qml` — profile pass-through only.
 - `qml/WorldPage.qml` — read-only viewport properties only.
@@ -129,7 +131,7 @@ var gallery = Object.freeze({
     posterWidth: 148, posterRatio: 1.5, posterRadius: 12,
     cardGap: 20, shelfGap: 46, headerGap: 18,
     titlePixels: 13, titleLines: 2, titleMinHeight: 35,
-    subtitlePixels: 11, hoverLift: 7,
+    hoverLift: 7,
     hoverDuration: 260, imageRevealDuration: 280
 })
 ```
@@ -255,7 +257,7 @@ git commit -m "feat(catalogue): render bounded rounded poster art"
 
 **Interfaces:**
 - Adds `visualProfile: string` with accepted values `"classic"` and `"gallery"`; default is `"classic"`.
-- Adds `subtitleText: string` and `hoverSourceText: string`.
+- Adds `hoverSourceText: string`.
 - Consumes `PosterSourcePolicy.candidates(item.cover, item.coverCandidates || [])`.
 - Preserves `item`, `keyboardFocused`, `skeleton`, `testHovered`, and `activated(item)`.
 
@@ -302,7 +304,7 @@ For gallery:
 - use a bottom-only scrim;
 - show SVG star + rating at bottom-left and source at bottom-right only on pointer hover;
 - reserve exactly two title lines;
-- show one optional 11 px subtitle line;
+- show no permanent subtitle or factual metadata line;
 - lift the complete poster surface 7 px in 260 ms;
 - scale the image no more than 1.02;
 - retain the existing double focus halo without hover metadata.
@@ -343,7 +345,7 @@ git commit -m "feat(catalogue): add restrained gallery poster profile"
 
 - [ ] **Step 1: Write the failing rail harness**
 
-Build a six-item gallery rail. Assert ordinary poster width 148, gap 20, title/subtitle area is reserved, initial content position restores, changing `contentX` emits the new value, Left/Right changes `currentIndex`, and Enter emits the original item.
+Build a six-item gallery rail. Assert ordinary poster width 148, gap 20, the two-line title area is reserved with no subtitle area, initial content position restores, changing `contentX` emits the new value, Left/Right changes `currentIndex`, and Enter emits the original item.
 
 Add a ranked rail assertion proving rank numerals remain present and its poster still measures 148 px.
 
@@ -357,7 +359,7 @@ Expected: FAIL because the rail has no profile/position seam.
 
 - [ ] **Step 3: Parameterize geometry through metrics**
 
-Use gallery width/gap and calculate list height from poster height + title reserve + subtitle reserve. Keep `ListView.Horizontal`, `reuseItems: true`, existing cache policy, `StopAtBounds`, and all horizontal gesture physics unchanged.
+Use gallery width/gap and calculate list height from poster height + the two-line title reserve. Keep `ListView.Horizontal`, `reuseItems: true`, existing cache policy, `StopAtBounds`, and all horizontal gesture physics unchanged. Continue using the existing `WidgetHeader` unchanged so its 22 px Fraunces title and 17 px Fraunces See-all treatment remain house-authentic.
 
 - [ ] **Step 4: Add position restoration**
 
@@ -690,11 +692,11 @@ Capture Theatre Discover, Tankoban Manga Discover, and Tankoban Comics Discover 
 
 - [ ] **Step 2: Add failing wrapper assertions**
 
-The Theatre wrapper harness must assert gallery. Tankoban's harness must switch between Manga and Comics and prove gallery remains selected while the subtitle mapping changes from demographic to publisher.
+The Theatre wrapper harness must assert gallery. Tankoban's harness must switch between Manga and Comics and prove gallery remains selected while both resting card variants remain poster-and-title only.
 
-- [ ] **Step 3: Add medium-specific subtitle mapping**
+- [ ] **Step 3: Lock title-only resting cards across worlds**
 
-Theatre passes `year · primary genre` when both exist. Tankoban passes demographic for Manga and publisher for Comics when normalized metadata exists. The card retains the subtitle measure with empty text when metadata is unavailable.
+Theatre, Manga, and Comics pass no subtitle into the shared card. Demographic and publisher remain Discover filter/catalogue metadata, not permanent card furniture. Keep the two-line title measure identical when those fields are absent.
 
 - [ ] **Step 4: Opt in the wrappers**
 
@@ -777,6 +779,7 @@ Verify:
 - Customize rows, extensions, GenreMosaic, See-all, and explicit-content behavior remain correct;
 - approved Discover wrappers use gallery only after Task 9's gate;
 - Biblio's current home shelf is unchanged.
+- Cold Ripple, the wallpaper vignette, `TopBar`, `TheatreTabBar`, Fraunces shelf headers, house gold, WorldPage margins, Customize rows, Genre mosaic, and Top 10 numerals remain visually and structurally unchanged.
 
 - [ ] **Step 5: Inspect scope before the final commit**
 
@@ -800,7 +803,7 @@ git commit -m "test(catalogue): lock poster and shelf polish contract"
 
 ## Definition of Done
 
-- [ ] All 14 acceptance criteria in the approved spec have a passing automated or named eyes-on check.
+- [ ] All 15 acceptance criteria in the approved spec have a passing automated or named eyes-on check.
 - [ ] Theatre rails and Theatre See-all use the gallery profile.
 - [ ] Medium Metahub art falls back to small per card without blanking long-tail titles.
 - [ ] Genuine rounded masking, bounded decode sizing, inset edge, and cheap depth pass at 100%, 125%, and 150% scaling.
@@ -810,6 +813,7 @@ git commit -m "test(catalogue): lock poster and shelf polish contract"
 - [ ] Existing catalogue data, row customization, extensions, explicit policy, See-all, and scroll behavior remain green.
 - [ ] Theatre Discover and Tankoban/Comics opt in only after the live Theatre gate.
 - [ ] Biblio receives a reusable image/profile interface without an unapproved redesign of its current home shelf.
+- [ ] The Colosseum shell and house aesthetic remain intact; only poster rendering, card spacing/motion, and shelf residency change.
 - [ ] All work and scoped commits occur directly on `master`; no branch or worktree is created.
 - [ ] Only task-owned files are staged; unrelated dirty-worktree changes remain untouched.
 

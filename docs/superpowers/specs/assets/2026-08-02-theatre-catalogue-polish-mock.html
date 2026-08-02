@@ -1,1 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Colosseum Theatre — faithful poster polish v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#f0c44a;--ink:#f7f7f5;--dim:#c9c8d0;--dimmer:#9a99a5;
+  --edge:rgba(255,255,255,.18);--glass:rgba(255,255,255,.10);--glass-hi:rgba(255,255,255,.14);
+  --black:#08090d;--margin:54px;--poster:148px;--gap:20px;--radius:12px;
+  --ui:"Segoe UI Variable","Segoe UI",sans-serif;--display:"Fraunces",Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#050609;color:var(--ink);font-family:var(--ui);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+.wallpaper{position:fixed;inset:0;z-index:0;background:
+ radial-gradient(70% 55% at 56% 30%,rgba(78,114,150,.48),transparent 66%),
+ linear-gradient(145deg,#182c3c 0%,#0d1a27 48%,#080b11 100%);overflow:hidden}
+.wallpaper img{width:100%;height:100%;object-fit:cover;object-position:center;opacity:.92;filter:saturate(.92) contrast(1.04)}
+.wallpaper:after{content:"";position:absolute;inset:0;background:
+ radial-gradient(100% 65% at 50% 12%,transparent 20%,rgba(3,5,9,.12) 68%,rgba(3,5,9,.5) 100%),
+ linear-gradient(180deg,rgba(4,6,10,.18),rgba(4,6,10,.36) 55%,rgba(4,6,10,.62))}
+.shell{position:relative;z-index:2;min-height:100vh;padding-top:30px}
 
+/* Real Colosseum TopBar composition */
+.topbar{height:56px;margin:0 var(--margin);position:sticky;top:18px;z-index:30;display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.left{display:flex;align-items:center;gap:18px}.home{font-size:14px;color:var(--dim);cursor:pointer}.home:hover{color:var(--ink)}
+.clock{display:flex;align-items:flex-end;gap:6px;font-family:var(--display);font-size:32px;line-height:.9}.ampm{font:16px var(--ui);color:var(--dim);margin-bottom:2px}.date{font-size:13px;color:var(--dim);margin-top:6px}
+.glass{background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px rgba(255,255,255,.11),0 14px 38px rgba(0,0,0,.22);backdrop-filter:blur(27px) saturate(1.16);-webkit-backdrop-filter:blur(27px) saturate(1.16)}
+.mediums{height:46px;border-radius:999px;padding:6px 7px;display:flex;gap:4px;align-items:center}
+.pill{height:34px;padding:0 17px;border-radius:999px;display:flex;align-items:center;color:var(--dim);font-size:14px;font-weight:500}
+.pill.active{background:var(--gold);color:#1a1408;font-weight:650}.soon{margin-left:6px;padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.1);font-size:8px;letter-spacing:.08em;opacity:.65}
+.sys{justify-self:end;display:flex;align-items:center;gap:20px}.sys button{width:22px;height:22px;padding:0;border:0;background:transparent;color:var(--dim);cursor:pointer}.sys button:hover{color:var(--ink)}.sys svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* WorldPage board: content floats directly over the living wallpaper */
+.board{margin:34px var(--margin) 100px;display:flex;flex-direction:column;gap:36px}
+.tab-wrap{height:58px;display:grid;place-items:center}
+.tabs{width:min(760px,100%);height:54px;border-radius:18px;padding:6px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.tab{border:1px solid rgba(255,255,255,.10);background:transparent;border-radius:14px;color:var(--ink);font-size:14px;font-weight:650;cursor:pointer}.tab:hover{background:rgba(255,255,255,.12)}.tab.active{border-color:transparent;background:var(--gold);color:#17120a}
+.catalog{display:flex;flex-direction:column;gap:46px;padding-top:2px;overflow:hidden}
+.customize{height:24px;display:flex;align-items:center;justify-content:flex-end;color:var(--dim);font-size:13px;font-weight:650;padding-right:2px}
+.customize span{cursor:pointer}.customize span:hover{color:var(--ink)}
+.shelf{min-width:0}
+.head{height:30px;display:flex;align-items:center;margin-bottom:18px}
+.head h2{margin:0;font:600 22px/1 var(--display);letter-spacing:-.015em}.head .via{margin-left:10px;color:var(--dim);font-size:12px}.see{margin-left:auto;color:var(--ink);font:500 17px/1 var(--display);cursor:pointer}.see b{margin-left:6px;color:var(--dim);font-size:22px;font-weight:500}.see:hover,.see:hover b{color:var(--gold)}
+.rail{display:grid;grid-template-columns:repeat(8,var(--poster));gap:var(--gap);min-width:max-content;padding:7px 6px 5px}
+.card{width:var(--poster);outline:0;cursor:pointer}.poster-plane{width:100%;aspect-ratio:2/3;position:relative;transition:transform 260ms cubic-bezier(.2,.75,.2,1)}
+.shadow-a,.shadow-b{position:absolute;inset:0;border-radius:14px;background:rgba(0,0,0,.28);transition:all 260ms ease}.shadow-a{transform:translateY(3px)}.shadow-b{inset:0 -2px;transform:translateY(8px);opacity:.42}
+.poster{position:absolute;inset:0;border-radius:var(--radius);overflow:hidden;background:#141820}
+.poster:after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px rgba(255,255,255,.08),inset 0 0 0 1px rgba(255,255,255,.08);z-index:4;transition:box-shadow 220ms ease}
+.poster img{display:block;width:100%;height:100%;object-fit:cover;transition:transform 280ms cubic-bezier(.2,.75,.2,1),opacity 280ms ease}
+.reveal{position:absolute;inset:0;z-index:3;border-radius:inherit;display:flex;align-items:flex-end;padding:12px 11px;background:linear-gradient(180deg,transparent 54%,rgba(4,5,8,.1) 64%,rgba(4,5,8,.92));opacity:0;transition:opacity 220ms ease}
+.meta{display:flex;align-items:center;width:100%;font-size:11px;font-weight:650}.rating{display:flex;align-items:center;gap:5px}.rating svg{width:12px;height:12px;fill:var(--gold)}.source{margin-left:auto;color:var(--dim);font-weight:500}
+.card:hover .poster-plane,.card:focus-visible .poster-plane{transform:translateY(-7px)}
+.card:hover .shadow-a{background:rgba(0,0,0,.42);transform:translateY(5px)}.card:hover .shadow-b{background:rgba(0,0,0,.33);transform:translateY(14px);opacity:.7}
+.card:hover .poster:after{box-shadow:inset 0 1px rgba(255,255,255,.12),inset 0 0 0 2px rgba(240,196,74,.55)}
+.card:hover .poster img{transform:scale(1.018)}.card:hover .reveal{opacity:1}
+.card:focus-visible .poster:before{content:"";position:absolute;inset:-4px;border:2px solid rgba(240,196,74,.7);border-radius:15px;z-index:6}
+.title{min-height:35px;margin-top:10px;color:var(--ink);font-size:13px;font-weight:650;line-height:1.34;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.sub{display:none}
+
+/* Top 10 retains Colosseum's existing oversized numerals */
+.ranked{gap:30px}.rankcell{position:relative;width:184px;height:282px}.rank{position:absolute;left:0;bottom:31px;font:600 132px/.78 var(--display);color:rgba(255,255,255,.17);letter-spacing:-.08em}.rankcell .card{position:absolute;left:54px;top:0}.rankcell:first-child .card{left:49px}
+
+/* Honest approaching-shelf state: same geometry, no alien dashed container */
+.skeleton .poster{background:radial-gradient(circle at 28% 22%,rgba(240,196,74,.08),transparent 34%),linear-gradient(145deg,rgba(55,64,78,.62),rgba(17,21,29,.74) 58%,rgba(21,24,31,.8));border:1px solid rgba(255,255,255,.06)}
+.skeleton .poster:before{content:"";position:absolute;left:14px;right:22px;bottom:17px;height:6px;border-radius:5px;background:rgba(255,255,255,.075);box-shadow:0 -14px rgba(255,255,255,.04)}.skeleton .title{width:72%;height:11px;min-height:11px;border-radius:5px;background:rgba(255,255,255,.07)}.skeleton .sub{width:42%;height:7px;border-radius:4px;background:rgba(255,255,255,.045)}
+.approach{color:var(--dimmer);font-size:11px;margin-left:11px;font-family:var(--ui)}
+.extension-label{margin:2px 0 -18px;font:600 18px/1 var(--display)}
+
+.companion-note{position:fixed;left:18px;bottom:17px;z-index:40;padding:9px 12px;border-radius:9px;color:var(--dim);font-size:11px;background:rgba(8,9,13,.68);border:1px solid rgba(255,255,255,.11);backdrop-filter:blur(18px)}
+.approve{position:fixed;right:22px;bottom:18px;z-index:40;border:1px solid rgba(240,196,74,.55);background:rgba(19,16,9,.88);color:#f3d878;padding:10px 15px;border-radius:9px;font:650 12px var(--ui);cursor:pointer;backdrop-filter:blur(16px)}.approve.selected{background:var(--gold);color:#17120a}
+@media(max-width:1200px){:root{--margin:38px}.rail{grid-template-columns:repeat(6,var(--poster))}.clock-block{display:none}}
+</style>
+</head>
+<body>
+<div class="wallpaper"><img src="https://cdn.jsdelivr.net/gh/KDE/plasma-workspace-wallpapers@master/ColdRipple/contents/images/2560x1600.jpg" alt="Cold Ripple wallpaper"></div>
+<main class="shell">
+  <header class="topbar">
+    <div class="left"><div class="home">‹ Home</div><div class="clock-block"><div class="clock">8:29 <span class="ampm">PM</span></div><div class="date">Sunday, August 2</div></div></div>
+    <nav class="mediums glass"><div class="pill">Tankoban</div><div class="pill">Biblio</div><div class="pill active">Theatre</div><div class="pill">Vinyl <span class="soon">SOON</span></div></nav>
+    <div class="sys">
+      <button aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+      <button aria-label="Wallpaper"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 16 5-5 4 4 2-2 5 5"/><circle cx="15.5" cy="9" r="1.3"/></svg></button>
+      <button aria-label="Minimize"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
+      <button aria-label="Power"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M7 6.5a8 8 0 1 0 10 0"/></svg></button>
+    </div>
+  </header>
+
+  <section class="board">
+    <div class="tab-wrap"><div class="tabs glass"><button class="tab">Discover</button><button class="tab active">Movies</button><button class="tab">Shows</button><button class="tab">Anime</button><button class="tab">Library</button></div></div>
+    <section class="catalog">
+      <div class="customize"><span>Customize rows</span></div>
+
+      <section class="shelf">
+        <div class="head"><h2>Top 10</h2><span class="see">See all <b>›</b></span></div>
+        <div class="rail ranked">
+          <div class="rankcell"><span class="rank">1</span><article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg" alt="Dune Part Two"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>8.5</span><span class="source">IMDb</span></div></div></div></div><div class="title">Dune: Part Two</div><div class="sub">2024 · Science Fiction</div></article></div>
+          <div class="rankcell"><span class="rank">2</span><article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/iADOJ8Zymht2JPMoy3R7xceZprc.jpg" alt="Furiosa"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>7.5</span><span class="source">IMDb</span></div></div></div></div><div class="title">Furiosa: A Mad Max Saga</div><div class="sub">2024 · Action</div></article></div>
+          <div class="rankcell"><span class="rank">3</span><article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/hkxxMIGaiCTmrEArK7J56JTKUlB.jpg" alt="Godzilla Minus One"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>7.7</span><span class="source">IMDb</span></div></div></div></div><div class="title">Godzilla Minus One</div><div class="sub">2023 · Drama</div></article></div>
+          <div class="rankcell"><span class="rank">4</span><article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg" alt="Oppenheimer"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>8.3</span><span class="source">IMDb</span></div></div></div></div><div class="title">Oppenheimer</div><div class="sub">2023 · History</div></article></div>
+        </div>
+      </section>
+
+      <section class="shelf">
+        <div class="head"><h2>Recently Released</h2><span class="see">See all <b>›</b></span></div>
+        <div class="rail">
+          <article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/74xTEgt7R36Fpooo50r9T25onhq.jpg" alt="The Batman"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>7.8</span><span class="source">IMDb</span></div></div></div></div><div class="title">The Batman</div><div class="sub">2022 · Crime</div></article>
+          <article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg" alt="The Shawshank Redemption"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>9.3</span><span class="source">IMDb</span></div></div></div></div><div class="title">The Shawshank Redemption</div><div class="sub">1994 · Drama</div></article>
+          <article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg" alt="The Godfather"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>9.2</span><span class="source">IMDb</span></div></div></div></div><div class="title">The Godfather</div><div class="sub">1972 · Crime</div></article>
+          <article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/arw2vcBveWOVZr6pxd9XTd1TdQa.jpg" alt="Forrest Gump"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>8.8</span><span class="source">IMDb</span></div></div></div></div><div class="title">Forrest Gump</div><div class="sub">1994 · Drama</div></article>
+          <article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg" alt="Spirited Away"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>8.6</span><span class="source">IMDb</span></div></div></div></div><div class="title">Spirited Away</div><div class="sub">2001 · Animation</div></article>
+          <article class="card" tabindex="0"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"><img src="https://image.tmdb.org/t/p/w500/hek3koDUyRQk7FIhPXsa6mT2Zc3.jpg" alt="The Godfather Part II"><div class="reveal"><div class="meta"><span class="rating"><svg viewBox="0 0 24 24"><path d="m12 2.7 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9z"/></svg>9.0</span><span class="source">IMDb</span></div></div></div></div><div class="title">The Godfather Part II</div><div class="sub">1974 · Crime</div></article>
+        </div>
+      </section>
+
+      <section class="shelf">
+        <div class="head"><h2>Hidden Gems</h2><span class="see">See all <b>›</b></span></div>
+        <div class="rail">
+          <article class="card skeleton"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"></div></div><div class="title"></div><div class="sub"></div></article>
+          <article class="card skeleton"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"></div></div><div class="title"></div><div class="sub"></div></article>
+          <article class="card skeleton"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"></div></div><div class="title"></div><div class="sub"></div></article>
+          <article class="card skeleton"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"></div></div><div class="title"></div><div class="sub"></div></article>
+          <article class="card skeleton"><div class="poster-plane"><i class="shadow-b"></i><i class="shadow-a"></i><div class="poster"></div></div><div class="title"></div><div class="sub"></div></article>
+        </div>
+      </section>
+    </section>
+  </section>
+</main>
+<div class="companion-note">Faithful pass: current wallpaper, TopBar, Theatre tabs, Fraunces hierarchy and house gold retained · hover posters for IMDb</div>
+<button class="approve" data-choice="approve-faithful-colosseum-polish" onclick="toggleSelect(this)">Approve faithful direction</button>
+</body>
+</html>

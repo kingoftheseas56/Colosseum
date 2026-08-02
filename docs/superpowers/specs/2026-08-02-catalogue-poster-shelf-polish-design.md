@@ -1,6 +1,6 @@
 # Catalogue Poster and Shelf Polish Design
 
-**Status:** Approved 2026-08-02
+**Status:** Revised visual direction approved 2026-08-02
 
 **Scope owner:** Theatre pilot with app-wide reusable foundations
 
@@ -8,7 +8,7 @@
 
 ## 1. Outcome
 
-Colosseum's catalogue surfaces will feel sharper, calmer, and more expensive without becoming decorative or Harbor-branded. Theatre is the first live adopter. The work creates reusable poster, spacing, and lazy-shelf primitives that Tankoban, Comics, and Biblio can opt into after the Theatre eyes-on gate.
+Colosseum's catalogue surfaces will feel sharper, calmer, and more expensive without becoming decorative or Harbor-branded. Theatre is the first live adopter. The work creates reusable poster, spacing, and lazy-shelf primitives that Tankoban, Comics, and Biblio can opt into after the Theatre eyes-on gate. It is an in-place refinement of Colosseum, not a replacement shell.
 
 This design covers three concerns:
 
@@ -37,9 +37,11 @@ The desired result is not a new layout. It is the existing Colosseum catalogue, 
 
 The poster remains visually dominant. Chrome stays quiet. There are no glass cards, permanent rating badges, descriptive blurbs, second hero, award decoration, or service-logo overlays.
 
+The surrounding Colosseum shell is immutable in this arc: the persistent Cold Ripple wallpaper and vignette, `WorldPage`, pinned `TopBar`, clock/date composition, glass medium capsule, Theatre's gold medium pill, `TheatreTabBar`, Fraunces display hierarchy, Segoe UI body hierarchy, `#f0c44a` house gold, page margins, existing catalogue ordering, Customize control, Genre mosaic, and oversized Top 10 numerals all remain recognizable and structurally unchanged.
+
 ### 3.2 Metadata waits for intent
 
-At rest, a Theatre card shows its poster, a two-line title area, and one optional factual line (`year · primary genre`). IMDb rating and rating attribution appear only under pointer hover. Keyboard focus receives a visible focus treatment but does not impersonate pointer hover or expose the hover metadata.
+At rest, a Theatre card shows only its poster and two-line title area. It does not add a year, genre, source, rating, badge, or subtitle line. IMDb rating and rating attribution appear only under pointer hover. Keyboard focus receives a visible focus treatment but does not impersonate pointer hover or expose the hover metadata.
 
 ### 3.3 Gold is an interaction accent
 
@@ -47,7 +49,7 @@ Gold appears in the hover/focus edge and rating star only. It is not used as a f
 
 ### 3.4 Geometry never moves during loading
 
-Poster, title, subtitle, and shelf heights are reserved before artwork or shelf delegates arrive. A successful load, failed source, shelf mount, or shelf unload must not change vertical scroll position.
+Poster, title, and shelf heights are reserved before artwork or shelf delegates arrive. A successful load, failed source, shelf mount, or shelf unload must not change vertical scroll position.
 
 ### 3.5 Performance is part of the appearance
 
@@ -65,10 +67,11 @@ The implementation must bound decoded image dimensions and the number of live sh
 | Horizontal card gap | 20 px |
 | Shelf-to-shelf gap | 46 px |
 | Header-to-poster gap | 18 px |
+| Shelf header | existing `WidgetHeader`: Fraunces, 22 px |
+| See-all affordance | existing `WidgetHeader`: Fraunces, 17 px |
 | Title top gap | 10 px |
 | Title type | Segoe UI, 13 px, DemiBold |
 | Title measure | exactly two reserved lines, 35 px minimum |
-| Subtitle type | Segoe UI, 11 px, dim ink |
 | Hover lift | 7 px |
 | Hover transition | 260 ms, restrained cubic-out |
 | Image reveal | 280 ms |
@@ -83,7 +86,7 @@ Top 10 retains its oversized rank numerals, but its poster uses the same gallery
 
 **Loading:** The placeholder remains visible. The image decodes asynchronously and fades in only after `Image.Ready`.
 
-**Ready/resting:** Crisp art, genuine 12 px crop, faint top/inset edge, two cheap offset shadow plates, title, and optional factual subtitle.
+**Ready/resting:** Crisp art, genuine 12 px crop, faint top/inset edge, two cheap offset shadow plates, and title only.
 
 **Hovered:** The card rises 7 px, the resting shadow deepens, a restrained gold inset edge appears, and a bottom scrim reveals `★ rating` and `IMDb`. The artwork may scale no more than 1.02. There is no centered play ring.
 
@@ -128,7 +131,7 @@ The policy controls decoded texture size, not network-file truth. It must not re
 
 ### 6.1 `CatalogueVisualMetrics.js`
 
-A `.pragma library` token module contains the approved catalogue geometry and timing values. It has no world data and performs no I/O. Consumers may override aspect ratio and subtitle content, but Theatre's gallery profile uses the approved values without local copies.
+A `.pragma library` token module contains the approved poster geometry and timing values. It has no world data and performs no I/O. It does not replace `Theme`, `WidgetHeader`, `TopBar`, `TheatreTabBar`, or any shell typography token. Consumers may override poster aspect ratio, but Theatre's gallery profile uses the approved values without local copies.
 
 ### 6.2 `PosterSourcePolicy.js`
 
@@ -157,7 +160,7 @@ The card remains the activation, title, hover, focus, and metadata owner. It del
 
 Theatre rails and Theatre See-all opt into `gallery` during the pilot. Discover surfaces remain `classic` until their rollout task passes eyes-on. This prevents a shared-file change from silently restyling every world.
 
-The card accepts optional `subtitleText` and `hoverSourceText`. Theatre supplies `year · primary genre` and `IMDb`. Later worlds can supply author, demographic, publisher, or language without forking the artwork component.
+The card accepts optional `hoverSourceText`; Theatre supplies `IMDb`. Resting metadata remains the responsibility of a world-specific outer card and is not added by Theatre's gallery profile.
 
 ### 6.5 `LazyPosterShelf.qml`
 
@@ -203,11 +206,11 @@ After the pilot passes visual and performance gates, `DiscoverPage` sets the gal
 
 ### 8.3 Tankoban and Comics
 
-`TankobanDiscoverPage` opts its shared `DiscoverBrowser` into the gallery profile after a separate screenshot check with manga and comic covers. The artwork component is reused, but subtitles are medium-specific: demographic for manga and publisher for comics when normalized metadata exists. Cards without compatible metadata omit the subtitle line's text while retaining its reserved measure.
+`TankobanDiscoverPage` opts its shared `DiscoverBrowser` into the gallery profile after a separate screenshot check with manga and comic covers. The artwork component is reused, while resting cards remain poster-and-title only. Demographic and publisher filtering stay in the Discover controls rather than becoming permanent card furniture.
 
 ### 8.4 Biblio
 
-Biblio adopts `RoundedPosterImage` and the shared edge/motion tokens when its approved Discover/Explore implementation lands. It must override the aspect policy for uncropped book covers and use author as the subtitle. Biblio adoption is a named integration task, not an automatic consequence of changing Theatre.
+Biblio adopts `RoundedPosterImage` and the shared edge/motion tokens when its approved Discover/Explore implementation lands. It must override the aspect policy for uncropped book covers; its already-approved canonical book card continues to own title and author outside the image primitive. Biblio adoption is a named integration task, not an automatic consequence of changing Theatre.
 
 ## 9. Performance and verification gates
 
@@ -286,3 +289,4 @@ If the single-pass rounded mask causes sustained frame-budget failure, the task 
 12. Tankoban/Comics and Biblio adoption remain explicit opt-in integration steps.
 13. Focus, activation, and accessible naming pass keyboard/remote checks.
 14. The focused and adjacent regression suite, native build, QML profiling, and eyes-on matrix pass on master.
+15. Cold Ripple, the wallpaper vignette, `TopBar`, `TheatreTabBar`, Fraunces headers, house gold, WorldPage margins, Customize rows, Genre mosaic, and Top 10 numerals remain recognizably Colosseum and are not restyled by this arc.
