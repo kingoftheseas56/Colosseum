@@ -1,6 +1,25 @@
 # Theatre Catalogue Poster & Shelf Polish — Eyes-On Gate (Task 8)
 
-**Status:** Automated gates GREEN. Awaiting Hemanth's live eyes-on approval before Tasks 9–10.
+**Status:** Automated gates GREEN. Live pilot shown to Hemanth — visuals approved; he flagged slow
+poster loading, now fixed (see "Post-pilot fix" below). Awaiting confirmation before Tasks 9–10.
+
+## Post-pilot fix (2026-08-03) — poster load speed
+
+Hemanth's eyes-on: visuals good, **posters too slow to load**. Root cause (measured, not guessed):
+the arc had switched poster fetching to "medium first, small fallback". Ground truth from
+`live.metahub.space`:
+
+- Metahub **small = 300×450**, **medium = 500×750**. The gallery poster (148px) decodes at **≤296px**
+  (2× cap), so both sizes downscale to ~296px — **medium adds no visible sharpness at this size**.
+- Medium is **2–3× the bytes** (e.g. tt1375666: 42KB small vs 108KB medium).
+- Metahub has **no medium for many long-tail titles** (tt2431250 → medium **404 after ~2.1s**), so
+  those posters waited ~2s for a failed request *before* falling back to small.
+
+**Fix:** resolve Metahub posters to **small** everywhere — in `PosterSourcePolicy.candidates()` (the
+cards) and back in `TheatreApi.normalizeArtUrl()` (the genre mosaic and any direct cover consumer).
+Small is fast, always present, and already sharp at the capped decode. All harnesses + the residency
+probe stay green. This retires the arc's medium-first change; every other polish (rounded crop,
+bounded decode, lazy shelves, gallery geometry, hover-only rating) is unchanged.
 
 **Arc:** Make Theatre's poster catalogue sharper, calmer, and more expensive while staying
 unmistakably Colosseum. In-place refinement, not a redesign.
@@ -13,8 +32,8 @@ unmistakably Colosseum. In-place refinement, not a redesign.
 
 ## What changed for you as the user
 
-Theatre's shelves now use bigger, genuinely rounded posters that try the sharper Metahub image
-first (and fall back cleanly instead of blanking), a calm two-line title, and quiet hover that
+Theatre's shelves now use bigger, genuinely rounded posters that load promptly (small 300px art,
+already sharp at this size), a calm two-line title, and quiet hover that
 reveals the IMDb rating only when your pointer is over a card. Keyboard focus stays clearly visible
 but never pops the hover rating. Under the hood, only the shelves near your screen stay "live," so a
 long page stops getting heavier as you scroll, and a rail you scrolled sideways returns to exactly
@@ -120,7 +139,7 @@ frame over 100 ms. (If your running instance hot-reloaded, it already reflects t
 2. Resting card shows poster + two-line title only — no year/genre/source/rating/badge line.
 3. Pointer hover reveals `★ rating` + `IMDb`, a quiet 7 px lift; **no** centered play ring, **no** Unicode star.
 4. Keyboard focus shows the gold double halo but does **not** reveal the hover rating.
-5. Medium poster success looks sharp; a title lacking a medium falls back to small (no blank tiles).
+5. Posters appear promptly and look sharp (small 300px art at the ≤296px capped decode); no blank tiles.
 6. An exhausted poster keeps the neutral placeholder — never a broken-image icon.
 7. Scrolling a long page stays smooth (no sustained frames > 16.7 ms warm; no stall > 100 ms), and a
    sideways-scrolled rail returns to its position after scrolling away and back.

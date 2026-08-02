@@ -136,14 +136,17 @@ function requestJsonCached(url, ttlMs, done) {
 function normalizeArtUrl(url) {
     if (!url)
         return "";
-    // Normalize the Metahub host only. Size selection is NO LONGER forced here: the old
-    // `medium/large → small` rewrite blanked the long tail whenever a title lacked a medium
-    // (e.g. tt2431250) by throwing away the sharper file app-wide (Hemanth eyes-on 2026-07-25).
-    // That trade is now handled per-card by PosterSourcePolicy.candidates(), which tries medium
-    // first and falls back to small locally — so one missing medium no longer costs sharpness
-    // everywhere. (Catalogue Poster & Shelf Polish, 2026-08-02.)
+    // Normalize the Metahub host AND force the `small` poster size. small is the ONLY size metahub
+    // reliably serves (medium 404s for many long-tail titles, e.g. tt2431250) and, measured
+    // 2026-08-02, small is 300x450 — already sharp at every catalogue display size once decode is
+    // 2x-capped, while medium (500x750) is 2-3x the bytes for no visible gain and a ~2.1s dead wait
+    // on the missing-medium tail. Forcing small here keeps EVERY cover consumer fast (cards via
+    // PosterSourcePolicy, and the genre mosaic which reads item.cover directly). The polish arc's
+    // brief medium-first experiment was a net load-speed loss and is retired. (Hemanth, 2026-08-02.)
     var out = String(url)
-        .replace("https://images.metahub.space/", "https://live.metahub.space/");
+        .replace("https://images.metahub.space/", "https://live.metahub.space/")
+        .replace("/poster/medium/", "/poster/small/")
+        .replace("/poster/large/", "/poster/small/");
     return out;
 }
 

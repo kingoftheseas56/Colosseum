@@ -19,24 +19,24 @@ Item {
             var small  = "https://images.metahub.space/poster/small/tt1375666/img";
             var medium = "https://images.metahub.space/poster/medium/tt1375666/img";
             var large  = "https://images.metahub.space/poster/large/tt1375666/img";
-            var liveMed = "https://live.metahub.space/poster/medium/tt1375666/img";
             var liveSml = "https://live.metahub.space/poster/small/tt1375666/img";
 
-            // ── small source: still tries medium first, then small (both on live host) ──
+            // ── Metahub posters resolve to the SMALL size on the live host. Measured ground truth
+            //    (2026-08-02): small is 300x450 — already sharp at the ≤296px capped gallery decode —
+            //    while medium (500x750) buys no visible detail there yet costs 2-3x the bytes AND a
+            //    ~2.1s dead wait on the many long-tail titles the source has no medium for. So small
+            //    is the fast, reliable, sufficient choice; there is no slow medium-first probe. ──
             var got = Policy.candidates(small, []);
-            ok(got.length === 2, "Metahub emits medium + small (got " + got.length + ")");
-            ok(got[0] === liveMed, "medium first, got " + got[0]);
-            ok(got[1] === liveSml, "small fallback, got " + got[1]);
+            ok(got.length === 1, "Metahub emits a single small candidate (got " + got.length + ")");
+            ok(got[0] === liveSml, "small on the live host, got " + got[0]);
 
-            // ── large and medium sources collapse to the same medium→small ladder ──
-            ok(Policy.candidates(large, []).join("|") === (liveMed + "|" + liveSml),
-               "large source -> medium then small");
-            ok(Policy.candidates(medium, []).join("|") === (liveMed + "|" + liveSml),
-               "medium source -> medium then small");
+            // ── medium/large sources are normalized DOWN to small (never fetched at their size) ──
+            ok(Policy.candidates(medium, []).join("|") === liveSml, "medium source -> small");
+            ok(Policy.candidates(large, []).join("|") === liveSml, "large source -> small");
 
-            // ── candidate order is stable across calls ──
-            ok(Policy.candidates(small, [])[0] === liveMed && Policy.candidates(large, [])[0] === liveMed,
-               "medium is invariantly the first candidate");
+            // ── candidate is stable across calls ──
+            ok(Policy.candidates(small, [])[0] === liveSml && Policy.candidates(large, [])[0] === liveSml,
+               "small is invariantly the resolved candidate");
 
             // ── foreign (non-Metahub) URLs are byte-for-byte unchanged, single candidate ──
             ok(Policy.candidates("https://covers.example/a.jpg", []).join("|")
@@ -48,10 +48,10 @@ Item {
             ok(foreign.join("|") === "https://covers.example/a.jpg|https://covers.example/b.jpg",
                "explicit foreign candidates append + dedupe, got " + foreign.join("|"));
 
-            // ── duplicate explicit candidates collapse against the generated ladder ──
-            var dup = Policy.candidates(small, [liveSml, liveSml, liveMed]);
-            ok(dup.length === 2 && dup.join("|") === (liveMed + "|" + liveSml),
-               "duplicate explicit candidates collapse, got " + dup.join("|"));
+            // ── duplicate explicit candidates collapse against the resolved small candidate ──
+            var dup = Policy.candidates(small, [liveSml, liveSml, medium]);
+            ok(dup.length === 1 && dup.join("|") === liveSml,
+               "duplicate/normalized explicit candidates collapse to small, got " + dup.join("|"));
 
             // ── empty / null input returns [] (no retry loop over nothing) ──
             ok(Policy.candidates("", []).length === 0, "empty input returns []");
