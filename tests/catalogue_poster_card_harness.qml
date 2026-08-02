@@ -1,13 +1,15 @@
-// Visual-contract proof for the shared CataloguePosterCard (Theatre Deep Catalogue, Task 6).
-// The product-critical rule: the IMDb-derived rating is HIDDEN at rest and revealed ONLY on
-// pointer hover, using Discover's `★ <value>` treatment — keyboard focus must not reveal it.
+// Visual-contract proof for the shared CataloguePosterCard (Catalogue Poster & Shelf Polish, Task 3).
+// Two profiles: `classic` (unchanged for consumers not yet cleared) and `gallery` (the approved
+// Theatre polish). Product-critical invariants held across BOTH: the IMDb rating is HIDDEN at rest,
+// revealed ONLY on pointer hover, and keyboard focus never impersonates hover. Gallery adds a
+// two-line title reserve, a hover source attribution, and NO centered play ring.
 // NEVER throw offscreen: collect fails, print the OK marker only when clean, single Qt.exit.
 import QtQuick
 import "../qml" as UI
 
 Item {
     id: harness
-    width: 400; height: 400
+    width: 500; height: 500
 
     property var fails: []
     function ok(cond, label) { if (!cond) fails.push(label); }
@@ -15,9 +17,19 @@ Item {
     property var sampleItem:  ({ title: "Blade Runner 2049", year: "2017", rating: "8.7", cover: "" })
     property var noRatingItem: ({ title: "Untitled Doc", year: "2020", rating: "", cover: "" })
 
+    // classic subject (default profile) — must stay byte-behaviour identical to today's Discover card.
     UI.CataloguePosterCard {
         id: card
         width: 140; height: 240
+        item: harness.sampleItem
+    }
+
+    // gallery subject — the approved Theatre polish profile; Theatre supplies "IMDb" as the source.
+    UI.CataloguePosterCard {
+        id: galleryCard
+        width: 148; height: 257
+        visualProfile: "gallery"
+        hoverSourceText: "IMDb"
         item: harness.sampleItem
     }
 
@@ -32,41 +44,58 @@ Item {
     Timer {
         interval: 80; running: true; repeat: false
         onTriggered: {
-            // ── rating hidden at rest ──
-            ok(card.ratingVisibleAtRest === false, "rating hidden at rest");
-            ok(card.ratingVisible === false, "rating not visible before hover");
-
-            // ── pointer hover reveals the rating with the ★ treatment ──
+            // ══ classic profile: unchanged rating behaviour ══
+            ok(card.posterWidthToken === 132, "classic poster width token unchanged (132)");
+            ok(card.posterRadiusToken === 8, "classic radius token unchanged (8)");
+            ok(card.titleLineCount === 1, "classic title stays single-line");
+            ok(card.ratingVisibleAtRest === false, "classic: rating hidden at rest");
+            ok(card.ratingVisible === false, "classic: rating not visible before hover");
             card.testHovered = true;
-            ok(card.ratingVisible === true, "rating visible on hover");
-            ok(card.ratingText === "★ 8.7", "rating uses '★ <value>', got '" + card.ratingText + "'");
-            ok(card.ratingVisibleAtRest === false, "ratingVisibleAtRest is invariantly false even while hovered");
-
-            // ── keyboard focus must NOT invent the hover reveal ──
+            ok(card.ratingVisible === true, "classic: rating visible on hover");
+            ok(card.ratingText === "★ 8.7", "classic: rating uses '★ <value>', got '" + card.ratingText + "'");
+            ok(card.centerPlayVisible === true, "classic keeps its centered play ring on hover");
             card.testHovered = false;
             card.keyboardFocused = true;
-            ok(card.ratingVisible === false, "keyboard focus does not reveal the rating");
+            ok(card.ratingVisible === false, "classic: keyboard focus does not reveal the rating");
             card.keyboardFocused = false;
+            card.item = harness.noRatingItem; card.testHovered = true;
+            ok(card.ratingText === "" && card.ratingVisible === false, "classic: absent rating renders no badge");
+            card.testHovered = false; card.item = harness.sampleItem;
+            ok(card.capText === "Blade Runner 2049", "classic: title text preserved");
+            ok(card.item === harness.sampleItem, "classic: card carries the ORIGINAL item object");
 
-            // ── an absent rating renders no empty badge, even on hover ──
-            card.item = harness.noRatingItem;
-            card.testHovered = true;
-            ok(card.ratingText === "" && card.ratingVisible === false, "absent rating renders no badge");
-            card.testHovered = false;
-
-            // ── title stays visible; the card carries the original item object (what activation passes) ──
-            card.item = harness.sampleItem;
-            ok(card.capText === "Blade Runner 2049", "title text preserved");
-            ok(card.item === harness.sampleItem, "card carries the ORIGINAL item object (activation identity)");
-
-            // ── skeleton: no item, nothing revealed, MouseArea disabled (enabled: !skeleton) ──
-            card.item = null;
-            card.skeleton = true;
-            card.testHovered = true;
+            // ── skeleton: no item, nothing revealed, activation disabled ──
+            card.item = null; card.skeleton = true; card.testHovered = true;
             ok(card.item === null, "skeleton card has no item (activation would carry nothing)");
             ok(card.ratingVisible === false, "skeleton never reveals a rating");
             ok(card.capText === "", "skeleton shows no title text");
-            card.skeleton = false; card.testHovered = false;
+            ok(card.centerPlayVisible === false, "skeleton shows no play ring");
+            card.skeleton = false; card.testHovered = false; card.item = harness.sampleItem;
+
+            // ══ gallery profile: approved geometry + restrained metadata ══
+            ok(galleryCard.posterWidthToken === 148, "gallery width token (148)");
+            ok(galleryCard.posterRadiusToken === 12, "gallery radius token (12)");
+            ok(galleryCard.titleLineCount === 2 && galleryCard.titleReserve === 35, "two-line title reserve (35)");
+            ok(!galleryCard.centerPlayVisible, "gallery has no centered play ring");
+            ok(!galleryCard.ratingVisible, "gallery: rating hidden at rest");
+            galleryCard.testHovered = true;
+            ok(galleryCard.ratingVisible && galleryCard.hoverSourceText === "IMDb", "gallery: hover reveals rating + IMDb source");
+            ok(galleryCard.sourceVisible === true, "gallery: source attribution shows on hover");
+            galleryCard.testHovered = false; galleryCard.keyboardFocused = true;
+            ok(!galleryCard.ratingVisible, "gallery: focus does not imitate hover");
+            ok(galleryCard.sourceVisible === false, "gallery: focus does not reveal the source attribution");
+            galleryCard.keyboardFocused = false;
+
+            // ── gallery: a missing rating shows no empty rating, and an absent source shows no label ──
+            galleryCard.item = harness.noRatingItem; galleryCard.testHovered = true;
+            ok(galleryCard.ratingVisible === false, "gallery: absent rating renders nothing");
+            galleryCard.hoverSourceText = "";
+            ok(galleryCard.sourceVisible === false, "gallery: empty source produces no label");
+            galleryCard.hoverSourceText = "IMDb"; galleryCard.testHovered = false; galleryCard.item = harness.sampleItem;
+
+            // ── accessibility: the card exposes a button role and a name equal to its title ──
+            ok(galleryCard.accessibleName === "Blade Runner 2049", "accessible name equals the title");
+            ok(galleryCard.item === harness.sampleItem, "gallery: card carries the ORIGINAL item object");
 
             // ── grid smoke: constructs with a two-item model ──
             ok(grid.count === grid.items.length, "shared grid builds its model, count=" + grid.count);
