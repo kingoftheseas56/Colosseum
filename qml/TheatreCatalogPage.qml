@@ -30,13 +30,41 @@ Column {
     property int generation: 0
     property int prefsRev: 0
 
+    // ── viewport seam for lazy shelf residency (TheatreWorld converts board coords → page-local) ──
+    property real viewportTop: 0
+    property real viewportHeight: 0
+    property string visualProfile: "classic"
+
     signal itemRequested(var item)
     signal genreRequested(string kind, string name)
     signal genreIndexRequested(string kind)
     signal seeAllRequested(var pin)
 
     width: parent ? parent.width : 900
-    spacing: 26
+    // gallery uses the approved 46px shelf-to-shelf rhythm; the lazy host reserves no extra gap so
+    // the effective distance is exactly the page spacing, never host-gap + page-gap.
+    spacing: page.visualProfile === "gallery" ? 46 : 26
+
+    // ── live PosterRail count, for deterministic harness inspection of lazy residency ──
+    property int _liveRev: 0
+    readonly property int liveShelfCount: { page._liveRev; return page._recountLive(); }
+    function _recountLive() {
+        var c = 0;
+        for (var i = 0; i < mainShelfRepeater.count; i++) {
+            var d = mainShelfRepeater.itemAt(i);
+            if (d && d.shelfLoaded) c++;
+        }
+        for (var j = 0; j < extShelfRepeater.count; j++) {
+            var e = extShelfRepeater.itemAt(j);
+            if (e && e.railLoaded) c++;
+        }
+        return c;
+    }
+    // harness introspection: the shelf hosts and the extension-heading / genre-mosaic positions.
+    function mainShelfAt(i) { var d = mainShelfRepeater.itemAt(i); return d ? d.shelfRef : null; }
+    function extShelfAt(i) { return extShelfRepeater.itemAt(i); }
+    readonly property real genreMosaicY: genreMosaic.y
+    readonly property real extensionHeadingY: extHeading.visible ? extHeading.y : -1
 
     Theme { id: theme }
     TheatreRowPreferences { id: internalPrefs }
@@ -139,16 +167,19 @@ Column {
         }
     }
 
-    // ── loading skeleton (only before the first rows land) ──
+    // ── loading skeleton (only before the first rows land) — gallery poster width/gap ──
     Item {
         visible: page.loading && page.mainRows.length === 0
-        width: parent.width; height: 236
+        width: parent.width; height: page.visualProfile === "gallery" ? 267 : 236
         Row {
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; spacing: 18
+            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+            spacing: page.visualProfile === "gallery" ? 20 : 18
             Repeater {
                 model: 7
                 Rectangle {
-                    width: 132; height: 196; radius: 12
+                    width: page.visualProfile === "gallery" ? 148 : 132
+                    height: page.visualProfile === "gallery" ? 222 : 196
+                    radius: 12
                     color: Qt.rgba(1, 1, 1, 0.08); border.width: 1
                     border.color: Qt.rgba(1, 1, 1, 0.10); opacity: 0.65
                 }
@@ -163,7 +194,10 @@ Column {
     }
 
     // ── the main shelves (Top 10 first, service rows in their contextual slots) ──
+    // Row descriptors stay in this Repeater, but the live PosterRail is mounted lazily by
+    // LazyPosterShelf only around the WorldPage viewport, so a long page's live rails plateau.
     Repeater {
+        id: mainShelfRepeater
         model: page.mainRows
         delegate: Column {
             id: rowBlock
@@ -171,6 +205,9 @@ Column {
             required property int index
             width: page.width
             spacing: 8
+            // harness/introspection: expose the lazy host and its live state.
+            readonly property var shelfRef: rowShelf
+            readonly property bool shelfLoaded: rowShelf.railLoaded
 
             TheatreRowControls {
                 visible: page.editMode
@@ -186,45 +223,51 @@ Column {
                 onRenameRequested: (label) => page._prefsStore.rename(page.pageKey, rowBlock.modelData.key, label)
                 onResetNameRequested: page._prefsStore.rename(page.pageKey, rowBlock.modelData.key, "")
             }
-            PosterRail {
+            LazyPosterShelf {
+                id: rowShelf
                 width: page.width
-                title: rowBlock.modelData.title
-                ranked: rowBlock.modelData.ranked === true
-                items: rowBlock.modelData.items !== undefined ? rowBlock.modelData.items : []
-                sourceKind: rowBlock.modelData.sourceKind !== undefined ? rowBlock.modelData.sourceKind : "house"
-                sourceLabel: rowBlock.modelData.sourceLabel !== undefined ? rowBlock.modelData.sourceLabel : ""
-                seeAllPin: rowBlock.modelData.seeAllPin !== undefined ? rowBlock.modelData.seeAllPin : null
-                opacity: (rowBlock.modelData.hidden === true) ? 0.5 : 1   // hidden rows dim in edit mode
+                row: rowBlock.modelData
+                visualProfile: page.visualProfile
+                // rowBlock.y is page-local; the shelf's own y is rowBlock-local, so pass the viewport
+                // in rowBlock-local coordinates. (No per-frame mapToItem — a single subtraction.)
+                viewportTop: page.viewportTop - rowBlock.y
+                viewportHeight: page.viewportHeight
+                editMode: page.editMode
                 onItemRequested: (item) => page.itemRequested(item)
                 onSeeAllRequested: (pin) => page.seeAllRequested(pin)
+                onRailLoadedChanged: page._liveRev += 1
             }
         }
     }
 
     // ── From Your Extensions (before the genre mosaic; hidden when empty) ──
     Text {
+        id: extHeading
         visible: page.hasExtensionSection
         text: "From Your Extensions"
         color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
     }
     Repeater {
+        id: extShelfRepeater
         model: page.extensionRows
-        delegate: PosterRail {
+        delegate: LazyPosterShelf {
             required property var modelData
             width: page.width
-            title: modelData.title
-            ranked: false
-            items: modelData.items !== undefined ? modelData.items : []
-            sourceKind: modelData.sourceKind !== undefined ? modelData.sourceKind : "extension"
-            sourceLabel: modelData.sourceLabel !== undefined ? modelData.sourceLabel : ""
-            seeAllPin: modelData.seeAllPin !== undefined ? modelData.seeAllPin : null
+            row: modelData
+            visualProfile: page.visualProfile
+            // the extension shelf is a direct child of this Column, so its y is already page-local.
+            viewportTop: page.viewportTop
+            viewportHeight: page.viewportHeight
+            editMode: page.editMode
             onItemRequested: (item) => page.itemRequested(item)
             onSeeAllRequested: (pin) => page.seeAllRequested(pin)
+            onRailLoadedChanged: page._liveRev += 1
         }
     }
 
     // ── genres last ──
     GenreMosaic {
+        id: genreMosaic
         width: parent.width
         title: page.genreBoxTitle
         genres: page.genreTiles

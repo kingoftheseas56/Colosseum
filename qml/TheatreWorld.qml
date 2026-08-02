@@ -219,12 +219,18 @@ WorldPage {
     }
 
     TheatreCatalogPage {
+        id: theatreCatalog
         visible: theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime"
         height: visible ? implicitHeight : 0
         pageKey: (theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime")
                  ? theatre.activeTab : "movies"
         contentPreferences: theatre.contentPreferences
         malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+        // Theatre is the gallery pilot; the viewport (converted from board coords to this page's
+        // local frame) drives lazy shelf residency. WorldPage stays the only vertical scroller.
+        visualProfile: "gallery"
+        viewportTop: Math.max(0, theatre.viewportContentY - y)
+        viewportHeight: theatre.viewportHeight
         onItemRequested: (item) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
