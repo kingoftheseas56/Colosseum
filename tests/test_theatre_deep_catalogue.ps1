@@ -41,6 +41,9 @@ function Stage-RoundedPoster {
     if ($src -match "shadowEnabled\s*:\s*true") { throw "RoundedPosterImage must not enable MultiEffect shadow" }
     Write-Host "ROUNDED_POSTER_RENDER_CHAIN_OK"
 }
+function Stage-GalleryRail {
+    Invoke-Harness "tests\poster_rail_gallery_harness.qml" "POSTER_RAIL_GALLERY_OK"
+}
 function Stage-Rules {
     Invoke-Harness "tests\theatre_catalog_rules_harness.qml" "THEATRE_CATALOG_RULES_OK"
 }
@@ -70,11 +73,12 @@ function Stage-DiscoverRegression {
 
 # Additional stages (Cards, SeeAll, Preferences, Page) are wired by their owning tasks.
 # -Stage All composes every wired slice.
-$wired = @("PosterPolicy", "RoundedPoster", "Rules", "ApiRows", "Cards", "SeeAll", "Preferences", "Page", "DiscoverRegression")
+$wired = @("PosterPolicy", "RoundedPoster", "Cards", "GalleryRail", "Rules", "ApiRows", "SeeAll", "Preferences", "Page", "DiscoverRegression")
 
 switch ($Stage) {
     "PosterPolicy"       { Stage-PosterPolicy }
     "RoundedPoster"      { Stage-RoundedPoster }
+    "GalleryRail"        { Stage-GalleryRail }
     "Rules"              { Stage-Rules }
     "ApiRows"            { Stage-ApiRows }
     "Cards"              { Stage-Cards }
@@ -85,6 +89,7 @@ switch ($Stage) {
     "All" {
         Stage-PosterPolicy
         Stage-RoundedPoster
+        Stage-GalleryRail
         Stage-Rules
         Stage-ApiRows
         Stage-Cards
