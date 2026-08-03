@@ -15,6 +15,28 @@
 > [!IMPORTANT]
 > Colosseum is a fast-moving development build. Windows 10/11 with Qt 6.11.1 and MSVC 2022 is the currently tested path. It is not yet a polished, portable, one-command release.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home.svg" alt="Colosseum home screen" width="100%" /><br /><sub>Home</sub></td>
+    <td align="center"><img src="docs/screenshots/tankoban.svg" alt="Tankoban world" width="100%" /><br /><sub>Tankoban</sub></td>
+    <td align="center"><img src="docs/screenshots/biblio.svg" alt="Biblio world" width="100%" /><br /><sub>Biblio</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/theatre.svg" alt="Theatre discover screen" width="100%" /><br /><sub>Theatre</sub></td>
+    <td align="center"><img src="docs/screenshots/catalogues.svg" alt="Theatre movie catalogues" width="100%" /><br /><sub>Movie catalogues</sub></td>
+    <td align="center"><img src="docs/screenshots/player.svg" alt="Colosseum native player" width="100%" /><br /><sub>Native player</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/extensions.svg" alt="Colosseum extensions store" width="100%" /><br /><sub>Extensions</sub></td>
+    <td align="center"><img src="docs/screenshots/downloads.svg" alt="Colosseum downloads vault" width="100%" /><br /><sub>Downloads</sub></td>
+    <td align="center"><img src="docs/screenshots/wallpapers.svg" alt="Colosseum wallpaper picker" width="100%" /><br /><sub>Wallpapers</sub></td>
+  </tr>
+</table>
+
+> Screenshots are captured from an active development build. Experimental or archived surfaces may differ from current `master`.
+
 ## What Colosseum is
 
 Colosseum is a fullscreen-first desktop shell built around three connected worlds:
