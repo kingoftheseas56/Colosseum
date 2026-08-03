@@ -1177,3 +1177,19 @@ add_executable(hosted_player_bridge_harness
 )
 target_include_directories(hosted_player_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(hosted_player_bridge_harness PRIVATE Qt6::Core)
+
+# ── BiblioCatalog Discover/Explore foundation (plan 2026-08-03, Task 1): the
+#    controlled taxonomy/facet mapper (spec 6.3 / 4.3) and the deterministic,
+#    pure ranking functions (spec 7) in isolation. No providers, no SQLite, no
+#    QML — value types + mapping tables + pure functions only, so the harness is
+#    a reliable RED/GREEN oracle. Pure Qt6::Core (QString/QStringList/QDateTime). ──
+add_executable(biblio_catalog_logic_harness
+    ../tests/biblio_catalog_logic_harness.cpp
+    engine/BiblioCatalogTypes.h
+    engine/BiblioTaxonomy.cpp
+    engine/BiblioTaxonomy.h
+    engine/BiblioRanking.cpp
+    engine/BiblioRanking.h
+)
+target_include_directories(biblio_catalog_logic_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(biblio_catalog_logic_harness PRIVATE Qt6::Core)
