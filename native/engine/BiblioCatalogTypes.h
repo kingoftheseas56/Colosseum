@@ -36,9 +36,11 @@ struct BiblioEdition {
 struct BiblioWork {
     QString canonicalId;              // stable canonical work id
     QString title;
+    QString author;                   // representative primary author (for the card's author-at-rest)
     QString originalLanguage;         // language the work was first written in
     QDate   canonicalFirstPublished;  // earliest reliable first-publication date (NEVER a reprint)
     QString publisher;                // canonical / representative publisher (raw; normalized via taxonomy)
+    QString coverUrl;                 // representative cover art (Apple-owned; Open Library fallback)
     BiblioRatingEvidence rating;
 
     // Popularity evidence. Each is a raw signal; the ranker normalizes it against

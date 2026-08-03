@@ -9,10 +9,14 @@
 #include "engine/BiblioCatalogTypes.h"
 #include "engine/BiblioTaxonomy.h"
 #include "engine/BiblioRanking.h"
+#include "engine/BiblioProviders.h"
+#include "engine/BiblioCanonicalizer.h"
 
+#include <QByteArray>
 #include <QCoreApplication>
 #include <QDate>
 #include <QDateTime>
+#include <QFile>
 #include <QStringList>
 #include <QTime>
 #include <QTimeZone>
@@ -78,6 +82,64 @@ BiblioRankSnapshot snap(const QString &id, const QDateTime &at, double demand)
     s.capturedAt = at;
     s.demandScore = demand;
     return s;
+}
+
+// ── Task 2 helpers ─────────────────────────────────────────────────────────
+
+// Read a Task-2 provider fixture as raw bytes. BIBLIO_FIXTURES_DIR is injected by
+// CMake so the harness finds the file regardless of the working directory.
+QByteArray fixture(const QString &name)
+{
+    const QString path = QStringLiteral(BIBLIO_FIXTURES_DIR) + QLatin1Char('/') + name;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        std::cerr << "FAIL: cannot open fixture " << path.toStdString() << '\n';
+        std::exit(1);
+    }
+    return f.readAll();
+}
+
+const BiblioCanonicalWork *findById(const QList<BiblioCanonicalWork> &works, const QString &id)
+{
+    for (const BiblioCanonicalWork &cw : works)
+        if (cw.work.canonicalId == id)
+            return &cw;
+    return nullptr;
+}
+
+// Read a canonical work by its canonical id and hand back the BiblioWork so the
+// `.editions` / `.originalLanguage` assertions read cleanly (the plan's
+// `find(works, "<label>")`).
+const BiblioWork &find(const QList<BiblioCanonicalWork> &works, const QString &id)
+{
+    const BiblioCanonicalWork *cw = findById(works, id);
+    require(cw != nullptr, "expected a canonical work with the given id");
+    return cw->work;
+}
+
+QStringList editionFormats(const BiblioWork &w)
+{
+    QStringList f;
+    for (const BiblioEdition &e : w.editions)
+        f << e.format;
+    f.sort();
+    return f;
+}
+
+bool hasEdition(const BiblioWork &w, const QString &format, const QString &language)
+{
+    for (const BiblioEdition &e : w.editions)
+        if (e.format == format && e.language == language)
+            return true;
+    return false;
+}
+
+QString provSource(const BiblioCanonicalWork &cw, const QString &field)
+{
+    for (const BiblioFieldSource &fs : cw.fieldSources)
+        if (fs.field == field)
+            return fs.source;
+    return QString();
 }
 
 } // namespace
@@ -339,6 +401,162 @@ int main(int argc, char **argv)
         };
         require(BiblioRanking::rank("trending", works, flat, now).isEmpty(),
                 "a work with flat momentum is not Trending");
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Task 2 — provider parsing (spec 6.1) and canonical work identity (spec 6.2)
+    // ════════════════════════════════════════════════════════════════════════
+    {
+        const QDateTime observed = utc(2026, 7, 30);
+
+        // ── Apple RSS: array form, chart score, artwork, defensive gaps ──
+        const QList<BiblioSourceRecord> rss =
+            BiblioProviders::parseAppleRss(fixture("apple-rss.json"), observed);
+        require(rss.size() == 2, "Apple RSS array form yields one record per entry");
+        require(rss.first().source == "apple", "Apple RSS records are sourced to apple");
+        require(rss.first().title == "Shared ISBN Trio", "Apple RSS reads im:name as the title");
+        require(rss.first().author == "Nora Vance", "Apple RSS reads im:artist as the author");
+        require(rss.first().format == "ebook", "top-ebooks RSS entries are ebook-format");
+        require(!rss.first().artworkUrl.isEmpty(), "Apple RSS keeps the artwork url");
+        require(rss.first().appleChartScore > rss.at(1).appleChartScore, "chart rank 1 outscores rank 2");
+        require(rss.at(1).appleChartScore > 0.0, "every charting entry carries a positive chart score");
+        require(rss.at(1).artworkUrl.isEmpty(), "a chart entry with no im:image parses with empty artwork");
+        require(rss.first().observedAt == observed, "Apple RSS stamps the observedAt it was given");
+
+        // ── Apple RSS singleton form: feed.entry is a single object, not an array ──
+        const QByteArray singleton =
+            QByteArrayLiteral("{\"feed\":{\"entry\":{\"im:name\":{\"label\":\"Solo Chart Book\"},"
+                              "\"im:artist\":{\"label\":\"One Author\"},"
+                              "\"id\":{\"attributes\":{\"im:id\":\"42\"}}}}}");
+        require(BiblioProviders::parseAppleRss(singleton).size() == 1,
+                "Apple RSS singleton entry object parses as one record");
+
+        // ── Defensive: empty / garbage bytes never crash and yield nothing ──
+        require(BiblioProviders::parseAppleRss(QByteArray()).isEmpty(), "empty RSS bytes yield no records");
+        require(BiblioProviders::parseAppleRss("not json{").isEmpty(), "garbage RSS bytes yield no records");
+
+        // ── Apple Search: rating, HTML strip, audiobook form, skips junk ──
+        const QList<BiblioSourceRecord> search =
+            BiblioProviders::parseAppleSearch(fixture("apple-search.json"), observed);
+        require(search.size() == 4, "the malformed (title-less) Apple result is skipped");
+        const BiblioSourceRecord *ebook1 = nullptr, *audio1 = nullptr, *frost = nullptr;
+        for (const BiblioSourceRecord &r : search) {
+            if (r.title == "Shared ISBN Trio" && r.format == "ebook") ebook1 = &r;
+            if (r.title.startsWith("Shared ISBN Trio") && r.format == "audiobook") audio1 = &r;
+            if (r.author == "Julian Frost") frost = &r;
+        }
+        require(ebook1 && ebook1->hasRating, "an Apple search ebook carries a storefront rating");
+        require(qFuzzyCompare(ebook1->rating.average, 4.5) && ebook1->rating.count == 1200,
+                "the rating value and count are preserved");
+        require(!ebook1->description.contains('<') && !ebook1->description.contains('>'),
+                "HTML tags are stripped from the description");
+        require(ebook1->description.contains('&') && !ebook1->description.contains("&amp;"),
+                "HTML entities are decoded (a bare & not &amp;)");
+        require(audio1 && audio1->format == "audiobook", "an audiobook wrapper becomes an audiobook-format record");
+        require(frost && !frost->hasRating, "a result with no rating fields is defensively rating-less");
+        require(BiblioProviders::parseAppleSearch(QByteArray()).isEmpty(), "empty search bytes yield no records");
+
+        // ── Open Library: work key, ISBNs, first-publish, pages, language ──
+        const QList<BiblioSourceRecord> ol =
+            BiblioProviders::parseOpenLibrarySearch(fixture("openlibrary-search.json"), observed);
+        require(ol.size() == 6, "one Open Library record per search doc");
+        const BiblioSourceRecord *olPrint = nullptr, *olFrench = nullptr;
+        for (const BiblioSourceRecord &r : ol) {
+            if (r.workKey == "/works/OL1001W") olPrint = &r;
+            if (r.workKey == "/works/OL2002W" && r.language == "fr") olFrench = &r;
+        }
+        require(olPrint, "the Open Library work key is parsed");
+        require(olPrint->source == "openlibrary", "Open Library records are sourced to openlibrary");
+        require(olPrint->isbns.contains("9780000000101"), "Open Library ISBNs are parsed");
+        require(olPrint->firstPublishYear == 2019, "Open Library first_publish_year is parsed");
+        require(olPrint->pageCount == 352, "Open Library median page count is parsed");
+        require(olPrint->language == "en", "Open Library 'eng' is normalized to 'en'");
+        require(olPrint->format == "print", "Open Library records default to print editions");
+        require(olPrint->englishReadable, "an English Open Library edition is English-readable");
+        require(olPrint->openLibraryPopularity > 0.0, "readinglog_count becomes an Open Library popularity signal");
+        require(olFrench && olFrench->language == "fr", "Open Library 'fre' is normalized to 'fr'");
+        require(olFrench->description.indexOf('<') < 0, "HTML is stripped from an object-form OL description");
+        require(BiblioProviders::parseOpenLibrarySearch("garbage").isEmpty(), "garbage OL bytes yield no records");
+
+        // ── Keyless URL builders: right endpoints, encoded terms, never a key ──
+        const QString rssUrl = BiblioProviders::appleTopEbooksRssUrl("us", 100, 0).toString();
+        require(rssUrl.contains("itunes.apple.com") && rssUrl.contains("topebooks"),
+                "the Apple RSS url targets the top-ebooks feed");
+        const QString genreUrl = BiblioProviders::appleTopEbooksRssUrl("us", 50, 9031).toString();
+        require(genreUrl.contains("genre=9031"), "a genre id selects the genre chart");
+        const QString searchUrl = BiblioProviders::appleSearchUrl("dune & sand", "ebook").toString(QUrl::FullyEncoded);
+        require(searchUrl.contains("itunes.apple.com/search") && searchUrl.contains("media=ebook"),
+                "the Apple search url is a keyless media=ebook query");
+        require(!searchUrl.contains(' '), "the Apple search term is URL-encoded");
+        const QString olUrl = BiblioProviders::openLibrarySearchUrl("song of the deep", "camille rousseau").toString();
+        require(olUrl.contains("openlibrary.org/search.json"), "the Open Library url targets search.json");
+        require(!rssUrl.contains("key") && !searchUrl.contains("key") && !olUrl.contains("key")
+                    && !searchUrl.contains("token"),
+                "no provider url carries an api key or token");
+
+        // ── Canonicalization (spec 6.2): merge every record into canonical works ──
+        QList<BiblioSourceRecord> records;
+        records += rss;
+        records += search;
+        records += ol;
+        const QList<BiblioCanonicalWork> works = BiblioCanonicalizer::merge(records);
+
+        require(works.size() == 4, "ordinary formats merge without title-only collisions");
+        require(BiblioCanonicalizer::merge({}).isEmpty(), "merging nothing yields nothing");
+
+        // Work 1 — a shared ISBN across sources nests ebook + print + audio as one work.
+        const BiblioWork &sharedIsbn = find(works, "ol1001w");
+        require(sharedIsbn.editions.size() == 3, "ebook, print, and audio nest");
+        require(editionFormats(sharedIsbn) == (QStringList{"audiobook", "ebook", "print"}),
+                "the three nested editions are audiobook, ebook and print");
+        require(sharedIsbn.title == "Shared ISBN Trio", "canonical title from the representative English edition");
+        require(sharedIsbn.author == "Nora Vance", "the card carries the representative primary author (author-at-rest)");
+        require(!sharedIsbn.coverUrl.isEmpty(), "the card carries cover art");
+        require(sharedIsbn.canonicalFirstPublished == QDate(2019, 1, 1),
+                "first-publication is Open Library's, not Apple's later release date");
+        require(qFuzzyCompare(sharedIsbn.rating.average, 4.5) && sharedIsbn.rating.count == 1200,
+                "Apple owns the storefront rating on the merged work");
+        require(sharedIsbn.appleChartScore > 0.0, "Apple owns the chart score on the merged work");
+        require(sharedIsbn.openLibraryPopularity > 0.0, "Open Library owns the popularity signal on the merged work");
+        require(sharedIsbn.originalLanguage == "en", "an English-native work has original language en");
+
+        // Provenance: each field remembers who set it (spec 6.1 ownership).
+        const BiblioCanonicalWork *sharedCw = findById(works, "ol1001w");
+        require(provSource(*sharedCw, "rating") == "apple", "rating provenance is Apple");
+        require(provSource(*sharedCw, "appleChartScore") == "apple", "chart provenance is Apple");
+        require(provSource(*sharedCw, "firstPublished") == "openlibrary", "first-publish provenance is Open Library");
+        require(provSource(*sharedCw, "title") == "openlibrary", "identity/title provenance is Open Library");
+        require(provSource(*sharedCw, "coverUrl") == "apple", "cover art provenance is Apple (Apple owns artwork)");
+        require(provSource(*sharedCw, "openLibraryPopularity") == "openlibrary", "popularity provenance is Open Library");
+        for (const BiblioFieldSource &fs : sharedCw->fieldSources)
+            require(fs.observedAt.isValid() && !fs.sourceId.isEmpty(),
+                    "every field source keeps observedAt + sourceId");
+
+        // Work 2 — a French original with an English edition keeps translation lineage.
+        const BiblioWork &translated = find(works, "ol2002w");
+        require(translated.originalLanguage == "fr", "translation lineage retained");
+        require(translated.editions.size() == 2, "the French original and the English edition both nest");
+        require(hasEdition(translated, "print", "en"), "an English-readable edition is present");
+        require(translated.canonicalFirstPublished == QDate(2015, 1, 1),
+                "first-publish is the earliest (French) edition");
+        require(translated.title == "Song of the Deep", "the canonical title is the English edition's");
+        require(BiblioTaxonomy::languageKey(translated.originalLanguage, true) == "translated",
+                "the taxonomy classifies the retained lineage as translated");
+
+        // Works 3 & 4 — same title, different authors: never merged on title alone.
+        const BiblioWork &holt = find(works, "ol3003w");
+        const BiblioWork &frostWork = find(works, "ol4004w");
+        require(holt.canonicalId != frostWork.canonicalId, "same title by different authors stays two works");
+        require(holt.title == "Echoes of the Deep" && frostWork.title == "Echoes of the Deep",
+                "both collision works keep the shared title");
+        require(holt.editions.size() == 2, "two ordinary formats of one work nest as ebook + print");
+        require(editionFormats(holt) == (QStringList{"ebook", "print"}), "the ordinary formats are ebook and print");
+        require(holt.appleChartScore > frostWork.appleChartScore,
+                "the charting collision work carries the Apple chart score");
+
+        // Publisher stays raw on the work; the taxonomy folds the imprint on demand.
+        require(BiblioTaxonomy::normalize("publisher", holt.publisher) == "penguin-random-house",
+                "the raw Vintage imprint folds under Penguin Random House via the taxonomy");
     }
 
     std::cout << "BIBLIO_CATALOG_LOGIC_OK\n";

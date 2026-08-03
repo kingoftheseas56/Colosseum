@@ -1190,6 +1190,15 @@ add_executable(biblio_catalog_logic_harness
     engine/BiblioTaxonomy.h
     engine/BiblioRanking.cpp
     engine/BiblioRanking.h
+    # Task 2: keyless Apple/Open Library parsing + canonical work identity.
+    engine/BiblioProviders.cpp
+    engine/BiblioProviders.h
+    engine/BiblioCanonicalizer.cpp
+    engine/BiblioCanonicalizer.h
 )
 target_include_directories(biblio_catalog_logic_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# Task 2 fixtures (Apple RSS/Search + Open Library) are read at runtime via this
+# baked-in absolute path (house pattern: TANKOBAN_FIXTURES_DIR).
+target_compile_definitions(biblio_catalog_logic_harness PRIVATE
+    BIBLIO_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/biblio")
 target_link_libraries(biblio_catalog_logic_harness PRIVATE Qt6::Core)
