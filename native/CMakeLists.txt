@@ -1202,3 +1202,21 @@ target_include_directories(biblio_catalog_logic_harness PRIVATE ${CMAKE_CURRENT_
 target_compile_definitions(biblio_catalog_logic_harness PRIVATE
     BIBLIO_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/biblio")
 target_link_libraries(biblio_catalog_logic_harness PRIVATE Qt6::Core)
+
+# ── BiblioCatalog Discover/Explore (plan 2026-08-03, Task 3): the SQLite
+#    snapshot store (spec 8). Atomic publication of daily catalogue snapshots
+#    (works/editions/sources/facets/rankings + eight-day ranking history),
+#    transactional validation with atomic active-snapshot-ID swap, stable paged
+#    reads, exact facet filtering, explicit gating, and seven-day retention
+#    pruning. Pure Qt6::Core + Qt6::Sql; the harness opens a fresh temp DB per
+#    test so no real app database is ever clobbered. Runs from build-msvc so the
+#    bundled qsqlite.dll resolves at runtime. ──
+add_executable(biblio_catalog_store_harness
+    ../tests/biblio_catalog_store_harness.cpp
+    engine/BiblioCatalogStore.cpp
+    engine/BiblioCatalogStore.h
+    engine/BiblioCatalogTypes.h
+    engine/BiblioTaxonomy.cpp
+    engine/BiblioTaxonomy.h)
+target_include_directories(biblio_catalog_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(biblio_catalog_store_harness PRIVATE Qt6::Core Qt6::Sql)
