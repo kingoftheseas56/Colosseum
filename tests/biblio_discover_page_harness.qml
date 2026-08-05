@@ -116,6 +116,9 @@ Item {
         // ── shell hooks: the Biblio wrapper opts into author-at-rest and reveal-on-focus ──
         eq(shell.showAuthorAtRest, true, "shell: showAuthorAtRest wired true by the Biblio wrapper")
         eq(shell.showSourceOnReveal, true, "shell: showSourceOnReveal wired true by the Biblio wrapper")
+        // 2026-08-06 shelf-quality pass: Biblio pins cards to the gallery token (book covers are
+        // small-source art; stretching to fill residual width is what makes them read blurry).
+        eq(shell.fixedGalleryWidth, true, "shell: fixedGalleryWidth wired true by the Biblio wrapper")
 
         // ── CataloguePosterCard proof: author always on, rating/source only on hover OR focus ──
         restCard.item = { title: "Book One", author: "Author A", rating: 4.5 }

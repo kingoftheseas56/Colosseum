@@ -90,6 +90,10 @@ Item {
         // keyboard focus").
         showAuthorAtRest: true
         showSourceOnReveal: true
+        // Pin cards to the approved 148px gallery token instead of stretching to fill residual
+        // column width — book covers are small-source art, so overstretching them is what turns
+        // an ordinary cover blurry (2026-08-06 shelf-quality pass).
+        fixedGalleryWidth: true
         // the back affordance shows only when this page actually has somewhere to return to.
         showBackAction: root._returnArmed
         // Biblio copy — the wall's empty-state wording.

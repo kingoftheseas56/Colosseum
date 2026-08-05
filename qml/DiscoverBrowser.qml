@@ -47,6 +47,15 @@ Item {
     property bool showSourceOnReveal: false   // render item.source in the reveal, on hover OR keyboard focus
     property bool showBackAction: false       // render a back affordance in the masthead
     signal backRequested()                    // "user wants to go back" — the shell never acts on this itself
+    // Pin the gallery delegate to EXACTLY _galleryMetrics.posterWidth instead of stretching to fill
+    // residual column width (the bug behind Biblio's oversized/blurry cards, 2026-08-06). OFF by
+    // default: Theatre/Tankoban keep today's fill-to-width gallery layout unless they opt in too.
+    // No effect outside the gallery profile (classic is untouched either way).
+    property bool fixedGalleryWidth: false
+    // Test-only introspection: the actual rendered delegate box, so an offscreen harness can prove
+    // the geometry contract without a screenshot or a live pointer. Production code never reads these.
+    readonly property int _galleryDelegateWidthForTest: wall ? wall.cellWidth - 14 : 0
+    readonly property int _galleryColumnCountForTest: wall ? wall.columnCount : 0
 
     // ── generic browsing state ──
     property string currentType: ""
@@ -625,9 +634,20 @@ Item {
 
         GridView {
             id: wall
+            anchors.top: parent.top; anchors.bottom: parent.bottom
+            // Always left+right anchored (never swapped for horizontalCenter — mixing anchor
+            // TYPES on a toggle is a real Qt anchor conflict, confirmed at runtime, not just a
+            // style choice). Default: zero margins, fills the host's full width exactly as
+            // before (cellWidth stretches to consume any residual — the source of Biblio's
+            // oversized/blurry cards). fixedGalleryWidth (gallery profile only): symmetric
+            // margins eat the residual instead, so cellWidth can land on the exact token and
+            // the grid is centered rather than left-packed.
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.top: parent.top; anchors.bottom: parent.bottom
+            anchors.leftMargin: (browser.fixedGalleryWidth && browser._galleryPosters)
+                ? Math.max(0, Math.floor((parent.width - columnCount * cellWidth) / 2)) : 0
+            anchors.rightMargin: (browser.fixedGalleryWidth && browser._galleryPosters)
+                ? Math.max(0, Math.ceil((parent.width - columnCount * cellWidth) / 2)) : 0
             clip: true
             interactive: true
             boundsBehavior: Flickable.StopAtBounds
@@ -635,9 +655,16 @@ Item {
             keyNavigationEnabled: true
             // Classic keeps its exact prior tuning (~132px tiles, matching the Top-list rails);
             // gallery derives its stride/height from the gallery tokens (wider tiles + two-line title).
-            readonly property int columnCount: Math.max(3, Math.floor(width / (browser._galleryPosters
+            // columnCount/cellWidth read the HOST's width (parent, not wall's own width) so they
+            // stay well-defined when wall.width above is itself derived from columnCount*cellWidth.
+            readonly property int columnCount: Math.max(3, Math.floor(parent.width / (browser._galleryPosters
                 ? (browser._galleryMetrics.posterWidth + browser._galleryMetrics.cardGap) : 146)))
-            cellWidth: Math.floor(width / columnCount)
+            cellWidth: (browser.fixedGalleryWidth && browser._galleryPosters)
+                // "-14" below is the existing, unchanged delegate-inset convention (see the
+                // delegate's width binding) — adding it back here is what makes the delegate land
+                // on EXACTLY posterWidth, not floor(width/columnCount)'s residual-inflated value.
+                ? (browser._galleryMetrics.posterWidth + 14)
+                : Math.floor(parent.width / columnCount)
             cellHeight: browser._galleryPosters
                 ? (Math.floor((cellWidth - 14) * browser._galleryMetrics.posterRatio)
                    + 10 + browser._galleryMetrics.titleMinHeight + 14 + 6)

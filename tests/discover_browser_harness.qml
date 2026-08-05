@@ -123,6 +123,9 @@ Item {
     UI.DiscoverBrowser { id: browser4; width: 1200; height: 700; adapter: exhaustFake;  fallbackType: "a" }
     UI.DiscoverBrowser { id: browser5; width: 1200; height: 700; adapter: reloadFake;   fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser6; width: 1200; height: 700; adapter: extRemoveFake; fallbackType: "book" }
+    // wide gallery-profile instance for the fixedGalleryWidth geometry proof (2026-08-06) —
+    // 1920 is wide enough that the default (stretch-to-fill) behavior visibly exceeds the token.
+    UI.DiscoverBrowser { id: browser7; width: 1920; height: 700; adapter: fake; fallbackType: "manga"; posterVisualProfile: "gallery" }
 
     // item-activation observer (assertion: fires ONCE, with the normalized item)
     property int openCount: 0
@@ -299,6 +302,33 @@ Item {
             ok(browser6.items.length === 0,
                "extension removal: the fetchGen fence rejects the stale extension reply, no stale item leaks in, got "
                + JSON.stringify(browser6.items));
+
+            // ── fixedGalleryWidth (2026-08-06): pin the gallery delegate to EXACTLY the approved
+            //    posterWidth token instead of stretching it to consume residual column width — the
+            //    root cause behind Biblio's oversized/blurry cards. Off by default (Theatre/Tankoban
+            //    unaffected); a wrapper opts in per-world, mirroring showAuthorAtRest etc. ──
+            ok(browser7.fixedGalleryWidth === false, "fixedGalleryWidth defaults off");
+            ok(browser7._galleryDelegateWidthForTest !== 148,
+               "default (off) still stretches past the 148px token at a wide width, got "
+               + browser7._galleryDelegateWidthForTest);
+            browser7.fixedGalleryWidth = true;
+            ok(browser7._galleryDelegateWidthForTest === 148,
+               "fixedGalleryWidth pins the delegate to EXACTLY the posterWidth token, got "
+               + browser7._galleryDelegateWidthForTest);
+            // residual width becomes centered outer margin, not lost and not extra columns:
+            // columnCount must be identical on vs off (same host width feeds both formulas).
+            browser7.fixedGalleryWidth = false;
+            var colsOff = browser7._galleryColumnCountForTest;
+            browser7.fixedGalleryWidth = true;
+            ok(colsOff === browser7._galleryColumnCountForTest,
+               "fixedGalleryWidth changes card width, not column count: " + colsOff + " vs " + browser7._galleryColumnCountForTest);
+            // the classic profile must be entirely untouched by this flag, at any setting.
+            browser7.posterVisualProfile = "classic";
+            var classicOn = browser7._galleryDelegateWidthForTest;
+            browser7.fixedGalleryWidth = false;
+            ok(classicOn === browser7._galleryDelegateWidthForTest,
+               "fixedGalleryWidth has zero effect on the classic profile: " + classicOn + " vs " + browser7._galleryDelegateWidthForTest);
+            browser7.posterVisualProfile = "gallery";   // restore
 
             if (fails.length) console.log("DISCOVER_BROWSER FAILS:\n  " + fails.join("\n  "));
             else console.log("DISCOVER_BROWSER_OK");
