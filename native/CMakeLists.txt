@@ -800,6 +800,15 @@ add_executable(cbz_archive_harness
 target_include_directories(cbz_archive_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(cbz_archive_harness PRIVATE Qt6::Core)
 
+add_executable(cbz_archive_probe_harness
+    ../tests/cbz_archive_probe_harness.cpp
+    engine/CbzArchive.cpp
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
+)
+target_include_directories(cbz_archive_probe_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(cbz_archive_probe_harness PRIVATE Qt6::Core)
+
 add_executable(manga_volume_packer_harness
     ../tests/manga_volume_packer_harness.cpp
     engine/CbzArchive.cpp
