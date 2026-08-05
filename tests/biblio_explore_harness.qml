@@ -8,6 +8,7 @@ import QtQuick
 import QtCore
 import "../qml" as UI
 import "../qml/BiblioExploreRules.js" as Rules
+import "../qml/BiblioDiscoverApi.js" as BiblioDiscoverApi
 
 Item {
     id: harness
@@ -153,7 +154,8 @@ Item {
             top10Items: [harness.bookRow("top1", "Top10 One", "Author X", "x1.png", 4.9)],
             mosaicByFacet: harness.mosaicFixture
         });
-        var ext = harness.makeFakeExtensionsSource(harness.oneBookExtension("libgen", "LibGen Mirror"));
+        var extList = harness.oneBookExtension("libgen", "LibGen Mirror");
+        var ext = harness.makeFakeExtensionsSource(extList);
         var extMetas = [{ id: "e1", title: "Ext Book One", author: "Ext Author", cover: "e1.png", imdbRating: "4.2" }];
 
         var page1 = pageComp.createObject(harness, {
@@ -182,6 +184,19 @@ Item {
             harness.ok(extPin.type === "book" && extPin.sourceKind === "extension" && !!extPin.extensionId
                        && !!extPin.transportUrl && extPin.extCatalogId === "popular" && extPin.addonName === "LibGen Mirror",
                        "the extension row's See-All pin carries its extension identity, got " + JSON.stringify(extPin));
+
+            // Regression (independent review, 2026-08-05): the pin's catalogId must be the SAME
+            // composite key (transportUrl+"|book|"+catalogId) BiblioDiscoverApi.resolvePin()
+            // matches a pin against. Round-trip the REAL extPin through the REAL resolvePin() —
+            // exactly what happens when a user taps See All and lands on the Discover page — and
+            // prove it resolves to the extension's OWN catalogue key, never falling back to the
+            // "popular" built-in the old empty catalogId silently triggered.
+            var resolvedExtPin = BiblioDiscoverApi.resolvePin(extPin,
+                { extensions: extList, biblioCatalog: null, showExplicit: false });
+            harness.ok(resolvedExtPin.missing === false && resolvedExtPin.catalogKey === extPin.catalogId
+                       && resolvedExtPin.catalogKey !== "popular" && resolvedExtPin.catalogKey.indexOf("|book|") !== -1,
+                       "the extension row's See-All pin resolves through the REAL BiblioDiscoverApi.resolvePin() "
+                       + "to its own extension catalogue, not the Popular fallback, got " + JSON.stringify(resolvedExtPin));
             var housePin = rows[2].pin;
             harness.ok(housePin.type === "book" && housePin.catalogId === "popular" && housePin.sourceKind === "builtin",
                        "a house rail's See-All pin carries its catalogId, got " + JSON.stringify(housePin));

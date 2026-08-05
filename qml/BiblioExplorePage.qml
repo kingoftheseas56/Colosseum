@@ -23,6 +23,7 @@ import QtQuick
 import QtQuick.Controls
 import "BiblioExploreRules.js" as Rules
 import "DiscoverApi.js" as DiscoverApi
+import "BiblioDiscoverApi.js" as BiblioDiscoverApi
 import "ExplicitContentPolicy.js" as Policy
 
 pragma ComponentBehavior: Bound
@@ -90,10 +91,22 @@ Item {
     // (Task 5) surfaces, derived independently here through the same shared DiscoverApi.js so
     // neither task depends on the other's in-progress file. ──
     readonly property var installedExtensions: page.extensionsSource ? page.extensionsSource.installed() : []
+    // The filtered, single-source-of-truth extension catalogue list: BiblioDiscoverApi.js's
+    // extensionCatalogs() (Task 5) already applies every exclusion "From Your Extensions" needs
+    // (core rows, isDiscoverable === false acquisition-only catalogues, Apple Books by name,
+    // required extras it can't auto-answer) — reuse it here instead of re-deriving a
+    // similar-but-inconsistent filter from raw DiscoverApi.catalogsFor(). Each filtered entry's
+    // `key` is the SAME composite string (transportUrl+"|book|"+catalogId) BiblioDiscoverApi's
+    // resolvePin() matches a See-All pin against, so DiscoverApi.catalogByKey() re-resolves the
+    // FULL fetchable catalog object (transportUrl/catalogId/extra) per key — the identical
+    // pattern BiblioDiscoverApi.js's own fetchExtensionPage() uses internally.
     readonly property var bookExtensionCatalogs: {
-        var cats = DiscoverApi.catalogsFor(page.installedExtensions, "book");
+        var filtered = BiblioDiscoverApi.extensionCatalogs(page.installedExtensions);
         var out = [];
-        for (var i = 0; i < cats.length; i++) if (cats[i].core !== true) out.push(cats[i]);
+        for (var i = 0; i < filtered.length; i++) {
+            var full = DiscoverApi.catalogByKey(page.installedExtensions, "book", filtered[i].key);
+            if (full) out.push(full);
+        }
         return out;
     }
     readonly property var catalogByExtKey: {
@@ -267,7 +280,7 @@ Item {
                 key: key, hidden: hidden, kind: "extension", title: cat.title || cat.addonName || "Extension",
                 items: status === "ok" ? page._extRowItems(extKey) : [],
                 ranked: false, loading: status === "loading",
-                pin: { type: "book", catalogId: "", filterGroup: "", filterKey: "",
+                pin: { type: "book", catalogId: cat.key, filterGroup: "", filterKey: "",
                        sourceKind: "extension", extensionId: extKey,
                        transportUrl: cat.transportUrl, extCatalogId: cat.catalogId,
                        addonName: cat.addonName || "" }
