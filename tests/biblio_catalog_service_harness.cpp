@@ -447,6 +447,77 @@ void testTotalFailurePreservesOldSnapshot()
             "the OLD snapshot's items are exactly what discoverPage still returns");
 }
 
+// Regression for the retry-generation race: generation 1 parks a retry in a
+// QTimer::singleShot backoff (m_pendingRetries -> 1) via a transient (429)
+// failure. Before that timer fires, a FORCED refresh starts generation 2,
+// which resets m_pendingRetries to 0. Generation 2 then ALSO parks its own
+// retry (m_pendingRetries -> 1). Generation 1's now-stale timer fires first
+// (scheduled first, identical base delay) -- with the bug, its unconditional
+// `--m_pendingRetries` (BEFORE the generation check) steals generation 2's
+// count down to 0; when generation 2's own retry timer then fires, its
+// decrement drives the counter to -1, which maybeFinalize's `== 0` check can
+// never see again, so `refreshing` never returns to false. The fix moves the
+// generation check before any shared-state mutation, so a stale-generation
+// timer firing is a total no-op.
+void testForcedRefreshDuringPendingRetryDoesNotWedgeRefreshing()
+{
+    QTemporaryDir dir;
+    const QString dbPath = dir.path() + QStringLiteral("/retry-race.sqlite");
+    FakeBiblioTransport transport;
+    BiblioCatalog catalog(dbPath, &transport);
+
+    int finishedSignals = 0;
+    bool lastSuccess = false;
+    QObject::connect(&catalog, &BiblioCatalog::refreshFinished, [&](bool ok) {
+        ++finishedSignals; lastSuccess = ok;
+    });
+
+    catalog.refreshIfDue();
+    require(transport.calls.size() == 4, "generation 1 issues its initial concurrency-capped batch");
+
+    // Fail ONE generation-1 request with a transient 429: BiblioCatalog
+    // schedules a retry (m_pendingRetries -> 1) and parks it behind a
+    // QTimer::singleShot backoff -- the event loop has NOT been pumped, so
+    // that timer has not fired yet.
+    transport.completeAt(0, 429, QByteArray(), QString());
+    require(catalog.refreshing(), "generation 1 is still mid-flight after one 429");
+
+    // Capture where generation 2's calls will start BEFORE forcing the
+    // refresh, so we can address a generation-2 request specifically
+    // (transport.calls also still carries generation 1's now-cancelled, but
+    // not-yet-completed-in-the-fake, entries -- nextPendingIndex() alone
+    // cannot distinguish them from live generation-2 calls).
+    const int gen2Start = transport.calls.size();
+
+    // While generation 1's retry is still parked, force a refresh. This
+    // cancels generation 1's remaining in-flight requests (cancelGeneration
+    // only reaches m_inFlight, never the parked retry timer) and starts
+    // generation 2, which resets m_pendingRetries to 0.
+    catalog.refreshIfDue(/*force=*/true);
+    require(catalog.refreshing(), "generation 2 is now the active refresh");
+    require(transport.calls.size() > gen2Start, "generation 2 issued its own requests");
+
+    // Generation 2 must ALSO park a retry (its own m_pendingRetries -> 1) --
+    // this reproduces the exact race described above.
+    transport.completeAt(gen2Start, 429, QByteArray(), QString());
+
+    // Let every timer fire (generation 1's stale one first -- scheduled
+    // first, identical base delay -- then generation 2's own), draining
+    // everything else to success so the refresh can actually finish.
+    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+        transport.drainAll(true);
+        pump(30);
+    }
+
+    require(!catalog.refreshing(),
+            "refreshing returns to false: a stale-generation retry timer must never "
+            "corrupt the CURRENT generation's pendingRetries counter");
+    require(finishedSignals == 1,
+            "refreshFinished fires exactly once (for generation 2 only -- generation 1 "
+            "was abandoned by the forced refresh and must never finalize)");
+    require(lastSuccess, "generation 2 still publishes successfully once its own retry resolves");
+}
+
 void testFilterGroupsAndExploreRowsAndMosaicProxy()
 {
     QTemporaryDir dir;
@@ -487,6 +558,7 @@ int main(int argc, char **argv)
     testBoundedConcurrency();
     testPartialProviderFailureStillPublishes();
     testTotalFailurePreservesOldSnapshot();
+    testForcedRefreshDuringPendingRetryDoesNotWedgeRefreshing();
     testFilterGroupsAndExploreRowsAndMosaicProxy();
 
     if (g_failures == 0) {

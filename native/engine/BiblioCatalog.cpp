@@ -118,6 +118,9 @@ BiblioTransportReply *BiblioNetworkTransport::get(const QUrl &url, const QVarian
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::UserAgentHeader,
                   QStringLiteral("Colosseum/1.0 (+biblio-catalog; keyless)"));
+    req.setTransferTimeout(6000);   // bound the wait so a slow/dead Apple or Open
+                                    // Library can't wedge one of the 4 concurrency
+                                    // slots forever (matches MangaSynopsisEnricher's norm).
     for (auto it = headers.constBegin(); it != headers.constEnd(); ++it)
         req.setRawHeader(it.key().toUtf8(), it.value().toByteArray());
     QNetworkReply *reply = m_nam->get(req);
@@ -380,9 +383,16 @@ void BiblioCatalog::scheduleRetry(int generation, FetchJob job)
     ++m_pendingRetries;
     const int delayMs = kRetryBaseDelayMs * job.attempt;
     QTimer::singleShot(delayMs, this, [this, generation, job]() {
-        --m_pendingRetries;
+        // Generation check FIRST: a stale-generation timer firing must be a
+        // total no-op, touching NOTHING shared (not even the counter) —
+        // otherwise it can decrement the CURRENT generation's
+        // m_pendingRetries (reset to 0 by startRefresh after this timer was
+        // scheduled), driving it negative and permanently wedging
+        // maybeFinalize's `== 0` check, i.e. refreshing never returns to
+        // false. See the regression test in the service harness.
         if (generation != m_generation)
             return;
+        --m_pendingRetries;
         // Re-queue directly: enqueue()'s URL dedupe must not block a RETRY of
         // the very url it already recorded.
         m_queue.enqueue(job);
