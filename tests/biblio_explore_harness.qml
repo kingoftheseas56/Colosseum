@@ -74,6 +74,15 @@ Item {
         return function(catalog, selections, skip, done) { done(metas); };
     }
 
+    // a fetcher that counts real invocations — Part A proves a preference flip triggers a
+    // GENUINE re-fetch, not just an internal bookkeeping bump.
+    function countingFetcher(metas, counterHolder) {
+        return function(catalog, selections, skip, done) {
+            counterHolder.calls = counterHolder.calls + 1;
+            done(metas);
+        };
+    }
+
     // a delayed fetch (dynamic Timer) — proves a slow extension row resolves on its OWN
     // schedule without blocking (or being blocked by) the synchronous house/top-10 data.
     function delayedFetcher(metas, delayMs) {
@@ -333,6 +342,41 @@ Item {
             harness.ok(items4.length === 2, "showExplicit true reveals the gated item too, got " + items4.length);
         }
 
+        // ── Part A regression: a LIVE showExplicit flip must actually re-fetch and re-render
+        //    extension rows. Before this fix there was no onShowExplicitChanged handler at all in
+        //    BiblioExplorePage.qml, so extensionRowData kept whatever the FIRST (construction-time)
+        //    fetch's callback captured — a stale explicit (or stale hidden) item could persist on
+        //    screen forever after a live preference flip, unlike the house rails' declarative
+        //    bindings on page.showExplicit (which already react correctly). ──
+        var flipCounter = { calls: 0 };
+        var flipPage = pageComp.createObject(harness, {
+            catalogSource: harness.makeFakeCatalog({ mosaicByFacet: harness.mosaicFixture }),
+            extensionsSource: harness.makeFakeExtensionsSource(harness.oneBookExtension("flip-ext", "Flip Source")),
+            pageFetcher: harness.countingFetcher(explicitMeta, flipCounter),
+            showExplicit: false,
+            preferences: prefsComp.createObject(harness, { settingsLocation: harness.tempIni("flip") })
+        });
+        if (flipPage) {
+            var flipExtKey = Object.keys(flipPage.catalogByExtKey)[0];
+            var callsBeforeFlip = flipCounter.calls;
+            harness.ok(flipPage._extRowItems(flipExtKey).length === 1,
+                       "flip setup: the explicit item is gated while showExplicit=false, got "
+                       + JSON.stringify(flipPage._extRowItems(flipExtKey)));
+            flipPage.showExplicit = true;
+            harness.ok(flipCounter.calls > callsBeforeFlip,
+                       "showExplicit flip: a REAL new extension fetch happened (calls " + callsBeforeFlip
+                       + " -> " + flipCounter.calls + ")");
+            var itemsAfterFlip = flipPage._extRowItems(flipExtKey);
+            harness.ok(itemsAfterFlip.length === 2,
+                       "showExplicit flip: the extension row actually re-renders with the now-visible item, got "
+                       + JSON.stringify(itemsAfterFlip));
+            flipPage.showExplicit = false;
+            var itemsRestored = flipPage._extRowItems(flipExtKey);
+            harness.ok(itemsRestored.length === 1,
+                       "showExplicit flip back off: the extension row actually drops the explicit item again, got "
+                       + JSON.stringify(itemsRestored));
+        }
+
         // independent per-shelf loading: house rails render immediately while a SLOW extension
         // fetch is still pending, and the slow row resolves later without blocking anything else.
         var slowPage = pageComp.createObject(harness, {
@@ -535,13 +579,15 @@ Item {
             harness.ok(JSON.stringify(b.order) === JSON.stringify(["top-10", "popular"]) && fired === 3,
                        "move() clamps to the end and still fires changed() for a real move, got " + JSON.stringify(b.order));
 
-            // setVisible toggles hidden membership and is idempotent (no double-fire on repeat)
+            // setVisible toggles hidden membership and is idempotent (no double-fire on repeat).
+            // `popular` is left HIDDEN at the end of this phase (no re-show call) ON PURPOSE: the
+            // Phase 2 reload proof needs a NON-empty `hidden` to survive reload, otherwise a real
+            // regression in hiddenJson persistence would go uncaught (an empty array "survives"
+            // reload either way, vacuously).
             b.setVisible("popular", false);
             harness.ok(b.hidden.indexOf("popular") !== -1 && fired === 4, "setVisible(key,false) hides a shown row");
             b.setVisible("popular", false);
             harness.ok(fired === 4, "setVisible with no actual change stays silent");
-            b.setVisible("popular", true);
-            harness.ok(b.hidden.indexOf("popular") === -1 && fired === 5, "setVisible(key,true) re-shows a hidden row");
 
             flushB.start();
         }
@@ -557,12 +603,22 @@ Item {
             harness.ok(c !== null, "instance C constructs");
             harness.ok(JSON.stringify(c.order) === JSON.stringify(["top-10", "popular"]),
                        "persistence: order survived destroy + reload, got " + JSON.stringify(c.order));
-            harness.ok(JSON.stringify(c.hidden) === JSON.stringify([]),
-                       "persistence: hidden survived destroy + reload (re-shown popular stayed visible)");
+            harness.ok(JSON.stringify(c.hidden) === JSON.stringify(["popular"]),
+                       "persistence: a NON-empty hidden set survived destroy + reload (popular stayed hidden), got "
+                       + JSON.stringify(c.hidden));
 
-            // only stable keys are ever persisted, never a display title
+            // only stable keys are ever persisted, never a display title. Structural, not
+            // vacuous: a hyphenated-key JSON array never contains a literal space regardless of
+            // content, so the old `raw.indexOf(" ") === -1` half of this check was always true —
+            // assert every persisted entry actually IS one of the stable row keys instead.
             var raw = String(c.settingsStore ? c.settingsStore.orderJson : "");
-            harness.ok(raw.indexOf(" ") === -1 || raw.indexOf("Anna") === -1, "persisted order carries no display-title text");
+            var persistedOrder = [];
+            try { persistedOrder = JSON.parse(raw || "[]"); } catch (e) { persistedOrder = []; }
+            var stableKeyPattern = /^(top-10|ext:|popular|top-rated|new-releases|trending)/;
+            var allStableKeys = persistedOrder.length > 0
+                && persistedOrder.every(function(k) { return stableKeyPattern.test(k); });
+            harness.ok(allStableKeys,
+                       "persisted order carries ONLY stable row keys, no display-title text, got " + raw);
 
             // reset restores empty order/hidden and fires changed()
             var resetFired = false;

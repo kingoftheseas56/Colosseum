@@ -8,6 +8,7 @@
 // Qt.exit(fails.length).
 import QtQuick
 import "../qml/BiblioDiscoverApi.js" as Api
+import "../qml/DiscoverApi.js" as DiscoverApi
 
 Item {
     id: root
@@ -26,6 +27,8 @@ Item {
     QtObject {
         id: fakeBiblio
         property bool offline: false
+        property bool stale: false
+        property bool ready: true
         property int pageCalls: 0
         property var groups: [
             { axis: "genre", label: "Genre",
@@ -221,6 +224,51 @@ Item {
                           null, 3, function(gen, page) { offlineCaptured = page })
         eq(offlineCaptured.warning, "Showing offline catalogue", "fetchPage offline: exact shell offline-notice text surfaces")
         fakeBiblio.offline = false
+
+        // Task 9 lifecycle: `stale` (a READY cache that just isn't from today — the normal window
+        // before the daily refresh completes, BiblioCatalog.cpp's recomputeStale()) is a DIFFERENT
+        // signal from `offline` (the catalogue could not be refreshed at all). Only `offline` is
+        // wired to a banner (BiblioDiscoverApi.js's fetchBuiltinPage reads bc.offline, never
+        // bc.stale) — a bare `stale` must NOT surface any warning, since it fires on every normal
+        // cold start and would be a false alarm, not an honest "you're seeing old data" notice.
+        fakeBiblio.stale = true
+        var staleCaptured = null
+        adapter.fetchPage({ type: "book", catalogKey: "popular", filterGroup: "", filterKey: "" },
+                          null, 10, function(gen, page) { staleCaptured = page })
+        eq(staleCaptured.warning, "", "fetchPage stale-but-online: no warning surfaces (stale alone is not offline)")
+        fakeBiblio.stale = false
+
+        // Task 9 lifecycle: no-cache first-sync (BiblioCatalog.ready has never gone true — the
+        // store has no published snapshot at all). discoverPage() is a bare proxy onto the store
+        // (native does not gate it on `ready`); a store with nothing yet returns an honest empty,
+        // exhausted page — never a crash and never confused with the offline warning.
+        fakeBiblio.ready = false
+        var noCacheCaptured = null
+        adapter.fetchPage({ type: "book", catalogKey: "popular", filterGroup: "", filterKey: "" },
+                          null, 11, function(gen, page) { noCacheCaptured = page })
+        truthy(noCacheCaptured !== null, "fetchPage no-cache: never throws before the first successful sync")
+        eq(noCacheCaptured.items.length, 2, "fetchPage no-cache: the fake's discoverPage is a bare store proxy regardless of ready, so an already-published dataset still answers honestly")
+        eq(noCacheCaptured.warning, "", "fetchPage no-cache: not confused with the offline warning")
+        fakeBiblio.ready = true
+
+        // ── unsupported extension filters: a filter group/key that doesn't exist on a GIVEN
+        // extension catalogue (its OWN manifest extras) must be silently dropped, never crash and
+        // never leak a bogus selection into the fetch — selectionsForFilter degrades to the
+        // catalogue's default/required selections only. ──
+        var narrowCatalog = { transportUrl: "https://narrow.example/manifest.json", type: "book", id: "top",
+                               extra: [{ name: "skip", isRequired: false }] }
+        var bogusSel = DiscoverApi.selectionsForFilter(narrowCatalog, "Audience", "adult")
+        truthy(bogusSel !== null && typeof bogusSel === "object",
+               "selectionsForFilter: an unsupported filter group never throws, still returns a selections object")
+        falsy(Object.prototype.hasOwnProperty.call(bogusSel, "Audience"),
+              "selectionsForFilter: the unsupported group name never leaks into the selections map, got " + JSON.stringify(bogusSel))
+        falsy(Object.prototype.hasOwnProperty.call(bogusSel, "adult"),
+              "selectionsForFilter: the unsupported filter key never leaks into the selections map, got " + JSON.stringify(bogusSel))
+        var requiredCatalog = { transportUrl: "https://req.example/manifest.json", type: "book", id: "top",
+                                 extra: [{ name: "genre", label: "Genre", isRequired: true, options: ["fiction"] }] }
+        var bogusSel2 = DiscoverApi.selectionsForFilter(requiredCatalog, "Audience", "adult")
+        truthy(bogusSel2.genre !== undefined && bogusSel2.genre !== null,
+               "selectionsForFilter: a REQUIRED extra keeps its auto-picked default even when the active filter names an unrelated group, got " + JSON.stringify(bogusSel2))
 
         // a missing biblioCatalog is null-safe.
         var bareAdapter = Api.create(null, [], false)

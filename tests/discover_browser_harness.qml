@@ -76,10 +76,53 @@ Item {
         function fetchPage(s, cursor, gen, done) { fetchCount++; done(gen, {items:[], nextCursor:null, exhausted:true, freshness:"live", warning:""}) }
     }
 
+    // ── fake adapter E — the catalogue list NEVER changes (so refresh() would early-return),
+    //    but the DATA behind it does (a "preference flip" stand-in). Counts fetches and answers
+    //    a mutable item so a genuine reload is distinguishable from a no-op. ──
+    QtObject {
+        id: reloadFake
+        property int fetchCount: 0
+        property string answerId: "v1"
+        function types() { return [{key:"manga", label:"Manga"}] }
+        function catalogs(t) { return [{key:"popular", title:"Popular", sourceKind:"builtin", section:"Src", attribution:"Src"}] }
+        function filters(t, c) { return [] }
+        function defaultCatalog(t) { return "popular" }
+        function resolvePin(p) { return {missing:false, type:p.type, catalogKey:p.catalogId, filterGroup:"", filterKey:""} }
+        function fetchPage(s, cursor, gen, done) {
+            fetchCount++
+            done(gen, {items:[{id:reloadFake.answerId,type:"manga",title:reloadFake.answerId,cover:"",year:0,rating:0,format:"",publisher:"",availability:true,explicit:false,raw:{}}],
+                       nextCursor:null, exhausted:true, freshness:"live", warning:""})
+        }
+    }
+
+    // ── fake adapter F — a MUTABLE catalogue list (a built-in + a removable "extension") and a
+    //    NEVER-auto-completing fetch. Models "extension removal during paging" (Task 9, Part B):
+    //    a request in flight for an extension catalogue, followed by that extension disappearing
+    //    (mirrors BiblioDiscoverPage.onExtensionsChanged -> browser.refresh()) BEFORE its reply
+    //    lands. ──
+    QtObject {
+        id: extRemoveFake
+        property bool ext1Present: true
+        property int capturedGen: -1
+        property var capturedDone: null
+        function types() { return [{key:"book", label:"Books"}] }
+        function catalogs(t) {
+            var out = [{key:"popular", title:"Popular", sourceKind:"builtin", section:"Biblio", attribution:"Biblio"}]
+            if (ext1Present) out.push({key:"ext1", title:"Ext One", sourceKind:"extension", section:"Ext", attribution:"Ext"})
+            return out
+        }
+        function filters(t, c) { return [] }
+        function defaultCatalog(t) { return "popular" }
+        function resolvePin(p) { return {missing:false, type:p.type, catalogKey:p.catalogId, filterGroup:"", filterKey:""} }
+        function fetchPage(s, cursor, gen, done) { capturedGen = gen; capturedDone = done }   // never auto-completes
+    }
+
     UI.DiscoverBrowser { id: browser;  width: 1200; height: 700; adapter: fake;         fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser2; width: 1200; height: 700; adapter: deferredFake; fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser3; width: 1200; height: 700; adapter: strandFake;   fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser4; width: 1200; height: 700; adapter: exhaustFake;  fallbackType: "a" }
+    UI.DiscoverBrowser { id: browser5; width: 1200; height: 700; adapter: reloadFake;   fallbackType: "manga" }
+    UI.DiscoverBrowser { id: browser6; width: 1200; height: 700; adapter: extRemoveFake; fallbackType: "book" }
 
     // item-activation observer (assertion: fires ONCE, with the normalized item)
     property int openCount: 0
@@ -211,6 +254,51 @@ Item {
             // shell's loaded data (the Discover/Tankoban wrappers set it with no data/filter change).
             ok(browser.items.length === 1, "gallery profile leaves the shell's loaded data intact");
             browser.posterVisualProfile = "classic";
+
+            // ── reloadCurrent(): a genuine re-fetch of the SAME catalogue/filter, unlike refresh()
+            //    (which early-returns when the catalogue is still present in the adapter's list).
+            //    This is the seam a preference flip (e.g. Biblio's Explicit Content toggle) uses to
+            //    force real new data without resetting the user's catalogue/filter selection. ──
+            ok(browser5.items.length === 1 && browser5.items[0].id === "v1", "reloadCurrent setup: initial fetch landed");
+            ok(reloadFake.fetchCount === 1, "reloadCurrent setup: exactly one fetch so far");
+            // refresh() must stay a no-op here (catalogue unchanged) — the regression this whole
+            // function exists to fix: refresh() alone never re-fetches unchanged-catalogue data.
+            browser5.refresh();
+            ok(reloadFake.fetchCount === 1, "refresh() alone does NOT re-fetch an unchanged catalogue (unchanged behavior)");
+            ok(browser5.items[0].id === "v1", "refresh() alone leaves stale data in place (the bug this task fixes)");
+            // now the adapter's answer changes (stand-in for a preference flip) and reloadCurrent()
+            // must force a real re-fetch that lands the NEW data.
+            reloadFake.answerId = "v2";
+            var hasReloadCurrent = typeof browser5.reloadCurrent === "function";
+            ok(hasReloadCurrent, "DiscoverBrowser exposes a public reloadCurrent()");
+            if (hasReloadCurrent) {
+                browser5.reloadCurrent();
+                ok(reloadFake.fetchCount === 2, "reloadCurrent() issued a genuine new fetch: " + reloadFake.fetchCount);
+                ok(browser5.items.length === 1 && browser5.items[0].id === "v2",
+                   "reloadCurrent() landed the NEW data, got " + JSON.stringify(browser5.items));
+                ok(browser5.currentCatalogKey === "popular", "reloadCurrent() preserves the current catalogue selection");
+                ok(browser5.exhausted === true, "reloadCurrent() resets paging state (a short page re-exhausts cleanly)");
+            }
+
+            // ── extension removal during paging (Task 9, Part B): a request in flight for an
+            //    extension catalogue, followed by that extension's removal BEFORE its reply lands,
+            //    must fall back safely and never let the stale reply corrupt the wall. ──
+            browser6.selectCatalog("ext1");
+            var gExt = extRemoveFake.capturedGen, dExt = extRemoveFake.capturedDone;
+            ok(browser6.currentCatalogKey === "ext1" && browser6.loading === true,
+               "extension-removal setup: the extension catalogue fetch is in flight");
+            extRemoveFake.ext1Present = false;      // the extension is uninstalled mid-fetch
+            browser6.refresh();                      // mirrors onExtensionsChanged -> browser.refresh()
+            ok(browser6.currentCatalogKey === "popular",
+               "extension removal: refresh() falls back to the built-in default, got " + browser6.currentCatalogKey);
+            ok(browser6.items.length === 0, "extension removal: the fallback wall starts clean (no stale extension data)");
+            dExt(gExt, {items:[{id:"stale-ext",type:"book",title:"STALE EXT",cover:"",year:0,rating:0,format:"",publisher:"",availability:true,explicit:false,raw:{}}],
+                        nextCursor:null, exhausted:true, freshness:"", warning:""});
+            ok(browser6.currentCatalogKey === "popular",
+               "extension removal: the stale in-flight reply does not disturb the fallback catalogue");
+            ok(browser6.items.length === 0,
+               "extension removal: the fetchGen fence rejects the stale extension reply, no stale item leaks in, got "
+               + JSON.stringify(browser6.items));
 
             if (fails.length) console.log("DISCOVER_BROWSER FAILS:\n  " + fails.join("\n  "));
             else console.log("DISCOVER_BROWSER_OK");

@@ -26,11 +26,20 @@ Item {
         id: fakeBiblio
         property bool offline: false
         property int extraRows: 0
+        property int pageCalls: 0                 // Part A: proves a real re-fetch happened
         property var groups: [
             { axis: "genre", label: "Genre",
               facets: [{ key: "fiction", label: "Fiction" }, { key: "nonfiction", label: "Nonfiction" }] }
         ]
         function filterGroups(includeExplicit) { return groups }
+
+        // Part A: an explicit-only row so the fake's ANSWER genuinely depends on includeExplicit
+        // (a live preference flip), not just on catalogue/filter identity.
+        property var explicitOnlyRow: ({
+            canonicalId: "wX", title: "Explicit Only", author: "Author X",
+            canonicalFirstPublished: "2021-01-01", publisher: "Pub X", coverUrl: "https://c/x.jpg",
+            rating: { average: 3.0, count: 1 }, score: 0, rank: 99
+        })
 
         property var baseRows: [
             { canonicalId: "w1", title: "Book One", author: "Author A",
@@ -49,6 +58,7 @@ Item {
               rating: { average: 4.5, count: 10 }, score: 3, rank: 1 }
         ]
         function discoverPage(catalogId, facetAxis, facetKey, includeExplicit, offset, limit) {
+            pageCalls++
             if (catalogId !== "popular") return { items: [], nextOffset: offset, exhausted: true, freshness: "fresh", warning: "" }
             var rows
             if (facetAxis === "genre" && facetKey === "fiction") {
@@ -59,6 +69,7 @@ Item {
                     rows.push({ canonicalId: "filler" + x, title: "Filler " + x, author: "Filler Author",
                                 canonicalFirstPublished: "2000-01-01", publisher: "", coverUrl: "",
                                 rating: { average: 0, count: 0 }, score: 0, rank: 100 + x })
+                if (includeExplicit === true) rows = rows.concat([explicitOnlyRow])
             }
             var page = rows.slice(offset, offset + limit)
             return { items: page, nextOffset: offset + page.length,
@@ -166,6 +177,28 @@ Item {
         fakeBiblio.offline = false
         shell.reloadForCatalog()
         eq(shell.warning, "", "offline cleared: warning resets on the next clean page")
+
+        // ── Part A regression: a LIVE Explicit Content preference flip must actually re-fetch
+        //    and re-render the displayed items, not just rebuild the adapter object. Before this
+        //    fix, BiblioDiscoverPage.onShowExplicitChanged called _rebuildAdapter() -> browser.
+        //    refresh(), and refresh() early-returns whenever the current catalogue is still
+        //    present in the adapter's list (true here — Popular never disappears) — so the wall's
+        //    `items` never actually changed even though the adapter object itself was rebuilt. ──
+        eq(p.showExplicit, false, "explicit-flip setup: page starts with showExplicit=false");
+        var callsBefore = fakeBiblio.pageCalls;
+        var idsBefore = shell.items.map(function(it) { return it.id; });
+        falsy(idsBefore.indexOf("wX") !== -1, "explicit-flip setup: the explicit-only row is NOT present while showExplicit=false");
+        p.showExplicit = true;
+        truthy(fakeBiblio.pageCalls > callsBefore,
+               "explicit flip: a REAL new fetch happened (pageCalls " + callsBefore + " -> " + fakeBiblio.pageCalls + ")");
+        var idsAfter = shell.items.map(function(it) { return it.id; });
+        truthy(idsAfter.indexOf("wX") !== -1,
+               "explicit flip: the now-visible explicit item actually rendered, got " + JSON.stringify(idsAfter));
+        p.showExplicit = false;
+        var idsRestored = shell.items.map(function(it) { return it.id; });
+        falsy(idsRestored.indexOf("wX") !== -1,
+              "explicit flip back off: the explicit item is actually removed from the rendered wall, got "
+              + JSON.stringify(idsRestored));
 
         // ── card activation routes through itemOpenRequested ──
         var opens = 0, lastItem = null
