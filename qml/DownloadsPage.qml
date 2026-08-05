@@ -73,7 +73,10 @@ Item {
     function isLiveState(state) {
         return state === "queued" || state === "resolving"
                 || state === "downloading" || state === "paused"
-                || state === "extracting";
+                || state === "extracting"
+                // manga-volume acquisition states (MangaTankobanService) — a group entirely
+                // mid-pack or mid-ingest must still count as live, not "0 of N landed".
+                || state === "packing" || state === "ingesting";
     }
 
     // ---- source-cooldown visibility (Task 11) ----
@@ -338,6 +341,10 @@ Item {
         }
         for (var k = 0; k < groups.length; k++) {
             var g2 = groups[k];
+            // m_acq (the manga-volume acquisition map) is a QHash — iteration order is
+            // unspecified and can change on rehash. Without this, a batch's expanded fold
+            // would visibly reshuffle its members on every refresh tick.
+            g2.rows.sort(function(a, b) { return (a.id < b.id) ? -1 : (a.id > b.id ? 1 : 0); });
             g2.count = g2.rows.length;
             g2.single = g2.count === 1;
             g2.hasKnownTotal = g2.total > 0;
@@ -347,9 +354,17 @@ Item {
             var first = g2.rows[0];
             g2.season = first.season || 0;
             g2.seriesTitle = first.seriesTitle || "";
+            // groupUnit is a POSITIVE, opt-in gate (not "world === theatre"): only a producer
+            // that actually emits it (manga volumes, future multi-part comics) takes this
+            // branch, so Theatre's season titling — and any future world that emits neither —
+            // falls through unchanged. Hoisted onto the group, not read as first.groupUnit at
+            // the use site, so it survives the row sort above.
+            g2.groupUnit = first.groupUnit || "";
+            var base = g2.seriesTitle || first.title || "Download";
             g2.title = g2.single ? (first.title || "Download")
-                     : (g2.seriesTitle || first.title || "Download")
-                       + " — Season " + g2.season;
+                     : g2.groupUnit
+                         ? base + " — " + g2.count + " " + g2.groupUnit
+                         : base + " — Season " + g2.season;
         }
         return groups;
     }
@@ -581,7 +596,13 @@ Item {
                                                                 + root.fmtCooldown(cd);
                                                     return base;
                                                 }
-                                                return wn + " · season checkout · " + grp.modelData.count + " episodes";
+                                                // Same positive opt-in gate as the group title: only a
+                                                // producer that emits groupUnit (manga volumes, future
+                                                // multi-part comics) takes this line; Theatre falls through
+                                                // to its unchanged "season checkout" subtitle.
+                                                return grp.modelData.groupUnit
+                                                    ? wn + " · " + grp.modelData.count + " " + grp.modelData.groupUnit
+                                                    : wn + " · season checkout · " + grp.modelData.count + " episodes";
                                             }
                                             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                             elide: Text.ElideRight
@@ -765,11 +786,19 @@ Item {
                                         Text {
                                             id: epNoT
                                             x: 52; anchors.verticalCenter: parent.verticalCenter
-                                            width: 40
-                                            text: epRow.modelData.episode > 0
-                                                  ? "E" + (epRow.modelData.episode < 10 ? "0" : "") + epRow.modelData.episode
-                                                  : ""
+                                            width: 60
+                                            // badge is a positive opt-in gate: manga volumes emit
+                                            // "Vol. N" (MangaTankobanService's own label, passed through
+                                            // unchanged); Theatre never emits it and keeps its "E01" text;
+                                            // a future producer with neither renders an honest blank gutter
+                                            // instead of a lie.
+                                            text: epRow.modelData.badge
+                                                  ? epRow.modelData.badge
+                                                  : (epRow.modelData.episode > 0
+                                                     ? "E" + (epRow.modelData.episode < 10 ? "0" : "") + epRow.modelData.episode
+                                                     : "")
                                             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                            elide: Text.ElideRight
                                         }
                                         Column {
                                             anchors.left: epNoT.right; anchors.leftMargin: 8

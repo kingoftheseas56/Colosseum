@@ -211,6 +211,16 @@ private:
     struct InFlight {
         QString id;
         QString postUrl;
+        // Empty today — no producer sets this yet. A future multi-part GetComics fix (one
+        // InFlight per part, sharing one release post) sets it to a value shared by every part
+        // of that post, so the Downloads page groups them the way it already groups TV seasons
+        // and manga volume batches (2026-08-05 grouping design). Deliberately NOT derived from
+        // postUrl: postUrl's callers differ across ComicSeriesPage.qml/ComicSeries.qml/
+        // ComicReaderShell.qml (postUrl vs url vs c.url, three different source fields feeding
+        // the same downloadIssue() argument) — an inferred key risks silently merging two
+        // unrelated issues under one fold with a group-cancel that kills both. An explicit,
+        // opt-in field costs one empty string and removes that risk entirely.
+        QString partGroupKey;
         QString seriesId;
         QString seriesTitle;
         QString label;

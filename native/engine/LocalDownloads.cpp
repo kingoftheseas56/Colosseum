@@ -367,11 +367,21 @@ QVariantList LocalDownloads::activeJobs() const {
             out.append(QVariantMap{
                 {QStringLiteral("world"), QStringLiteral("tankoban")},
                 {QStringLiteral("id"), j.value(QStringLiteral("id"))},
+                {QStringLiteral("seriesTitle"), j.value(QStringLiteral("seriesTitle"))},
                 {QStringLiteral("title"), QStringLiteral("%1 — %2")
                     .arg(j.value(QStringLiteral("seriesTitle")).toString(),
                          j.value(QStringLiteral("label")).toString())},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("ratio"), total > 0 ? done / total : 0.0},
+                // received/total (bytes): the Downloads page's group progress bar
+                // (DownloadsPage.qml, hasKnownTotal) sums these across a group's rows — without
+                // them a grouped batch renders with a correct title but no bar and "0 of N
+                // landed" against real work in flight (2026-08-05 grouping design).
+                {QStringLiteral("received"), done},
+                {QStringLiteral("total"), total},
+                {QStringLiteral("groupKey"), j.value(QStringLiteral("groupKey"))},
+                {QStringLiteral("groupUnit"), j.value(QStringLiteral("groupUnit"))},
+                {QStringLiteral("badge"), j.value(QStringLiteral("badge"))},
                 {QStringLiteral("detail"), total > 0
                     ? QStringLiteral("%1 of %2 MB").arg(done / 1048576.0, 0, 'f', 0)
                                                    .arg(total / 1048576.0, 0, 'f', 0)
@@ -388,11 +398,16 @@ QVariantList LocalDownloads::activeJobs() const {
             out.append(QVariantMap{
                 {QStringLiteral("world"), QStringLiteral("tankoban")},
                 {QStringLiteral("id"), j.value(QStringLiteral("id"))},
+                {QStringLiteral("seriesTitle"), j.value(QStringLiteral("seriesTitle"))},
                 {QStringLiteral("title"), QStringLiteral("%1 — %2")
                     .arg(j.value(QStringLiteral("seriesTitle")).toString(),
                          j.value(QStringLiteral("label")).toString())},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("ratio"), total > 0 ? done / total : 0.0},
+                {QStringLiteral("received"), done},
+                {QStringLiteral("total"), total},
+                {QStringLiteral("groupKey"), j.value(QStringLiteral("groupKey"))},
+                {QStringLiteral("groupUnit"), j.value(QStringLiteral("groupUnit"))},
                 {QStringLiteral("detail"), total > 0
                     ? QStringLiteral("%1 of %2 MB").arg(done / 1048576.0, 0, 'f', 0)
                                                    .arg(total / 1048576.0, 0, 'f', 0)

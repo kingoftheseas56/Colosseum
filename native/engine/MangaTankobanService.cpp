@@ -453,13 +453,27 @@ QVariantList MangaTankobanService::activeVolumeJobs() const
     for (auto it = m_acq.constBegin(); it != m_acq.constEnd(); ++it) {
         const QVariantMap& acq = it.value();
         const MangaTankoban::VolumeRecord vol = m_volumes.value(it.key());
+        const QString label = QStringLiteral("Vol. %1").arg(vol.number);
+        // The shared infoHash is the Downloads page's grouping key for a batch
+        // (downloadNyaaBatch) — every volume pulled from one torrent groups into one row,
+        // the same pattern Theatre seasons already use (2026-08-05 grouping design).
+        // m_chosen is empty right after a restart replay (onTransportFinished's own comment:
+        // "m_volumes/m_chosen are empty"), which a torrent running for hours across a restart
+        // hits routinely, not rarely — fall back to the persisted ledger so grouping survives
+        // a restart instead of silently reverting to flat rows for the rest of the session.
+        QString hash = m_chosen.value(it.key()).infoHash;
+        if (hash.isEmpty() && m_transport)
+            hash = m_transport->ledgerRow(it.key()).infoHash;
         out.append(QVariantMap{
             {QStringLiteral("id"), it.key()},
             {QStringLiteral("seriesTitle"), m_series.value(vol.seriesId).title},
-            {QStringLiteral("label"), QStringLiteral("Vol. %1").arg(vol.number)},
+            {QStringLiteral("label"), label},
             {QStringLiteral("state"), acq.value(QStringLiteral("state"))},
             {QStringLiteral("done"), acq.value(QStringLiteral("done"), 0.0)},
-            {QStringLiteral("total"), acq.value(QStringLiteral("total"), 0.0)}
+            {QStringLiteral("total"), acq.value(QStringLiteral("total"), 0.0)},
+            {QStringLiteral("groupKey"), hash},
+            {QStringLiteral("groupUnit"), QStringLiteral("volumes")},
+            {QStringLiteral("badge"), label}
         });
     }
     return out;

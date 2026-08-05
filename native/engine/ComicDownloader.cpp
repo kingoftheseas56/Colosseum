@@ -1474,7 +1474,12 @@ QVariantList ComicDownloader::activeIssueJobs() const
             {QStringLiteral("label"), f.label},
             {QStringLiteral("state"), state},
             {QStringLiteral("done"), double(f.receivedBytes)},
-            {QStringLiteral("total"), double(f.expectedBytes)}
+            {QStringLiteral("total"), double(f.expectedBytes)},
+            // Empty today (no producer sets partGroupKey yet) — falls back to the row's own id
+            // in the Downloads page's grouping, i.e. today's exact single-row rendering. Ready
+            // for a future multi-part fix with zero further plumbing here.
+            {QStringLiteral("groupKey"), f.partGroupKey},
+            {QStringLiteral("groupUnit"), QStringLiteral("parts")}
         };
     };
     if (m_active)
