@@ -202,11 +202,23 @@ private:
         QString seriesId;
         QString seriesTitle;
         QString label;
+        // Storage precedence (Task 2, CBZ-in-place plan): `archive` wins whenever
+        // both are set. A legacy loose-folder row has `archive` empty. An
+        // archive-shaped row may still carry a leftover `dir` mid-migration --
+        // Task 7's first-boot pass deliberately leaves `dir` set for one boot
+        // before reclaiming the loose files on the boot after. isDownloaded()
+        // and deleteIssue() already check usesArchive() FIRST (Task 2).
+        // downloadedIssues() and localPages() do NOT yet -- they still read
+        // `dir`/`files` unconditionally and are Task 3/4's job to convert;
+        // until then an archive-only row (no `dir`) reads as missing/empty
+        // from those two, not wrong, just not archive-aware yet.
         QString dir;
+        QString archive;
         QStringList files;
         QList<int> groups;   // parallel to files; empty = no grouping (localPages() reports -1)
         qint64 bytes = 0;
         qint64 addedAt = 0;
+        bool usesArchive() const { return !archive.isEmpty(); }
     };
     struct InFlight {
         QString id;

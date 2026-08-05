@@ -22,6 +22,7 @@
 #include <QNetworkRequest>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QSet>
 #include <QSharedPointer>
 #include <QStandardPaths>
@@ -228,15 +229,30 @@ void ComicDownloader::loadIndex()
         e.seriesTitle = o.value(QStringLiteral("seriesTitle")).toString();
         e.label       = o.value(QStringLiteral("label")).toString();
         e.dir         = o.value(QStringLiteral("dir")).toString();
+        e.archive     = o.value(QStringLiteral("archive")).toString();
         e.bytes       = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt     = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
         for (const QJsonValue& v : o.value(QStringLiteral("files")).toArray())
             e.files.append(v.toString());
         for (const QJsonValue& v : o.value(QStringLiteral("groups")).toArray())
             e.groups.append(v.toInt());
-        // Drop stale entries whose dir was deleted outside the app.
-        if (!e.dir.isEmpty() && QDir(e.dir).exists() && !e.files.isEmpty())
+        // Drop stale entries whose backing storage was removed outside the app --
+        // an archive row checks the archive FILE, a legacy row checks the dir.
+        // (Task 2: the old `!e.dir.isEmpty()`-only condition silently dropped
+        // every archive-shaped row on the very first restart.)
+        const bool archiveOk = e.usesArchive() && QFileInfo(e.archive).isFile() && !e.files.isEmpty();
+        const bool dirOk = !e.dir.isEmpty() && QDir(e.dir).exists() && !e.files.isEmpty();
+        if (archiveOk) {
             m_index.insert(it.key(), e);
+        } else if (dirOk) {
+            // The row survives on its dir, but its `archive` field (if any)
+            // names a file that's gone -- demote back to a plain legacy row so
+            // every archive-first reader (isDownloaded, and Task 3/4's
+            // localPages/downloadedIssues) agrees on which storage is real,
+            // instead of `usesArchive()` staying true for a dead path.
+            e.archive.clear();
+            m_index.insert(it.key(), e);
+        }
     }
 }
 
@@ -250,6 +266,7 @@ void ComicDownloader::saveIndex() const
         o[QStringLiteral("seriesTitle")] = it.value().seriesTitle;
         o[QStringLiteral("label")]       = it.value().label;
         o[QStringLiteral("dir")]         = it.value().dir;
+        o[QStringLiteral("archive")]     = it.value().archive;
         o[QStringLiteral("bytes")]       = static_cast<double>(it.value().bytes);
         o[QStringLiteral("addedAt")]     = static_cast<double>(it.value().addedAt);
         QJsonArray files;
@@ -260,9 +277,13 @@ void ComicDownloader::saveIndex() const
         o[QStringLiteral("groups")] = groups;
         root[it.key()] = o;
     }
-    QFile f(baseDir() + QStringLiteral("/index.json"));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    // Atomic write (mirrors MangaDownloader.cpp) so a crash or a failed commit
+    // (e.g. the destination locked) never corrupts the previously-saved file.
+    QSaveFile f(baseDir() + QStringLiteral("/index.json"));
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    if (!f.commit())
+        qWarning() << "[comics] saveIndex commit failed -- previous index.json left intact";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -297,7 +318,9 @@ QVariantList ComicDownloader::localPages(const QString& issueId) const
 bool ComicDownloader::isDownloaded(const QString& issueId) const
 {
     auto it = m_index.constFind(issueId.trimmed());
-    return it != m_index.constEnd() && QDir(it.value().dir).exists();
+    if (it == m_index.constEnd()) return false;
+    const Entry& e = it.value();
+    return e.usesArchive() ? QFileInfo(e.archive).isFile() : QDir(e.dir).exists();
 }
 
 void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString& seriesId,
@@ -689,7 +712,22 @@ QVariantMap ComicDownloader::deleteIssue(const QString& issueIdIn)
     auto it = m_index.find(id);
     if (it == m_index.end())
         return DownloadFileOps::toMap({true, QString()});
-    const auto result = DownloadFileOps::removeTree(it.value().dir);
+    const Entry& e = it.value();
+    // An archive row's payload is the archive FILE; a dir may still be set
+    // alongside it mid-migration (Task 7's first-boot pass), so remove both
+    // when present rather than branching to exactly one. Dir (the reclaimable
+    // copy) goes FIRST, archive (the canonical copy) LAST: if the dir removal
+    // fails partway (a reader holding a page file open, an AV lock) the row
+    // is left with its result reported as failure and the archive untouched
+    // -- still fully valid and openable -- instead of the reverse order,
+    // where a failed dir removal after the archive is already gone leaves a
+    // row that looks downloaded but opens to nothing.
+    auto result = !e.dir.isEmpty() ? DownloadFileOps::removeTree(e.dir)
+                                    : DownloadFileOps::Result{true, QString()};
+    if (result.success && e.usesArchive()) {
+        const auto archiveResult = DownloadFileOps::removeFile(e.archive);
+        if (!archiveResult.success) result = archiveResult;
+    }
     if (!result.success) {
         qWarning() << "[downloads] delete failed" << id << result.message;
         return DownloadFileOps::toMap(result);

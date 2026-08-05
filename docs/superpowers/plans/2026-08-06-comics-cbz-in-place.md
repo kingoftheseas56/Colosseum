@@ -164,15 +164,16 @@ byte-sniff on the first/middle/last sampled entries (lift `looksDecodable`'s mag
 `QByteArray`-based free function shared between this and — later, optionally — manga's own
 ingestor).
 
-- [ ] Write the harness RED: a plain store-mode CBZ probes `nativelyReadable == true`; an
+- [x] Write the harness RED: a plain store-mode CBZ probes `nativelyReadable == true`; an
       LZMA-compressed archive (method != 0/8) probes `false`; an encrypted-flag entry probes
       `false`; a CBZ with two entries sharing one name probes `false`; a CBZ containing a
       non-image blob under an image-looking name (fails the sniff) probes `false`; a truncated/
       corrupt zip probes `false` with `entries` empty.
-- [ ] Implement `probe()` + the shared sniff helper.
-- [ ] Verify: harness green; `build-target.bat cbz_archive_probe_harness` green by log grep;
+- [x] Implement `probe()` + the shared sniff helper.
+- [x] Verify: harness green; `build-target.bat cbz_archive_probe_harness` green by log grep;
       existing `cbz_archive_harness` still green (no regression to `imageEntries`/`readEntry`/
       `writeImagesAtomic`). Commit + push.
+      **DONE 2026-08-06, commit `981d705`.**
 
 ### Task 2: `Entry::archive` + atomic `saveIndex()` + fixed `loadIndex()` prune
 
@@ -181,20 +182,30 @@ ingestor).
 This is deliberately its own task, landing BEFORE any writer can produce an archive row — the
 constraint that prevents the "every new row silently drops on restart" defect.
 
-- [ ] Harness RED (extend `comic_downloader_archive_ingest_harness.cpp`, created this task):
+- [x] Harness RED (extend `comic_downloader_archive_ingest_harness.cpp`, created this task):
       loading an index containing one archive-shaped row (constructed directly as a fixture, no
       writer involved yet) survives a simulated reload; a `saveIndex()` write, killed mid-write via
       a fault-injected short write, never corrupts the previously-saved file (the whole point of
       `QSaveFile`); `deleteIssue`/`isDownloaded` on an archive row with no writer yet still branch
       correctly (both are safe to implement now since they only read `Entry`, not produce it).
-- [ ] Add `QString archive;` to `Entry`, `bool usesArchive() const`, header comment documenting the
+- [x] Add `QString archive;` to `Entry`, `bool usesArchive() const`, header comment documenting the
       precedence rule (archive wins if both set). `loadIndex()`/`saveIndex()` serialize `archive`;
       `saveIndex()` becomes `QSaveFile`-based (mirror `MangaDownloader.cpp:163` exactly). Fixed
       keep-condition: `(usesArchive() && QFileInfo::exists(archive) && !files.isEmpty()) ||
       (!dir.isEmpty() && QDir(dir).exists() && !files.isEmpty())`.
       `isDownloaded`/`deleteIssue` (with an empty-path guard inside the remove helpers themselves,
       belt-and-suspenders) branch on `usesArchive()`.
-- [ ] Verify: harness green; build green. Commit + push.
+- [x] Verify: harness green; build green. Commit + push.
+      **DONE 2026-08-06.** Opus-advisor pass (`--model claude-opus-5 --effort high`) caught three
+      real gaps before commit, all fixed and re-verified: (1) `deleteIssue()` order reversed to
+      remove `dir` before `archive` (a partial failure now leaves the row valid off the archive,
+      not orphaned); (2) `loadIndex()` demotes a row back to a plain legacy row (`archive.clear()`)
+      when `archive` is stale but `dir` is what actually kept it — otherwise archive-first readers
+      and dir-first readers (pre-Task-3/4) would disagree about the same row; (3) tightened
+      `QFileInfo::exists` to `QFileInfo(...).isFile()` (a directory shouldn't pass as an archive).
+      Also added a `qWarning()` on a failed `saveIndex()` commit and a 5th harness scenario
+      covering the new demotion path directly. Final harness: 5/5 green; existing
+      `comic_downloader_ingest_harness` unaffected (3/3 green); full `colosseum` app builds clean.
 
 ### Task 3: `image://comiccover` — stateless cover provider
 
