@@ -180,6 +180,24 @@ public:
     // entry-open.
     Q_INVOKABLE void resetCoupling();
     Q_INVOKABLE void setVisible(QVariantList pageIndices);         // pin(+neighbors) + priorities
+    // The Pages filmstrip's decode-request door. A thumbnail delegate calls this
+    // the moment it realizes (ComicReaderPagesOverlay.qml, Component.onCompleted)
+    // — without it, imageUrl()'s url is a dead end: the provider only ever SERVES
+    // an already-decoded page (ComicReaderImageResponse::run() is a pure cache
+    // read, never a decode trigger), so a page the reader has never actually
+    // visited via Single/Pair/Strip stayed permanently blank in the filmstrip.
+    //
+    // Deliberately LOW priority (below every real reading-surface request) and
+    // deliberately NON-PINNING — unlike setVisible, this never touches
+    // m_lastPinned/m_cache.setPinned. Two reasons pinning would be wrong here:
+    // a filmstrip band can realize dozens of delegates, and pinning that many
+    // full decoded pages (tens of MB each) as never-evict risks blowing the
+    // cache budget out from under the actual reading surface; and setVisible's
+    // pin set is a single-writer channel owned by the reading surface — a
+    // second writer would clobber the pins protecting the page being read.
+    // Plain LRU is enough: request() already dedups (inflight/cached/failed),
+    // so repeated calls as delegates scroll in and out cost nothing.
+    Q_INVOKABLE void requestThumbnail(int page);
     // The reader's viewport, as a page range, and what the two image tiers are
     // therefore allowed to hold. Task 2 (overhaul plan 2026-07-28).
     //

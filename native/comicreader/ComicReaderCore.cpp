@@ -64,6 +64,13 @@ constexpr int kScaledEntriesPerPage = 2;
 // band's forward/backward prefetch priorities are no longer fixed constants: they are offsets
 // below the CURRENT wave's priority, which climbs per setVisible() — see setVisible().
 constexpr int kPrioProbe       = 10;   // auto-coupling probe: LOW, so visible pages win
+// Pages filmstrip thumbnail decode. Flat, no falloff by distance: QThreadPool
+// priorities are fixed at enqueue, so a distance-based ramp would go stale the
+// instant the reader flicks past it — realization order (delegates near the
+// centre realize first) plus request()'s dedup already approximates attention
+// order for free. Sits above the one-shot startup probe, below everything a
+// real reading surface asks for.
+constexpr int kPrioThumbnail   = 15;
 } // namespace
 
 int stripDecodePriority(int page, int centrePage) {
@@ -254,6 +261,19 @@ void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString dir
     parsePages(pages);
     applyPersisted(persisted);
 
+    // MANGA PAIRING IS DETERMINISTIC (Hemanth 2026-08-01: "make my rule the hard law for manga
+    // order"). In RTL manga the pairing is the plain canonical law and nothing else — cover alone,
+    // page 1 alone, then (2,3),(4,5)... with real spreads standing alone — and the edge-continuity
+    // auto-aligner is NOT allowed to slide it. A persisted Shifted phase (an Auto verdict, OR an F3
+    // series-carry that saved itself as "manual") is healed to Normal here and re-persisted that way;
+    // couplingResolved is set so startAutoCouplingProbe() never runs for manga. The P-nudge still
+    // flips the phase LIVE in-session — it just does not survive a reopen for manga, because the whole
+    // point of the hard law is that manga opens to the same predictable pairing every single time.
+    if (m_direction == Direction::Rtl) {
+        m_couplingPhase = CouplingPhase::Normal;
+        m_couplingResolved = true;
+    }
+
     // Fold the decoder's REMEMBERED spreads on first, so pairing is shaped correctly before a
     // single page has decoded. Done before the override fold below, because the user's explicit
     // verdict must still win over anything the machine merely observed.
@@ -321,8 +341,11 @@ void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString dir
     emit cacheChanged();
 
     // The auto-coupling probe runs at most once per entry, only for an unresolved
-    // Auto coupling over an analyzable (local, decodable) entry.
-    if (m_analyzable && m_couplingMode == CouplingMode::Auto && !m_couplingResolved)
+    // Auto coupling over an analyzable (local, decodable) entry — and NEVER for RTL
+    // manga, whose pairing is the deterministic hard law pinned just after applyPersisted
+    // above (that pin already sets couplingResolved; this states the exclusion at the probe site).
+    if (m_analyzable && m_couplingMode == CouplingMode::Auto && !m_couplingResolved
+        && m_direction != Direction::Rtl)
         startAutoCouplingProbe();
 }
 
@@ -786,6 +809,23 @@ void ComicReaderCore::setVisible(QVariantList pageIndices) {
         if (pr >= 0) m_decode->request(pr, prioVisible - kOffPrevUnit);
         if (pl >= 0) m_decode->request(pl, prioVisible - kOffPrevUnit);
     }
+}
+
+// See the header for the full contract. Out-of-range is a plain no-op — the
+// same bounds shape retryPage() uses, which also covers "no book open"
+// (m_pages is empty, so nothing is ever in range).
+//
+// One known, accepted gap: request() silently drops a page still inside
+// ComicReaderDecode's MissingFile cooldown window, and unlike Single/Pair/Strip
+// (which re-request on every visible-set change) a delegate calls this exactly
+// once, at realization. A page whose file is mid-write can stay blank for that
+// delegate's lifetime — it self-heals on the next time the filmstrip opens or
+// the delegate re-realizes while scrolling, which is not a guaranteed retry
+// but matches this surface's low-stakes, browse-only nature.
+void ComicReaderCore::requestThumbnail(int page) {
+    if (page < 0 || page >= m_pages.size())
+        return;
+    m_decode->request(page, kPrioThumbnail);
 }
 
 void ComicReaderCore::requestRange(int first, int last) {

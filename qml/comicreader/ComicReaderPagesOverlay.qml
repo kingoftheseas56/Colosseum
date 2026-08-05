@@ -377,7 +377,18 @@ Item {
                     onClicked: cell.activate()
                 }
 
-                Component.onCompleted: root.liveThumbs += 1
+                // Realizing IS the decode-request trigger: imageUrl() below is pure string
+                // construction, and the provider only ever SERVES an already-decoded page — it
+                // never triggers one. Without this, a page the reader has never actually visited
+                // via Single/Pair/Strip stayed permanently blank here, no matter how long the
+                // strip sat open (the bug this delegate exists to fix). requestThumbnail() is
+                // low-priority and non-pinning, so browsing the strip can never starve or evict
+                // what the real reading surface needs; readyRev (below) already re-requests the
+                // url once the decode lands, so no further wiring is needed here.
+                Component.onCompleted: {
+                    root.liveThumbs += 1
+                    if (root.core && root.core.requestThumbnail) root.core.requestThumbnail(index)
+                }
                 Component.onDestruction: root.liveThumbs -= 1
             }
         }

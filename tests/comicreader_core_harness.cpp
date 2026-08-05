@@ -505,7 +505,9 @@ int main(int argc, char** argv) {
         persisted.insert(QStringLiteral("bookmarks"), bm);
         persisted.insert(QStringLiteral("memorySaver"), true);
 
-        core.openEntry(QStringLiteral("rt"), plainPages, QStringLiteral("rtl"), persisted);
+        // LTR, not RTL: T12b makes manga HEAL a shifted verdict to normal on open, so a lossless
+        // coupling round-trip can only be asserted for a direction where the shift still survives.
+        core.openEntry(QStringLiteral("rt"), plainPages, QStringLiteral("ltr"), persisted);
 
         // Overrides took effect on the pairing.
         CHECK(core.unitForPage(3).value(QStringLiteral("spread")).toBool() == true,
@@ -519,6 +521,41 @@ int main(int argc, char** argv) {
         // No probe (a resolved manual state is never re-analyzed).
         CHECK(core.couplingProbeDebug().value(QStringLiteral("called")).toBool() == false,
               "T12 a resolved persisted coupling skips the auto-coupling probe");
+    }
+
+    // ── Test 12b: MANGA (RTL) pairing is the DETERMINISTIC HARD LAW ────────────
+    // Hemanth 2026-08-01: "make my rule the hard law for manga order." An RTL manga
+    // opens to cover-alone, page-1-alone, then (2,3),(4,5)... ALWAYS — a persisted
+    // "shifted" verdict (here an AUTO one; an F3 series-carry saved as "manual" behaves
+    // the same) is HEALED to normal on open, so page 2 pairs with page 3 and never
+    // stands alone. The LTR twin proves the rule is manga-SCOPED: a western comic still
+    // honors the very same stored shift, so coupling was narrowed, not disabled.
+    {
+        QVariantMap shifted;
+        shifted.insert(QStringLiteral("couplingMode"), QStringLiteral("auto"));
+        shifted.insert(QStringLiteral("couplingPhase"), QStringLiteral("shifted"));
+        shifted.insert(QStringLiteral("couplingResolved"), true);
+
+        ComicReaderCore manga;
+        manga.openEntry(QStringLiteral("manga-hardlaw"), plainPages, QStringLiteral("rtl"), shifted);
+        CHECK(manga.couplingState().startsWith(QStringLiteral("auto:normal")),
+              "T12b RTL manga heals a persisted shifted verdict to normal");
+        const QVariantMap u2 = manga.unitForPage(2);
+        CHECK(u2.value(QStringLiteral("rightIndex")).toInt() == 2
+                  && u2.value(QStringLiteral("leftIndex")).toInt() == 3,
+              "T12b page 2 pairs with page 3 (cover alone, page 1 alone, then (2,3)) - NOT alone");
+        CHECK(u2.value(QStringLiteral("spread")).toBool() == false
+                  && u2.value(QStringLiteral("coverAlone")).toBool() == false,
+              "T12b the (2,3) unit is a real pair, not a spread or a lone page");
+        CHECK(manga.couplingProbeDebug().value(QStringLiteral("called")).toBool() == false,
+              "T12b RTL manga never runs the auto-coupling probe (the pin resolves the phase)");
+
+        ComicReaderCore comic;
+        comic.openEntry(QStringLiteral("comic-shifted"), plainPages, QStringLiteral("ltr"), shifted);
+        CHECK(comic.couplingState().startsWith(QStringLiteral("auto:shifted")),
+              "T12b LTR comic still honors the persisted shifted verdict (rule is manga-scoped)");
+        CHECK(comic.unitForPage(2).value(QStringLiteral("leftIndex")).toInt() < 0,
+              "T12b under LTR shifted, page 2 stands alone - the behaviour manga now forbids");
     }
 
     // ── Test 13: resetCoupling un-pins a manual entry back to Auto + RE-PROBES ─
@@ -1989,6 +2026,36 @@ int main(int argc, char** argv) {
         CHECK(core.pageInfo(0).value(QStringLiteral("error")).toString()
                   != QLatin1String("missing_file"),
               "T35 a broken member does not poison its neighbours");
+    }
+
+    // ── Test 36: requestThumbnail drives decode WITHOUT pinning (Pages filmstrip) ──
+    // The Pages overlay's fix: a realized thumbnail delegate must be able to make its
+    // own page decode, but must never join the pinned/never-evict set setVisible owns —
+    // that set belongs to the actual reading surface, and a filmstrip browsing dozens of
+    // delegates must not be able to clobber or crowd it out.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("thumb"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.requestThumbnail(4);
+        const bool decoded = waitFor([&] {
+            return core.pageInfo(4).value(QStringLiteral("decoded")).toBool();
+        });
+        CHECK(decoded, "T36 requestThumbnail(4) actually decodes the page");
+        CHECK(core.pinnedPages().isEmpty(),
+              "T36 requestThumbnail must NEVER pin — the filmstrip is not the reading surface");
+
+        // A page already pinned by the real reading surface must stay pinned: this door
+        // only ADDS a low-priority decode request, it never touches m_lastPinned either way.
+        core.setVisible(QVariantList{1});
+        const QVariantList pinnedBefore = core.pinnedPages();
+        core.requestThumbnail(4);
+        CHECK(core.pinnedPages() == pinnedBefore,
+              "T36 requestThumbnail leaves an existing pin set completely untouched");
+
+        // Out of range, and past the end: no crash, no state change.
+        core.requestThumbnail(-1);
+        core.requestThumbnail(9999);
+        CHECK(core.pageCount() == 6, "T36 an out-of-range requestThumbnail changes nothing");
     }
 
     if (g_failures == 0) {

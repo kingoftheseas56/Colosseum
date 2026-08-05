@@ -382,12 +382,16 @@ Item {
     // SLICE 2 — the Pages filmstrip (Task 6)
     // ============================================================================================
     // The overlay talks to the BACKEND, not to a reader seam: pageCount / currentPage / order /
-    // bookmarks are pushed in as plain properties and the only call it makes is imageUrl(page, tier).
-    // The fake returns "" for every url on purpose — a real "image://comicreader/..." would warn once
-    // per delegate against an engine with no such provider, and what this gate actually has to prove
-    // is WHICH TIER was asked for, which the call log answers exactly.
+    // bookmarks are pushed in as plain properties, and it calls imageUrl(page, tier) for pixels
+    // plus requestThumbnail(page) to ASK for those pixels to exist (the fix: a realized delegate
+    // used to only ever read imageUrl(), which is pure string construction and triggers no decode —
+    // a page the reader had never actually visited stayed permanently blank). The fake returns ""
+    // for every url on purpose — a real "image://comicreader/..." would warn once per delegate
+    // against an engine with no such provider, and what this gate actually has to prove is WHICH
+    // TIER was asked for and WHICH PAGES asked to be decoded, which the two call logs answer exactly.
     component FakePagesCore: QtObject {
         property var calls: []                       // [{page, tier}] — every imageUrl request
+        property var thumbRequests: []                // every requestThumbnail(page) call, in order
         property var bookmarksArr: []
         signal pageReady(int page)
         signal bookmarksChanged()
@@ -395,11 +399,17 @@ Item {
             calls.push({ page: page, tier: String(tier) })
             return ""
         }
+        function requestThumbnail(page) {
+            thumbRequests.push(page)
+        }
         function bookmarks() { return bookmarksArr.slice() }
         function tiersAsked() {
             var seen = {}
             for (var i = 0; i < calls.length; i++) seen[calls[i].tier] = true
             return Object.keys(seen).sort()
+        }
+        function requestedThumbFor(page) {
+            return thumbRequests.indexOf(page) >= 0
         }
     }
 
@@ -473,6 +483,15 @@ Item {
         var tiers = fakePagesCore.tiersAsked()
         ck(tiers.length === 1 && tiers[0] === "thumbnail",
            "pages: every thumbnail request must use the 'thumbnail' tier, saw [" + tiers.join(",") + "]")
+
+        // --- THE FIX: a realized delegate must ask the backend to actually decode its page.
+        //     imageUrl() alone is a dead end — it is pure string construction, and the provider
+        //     only ever SERVES an already-decoded page. Without requestThumbnail(), a page the
+        //     reader had never visited via Single/Pair/Strip stayed permanently blank here. ---
+        ck(fakePagesCore.requestedThumbFor(699),
+           "pages: realizing the centred delegate (page 700, index 699) must request its own decode")
+        ck(fakePagesCore.thumbRequests.length > 0,
+           "pages: the filmstrip must request decode for every delegate it realizes, got 0 requests")
 
         // --- RTL mirrors the VISUAL sequence... ---
         overlay.pageCount = 230
