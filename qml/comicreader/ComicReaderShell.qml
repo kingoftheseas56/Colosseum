@@ -228,7 +228,21 @@ Item {
     // turn, a temporary surface, the chrome coming back. Named for what it MEANS rather than what
     // it does, because the meaning is the contract: a hand touched the reader, so the machine
     // stops. Resume is explicit, never automatic; there is no counterpart to this function.
-    function manualActivity() { pauseAutoScroll() }
+    //
+    // It also disarms any in-flight strip restore. Without this, a resume door still ticking
+    // (waiting for the column to finish laying out) can fire 600ms after the reader has already
+    // taken the wheel and yank the column back to the entry's opening spot — a real, independent
+    // bug from the resume-race fix above: a hand on the reader means the machine's own idea of
+    // "where to put you" is moot from that moment on.
+    function manualActivity() {
+        pauseAutoScroll()
+        if (_stripRestorePending) {
+            stripRestore.stop()
+            _stripRestoreTries = 0
+            _pendingStripFrac = 0
+            _pendingPageFraction = -1
+        }
+    }
 
     // Speed. `persist` mirrors setStripLayout's third argument for the same reason: replaying a
     // series' remembered speed is not the reader MAKING a choice, and persisting from the replay
@@ -966,7 +980,17 @@ Item {
             _stripAnchorPage = presentedPage
             _stripAnchorFraction = presentedPageFraction
         }
-        recordProgressSoon()
+        // THE RESUME RACE (bug: every Long Strip reopen landed on page 1). The strip surface's
+        // onActiveChanged fires Qt.callLater(_emitPresented) the INSTANT it mounts, reporting
+        // whatever page the not-yet-restored contentY=0 column shows -- independent of whether
+        // _runStripRestore has physically moved the column to the resumed spot yet. That report
+        // used to schedule a debounced write unconditionally: 600ms later it banked page 1 over
+        // a correct resume, and because the record IS the input to the next resume, one bad
+        // write poisoned every open after it. presentedPage above still updates live (so display
+        // logic sees the live anchor), but the write to disk waits for the restore door to be
+        // done — a presentation that arrives mid-restore is, by construction, reporting a
+        // position the shell has already decided is provisional.
+        if (!_stripRestorePending) recordProgressSoon()
     }
 
     // Is this page showing an error card rather than pixels? The BACKEND answers — one owner of
@@ -1018,6 +1042,19 @@ Item {
         } else {
             goToPageIndex(p + 1)     // snaps to the canonical unit in Paired Pages
         }
+    }
+
+    // Flush before the session engine captures/tears this down — mirrors the book reader's
+    // goMinimize() (ReaderShell.qml: flushProgressSave() then minimized()). Minimize already ends
+    // up flushed via Component.onDestruction -> shutdown(), but only once the Loader actually
+    // destroys the item, which is a beat after this signal fires; the session snapshot Main.qml
+    // captures in between reads live properties (not disk), so it needs no flush of its own, but
+    // the disk-backed Progress record does — the process can die while parked in the taskbar,
+    // between this click and that destruction, and a debounced write still pending in that
+    // narrow window would never land.
+    function goMinimize() {
+        recordProgress()
+        minimizeRequested()
     }
 
     // flush a final record + close the backend entry. This is DESTRUCTION semantics only — the hide
@@ -1332,8 +1369,14 @@ Item {
         }
         var span = stripSurface.contentHeight - stripSurface.height
         if (span <= 0) {   // not laid out yet — retry; a slow decode costs a moment, never your place
-            if (_stripRestoreTries < 3) { _stripRestoreTries += 1; stripRestore.restart() }
-            else _stripRestoreTries = 0
+            if (_stripRestoreTries < 3) { _stripRestoreTries += 1; stripRestore.restart(); return }
+            // Genuinely gave up (the column never laid out in time). Same reason the not-on-strip
+            // branch above clears both arms: leaving them set is a landmine for the NEXT unrelated
+            // opening (a later mode switch back into Strip would take this stale fraction and jump
+            // to a spot the current entry never asked for).
+            _stripRestoreTries = 0
+            _pendingStripFrac = 0
+            _pendingPageFraction = -1
             return
         }
         _stripRestoreTries = 0
@@ -1719,7 +1762,7 @@ Item {
         onToggleBookmark: reader.bookmarkToggleRequested()
         // window verbs -> the shell's existing session-window signals
         onBackRequested: reader.backRequested()
-        onMinimizeRequested: reader.minimizeRequested()
+        onMinimizeRequested: reader.goMinimize()
         onFullscreenRequested: reader.fullscreenRequested()
         onCloseRequested: reader.closeRequested()
     }
@@ -1747,9 +1790,13 @@ Item {
         enabled: !reader.modalOpen
         cursorShape: reader.chromeVisible || !reader._cursorIdle
                      ? Qt.ArrowCursor : Qt.BlankCursor
-        // "Any plain mouse movement restores HUD and cursor together." One door, so they can never
-        // come back separately again.
-        onPositionChanged: reader.restoreCursorAndChrome()
+        // Movement wakes ONLY the cursor; the HUD returns solely when the pointer reaches a top/bottom
+        // reveal zone where the bars actually live (Hemanth 2026-08-01 — a mouse moved in the middle of
+        // the page must NOT wake the chrome). This topmost overlay owns the hover the z:-1 input layer
+        // beneath it cannot see, so it runs THAT layer's own zone test instead of an unconditional
+        // reveal: in-zone emits revealRequested (-> restoreCursorAndChrome, chrome + cursor together);
+        // the middle emits activity (-> _pokeCursor only; notifyActivity is a no-op while chrome hidden).
+        onPositionChanged: function (mouse) { comicInput._checkRevealZone(mouse.y) }
     }
 
     // ---- overlays (Task 12) — mounted ABOVE the HUD so they own input while open ----
