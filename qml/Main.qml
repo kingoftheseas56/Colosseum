@@ -2060,6 +2060,11 @@ Window {
                     // inherited field (none currently, but defensive) loads cleanly.
                     if (item.showExplicitContent !== undefined)
                         item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
+                    // Biblio's Discover/Explore split (Task 8) reads its OWN showExplicit
+                    // property — distinct from the inherited WorldPage.showExplicitContent above
+                    // (Tankoban's Discover wall) — same guarded-binding shape either way.
+                    if (item.showExplicit !== undefined)
+                        item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
                     if (mode === "Theatre") {
                         item.contentPreferences = contentPreferences   // the one global preference into the deep catalogue
                         var theatreSignal = item["theatre" + "ItemRequested"]
@@ -2241,6 +2246,7 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(win.closeComicReader)
         }
     }
 
@@ -2275,6 +2281,7 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(win.closeComicReader)
         }
     }
 
@@ -2302,6 +2309,7 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(win.closeComicReader)
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
         }
