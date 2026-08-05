@@ -17,6 +17,350 @@ Item {
     function ok(cond, label) { if (!cond) fails.push(label); }
 
     // ---------------------------------------------------------------------
+    // Task 7 — BiblioBookRail + BiblioExplorePage. Injected fakes stand in for the native
+    // BiblioCatalog/Extensions context properties and DiscoverApi's network-backed loadPage —
+    // this harness never touches a real native object or the network. `tempIni(name)` mirrors
+    // the file's own iniUrl convention, one isolated temp INI per page instance so parallel
+    // BiblioExplorePreferences instances never collide.
+    // ---------------------------------------------------------------------
+    function tempIni(name) {
+        return StandardPaths.writableLocation(StandardPaths.TempLocation)
+             + "/colosseum_biblio_explore_" + name + "_test.ini";
+    }
+
+    function bookRow(id, title, author, cover, ratingAvg) {
+        return { canonicalId: id, title: title, author: author, originalLanguage: "english",
+                 canonicalFirstPublished: "2020-01-01", publisher: "Test House", coverUrl: cover,
+                 rating: { average: ratingAvg, count: 42 }, score: 1, rank: 1 };
+    }
+
+    function makeFakeCatalog(opts) {
+        opts = opts || {};
+        return {
+            ready: opts.ready !== undefined ? opts.ready : true,
+            revision: opts.revision !== undefined ? opts.revision : 1,
+            exploreRows: function(limit, includeExplicit) {
+                return [
+                    { catalogId: "popular", items: opts.popularItems || [] },
+                    { catalogId: "top-rated", items: opts.topRatedItems || [] },
+                    { catalogId: "new-releases", items: opts.newReleasesItems || [] },
+                    { catalogId: "trending", items: opts.trendingItems || [] }
+                ];
+            },
+            discoverPage: function(catalogId, axis, key, includeExplicit, offset, limit) {
+                return { items: opts.top10Items || [] };
+            },
+            mosaic: function(facetKey, limit, includeExplicit) {
+                var map = opts.mosaicByFacet || {};
+                return map[facetKey] || [];
+            }
+        };
+    }
+
+    function makeFakeExtensionsSource(manifestList) {
+        return { installed: function() { return manifestList || []; } };
+    }
+
+    function oneBookExtension(id, title) {
+        return [{
+            id: id, enabled: true, core: false,
+            transportUrl: "https://" + id + ".example/manifest.json",
+            manifest: { name: title, catalogs: [ { id: "popular", type: "book", name: title } ] }
+        }];
+    }
+
+    function syncFetcher(metas) {
+        return function(catalog, selections, skip, done) { done(metas); };
+    }
+
+    // a delayed fetch (dynamic Timer) — proves a slow extension row resolves on its OWN
+    // schedule without blocking (or being blocked by) the synchronous house/top-10 data.
+    function delayedFetcher(metas, delayMs) {
+        return function(catalog, selections, skip, done) {
+            var t = Qt.createQmlObject(
+                'import QtQuick; Timer { interval: ' + delayMs + '; running: true; repeat: false }',
+                harness, "biblioExploreDelayTimer");
+            t.triggered.connect(function() { done(metas); t.destroy(); });
+        };
+    }
+
+    readonly property var mosaicFixture: ({
+        "literary-fiction": [{ title: "Fic A", author: "Author F", coverUrl: "fic-a.png", rating: { average: 4, count: 1 } }],
+        "nonfiction": [{ title: "Non A", author: "Author N", coverUrl: "non-a.png", rating: { average: 4, count: 1 } }],
+        "young-adult": [{ title: "YA A", author: "Author Y", coverUrl: "ya-a.png", rating: { average: 4, count: 1 } }]
+    })
+
+    Component { id: railComp; UI.BiblioBookRail {} }
+    Component { id: pageComp; UI.BiblioExplorePage {} }
+    property var pendingSlowPage: null
+
+    function runBookRailChecks() {
+        var items = [{ id: "r1", title: "Rail Book", author: "Rail Author", cover: "r1.png",
+                        rating: "4.3", source: "Apple Books · Open Library" }];
+        var rail = railComp.createObject(harness, { items: items, title: "Test Shelf" });
+        harness.ok(rail !== null, "BiblioBookRail constructs");
+        if (!rail) return;
+
+        harness.ok(rail.items[0].author === "Rail Author", "author is carried on the rail's item data");
+        harness.ok(rail.ratingVisibleAt(0) === false, "rest: rating hidden with no hover and no keyboard focus");
+        harness.ok(rail.sourceVisibleAt(0) === false, "rest: source hidden with no hover and no keyboard focus");
+
+        rail.testHoveredIndex = 0;
+        harness.ok(rail.ratingVisibleAt(0) === true, "pointer hover reveals rating");
+        harness.ok(rail.sourceVisibleAt(0) === true, "pointer hover reveals source");
+        rail.testHoveredIndex = -1;
+        harness.ok(rail.ratingVisibleAt(0) === false, "rating hides again once hover ends");
+
+        rail.keyboardMode = true; rail.currentIndex = 0;
+        harness.ok(rail.ratingVisibleAt(0) === true, "keyboard focus ALSO reveals rating (Biblio: hover OR focus)");
+        harness.ok(rail.sourceVisibleAt(0) === true, "keyboard focus ALSO reveals source");
+        rail.keyboardMode = false; rail.currentIndex = -1;
+        harness.ok(rail.ratingVisibleAt(0) === false, "rating hides again once focus moves away");
+
+        // ranked mode (Top 10): numeral badge only — never a competing rating glyph, even revealed.
+        rail.ranked = true;
+        rail.testHoveredIndex = 0;
+        harness.ok(rail.ratingVisibleAt(0) === false, "ranked mode suppresses the rating glyph even on reveal");
+        harness.ok(rail.sourceVisibleAt(0) === true, "ranked mode still allows the source label on reveal");
+        rail.testHoveredIndex = -1;
+        rail.ranked = false;
+
+        var seeAllCount = 0;
+        rail.seeAllActivated.connect(function() { seeAllCount++; });
+        rail.seeAllActivated();
+        harness.ok(seeAllCount === 1, "See All is wired to seeAllActivated()");
+
+        var activated = null;
+        rail.itemActivated.connect(function(it) { activated = it; });
+        rail.itemActivated(items[0]);
+        harness.ok(activated === items[0], "a card activation forwards the book item via itemActivated()");
+
+        // an empty, non-loading rail collapses entirely; a loading rail still reserves its shelf.
+        rail.items = [];
+        harness.ok(rail.visible === false, "an empty, non-loading rail collapses entirely (no placeholder shelf)");
+        rail.loading = true;
+        harness.ok(rail.visible === true, "a loading rail still renders (its own independent loading state)");
+
+        rail.destroy();
+    }
+
+    function runExplorePageChecks(doneCb) {
+        var cat = harness.makeFakeCatalog({
+            popularItems: [harness.bookRow("pop1", "Popular One", "Author P", "p1.png", 4.5)],
+            topRatedItems: [harness.bookRow("tr1", "Top Rated One", "Author T", "t1.png", 4.8)],
+            newReleasesItems: [harness.bookRow("nr1", "New One", "Author N", "n1.png", 4.1)],
+            trendingItems: [harness.bookRow("tn1", "Trending One", "Author G", "g1.png", 4.2)],
+            top10Items: [harness.bookRow("top1", "Top10 One", "Author X", "x1.png", 4.9)],
+            mosaicByFacet: harness.mosaicFixture
+        });
+        var ext = harness.makeFakeExtensionsSource(harness.oneBookExtension("libgen", "LibGen Mirror"));
+        var extMetas = [{ id: "e1", title: "Ext Book One", author: "Ext Author", cover: "e1.png", imdbRating: "4.2" }];
+
+        var page1 = pageComp.createObject(harness, {
+            catalogSource: cat, extensionsSource: ext, pageFetcher: harness.syncFetcher(extMetas),
+            preferences: prefsComp.createObject(harness, { settingsLocation: harness.tempIni("page1") })
+        });
+        harness.ok(page1 !== null, "BiblioExplorePage constructs with injected fakes");
+        if (page1) {
+            page1._prefs.reset();
+
+            var rows = page1.displayRows;
+            harness.ok(rows.length === 6, "default displayRows: top-10 + 1 extension + 4 house rails, got " + rows.length);
+            harness.ok(rows[0] && rows[0].key === "top-10" && rows[0].kind === "top10" && rows[0].ranked === true,
+                       "Top 10 renders first, in ranked mode");
+            harness.ok(rows[1] && rows[1].kind === "extension",
+                       "extension preview row renders second (right after Top 10, before the house rails)");
+            var houseOrder = [rows[2], rows[3], rows[4], rows[5]].map(function(r) { return r && r.key; });
+            harness.ok(JSON.stringify(houseOrder) === JSON.stringify(["popular", "top-rated", "new-releases", "trending"]),
+                       "the four house rails render in fixed order, got " + JSON.stringify(houseOrder));
+
+            var top10Pin = rows[0].pin;
+            harness.ok(top10Pin.type === "book" && top10Pin.catalogId === "popular" && top10Pin.sourceKind === "builtin"
+                       && top10Pin.filterGroup === "" && top10Pin.filterKey === "",
+                       "Top 10's See-All pin resolves to the Popular catalogue, got " + JSON.stringify(top10Pin));
+            var extPin = rows[1].pin;
+            harness.ok(extPin.type === "book" && extPin.sourceKind === "extension" && !!extPin.extensionId
+                       && !!extPin.transportUrl && extPin.extCatalogId === "popular" && extPin.addonName === "LibGen Mirror",
+                       "the extension row's See-All pin carries its extension identity, got " + JSON.stringify(extPin));
+            var housePin = rows[2].pin;
+            harness.ok(housePin.type === "book" && housePin.catalogId === "popular" && housePin.sourceKind === "builtin",
+                       "a house rail's See-All pin carries its catalogId, got " + JSON.stringify(housePin));
+
+            harness.ok(page1.mosaicSpecs.length === 3, "exactly three fixed mosaics");
+            var mosKeys = page1.mosaicSpecs.map(function(s) { return s.key; });
+            harness.ok(mosKeys.indexOf("mosaic-fiction") !== -1 && mosKeys.indexOf("mosaic-nonfiction") !== -1
+                       && mosKeys.indexOf("mosaic-audience") !== -1, "mosaics are Fiction / Nonfiction / Audience");
+            harness.ok((page1.mosaicItemsByKey["mosaic-fiction"] || []).length > 0, "fiction mosaic has items");
+            harness.ok((page1.mosaicItemsByKey["mosaic-nonfiction"] || []).length > 0, "nonfiction mosaic has items");
+            harness.ok((page1.mosaicItemsByKey["mosaic-audience"] || []).length > 0, "audience mosaic has items");
+            for (var mi = 0; mi < rows.length; mi++)
+                harness.ok(rows[mi].kind !== "mosaic", "mosaics never appear inside the customizable displayRows list");
+
+            var fictionPin = page1.mosaicPin(page1.mosaicSpecs[0]);
+            harness.ok(fictionPin.type === "book" && fictionPin.filterGroup === "genre"
+                       && fictionPin.filterKey === "literary-fiction" && fictionPin.sourceKind === "builtin",
+                       "Fiction mosaic tile pin filters Discover to genre/literary-fiction, got " + JSON.stringify(fictionPin));
+            var nonfictionPin = page1.mosaicPin(page1.mosaicSpecs[1]);
+            harness.ok(nonfictionPin.filterGroup === "genre" && nonfictionPin.filterKey === "nonfiction",
+                       "Nonfiction mosaic tile pin filters Discover to genre/nonfiction");
+            var audiencePin = page1.mosaicPin(page1.mosaicSpecs[2]);
+            harness.ok(audiencePin.filterGroup === "audience" && audiencePin.filterKey === "young-adult",
+                       "Audience mosaic tile pin filters Discover to audience/young-adult");
+
+            // reordering never touches the fixed mosaics — they are simply outside the
+            // customization system, not merely "last by convention".
+            page1._prefs.move("trending", 0);
+            harness.ok(page1.mosaicSpecs.length === 3 && (page1.mosaicItemsByKey["mosaic-fiction"] || []).length > 0,
+                       "row reordering never affects the fixed mosaics");
+            page1._prefs.reset();
+
+            var popItem = (page1.houseRowsMap["popular"] || [])[0];
+            harness.ok(popItem && popItem.author === "Author P", "a house item carries author at rest");
+            harness.ok(popItem && popItem.blurb === undefined && popItem.description === undefined,
+                       "no generated row/item blurb field anywhere on a normalized house item");
+            var extKey1 = Object.keys(page1.catalogByExtKey)[0];
+            var extItems1 = page1._extRowItems(extKey1);
+            harness.ok(extItems1.length === 1 && extItems1[0].author === "Ext Author",
+                       "an extension item carries author at rest, got " + JSON.stringify(extItems1));
+            harness.ok(extItems1[0].blurb === undefined && extItems1[0].description === undefined,
+                       "no blurb field on a normalized extension item");
+
+            // drag handles appear ONLY in edit mode.
+            page1.editMode = false;
+            harness.ok(page1.editControlsVisibleAt(0) === false, "drag/move/hide controls are hidden outside edit mode");
+            page1.editMode = true;
+            harness.ok(page1.editControlsVisibleAt(0) === true, "drag/move/hide controls appear in edit mode");
+            page1.editMode = false;
+
+            // hide/show: a hidden row disappears in normal browsing, resurfaces (marked) in edit mode.
+            page1._prefs.setVisible("popular", false);
+            var keysNoEdit = page1.displayRows.map(function(r) { return r.key; });
+            harness.ok(keysNoEdit.indexOf("popular") === -1, "a hidden row never renders outside edit mode");
+            page1.editMode = true;
+            var popularEdit = page1.displayRows.filter(function(r) { return r.key === "popular"; })[0];
+            harness.ok(popularEdit !== undefined && popularEdit.hidden === true,
+                       "a hidden row is present (marked hidden) in edit mode so it can be re-shown");
+            page1._prefs.setVisible("popular", true);
+            page1.editMode = false;
+
+            // keyboard Move Up/Move Down is the accessible equivalent of drag — SAME move() call.
+            var firstKey = page1.customizableRowKeys[0];
+            page1.moveRowBy(firstKey, 1);
+            harness.ok(page1._prefs.order.indexOf(firstKey) === 1,
+                       "Move Down calls BiblioExplorePreferences.move() and persists the new position, got "
+                       + JSON.stringify(page1._prefs.order));
+            page1._prefs.reset();
+
+            // pointer drag: a TEMPORARY visible order, committed through the SAME move() only on release.
+            var dragKey = page1.customizableRowKeys[0];
+            var orderBeforeDrag = page1._prefs.order.slice();
+            page1.beginDrag(dragKey);
+            harness.ok(page1.draggingKey === dragKey, "beginDrag() marks the row as dragging");
+            page1.updateDragDelta(dragKey, page1.dragRowStride * 2);
+            harness.ok(JSON.stringify(page1._prefs.order) === JSON.stringify(orderBeforeDrag),
+                       "an in-progress drag never writes BiblioExplorePreferences (temporary visible order only)");
+            harness.ok(page1.dragKeys[0] !== dragKey, "the drag's temporary order already reflects the pending move");
+            var dragTargetIndex = page1.dragKeys.indexOf(dragKey);
+            page1.endDrag(dragKey);
+            harness.ok(page1.draggingKey === "" && page1.dragKeys === null, "endDrag() clears the temporary drag state");
+            harness.ok(page1._prefs.order.indexOf(dragKey) === dragTargetIndex,
+                       "releasing the drag commits the SAME final position through move(), got "
+                       + JSON.stringify(page1._prefs.order));
+            page1._prefs.reset();
+        }
+
+        // an extension row whose fetch answers empty collapses entirely — no placeholder shelf.
+        var page2 = pageComp.createObject(harness, {
+            catalogSource: harness.makeFakeCatalog({ mosaicByFacet: harness.mosaicFixture }),
+            extensionsSource: harness.makeFakeExtensionsSource(harness.oneBookExtension("empty-ext", "Empty Source")),
+            pageFetcher: harness.syncFetcher([]),
+            preferences: prefsComp.createObject(harness, { settingsLocation: harness.tempIni("page2") })
+        });
+        harness.ok(page2 !== null, "second page instance constructs (empty-extension scenario)");
+        if (page2) {
+            var keys2 = page2.displayRows.map(function(r) { return r.key; });
+            var hasExt2 = false;
+            for (var k2 = 0; k2 < keys2.length; k2++) if (Rules.isExtensionKey(keys2[k2])) hasExt2 = true;
+            harness.ok(!hasExt2, "an extension row whose fetch returns empty collapses entirely");
+        }
+
+        // ExplicitContentPolicy gates an extension item; the native includeExplicit param
+        // already gates house/mosaic rows server-side, so only the extension path needs the
+        // JS-side check here.
+        var explicitMeta = [
+            { id: "e-ok", title: "Fine Book", author: "A", cover: "ok.png" },
+            { id: "e-bad", title: "Explicit Book", author: "B", cover: "bad.png", explicit: true }
+        ];
+        var page3 = pageComp.createObject(harness, {
+            catalogSource: harness.makeFakeCatalog({ mosaicByFacet: harness.mosaicFixture }),
+            extensionsSource: harness.makeFakeExtensionsSource(harness.oneBookExtension("gate-ext", "Gate Source")),
+            pageFetcher: harness.syncFetcher(explicitMeta),
+            showExplicit: false,
+            preferences: prefsComp.createObject(harness, { settingsLocation: harness.tempIni("page3") })
+        });
+        if (page3) {
+            var extKey3 = Object.keys(page3.catalogByExtKey)[0];
+            var items3 = page3._extRowItems(extKey3);
+            harness.ok(items3.length === 1 && items3[0].id === "e-ok",
+                       "ExplicitContentPolicy gates an explicit extension item when showExplicit is false, got "
+                       + JSON.stringify(items3));
+        }
+        var page4 = pageComp.createObject(harness, {
+            catalogSource: harness.makeFakeCatalog({ mosaicByFacet: harness.mosaicFixture }),
+            extensionsSource: harness.makeFakeExtensionsSource(harness.oneBookExtension("gate-ext2", "Gate Source 2")),
+            pageFetcher: harness.syncFetcher(explicitMeta),
+            showExplicit: true,
+            preferences: prefsComp.createObject(harness, { settingsLocation: harness.tempIni("page4") })
+        });
+        if (page4) {
+            var extKey4 = Object.keys(page4.catalogByExtKey)[0];
+            var items4 = page4._extRowItems(extKey4);
+            harness.ok(items4.length === 2, "showExplicit true reveals the gated item too, got " + items4.length);
+        }
+
+        // independent per-shelf loading: house rails render immediately while a SLOW extension
+        // fetch is still pending, and the slow row resolves later without blocking anything else.
+        var slowPage = pageComp.createObject(harness, {
+            catalogSource: harness.makeFakeCatalog({
+                popularItems: [harness.bookRow("ip1", "Independent Popular", "Auth", "i1.png", 4.0)],
+                topRatedItems: [harness.bookRow("ip2", "Independent TopRated", "Auth", "i2.png", 4.0)],
+                newReleasesItems: [harness.bookRow("ip3", "Independent New", "Auth", "i3.png", 4.0)],
+                trendingItems: [harness.bookRow("ip4", "Independent Trending", "Auth", "i4.png", 4.0)],
+                top10Items: [harness.bookRow("ip5", "Independent Top10", "Auth", "i5.png", 4.0)],
+                mosaicByFacet: harness.mosaicFixture
+            }),
+            extensionsSource: harness.makeFakeExtensionsSource(harness.oneBookExtension("slow-ext", "Slow Source")),
+            pageFetcher: harness.delayedFetcher([{ id: "slow1", title: "Slow Book", author: "Slow Author", cover: "slow.png" }], 250),
+            preferences: prefsComp.createObject(harness, { settingsLocation: harness.tempIni("page5") })
+        });
+        harness.pendingSlowPage = slowPage;
+        if (slowPage) {
+            var keys5 = slowPage.displayRows.map(function(r) { return r.key; });
+            harness.ok(keys5.indexOf("popular") !== -1 && keys5.indexOf("top-rated") !== -1
+                       && keys5.indexOf("new-releases") !== -1 && keys5.indexOf("trending") !== -1,
+                       "house rails render immediately even while an extension fetch is still pending");
+            var extKey5 = Object.keys(slowPage.catalogByExtKey)[0];
+            harness.ok(slowPage._extRowStatus(extKey5) === "loading",
+                       "a slow extension row starts in its OWN independent loading state");
+        }
+
+        doneCb();
+    }
+
+    function verifySlowExtensionResolved() {
+        var slowPage = harness.pendingSlowPage;
+        if (slowPage) {
+            var extKey5 = Object.keys(slowPage.catalogByExtKey)[0];
+            harness.ok(slowPage._extRowStatus(extKey5) === "ok",
+                       "the slow extension row resolves independently once its own fetch completes");
+            var keys5b = slowPage.displayRows.map(function(r) { return r.key; });
+            var hasExt5 = false;
+            for (var i5 = 0; i5 < keys5b.length; i5++) if (Rules.isExtensionKey(keys5b[i5])) hasExt5 = true;
+            harness.ok(hasExt5, "the resolved slow extension row now renders in its place");
+        }
+    }
+
+    // ---------------------------------------------------------------------
     // Pure rules — no QML instance required, run first and synchronously.
     // ---------------------------------------------------------------------
     function runRuleChecks() {
@@ -212,9 +556,25 @@ Item {
             harness.ok(resetFired, "reset() fires changed()");
             harness.ok(JSON.stringify(c.order) === JSON.stringify([]) && JSON.stringify(c.hidden) === JSON.stringify([]),
                        "reset() clears both order and hidden");
+            if (harness.instC) harness.instC.destroy();
 
+            // Task 7 — BiblioBookRail direct checks, then BiblioExplorePage (which itself spins
+            // up a slow-extension scenario finished off by pagePhaseFinal below).
+            harness.runBookRailChecks();
+            harness.runExplorePageChecks(function() { pagePhaseFinal.start(); });
+        }
+    }
+
+    // Phase 3 — after the slow (250ms) extension fetch in runExplorePageChecks has had time to
+    // resolve, verify it landed independently and print the file's final OK marker.
+    Timer {
+        id: pagePhaseFinal
+        interval: 400
+        repeat: false
+        onTriggered: {
+            harness.verifySlowExtensionResolved();
             if (harness.fails.length) console.log("FAILS:\n  " + harness.fails.join("\n  "));
-            else console.log("BIBLIO_EXPLORE_RULES_OK");
+            else console.log("BIBLIO_EXPLORE_PAGE_OK");
             Qt.exit(harness.fails.length);
         }
     }
