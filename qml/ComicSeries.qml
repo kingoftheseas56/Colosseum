@@ -32,6 +32,10 @@ Item {
     signal readerMinimizeRequested()
     signal readerFullscreenRequested()
     signal readerCloseRequested()
+    // Back used to be swallowed locally (clearing openChapterId just revealed this page
+    // underneath); it now raises upward like the other three verbs, so Main.qml can route it
+    // through the same teardown authority Close already uses and land on the Tankoban library.
+    signal readerBackRequested()
 
     // --- resolved state ---
     property var releases: []              // [{id,url,name,cover,year,sizeMB,synopsis,collection}]
@@ -764,7 +768,10 @@ Item {
         chapters: page.chaptersModel
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
-        onBackRequested: { page.openChapterId = ""; page.openChapterLabel = "" }
+        // Do NOT clear openChapterId here — Main.qml's closeComicReader() reads it (still live)
+        // to pick the right teardown lane. Clearing it first would make that routing fall
+        // through to the wrong branch.
+        onBackRequested: page.readerBackRequested()
         onMinimizeRequested: page.readerMinimizeRequested()
         onFullscreenRequested: page.readerFullscreenRequested()
         onCloseRequested: page.readerCloseRequested()

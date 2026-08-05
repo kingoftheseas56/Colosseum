@@ -2246,6 +2246,7 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(win.closeComicReader)
         }
     }
 
@@ -2280,6 +2281,7 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(win.closeComicReader)
         }
     }
 
@@ -2307,6 +2309,7 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(win.closeComicReader)
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
         }

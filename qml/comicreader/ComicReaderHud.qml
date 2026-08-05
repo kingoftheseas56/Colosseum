@@ -261,20 +261,30 @@ Item {
         signal tapped()
         implicitWidth: side
         implicitHeight: side
-        scale: vbMa.pressed ? 0.94 : (vbMa.containsMouse ? 1.06 : 1.0)
-        Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
-        Rectangle {
+        // The press/hover scale lives on this INNER item, never on `vb` itself — `vb` is what
+        // `vbMa` fills, and Qt Quick's hit-testing maps a click through an item's own transform,
+        // so animating the scale of the MouseArea's own item would animate its clickable region
+        // too. Hardening, not the reported bug's root cause (the dominant cause was NavBar
+        // overlapping this whole row — see the NavBar fix above); kept because animating the
+        // geometry that hit-tests is a footgun worth closing regardless.
+        Item {
+            id: visual
             anchors.fill: parent
-            radius: width / 2
-            color: vbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-        }
-        ComicReaderIcon {
-            id: vbGlyph
-            anchors.centerIn: parent
-            kind: vb.glyphKindProp
-            accessibleName: vb.verbName
-            width: Math.round(vb.side * 0.5); height: width
-            ink: theme.ink
+            scale: vbMa.pressed ? 0.94 : (vbMa.containsMouse ? 1.06 : 1.0)
+            Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: vbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+            }
+            ComicReaderIcon {
+                id: vbGlyph
+                anchors.centerIn: parent
+                kind: vb.glyphKindProp
+                accessibleName: vb.verbName
+                width: Math.round(vb.side * 0.5); height: width
+                ink: theme.ink
+            }
         }
         MouseArea {
             id: vbMa
@@ -379,15 +389,16 @@ Item {
                 anchors.rightMargin: 10
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
-                VerbButton { id: icMin;   glyphKindProp: "minimize";   verbName: "Minimize";   onTapped: hud.minimizeRequested() }
-                VerbButton { id: icFull;  glyphKindProp: "fullscreen"; verbName: "Fullscreen"; onTapped: hud.fullscreenRequested() }
-                VerbButton { id: icClose; glyphKindProp: "close";      verbName: "Close";      onTapped: hud.closeRequested() }
+                VerbButton { id: icMin;   objectName: "hudMinimizeButton";   glyphKindProp: "minimize";   verbName: "Minimize";   onTapped: hud.minimizeRequested() }
+                VerbButton { id: icFull;  objectName: "hudFullscreenButton"; glyphKindProp: "fullscreen"; verbName: "Fullscreen"; onTapped: hud.fullscreenRequested() }
+                VerbButton { id: icClose; objectName: "hudCloseButton";      glyphKindProp: "close";      verbName: "Close";      onTapped: hud.closeRequested() }
             }
         }
 
         // ---- ONE flat command bar. No sidebar, no drawer, no pills. ----
         Rectangle {
             id: commandStrip
+            objectName: "readerCommandStrip"
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: titleBar.bottom
@@ -493,8 +504,6 @@ Item {
         component NavBar: Item {
             property bool isLeft: true
             width: 60
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
             visible: hud.navBarsVisible
             // Tankoban 2's SideNavArrow scheme: a big chevron drawn TWICE — a black drop shadow, then
             // a white foreground — so it reads on ANY page (a plain white glyph vanishes on a white
@@ -523,8 +532,24 @@ Item {
                 onClicked: hud.navBarTap(parent.isLeft)
             }
         }
-        NavBar { objectName: "hudNavLeft";  isLeft: true;  anchors.left: parent.left }
-        NavBar { objectName: "hudNavRight"; isLeft: false; anchors.right: parent.right }
+        // Bounded BELOW the title bar + command bar and ABOVE the gold rail — geometry, not
+        // z-order, is what keeps this strip off the chrome. It used to span the full chrome
+        // height (anchors.top/bottom: parent.top/bottom), which put its 60px-wide MouseArea
+        // on top of Back (title bar, left edge), Close/Fullscreen (title bar, right edge —
+        // Close sat ENTIRELY inside it), and the rightmost command-bar entries (Comic/Manga
+        // order) — all because they're declared before this component and Qt Quick stacks
+        // equal-z siblings in declaration order. Real, measured overlap, not a suspicion —
+        // proven red/green by tests/qml/tst_comicreader_title_controls.qml.
+        NavBar {
+            objectName: "hudNavLeft";  isLeft: true
+            anchors.left: parent.left
+            anchors.top: commandStrip.bottom; anchors.bottom: progressRail.top
+        }
+        NavBar {
+            objectName: "hudNavRight"; isLeft: false
+            anchors.right: parent.right
+            anchors.top: commandStrip.bottom; anchors.bottom: progressRail.top
+        }
 
         // ---- the title toast: the BOOK, stated big and plainly, sleeping with the rest of the
         //      chrome. Sits just above the rail, exactly as the approved mock places it — and it

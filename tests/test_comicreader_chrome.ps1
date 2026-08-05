@@ -135,4 +135,19 @@ if ($code -ne 0 -or ($output -notmatch "COMICREADER_CHROME_OK")) {
     exit 1
 }
 
+# --- physical-click regression: Back/Minimize/Fullscreen/Close and the command bar against the
+#     REAL ComicReaderHud.qml, using genuine QtTest mouseClick() coordinate hit-testing. The
+#     offscreen harness above calls .tapped()/.triggered() directly and cannot see a geometry-
+#     overlap bug (the page-turn strips used to sit on top of Back/Close/Fullscreen/the command
+#     bar) — this is the only thing in this repo that can prove or regress it. Proven red before
+#     the fix, green after, per its own header comment.
+$qmlTestRunner = "C:/Qt/6.11.1/msvc2022_64/bin/qmltestrunner.exe"
+$titleControlTest = Join-Path $PSScriptRoot "qml/tst_comicreader_title_controls.qml"
+$titleOutput = & $qmlTestRunner -platform offscreen -input $titleControlTest 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "FAIL: comic reader title control click-reliability regression"
+    Write-Host $titleOutput
+    exit 1
+}
+
 Write-Host "COMICREADER_CHROME_OK"

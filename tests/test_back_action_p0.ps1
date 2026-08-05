@@ -76,4 +76,23 @@ Assert-Contains $readerTop '../../assets/icons/reader2/back.svg' "Fresh reader t
 Assert-Contains $readerTop 'onClicked: root.backRequested()' "Fresh reader back icon must emit backRequested()."
 Assert-Contains $readerBack 'points="12 19 5 12 12 5"' "Fresh reader back SVG must retain its left chevron geometry."
 
+
+# --- comic reader chrome Back must reach the LIBRARY, not just reveal the series page (2026-08) ---
+# Back used to be swallowed locally in each host (clearing openChapterId just revealed the series
+# page underneath); every host now raises readerBackRequested() and Main.qml routes it through the
+# same teardown authority Close already uses (closeComicReader()), landing on the Tankoban library.
+# A missed connect in even one of the three Loader onLoaded blocks would make that host's Back a
+# silent dead button, so the count below must be exactly 3.
+foreach ($f in @("qml/MangaSeries.qml", "qml/ComicSeries.qml", "qml/ComicSeriesPage.qml")) {
+    $t = Read-File $f
+    Assert-Contains $t 'signal readerBackRequested()' "$f must expose readerBackRequested()."
+    Assert-Contains $t 'onBackRequested: page.readerBackRequested()' `
+        "$f Back must route upward through readerBackRequested(), never just clear openChapterId locally."
+}
+$mainQml = Read-File "qml/Main.qml"
+$backConnects = ([regex]::Matches($mainQml, [regex]::Escape('item.readerBackRequested.connect(win.closeComicReader)'))).Count
+if ($backConnects -ne 3) {
+    throw "Main.qml must connect readerBackRequested to closeComicReader for all three comic hosts (manga/western/LOCG), found $backConnects"
+}
+
 Write-Host "Back-action unification contract checks passed."
