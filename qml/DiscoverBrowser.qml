@@ -40,6 +40,14 @@ Item {
     readonly property bool _galleryPosters: browser.posterVisualProfile === "gallery"
     readonly property var _galleryMetrics: Metrics.gallery
 
+    // ── optional per-world card hooks (Biblio, Task 5, arc 2026-08-01) ──
+    // Every hook defaults OFF so a shared-shell edit never silently restyles a world that
+    // hasn't opted in (Tankoban/Theatre render byte-identical unless they flip these).
+    property bool showAuthorAtRest: false     // render item.author on the card AT REST, not just on reveal
+    property bool showSourceOnReveal: false   // render item.source in the reveal, on hover OR keyboard focus
+    property bool showBackAction: false       // render a back affordance in the masthead
+    signal backRequested()                    // "user wants to go back" — the shell never acts on this itself
+
     // ── generic browsing state ──
     property string currentType: ""
     property string currentCatalogKey: ""
@@ -335,6 +343,27 @@ Item {
             anchors.bottom: parent.bottom
             height: 1
             color: Qt.rgba(1, 1, 1, 0.09)
+        }
+
+        // ── optional back affordance (Biblio's Explore-return, Task 5) — top-left, above
+        // the type lens; invisible/no-op for every world that leaves showBackAction off. ──
+        Text {
+            id: backAction
+            visible: browser.showBackAction
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.topMargin: 6
+            text: "‹ Back"
+            color: backMa.containsMouse ? theme.gold : theme.inkDim
+            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            MouseArea {
+                id: backMa
+                anchors.fill: parent
+                anchors.margins: -6
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: browser.backRequested()
+            }
         }
 
         // ── type lens: underlined text tabs (NOT filled pills) ──
@@ -634,6 +663,9 @@ Item {
                 width: wall.cellWidth - 14
                 height: wall.cellHeight - 14
                 visualProfile: browser.posterVisualProfile
+                showAuthorAtRest: browser.showAuthorAtRest
+                hoverSourceText: (browser.showSourceOnReveal && card.item && card.item.source) ? card.item.source : ""
+                revealOnFocus: browser.showSourceOnReveal
                 skeleton: card.isSkel
                 item: card.isSkel ? null : browser.items[card.index]
                 keyboardFocused: !card.isSkel && browser.keyboardMode && card.index === wall.currentIndex

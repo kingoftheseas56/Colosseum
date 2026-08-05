@@ -24,12 +24,22 @@ Item {
     property string visualProfile: "classic"
     // optional source attribution, revealed bottom-right on gallery hover only (Theatre supplies "IMDb").
     property string hoverSourceText: ""
+    // Biblio hook (Discover shared-shell, Task 5, arc 2026-08-01): when true, the reveal
+    // block (rating + source) opens on KEYBOARD FOCUS too, not pointer hover alone. Default
+    // false so Tankoban/Theatre stay byte-identical (focus never impersonates hover for them).
+    property bool revealOnFocus: false
+    // Biblio hook: when true, render `item.author` PERSISTENTLY under the title (not gated
+    // by hover/focus at all) — the author is always-on identity, not reveal-only metadata.
+    property bool showAuthorAtRest: false
     signal activated(var item)
 
     readonly property var _m: Metrics.profile(card.visualProfile)
     readonly property bool _gallery: card.visualProfile === "gallery"
 
     readonly property bool effectiveHovered: hov.hovered || card.testHovered
+    // the reveal block opens on pointer hover always, and ALSO on keyboard focus when a
+    // caller opted in via revealOnFocus (Biblio); every other caller keeps hover-only.
+    readonly property bool revealActive: card.effectiveHovered || (card.revealOnFocus && card.keyboardFocused)
     readonly property string capText: card.item ? (card.item.title || card.item.caption || "") : ""
     // Discover items carry `year`/`rating`; the Theatre catalogue carries `releaseInfo`/`imdbRating`.
     readonly property string yearText: card.item
@@ -37,13 +47,15 @@ Item {
     readonly property string ratingValue: card.item
         ? String((card.item.rating !== undefined ? card.item.rating : card.item.imdbRating) || "") : ""
     readonly property string ratingText: card.ratingValue.length > 0 ? ("★ " + card.ratingValue) : ""
-    // the rating is visible ONLY under an active pointer hover, and only when present.
-    readonly property bool ratingVisible: !card.skeleton && card.effectiveHovered && card.ratingValue.length > 0
+    // the author (Biblio's Discover cards) — always-on when showAuthorAtRest is true.
+    readonly property string authorText: card.item ? (card.item.author || "") : ""
+    // the rating is visible ONLY under an active reveal (hover, or hover+focus when opted in).
+    readonly property bool ratingVisible: !card.skeleton && card.revealActive && card.ratingValue.length > 0
     // an invariant the harness pins: the rating can never be showing while the card is at rest.
     readonly property bool ratingVisibleAtRest: card.ratingVisible && !card.effectiveHovered
-    // gallery source attribution — hover-only, present only when a label was supplied.
+    // gallery source attribution — reveal-only, present only when a label was supplied.
     readonly property bool sourceVisible: card._gallery && !card.skeleton
-                                          && card.effectiveHovered && card.hoverSourceText.length > 0
+                                          && card.revealActive && card.hoverSourceText.length > 0
     // classic keeps its centered play ring on hover; gallery never shows one.
     readonly property bool centerPlayVisible: !card._gallery && !card.skeleton && card.effectiveHovered
 
@@ -108,7 +120,7 @@ Item {
             id: reveal
             anchors.fill: parent
             visible: !card.skeleton
-            opacity: card.effectiveHovered ? 1 : 0
+            opacity: card.revealActive ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: card._m.imageRevealDuration } }
 
             // classic scrim — the current full-height gradient (unchanged look for Discover).
@@ -234,6 +246,19 @@ Item {
         anchors.left: parent.left; anchors.top: frame.bottom; anchors.topMargin: card._gallery ? 10 : 8
         width: parent.width * 0.7; height: 12; radius: 5
         color: Qt.rgba(1, 1, 1, 0.08)
+    }
+
+    // author — Biblio's always-on identity line (never gated by hover/focus/reveal).
+    Text {
+        id: authorLabel
+        visible: card.showAuthorAtRest && !card.skeleton && card.authorText.length > 0
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: titleText.bottom; anchors.topMargin: 2
+        text: card.authorText
+        color: theme.inkDim
+        font.family: theme.ui; font.pixelSize: 11
+        elide: Text.ElideRight
+        maximumLineCount: 1
     }
 
     HoverHandler { id: hov; enabled: !card.skeleton }
