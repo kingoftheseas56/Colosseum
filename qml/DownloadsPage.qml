@@ -711,14 +711,31 @@ Item {
                                                                 root.downloadsApi.dismissFailure(grp.modelData.world, rows[0].id);
                                                                 return;
                                                             }
+                                                            // grp is a Repeater delegate; jobGroups is reassigned wholesale on
+                                                            // every refresh() (a plain-array Repeater diffs nothing), so grp
+                                                            // can be torn down before this dialog's callback fires (2026-08-05,
+                                                            // the Chew silent-cancel bug — a resolve mid-dialog killed `grp` and
+                                                            // threw, aborting the cancel with no error and, then, no log line).
+                                                            // Capture only the group's identity now; re-resolve its CURRENT
+                                                            // rows at commit time from root.jobGroups (a page-level property
+                                                            // that outlives any delegate) so a group that grew between click
+                                                            // and confirm — exactly what "resolving" -> 53 links does — still
+                                                            // cancels everything it now contains, not a stale snapshot.
+                                                            var world = grp.modelData.world;
+                                                            var key = grp.modelData.key;
                                                             root.confirmAction(
                                                                 grp.modelData.single ? "Cancel download?" : "Cancel season?",
                                                                 "Partial files will be deleted.",
                                                                 "Cancel download",
                                                                 function() {
-                                                                    for (var i = rows.length - 1; i >= 0; i--)
-                                                                        if (rows[i].canCancel === true)
-                                                                            root.downloadsApi.cancel(grp.modelData.world, rows[i].id);
+                                                                    for (var g = 0; g < root.jobGroups.length; g++) {
+                                                                        if (root.jobGroups[g].key !== key) continue;
+                                                                        var curRows = root.jobGroups[g].rows;
+                                                                        for (var i = curRows.length - 1; i >= 0; i--)
+                                                                            if (curRows[i].canCancel === true)
+                                                                                root.downloadsApi.cancel(world, curRows[i].id);
+                                                                        return;
+                                                                    }
                                                                 });
                                                         } }
                                         }
@@ -864,12 +881,17 @@ Item {
                                                                     root.downloadsApi.dismissFailure(epRow.modelData.world, epRow.modelData.id);
                                                                     return;
                                                                 }
+                                                                // Same delegate-teardown hazard as the group cancel above:
+                                                                // capture the primitives before the async dialog, never the
+                                                                // delegate id itself.
+                                                                var epWorld = epRow.modelData.world;
+                                                                var epId = epRow.modelData.id;
                                                                 root.confirmAction(
                                                                     "Cancel download?",
                                                                     "The partial file will be deleted.",
                                                                     "Cancel download",
                                                                     function() {
-                                                                        root.downloadsApi.cancel(epRow.modelData.world, epRow.modelData.id);
+                                                                        root.downloadsApi.cancel(epWorld, epId);
                                                                     });
                                                             } }
                                             }
@@ -948,12 +970,18 @@ Item {
                                                 root.abRefresh();
                                                 return;
                                             }
+                                            // abActive is reassigned wholesale on every event (Object.assign
+                                            // builds a fresh object each time), so Object.keys(root.abActive)
+                                            // is a new array reference on every refresh and this Repeater's
+                                            // delegates are torn down and rebuilt just like jobGroups' above.
+                                            // Capture the pairKey primitive before the async dialog.
+                                            var abKey = managerAudioRow.modelData;
                                             root.confirmAction(
                                                 "Cancel audiobook download?",
                                                 "The partial files will be deleted.",
                                                 "Cancel download",
                                                 function() {
-                                                    root.audiobooksApi.cancelDownload(managerAudioRow.modelData);
+                                                    root.audiobooksApi.cancelDownload(abKey);
                                                 });
                                         }
                                     }
@@ -1345,14 +1373,19 @@ Item {
                                             anchors.fill: parent
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.confirmAction(
-                                                "Delete local audiobook?",
-                                                "The downloaded audiobook files will be deleted.",
-                                                "Delete local copy",
-                                                function() {
-                                                    var result = root.audiobooksApi.deleteAudiobook(abDoneRow.modelData.id);
-                                                    root.finishMutation(result, "The audiobook could not be deleted.");
-                                                })
+                                            onClicked: {
+                                                // Same delegate-teardown hazard: capture the id primitive before
+                                                // the async dialog, not the delegate id itself.
+                                                var abDoneId = abDoneRow.modelData.id;
+                                                root.confirmAction(
+                                                    "Delete local audiobook?",
+                                                    "The downloaded audiobook files will be deleted.",
+                                                    "Delete local copy",
+                                                    function() {
+                                                        var result = root.audiobooksApi.deleteAudiobook(abDoneId);
+                                                        root.finishMutation(result, "The audiobook could not be deleted.");
+                                                    });
+                                            }
                                         }
                                     }
                                 }
