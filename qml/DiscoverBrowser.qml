@@ -254,6 +254,20 @@ Item {
         reloadForCatalog()
     }
 
+    // Force a genuine re-fetch of the CURRENT catalogue/filter selection, unconditionally —
+    // unlike refresh(), which only reloads when the current catalogue disappeared from the
+    // adapter's list. A world calls this when the adapter's ANSWER for an unchanged
+    // catalogue/filter selection has changed shape (e.g. Biblio's global Explicit Content
+    // preference flips, and the same catalogue must be asked again with the new value baked
+    // into fetchPage). Keeps the catalogue/filter selection exactly as-is; reloadForCatalog()
+    // already resets items/cursor/exhausted, so a flip never strands stale paging state
+    // alongside fresh items.
+    function reloadCurrent() {
+        if (!adapter) return
+        fetchGen++
+        reloadForCatalog()
+    }
+
     function saveTypeState() {
         if (!currentType.length) return
         var s = {}

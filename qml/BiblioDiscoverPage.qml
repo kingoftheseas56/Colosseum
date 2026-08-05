@@ -67,7 +67,16 @@ Item {
     // the app lifetime (a context property), so this fires on extension registry revisions and
     // on an explicit-preference flip — exactly the two shape changes.
     onExtensionsChanged: _rebuildAdapter()
-    onShowExplicitChanged: _rebuildAdapter()
+    // An explicit-preference flip needs MORE than refresh() gives: refresh() only re-fetches when
+    // the current catalogue disappeared from the adapter's list, which never happens here (Popular
+    // etc. never disappear) — so the wall's displayed `items` would never actually change even
+    // though the adapter object itself was rebuilt with the new showExplicit baked in. Force a
+    // genuine reload of the SAME catalogue/filter selection so a stale explicit (or stale hidden)
+    // item never persists on screen after a live flip.
+    onShowExplicitChanged: {
+        _rebuildAdapter()
+        if (browser.adapter) browser.reloadCurrent()
+    }
 
     DiscoverBrowser {
         id: browser

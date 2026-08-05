@@ -225,6 +225,13 @@ Item {
         for (var i = 0; i < cats.length; i++) page._loadExtensionRow(cats[i]);
     }
     Component.onCompleted: page.reloadExtensionRows()
+    // The house/mosaic rows already react to a live showExplicit flip via their declarative
+    // bindings on page.showExplicit (houseRowsMap/top10Items/mosaicItemsByKey all read it
+    // directly). Extension rows do NOT — _loadExtensionRow's async fetch callback captures
+    // page.showExplicit only at fetch time, so a stale explicit (or stale hidden) item could
+    // persist in extensionRowData forever after a live preference flip. Re-run the fetch so the
+    // gate in _loadExtensionRow's callback re-evaluates against the NEW value.
+    onShowExplicitChanged: page.reloadExtensionRows()
 
     // ── customization: default rows -> preference order/hidden -> effective render order ──
     readonly property var effectiveRows: {
