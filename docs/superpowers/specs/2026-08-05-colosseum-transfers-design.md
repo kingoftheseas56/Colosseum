@@ -3,9 +3,28 @@
 - **Date:** 2026-08-05
 - **Owner:** brainstormed by a scoped helper (Claude) with Hemanth; lane assignment happens at
   planning (the surface is cross-lane: Downloads page UX, comics, biblio, theatre all touch it)
-- **Status:** Design locked (Hemanth, 2026-08-05) — spec self-reviewed, awaiting Hemanth's final read
+- **Status:** Design locked (Hemanth, 2026-08-05), then **PARKED the same night** — see the amendment below
 - **Arc:** TRANSFERS (deliberately **not** named Tankorent — Agent 4's *Tankorent 2.0* is the video
   streaming challenger, a different arc; this arc must never blur with it)
+- **AMENDED 2026-08-05 (same night) — PARKED, and two decisions superseded.** Hemanth challenged
+  the scope hours after locking it: *showing* multi-file downloads and *controlling* torrent
+  transport are two different problems, and the first is already solved by shipped machinery
+  (`groupJobs()` on the Downloads page collapses any rows sharing a `groupKey` — Theatre seasons
+  ride it today; comics and manga simply never emit the key). That is Hemanth's **option B**, now
+  the live work: `docs/superpowers/plans/2026-08-05-colosseum-download-grouping.md`.
+  - **Locked #2 superseded in part** — composite rows do NOT need the Tankorent/BitTorrent view to
+    display honestly. Multi-file downloads group like a season, in "Now arriving", no new furniture.
+  - **Locked #6 superseded** — multi-part HTTP joins by *grouping*, not by the transfer-table
+    contract; A1's comics fix emits one job per part sharing the post id and the grouped row
+    appears with no UI work.
+  - **Still valid and still wanted, if it earns its place separately:** everything that is genuinely
+    *transport control* — peers, seeds, speeds, pause/resume, seeding posture, auto-yield,
+    trackers/peers management. The Transfers plan (`2026-08-05-colosseum-transfers.md`) is parked
+    intact for that day, and its Tasks 2–3 (Biblio visibility, restart survival) were lifted into
+    the grouping plan unchanged because they are real defects that need no table.
+  - Honest note for the record: the original spec conflated the two problems and justified the
+    table partly with a need the shipped grouping already meets. Hemanth caught it; the reduction
+    reflex should have caught it first.
 - **Companions:** `TANKORENT_BITTORRENT_UI_UX_CODE_MAP.md` (donor map, TB2) and
   `COLOSSEUM_TANKORENT_CODE_MAP.md` (receiver map) — Hemanth-supplied source archaeology, claims
   ground-truthed against master 2026-08-05
