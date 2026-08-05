@@ -51,6 +51,7 @@
 #include "engine/MalCatalog.h"
 #include "engine/ImdbCatalog.h"
 #include "engine/LocalDownloads.h"
+#include "engine/AppLog.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
 #include "net/LoopbackPinProxy.h"
@@ -517,6 +518,13 @@ int main(int argc, char *argv[]) {
         app.setApplicationName(QStringLiteral("Colosseum-dltest-")
             + qEnvironmentVariable("COLOSSEUM_APPDATA_TAG"));
     }
+
+    // Always-on rolling log (2026-08-05). Hemanth hit a Downloads cancel that
+    // did nothing and printed nothing; the launcher he double-clicks discards
+    // stderr, so there was no evidence to read afterwards. Installed HERE —
+    // after the app identity and the dltest AppData tag are settled — so the
+    // log follows the same isolation every other AppData-backed store gets.
+    AppLog::install();
 
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");

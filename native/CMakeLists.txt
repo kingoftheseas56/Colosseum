@@ -92,6 +92,8 @@ add_executable(colosseum
     net/PosterScoreboard.cpp       # felt-speed Stage 0: arrived/failed/undecodable per host
     net/PosterScoreboard.h
     third_party/miniz/miniz.c      # gunzip for the Jikan Accept-Encoding workaround (needs C, enabled below)
+    engine/AppLog.cpp              # always-on rolling log -> <AppData>/logs/colosseum.log
+    engine/AppLog.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h
