@@ -50,6 +50,7 @@
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
 #include "engine/ImdbCatalog.h"
+#include "engine/BiblioCatalog.h"
 #include "engine/LocalDownloads.h"
 #include "engine/AppLog.h"
 #include "engine/ExtensionsStore.h"
@@ -839,6 +840,20 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
     auto* imdbCatalog = new ImdbCatalog(QStringLiteral("data/imdb_catalog.db"), &app);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+
+    // BiblioCatalog Discover/Explore keyless daily refresh service (spec
+    // 2026-08-01, plan 2026-08-03 Task 4): a writable per-user SQLite cache
+    // (unlike the pipeline-deployed read-only catalogues above), refreshed at
+    // most once a local day from Apple Books + Open Library. Construction
+    // never blocks startup: a prior day's cached snapshot (if any) is already
+    // browsable through BiblioCatalog.ready/discoverPage before the first
+    // network reply lands, and refreshIfDue() is fire-and-forget.
+    const QString biblioCatalogPath =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/catalog/biblio-v1.sqlite");
+    auto *biblioCatalog = new BiblioCatalog(biblioCatalogPath, nullptr, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("BiblioCatalog"), biblioCatalog);
+    biblioCatalog->refreshIfDue();
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);

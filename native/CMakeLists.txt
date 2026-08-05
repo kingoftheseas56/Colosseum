@@ -269,6 +269,25 @@ add_executable(colosseum
     comicreader/ComicReaderImageResponse.h
     comicreader/ComicReaderCore.cpp
     comicreader/ComicReaderCore.h
+    # ── BiblioCatalog Discover/Explore (plan 2026-08-03, Tasks 1–4): the native
+    #    catalogue engine wired into the real app for the first time here —
+    #    Tasks 1–3 only ever built their own standalone harnesses. BiblioCatalog
+    #    (Task 4) is the sole consumer that pulls the whole chain (taxonomy,
+    #    ranking, providers, canonicalizer, SQLite store) into the colosseum
+    #    executable. ──
+    engine/BiblioCatalogTypes.h
+    engine/BiblioTaxonomy.cpp
+    engine/BiblioTaxonomy.h
+    engine/BiblioRanking.cpp
+    engine/BiblioRanking.h
+    engine/BiblioProviders.cpp
+    engine/BiblioProviders.h
+    engine/BiblioCanonicalizer.cpp
+    engine/BiblioCanonicalizer.h
+    engine/BiblioCatalogStore.cpp
+    engine/BiblioCatalogStore.h
+    engine/BiblioCatalog.cpp
+    engine/BiblioCatalog.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
@@ -1222,3 +1241,33 @@ add_executable(biblio_catalog_store_harness
     engine/BiblioTaxonomy.h)
 target_include_directories(biblio_catalog_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(biblio_catalog_store_harness PRIVATE Qt6::Core Qt6::Sql)
+
+# ── BiblioCatalog Discover/Explore (plan 2026-08-03, Task 4): the daily
+#    keyless refresh coordinator in isolation, against a FAKE transport (no
+#    real network in a test). Proves request coalescing, once-per-local-day
+#    gating, forced refresh, the <=4 concurrency cap, cached first paint,
+#    partial-provider failure, total failure preserving the prior snapshot,
+#    and first-run failure leaving ready==false. Pulls in the full engine
+#    chain (taxonomy/ranking/providers/canonicalizer/store) since the
+#    coordinator drives all of it. Qt6::Sql for the store; Qt6::Network only
+#    for the header declaring BiblioNetworkTransport (unused by the fake path,
+#    but the translation unit still needs QNetworkAccessManager/QNetworkReply
+#    to compile). ──
+add_executable(biblio_catalog_service_harness
+    ../tests/biblio_catalog_service_harness.cpp
+    engine/BiblioCatalog.cpp
+    engine/BiblioCatalog.h
+    engine/BiblioCatalogStore.cpp
+    engine/BiblioCatalogStore.h
+    engine/BiblioCatalogTypes.h
+    engine/BiblioTaxonomy.cpp
+    engine/BiblioTaxonomy.h
+    engine/BiblioRanking.cpp
+    engine/BiblioRanking.h
+    engine/BiblioProviders.cpp
+    engine/BiblioProviders.h
+    engine/BiblioCanonicalizer.cpp
+    engine/BiblioCanonicalizer.h
+)
+target_include_directories(biblio_catalog_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql)
