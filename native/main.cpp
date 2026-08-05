@@ -66,6 +66,7 @@
 #include "reader2/Reader2Bridge.h"
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
+#include "engine/ComicCoverProvider.h"
 #include "hostedplayer/HostedPlayerBridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
@@ -780,6 +781,12 @@ int main(int argc, char *argv[]) {
     auto *comicReaderCore = new comicreader::ComicReaderCore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("ComicReaderCore"), comicReaderCore);
     engine.addImageProvider(QStringLiteral("comicreader"), comicReaderCore->createProvider());
+
+    // image://comiccover/ (2026-08-06 CBZ-in-place arc, Task 3): a fully
+    // stateless cover-thumbnail provider for archive-shaped comic rows, which
+    // have no loose page file for the library grid to point at. Engine takes
+    // ownership via addImageProvider, same as the comicreader provider above.
+    engine.addImageProvider(QStringLiteral("comiccover"), new Colosseum::ComicCoverProvider());
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.

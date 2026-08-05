@@ -220,15 +220,45 @@ path that justified the existing async `comicreader` provider) decodes the id, c
 200px grid tile doesn't pay for a full 4000px decode. Legacy `dir` rows keep emitting `file://`
 unchanged — no UX gap mid-migration.
 
-- [ ] Harness RED: a provider unit test (or QML harness, matching whatever this codebase's image
+- [x] Harness RED: a provider unit test (or QML harness, matching whatever this codebase's image
       providers are normally tested with — check `ComicReaderProvider`'s own test pattern first)
       proves a valid `(archive, entry)` id decodes to a non-null scaled image; a missing entry
       resolves to null without throwing; the id round-trips through the exact base64url encoding
       `downloadedIssues()` will produce.
-- [ ] Implement the provider; register beside the existing `comicreader` provider in `main.cpp`;
+- [x] Implement the provider; register beside the existing `comicreader` provider in `main.cpp`;
       wire `downloadedIssues()`'s `art`/`missing` fields to branch on `usesArchive()`.
-- [ ] Verify: harness green; build green; boot smoke shows the existing (still-legacy) Descender
+- [x] Verify: harness green; build green; boot smoke shows the existing (still-legacy) Descender
       cover unaffected (file:// path untouched pre-migration).
+      **DONE 2026-08-06.** Fixture-building gotcha caught before the harness could pass honestly:
+      a `tar.exe`-built CBZ (the technique other comic harnesses use for extraction-subprocess
+      tests) is NOT reliably `miniz`-readable — this provider's whole job is `readEntry()`, so
+      fixtures switched to `CbzArchive::writeImagesAtomic` (the same writer `readEntry()`'s own
+      family already uses in `cbz_archive_probe_harness`).
+
+      Opus-advisor pass (`--model claude-opus-5 --effort high`) on the finished diff caught three
+      real gaps, all fixed and re-verified: (1) a partial `requestedSize` (QML's
+      `sourceSize.width` alone, e.g. `QSize(296, 0)`) was silently DROPPED to the default box
+      instead of honored via the one dimension given; (2) the decode could UPSCALE a source
+      smaller than the target box, contradicting its own "scale DOWN" comment; (3) `buildId()`
+      living in the `QQuickImageProvider` translation unit dragged `Qt6::Gui`/`Qt6::Quick` and
+      `CbzArchive.cpp`/`miniz.c` into four Core/Network-only harness targets that compile
+      `ComicDownloader.cpp` for unrelated reasons — split into a new Core-only
+      `native/engine/ComicCoverId.{h,cpp}` (`buildComicCoverId`/`parseComicCoverId`), which both
+      `ComicCoverProvider` and `ComicDownloader::downloadedIssues()` now call; the four harness
+      targets' `Qt6::Gui`/`Qt6::Quick` link additions and `CbzArchive.cpp`/`miniz.c` source
+      additions were reverted back out. Also flagged, NOT fixed here (pre-existing, Task 1's file,
+      out of Task 3's scope — see Execution notes): `CbzArchive.cpp`'s `nativePath()` uses
+      `QFile::encodeName` while `miniz.c`'s Windows `mz_fopen` decodes with `CP_UTF8` explicitly
+      (`third_party/miniz/miniz.c:3067-3084`, confirmed by direct read) — a real encoding-mismatch
+      risk for any non-ASCII archive/series path, unverified on this machine only because every
+      path here happens to be ASCII.
+
+      Final harness (8 scenarios, 2 added on the advisor's findings): green. Task 2's harness
+      needed one assertion deliberately flipped (`missing==true` → `missing==false` +
+      `image://comiccover/` art) now that this task wires it — still 5/5 green. The 4 sibling
+      comic-family harnesses that compile `ComicDownloader.cpp` rebuild clean (2 re-run green, 2
+      link-verified). Full `colosseum` app builds clean. Two stray (non-Hemanth, confirmed before
+      closing) `colosseum.exe` processes blocked link steps mid-task — closed after confirming.
 
 ### Task 4: Two-path ingest — the download-finish rewrite (the core fix)
 
@@ -347,3 +377,14 @@ migration in Task 6 never converges.
   becomes available for manga's own extension-gating hole (confirmed to exist,
   `MangaVolumeArchiveIngestor.cpp:122-123`) as a handoff note on chat, not a change made here
   uninvited into another lane's file.
+- **Known gap, flagged not fixed (found during Task 3's advisor pass, 2026-08-06):**
+  `CbzArchive.cpp`'s `nativePath()` (Task 1) encodes via `QFile::encodeName` (Windows: the
+  locale's Local8Bit codec), but `third_party/miniz/miniz.c`'s Windows `mz_fopen` decodes the
+  bytes it receives with `CP_UTF8` explicitly (`miniz.c:3067-3084`, confirmed by direct read) —
+  a real mismatch for any non-ASCII archive or series path (accented names, CJK titles GetComics
+  does post). Every path CbzArchive touches today is ASCII (this machine's username, existing
+  fixtures), so it has not manifested, but Task 3 makes every future cover thumbnail depend on
+  this same path-encoding round-trip, and Task 4+ makes every future comic. Likely one-line fix
+  (`path.toUtf8()` instead of `QFile::encodeName`) but needs its own non-ASCII-path harness case
+  to land safely — left out of Task 3's commit on scope discipline (pre-existing, not this task's
+  file map). Worth a short, separate follow-up before Task 4 makes the blast radius bigger.

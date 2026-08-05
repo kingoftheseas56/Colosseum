@@ -111,6 +111,10 @@ add_executable(colosseum
     engine/AudiobookDownloader.h
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
+    engine/ComicCoverProvider.cpp  # image://comiccover/ -- stateless cover decode for archive-shaped rows
+    engine/ComicCoverProvider.h
+    engine/ComicCoverId.cpp        # id build/parse, Core-only (shared with ComicDownloader.cpp)
+    engine/ComicCoverId.h
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicsCatalog.cpp
@@ -583,6 +587,8 @@ add_executable(comic_downloader_archive_ingest_harness
     ../tests/comic_downloader_archive_ingest_harness.cpp
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
+    engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
+    engine/ComicCoverId.h
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -632,6 +638,8 @@ add_executable(comic_downloader_ingest_harness
     ../tests/comic_downloader_ingest_harness.cpp
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
+    engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
+    engine/ComicCoverId.h
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -681,6 +689,8 @@ add_executable(comic_torrents_search_harness
     ../tests/comic_torrents_search_harness.cpp
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
+    engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
+    engine/ComicCoverId.h
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -740,6 +750,8 @@ add_executable(comic_torrent_pack_transport_harness
     ../tests/comic_torrent_pack_transport_harness.cpp
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
+    engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
+    engine/ComicCoverId.h
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -861,6 +873,19 @@ add_executable(cbz_archive_probe_harness
 )
 target_include_directories(cbz_archive_probe_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(cbz_archive_probe_harness PRIVATE Qt6::Core)
+
+add_executable(comic_cover_provider_harness
+    ../tests/comic_cover_provider_harness.cpp
+    engine/ComicCoverProvider.cpp
+    engine/ComicCoverProvider.h
+    engine/ComicCoverId.cpp
+    engine/ComicCoverId.h
+    engine/CbzArchive.cpp
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
+)
+target_include_directories(comic_cover_provider_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_cover_provider_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
 
 add_executable(manga_volume_packer_harness
     ../tests/manga_volume_packer_harness.cpp

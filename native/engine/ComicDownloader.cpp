@@ -2,6 +2,7 @@
 #include "DownloadFileOps.h"
 
 #include "ComicDlsParse.h"
+#include "engine/ComicCoverId.h"
 #include "torrent/ComicTorrents.h"
 #include "torrent/ComicTorrentMagnet.h"
 
@@ -1481,9 +1482,26 @@ QVariantList ComicDownloader::downloadedIssues() const
     QVariantList out;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry& e = it.value();
-        const QString first = e.files.isEmpty()
-            ? QString() : e.dir + QStringLiteral("/") + e.files.first();
-        const bool missing = first.isEmpty() || !QFile::exists(first);
+        // First page = the issue's own local cover (Downloads-page art). An
+        // archive row has no loose page file to build a file:// URL from --
+        // Task 3's image://comiccover/ provider decodes it straight from the
+        // CBZ instead. A legacy dir row is untouched (Task 2/3 predate any
+        // writer that could set `archive`, so every row today still takes
+        // this branch; it stays correct once Task 4 starts producing them).
+        bool missing = true;
+        QString art;
+        if (e.usesArchive()) {
+            missing = e.files.isEmpty() || !QFileInfo(e.archive).isFile();
+            if (!missing) {
+                art = QStringLiteral("image://comiccover/")
+                    + Colosseum::buildComicCoverId(e.archive, e.files.first());
+            }
+        } else {
+            const QString first = e.files.isEmpty()
+                ? QString() : e.dir + QStringLiteral("/") + e.files.first();
+            missing = first.isEmpty() || !QFile::exists(first);
+            if (!missing) art = QUrl::fromLocalFile(first).toString();
+        }
         out.append(QVariantMap{
             {QStringLiteral("id"), it.key()},
             {QStringLiteral("seriesId"), e.seriesId},
@@ -1493,9 +1511,7 @@ QVariantList ComicDownloader::downloadedIssues() const
             {QStringLiteral("bytes"), e.bytes},
             {QStringLiteral("addedAt"), e.addedAt},
             {QStringLiteral("missing"), missing},
-            // First page = the issue's own local cover (Downloads-page art).
-            {QStringLiteral("art"), missing
-                ? QString() : QUrl::fromLocalFile(first).toString()}
+            {QStringLiteral("art"), art}
         });
     }
     return out;

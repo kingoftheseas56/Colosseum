@@ -112,11 +112,16 @@ bool runArchiveRowSurvivesReloadScenario(QNetworkAccessManager* nam, QTemporaryD
     }
 
     int keptMatches = 0, droppedMatches = 0;
-    bool keptMissingFlag = false;
+    bool keptMissingFlag = true;
+    QString keptArt;
     for (const QVariant& r : comics.downloadedIssues()) {
         const QVariantMap m = r.toMap();
         const QString id = m.value(QStringLiteral("id")).toString();
-        if (id == keptId) { ++keptMatches; keptMissingFlag = m.value(QStringLiteral("missing")).toBool(); }
+        if (id == keptId) {
+            ++keptMatches;
+            keptMissingFlag = m.value(QStringLiteral("missing")).toBool();
+            keptArt = m.value(QStringLiteral("art")).toString();
+        }
         if (id == droppedId) ++droppedMatches;
     }
     if (keptMatches != 1) {
@@ -127,15 +132,18 @@ bool runArchiveRowSurvivesReloadScenario(QNetworkAccessManager* nam, QTemporaryD
         std::printf("FAIL: the pruned archive row leaked into downloadedIssues()\n");
         return false;
     }
-    // downloadedIssues() is still Task 3's job to make archive-aware -- today
-    // it builds `dir + "/" + files.first()` unconditionally, which for an
-    // archive-only row (empty dir) is a bogus drive-root path that never
-    // exists. Pinned here as `missing == true` (not silently ignored) so
-    // Task 3 has to flip this assertion deliberately when it wires the real
-    // image://comiccover art URL, instead of it drifting unnoticed.
-    if (!keptMissingFlag) {
-        std::printf("FAIL: downloadedIssues() unexpectedly resolved art for an archive-only row "
-                    "(expected missing==true pre-Task-3; did the drive-root path start existing?)\n");
+    // Task 3 wired downloadedIssues() to branch on usesArchive(): an archive
+    // row with a real archive file on disk now resolves missing==false and an
+    // image://comiccover/ art URL, deliberately flipped from the missing==true
+    // this scenario pinned pre-Task-3 (see the comment that used to be here).
+    if (keptMissingFlag) {
+        std::printf("FAIL: downloadedIssues() still reports missing==true for an archive row "
+                    "whose archive file exists (Task 3 should have wired this)\n");
+        return false;
+    }
+    if (!keptArt.startsWith(QStringLiteral("image://comiccover/"))) {
+        std::printf("FAIL: downloadedIssues() art for an archive row is not an image://comiccover/ URL "
+                    "(got \"%s\")\n", qPrintable(keptArt));
         return false;
     }
 
