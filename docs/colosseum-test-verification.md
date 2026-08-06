@@ -98,7 +98,7 @@ half the compiled harnesses are run by nobody.
 | `colosseum.poster_scoreboard_harness` | unit | |
 | `colosseum.comicreader_cache_harness` | unit | |
 | `colosseum.biblio_catalog_logic_harness` | unit | fixture dir baked at compile time |
-| `colosseum.comic_downloader_pack_demux_harness` | unit | pack-demux Slice 1: volume label parser table (the 12 real Chew filenames) + index Entry round-trip of `packRole`/`packOrder`; legacy rows load unchanged. Mirrors `comic_downloader_ingest_harness` isolation (dedicated org/app, QTemporaryDir, path mirrors) |
+| `colosseum.comic_downloader_pack_demux_harness` | unit | pack-demux Slice 1: volume label parser table (the 12 real Chew filenames) + index Entry round-trip of `packRole`/`packOrder`; legacy rows load unchanged. **Slice 2 added:** the demux happy-path scenario — a 3-volume pack (2 CBZ + 1 CBR nested in a top-folder ZIP) ingests into 3 readable child volumes sharing seriesId, the parent retires via `removed()` (no `failed()`), the pack archive + extractTmp are reclaimed after all children index, the manifest clears. Mirrors `comic_downloader_ingest_harness` isolation (dedicated org/app, QTemporaryDir, path mirrors) |
 | `colosseum.selftest.red_canary` | selftest | WILL_FAIL negative control |
 
 All ran green under `ctest` 2026-08-06. Registration ≠ conversion: these still speak the

@@ -209,6 +209,7 @@ ComicDownloader::ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManag
     : QObject(parent), m_nam(nam)
 {
     loadIndex();
+    loadPacks();   // pack demux (Slice 2/3): resume any in-flight pack manifests
     if (searchNam && torrentEngine) {
         m_torrents = new ComicTorrents(searchNam, torrentEngine, this);
         connect(m_torrents, &ComicTorrents::progress, this, &ComicDownloader::progress);
@@ -311,10 +312,19 @@ bool ComicDownloader::adoptExistingCanonicalIfValid(const QString& id, const QSt
     for (const auto& pageEntry : probe.entries) e.files.append(pageEntry.name);
     e.bytes       = QFileInfo(canonical).size();
     e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+    // Pack demux (Slice 2/3): a resumed pack child adopts with the role/order
+    // its manifest recorded (the orphaned canonical has no parsed identity of
+    // its own). Look it up; ordinary issues have no manifest entry.
+    for (const PackManifest& m : std::as_const(m_packs)) {
+        for (const PackChild& c : m.children) {
+            if (c.id == id) { e.packRole = c.role; e.packOrder = c.order; break; }
+        }
+    }
     m_index.insert(id, e);
     saveIndex();
     qInfo() << "[ComicDownloader] adopted an interrupted prior attempt id=" << id
             << "pages=" << e.files.size() << "archive=" << canonical;
+    maybeReclaimPack(id);   // a resumed child completing may complete the pack too
     return true;
 }
 
@@ -1522,8 +1532,12 @@ void ComicDownloader::completeSafeMove(InFlight& f, const QString& tempCanonical
     for (const auto& pageEntry : reprobe.entries) e.files.append(pageEntry.name);
     e.bytes       = QFileInfo(canonical).size();   // the actual artifact, not a separately-tracked counter
     e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+    // Pack demux (Slice 2): stamp the child's parsed role/order onto its Entry.
+    e.packRole    = f.packRole;
+    e.packOrder   = f.packOrder;
     m_index.insert(f.id, e);
     saveIndex();
+    maybeReclaimPack(f.id);   // reclaim pack if this was the last expected child
 
     // Only delete the ORIGINAL source if this was a copy (a same-volume
     // rename already consumed it) -- and only now that saveIndex() has
@@ -1770,6 +1784,15 @@ void ComicDownloader::finalizeExtract(InFlight& f)
         return coll.compare(a, b) < 0;
     });
     if (rel.isEmpty()) {
+        // Pack demux (Slice 2): a pack's extracted tree holds zero page IMAGES
+        // but may hold nested comic archives (the live Chew v1–v8 + Extras case:
+        // a ZIP whose top folder has 12 .cbr/.cbz). Before failing "archive
+        // contained no pages", scan for nested archives by content. If found,
+        // demux into N child ingests under a shared seriesId and retire the
+        // parent WITHOUT a failed() signal. If none, fall through to today's
+        // exact failure (byte-identical behaviour for genuinely empty archives).
+        if (demultiplexPack(f))
+            return;
         failPreservingSource(f, QStringLiteral("archive contained no pages"));
         return;
     }
@@ -1833,8 +1856,12 @@ void ComicDownloader::finalizeExtract(InFlight& f)
                                                              // (writeImagesAtomic stores uncompressed,
                                                              // so this legitimately exceeds the download)
             e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+            // Pack demux (Slice 2): stamp the child's parsed role/order.
+            e.packRole    = active.packRole;
+            e.packOrder   = active.packOrder;
             m_index.insert(active.id, e);
             saveIndex();
+            maybeReclaimPack(active.id);   // reclaim pack if this was the last expected child
 
             const QString id = active.id;
             const QString originalArchivePath = active.archivePath;
@@ -1855,6 +1882,244 @@ void ComicDownloader::finalizeExtract(InFlight& f)
             emit finished(id);
             startNextQueued();
         });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Multi-volume pack demux (Slice 2, 2026-08-06)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The suffix pre-filter: cheap before the (sampling) content probe. A pack's
+// nested archives are recognised comic-book extensions. Content check (below)
+// still has the final word — a .cbz that isn't a zip is rejected by probe().
+static const QSet<QString> kNestedArchiveSuffixes = {
+    QStringLiteral("cbr"), QStringLiteral("cbz"),
+    QStringLiteral("cb7"), QStringLiteral("cbt")
+};
+
+QStringList ComicDownloader::scanForNestedArchives(const QString& extractTmp) const
+{
+    // Recursive scan, natural-sorted by relative path (stable child order).
+    // Suffix pre-filter, then a content probe: a zip-shaped file must pass
+    // CbzArchive::probe() (nativelyReadable); anything else is accepted only
+    // if it isn't itself a pack candidate we'd misdetect. We accept by suffix
+    // for non-zip shapes (cbr/cb7/cbt) because those route to the extract
+    // fallback which handles corruption itself; a zip-shaped file MUST probe,
+    // because a stray .cbz that is actually __MACOSX litter or a zip bomb must
+    // NOT be ingested as a volume.
+    QStringList found;
+    const int prefixLen = extractTmp.length() + 1;
+    QDirIterator it(extractTmp, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString abs = it.next();
+        const QString suffix = QFileInfo(abs).suffix().toLower();
+        if (!kNestedArchiveSuffixes.contains(suffix)) continue;
+        const QString rel = abs.mid(prefixLen);
+        if (suffix == QStringLiteral("cbz")) {
+            // zip-shaped: must be a genuinely readable CBZ.
+            const MangaTankoban::CbzProbeResult probe = MangaTankoban::CbzArchive::probe(abs);
+            if (!probe.nativelyReadable) {
+                qWarning() << "[ComicDownloader] demux: nested .cbz failed probe, skipping"
+                           << rel;
+                continue;
+            }
+        }
+        // cbr/cb7/cbt: accept by suffix — the extract fallback reports a real
+        // corrupt file per-child (its nested source is preserved by failIngest).
+        found.append(rel);
+    }
+    QCollator coll;
+    coll.setNumericMode(true);
+    coll.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(found.begin(), found.end(), [&coll](const QString& a, const QString& b) {
+        return coll.compare(a, b) < 0;
+    });
+    return found;
+}
+
+bool ComicDownloader::demultiplexPack(InFlight& f)
+{
+    const QStringList nested = scanForNestedArchives(f.extractTmp);
+    if (nested.isEmpty())
+        return false;   // no nested archives → caller falls through to today's fail
+
+    qInfo() << "[ComicDownloader] demux: pack id=" << f.id << "nested=" << nested.size()
+            << "archivePath=" << f.archivePath << "extractTmp=" << f.extractTmp;
+
+    // Build the child list: deterministic id, parsed label/role/order, inherited
+    // series identity. Stable order = scanForNestedArchives' natural sort.
+    PackManifest manifest;
+    manifest.archivePath = f.archivePath;
+    manifest.extractTmp = f.extractTmp;
+    manifest.seriesId = f.seriesId;
+    manifest.seriesTitle = f.seriesTitle;
+    manifest.active = true;
+    QList<PackChild> children;
+    children.reserve(nested.size());
+    for (const QString& rel : nested) {
+        PackChild c;
+        c.rel = rel;
+        c.id = f.id + QStringLiteral(":vol:") + hash10(rel);
+        const MangaTankoban::PackLabel lbl = MangaTankoban::parsePackLabel(rel);
+        c.label = lbl.label;
+        c.role = lbl.role;
+        c.order = lbl.order;
+        children.append(c);
+    }
+    manifest.children = children;
+
+    // Write the manifest BEFORE the first child ingests (crash recovery, Slice 3
+    // wires the resume; the file's mere presence now is what makes the pack
+    // reclaimable/retryable later).
+    m_packs.insert(f.id, manifest);
+    savePacks();
+
+    // Enqueue one child InFlight per nested archive, mirroring ingestLocalArchive's
+    // dedup + adoption checks. The child's archivePath is the nested file INSIDE
+    // extractTmp (the pack's protected source stays f.archivePath). All children
+    // share partGroupKey = parentId and groupUnit = "volumes" for the Downloads fold.
+    for (const PackChild& c : std::as_const(manifest.children)) {
+        const QString childArchivePath =
+            manifest.extractTmp + QChar('/') + c.rel;
+        // Idempotence: a child already indexed (a re-run over the same pack)
+        // is skipped — adoptExistingCanonicalIfValid handled it on a prior run.
+        if (m_index.contains(c.id)) {
+            qInfo() << "[ComicDownloader] demux: child already indexed, skipping" << c.id;
+            continue;
+        }
+        if (m_active && m_active->id == c.id) continue;
+        bool inQueue = false;
+        for (const InFlight& q : std::as_const(m_queue))
+            if (q.id == c.id) { inQueue = true; break; }
+        if (inQueue) continue;
+
+        InFlight flight;
+        flight.id = c.id;
+        flight.seriesId = manifest.seriesId;
+        flight.seriesTitle = manifest.seriesTitle;
+        flight.label = c.label;
+        flight.archivePath = childArchivePath;
+        flight.receivedBytes = QFileInfo(childArchivePath).size();
+        flight.expectedBytes = flight.receivedBytes;
+        flight.localArchive = true;
+        flight.partGroupKey = f.id;
+        flight.groupUnit = QStringLiteral("volumes");
+        // Stash the parsed role/order on the child so the publish tails can
+        // stamp them onto the Entry at index time (re-use InFlight fields below).
+        flight.packRole = c.role;
+        flight.packOrder = c.order;
+        // Always enqueue — NEVER dispatch a child inline here. `f` IS *m_active
+        // (the parent), and dispatching inline would overwrite m_active with the
+        // child, so the `delete m_active` retire below would destroy the child
+        // mid-extract instead of the parent. The parent retires; startNextQueued
+        // pops child[0] and the single lane serializes the volumes cleanly.
+        m_queue.append(std::move(flight));
+    }
+
+    // Retire the parent WITHOUT an index row and WITHOUT failed(): its work is
+    // done (it produced the children); the children's finished() are the real
+    // completions. emit removed(parentId) tells the Downloads page to drop the
+    // parent row. Clear the preserved-source fields first so nothing later
+    // accidentally deletes the pack (the manifest + children own its lifecycle).
+    const QString parentId = f.id;
+    f.archivePath.clear();
+    f.partPath.clear();
+    f.extractTmp.clear();
+    delete m_active; m_active = nullptr;
+    qInfo() << "[ComicDownloader] demux: parent retired id=" << parentId
+            << "children=" << children.size();
+    emit removed(parentId);
+    startNextQueued();
+    return true;
+}
+
+void ComicDownloader::loadPacks()
+{
+    QFile f(baseDir() + QStringLiteral("/packs.json"));
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+    f.close();
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        const QJsonObject o = it.value().toObject();
+        PackManifest m;
+        m.archivePath = o.value(QStringLiteral("archivePath")).toString();
+        m.extractTmp = o.value(QStringLiteral("extractTmp")).toString();
+        m.seriesId = o.value(QStringLiteral("seriesId")).toString();
+        m.seriesTitle = o.value(QStringLiteral("seriesTitle")).toString();
+        m.active = o.value(QStringLiteral("active")).toBool(true);
+        for (const QJsonValue& cv : o.value(QStringLiteral("children")).toArray()) {
+            const QJsonObject co = cv.toObject();
+            PackChild c;
+            c.id = co.value(QStringLiteral("id")).toString();
+            c.rel = co.value(QStringLiteral("rel")).toString();
+            c.label = co.value(QStringLiteral("label")).toString();
+            c.role = co.value(QStringLiteral("role")).toString();
+            c.order = co.value(QStringLiteral("order")).toInt(-1);
+            m.children.append(c);
+        }
+        m_packs.insert(it.key(), m);
+    }
+}
+
+void ComicDownloader::savePacks() const
+{
+    QDir().mkpath(baseDir());
+    QJsonObject root;
+    for (auto it = m_packs.constBegin(); it != m_packs.constEnd(); ++it) {
+        const PackManifest& m = it.value();
+        QJsonObject o;
+        o[QStringLiteral("archivePath")] = m.archivePath;
+        o[QStringLiteral("extractTmp")] = m.extractTmp;
+        o[QStringLiteral("seriesId")] = m.seriesId;
+        o[QStringLiteral("seriesTitle")] = m.seriesTitle;
+        o[QStringLiteral("active")] = m.active;
+        QJsonArray kids;
+        for (const PackChild& c : m.children) {
+            QJsonObject co;
+            co[QStringLiteral("id")] = c.id;
+            co[QStringLiteral("rel")] = c.rel;
+            co[QStringLiteral("label")] = c.label;
+            co[QStringLiteral("role")] = c.role;
+            co[QStringLiteral("order")] = c.order;
+            kids.append(co);
+        }
+        o[QStringLiteral("children")] = kids;
+        root[it.key()] = o;
+    }
+    QSaveFile f(baseDir() + QStringLiteral("/packs.json"));
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    if (!f.commit())
+        qWarning() << "[comics] savePacks commit failed -- previous packs.json left intact";
+}
+
+void ComicDownloader::maybeReclaimPack(const QString& childId)
+{
+    if (m_packs.isEmpty()) return;
+    // Find the parent manifest this child belongs to (child ids are
+    // "<parentId>:vol:<hash>"; check by membership).
+    QString parentId;
+    for (auto it = m_packs.constBegin(); it != m_packs.constEnd(); ++it) {
+        for (const PackChild& c : it.value().children)
+            if (c.id == childId) { parentId = it.key(); break; }
+        if (!parentId.isEmpty()) break;
+    }
+    if (parentId.isEmpty()) return;   // not a pack child — nothing to reclaim
+
+    const PackManifest& m = m_packs.value(parentId);
+    // Complete iff EVERY expected child is now indexed (idempotence: adoption
+    // and a prior completion both satisfy this).
+    for (const PackChild& c : m.children)
+        if (!m_index.contains(c.id)) return;   // at least one missing — keep the pack
+
+    qInfo() << "[ComicDownloader] demux: pack complete, reclaiming id=" << parentId
+            << "children=" << m.children.size();
+    // Reclaim the pack source + its extracted tree. extractTmp may hold
+    // leftover child staging dirs; removeRecursively clears them. The pack
+    // archive is the protected source — now safe to delete.
+    if (!m.extractTmp.isEmpty()) QDir(m.extractTmp).removeRecursively();
+    if (!m.archivePath.isEmpty()) QFile::remove(m.archivePath);
+    m_packs.remove(parentId);
+    savePacks();
 }
 
 void ComicDownloader::cleanupExtract(InFlight& f)
@@ -2307,7 +2572,10 @@ QVariantList ComicDownloader::activeIssueJobs() const
             // in the Downloads page's grouping, i.e. today's exact single-row rendering. Ready
             // for a future multi-part fix with zero further plumbing here.
             {QStringLiteral("groupKey"), f.partGroupKey},
-            {QStringLiteral("groupUnit"), QStringLiteral("parts")}
+            // Pack demux (Slice 2): a pack's children emit "volumes" so the
+            // Downloads page can render "3/8 volumes" instead of "3/8 parts".
+            // Ordinary issues still emit "parts" (the InFlight default).
+            {QStringLiteral("groupUnit"), f.groupUnit}
         };
     };
     if (m_active)

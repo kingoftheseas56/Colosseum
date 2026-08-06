@@ -1,0 +1,10 @@
+[ComicDownloader] archive ready id= "gc:foo-pack" bytes= 2718 — not natively readable, extracting
+[ComicDownloader] extracting with "C:/Windows/System32/tar.exe"
+[ComicDownloader] preserving source on failure id= "gc:foo-pack" reason= "archive contained no pages" archivePath= "C:/Users/Suprabha/AppData/Local/Temp/ComicDownloaderPackDemuxHarness-AlhFuD/FooPack.cbz" extractTmp= "C:/Users/Suprabha/AppData/Local/Temp/ComicDownloaderPackDemuxHarness-AlhFuD/FooPack.cbz.x"
+FAIL: demux-parent-not-failed: got 1 want 0
+FAIL: demux-parent-removed: got 0 want 1
+FAIL: demux-child-count: got 0 want 3
+FAIL: demux-mains: got 0 want 3
+FAIL: demux-pack-archive-reclaimed: expected true (pack .archive should be reclaimed after all children land)
+FAIL: demux-extracttmp-reclaimed: expected true (pack extractTmp should be reclaimed after all children land)
+FAIL: 6 check(s) failed (71 total)

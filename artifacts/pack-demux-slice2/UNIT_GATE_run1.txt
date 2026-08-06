@@ -1,0 +1,30 @@
+Test project C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/native/build-msvc
+      Start 18: colosseum.window_state_policy_harness
+ 1/10 Test #18: colosseum.window_state_policy_harness ...........   Passed    0.14 sec
+      Start 19: colosseum.search_history_store_harness
+ 2/10 Test #19: colosseum.search_history_store_harness ..........   Passed    0.38 sec
+      Start 20: colosseum.progress_store_harness
+ 3/10 Test #20: colosseum.progress_store_harness ................   Passed    0.31 sec
+      Start 21: colosseum.collection_store_harness
+ 4/10 Test #21: colosseum.collection_store_harness ..............   Passed    0.20 sec
+      Start 22: colosseum.cbz_archive_harness
+ 5/10 Test #22: colosseum.cbz_archive_harness ...................   Passed    0.11 sec
+      Start 23: colosseum.poster_scoreboard_harness
+ 6/10 Test #23: colosseum.poster_scoreboard_harness .............   Passed    0.06 sec
+      Start 24: colosseum.comicreader_cache_harness
+ 7/10 Test #24: colosseum.comicreader_cache_harness .............   Passed    0.28 sec
+      Start 25: colosseum.biblio_catalog_logic_harness
+ 8/10 Test #25: colosseum.biblio_catalog_logic_harness ..........   Passed    0.08 sec
+      Start 26: colosseum.comic_downloader_pack_demux_harness
+ 9/10 Test #26: colosseum.comic_downloader_pack_demux_harness ...   Passed    0.78 sec
+      Start 27: colosseum.qttest.window_state_policy
+10/10 Test #27: colosseum.qttest.window_state_policy ............   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 10
+
+Label Time Summary:
+qttest     =   0.10 sec*proc (1 test)
+unit       =   2.45 sec*proc (10 tests)
+windows    =   0.24 sec*proc (2 tests)
+
+Total Test time (real) =   2.50 sec

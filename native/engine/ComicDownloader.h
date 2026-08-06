@@ -251,6 +251,12 @@ private:
         // unrelated issues under one fold with a group-cancel that kills both. An explicit,
         // opt-in field costs one empty string and removes that risk entirely.
         QString partGroupKey;
+        // Pack demux (Slice 2): the unit noun for the Downloads-page group fold.
+        // Defaults to "parts" (today's hardcoded literal — ordinary multi-part
+        // downloads). A demuxed pack's children set "volumes" so the fold reads
+        // "Chew — 12 volumes" instead of "12 parts". Emitted per-InFlight by
+        // activeIssueJobs().
+        QString groupUnit = QStringLiteral("parts");
         QString seriesId;
         QString seriesTitle;
         QString label;
@@ -288,6 +294,12 @@ private:
         // discard). See finalizeSafeMove()/finalizeExtract().
         quint64 serial = 0;
         bool packing = false;
+        // Pack demux (Slice 2): a demuxed child carries its parsed role/order
+        // from demultiplexPack() through to the publish tails, which stamp them
+        // onto the Entry at index time. Empty/-1 for every ordinary ingest
+        // (HTTP download, single-issue local import, assembled edition).
+        QString packRole;
+        int packOrder = -1;
 
         // Assembled-edition ingest (Task 7): set only by ingestAssembledEdition().
         // No archive, no network — publishAssembledEdition() validates+moves
@@ -459,6 +471,51 @@ private:
 
     void publishAssembledEdition(InFlight& f);
 
+    // ── Multi-volume pack demux (Slice 2, 2026-08-06) ───────────────────────
+    // A "pack" is one downloaded archive whose extracted tree holds N nested
+    // comic archives (the live Chew v1–v8 + Extras case: a ZIP whose top folder
+    // has 12 .cbr/.cbz). finalizeExtract()'s zero-image branch detects this and
+    // ingests each nested file as its own library entry under a shared
+    // seriesId, instead of failing "archive contained no pages".
+    //
+    // The pack manifest (packs.json, a SIBLING of index.json — never a magic
+    // key inside it, so the index root stays a clean issueId→entry map) records
+    // each active pack BEFORE its first child ingests, so a crash mid-demux
+    // self-heals on next launch (Slice 3). Cleared when all children verify
+    // (then pack + extractTmp are reclaimed) or on user cancel (pack file kept).
+    struct PackChild {
+        QString id;      // childId = parentId + ":vol:" + hash10(nestedRelPath)
+        QString rel;     // nested file's path relative to the pack's extractTmp
+        QString label;   // parsed display label ("Vol. 1", "Script Book", …)
+        QString role;    // "main" / "extra"
+        int order = -1;  // deterministic order
+    };
+    struct PackManifest {
+        QString archivePath;   // the pack's preserved source (.archive staging file)
+        QString extractTmp;    // the pack's extracted tree (nested files live here)
+        QString seriesId;
+        QString seriesTitle;
+        bool active = true;
+        QList<PackChild> children;
+    };
+    // Scan an extracted tree for nested comic archives (content-probe, suffix
+    // pre-filter). Returns the relative paths (to extractTmp) of accepted
+    // nested archives, natural-sorted by filename. Empty → no demux.
+    QStringList scanForNestedArchives(const QString& extractTmp) const;
+    // Run the demux for `f` (the parent InFlight, at its zero-image branch):
+    // build children, write the manifest, enqueue each child through m_queue,
+    // retire the parent WITHOUT an index row / failed(). Returns true if demux
+    // fired (children enqueued), false if the tree held no nested archives.
+    bool demultiplexPack(InFlight& f);
+    // Manifest load/save/clear. loadPacks() runs once from loadIndex()'s tail
+    // (Slice 3 wires the resume); savePacks() is the atomic QSaveFile write.
+    void loadPacks();
+    void savePacks() const;
+    // After a child indexes (any publish tail or adoption), check whether its
+    // parent manifest is now complete; if so, reclaim the pack + extractTmp
+    // and clear the manifest. No-op if the id isn't a child of any manifest.
+    void maybeReclaimPack(const QString& childId);
+
     QNetworkAccessManager* m_nam = nullptr;
     QHash<QString, Entry> m_index;
     QHash<QNetworkReply*, InFlight> m_resolving;
@@ -467,4 +524,5 @@ private:
     QProcess* m_proc = nullptr;
     ComicTorrents* m_torrents = nullptr;
     quint64 m_nextJobSerial = 0;   // see InFlight::serial (Task 4)
+    QHash<QString, PackManifest> m_packs;   // active pack manifests (parentId → manifest), Slice 2
 };

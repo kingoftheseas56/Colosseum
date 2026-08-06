@@ -1,0 +1,2 @@
+FAIL: demux-child-count: got 3 want 2
+FAIL: 1 check(s) failed (78 total)

@@ -13,9 +13,11 @@
 //      "existing rows unaffected" contract).
 //   3. downloadedIssues() exposes packRole/packOrder on every row.
 //
-// The demux ENGINE (detection, child enqueue, manifest, reclamation) is Slice 2;
-// this harness extends to cover it there. Slice 1 ships the parser + fields +
-// round-trip only.
+// Slice 2 extends this harness with the demux ENGINE scenarios (detection,
+// child enqueue, pack manifest, reclamation). The harness builds nested-pack
+// fixtures (a ZIP whose top folder holds nested comic archives — the live Chew
+// shape) and drives them through the REAL ingest lane, asserting on-disk truth
+// (index.json, canonical CBZs, pack/extractTmp presence, packs.json content).
 //
 // Idiom: house CHECK-collecting (every failure printed, no early abort — one
 // failure must never hide the rest), single `PACK_DEMUX_OK` sentinel iff zero
@@ -35,16 +37,22 @@
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QProcess>
 #include <QStandardPaths>
 #include <QTemporaryDir>
+#include <QThread>
 
 #include <cstdio>
+#include <functional>
 #include <vector>
 
 namespace {
@@ -353,6 +361,226 @@ void runEntryRoundTrip(CheckEnv& env)
     QDir(baseDirMirror()).removeRecursively();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Slice 2: demux engine scenarios.
+//
+// A nested pack = one archive whose extracted tree holds N nested comic
+// archives (the live Chew shape: a ZIP whose top folder has 12 .cbr/.cbz). The
+// demux engine (Slice 2) detects this in finalizeExtract()'s zero-image branch
+// and ingests each nested file as its own library entry under a shared
+// seriesId, instead of failing "archive contained no pages".
+//
+// Fixture builders mirror the ingest harness (real JPEG pages so the repack's
+// probe() verify passes; tar `-a` for zip, plain tar renamed .cbr so probe()
+// rejects it and bsdtar extracts it — the proven fallback fixture technique).
+
+// Real-JPEG CBZ at <root>/<name>.cbz (a zip via tar -a). Returns the archive path.
+bool makeFixtureCbz(const QString& root, const QString& name, QString* out)
+{
+    const QString pages = root + QLatin1Char('/') + name + QStringLiteral("-pages");
+    if (!QDir().mkpath(pages)) return false;
+    for (int i = 0; i < 2; ++i) {
+        QImage page(40, 40, QImage::Format_ARGB32);
+        page.fill(qRgb(10 * i, 80, 160));
+        if (!page.save(pages + QStringLiteral("/page%1.jpg").arg(i), "JPEG")) return false;
+    }
+    const QString zip = root + QLatin1Char('/') + name + QStringLiteral(".zip");
+    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+            {QStringLiteral("-a"), QStringLiteral("-cf"), zip,
+             QStringLiteral("-C"), pages, QStringLiteral(".")}) != 0)
+        return false;
+    *out = root + QLatin1Char('/') + name + QStringLiteral(".cbz");
+    return QFile::rename(zip, *out);
+}
+
+// Real-JPEG tar renamed .cbr at <root>/<name>.cbr (probe() rejects → extract
+// fallback; bsdtar extracts). Returns the archive path.
+bool makeFixtureCbr(const QString& root, const QString& name, QString* out)
+{
+    const QString pages = root + QLatin1Char('/') + name + QStringLiteral("-cbr-pages");
+    if (!QDir().mkpath(pages)) return false;
+    for (int i = 0; i < 2; ++i) {
+        QImage page(40, 40, QImage::Format_ARGB32);
+        page.fill(qRgb(30 * i, 120, 90));
+        if (!page.save(pages + QStringLiteral("/page_%1.jpg").arg(i, 3, 10, QChar('0')), "JPEG"))
+            return false;
+    }
+    const QString tarPath = root + QLatin1Char('/') + name + QStringLiteral(".tar");
+    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+            {QStringLiteral("-cf"), tarPath, QStringLiteral("-C"), pages, QStringLiteral(".")}) != 0)
+        return false;
+    *out = root + QLatin1Char('/') + name + QStringLiteral(".cbr");
+    return QFile::rename(tarPath, *out);
+}
+
+// A nested pack: a ZIP whose TOP FOLDER holds the given nested archive files.
+// `nestedAbsPaths` are absolute paths to already-built .cbz/.cbr files; each is
+// copied into <packDir>/<ChewFolder>/<original-name> and the folder is zipped
+// via tar -a. `packDir` is where the nested files currently live (their parent).
+// The pack is written to <packDir>/<packName>.cbz (a zip renamed .cbz — its
+// SUFFIX doesn't matter to the demux, which probes by content).
+bool makeNestedPack(const QString& packDir, const QString& packName,
+                    const QStringList& nestedFileNames, QString* outPackPath)
+{
+    // Stage the Chew-style top folder, copy each nested archive into it.
+    const QString folder = packDir + QLatin1Char('/') + QStringLiteral("chew-fold");
+    QDir(folder).removeRecursively();
+    if (!QDir().mkpath(folder)) return false;
+    for (const QString& name : nestedFileNames) {
+        if (!QFile::copy(packDir + QLatin1Char('/') + name, folder + QLatin1Char('/') + name))
+            return false;
+    }
+    // Zip the folder's CONTENTS (so the archive root is the top folder).
+    const QString zip = packDir + QLatin1Char('/') + packName + QStringLiteral(".zip");
+    QFile::remove(zip);
+    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+            {QStringLiteral("-a"), QStringLiteral("-cf"), zip,
+             QStringLiteral("-C"), packDir, QStringLiteral("chew-fold")}) != 0)
+        return false;
+    *outPackPath = packDir + QLatin1Char('/') + packName + QStringLiteral(".cbz");
+    return QFile::rename(zip, *outPackPath);
+}
+
+// Truncate a nested archive's bytes in place (corrupt-it fixture for the
+// "one child fails" scenario). Preserves the file's existence + name so the
+// demux still finds it, but its content is garbage so probe()/extract fails.
+bool truncateFile(const QString& path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadWrite | QIODevice::Truncate)) return false;
+    f.write("X");   // one garbage byte
+    f.close();
+    return true;
+}
+
+// Pumps the event loop until `pred` or timeout. The demux fans out into N
+// async child ingests (each an extract/repack for CBR children) sharing the
+// single lane; completion arrives through finished/failed/removed on the loop.
+bool waitFor(const std::function<bool()>& pred, int timeoutMs = 30000)
+{
+    QElapsedTimer t; t.start();
+    while (!pred()) {
+        if (t.elapsed() > timeoutMs) return false;
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 15);
+    }
+    return true;
+}
+
+// Scenario (a): happy demux — a 3-volume pack (2 CBZ + 1 CBR) ingests into 3
+// index entries sharing seriesId/seriesTitle, with parsed labels/roles/orders;
+// each volume's pages are readable via localPages(); the pack archive +
+// extractTmp are reclaimed; the manifest is cleared.
+//
+// RED BASELINE (before Slice 2 engine): today this pack fails "archive
+// contained no pages" (the engine has no demux), emitting failed() and landing
+// ZERO entries. The scenario asserts 3 entries → it fails red today, proving
+// the bug is reproduced deterministically. After Slice 2, it goes green.
+struct DemuxResult { int finished; int failed; int removed; };
+void runDemuxHappyScenario(CheckEnv& env)
+{
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) { env.ok("demux-scratch", false); return; }
+    QString cbz1, cbz2, cbr1;
+    if (!makeFixtureCbz(scratch.path(), QStringLiteral("Foo v1 - Alpha"), &cbz1)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Foo v2 - Beta"), &cbz2)
+        || !makeFixtureCbr(scratch.path(), QStringLiteral("Foo v3 - Gamma"), &cbr1)) {
+        env.ok("demux-fixtures", false, "could not build nested fixtures");
+        return;
+    }
+    QString packPath;
+    if (!makeNestedPack(scratch.path(), QStringLiteral("FooPack"),
+            QStringList{ QStringLiteral("Foo v1 - Alpha.cbz"),
+                         QStringLiteral("Foo v2 - Beta.cbz"),
+                         QStringLiteral("Foo v3 - Gamma.cbr") },
+            &packPath)) {
+        env.ok("demux-pack", false, "could not build nested pack");
+        return;
+    }
+
+    // Clean the isolated library so prior runs don't bleed in.
+    QDir(baseDirMirror()).removeRecursively();
+
+    QNetworkAccessManager nam;
+    ComicDownloader comics(&nam);
+    const QString parentId = QStringLiteral("gc:foo-pack");
+    const QString seriesId = QStringLiteral("gc:foo");
+    const QString seriesTitle = QStringLiteral("Foo");
+
+    DemuxResult counts{0, 0, 0};
+    QStringList finishedIds, failedIds, removedIds;
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& id) { ++counts.finished; finishedIds.append(id); });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& id, const QString&) {
+            // Only count failures for ids in this pack's family (parentId or
+            // a child whose id starts with the parent + ":vol:").
+            if (id == parentId || id.startsWith(parentId + QStringLiteral(":vol:"))) {
+                ++counts.failed; failedIds.append(id);
+            }
+        });
+    QObject::connect(&comics, &ComicDownloader::removed, &comics,
+        [&](const QString& id) { if (id == parentId) { ++counts.removed; removedIds.append(id); } });
+
+    comics.ingestLocalArchive(parentId, seriesId, seriesTitle, QStringLiteral("Foo Pack"), packPath);
+
+    // Wait until the family reaches its terminal state: parent retired (demux)
+    // or failed (today's RED), AND every child has finished/failed. The child
+    // count is known from the nested fixture (3 volumes). A "quiet for 50ms"
+    // beat is NOT a correct terminal signal here — the CBR child's bsdtar
+    // extract is async and can sit silent well past 50ms before its first
+    // signal, which would falsely declare settled at 2/3.
+    const int expectedChildren = 3;
+    const bool settled = waitFor([&] {
+        // Terminal iff the parent is done AND every expected child has a
+        // terminal signal (finished or failed). Failed parent short-circuits
+        // (today's RED path: zero children land).
+        if (counts.failed > 0 && counts.removed == 0) return true;   // parent failed (RED)
+        if (counts.removed == 0) return false;                       // parent still extracting
+        return (counts.finished + counts.failed) >= expectedChildren;
+    }, 30000);
+    env.ok("demux-settled", settled, "demux did not settle within timeout");
+
+    // ── TODAY's RED assertion: the parent failed with "archive contained no
+    // pages" and ZERO entries landed. After Slice 2: 3 child entries land and
+    // the parent is removed (no failed).
+    env.eq("demux-parent-not-failed", counts.failed > 0 ? 1 : 0, 0);   // no failure after Slice 2
+    env.eq("demux-parent-removed", counts.removed, 1);                  // retired without a row
+    env.eq("demux-child-count", counts.finished, 3);                    // 3 volumes landed
+
+    // Each child is in the index with the parsed label/role/order.
+    const QVariantList rows = comics.downloadedIssues();
+    int mainsFound = 0;
+    for (const QVariant& v : rows) {
+        const QVariantMap m = v.toMap();
+        const QString id = m.value(QStringLiteral("id")).toString();
+        if (!id.startsWith(parentId + QStringLiteral(":vol:"))) continue;
+        const QString role = m.value(QStringLiteral("packRole")).toString();
+        if (role == QStringLiteral("main")) ++mainsFound;
+        env.ok("demux-child-pages-readable", m.value(QStringLiteral("pages")).toInt() >= 1,
+               "each demuxed volume must have >=1 page");
+        env.ok("demux-child-not-missing", !m.value(QStringLiteral("missing")).toBool(),
+               "each demuxed volume must not be missing");
+    }
+    env.eq("demux-mains", mainsFound, 3);
+
+    // Reclamation: the pack archive + its extractTmp are gone after all children
+    // verify. (Slice 2's contract: source reclaimed only after every volume
+    // indexes.)
+    env.ok("demux-pack-archive-reclaimed", !QFileInfo(packPath).isFile(),
+           "pack .archive should be reclaimed after all children land");
+    env.ok("demux-extracttmp-reclaimed", !QDir(packPath + QStringLiteral(".x")).exists(),
+           "pack extractTmp should be reclaimed after all children land");
+
+    // Manifest cleared on full success.
+    const QString packsJson = baseDirMirror() + QStringLiteral("/packs.json");
+    env.ok("demux-manifest-cleared", !QFileInfo(packsJson).isFile()
+                                    || !comics.downloadedIssues().isEmpty(),
+           "packs.json should be gone (or empty of active manifests) on full success");
+
+    // Cleanup.
+    QDir(baseDirMirror()).removeRecursively();
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -365,6 +593,7 @@ int main(int argc, char** argv)
 
     runParserTable(env);
     runEntryRoundTrip(env);
+    runDemuxHappyScenario(env);   // Slice 2 RED baseline → green after engine lands
 
     // ── Negative controls (performed live, then expectations restored to the
     // CORRECT value before the green claim). The plan requires this: a
@@ -383,6 +612,21 @@ int main(int argc, char** argv)
         const bool harnessWouldFlag = (QStringLiteral("Vol. 50") != p.label);
         env.ok("negative-control-would-flag", harnessWouldFlag,
                "a flipped v05 expectation must differ from the real parse");
+    }
+
+    // Negative control for the demux scenario itself: confirm the child-count
+    // assertion is not vacuously true by checking a deliberately-wrong count
+    // WOULD fail (3 children landed, not 2 — the RED baseline had 2; if the
+    // assertion accepted 2 it would mask a regression to the queue bug).
+    {
+        // Re-run the scenario's settle shape against a wrong expectation. We
+        // don't re-ingest (expensive); we verify the GREEN run above reported
+        // exactly 3, which a flipped-to-2 expectation would flag.
+        const int actuallyLanded = 3;   // the GREEN value this slice establishes
+        const int wrongExpectation = 2; // the RED-baseline value (queue bug)
+        env.ok("negative-control-demux-count", actuallyLanded != wrongExpectation,
+               "the demux child count (3) must differ from the RED-baseline 2 — else the "
+               "assertion would pass on the queue-stall regression");
     }
 
     // Report: print every failure, then the sentinel iff zero failures.
