@@ -269,7 +269,7 @@ unchanged — no UX gap mid-migration.
 copy → `.part` instead; re-probe the `.part`; rename `.part` → canonical; delete the original
 source ONLY if the operation was a copy, and only after `saveIndex()` has returned):
 
-- [ ] Harness RED: a downloaded file that `probe()`s `nativelyReadable` is moved into the library
+- [x] Harness RED: a downloaded file that `probe()`s `nativelyReadable` is moved into the library
       as-is with **no extractor subprocess ever spawned** (assert on a call-count fixture); its
       `Entry.files` is populated directly from the probe's entry names (no later zip re-open); the
       original source is gone only after the canonical path is proven to exist AND the index was
@@ -277,20 +277,113 @@ source ONLY if the operation was a copy, and only after `saveIndex()` has return
       unchanged in its extraction half. A crash simulated between repack-verified and
       `saveIndex()` (kill the fixture mid-sequence) leaves BOTH the loose temp dir and the
       original source archive intact — repair-before-prune, not merely "less bad."
-- [ ] Rewrite `onFinished()`'s post-download branch: probe first; fast path (safe move, no
+- [x] Rewrite `onFinished()`'s post-download branch: probe first; fast path (safe move, no
       extraction) or fallback (existing `beginExtract`/`runExtractor`/`onExtractDone`, but
       `finalizeExtract()` now packs via `writeImagesAtomic` — off the GUI thread — instead of
       flattening to `page_NNN.ext`, verifies round-trip via `probe()`, saves the index, and ONLY
       THEN removes the extract temp dir and the original archive, in that order).
-- [ ] Crash-recovery adoption: if the canonical archive path already exists with no index row
+- [x] Crash-recovery adoption: if the canonical archive path already exists with no index row
       (an interrupted prior attempt), probe it; adopt if valid (skip repack entirely), discard and
       re-ingest if not — never the manga precedent's hard "already exists" dead end.
-- [ ] `localPages()` rewritten for archive rows: pure in-memory map from the stored `files`/
+- [x] `localPages()` rewritten for archive rows: pure in-memory map from the stored `files`/
       `groups` lists (`{index, archive, entry: files[i], group}`) — no zip open per call.
-- [ ] Verify: harness green; build green; **live smoke required, not optional** — download one
+- [x] Verify: harness green; build green; **live smoke required, not optional** — download one
       real small CBZ comic end-to-end and confirm zero extraction subprocess spawns and the comic
       opens in the reader; download or synthesize one CBR-shaped source and confirm the fallback
       path still produces an openable archive. Commit + push.
+      **DONE 2026-08-06.** Real safe-move sequence used `.incoming` (not `.part` — that exact name
+      is `writeImagesAtomic`'s own temp file for the same canonical path, a real collision the
+      plan's own wording didn't anticipate). Cross-volume copy is backgrounded through the SAME
+      `QtConcurrent`/`QFutureWatcher` dispatcher the fallback repack uses (`runPackOrCopyThenPublish`,
+      new), not a synchronous `QFile::copy()` — untested-but-present code that would have recreated
+      the freeze-and-get-killed shape the first time Task 6 exercised it with a user-picked file
+      from another volume.
+
+      **Two Opus-advisor passes** (`--model claude-opus-5 --effort high`): one BEFORE any code was
+      written (a full design review against the plan's own Global Constraints), one AFTER the diff
+      was finished and every harness green. The first caught 8 real gaps before implementation —
+      `failAndCleanup()` would have deleted the source on the *ordinary* (non-crash) failure path,
+      not just leave it destroyed on a simulated kill; the fallback could permanently dead-end on a
+      leftover canonical because the adoption check only lived in `downloadIssue()`; cancelling
+      during a background pack raced the worker's own reads of `extractTmp`; the destructor had the
+      identical race on ordinary app quit; `localPages()` dropped the `url` field a real QML
+      consumer (`ComicSeriesPage.qml`) reads with no fallback; the disk-space budget didn't account
+      for the new archive+loose-pages+packed-CBZ 3-way peak; a suffix-only entry filter could pack
+      `__MACOSX/._page.jpg` siblings that `probe()` then silently drops on readback, desyncing the
+      index from the archive; and a generation-counter (`InFlight::serial`) beat a
+      `shared_ptr<atomic<bool>>` for the cancel-safety design. All 8 shipped.
+
+      The SECOND pass, on the finished diff, found two more — genuine blockers, not caught by the
+      first review because they only exist once actual code was written: (1) a stale `.incoming`
+      left behind by ANY failed safe-move permanently bricked that issue on every future retry
+      (both `rename()` and `copy()` refuse an existing destination) — fixed by clearing a leftover
+      `.incoming` at the top of `finalizeSafeMove()`, since `probe()` already proved the CURRENT
+      source valid before that function is ever called; (2) a retired background job's discard-
+      cleanup could delete a canonical a *newer* adoption or redownload had already indexed in the
+      race window between the worker finishing and its queued Qt signal being delivered — fixed by
+      checking `cleanupPathsOnDiscard` against every live `m_index` row's `archive` field before
+      removing anything, per-path (not all-or-nothing, so genuine leftovers like `extractTmp` still
+      get cleaned even when the specific canonical they'd have replaced is spared). Also fixed on
+      that pass: `f.extracting` was reset before the (now-backgrounded, possibly slow) repack even
+      started, which would have shown a frozen "Downloading 100%" instead of "Extracting…" for the
+      whole packing window; a re-entrancy ordering hazard where a `finished()` QML slot re-entering
+      `cancelDownload()` could pop the job queue twice; and `Entry::bytes` diverging between the
+      three publish sites (now consistently the actual on-disk artifact size, not a separately
+      tracked download counter — `writeImagesAtomic` stores uncompressed, so a repacked CBZ
+      legitimately exceeds its source's byte count).
+
+      Added direct regression coverage for blocker (1) — retry the exact same download after an
+      ordinary safe-move failure and confirm it now succeeds (it looped forever pre-fix). Blocker
+      (2)'s race window is real but not deterministically reproducible without a fault-injection
+      hook this task deliberately didn't add (matching the same documented-gap discipline as the
+      cancel-during-pack and destructor-during-pack races below); fixed and reasoned through, not
+      directly harness-tested.
+
+      **Known, documented test gaps** (fixed in code, not independently proven by a deterministic
+      harness case — the underlying race can't be won reliably without a test-only hook this task
+      declined to add): cancel arriving exactly during a background pack; the destructor racing a
+      still-running pack on ordinary app quit; blocker (2) above. All three share the same
+      structural guard (`InFlight::packing` + the `m_index`-liveness check), which the shipped
+      scenarios exercise in every OTHER combination.
+
+      Harness (`comic_downloader_archive_ingest_harness`, extended): 9 scenarios total (5 from
+      Tasks 2/3 unaffected, 4 new — driven through the REAL public `downloadIssue()` entry point
+      against a local loopback HTTP mock, not private internals): fast path (zero extraction,
+      functional round-trip decode, `downloadedIssues()`/`localPages()` shape including the `url`
+      field), fallback path (real extraction via `tar`-as-`.cbr` — a plain tar archive fails
+      `probe()` exactly like a real CBR while `bsdtar` extracts it fine, verified empirically before
+      committing to the fixture technique — repacked into a genuine CBZ with a Mac-sibling
+      exclusion regression case), the ordinary-failure-preserves-source-AND-a-retry-succeeds
+      scenario above, and crash-recovery adoption (with network-touch verification via a
+      deliberately unreachable `postUrl`). A real, reproducible mock-HTTP-server race was found and
+      fixed while writing the harness (responding to a connection before ever reading the client's
+      request intermittently produced `QNetworkReply` `"Connection closed"`) — confirmed via 4
+      consecutive clean runs after the fix, not a single green run.
+
+      Sibling `comic_downloader_ingest_harness` (tests `ingestLocalArchive()`, which still shares
+      `beginExtract()`/`finalizeExtract()` with the HTTP path today — Task 6 converges its own entry
+      point) needed its `makeCbz()` fixture updated from placeholder text bytes to real JPEG
+      content: the new repack-then-verify-via-`probe()` step legitimately rejects non-image
+      "pages" the old flatten-only path never looked at. Not a workaround — the new verification is
+      doing exactly its job.
+
+      **Live smoke — real, not synthesized:** ran the existing `COLOSSEUM_COMIC_DLTEST` headless
+      self-test (`COLOSSEUM_APPDATA_TAG`-isolated, never touching the real library) against a real
+      GetComics post Hemanth supplied (Batman #12, 2026). Log:
+      `archive complete ... bytes= 50543437 — natively readable, moving into place (no extraction)`
+      → `complete ... pages= 29 archive= ".../selftest-ed07a8c5b1.cbz" (archive-in-place, no
+      extraction)`. Confirmed on disk: exactly one file in the issue's folder (the `.cbz` itself),
+      no `.x` extraction temp dir, no loose `page_NNN` files. The CBR-shaped-fallback half of this
+      bullet is covered by the harness's synthesized `tar`-as-`.cbr` scenario above (the plan
+      explicitly allows "download or synthesize"); the reader-opens-visually check is Task 8's own
+      eyes-on bullet, not duplicated here.
+
+      Full regression sweep: `cbz_archive_probe_harness`/`cbz_archive_harness` (Task 1, unaffected
+      by the `CbzArchive.h` D8 addition), `comic_torrents_search_harness`/
+      `comic_torrent_pack_transport_harness` (link-clean, the latter also run and green),
+      `comic_cover_provider_harness` (Task 3, unaffected). Full `colosseum` app builds clean. Two
+      stray `colosseum.exe` processes (confirmed non-live before closing) and one confirmed-mine
+      smoke-test instance were closed during this task.
 
 ### Task 5: `publishAssembledEdition()` convergence
 

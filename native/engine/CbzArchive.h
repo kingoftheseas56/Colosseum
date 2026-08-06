@@ -50,6 +50,17 @@ public:
     // first/middle/last sample of entries byte-sniffs as a real image. Anything
     // that fails any check should be treated as "extract, don't trust in place".
     static CbzProbeResult probe(const QString& archivePath, QString* error = nullptr);
+
+    // The exact entry-name filter probe()/imageEntries() apply internally
+    // (image-suffixed, not under a __MACOSX/ tree, not a dot-leading leaf name)
+    // — exposed publicly so any caller collecting files to PACK into a CBZ
+    // (e.g. ComicDownloader's repack-from-extraction path) can filter its
+    // source list through the SAME rule before writeImagesAtomic, rather than
+    // duplicating it and risking drift: a source list built via a plain
+    // suffix check would pack `__MACOSX/._page01.jpg` (real, from Mac-authored
+    // CBRs), which probe() then silently drops on readback — an index/archive
+    // page-count mismatch with no error.
+    static bool isAcceptedImageEntryName(const QString& name);
 };
 
 } // namespace MangaTankoban

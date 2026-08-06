@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
 #include <QNetworkAccessManager>
 #include <QProcess>
 #include <QStandardPaths>
@@ -28,14 +29,25 @@
 #endif
 
 namespace {
+// Real, genuinely decodable JPEG bytes -- placeholder text ("not-decoded-by-
+// this-contract-test") was sufficient before Task 4 (CBZ-in-place plan): the
+// old finalizeExtract() only ever moved bytes around, never looked at them.
+// Task 4's rewrite packs the extraction output into a canonical CBZ and
+// VERIFIES it round-trips via CbzArchive::probe() (which byte-sniffs sampled
+// entries) before publishing -- so a fixture whose "pages" don't look like
+// real images now legitimately fails that check, exactly as it should for a
+// truly corrupt source. ingestLocalArchive() still shares this same
+// beginExtract()/finalizeExtract() lane (Task 6 is what converges its own
+// entry point onto the two-path ingest), so this fixture change is a direct,
+// unavoidable consequence of Task 4 landing, not scope creep.
 bool makeCbz(const QString& root, const QString& name, QString* archivePath)
 {
     const QString pages = root + QLatin1Char('/') + name + QStringLiteral("-pages");
     if (!QDir().mkpath(pages)) return false;
     for (int i = 0; i < 2; ++i) {
-        QFile page(pages + QStringLiteral("/page%1.jpg").arg(i));
-        if (!page.open(QIODevice::WriteOnly)) return false;
-        page.write("not-decoded-by-this-contract-test");
+        QImage page(40, 40, QImage::Format_ARGB32);
+        page.fill(qRgb(10 * i, 80, 160));
+        if (!page.save(pages + QStringLiteral("/page%1.jpg").arg(i), "JPEG")) return false;
     }
 
     const QString zip = root + QLatin1Char('/') + name + QStringLiteral(".zip");

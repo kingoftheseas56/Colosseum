@@ -15,6 +15,7 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -30,6 +31,7 @@
 #include <QStorageInfo>
 #include <QTimer>
 #include <QUrl>
+#include <QtConcurrentRun>
 
 namespace {
 
@@ -194,8 +196,19 @@ ComicDownloader::~ComicDownloader()
         m_proc->waitForFinished(1000);
     }
     if (m_active) {
-        closeAndDeletePart(*m_active);
-        cleanupExtract(*m_active);
+        // A background copy/pack worker may still be reading extractTmp/
+        // archivePath (InFlight::packing) -- it runs on the global
+        // QThreadPool, independent of `this`, and keeps running to
+        // completion even after this destructor returns (an accepted
+        // consequence: it may leave a finished, unindexed canonical on disk,
+        // which adoptExistingCanonicalIfValid() reclaims on a later launch).
+        // Deleting those files here would sabotage that still-running worker
+        // AND destroy the exact source Task 4 exists to protect -- on
+        // ordinary app quit, not just a hard process kill.
+        if (!m_active->packing) {
+            closeAndDeletePart(*m_active);
+            cleanupExtract(*m_active);
+        }
         delete m_active;
         m_active = nullptr;
     }
@@ -216,6 +229,45 @@ QString ComicDownloader::issueDir(const QString& seriesId, const QString& label,
 {
     return baseDir() + QChar('/') + safeSeg(seriesId) + QChar('/')
            + safeSeg(label) + QChar('-') + hash10(id);
+}
+
+// The canonical archive location (Task 4) -- a FILE sibling to issueDir()'s
+// directory path, never colliding with it (a file named "X.cbz" can never
+// collide with a directory named "X"), so Task 7's migration can have both
+// `archive` and `dir` populated for one boot without a path collision.
+QString ComicDownloader::issueArchivePath(const QString& seriesId, const QString& label,
+                                          const QString& id) const
+{
+    return issueDir(seriesId, label, id) + QStringLiteral(".cbz");
+}
+
+bool ComicDownloader::adoptExistingCanonicalIfValid(const QString& id, const QString& seriesId,
+                                                    const QString& seriesTitle,
+                                                    const QString& label)
+{
+    const QString canonical = issueArchivePath(seriesId, label, id);
+    QString error;
+    const MangaTankoban::CbzProbeResult probe = MangaTankoban::CbzArchive::probe(canonical, &error);
+    if (!probe.nativelyReadable) {
+        qWarning() << "[ComicDownloader] adoption: stale leftover canonical invalid, discarding"
+                   << canonical << error;
+        QFile::remove(canonical);
+        return false;
+    }
+
+    Entry e;
+    e.seriesId    = seriesId;
+    e.seriesTitle = seriesTitle;
+    e.label       = label;
+    e.archive     = canonical;
+    for (const auto& pageEntry : probe.entries) e.files.append(pageEntry.name);
+    e.bytes       = QFileInfo(canonical).size();
+    e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+    m_index.insert(id, e);
+    saveIndex();
+    qInfo() << "[ComicDownloader] adopted an interrupted prior attempt id=" << id
+            << "pages=" << e.files.size() << "archive=" << canonical;
+    return true;
 }
 
 void ComicDownloader::loadIndex()
@@ -297,6 +349,36 @@ QVariantList ComicDownloader::localPages(const QString& issueId) const
     auto it = m_index.constFind(issueId.trimmed());
     if (it == m_index.constEnd()) return out;
     const Entry& e = it.value();
+
+    if (e.usesArchive()) {
+        // Guard on the archive FILE once, mirroring the legacy branch's
+        // dir.exists() early-out below -- otherwise a runtime-deleted archive
+        // returns N pages that all resolve to MissingFile reader-side instead
+        // of zero pages here, and the reader would report "ready" for a comic
+        // that opens to nothing.
+        if (!QFileInfo(e.archive).isFile()) return out;
+        // Pure in-memory map from the stored files/groups lists -- no zip
+        // open per call, since Task 1's probe() already verified every entry
+        // decodable at ingest time and re-checking here on every navigation
+        // call would defeat the point.
+        for (int i = 0; i < e.files.size(); ++i) {
+            QVariantMap m;
+            m[QStringLiteral("index")]   = i;
+            m[QStringLiteral("archive")] = e.archive;
+            m[QStringLiteral("entry")]   = e.files.at(i);
+            // `url` too (not just archive/entry): ComicReaderCore::parsePages()
+            // checks archive/entry FIRST and only falls back to url, so this
+            // costs the reader nothing -- but qml/ComicSeriesPage.qml's
+            // firstLocalUrl() reads lp[0].url directly for the series-page
+            // thumbnail and has no archive/entry fallback of its own.
+            m[QStringLiteral("url")] = QStringLiteral("image://comiccover/")
+                + Colosseum::buildComicCoverId(e.archive, e.files.at(i));
+            m[QStringLiteral("group")] = e.groups.value(i, -1);
+            out.append(m);
+        }
+        return out;
+    }
+
     const QDir dir(e.dir);
     if (!dir.exists()) return out;
     int idx = 0;
@@ -614,6 +696,21 @@ void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& pos
     for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
         if (it.value().id == id) return;
 
+    // Crash-recovery adoption (Task 4): a canonical archive from an
+    // interrupted prior attempt (a safe-move/repack that finished on disk but
+    // never reached saveIndex() -- the app was killed, or quit while a
+    // background worker was still running past this object's destruction,
+    // see InFlight::packing) sits at issueArchivePath(...) with no index row.
+    // Adopt it directly -- no network, no repack -- rather than the hard
+    // "already exists" dead end a naive check would produce.
+    const QString adoptLabel = issueLabel.isEmpty() ? id : issueLabel;
+    if (!m_index.contains(id)
+        && QFileInfo(issueArchivePath(seriesId, adoptLabel, id)).isFile()
+        && adoptExistingCanonicalIfValid(id, seriesId, seriesTitle, adoptLabel)) {
+        emit finished(id);
+        return;
+    }
+
     // Resolve the FULL signed DOWNLOAD NOW href from the release post.
     QNetworkRequest req{QUrl(postUrl)};
     req.setRawHeader("User-Agent", kUserAgent);
@@ -762,12 +859,19 @@ void ComicDownloader::startAttempt(InFlight& f)
     const QString url = f.urls.value(f.urlIdx);
     if (url.isEmpty()) { startNextUrlOrFail(f); return; }
 
-    // Disk-space pre-check: archive + extracted pages live together briefly,
-    // so budget ~2.5× the archive when the post told us the size.
+    // Disk-space pre-check. Budget for the fallback path's worst case (Task
+    // 4 review, D7): the downloaded archive + the loose extracted pages +
+    // the freshly packed CBZ can all exist on disk AT ONCE briefly (index-
+    // then-delete-source ordering keeps the source alive until the packed
+    // result is verified and saved) -- and writeImagesAtomic() stores with
+    // MZ_NO_COMPRESSION, so the packed CBZ is the UNCOMPRESSED page size,
+    // larger than a deflate-packed source. Peak is >=3x; 4x for margin. The
+    // fast (archive-in-place) path never holds more than the source archive
+    // plus a same-directory rename-in-flight, well under this budget.
     if (f.expectedBytes > 0) {
         const QStorageInfo storage(baseDir());
         if (storage.isValid() && storage.isReady()
-            && storage.bytesAvailable() < f.expectedBytes * 5 / 2 + kDiskSpaceSafetyBytes) {
+            && storage.bytesAvailable() < f.expectedBytes * 4 + kDiskSpaceSafetyBytes) {
             failAndCleanup(f, QStringLiteral("insufficient disk space for download + extract"));
             return;
         }
@@ -912,9 +1016,214 @@ void ComicDownloader::onFinished()
         return;
     }
     emit progress(f.id, static_cast<double>(f.receivedBytes), static_cast<double>(f.receivedBytes));
+
+    // Two-path ingest (Task 4): probe first. A natively-readable CBZ is moved
+    // into the library archive-in-place -- no extraction, no repack. Anything
+    // else (a CBR, or a CBZ that fails probe()'s content checks) falls
+    // through to the existing extract-then-repack fallback, unchanged in its
+    // extraction half. Not gated by file extension -- GetComics mislabels
+    // suffixes; probe by content, always.
+    const MangaTankoban::CbzProbeResult probe = MangaTankoban::CbzArchive::probe(f.archivePath);
+    if (probe.nativelyReadable) {
+        qInfo() << "[ComicDownloader] archive complete id=" << f.id << "bytes=" << f.receivedBytes
+                << "— natively readable, moving into place (no extraction)";
+        finalizeSafeMove(f, probe);
+        return;
+    }
     qInfo() << "[ComicDownloader] archive complete id=" << f.id << "bytes=" << f.receivedBytes
-            << "— extracting";
+            << "— not natively readable, extracting";
     beginExtract(f);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// two-path ingest (Task 4, CBZ-in-place plan)
+// ─────────────────────────────────────────────────────────────────────────────
+
+void ComicDownloader::runPackOrCopyThenPublish(quint64 serial, std::function<PackOrCopyResult()> work,
+                                               std::function<void(PackOrCopyResult)> onDone)
+{
+    auto* watcher = new QFutureWatcher<PackOrCopyResult>(this);
+    connect(watcher, &QFutureWatcher<PackOrCopyResult>::finished, this,
+        [this, serial, onDone, watcher]() {
+            const PackOrCopyResult result = watcher->result();
+            watcher->deleteLater();
+            if (!m_active || m_active->serial != serial) {
+                // Retired: cancelled, or (impossible in today's single-lane
+                // design, but future-proofed) superseded. Nobody else will
+                // clean up what this job produced or consumed -- do it here.
+                // EXCEPT a path some row in m_index now points at as its live
+                // `archive` -- reachable even in single-lane design: this
+                // worker's own canonical finished and got queued for
+                // publish, but before this handler ran, a fresh
+                // downloadIssue() for the SAME id raced ahead via
+                // adoptExistingCanonicalIfValid() (or a fast-path redownload)
+                // and indexed that exact file first. Blindly discarding it
+                // here would silently un-download an issue the index still
+                // claims exists, with no error anywhere (Task 4 review,
+                // blocker) -- checked per-path, not all-or-nothing, so
+                // genuine leftovers (extractTmp, a stale original archive)
+                // still get cleaned up even when the canonical they'd have
+                // replaced is spared.
+                QSet<QString> liveArchivePaths;
+                for (const Entry& e : std::as_const(m_index))
+                    if (e.usesArchive()) liveArchivePaths.insert(e.archive);
+                for (const QString& path : result.cleanupPathsOnDiscard) {
+                    if (path.isEmpty() || liveArchivePaths.contains(path)) continue;
+                    if (QFileInfo(path).isDir()) QDir(path).removeRecursively();
+                    else QFile::remove(path);
+                }
+                return;
+            }
+            onDone(result);
+        });
+    watcher->setFuture(QtConcurrent::run(std::move(work)));
+}
+
+void ComicDownloader::failPreservingSource(InFlight& f, const QString& reason)
+{
+    // Repair-before-prune for the ORDINARY (non-crash) failure path, not just
+    // a simulated kill: failAndCleanup()'s existing cleanup helpers already
+    // no-op safely on an empty path (closeAndDeletePart/cleanupExtract), so
+    // clearing these three fields first means delegating to it destroys
+    // nothing. Using plain failAndCleanup() for a verification/finalize
+    // failure would delete the exact source this task exists to protect --
+    // on the failure path that runs far more often than a real crash does.
+    qCritical() << "[ComicDownloader] preserving source on failure id=" << f.id << "reason=" << reason
+               << "archivePath=" << f.archivePath << "extractTmp=" << f.extractTmp;
+    f.archivePath.clear();
+    f.partPath.clear();
+    f.extractTmp.clear();
+    failAndCleanup(f, reason);
+}
+
+void ComicDownloader::finalizeSafeMove(InFlight& f, const MangaTankoban::CbzProbeResult& probe)
+{
+    Q_UNUSED(probe);   // its entries are re-read from the post-move reprobe -- the archive
+                       // hasn't moved yet, so re-probing after is what proves the MOVED bytes
+                       // (not just the pre-move bytes) are what actually got indexed.
+    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
+    QDir().mkpath(QFileInfo(canonical).absolutePath());
+    // NOT ".part" -- writeImagesAtomic() (the fallback repack) uses that exact
+    // temp name for the same canonical path, so a distinct suffix lets
+    // post-crash forensics tell which stage left a file behind.
+    const QString tempCanonical = canonical + QStringLiteral(".incoming");
+
+    // A leftover .incoming from a PRIOR failed attempt for this same issue
+    // would make both QFile::rename() and QFile::copy() below fail forever
+    // (both refuse an existing destination) -- permanently bricking the
+    // issue on retry (Task 4 review, blocker). Safe to clear here: probe()
+    // already proved f.archivePath (the CURRENT source) nativelyReadable
+    // before onFinished() ever called this function, so a verified
+    // replacement is already in hand before this stale litter is touched --
+    // the same rule completeSafeMove() applies for a stale CANONICAL.
+    if (QFileInfo(tempCanonical).isFile()) {
+        qWarning() << "[ComicDownloader] clearing a leftover .incoming from a prior attempt"
+                   << tempCanonical << QFileInfo(tempCanonical).size() << "bytes";
+        QFile::remove(tempCanonical);
+    }
+
+    if (QFile::rename(f.archivePath, tempCanonical)) {
+        // Same-volume rename -- the overwhelmingly common case (the HTTP
+        // staging path and the library both live under AppDataLocation) --
+        // is an OS metadata op, near-instant even for a multi-GB file.
+        // Reprobing here is cheap too (probe() samples 3 entries, not the
+        // whole archive), so this branch stays on the GUI thread.
+        QString reprobeError;
+        const MangaTankoban::CbzProbeResult reprobe =
+            MangaTankoban::CbzArchive::probe(tempCanonical, &reprobeError);
+        completeSafeMove(f, tempCanonical, reprobe, /*wasCopy=*/false);
+        return;
+    }
+
+    // Cross-volume fallback: unreachable with today's single AppData-rooted
+    // layout (HTTP and torrent sources both stage under baseDir() already),
+    // but Task 6 (ingestLocalArchive convergence) will feed this the same
+    // safe-move sequence with a USER-PICKED file from any volume. A multi-GB
+    // synchronous copy on the GUI thread would recreate tonight's
+    // freeze-and-get-killed shape with a different verb -- so the copy (and
+    // its post-copy reprobe) run on the SAME backgrounded worker the fallback
+    // repack uses below, not inline.
+    f.packing = true;
+    f.serial = ++m_nextJobSerial;
+    const quint64 serial = f.serial;
+    const QString source = f.archivePath;
+    runPackOrCopyThenPublish(serial,
+        [source, tempCanonical]() -> PackOrCopyResult {
+            PackOrCopyResult result;
+            result.cleanupPathsOnDiscard = {source, tempCanonical};
+            if (!QFile::copy(source, tempCanonical)) {
+                result.error = QStringLiteral("cannot stage archive for library move (copy failed)");
+                return result;
+            }
+            result.ok = true;
+            result.probe = MangaTankoban::CbzArchive::probe(tempCanonical, &result.error);
+            return result;
+        },
+        [this, tempCanonical](PackOrCopyResult result) {
+            InFlight& active = *m_active;   // safe: onDone only runs when m_active->serial matches
+            active.packing = false;
+            if (!result.ok) { failPreservingSource(active, result.error); return; }
+            completeSafeMove(active, tempCanonical, result.probe, /*wasCopy=*/true);
+        });
+}
+
+void ComicDownloader::completeSafeMove(InFlight& f, const QString& tempCanonical,
+                                       const MangaTankoban::CbzProbeResult& reprobe, bool wasCopy)
+{
+    if (!reprobe.nativelyReadable) {
+        // repair-before-prune: leave tempCanonical (the renamed/copied
+        // artifact) and, if this was a copy, the untouched original in place.
+        failPreservingSource(f, QStringLiteral("post-move verification failed"));
+        return;
+    }
+
+    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
+    if (QFileInfo(canonical).isFile()) {
+        // A pre-existing canonical is stale litter by definition here -- we
+        // ALREADY hold a fresh, independently-verified replacement (reprobe
+        // just passed). Log before removing so a forensic trail survives.
+        qWarning() << "[ComicDownloader] replacing stale leftover canonical" << canonical
+                   << QFileInfo(canonical).size() << "bytes";
+        if (!QFile::remove(canonical)) {
+            failPreservingSource(f, QStringLiteral("cannot replace stale leftover canonical"));
+            return;
+        }
+    }
+    if (!QFile::rename(tempCanonical, canonical)) {
+        failPreservingSource(f, QStringLiteral("cannot finalize library archive"));
+        return;
+    }
+
+    Entry e;
+    e.seriesId    = f.seriesId;
+    e.seriesTitle = f.seriesTitle;
+    e.label       = f.label;
+    e.archive     = canonical;
+    for (const auto& pageEntry : reprobe.entries) e.files.append(pageEntry.name);
+    e.bytes       = QFileInfo(canonical).size();   // the actual artifact, not a separately-tracked counter
+    e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+    m_index.insert(f.id, e);
+    saveIndex();
+
+    // Only delete the ORIGINAL source if this was a copy (a same-volume
+    // rename already consumed it) -- and only now that saveIndex() has
+    // returned. Never the reverse (tonight's original bug, relocated).
+    if (wasCopy) QFile::remove(f.archivePath);
+
+    const QString id = f.id;
+    const int pageCount = e.files.size();
+    // Detach and delete m_active BEFORE emit -- a QML slot on finished() can
+    // re-enter cancelDownload(id)/cancelAndCleanup(), which would otherwise
+    // find m_active still set, delete it a second time, and call
+    // startNextQueued() a second time too (popping two queue entries for one
+    // completion, leaking the first). delete on a nulled m_active below is a
+    // harmless no-op if that reentrancy happens.
+    delete m_active; m_active = nullptr;
+
+    qInfo() << "[ComicDownloader] complete id=" << id << "pages=" << pageCount
+            << "archive=" << canonical << "(archive-in-place, no extraction)";
+    emit finished(id);
+    startNextQueued();
 }
 
 void ComicDownloader::retryOrFailover(InFlight& f, const QString& reason)
@@ -976,6 +1285,16 @@ void ComicDownloader::cancelAndCleanup(InFlight& f)
 
 DownloadFileOps::Result ComicDownloader::cleanupCancelledPayload(InFlight& f)
 {
+    // While a background copy/pack job may still be reading extractTmp/
+    // archivePath (InFlight::packing), leave both alone -- removing them out
+    // from under the worker thread is a real race (Task 4 review), and on
+    // Windows a still-open read handle can make removeRecursively() fail
+    // outright, turning a cancel the user asked for into a spurious "could
+    // not delete" failure. The background job's own completion handler
+    // (runPackOrCopyThenPublish's retired-job branch) owns that cleanup
+    // instead, once it's actually safe.
+    if (f.packing)
+        return DownloadFileOps::removeFile(f.partPath);
     auto result = DownloadFileOps::removeFile(f.partPath);
     if (result.success)
         result = DownloadFileOps::removeFile(f.archivePath);
@@ -1088,14 +1407,32 @@ void ComicDownloader::onExtractDone(int exitCode, int which)
 
 void ComicDownloader::finalizeExtract(InFlight& f)
 {
+    // Deliberately does NOT reset f.extracting here: statusOf()/activeIssueJobs()
+    // key their "extracting" vs "downloading" state string off this flag, and
+    // the pack-off-thread window below can run for a while on a large repack
+    // -- reporting "downloading" (frozen at 100%) for that whole window would
+    // be a real UI regression (Task 4 review). Cancel is unaffected either
+    // way: cancelDownload()'s subprocess-kill branch already requires m_proc
+    // too, which onExtractDone() nulled before calling this. cleanupExtract()
+    // (failure path) and cancelAndCleanup() (cancel path) both already reset
+    // this flag; the success path deletes the InFlight outright.
+
     // Collect images (recursive — many archives nest one folder), natural-sorted
-    // by relative path so "…-0002" follows "…-0001" and 10 follows 9.
+    // by relative path so "…-0002" follows "…-0001" and 10 follows 9 -- AND
+    // filtered through the SAME predicate probe()/readEntry() apply
+    // (isAcceptedImageEntryName), not just a suffix check. A suffix-only
+    // collect would pack e.g. __MACOSX/._page01.jpg (real, from Mac-authored
+    // CBRs) into the archive; probe() then silently drops it on readback,
+    // leaving Entry.files short of what's actually in the file with no error
+    // (Task 4 review finding).
     QStringList rel;
     QDirIterator it(f.extractTmp, QDir::Files, QDirIterator::Subdirectories);
     const int prefixLen = f.extractTmp.length() + 1;
     while (it.hasNext()) {
         const QString abs = it.next();
-        if (isImageFile(abs)) rel.append(abs.mid(prefixLen));
+        const QString relPath = abs.mid(prefixLen);
+        if (isImageFile(abs) && MangaTankoban::CbzArchive::isAcceptedImageEntryName(relPath))
+            rel.append(relPath);
     }
     QCollator coll;
     coll.setNumericMode(true);
@@ -1104,49 +1441,91 @@ void ComicDownloader::finalizeExtract(InFlight& f)
         return coll.compare(a, b) < 0;
     });
     if (rel.isEmpty()) {
-        failAndCleanup(f, QStringLiteral("archive contained no pages"));
+        failPreservingSource(f, QStringLiteral("archive contained no pages"));
         return;
     }
 
-    const QString dirPath = issueDir(f.seriesId, f.label, f.id);
-    QDir(dirPath).removeRecursively();
-    if (!QDir().mkpath(dirPath)) {
-        failAndCleanup(f, QStringLiteral("cannot create pages dir"));
-        return;
-    }
-    QStringList files;
-    for (int i = 0; i < rel.size(); ++i) {
-        const QString src = f.extractTmp + QChar('/') + rel[i];
-        const QString ext = QFileInfo(rel[i]).suffix().toLower();
-        const QString name = QStringLiteral("page_%1.%2")
-                                 .arg(i, 3, 10, QChar('0')).arg(ext);
-        if (!QFile::rename(src, dirPath + QChar('/') + name)) {
-            failAndCleanup(f, QStringLiteral("failed placing page %1").arg(i));
-            return;
-        }
-        files.append(name);
-    }
-    cleanupExtract(f);
-    QFile::remove(f.archivePath);
+    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
+    QDir().mkpath(QFileInfo(canonical).absolutePath());
 
-    Entry e;
-    e.seriesId    = f.seriesId;
-    e.seriesTitle = f.seriesTitle;
-    e.label       = f.label;
-    e.dir         = dirPath;
-    e.files       = files;
-    e.bytes       = f.receivedBytes;
-    e.addedAt     = QDateTime::currentMSecsSinceEpoch();
-    m_index.insert(f.id, e);
-    saveIndex();
+    // Pack via writeImagesAtomic (a real CBZ, not loose page_NNN.ext files)
+    // OFF the GUI thread — a multi-GB repack synchronously would recreate
+    // tonight's freeze-and-get-killed shape with better ordering but the same
+    // symptom. See InFlight::packing / runPackOrCopyThenPublish for the
+    // cancel/destructor safety this requires.
+    f.packing = true;
+    f.serial = ++m_nextJobSerial;
+    const quint64 serial = f.serial;
+    const QString extractTmp = f.extractTmp;
+    const QString originalArchive = f.archivePath;
 
-    const QString id = f.id;
-    qInfo() << "[ComicDownloader] complete id=" << id << "pages=" << files.size()
-            << "dir=" << dirPath;
-    emit finished(id);
+    runPackOrCopyThenPublish(serial,
+        [extractTmp, originalArchive, canonical, rel]() -> PackOrCopyResult {
+            PackOrCopyResult result;
+            result.cleanupPathsOnDiscard = {extractTmp, originalArchive, canonical};
+            // A pre-existing canonical at this point is stale litter — this
+            // worker holds a freshly-collected source about to be verified.
+            // writeImagesAtomic() hard-refuses to replace an existing file,
+            // so remove it first (log path+size for a forensic trail), the
+            // same rule completeSafeMove() applies for the fast path.
+            if (QFileInfo(canonical).isFile()) {
+                qWarning() << "[ComicDownloader] replacing stale leftover canonical (repack)"
+                           << canonical << QFileInfo(canonical).size() << "bytes";
+                if (!QFile::remove(canonical)) {
+                    result.error = QStringLiteral("cannot replace stale leftover canonical");
+                    return result;
+                }
+            }
+            QString packError;
+            if (!MangaTankoban::CbzArchive::writeImagesAtomic(canonical, extractTmp, rel, &packError)) {
+                result.error = packError;
+                return result;
+            }
+            result.ok = true;
+            result.probe = MangaTankoban::CbzArchive::probe(canonical, &result.error);
+            return result;
+        },
+        [this, canonical, extractTmp](PackOrCopyResult result) {
+            InFlight& active = *m_active;   // safe: onDone only runs when m_active->serial matches
+            active.packing = false;
+            if (!result.ok || !result.probe.nativelyReadable) {
+                failPreservingSource(active, result.error.isEmpty()
+                    ? QStringLiteral("repack verification failed") : result.error);
+                return;
+            }
 
-    delete m_active; m_active = nullptr;
-    startNextQueued();
+            Entry e;
+            e.seriesId    = active.seriesId;
+            e.seriesTitle = active.seriesTitle;
+            e.label       = active.label;
+            e.archive     = canonical;
+            for (const auto& pageEntry : result.probe.entries) e.files.append(pageEntry.name);
+            e.bytes       = QFileInfo(canonical).size();   // the actual artifact, not receivedBytes
+                                                             // (writeImagesAtomic stores uncompressed,
+                                                             // so this legitimately exceeds the download)
+            e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+            m_index.insert(active.id, e);
+            saveIndex();
+
+            const QString id = active.id;
+            const QString originalArchivePath = active.archivePath;
+            const int pageCount = e.files.size();
+            // Detach and delete m_active BEFORE emit -- see completeSafeMove()'s
+            // identical note. `active` is a reference to *m_active, so every
+            // field this handler still needs (id, archivePath) is copied out
+            // above, before the delete below invalidates it.
+            delete m_active; m_active = nullptr;
+
+            // Save index, THEN delete source — never the reverse (the exact
+            // ordering bug this whole arc exists to fix).
+            QDir(extractTmp).removeRecursively();
+            QFile::remove(originalArchivePath);
+
+            qInfo() << "[ComicDownloader] complete id=" << id << "pages=" << pageCount
+                    << "archive=" << canonical << "(repacked from extraction)";
+            emit finished(id);
+            startNextQueued();
+        });
 }
 
 void ComicDownloader::cleanupExtract(InFlight& f)

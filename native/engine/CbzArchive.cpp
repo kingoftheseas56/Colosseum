@@ -26,17 +26,7 @@ QByteArray nativePath(const QString& path)
 
 bool imageNameAccepted(const QString& name)
 {
-    static const QSet<QString> extensions{
-        QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("png"),
-        QStringLiteral("webp"), QStringLiteral("gif"), QStringLiteral("bmp"),
-        QStringLiteral("avif")
-    };
-    const QString clean = QDir::fromNativeSeparators(name);
-    if (clean.startsWith(QStringLiteral("__MACOSX/"), Qt::CaseInsensitive))
-        return false;
-    const QString leaf = QFileInfo(clean).fileName();
-    return !leaf.startsWith(QLatin1Char('.'))
-        && extensions.contains(QFileInfo(leaf).suffix().toLower());
+    return CbzArchive::isAcceptedImageEntryName(name);
 }
 
 QString zipError(mz_zip_archive& zip)
@@ -69,6 +59,21 @@ bool sniffLooksDecodable(const QByteArray& h)
 constexpr mz_uint16 kZipEncryptedBit = 0x1;
 
 } // namespace
+
+bool CbzArchive::isAcceptedImageEntryName(const QString& name)
+{
+    static const QSet<QString> extensions{
+        QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("png"),
+        QStringLiteral("webp"), QStringLiteral("gif"), QStringLiteral("bmp"),
+        QStringLiteral("avif")
+    };
+    const QString clean = QDir::fromNativeSeparators(name);
+    if (clean.startsWith(QStringLiteral("__MACOSX/"), Qt::CaseInsensitive))
+        return false;
+    const QString leaf = QFileInfo(clean).fileName();
+    return !leaf.startsWith(QLatin1Char('.'))
+        && extensions.contains(QFileInfo(leaf).suffix().toLower());
+}
 
 QVector<CbzPageEntry> CbzArchive::imageEntries(const QString& archivePath, QString* error)
 {

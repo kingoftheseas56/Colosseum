@@ -34,6 +34,7 @@
 #pragma once
 
 #include "DownloadFileOps.h"
+#include "engine/CbzArchive.h"
 
 #include <QHash>
 #include <QList>
@@ -43,6 +44,8 @@
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+
+#include <functional>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -206,12 +209,9 @@ private:
         // both are set. A legacy loose-folder row has `archive` empty. An
         // archive-shaped row may still carry a leftover `dir` mid-migration --
         // Task 7's first-boot pass deliberately leaves `dir` set for one boot
-        // before reclaiming the loose files on the boot after. isDownloaded()
-        // and deleteIssue() already check usesArchive() FIRST (Task 2).
-        // downloadedIssues() and localPages() do NOT yet -- they still read
-        // `dir`/`files` unconditionally and are Task 3/4's job to convert;
-        // until then an archive-only row (no `dir`) reads as missing/empty
-        // from those two, not wrong, just not archive-aware yet.
+        // before reclaiming the loose files on the boot after. isDownloaded(),
+        // deleteIssue() (Task 2), downloadedIssues() (Task 3), and localPages()
+        // (Task 4) all check usesArchive() FIRST.
         QString dir;
         QString archive;
         QStringList files;
@@ -253,6 +253,24 @@ private:
         bool localArchive = false;   // starts at beginExtract(), never at HTTP startAttempt()
         QString extractTmp;
 
+        // Task 4 (CBZ-in-place plan) -- background copy/pack safety:
+        // `serial` is stamped from `m_nextJobSerial` when this InFlight becomes
+        // `m_active`. A background worker (the fast path's cross-volume copy,
+        // or the fallback's repack) captures it BY VALUE; its GUI-thread
+        // completion handler only touches m_index/m_active/emits a signal when
+        // `m_active && m_active->serial == captured` still holds -- immune to
+        // both "the job was cancelled" and the sharper trap "cancel-then-
+        // redownload the same issue id", which an id-only comparison would miss
+        // (a NEW InFlight with the SAME id would wrongly accept a stale future).
+        // `packing` is true for the whole window such a worker may be reading
+        // `extractTmp`/`archivePath` on another thread -- cancelDownload() and
+        // ~ComicDownloader() must not delete either while it's set; the
+        // worker's own completion handler owns that cleanup instead (on the
+        // GUI thread, after the serial check tells it whether to publish or
+        // discard). See finalizeSafeMove()/finalizeExtract().
+        quint64 serial = 0;
+        bool packing = false;
+
         // Assembled-edition ingest (Task 7): set only by ingestAssembledEdition().
         // No archive, no network — publishAssembledEdition() validates+moves
         // assembledStagingDir directly, sharing this same single-lane queue.
@@ -277,6 +295,16 @@ private:
     void retryOrFailover(InFlight& f, const QString& reason);
     void startNextUrlOrFail(InFlight& f);
     void failAndCleanup(InFlight& f, const QString& reason);
+    // Same terminal shape as failAndCleanup(), for the two-path ingest's
+    // (Task 4) own verification/finalize failures specifically: it clears
+    // f.archivePath/partPath/extractTmp on the InFlight BEFORE delegating, so
+    // failAndCleanup()'s existing (and otherwise correct) cleanup helpers --
+    // which already no-op on an empty path -- destroy nothing. Repair-before-
+    // prune requires the ordinary failure path to preserve the source exactly
+    // as faithfully as a simulated mid-operation crash does; using plain
+    // failAndCleanup() for these specific failures would not (it would delete
+    // the very source this task exists to protect).
+    void failPreservingSource(InFlight& f, const QString& reason);
     void cancelAndCleanup(InFlight& f);
     DownloadFileOps::Result cleanupCancelledPayload(InFlight& f);
     void closePart(InFlight& f);
@@ -289,6 +317,83 @@ private:
     void finalizeExtract(InFlight& f);
     void cleanupExtract(InFlight& f);
 
+    // ── Two-path ingest (Task 4, CBZ-in-place plan) ───────────────────────────
+    // The canonical archive location for an issue -- a FILE sibling to (never
+    // colliding with) the legacy loose-folder path issueDir() returns, so
+    // Task 7's migration can have both `archive` and `dir` populated for one
+    // boot without a path collision.
+    QString issueArchivePath(const QString& seriesId, const QString& label, const QString& id) const;
+
+    // Crash-recovery adoption: a canonical archive from an interrupted prior
+    // attempt (a safe-move or repack that completed on disk but never reached
+    // saveIndex(), e.g. the app was killed, or quit while a background worker
+    // was still running past this object's destruction -- see `packing`
+    // above) sits at issueArchivePath(...) with no index row. Probes it; if
+    // valid, adopts it directly (builds Entry, saveIndex(), returns true --
+    // caller emits finished(), no network/repack ever touched). If invalid,
+    // removes the stale file and returns false so the caller proceeds with a
+    // normal ingest. Never the hard "already exists" dead end a naive check
+    // would produce.
+    bool adoptExistingCanonicalIfValid(const QString& id, const QString& seriesId,
+                                       const QString& seriesTitle, const QString& label);
+
+    // The fast path: a freshly downloaded file that CbzArchive::probe()d
+    // `nativelyReadable`. Moves it into the library archive-in-place, no
+    // extraction. `probe` is the result that already proved f.archivePath
+    // readable (its `entries` become Entry::files directly -- no later zip
+    // re-open). Rename onto the canonical location when same-volume (the
+    // common case, cheap, GUI thread); a cross-volume rename failure falls
+    // back to a backgrounded copy (see runPackOrCopyThenPublish).
+    void finalizeSafeMove(InFlight& f, const MangaTankoban::CbzProbeResult& probe);
+
+    // Shared tail of the fast path, reached either directly from
+    // finalizeSafeMove() (same-volume rename, synchronous) or from a
+    // background copy job's completion handler. `tempCanonical` has already
+    // been proven readable via `reprobe`; `wasCopy` gates whether the
+    // original source is deleted (a copy leaves it behind on failure, a
+    // rename already consumed it).
+    void completeSafeMove(InFlight& f, const QString& tempCanonical,
+                          const MangaTankoban::CbzProbeResult& reprobe, bool wasCopy);
+
+    // The result of a background copy-then-probe or pack-then-probe job --
+    // pure data, safe to pass across the thread boundary by value.
+    struct PackOrCopyResult {
+        bool ok = false;
+        QString error;
+        MangaTankoban::CbzProbeResult probe;   // valid entries only when ok
+        // Every path this worker (or the input it consumed) should have
+        // removed if the job is discarded before it can publish -- covers
+        // both what the worker itself produced (a temp/final canonical) and
+        // the input side (extractTmp, the original downloaded archive) that
+        // cancelAndCleanup() deliberately leaves alone while this job might
+        // still be reading them (see InFlight::packing).
+        QStringList cleanupPathsOnDiscard;
+    };
+
+    // Runs `work` on a background thread (QtConcurrent), then -- on the GUI
+    // thread, via QFutureWatcher -- calls `onDone(result)` ONLY IF `m_active`
+    // still points at the InFlight this job was dispatched for (checked by
+    // `serial`, not by id -- see the InFlight::serial comment). `work` must
+    // capture everything it needs BY VALUE, never `this` or a reference into
+    // `*m_active`: the InFlight may be deleted and `m_active` reassigned to a
+    // completely different job before this job finishes. The watcher's
+    // context is `this`, so its completion slot auto-disconnects on this
+    // object's destruction -- but the pool thread itself is NOT cancelled and
+    // keeps running to completion regardless (it may leave a finished,
+    // unindexed canonical on disk, which adoptExistingCanonicalIfValid()
+    // reclaims on a later launch). This is QtConcurrent's global QThreadPool,
+    // which Qt itself joins at static destruction -- so on a graceful app
+    // quit mid-pack, process exit blocks until the worker finishes, same as
+    // waiting out any other in-flight background task. It is NOT the
+    // freeze-and-get-killed shape this arc exists to fix: that was the GUI
+    // thread itself blocked and unresponsive during a synchronous repack;
+    // this is app shutdown waiting on a worker thread while the GUI has
+    // already torn down, which a user watching a slow-to-exit app could still
+    // force-kill -- safe either way, since the repack's own `.incoming`/
+    // `.part` temp files are never the canonical path until proven complete.
+    void runPackOrCopyThenPublish(quint64 serial, std::function<PackOrCopyResult()> work,
+                                  std::function<void(PackOrCopyResult)> onDone);
+
     void publishAssembledEdition(InFlight& f);
 
     QNetworkAccessManager* m_nam = nullptr;
@@ -298,4 +403,5 @@ private:
     QList<InFlight> m_queue;
     QProcess* m_proc = nullptr;
     ComicTorrents* m_torrents = nullptr;
+    quint64 m_nextJobSerial = 0;   // see InFlight::serial (Task 4)
 };

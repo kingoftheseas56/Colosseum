@@ -592,6 +592,9 @@ add_executable(comic_downloader_archive_ingest_harness
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
+    engine/CbzArchive.cpp          # ComicDownloader.cpp calls probe()/writeImagesAtomic() directly, Task 4
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -635,7 +638,7 @@ add_executable(comic_downloader_archive_ingest_harness
     app_resources.qrc
 )
 target_include_directories(comic_downloader_archive_ingest_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(comic_downloader_archive_ingest_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
+target_link_libraries(comic_downloader_archive_ingest_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui colosseum_libtorrent)
 
 add_executable(comic_downloader_ingest_harness
     ../tests/comic_downloader_ingest_harness.cpp
@@ -643,6 +646,9 @@ add_executable(comic_downloader_ingest_harness
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
+    engine/CbzArchive.cpp          # ComicDownloader.cpp calls probe()/writeImagesAtomic() directly, Task 4
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -686,7 +692,7 @@ add_executable(comic_downloader_ingest_harness
     app_resources.qrc
 )
 target_include_directories(comic_downloader_ingest_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(comic_downloader_ingest_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
+target_link_libraries(comic_downloader_ingest_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui colosseum_libtorrent)
 
 add_executable(comic_torrents_search_harness
     ../tests/comic_torrents_search_harness.cpp
@@ -694,6 +700,9 @@ add_executable(comic_torrents_search_harness
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
+    engine/CbzArchive.cpp          # ComicDownloader.cpp calls probe()/writeImagesAtomic() directly, Task 4
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -737,7 +746,7 @@ add_executable(comic_torrents_search_harness
     app_resources.qrc
 )
 target_include_directories(comic_torrents_search_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(comic_torrents_search_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
+target_link_libraries(comic_torrents_search_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent colosseum_libtorrent)
 
 # Task 9 (spec 2026-07-15 "Durable shared-infohash transport"): drives
 # ComicTorrentDownloader's edition pack transport through a FAKE
@@ -755,6 +764,9 @@ add_executable(comic_torrent_pack_transport_harness
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
+    engine/CbzArchive.cpp          # ComicDownloader.cpp calls probe()/writeImagesAtomic() directly, Task 4
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
     engine/ComicEditionAssembler.cpp
@@ -798,7 +810,7 @@ add_executable(comic_torrent_pack_transport_harness
     app_resources.qrc
 )
 target_include_directories(comic_torrent_pack_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(comic_torrent_pack_transport_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
+target_link_libraries(comic_torrent_pack_transport_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent colosseum_libtorrent)
 
 add_executable(book_torrent_magnet_harness
     ../tests/book_torrent_magnet_harness.cpp
