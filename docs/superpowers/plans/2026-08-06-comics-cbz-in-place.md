@@ -392,17 +392,74 @@ source ONLY if the operation was a copy, and only after `saveIndex()` has return
 Without this, torrent-pack editions keep producing fresh legacy `dir` rows forever and the
 migration in Task 6 never converges.
 
-- [ ] Extend the ingest harness RED: an assembled edition (fixture staging dir + ordered file
+- [x] Extend the ingest harness RED: an assembled edition (fixture staging dir + ordered file
       list) publishes as an `Entry` with `archive` set, `dir` empty; the existing traversal-safety
       and duplicate-page checks (`:1139-1160`, unchanged) still reject an escaping/missing/
       duplicate page BEFORE any archive write is attempted.
-- [ ] Replace `QDir().rename(root, dirPath)` with `CbzArchive::writeImagesAtomic(finalCbz, root,
+- [x] Replace `QDir().rename(root, dirPath)` with `CbzArchive::writeImagesAtomic(finalCbz, root,
       f.assembledOrderedFiles)` off the GUI thread (same background-thread treatment as Task 4);
       `groups` stays index-parallel.
-- [ ] Verify: harness green; build green; existing `comic_torrent_pack_seed_harness` /
+- [x] Verify: harness green; build green; existing `comic_torrent_pack_seed_harness` /
       `runPackSelfTest`'s restart scenario (`localPages(id).size() > 0`, record count) still pass
       unmodified — this is the self-test the review flagged as exercising exactly this surface.
       Commit + push.
+      **DONE 2026-08-06.** The last legacy-`dir` writer is retired: `publishAssembledEdition()` now
+      packs the assembler's staging dir into a canonical CBZ (archive row) via the exact Task 4
+      background machinery (`runPackOrCopyThenPublish` + `packing` guard + serial + retired-job
+      liveness cleanup), not a loose-folder rename.
+
+      **The load-bearing correctness point:** an assembled edition's page ORDER is authoritative
+      (the assembler set it) and `assembledGroups` is index-parallel to `assembledOrderedFiles`.
+      `writeImagesAtomic` preserves that order in the archive, but `probe()` re-sorts its returned
+      entries by a numeric collator — so `Entry.files`/`Entry.groups` stay the assembled values,
+      and the post-pack `probe()` is used ONLY as a readability gate, NEVER as the page-list source.
+      The harness pins this directly: `entry[i] == names[i]` proves probe's sort never leaked in.
+
+      Opus-advisor pass (`--model claude-opus-5 --effort high`) on the finished diff confirmed the
+      order-preservation fix correct as coded and verified the three cleanup-choice questions
+      (`failAndCleanup` vs `failPreservingSource` for the assembled path — the staging dir is fully
+      re-derivable, unlike a download source; the manual canonical removal is safe since onDone only
+      runs on a serial match so no newer row can have claimed it; `cleanupPathsOnDiscard = {canonical,
+      root}` is disjoint from the queued-cancel path). It surfaced three gaps, none a Task 5 blocker;
+      I acted on them as follows:
+      - **(b) FIXED HERE:** `startNextQueued()` lacked an `if (m_active) return;` re-entrancy guard —
+        a `finished()` QML slot that synchronously starts a new download would be silently clobbered
+        (its InFlight leaked, its worker orphaned into the retired-cleanup branch that deletes its
+        files with NO `failed()` signal). One line, protective across ALL THREE async publish sites
+        (`completeSafeMove`, the Task 4 repack, and this one). No existing correct call site is
+        affected (all null `m_active` before calling).
+      - **(a) DEFERRED (documented in Execution notes):** a cancel-then-retry-same-id race on the
+        DETERMINISTIC per-id staging/`extractTmp` paths — a retired worker's cleanup can delete the
+        RETRY's freshly-rebuilt staging mid-pack. Pre-existing in Task 4's machinery (`extractTmp =
+        archivePath + ".x"` has the identical race); Task 5 extends it to a third path; Task 6 will
+        add a fourth. Non-destructive (the job root survives, the validation loop catches the worst
+        case, nothing scrambled ships) and the advisor explicitly said not to hold Task 5 for it —
+        the proper fix is machinery-level (a live-claimed-paths check the retired branch consults),
+        best landed with or before Task 6.
+      - **(c) BEHAVIOR NOTE:** the post-pack `probe()` gate is stricter than the assembler's old
+        admission rule (`collectValidatedImages` tolerated one-good-page + junk; `probe()` fails the
+        edition if any of its 3 sampled entries doesn't byte-sniff decodable). A mixed/AVIF-ish
+        payload that used to publish as a loose folder now fails LOUDLY via `failed(id, reason)`
+        instead of silently shipping an unreadable folder — a correct tightening, flagged so it isn't
+        later mis-diagnosed as a regression.
+
+      Harness: `comic_downloader_ingest_harness` (assembled scenarios) — success rewritten async
+      (the publish is backgrounded now) + asserts the archive-row shape / real decode / preserved
+      order+groups / no loose folder; new validation-rejects-before-write scenario. 4/4 green, 3
+      consecutive clean runs. `comic_torrent_pack_transport_harness` (drives the REAL
+      ingestAssembledEdition→publishAssembledEdition through a fake torrent engine) — scenario (5)/(8)
+      asserted a synchronous publish, legitimately broken by the now-async publish; fixed by wrapping
+      the two `isDownloaded` assertions in a `waitFor` event-loop pump, and its staging fixture now
+      writes real JPEG bytes (the probe gate byte-sniffs). Green, 3 consecutive clean runs. Both
+      harness edits only change WHEN an assertion is checked / what bytes a fixture holds, never what
+      is proven. `comic_torrent_pack_seed_harness` is a pure torrent seeder (does not compile
+      `ComicDownloader.cpp`) — unaffected by construction. The full real-libtorrent `runPackSelfTest`
+      was deliberately NOT run: it launches seeders on this machine and Hemanth's live Colosseum
+      session was active (would contend); the fake-engine transport harness drives the identical
+      assemble→ingest→publish path and the Task 2 reload harness already proves archive rows survive
+      restart, which together cover exactly what that integration run checks for this change.
+      Production `ComicDownloader.cpp` compiles clean under the full app's own flags; the final app
+      LINK is deferred only because the live session locks the exe (not a code issue).
 
 ### Task 6: `ingestLocalArchive()` convergence
 
@@ -481,3 +538,21 @@ migration in Task 6 never converges.
   (`path.toUtf8()` instead of `QFile::encodeName`) but needs its own non-ASCII-path harness case
   to land safely — left out of Task 3's commit on scope discipline (pre-existing, not this task's
   file map). Worth a short, separate follow-up before Task 4 makes the blast radius bigger.
+- **Known gap, deferred not fixed (found during Task 5's advisor pass, 2026-08-06) —
+  cancel-then-retry race on deterministic per-id worker paths.** The background pack/copy machinery
+  (Task 4) derives each job's temp paths deterministically from the issue id: `extractTmp =
+  archivePath + ".x"`, the assembled staging dir is `<stagingRoot>/<id>.staging`, the canonical is
+  `issueArchivePath(id)`. The retired-job cleanup in `runPackOrCopyThenPublish` spares only paths a
+  live `m_index` row points at (via `e.archive`) — it does NOT spare a path a live *in-flight job*
+  (active or queued) is currently using. So: cancel an edition/issue mid-pack → immediately retry
+  the SAME id → the retry rebuilds `<id>.staging`/`extractTmp` → the OLD worker's future finally
+  resolves and its retired branch does `removeRecursively()` on that path, deleting the RETRY's
+  freshly-staged pages mid-pack. Non-destructive (the torrent job root / downloaded source survive,
+  and the validation loop / writeImagesAtomic catch the half-empty dir with a loud `failed()` — no
+  scrambled comic ships), but a spurious, hard-to-diagnose "assembled page missing on disk" on an
+  unlucky retry. Pre-existing in Task 4 (extractTmp), extended by Task 5 (staging), and Task 6 will
+  add a fourth path (imported-archive extract) with the same shape. **Proper fix is machinery-level,
+  not per-writer:** a member set of paths claimed by live jobs (populated at dispatch, cleared in
+  the handler), which the retired branch consults alongside `liveArchivePaths` before deleting.
+  Best landed with or just before Task 6, so all four paths get the guard at once. Advisor
+  explicitly advised NOT holding Task 5 for it.

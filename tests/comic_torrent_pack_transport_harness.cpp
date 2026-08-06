@@ -28,6 +28,8 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
@@ -41,6 +43,7 @@
 #include <QVector>
 
 #include <cstdlib>
+#include <functional>
 #include <iostream>
 
 using ComicEditionIdentity::ComicCollectionFormat;
@@ -54,6 +57,23 @@ void require(bool condition, const char* message)
         std::cerr << "FAIL: " << message << '\n';
         std::exit(1);
     }
+}
+
+// Pumps the event loop until `pred` holds or the timeout hits. Needed as of
+// Task 5 (CBZ-in-place): ComicDownloader::publishAssembledEdition() now packs
+// the assembled staging dir into a canonical CBZ OFF the GUI thread, so an
+// edition's publish (isDownloaded == true) lands through a QFutureWatcher on
+// the event loop instead of inline under emitFinished()/downloadEdition().
+// This only changes WHEN the assertion is checked, never what it proves.
+bool waitFor(const std::function<bool()>& pred, int timeoutMs = 20000)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (!pred()) {
+        if (timer.elapsed() > timeoutMs) return false;
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 15);
+    }
+    return true;
 }
 
 // ── Fake engine seam ─────────────────────────────────────────────────────────
@@ -329,11 +349,16 @@ int main(int argc, char** argv)
         downloader.downloadEdition(omnibus1, hash2, magnetUri);
         require(engine.priorities == QVector<int>({7, 7, 7, 7, 0, 0}), "both resolved before finish");
 
-        engine.emitFinished(hash2);   // synchronous: assemble+ingest run inline
+        // Assembly runs inline under emitFinished(); the PUBLISH (packing the
+        // assembled staging dir into a canonical CBZ) is now backgrounded
+        // (Task 5), so compendium-1's isDownloaded lands via the event loop.
+        // omnibus-1's failure is still synchronous -- it fails in the assembler
+        // (pages missing on disk), before any ingest/pack is dispatched.
+        engine.emitFinished(hash2);
 
         require(failedIds == QStringList{omnibus1.editionId},
                 "(5) only the sibling with the missing payload fails");
-        require(comics.isDownloaded(compendium1.editionId),
+        require(waitFor([&] { return comics.isDownloaded(compendium1.editionId); }),
                 "(5) the sibling with present pages still finishes and publishes");
         require(!comics.isDownloaded(omnibus1.editionId),
                 "the failed edition never gets an index entry");
@@ -345,9 +370,8 @@ int main(int argc, char** argv)
         downloader.downloadEdition(tpb1, hash2, magnetUri);
         require(engine.addMagnetCount == addMagnetCountBeforeJoin,
                 "(8) joining an already-completed payload never re-adds the magnet");
-        require(comics.isDownloaded(tpb1.editionId),
-                "(8) the later edition assembles and publishes immediately, "
-                "with no second torrentFinished needed");
+        require(waitFor([&] { return comics.isDownloaded(tpb1.editionId); }),
+                "(8) the later edition assembles and publishes (no second torrentFinished needed)");
 
         comics.deleteIssue(compendium1.editionId);
         comics.deleteIssue(tpb1.editionId);

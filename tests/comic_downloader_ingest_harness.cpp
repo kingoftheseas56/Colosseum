@@ -8,10 +8,13 @@
 // staging dir publishes through the SAME index/reader contract GetComics
 // downloads use, atomically, queued behind the same single lane, and a
 // cancel while queued leaves no index record and no partial comics dir.
+#include "engine/CbzArchive.h"
 #include "engine/ComicDownloader.h"
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -23,6 +26,7 @@
 #include <QUrl>
 
 #include <cstdio>
+#include <functional>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -68,17 +72,42 @@ QString buildAssembledStaging(const QTemporaryDir& root, const QString& id, cons
 {
     const QString dir = root.path() + QLatin1Char('/') + id + QStringLiteral(".staging");
     QDir().mkpath(dir);
-    for (const QString& name : names) {
-        QFile f(dir + QLatin1Char('/') + name);
-        if (f.open(QIODevice::WriteOnly)) f.write("assembled-page-bytes");
+    for (int i = 0; i < names.size(); ++i) {
+        // Real JPEG bytes, not placeholder text: Task 5 packs the staging dir
+        // into a canonical CBZ and verifies it round-trips via
+        // CbzArchive::probe() (which byte-sniffs) before publishing, so the
+        // fixture pages must be genuinely decodable -- the old flatten/move
+        // path never looked at their content.
+        QImage page(40, 40, QImage::Format_ARGB32);
+        page.fill(qRgb(10 * i, 90, 170));
+        page.save(dir + QLatin1Char('/') + names.at(i), "JPEG");
     }
     return dir;
 }
 
-// Runs the assembled-edition success scenario against its own ComicDownloader
-// instance. Fully synchronous — publishAssembledEdition() is a validate+move,
-// no network/subprocess — so no event loop needs to be pumped. Returns true
-// and prints OK, or prints FAIL and returns false.
+// Pumps the event loop until `pred` is true or the timeout hits. Task 5 made
+// publishAssembledEdition() pack the staging dir off the GUI thread (was a
+// synchronous validate+move), so its completion now arrives through a
+// QFutureWatcher on the event loop -- this scenario is async where it was
+// synchronous before.
+bool waitFor(const std::function<bool()>& pred, int timeoutMs = 20000)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (!pred()) {
+        if (timer.elapsed() > timeoutMs) return false;
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 15);
+    }
+    return true;
+}
+
+// Runs the assembled-edition success scenario. Task 5: the edition now
+// publishes as an ARCHIVE row (a real canonical CBZ, `archive` set / `dir`
+// empty), not a loose page folder -- so its pages come back from localPages()
+// as {archive, entry} descriptors that must genuinely decode via
+// CbzArchive::readEntry(), the assembler's page ORDER and parallel `groups`
+// must be preserved exactly (probe()'s collator-sort must NOT have reordered
+// them), and no loose folder may exist on disk.
 bool runAssembledIngestSuccessScenario(QNetworkAccessManager* nam)
 {
     const QString id = QStringLiteral("assembled-ingest-1");
@@ -97,24 +126,33 @@ bool runAssembledIngestSuccessScenario(QNetworkAccessManager* nam)
 
     bool sawFinished = false;
     bool sawFailed = false;
+    QString failReason;
     QObject::connect(&comics, &ComicDownloader::finished, &comics,
         [&](const QString& fid) { if (fid == id) sawFinished = true; });
     QObject::connect(&comics, &ComicDownloader::failed, &comics,
         [&](const QString& fid, const QString& reason) {
             if (fid != id) return;
             sawFailed = true;
-            std::printf("FAIL: assembled ingest reported failed: %s\n", qPrintable(reason));
+            failReason = reason;
         });
 
     comics.ingestAssembledEdition(id, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
                                   QStringLiteral("Assembled Edition One"), stagingDir, names, groups);
 
-    if (sawFailed || !sawFinished) {
-        std::printf("FAIL: assembled ingest did not finish cleanly\n");
+    if (!waitFor([&] { return sawFinished || sawFailed; })) {
+        std::printf("FAIL: assembled ingest did not complete within timeout\n");
+        return false;
+    }
+    if (sawFailed) {
+        std::printf("FAIL: assembled ingest reported failed: %s\n", qPrintable(failReason));
         return false;
     }
     if (QDir(stagingDir).exists()) {
-        std::printf("FAIL: staging dir still present after atomic publish\n");
+        std::printf("FAIL: staging dir still present after publish\n");
+        return false;
+    }
+    if (QDir(stagingRoot.path() + QStringLiteral("/gc_test")).exists()) {
+        std::printf("FAIL: a loose page folder was created -- assembled edition did not become an archive row\n");
         return false;
     }
     if (!comics.isDownloaded(id)) {
@@ -129,9 +167,23 @@ bool runAssembledIngestSuccessScenario(QNetworkAccessManager* nam)
     }
     for (int i = 0; i < pages.size(); ++i) {
         const QVariantMap p = pages.at(i).toMap();
-        const QString localFile = QUrl(p.value(QStringLiteral("url")).toString()).toLocalFile();
-        if (!QFileInfo::exists(localFile)) {
-            std::printf("FAIL: assembled page %d file missing on disk (%s)\n", i, qPrintable(localFile));
+        const QString archive = p.value(QStringLiteral("archive")).toString();
+        const QString entry = p.value(QStringLiteral("entry")).toString();
+        if (archive.isEmpty() || entry.isEmpty()) {
+            std::printf("FAIL: assembled page %d not an archive descriptor (archive/entry empty)\n", i);
+            return false;
+        }
+        // Page ORDER must be exactly the assembler's, not probe()'s
+        // collator-sort -- names[i] must still be page i.
+        if (entry != names.at(i)) {
+            std::printf("FAIL: assembled page %d order/name drift: got %s want %s\n",
+                        i, qPrintable(entry), qPrintable(names.at(i)));
+            return false;
+        }
+        QString readErr;
+        const QByteArray decoded = MangaTankoban::CbzArchive::readEntry(archive, entry, &readErr);
+        if (decoded.isEmpty()) {
+            std::printf("FAIL: assembled page %d does not decode from the archive: %s\n", i, qPrintable(readErr));
             return false;
         }
         if (p.value(QStringLiteral("group")).toInt() != groups.at(i)) {
@@ -150,7 +202,86 @@ bool runAssembledIngestSuccessScenario(QNetworkAccessManager* nam)
     }
 
     comics.deleteIssue(id);
-    std::printf("OK: assembled edition ingest publishes through the Comics contract\n");
+    std::printf("OK: assembled edition publishes as an archive row, page order + groups preserved\n");
+    return true;
+}
+
+// Task 5: the traversal-safety / missing-page / duplicate-page validation must
+// still reject a bad edition BEFORE any archive is written -- a rejected
+// edition leaves no index row and, critically, no half-written canonical CBZ.
+bool runAssembledIngestValidationRejectsScenario(QNetworkAccessManager* nam)
+{
+    ComicDownloader comics(nam);
+
+    QTemporaryDir stagingRoot;
+    if (!stagingRoot.isValid()) {
+        std::printf("FAIL: validation-scenario staging temp dir invalid\n");
+        return false;
+    }
+
+    struct Case {
+        QString id;
+        QStringList declared;   // what the caller claims the pages are
+        QStringList onDisk;     // what actually exists in the staging dir
+        const char* label;
+    };
+    const Case cases[] = {
+        // A declared page that isn't on disk (missing).
+        { QStringLiteral("assembled-reject-missing"),
+          { QStringLiteral("page_000.jpg"), QStringLiteral("page_001.jpg") },
+          { QStringLiteral("page_000.jpg") },
+          "a missing page is rejected before any archive write" },
+        // The same page listed twice (duplicate).
+        { QStringLiteral("assembled-reject-dup"),
+          { QStringLiteral("page_000.jpg"), QStringLiteral("page_000.jpg") },
+          { QStringLiteral("page_000.jpg") },
+          "a duplicate page is rejected before any archive write" },
+        // A path escaping the staging dir (traversal).
+        { QStringLiteral("assembled-reject-escape"),
+          { QStringLiteral("../escapee.jpg") },
+          { QStringLiteral("page_000.jpg") },
+          "an escaping page path is rejected before any archive write" },
+    };
+
+    for (const Case& c : cases) {
+        comics.deleteIssue(c.id);
+        const QString stagingDir = buildAssembledStaging(stagingRoot, c.id, c.onDisk);
+
+        bool sawFinished = false, sawFailed = false;
+        QObject::connect(&comics, &ComicDownloader::finished, &comics,
+            [&](const QString& fid) { if (fid == c.id) sawFinished = true; });
+        QObject::connect(&comics, &ComicDownloader::failed, &comics,
+            [&](const QString& fid, const QString&) { if (fid == c.id) sawFailed = true; });
+
+        comics.ingestAssembledEdition(c.id, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                                      QStringLiteral("Reject Case"), stagingDir, c.declared, {});
+
+        // Validation is synchronous and runs before the background pack is ever
+        // dispatched, so the reject is observable without pumping -- but pump
+        // briefly anyway to prove no async publish sneaks in behind it.
+        waitFor([&] { return sawFinished; }, 300);
+
+        if (sawFinished || !sawFailed) {
+            std::printf("FAIL: %s -- expected failed(), got %s\n", c.label,
+                        sawFinished ? "finished()" : "neither signal");
+            return false;
+        }
+        if (comics.isDownloaded(c.id)) {
+            std::printf("FAIL: %s -- a rejected edition was still marked downloaded\n", c.label);
+            return false;
+        }
+        // No index row means no archive path is even known to the app -- the
+        // reject happened in the synchronous validation loop, before the
+        // background pack (and thus writeImagesAtomic) was ever dispatched.
+        // The staging dir is cleaned up by failAndCleanup() on the reject.
+        if (QDir(stagingDir).exists()) {
+            std::printf("FAIL: %s -- rejected edition left its staging dir behind\n", c.label);
+            return false;
+        }
+        QObject::disconnect(&comics, nullptr, &comics, nullptr);
+    }
+
+    std::printf("OK: assembled-edition validation rejects missing/duplicate/escaping pages before any archive write\n");
     return true;
 }
 
@@ -346,10 +477,13 @@ int main(int argc, char** argv)
     comics.deleteIssue(QStringLiteral("torrent-ingest-2"));
     if (code != 0) return code;
 
-    // Task 7: ingestAssembledEdition() — separate ComicDownloader instances so
-    // these fully-synchronous scenarios never interact with the event loop or
-    // signal handlers wired up for the scenario above.
+    // ingestAssembledEdition() — separate ComicDownloader instances so these
+    // scenarios never interact with the event loop or signal handlers wired up
+    // for the scenario above. The success scenario is async as of Task 5 (the
+    // publish packs off the GUI thread); the cancel scenarios stay
+    // synchronous (they cancel a QUEUED edition, before any packing begins).
     if (!runAssembledIngestSuccessScenario(&nam)) return 1;
+    if (!runAssembledIngestValidationRejectsScenario(&nam)) return 1;
     if (!runAssembledIngestCancelScenario(&nam)) return 1;
     if (!runAssembledIngestCancelFailureScenario(&nam)) return 1;
 

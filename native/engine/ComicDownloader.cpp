@@ -1329,6 +1329,15 @@ void ComicDownloader::closePart(InFlight& f)
 
 void ComicDownloader::startNextQueued()
 {
+    // Re-entrancy guard (Task 5 review): every async publish site nulls
+    // m_active BEFORE emit finished() and calls this AFTER. A finished() QML
+    // slot that synchronously starts a new download would set m_active
+    // non-null in between -- without this guard, this would then new-over that
+    // job, leak its InFlight (and orphan its background worker into the
+    // retired-cleanup branch, deleting its files with no failed() signal:
+    // a silent disappearance). If a job is already active, the queued one
+    // stays queued and starts when that job completes.
+    if (m_active) return;
     if (!m_queue.isEmpty()) {
         m_active = new InFlight(std::move(m_queue[0]));
         m_queue.removeAt(0);
@@ -1577,38 +1586,98 @@ void ComicDownloader::publishAssembledEdition(InFlight& f)
         seen.insert(candidate);
     }
 
-    qint64 bytes = 0;
-    for (const QString& name : f.assembledOrderedFiles)
-        bytes += QFileInfo(root + QChar('/') + name).size();
+    // Task 5 (CBZ-in-place plan): pack the validated staging pages into a real
+    // canonical CBZ -- was QDir().rename(root, dirPath) into a loose page
+    // folder, the last remaining legacy-`dir` writer. Off the GUI thread
+    // (same background machinery as Task 4's repack), so a large edition's
+    // pack can't freeze the UI.
+    //
+    // CRITICAL: unlike the download paths, an assembled edition's page ORDER
+    // is authoritative (the assembler determined it) and `assembledGroups` is
+    // parallel to `assembledOrderedFiles`. writeImagesAtomic() preserves that
+    // order in the archive, but probe() re-sorts its returned entries by a
+    // numeric collator -- so Entry.files stays `assembledOrderedFiles` and
+    // Entry.groups stays `assembledGroups`, NEVER rebuilt from probe.entries
+    // (which would silently reorder pages and desync the group mapping). The
+    // post-pack probe here is a readability GATE only, not the source of the
+    // page list.
+    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
+    QDir().mkpath(QFileInfo(canonical).absolutePath());
 
-    const QString dirPath = issueDir(f.seriesId, f.label, f.id);
-    QDir().mkpath(QFileInfo(dirPath).absolutePath());
-    QDir(dirPath).removeRecursively();   // never leave a stale/partial prior attempt in place
+    f.packing = true;
+    f.serial = ++m_nextJobSerial;
+    const quint64 serial = f.serial;
+    const QString stagingDir = f.assembledStagingDir;
+    const QStringList orderedFiles = f.assembledOrderedFiles;
 
-    if (!QDir().rename(root, dirPath)) {
-        failAndCleanup(f, QStringLiteral("failed publishing assembled edition (atomic move failed)"));
-        return;
-    }
+    runPackOrCopyThenPublish(serial,
+        [canonical, root, orderedFiles]() -> PackOrCopyResult {
+            PackOrCopyResult result;
+            result.cleanupPathsOnDiscard = {canonical, root};
+            // A pre-existing canonical is stale litter -- all validation above
+            // already passed, so this worker holds a verified-source about to
+            // be packed. writeImagesAtomic() hard-refuses to replace an
+            // existing file, so remove it (logged) first, same rule the Task 4
+            // paths apply.
+            if (QFileInfo(canonical).isFile()) {
+                qWarning() << "[ComicDownloader] replacing stale leftover canonical (assembled)"
+                           << canonical << QFileInfo(canonical).size() << "bytes";
+                if (!QFile::remove(canonical)) {
+                    result.error = QStringLiteral("cannot replace stale leftover canonical");
+                    return result;
+                }
+            }
+            QString packError;
+            if (!MangaTankoban::CbzArchive::writeImagesAtomic(canonical, root, orderedFiles, &packError)) {
+                result.error = packError;
+                return result;
+            }
+            result.ok = true;
+            result.probe = MangaTankoban::CbzArchive::probe(canonical, &result.error);
+            return result;
+        },
+        [this, canonical, stagingDir](PackOrCopyResult result) {
+            InFlight& active = *m_active;   // safe: onDone only runs when m_active->serial matches
+            active.packing = false;
+            if (!result.ok || !result.probe.nativelyReadable) {
+                // writeImagesAtomic is atomic (renames to canonical only on
+                // full success), so a writeImagesAtomic failure leaves no
+                // canonical; only a post-write probe failure would -- remove
+                // this job's own fresh file (safe: still the active job, no
+                // newer row can point at it) before failAndCleanup(), which
+                // cleans the staging dir but not the canonical.
+                if (QFileInfo(canonical).isFile()) QFile::remove(canonical);
+                failAndCleanup(active, result.error.isEmpty()
+                    ? QStringLiteral("assembled edition pack verification failed") : result.error);
+                return;
+            }
 
-    Entry e;
-    e.seriesId    = f.seriesId;
-    e.seriesTitle = f.seriesTitle;
-    e.label       = f.label;
-    e.dir         = dirPath;
-    e.files       = f.assembledOrderedFiles;
-    e.groups      = f.assembledGroups;
-    e.bytes       = bytes;
-    e.addedAt     = QDateTime::currentMSecsSinceEpoch();
-    m_index.insert(f.id, e);
-    saveIndex();
+            Entry e;
+            e.seriesId    = active.seriesId;
+            e.seriesTitle = active.seriesTitle;
+            e.label       = active.label;
+            e.archive     = canonical;
+            e.files       = active.assembledOrderedFiles;   // authoritative order (NOT probe.entries)
+            e.groups      = active.assembledGroups;         // index-parallel to files
+            e.bytes       = QFileInfo(canonical).size();
+            e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+            m_index.insert(active.id, e);
+            saveIndex();
 
-    const QString id = f.id;
-    qInfo() << "[ComicDownloader] assembled edition published id=" << id
-            << "pages=" << e.files.size() << "dir=" << dirPath;
-    emit finished(id);
+            const QString id = active.id;
+            const int pageCount = e.files.size();
+            // Detach before emit -- a finished() QML slot can re-enter
+            // cancelDownload() (see completeSafeMove()'s identical note).
+            delete m_active; m_active = nullptr;
 
-    delete m_active; m_active = nullptr;
-    startNextQueued();
+            // Save index, THEN delete the staging source -- never the reverse.
+            QDir(stagingDir).removeRecursively();
+
+            qInfo() << "[ComicDownloader] assembled edition published id=" << id
+                    << "pages=" << pageCount << "archive=" << canonical << "(archive-in-place)";
+            emit finished(id);
+            startNextQueued();
+        });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
