@@ -2720,50 +2720,82 @@ void ComicDownloader::runPackSelfTest(const QString& spec)
     QCoreApplication::exit(2);
 }
 
+QVariantMap ComicDownloader::downloadedIssueRow(const QString& id, const Entry& e) const
+{
+    // First page = the issue's own local cover (Downloads-page art). An
+    // archive row has no loose page file to build a file:// URL from --
+    // Task 3's image://comiccover/ provider decodes it straight from the
+    // CBZ instead. A legacy dir row is untouched (Task 2/3 predate any
+    // writer that could set `archive`, so every row today still takes
+    // this branch; it stays correct once Task 4 starts producing them).
+    bool missing = true;
+    QString art;
+    if (e.usesArchive()) {
+        missing = e.files.isEmpty() || !QFileInfo(e.archive).isFile();
+        if (!missing) {
+            art = QStringLiteral("image://comiccover/")
+                + Colosseum::buildComicCoverId(e.archive, e.files.first());
+        }
+    } else {
+        const QString first = e.files.isEmpty()
+            ? QString() : e.dir + QStringLiteral("/") + e.files.first();
+        missing = first.isEmpty() || !QFile::exists(first);
+        if (!missing) art = QUrl::fromLocalFile(first).toString();
+    }
+    return QVariantMap{
+        {QStringLiteral("id"), id},
+        {QStringLiteral("seriesId"), e.seriesId},
+        {QStringLiteral("seriesTitle"), e.seriesTitle},
+        {QStringLiteral("label"), e.label},
+        {QStringLiteral("pages"), e.files.size()},
+        {QStringLiteral("bytes"), e.bytes},
+        {QStringLiteral("addedAt"), e.addedAt},
+        {QStringLiteral("missing"), missing},
+        {QStringLiteral("art"), art},
+        // Pack-demux fields (Slice 1): absent/empty on every ordinary issue;
+        // a demuxed volume carries its parsed role ("main"/"extra") and the
+        // deterministic order the shelf/reader consume. Existing QML that
+        // does not read these keys is unaffected (additive map entries).
+        {QStringLiteral("packRole"), e.packRole},
+        {QStringLiteral("packOrder"), e.packOrder}
+    };
+}
+
 QVariantList ComicDownloader::downloadedIssues() const
 {
     QVariantList out;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it)
+        out.append(downloadedIssueRow(it.key(), it.value()));
+    return out;
+}
+
+QVariantMap ComicDownloader::packVolumes(const QString& seriesId) const
+{
+    // Slice 4: the shelf/reader contract. Collect every indexed row for this
+    // seriesId that has a non-empty packRole, split into mains/extras by role,
+    // and sort each by packOrder ASCENDING (v1 first — natural reading order).
+    // The QML reader adapts to its own newest-first chapters convention; this
+    // API hands the volumes in the order a human reads them.
+    QVariantList mains, extras;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry& e = it.value();
-        // First page = the issue's own local cover (Downloads-page art). An
-        // archive row has no loose page file to build a file:// URL from --
-        // Task 3's image://comiccover/ provider decodes it straight from the
-        // CBZ instead. A legacy dir row is untouched (Task 2/3 predate any
-        // writer that could set `archive`, so every row today still takes
-        // this branch; it stays correct once Task 4 starts producing them).
-        bool missing = true;
-        QString art;
-        if (e.usesArchive()) {
-            missing = e.files.isEmpty() || !QFileInfo(e.archive).isFile();
-            if (!missing) {
-                art = QStringLiteral("image://comiccover/")
-                    + Colosseum::buildComicCoverId(e.archive, e.files.first());
-            }
-        } else {
-            const QString first = e.files.isEmpty()
-                ? QString() : e.dir + QStringLiteral("/") + e.files.first();
-            missing = first.isEmpty() || !QFile::exists(first);
-            if (!missing) art = QUrl::fromLocalFile(first).toString();
-        }
-        out.append(QVariantMap{
-            {QStringLiteral("id"), it.key()},
-            {QStringLiteral("seriesId"), e.seriesId},
-            {QStringLiteral("seriesTitle"), e.seriesTitle},
-            {QStringLiteral("label"), e.label},
-            {QStringLiteral("pages"), e.files.size()},
-            {QStringLiteral("bytes"), e.bytes},
-            {QStringLiteral("addedAt"), e.addedAt},
-            {QStringLiteral("missing"), missing},
-            {QStringLiteral("art"), art},
-            // Pack-demux fields (Slice 1): absent/empty on every ordinary issue;
-            // a demuxed volume carries its parsed role ("main"/"extra") and the
-            // deterministic order the shelf/reader consume. Existing QML that
-            // does not read these keys is unaffected (additive map entries).
-            {QStringLiteral("packRole"), e.packRole},
-            {QStringLiteral("packOrder"), e.packOrder}
-        });
+        if (e.seriesId != seriesId) continue;
+        if (e.packRole.isEmpty()) continue;   // ordinary issue — not this API's business
+        if (e.packRole == QStringLiteral("main"))
+            mains.append(downloadedIssueRow(it.key(), e));
+        else
+            extras.append(downloadedIssueRow(it.key(), e));
     }
-    return out;
+    auto byOrder = [](const QVariant& a, const QVariant& b) {
+        return a.toMap().value(QStringLiteral("packOrder")).toInt()
+             < b.toMap().value(QStringLiteral("packOrder")).toInt();
+    };
+    std::sort(mains.begin(), mains.end(), byOrder);
+    std::sort(extras.begin(), extras.end(), byOrder);
+    return QVariantMap{
+        {QStringLiteral("mains"), mains},
+        {QStringLiteral("extras"), extras}
+    };
 }
 
 QVariantList ComicDownloader::activeIssueJobs() const

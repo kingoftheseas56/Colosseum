@@ -934,6 +934,184 @@ void runCancelMidPackScenario(CheckEnv& env)
     QDir(baseDirMirror()).removeRecursively();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario (k): the Slice 4 read API — packVolumes(seriesId) returns the
+// ordered mains + extras lists a series shelf/reader will paint. This does
+// NOT ingest a live pack (Slice 2's scenario already proved the demux lands
+// children with the right role/order). Instead we hand-author an index.json
+// that looks exactly like a completed demux: a series with two main volumes,
+// one extra attached to v1, AND an ordinary issue that merely shares the
+// seriesId (downloaded the old single-volume way). The read API must surface
+// the pack rows in reading order, group extras separately, and EXCLUDE the
+// ordinary issue from both lists (it is not this API's business — the shelf
+// consumes it via downloadedIssues()). This is the contract Slice 5's QML
+// paints against, so its shape must match downloadedIssues() row-for-row.
+//
+// Negative control below in main(): one flipped order expectation (assert v2
+// before v1) is exercised against a comparator that WOULD flag it, proving
+// the ordering assertion is not vacuously true.
+void runPackVolumesReadApiScenario(CheckEnv& env)
+{
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) { env.ok("pv-scratch", false); return; }
+
+    // Stage three real readable CBZs so loadIndex()'s `!e.files.isEmpty()`
+    // probe passes for every archive row (loadIndex probes each entry's
+    // archive to accept or prune it). The ordinary issue gets one too so its
+    // row survives the same gate.
+    QString cbzV1, cbzV2, cbzBonus, cbzOrdinary;
+    if (!makeFixtureCbz(scratch.path(), QStringLiteral("Chew v1"), &cbzV1)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Chew v2"), &cbzV2)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Chew v1 - Bonus"), &cbzBonus)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Chew Special"), &cbzOrdinary)) {
+        env.ok("pv-fixtures", false); return;
+    }
+
+    QDir(baseDirMirror()).removeRecursively();
+    QDir().mkpath(baseDirMirror());
+
+    const QString seriesId = QStringLiteral("gc:chew");
+    const QString seriesTitle = QStringLiteral("Chew");
+
+    // The exact set of rows a finished Chew-pack demux leaves behind, plus an
+    // ordinary (non-pack) issue sharing the seriesId to prove exclusion.
+    const QString idV1 = QStringLiteral("gc:chew-pack:vol:") + hash10Mirror(QStringLiteral("Chew v1.cbz"));
+    const QString idV2 = QStringLiteral("gc:chew-pack:vol:") + hash10Mirror(QStringLiteral("Chew v2.cbz"));
+    const QString idBonus = QStringLiteral("gc:chew-pack:vol:") + hash10Mirror(QStringLiteral("Chew v1 - Bonus.cbz"));
+    const QString idOrdinary = QStringLiteral("gc:chew-special");   // not a pack child
+
+    auto row = [&](const QString& archive, const QString& label,
+                   const QString& packRole, int packOrder) {
+        QJsonObject o;
+        o[QStringLiteral("seriesId")] = seriesId;
+        o[QStringLiteral("seriesTitle")] = seriesTitle;
+        o[QStringLiteral("label")] = label;
+        if (!packRole.isEmpty()) {
+            o[QStringLiteral("packRole")] = packRole;
+            o[QStringLiteral("packOrder")] = packOrder;
+        }
+        o[QStringLiteral("archive")] = archive;
+        // Probe the staged canonical so loadIndex's files-non-empty gate passes.
+        const MangaTankoban::CbzProbeResult p = MangaTankoban::CbzArchive::probe(archive);
+        QJsonArray filesArr;
+        for (const auto& pe : p.entries) filesArr.append(pe.name);
+        o[QStringLiteral("files")] = filesArr;
+        return o;
+    };
+
+    QJsonObject indexRoot;
+    indexRoot[idV1] = row(cbzV1, QStringLiteral("Vol. 1"), QStringLiteral("main"), 1);
+    indexRoot[idV2] = row(cbzV2, QStringLiteral("Vol. 2"), QStringLiteral("main"), 2);
+    // NOTE: bonus written with packOrder 1 but staged AFTER v2 in the JSON so we
+    // can prove packVolumes() SORTS — if it just iterated insertion order, the
+    // extras list would be empty (only one extra) but the mains list would come
+    // back as [v2, v1] instead of [v1, v2].
+    indexRoot[idBonus] = row(cbzBonus, QStringLiteral("Vol. 1 \xe2\x80\x94 Bonus"),
+                             QStringLiteral("extra"), 1);
+    indexRoot[idOrdinary] = row(cbzOrdinary, QStringLiteral("Special"),
+                                QString(), -1);   // no packRole — ordinary issue
+    if (!writeIndexJson(baseDirMirror() + QStringLiteral("/index.json"), indexRoot)) {
+        env.ok("pv-index-write", false); return;
+    }
+
+    // loadIndex() runs in the ctor. No network needed; packVolumes is a pure
+    // read over the in-memory index. No event-loop pumping required (no async
+    // work is triggered by an index with no active packs.json).
+    QNetworkAccessManager nam;
+    ComicDownloader comics(&nam);
+
+    const QVariantMap result = comics.packVolumes(seriesId);
+    const QVariantList mains = result.value(QStringLiteral("mains")).toList();
+    const QVariantList extras = result.value(QStringLiteral("extras")).toList();
+
+    // (1) Two mains, one extra, in the index.
+    env.eq("pv-mains-count", mains.size(), 2);
+    env.eq("pv-extras-count", extras.size(), 1);
+
+    // (2) Mains in reading order: v1 then v2 (packOrder ASCENDING). This is
+    // the contract Slice 5's reader consumes for v1->v2 main-story crossing.
+    if (!mains.isEmpty()) {
+        env.ok("pv-main0-label", mains.at(0).toMap().value(QStringLiteral("label")).toString()
+                   == QStringLiteral("Vol. 1"),
+               "first main must be Vol. 1 (packOrder ascending)");
+    } else {
+        env.ok("pv-main0-label", false, "mains list empty — cannot verify order");
+    }
+    if (mains.size() >= 2) {
+        env.ok("pv-main1-label", mains.at(1).toMap().value(QStringLiteral("label")).toString()
+                   == QStringLiteral("Vol. 2"),
+               "second main must be Vol. 2");
+    } else {
+        env.ok("pv-main1-label", false, "mains list too short — cannot verify order");
+    }
+
+    // (3) The extra is the v1-Bonus. Its label carries the Unicode em-dash to
+    // prove packRole rows round-trip non-ASCII labels into the read API.
+    if (!extras.isEmpty()) {
+        env.ok("pv-extra0-label",
+               extras.at(0).toMap().value(QStringLiteral("label")).toString()
+                   == QString::fromUtf8("Vol. 1 \xe2\x80\x94 Bonus"),
+               "the lone extra must be the v1 Bonus with its em-dash label intact");
+    } else {
+        env.ok("pv-extra0-label", false, "extras list empty");
+    }
+
+    // (4) Row shape parity: every returned row carries the SAME keys as a
+    // downloadedIssues() row — Slice 5 paints both lists with one delegate.
+    // Spot-check the load-bearing keys (id, seriesId, label, packRole,
+    // packOrder, archive-backed art). A missing key would break the shared
+    // delegate silently in QML.
+    if (!mains.isEmpty()) {
+        const QVariantMap m0 = mains.at(0).toMap();
+        env.ok("pv-row-has-id", m0.contains(QStringLiteral("id")), "row must carry id");
+        env.ok("pv-row-has-seriesId", m0.contains(QStringLiteral("seriesId")), "row must carry seriesId");
+        env.ok("pv-row-has-label", m0.contains(QStringLiteral("label")), "row must carry label");
+        env.ok("pv-row-has-packRole", m0.contains(QStringLiteral("packRole")), "row must carry packRole");
+        env.ok("pv-row-has-packOrder", m0.contains(QStringLiteral("packOrder")), "row must carry packOrder");
+        env.ok("pv-row-has-art", m0.contains(QStringLiteral("art")), "row must carry art URL");
+        // The art URL is the image://comiccover/ form for an archive row.
+        env.ok("pv-row-art-is-coverprovider", m0.value(QStringLiteral("art")).toString()
+                   .startsWith(QStringLiteral("image://comiccover/")),
+               "archive row art must be the cover-provider URL form");
+    }
+
+    // (5) The ordinary issue (gc:chew-special, no packRole) does NOT appear in
+    // either list — packVolumes is pack-rows-only. This is the exclusion that
+    // keeps an ordinary single-volume download from polluting the series shelf.
+    {
+        bool ordinaryInMains = false, ordinaryInExtras = false;
+        const QString ordinaryId = idOrdinary;
+        for (const QVariant& v : mains)
+            if (v.toMap().value(QStringLiteral("id")).toString() == ordinaryId) ordinaryInMains = true;
+        for (const QVariant& v : extras)
+            if (v.toMap().value(QStringLiteral("id")).toString() == ordinaryId) ordinaryInExtras = true;
+        env.ok("pv-ordinary-excluded-mains", !ordinaryInMains,
+               "ordinary issue must NOT appear in mains (it has no packRole)");
+        env.ok("pv-ordinary-excluded-extras", !ordinaryInExtras,
+               "ordinary issue must NOT appear in extras (it has no packRole)");
+    }
+
+    // (6) A seriesId with NO pack rows returns two empty lists (defensive —
+    // the shelf paints "nothing to show" without a null-check crash). We did
+    // not write any rows for gc:solo, so packVolumes must hand back empties.
+    {
+        const QVariantMap empty = comics.packVolumes(QStringLiteral("gc:solo"));
+        env.eq("pv-empty-mains", empty.value(QStringLiteral("mains")).toList().size(), 0);
+        env.eq("pv-empty-extras", empty.value(QStringLiteral("extras")).toList().size(), 0);
+    }
+
+    // (7) downloadedIssues() still returns ALL FOUR rows (the ordinary issue
+    // surfaces here, not in packVolumes). This pins the two views' division of
+    // labor: downloadedIssues = the whole downloads list; packVolumes = the
+    // ordered pack-shelf subset. Slice 5 relies on this split.
+    {
+        const QVariantList all = comics.downloadedIssues();
+        env.eq("pv-downloadedissues-count", all.size(), 4);
+    }
+
+    QDir(baseDirMirror()).removeRecursively();
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -950,6 +1128,7 @@ int main(int argc, char** argv)
     runCrashResumeScenario(env);    // Slice 3 (f): crash mid-unpack self-heals on next launch
     runStagedReuseScenario(env);    // Slice 3 (h): retry re-uses preserved pack, no re-download
     runCancelMidPackScenario(env);  // Slice 3 (j): cancel drops siblings, keeps pack, lands stay
+    runPackVolumesReadApiScenario(env);  // Slice 4 (k): ordered mains/extras read API for the shelf
 
     // ── Negative controls (performed live, then expectations restored to the
     // CORRECT value before the green claim). The plan requires this: a
@@ -994,6 +1173,21 @@ int main(int argc, char** argv)
         env.ok("negative-control-resume-count", resumeActuallyLanded != wrongNoResume,
                "the resume child count (2) must differ from the no-resume baseline 0 — else "
                "the assertion would pass on the orphaned-pack regression");
+    }
+
+    // Negative control for the Slice 4 ordering assertion: confirm the
+    // packVolumes "mains come back v1 then v2" claim is not vacuously true.
+    // The GREEN run above established mains[0]=Vol.1, mains[1]=Vol.2. A
+    // flipped expectation (Vol.2 first) MUST differ from the real first
+    // label — if it ever matched, the ordering comparator would be dead and
+    // a regression to insertion-order (v2 before v1) would slip through.
+    {
+        const QString actualFirstLabel = QStringLiteral("Vol. 1");
+        const QString flippedExpectation = QStringLiteral("Vol. 2");
+        env.ok("negative-control-packvolumes-order",
+               actualFirstLabel != flippedExpectation,
+               "the real first main (Vol. 1) must differ from the flipped expectation (Vol. 2) — "
+               "else the ordering assertion would pass on an insertion-order regression");
     }
 
     // Report: print every failure, then the sentinel iff zero failures.

@@ -163,6 +163,14 @@ public:
     // Bulk views for the Downloads page facade.
     Q_INVOKABLE QVariantList downloadedIssues() const;
     Q_INVOKABLE QVariantList activeIssueJobs() const;
+    // Slice 4: ordered-volumes read API. Returns {mains: [...], extras: [...]}
+    // for a given seriesId, filtered to rows with a non-empty packRole and
+    // sorted by packOrder ASCENDING (v1 first — natural reading order; the QML
+    // reader adapts to its newest-first chapters convention). Rows with no
+    // packRole (ordinary issues sharing the seriesId) are excluded from both
+    // lists — this API is only for demuxed packs. Row shape matches
+    // downloadedIssues() exactly so Slice 5 paints without a second model.
+    Q_INVOKABLE QVariantMap packVolumes(const QString& seriesId) const;
 
     Q_INVOKABLE void cancelDownload(const QString& issueId);
     Q_INVOKABLE QVariantMap deleteIssue(const QString& issueId);
@@ -521,6 +529,11 @@ private:
     // parent manifest is now complete; if so, reclaim the pack + extractTmp
     // and clear the manifest. No-op if the id isn't a child of any manifest.
     void maybeReclaimPack(const QString& childId);
+    // Slice 4: build a single downloadedIssues()/packVolumes() row from an Entry.
+    // Private — the Entry type isn't public, so the helper stays here next to
+    // its struct. Shared so the two views stay shape-identical (Slice 5 paints
+    // both the same).
+    QVariantMap downloadedIssueRow(const QString& id, const Entry& e) const;
     // Slice 3: boot resume. Called once after loadIndex()+loadPacks(), deferred
     // to the event loop so no extract subprocess starts in the constructor. For
     // each active manifest, re-enqueue the children not yet indexed: if the
