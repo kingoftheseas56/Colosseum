@@ -440,6 +440,12 @@ struct ScenarioRun {
     QList<StepResult> steps;
 };
 
+// verbose: print every step's full reply body. Exists because the gate's
+// PASS/FAIL-only output made every diagnostic blind — an agent had to FORCE a
+// failure to see a value (GLM's Biblio Library slice, 2026-08-06). Off by
+// default so gates stay terse.
+static bool g_verbose = false;
+
 static ScenarioRun runScenario(const QString& file, bool keepGoing)
 {
     ScenarioRun out;
@@ -529,6 +535,10 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing)
                                    .value(QStringLiteral("timeout_ms")).toInt(0);
             if (waitMs > 0) stepTimeout = qMax(stepTimeout, waitMs + 5000);
             const QJsonObject reply = call(req, stepTimeout);
+            if (g_verbose)
+                std::cout << "  reply " << label.toStdString() << ": "
+                          << QJsonDocument(reply).toJson(QJsonDocument::Compact).toStdString()
+                          << "\n";
 
             // I3: a step whose call() came back NO_PIPE/TIMEOUT is an INFRA
             // failure, not a red assertion — the bridge is gone, so keep the run
@@ -640,6 +650,8 @@ int main(int argc, char** argv)
             g_pipe = args[i + 1]; args.removeAt(i); args.removeAt(i);
         } else if (args[i] == QStringLiteral("--timeout") && i + 1 < args.size()) {
             g_timeout = args[i + 1].toInt(); args.removeAt(i); args.removeAt(i);
+        } else if (args[i] == QStringLiteral("--verbose")) {
+            g_verbose = true; args.removeAt(i);
         } else ++i;
     }
     if (args.isEmpty()) {

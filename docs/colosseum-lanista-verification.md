@@ -74,6 +74,24 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 - **Units:** snapshot/query coordinates are logical/scene; grab PNGs are device pixels. Never
   hardcode a device-pixel ratio.
 
+### Field-learned traps (GLM's Biblio Library slice, 2026-08-06 — read before driving)
+
+- **`ui-query` answers GEOMETRY only** (`rect/visible/enabled/opacity/clipped`). Any other
+  property — `rowCount`, `activeTab`, a model value — is `qml-get`. Three iterations were
+  lost to asking ui-query for data it structurally does not carry.
+- **Targets resolve by `objectName` or handle — NEVER by QML `id`.** A QML id is
+  file-scoped and invisible to the bridge; probing one reads whatever item DFS finds (or
+  nothing) with no error shaped like "that was an id, not a name".
+- **Name collisions resolve DFS-FIRST — including into HIDDEN worlds.** The app pre-warms
+  other worlds' trees (Tankoban's warmer builds ~2.5 s after boot), so a generic name like
+  `worldTab_library` can resolve to an occluded pill in a DIFFERENT world and your click
+  "lands" green while the visible page never moves. **Naming convention, binding:**
+  automation objectNames on shared components must be WORLD-NAMESPACED (the world's own
+  name prefixed, e.g. `biblioTab_<key>`), never a bare shared stem.
+- **Blind gates:** `run` / `session run` / plain commands accept `--verbose`, printing
+  every step's full reply body — use it while iterating instead of forcing failures to
+  see values.
+
 ### UI model truths
 
 - The whole item model is scoped to the **first root `QQuickWindow`**. Secondary windows,
