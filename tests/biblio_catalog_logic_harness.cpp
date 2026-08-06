@@ -11,6 +11,7 @@
 #include "engine/BiblioRanking.h"
 #include "engine/BiblioProviders.h"
 #include "engine/BiblioCanonicalizer.h"
+#include "engine/BiblioArtworkUrl.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -147,6 +148,42 @@ QString provSource(const BiblioCanonicalWork &cw, const QString &field)
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+
+    // ── Apple artwork URL normalization (2026-08-06 shelf-quality fix) ──
+    // Real RSS-feed URL from tonight's live cache (biblio-v1.sqlite): Apple's OWN feed
+    // ships this exact "0x170bb.png" shape, and Apple's CDN rejects it live with
+    // {"errorMessage":"Cannot produce 0x170 image with Resize Style: 'bb'"} — verified
+    // by curl against production just now, not simulated. Every blank Discover cover
+    // tonight had a coverUrl in this broken shape.
+    require(normalizedAppleArtworkUrl(
+                "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/39/64/45/"
+                "3964459f-f5f3-d0b9-8623-d792b4ee584d/9781954118829.jpg/0x170bb.png")
+            == "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/39/64/45/"
+               "3964459f-f5f3-d0b9-8623-d792b4ee584d/9781954118829.jpg/600x600bb.jpg",
+            "broken RSS 0xNbb.png shape rewritten to a working 600x600bb.jpg");
+    // Real Search-API URL (also from tonight's cache) — VALID but small (100px); rewritten
+    // up to 600 so a real cover isn't stretched blurry in the gallery grid.
+    require(normalizedAppleArtworkUrl(
+                "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/41/af/"
+                "e141af03-f50a-dcd5-31f5-bc8fc4bb1db1/1026292563.jpg/100x100bb.jpg")
+            == "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/41/af/"
+               "e141af03-f50a-dcd5-31f5-bc8fc4bb1db1/1026292563.jpg/600x600bb.jpg",
+            "valid-but-small 100x100bb.jpg upgraded to 600x600bb.jpg");
+    require(normalizedAppleArtworkUrl(
+                "https://is1-ssl.mzstatic.com/image/thumb/x/y/z.jpg/60x60bb.jpg")
+            == "https://is1-ssl.mzstatic.com/image/thumb/x/y/z.jpg/600x600bb.jpg",
+            "60x60bb.jpg (artworkUrl60 fallback shape) also upgraded to 600x600bb.jpg");
+    // Fail-safe: anything that doesn't match the expected trailing shape is untouched —
+    // Open Library covers, an already-600 URL, or a future unknown Apple CDN change.
+    require(normalizedAppleArtworkUrl("https://covers.openlibrary.org/b/id/12345-L.jpg")
+            == "https://covers.openlibrary.org/b/id/12345-L.jpg",
+            "a non-Apple-thumb URL (Open Library) passes through untouched");
+    require(normalizedAppleArtworkUrl(
+                "https://is1-ssl.mzstatic.com/image/thumb/x/y/z.jpg/600x600bb.jpg")
+            == "https://is1-ssl.mzstatic.com/image/thumb/x/y/z.jpg/600x600bb.jpg",
+            "an already-600x600bb.jpg URL is idempotent (unchanged)");
+    require(normalizedAppleArtworkUrl(QString()).isEmpty(),
+            "an empty URL never crashes, passes through as empty");
 
     // ── Length buckets (spec 4.3): Short <200, Standard 200-499, Long 500-799, Epic 800+ ──
     require(BiblioTaxonomy::lengthKey(199) == "short", "199 pages is Short");

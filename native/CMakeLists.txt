@@ -284,6 +284,7 @@ add_executable(colosseum
     engine/BiblioTaxonomy.h
     engine/BiblioRanking.cpp
     engine/BiblioRanking.h
+    engine/BiblioArtworkUrl.h
     engine/BiblioProviders.cpp
     engine/BiblioProviders.h
     engine/BiblioCanonicalizer.cpp
@@ -1299,6 +1300,7 @@ add_executable(biblio_catalog_logic_harness
     engine/BiblioRanking.cpp
     engine/BiblioRanking.h
     # Task 2: keyless Apple/Open Library parsing + canonical work identity.
+    engine/BiblioArtworkUrl.h
     engine/BiblioProviders.cpp
     engine/BiblioProviders.h
     engine/BiblioCanonicalizer.cpp
@@ -1324,6 +1326,7 @@ add_executable(biblio_catalog_store_harness
     engine/BiblioCatalogStore.cpp
     engine/BiblioCatalogStore.h
     engine/BiblioCatalogTypes.h
+    engine/BiblioArtworkUrl.h
     engine/BiblioTaxonomy.cpp
     engine/BiblioTaxonomy.h)
 target_include_directories(biblio_catalog_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -1351,6 +1354,7 @@ add_executable(biblio_catalog_service_harness
     engine/BiblioTaxonomy.h
     engine/BiblioRanking.cpp
     engine/BiblioRanking.h
+    engine/BiblioArtworkUrl.h
     engine/BiblioProviders.cpp
     engine/BiblioProviders.h
     engine/BiblioCanonicalizer.cpp

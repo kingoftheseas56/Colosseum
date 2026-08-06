@@ -557,6 +557,41 @@ void testPreviewRowsAndFreshness()
             "clean page carries no warning");
 }
 
+// 2026-08-06 shelf-quality fix: page()/previewRows() must heal a cover_url already
+// persisted in the shape Apple's RSS feed actually ships (verified live against
+// production: "0x170bb.png" — Apple's own CDN rejects it, "Cannot produce 0x170 image
+// with Resize Style: 'bb'"). This is what makes the fix apply to an EXISTING cache
+// immediately, without waiting up to 7 days for the next snapshot to naturally refresh.
+void testBrokenCoverUrlHealedOnRead()
+{
+    QTemporaryDir dir;
+    BiblioCatalogStore store;
+    require(store.open(dir.path() + QStringLiteral("/b.sqlite")), "open");
+
+    BiblioCatalogSnapshot snap;
+    snap.capturedAt = utc(2026, 8, 1);
+    BiblioWork w = makeWork(QStringLiteral("broken-cover"), QStringLiteral("Broken Cover Book"),
+                            QStringLiteral("Author"));
+    w.coverUrl = QStringLiteral(
+        "https://is1-ssl.mzstatic.com/image/thumb/x/y/z.jpg/0x170bb.png");
+    snap.works.append(w);
+    snap.rankings.append(makeRanking(QStringLiteral("popular"), QStringLiteral("broken-cover"), 5.0, 1));
+    require(store.publish(snap), "publish a snapshot carrying the broken RSS cover shape");
+
+    const QVariantMap p = store.page(QStringLiteral("popular"), QString(), QString(), true, 0, 10);
+    const QVariantList items = p.value(QStringLiteral("items")).toList();
+    require(items.size() == 1, "one work returned");
+    const QString healed = items.at(0).toMap().value(QStringLiteral("coverUrl")).toString();
+    require(healed == QStringLiteral("https://is1-ssl.mzstatic.com/image/thumb/x/y/z.jpg/600x600bb.jpg"),
+            "page() heals a cache row's broken cover_url on read");
+
+    const QVariantList preview = store.previewRows(10, true);
+    require(preview.size() == 1, "one preview row returned");
+    const QString healedPreview = preview.at(0).toMap().value(QStringLiteral("coverUrl")).toString();
+    require(healedPreview == QStringLiteral("https://is1-ssl.mzstatic.com/image/thumb/x/y/z.jpg/600x600bb.jpg"),
+            "previewRows() also heals the broken cover_url on read");
+}
+
 void testCatalogAllowlistRejectsUnknown()
 {
     QTemporaryDir dir;
@@ -624,6 +659,7 @@ int main(int argc, char **argv)
     testCachedTop10ReflectsLatestPublish();
     testFilterGroupsAdvertiseControlledAxes();
     testPreviewRowsAndFreshness();
+    testBrokenCoverUrlHealedOnRead();
     testCatalogAllowlistRejectsUnknown();
     testReopenPreservesSnapshot();
 

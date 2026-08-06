@@ -15,6 +15,7 @@
 
 #include "BiblioCatalogStore.h"
 #include "BiblioTaxonomy.h"
+#include "BiblioArtworkUrl.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -760,7 +761,10 @@ QVariantMap BiblioCatalogStore::page(const QString &catalogId, const QString &fa
         m.insert(QStringLiteral("originalLanguage"), q.value(3));
         m.insert(QStringLiteral("canonicalFirstPublished"), q.value(4));
         m.insert(QStringLiteral("publisher"), q.value(5));
-        m.insert(QStringLiteral("coverUrl"), q.value(6));
+        // Heals covers already persisted in an existing cache with the pre-fix broken
+        // Apple RSS URL shape (see BiblioArtworkUrl.h) without waiting for a fresh
+        // snapshot — a stale cache can otherwise live up to 7 days (see freshness below).
+        m.insert(QStringLiteral("coverUrl"), normalizedAppleArtworkUrl(q.value(6).toString()));
         m.insert(QStringLiteral("rating"), ratingMap);
         m.insert(QStringLiteral("score"), q.value(9));
         m.insert(QStringLiteral("rank"), q.value(10));
@@ -865,7 +869,7 @@ QVariantList BiblioCatalogStore::previewRows(int limit, bool includeExplicit) co
             {QStringLiteral("title"), q.value(1)},
             {QStringLiteral("author"), q.value(2)},
             {QStringLiteral("publisher"), q.value(3)},
-            {QStringLiteral("coverUrl"), q.value(4)},
+            {QStringLiteral("coverUrl"), normalizedAppleArtworkUrl(q.value(4).toString())},
             {QStringLiteral("ratingAverage"), q.value(5)}});
     }
     return out;

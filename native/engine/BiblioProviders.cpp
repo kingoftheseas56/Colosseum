@@ -1,4 +1,5 @@
 #include "BiblioProviders.h"
+#include "BiblioArtworkUrl.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -127,10 +128,15 @@ QList<BiblioSourceRecord> parseAppleRss(const QByteArray &bytes, const QDateTime
         r.sourceId = adamId.isEmpty() ? (QStringLiteral("apple-rss:") + r.normalizedTitle)
                                       : (QStringLiteral("apple:") + adamId);
 
-        // Largest artwork is the last im:image entry (small -> large).
+        // Largest artwork is the last im:image entry (small -> large). Apple's own RSS
+        // feed ships these as "0x<N>bb.png" — a shape its own CDN's "bb" resize style
+        // cannot actually produce (verified live, 2026-08-06: HTTP 400, "Cannot produce
+        // 0x170 image with Resize Style: 'bb'") — normalize to a working size instead
+        // of caching a dead link (see BiblioArtworkUrl.h).
         const QJsonArray imgs = entry.value(QStringLiteral("im:image")).toArray();
         if (!imgs.isEmpty())
-            r.artworkUrl = imgs.last().toObject().value(QStringLiteral("label")).toString();
+            r.artworkUrl = normalizedAppleArtworkUrl(
+                imgs.last().toObject().value(QStringLiteral("label")).toString());
 
         r.published = parseAppleDate(labelField(entry, QStringLiteral("im:releaseDate")));
         r.format = QStringLiteral("ebook"); // the top-ebooks chart
@@ -186,6 +192,9 @@ QList<BiblioSourceRecord> parseAppleSearch(const QByteArray &bytes, const QDateT
         r.artworkUrl = o.value(QStringLiteral("artworkUrl100")).toString();
         if (r.artworkUrl.isEmpty())
             r.artworkUrl = o.value(QStringLiteral("artworkUrl60")).toString();
+        // Search's 60/100px thumbnails are VALID but read blurry once stretched into a
+        // gallery card — upgrade to a real cover size (see BiblioArtworkUrl.h).
+        r.artworkUrl = normalizedAppleArtworkUrl(r.artworkUrl);
         r.published = parseAppleDate(o.value(QStringLiteral("releaseDate")).toString());
 
         if (o.contains(QStringLiteral("averageUserRating")) || o.contains(QStringLiteral("userRatingCount"))) {
