@@ -1,0 +1,225 @@
+# Colosseum Test Verification — the native/QML test ledger
+
+> **What this is.** The honest inventory of Colosseum's native and QML test estate — the
+> counterpart to `colosseum-lanista-verification.md` (which owns bridge/runtime capability).
+> Planning consults BOTH before naming any test: this file controls what deterministic
+> proof exists **today**; naming a test that isn't in here is inventing a capability.
+>
+> Ground truth as of Colosseum `236021a`, from a full read-only sweep of
+> `native/CMakeLists.txt` and `tests/` (2026-08-06). If code and ledger disagree, the code
+> wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
+> or a registration.
+
+## Headline shape (read this first)
+
+| Fact | Count |
+|---|---|
+| Compiled harness/test targets in `native/CMakeLists.txt` | **70** (+ the app + the `lanista` CLI) |
+| C++ harness sources in `tests/*.cpp` | 69 (zero orphan sources — every one is a target) |
+| Hand-rolled QML harnesses in `tests/*.qml` | 88 (+ 1 fixture scene) |
+| Real Qt Quick Test files (`tests/qml/tst_*.qml`) | **2** |
+| PowerShell runners in `tests/*.ps1` | **150** (+ 18 in the gated-off player2 lab) |
+| CTest / `add_test` / `Qt6::Test` / `Qt6::QuickTest` in the active build | **ZERO** |
+| C++ harnesses invoked by NO runner or script | **39 of 69** |
+| Runners that are pure static source-greps (no binary run) | **88 of 150** |
+| Runners pointing at files that do not exist (broken) | 2 |
+
+**The estate's real problem in one sentence:** the tests exist and mostly isolate
+correctly, but there is no registration, no selection, no machine-readable output, and no
+master gate — every runner is a standalone script a human must know to run, and more than
+half the compiled harnesses are run by nobody.
+
+## Build entry
+
+- Active build root: `native/CMakeLists.txt`. All 70 harnesses are plain
+  `add_executable` + `target_link_libraries`, built on every build, run by hand or by a
+  `.ps1`.
+- **No `include(CTest)`, no `enable_testing()`, no `add_test()`, no `Qt6::Test`, no
+  `Qt6::QuickTest` anywhere in the active build.** The in-tree reason
+  (`native/CMakeLists.txt:1274`): QVERIFY-style macros don't fit the house
+  failure-collecting `main()` idiom.
+- **Exception — the Player 2 lab** (`native/player2/CMakeLists.txt`): the repo's only real
+  CTest suite (18 `add_test` entries, `Qt6::Test` linked), but gated behind
+  `COLOSSEUM_BUILD_PLAYER2=OFF` and scoped by an `enable_testing()` call in a
+  SUBDIRECTORY — top-level `ctest` will not see it even when built.
+- Only two POST_BUILD deploy steps exist, both on the `colosseum` app target (Qt SQL
+  driver + FFmpeg DLLs). **Trap:** the five SQL harnesses find `qsqlite.dll` only because
+  they land in the same `build-msvc` dir the app deployed into — run them from elsewhere
+  and they fail.
+
+## Standard commands (today — there is no standard)
+
+- No master gate exists. Each `.ps1` under `tests/` is standalone; plans and handoffs name
+  the gate to run. Output is stdout sentinels (`<NAME>_OK` / `FAIL: ...`) + exit codes.
+- QML harnesses run via the HARDCODED path `C:/Qt/6.11.1/msvc2022_64/bin/qml.exe`
+  (49 runners; breaks in 49 places on any Qt bump), 42 with `-platform offscreen`.
+- The two real Quick Test files run via the Qt-install `qmltestrunner.exe`
+  (`test_comicreader_chrome.ps1`, `test_search_history_p0.ps1`).
+- Lanista's gate: `tests/test_lanista.ps1` (greps + harness selfcheck + two scenarios on
+  the `ColosseumLanistaTest` pipe, readiness-polled, never the daily pipe).
+
+## House assertion idioms (no framework)
+
+- **require idiom:** `require()` prints `FAIL: <msg>`, `exit(1)`; one `*_OK` on success.
+  Chosen over `Q_ASSERT` because Q_ASSERT compiles out under NDEBUG.
+- **CHECK-collecting idiom** (comicreader family): collect every failure, print each, emit
+  `<NAME>_OK` iff zero — the pattern Qt Test migration must preserve (one failure must not
+  hide the rest; today three harnesses still `qFatal` and DO hide the rest:
+  `download_file_ops`, `window_shell_gui`, `window_state_policy`).
+- **QML idiom:** hand-rolled checks + `Timer` + `Qt.exit(0|1)` + stdout sentinel. None of
+  the 88 imports QtTest (one exception below).
+
+## Registered Qt Test targets
+
+**None.**
+
+## Registered Qt Quick Test targets
+
+**None registered.** Two Quick Test FILES exist and run via external `qmltestrunner`:
+
+| File | Proves | Needs | Gate |
+|---|---|---|---|
+| `tests/qml/tst_comicreader_title_controls.qml` | REAL mouse hit-testing against production `ComicReaderHud` (visible 900×600 window — the whole point; offscreen never exercises real hit-testing) | visible window | `test_comicreader_chrome.ps1` |
+| `tests/qml/tst_search_history_flow.qml` | search-history flow against production QML | visible window | `test_search_history_p0.ps1` |
+
+Also: `tests/window_behavior_harness.qml` is the ONLY top-level file importing QtTest
+(2 TestCases) — **and no runner references it.** Orphaned Quick Test.
+
+## Existing bespoke estate — classification
+
+Full per-target build facts (sources, links, compile defs, CMake lines) live in the sweep
+this ledger was built from; the classes and gates below are the planning surface.
+
+### C++ harnesses (69) by class
+
+- **Deterministic unit (48):** pure contracts over temp dirs, no net. Families: comics
+  torrent/edition stack (~15), comicreader engine (8), biblio catalog (3), manga/tankoban
+  logic (5), catalogs over SQLite-in-tempdir (5 — no committed .sqlite fixtures; DBs are
+  built per-run), stores (progress/collection/search-history/model-manifest), net policy
+  units (poster scoreboard, pin proxy factory), window-state policy, reader2 stores/bridge,
+  anime order index, archive (cbz) pair, download file ops, hosted player bridge, knaben
+  indexer, comick pair.
+- **Integration with fakes at the boundary (7):** `manga_tankoban_service`,
+  `comic_torrent_pack_transport`, `manga_volume_torrent`, `comic_torrents_search`
+  (fake torrent/nyaa engines), `reader2_autoattach`, `anime_order_service` (local
+  QTcpServer), `loopback_pin_proxy` (loopback sockets + hang failsafe).
+- **Live network — NEVER in a deterministic gate (3):** `knaben_probe` (real Cloudflare
+  verdict), `audiobook_engine_probe` (self-declared triage tool), `torrent_engine_download`
+  (live DHT, watchdog, exit 2 = timeout).
+- **Infrastructure, not tests (3):** `comic_torrent_seed` + `comic_torrent_pack_seed`
+  (loopback seeders that serve for 5 minutes), `torrent_engine_link` (link-only smoke).
+- **GUI/offscreen-sensitive (3):** `comicreader_core` + `comicreader_provider` (need
+  `QT_QPA_PLATFORM=offscreen`), `window_shell_gui` (needs offscreen AND
+  `QT_QPA_PLATFORM_PLUGIN_PATH` to the Qt install — the windeployqt `platforms/` beside
+  the exe ships only `qwindows.dll`, and the failure is a SILENT `0xC0000409`).
+
+### QML harnesses (88) by class
+
+- **~70 deterministic component harnesses** (offscreen qml.exe, sentinel + exit code),
+  importing production QML/JS by relative path from `tests/`.
+- **Probes, not tests (~9):** the Cloudflare/image probes (`batcave_guard`, `comichub_img`,
+  `rco_cf`), reality/perf probes (`catalogue_residency`, `theatre_shelf_reality`,
+  `comicreader_fullscreen_timing`), genre/world-search probes.
+- **Live network (2):** `abb_live_probe`, `hosted_player_webengine_smoke` (WebEngine +
+  live VidKing).
+- **Two giants:** `comicreader_shell_harness.qml` (187 KB, 18 Timers) and
+  `comicreader_surfaces_harness.qml` (160 KB, 8 Timers) — hundreds of hand-rolled checks,
+  no isolation between them; the highest-flake, highest-value migration surface after the
+  named pilots.
+
+### PowerShell runners (150) by class
+
+- **88 pure static source-grep gates** — assert a string exists in a source file. They
+  regress on rename, not behavior; zero coverage signal. The single largest population.
+- **49 qml.exe component gates** (hardcoded Qt path), some hybrid grep+behavior by design
+  ("the 'no guided' assertion is a grep here, the behavior is the harness").
+- **14 gates that run compiled C++ harnesses** (the real native gates):
+  `test_biblio_discover_explore`, `test_collection_p0`, `test_comic_torrent_pack_dltest`,
+  `test_comic_torrent_sources_v2`, `test_comicreader_chrome`, `test_comics_catalog_db`,
+  `test_lanista`, `test_manga_tankoban_native`, `test_native_deploy_runtime` (grep-only),
+  `test_search_history_p0`, `test_tankoban_discover`, `test_theatre_search_p0`,
+  `test_theatre_shelf_reality`, `capture_catalogue_perf` (perf capture, no verdict).
+- **6 launch the real app**; **2 are destructive-by-design real-download gates** made safe
+  by `COLOSSEUM_APPDATA_TAG` isolation (`test_comic_torrent_pack_dltest`,
+  `test_manga_tankoban_native`).
+
+## Test labels (proposed vocabulary — nothing carries labels yet)
+
+`unit` · `qml` · `integration` · `network` (explicit live-net probes only) · `slow` ·
+`legacy` (registered bespoke harness) · `lanista` · `windows` · `visual` · `probe`
+(no verdict; never a gate) · `destructive` (real side effects; opt-in env-gated only).
+
+## Fixture and isolation rules (as practiced today)
+
+- **Compile-def fixture dirs:** `TANKOBAN_FIXTURES_DIR`, `BIBLIO_FIXTURES_DIR`,
+  `COMICS_PACK_FIXTURES_DIR` bake `tests/fixtures/<domain>/` paths in at build time.
+  Fixture inventory: tankoban (6 files incl. `tiny-volume.cbz`), biblio (3 JSON), comics
+  pack (3 CBZ), anime order (argv-passed), locg (4 JSON), abb (2 HTML, node-consumed),
+  comicreader pages (2 PNG), lanista golden (1 PNG).
+- **Isolation:** 23+ harnesses use `QTemporaryDir`; settings-touchers use
+  `QStandardPaths::setTestModeEnabled(true)` so the live AppData is never touched. SQL
+  harnesses build their DBs in temp dirs per run — no committed .sqlite.
+- **Env flags that gate danger:** `COLOSSEUM_*_DLTEST` + `COLOSSEUM_APPDATA_TAG` for the
+  real-download gates; `COLOSSEUM_LANISTA_SELFTEST/_PIPE/_DRIVE/_WRITE` for the bridge;
+  `QT_FORCE_STDERR_LOGGING=1` needed by ~30 runners (GUI-subsystem binaries are otherwise
+  silent).
+
+## Machine-readable output
+
+**None.** No JUnit, no XML, no manifest anywhere in the active estate (Lanista's `suite`
+verb emits junit.xml + report.md for scenarios — the only machine-readable reporter in
+the repo). Everything else is stdout sentinel + exit code.
+
+## Known gaps (the honest list)
+
+1. **39 of 69 C++ harnesses are invoked by nothing** — they compile on every build (so
+   they can't rot at compile level) but nothing runs them: the entire `reader2_*` family,
+   the whole `net/` family, both window-mode harnesses, `progress_store`, most of the
+   comics edition stack. Unrun tests protect nothing.
+2. **19 QML harnesses are referenced by no runner**, including the 48 KB
+   `reader2_logic_harness.qml`, the only QtTest-importing top-level file
+   (`window_behavior_harness.qml`), and the complete 3-file calendar cluster — a whole
+   feature's test surface with no gate.
+3. **2 broken runners** point at QML files that don't exist:
+   `test_comics_catalog_v1.ps1` → `comics_catalog_logic_harness.qml`;
+   `test_reader2_readalong.ps1` → `reader2_readalong_harness.qml`.
+4. **88 grep-gates** prove strings, not behavior.
+5. **Hardcoded Qt path in ~49 runners** — one Qt bump breaks the whole QML gate estate in
+   49 places.
+6. **Player2 CTest is invisible** from the top-level build even when enabled
+   (subdirectory `enable_testing()`).
+7. **Misfiled artifacts:** captured probe logs stored under `tests/fixtures/` with no
+   consumer; ~350 KB of stray run logs/CSVs checked into `tests/`.
+8. **No selection, no per-case reporting:** the two giant comicreader QML harnesses run
+   hundreds of checks as one all-or-nothing process.
+
+## Migration candidates (register first; convert only for named benefit)
+
+**Pilot CTest registration set** (deterministic, isolated, sentinel+exit-code, no net —
+lowest-risk first registrations): `window_state_policy_harness`,
+`search_history_store_harness`, `progress_store_harness`, `collection_store_harness`,
+`cbz_archive_harness`, `poster_scoreboard_harness`, `comicreader_cache_harness`,
+`biblio_catalog_logic_harness` (fixture-dir baked, still deterministic).
+
+**Qt Test conversion pilot:** `tests/window_state_policy_harness.cpp` — deterministic,
+already QTemporaryDir + isolated QSettings, naturally splits into test functions, and its
+`qFatal` idiom currently hides every later case on first failure (a named evidence
+benefit).
+
+**Qt Quick Test pilots:** register the two existing `tst_*.qml` under a repo-built runner
+(they run today only via external qmltestrunner); adopt the orphaned
+`window_behavior_harness.qml`; then migrate
+`tests/comicreader_resume_race_harness.qml` (timer-chained today; the resume-to-page-one
+race is a real shipped regression worth permanent per-case protection).
+
+**Leave bespoke (do not convert):** the probes, the seeders, the live-network triage
+tools, the grep-gates (retire or fold into behavior gates over time, don't convert), the
+giant comicreader shells until the pilot pattern is proven.
+
+## Runtime boundary (unchanged by this arc)
+
+Qt Test proves C++ contracts; Qt Quick Test proves QML component behavior (its window is
+NOT the Windows shell — no taskbar/lifecycle claims); Lanista proves the assembled app in
+isolated sessions per its own ledger; pixels are exhibits; aesthetic verdicts are
+Hemanth's. A green suite here earns **Test-reported**, never **Runtime-validated**, for a
+user-visible slice.
