@@ -1,0 +1,2 @@
+FAIL: resume-finished: got 2 want 0
+FAIL: 1 check(s) failed (90 total)

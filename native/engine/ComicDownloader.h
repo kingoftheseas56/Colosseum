@@ -275,6 +275,12 @@ private:
         qint64 lastProgressBytes = 0;
         bool extracting = false;
         bool localArchive = false;   // starts at beginExtract(), never at HTTP startAttempt()
+        // Slice 3: a staged-retry source (a preserved .archive from a prior
+        // failPreservingSource). Distinct from localArchive: a user-picked/torrent
+        // source is the ONLY copy → preserve on failure; a staged-retry source is
+        // re-downloadable → discard on terminal failure so the NEXT attempt fetches
+        // fresh (failIngest branches on this).
+        bool stagedRetrySource = false;
         QString extractTmp;
 
         // Task 4 (CBZ-in-place plan) -- background copy/pack safety:
@@ -515,6 +521,25 @@ private:
     // parent manifest is now complete; if so, reclaim the pack + extractTmp
     // and clear the manifest. No-op if the id isn't a child of any manifest.
     void maybeReclaimPack(const QString& childId);
+    // Slice 3: boot resume. Called once after loadIndex()+loadPacks(), deferred
+    // to the event loop so no extract subprocess starts in the constructor. For
+    // each active manifest, re-enqueue the children not yet indexed: if the
+    // manifest's extractTmp still holds the child's nested archive, enqueue it
+    // directly; otherwise, if the pack archive exists, re-extract the parent
+    // first (the demux seam re-runs and adoption skips landed children). A
+    // manifest whose pack AND child sources are all gone is cleared with a
+    // warning (nothing recoverable).
+    void resumeIncompletePacks();
+    // Slice 3 helper: re-enqueue a single pack parent as a fresh extract →
+    // demux. Used when the manifest's extractTmp is gone but the pack archive
+    // survives (the common crash case — the OS temp cleanup or a prior partial
+    // reclaim removed the extracted tree but the protected .archive remains).
+    void reextractPackParent(const QString& parentId);
+    // Slice 3: cancel-of-pack-child handling. Given a child id that belongs to
+    // a manifest, drop all its queued siblings, mark the manifest cleared
+    // (pack archive KEPT on disk — never delete source on cancel), and return
+    // true. Returns false if the id isn't a pack child. Landed children stay.
+    bool cancelPackFamily(const QString& childOrParentId);
 
     QNetworkAccessManager* m_nam = nullptr;
     QHash<QString, Entry> m_index;

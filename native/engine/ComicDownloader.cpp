@@ -210,6 +210,12 @@ ComicDownloader::ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManag
 {
     loadIndex();
     loadPacks();   // pack demux (Slice 2/3): resume any in-flight pack manifests
+    // Slice 3: defer resume to the event loop — no extract subprocess inside
+    // the constructor (Qt needs the event loop running for QProcess signals +
+    // the queue to drain). A QTimer::singleShot(0, ...) lands on the first
+    // spin of the caller's loop (QML's or the harness's QCoreApplication).
+    if (!m_packs.isEmpty())
+        QTimer::singleShot(0, this, [this]() { resumeIncompletePacks(); });
     if (searchNam && torrentEngine) {
         m_torrents = new ComicTorrents(searchNam, torrentEngine, this);
         connect(m_torrents, &ComicTorrents::progress, this, &ComicDownloader::progress);
@@ -1000,6 +1006,41 @@ void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& pos
         return;
     }
 
+    // Slice 3: retry re-uses the preserved pack source. A pack that previously
+    // failed at the demux/extract stage left its fully-downloaded .archive
+    // staging file on disk (failPreservingSource). Re-pressing retry (or a new
+    // downloadIssue() for the same id) must NOT re-download a byte — route the
+    // staged file straight into the ingest lane (parent-shaped InFlight, no
+    // resolve, no NAM touch), where probe/extract → demux-or-single-issue runs
+    // as normal. A partial .part never qualifies; only a fully-renamed .archive.
+    // If ingest terminally fails at PACK level (unextractable), the staging file
+    // is discarded and failed() carries a reason naming the discard — the NEXT
+    // attempt re-downloads cleanly (see the failAndCleanup path below).
+    {
+        const QString stagedArchive = baseDir() + QStringLiteral("/dl_") + hash10(id)
+                                      + QStringLiteral(".archive");
+        if (QFileInfo(stagedArchive).isFile()) {
+            qInfo() << "[ComicDownloader] retry re-using staged archive, no re-download id=" << id
+                    << "archive=" << stagedArchive;
+            InFlight f;
+            f.id            = id;
+            f.seriesId      = seriesId;
+            f.seriesTitle   = seriesTitle;
+            f.label         = adoptLabel;
+            f.archivePath   = stagedArchive;
+            f.expectedBytes = QFileInfo(stagedArchive).size();
+            f.localArchive  = true;
+            f.stagedRetrySource = true;   // discard on terminal failure → re-download next
+            if (m_active) {
+                m_queue.append(std::move(f));
+            } else {
+                m_active = new InFlight(std::move(f));
+                ingestArchiveByProbe(*m_active);
+            }
+            return;
+        }
+    }
+
     // Resolve the FULL signed DOWNLOAD NOW href from the release post.
     QNetworkRequest req{QUrl(postUrl)};
     req.setRawHeader("User-Agent", kUserAgent);
@@ -1052,6 +1093,12 @@ QStringList ComicDownloader::parsePostHtml(const QByteArray& html) const
 void ComicDownloader::cancelDownload(const QString& issueIdIn)
 {
     const QString id = issueIdIn.trimmed();
+    // Slice 3: cancel of a pack child (or its parent) drops queued siblings and
+    // marks the manifest inactive (sticky — no auto-resume after cancel). The
+    // pack archive file is KEPT on disk. Landed children stay. This runs before
+    // the specific-job cleanup so the family-wide drop + manifest marking land
+    // regardless of whether the cancelled id is resolving/active/queued.
+    cancelPackFamily(id);
     for (auto it = m_resolving.begin(); it != m_resolving.end(); ++it) {
         if (it.value().id == id) {
             QNetworkReply* r = it.key();
@@ -1402,6 +1449,19 @@ void ComicDownloader::failIngest(InFlight& f, const QString& reason)
         // HTTP download: the staging file is re-downloadable, so deleting it
         // (failAndCleanup's default) costs nothing and avoids a leak.
         failAndCleanup(f, reason);
+        return;
+    }
+    if (f.stagedRetrySource) {
+        // Slice 3: a staged-retry .archive (preserved from a prior
+        // failPreservingSource) that terminally fails ingest is corrupt or
+        // unextractable. Delete it so the NEXT retry re-downloads fresh instead
+        // of looping on the same bad file. failAndCleanup deletes archivePath
+        // by default; do NOT clear it first (unlike the imported-source path).
+        qCritical() << "[ComicDownloader] discarding corrupt staged-retry source id=" << f.id
+                   << "reason=" << reason << "source=" << f.archivePath
+                   << "(next attempt will re-download)";
+        f.partPath.clear();   // no .part for a staged reuse
+        failAndCleanup(f, QStringLiteral("staged archive unextractable, discarded (%1)").arg(reason));
         return;
     }
     // Local-archive import (torrent-produced or user-picked): the source is
@@ -2120,6 +2180,156 @@ void ComicDownloader::maybeReclaimPack(const QString& childId)
     if (!m.archivePath.isEmpty()) QFile::remove(m.archivePath);
     m_packs.remove(parentId);
     savePacks();
+}
+
+void ComicDownloader::resumeIncompletePacks()
+{
+    if (m_packs.isEmpty()) return;
+    // Snapshot the manifest ids — reextraction may mutate m_packs during the loop.
+    const QList<QString> parentIds = m_packs.keys();
+    for (const QString& parentId : parentIds) {
+        const PackManifest m = m_packs.value(parentId);
+        if (!m.active) continue;
+
+        // Filter to children still missing from the index (and not already
+        // active/queued — a prior resume this boot may have started them).
+        QList<PackChild> missing;
+        for (const PackChild& c : m.children) {
+            if (m_index.contains(c.id)) continue;   // already landed
+            if (m_active && m_active->id == c.id) continue;
+            bool inQueue = false;
+            for (const InFlight& q : std::as_const(m_queue))
+                if (q.id == c.id) { inQueue = true; break; }
+            if (inQueue) continue;
+            missing.append(c);
+        }
+        if (missing.isEmpty()) {
+            // Every child is indexed but the manifest still exists — either a
+            // crash between the last child indexing and maybeReclaimPack, or a
+            // partial reclaim. Finish the job: reclaim the pack + extractTmp,
+            // clear the manifest. (Idempotent with maybeReclaimPack, which would
+            // also fire on the next child publish — but there will be no next
+            // publish, so we drive it here.)
+            maybeReclaimPack(m.children.isEmpty() ? QString() : m.children.first().id);
+            continue;
+        }
+
+        // Decide the re-enqueue path per the manifest's surviving sources.
+        const bool extractTmpAlive = !m.extractTmp.isEmpty()
+                                     && QDir(m.extractTmp).exists();
+        const bool packArchiveAlive = !m.archivePath.isEmpty()
+                                      && QFileInfo(m.archivePath).isFile();
+
+        if (extractTmpAlive) {
+            // The extracted tree survived the crash: enqueue each missing child
+            // straight from its nested archive inside extractTmp.
+            qInfo() << "[ComicDownloader] resume: pack" << parentId
+                    << "extractTmp alive, enqueuing" << missing.size() << "missing children";
+            for (const PackChild& c : std::as_const(missing)) {
+                const QString childArchivePath = m.extractTmp + QChar('/') + c.rel;
+                InFlight flight;
+                flight.id = c.id;
+                flight.seriesId = m.seriesId;
+                flight.seriesTitle = m.seriesTitle;
+                flight.label = c.label;
+                flight.archivePath = childArchivePath;
+                flight.receivedBytes = QFileInfo(childArchivePath).size();
+                flight.expectedBytes = flight.receivedBytes;
+                flight.localArchive = true;
+                flight.partGroupKey = parentId;
+                flight.groupUnit = QStringLiteral("volumes");
+                flight.packRole = c.role;
+                flight.packOrder = c.order;
+                m_queue.append(std::move(flight));
+            }
+            startNextQueued();
+        } else if (packArchiveAlive) {
+            // extractTmp gone (OS temp cleanup or a prior partial reclaim) but
+            // the protected pack archive survived: re-extract the parent, the
+            // demux seam re-runs, and adoption skips children already indexed.
+            qInfo() << "[ComicDownloader] resume: pack" << parentId
+                    << "extractTmp gone, re-extracting from pack archive";
+            reextractPackParent(parentId);
+        } else {
+            // Both gone — nothing recoverable. Clear the manifest so it doesn't
+            // haunt every future boot; the already-landed children stay valid.
+            qWarning() << "[ComicDownloader] resume: pack" << parentId
+                       << "has no surviving source (pack + extractTmp both gone);"
+                       << "clearing manifest," << missing.size()
+                       << "missing children unrecoverable";
+            m_packs.remove(parentId);
+            savePacks();
+        }
+    }
+}
+
+void ComicDownloader::reextractPackParent(const QString& parentId)
+{
+    const PackManifest m = m_packs.value(parentId);
+    if (m.archivePath.isEmpty() || !QFileInfo(m.archivePath).isFile()) return;
+
+    // Build a parent-shaped InFlight and drive it through the same extract →
+    // finalizeExtract → demultiplexPack path the original ingest took. The demux
+    // seam re-runs; adoption skips children already indexed (idempotence check
+    // inside demultiplexPack's enqueue loop). The manifest is overwritten with
+    // a fresh extractTmp (the old tree is gone by the precondition above).
+    InFlight flight;
+    flight.id = parentId;
+    flight.seriesId = m.seriesId;
+    flight.seriesTitle = m.seriesTitle;
+    flight.label = QStringLiteral("Pack");   // label is cosmetic for a re-extract parent
+    flight.archivePath = m.archivePath;
+    flight.localArchive = true;
+    flight.partGroupKey.clear();
+    flight.groupUnit = QStringLiteral("volumes");
+    // The parent's extract will be driven by beginExtract via ingestArchiveByProbe.
+    m_active = new InFlight(std::move(flight));
+    ingestArchiveByProbe(*m_active);
+}
+
+bool ComicDownloader::cancelPackFamily(const QString& childOrParentId)
+{
+    if (m_packs.isEmpty()) return false;
+    // Resolve the parent: the id may be the parent itself, or a child
+    // ("<parentId>:vol:<hash>").
+    QString parentId;
+    if (m_packs.contains(childOrParentId)) {
+        parentId = childOrParentId;
+    } else {
+        for (auto it = m_packs.constBegin(); it != m_packs.constEnd(); ++it) {
+            for (const PackChild& c : it.value().children)
+                if (c.id == childOrParentId) { parentId = it.key(); break; }
+            if (!parentId.isEmpty()) break;
+        }
+    }
+    if (parentId.isEmpty()) return false;   // not a pack family member
+
+    // Drop every queued sibling of this manifest (the cancelled child itself is
+    // handled by the caller's queue/m_active branch; we clear the REST here).
+    const PackManifest m = m_packs.value(parentId);
+    QSet<QString> familyIds;
+    for (const PackChild& c : m.children) familyIds.insert(c.id);
+    familyIds.insert(parentId);
+    for (int i = m_queue.size() - 1; i >= 0; --i) {
+        if (familyIds.contains(m_queue[i].id)) {
+            // A queued child's archivePath points INSIDE the parent's extractTmp
+            // (a protected source) — do NOT delete it on cancel.
+            m_queue.removeAt(i);
+        }
+    }
+
+    // Mark the manifest cleared. The pack archive file is KEPT on disk
+    // (spec: "Any failure or cancellation keeps the pack on disk"). Subsequent
+    // sibling cancels no-op (the manifest is gone). A fresh construct will NOT
+    // auto-resume a cancelled pack (active=false is sticky: resumeIncompletePacks
+    // skips inactive manifests).
+    if (m_packs.contains(parentId)) {
+        m_packs[parentId].active = false;
+        savePacks();
+        qInfo() << "[ComicDownloader] cancel: pack family" << parentId
+                << "marked inactive (cancel is sticky; pack file kept on disk)";
+    }
+    return true;
 }
 
 void ComicDownloader::cleanupExtract(InFlight& f)

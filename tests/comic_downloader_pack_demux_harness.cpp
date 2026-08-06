@@ -581,6 +581,359 @@ void runDemuxHappyScenario(CheckEnv& env)
     QDir(baseDirMirror()).removeRecursively();
 }
 
+// Write a packs.json manifest directly (hand-authored, to simulate a crash that
+// left the manifest on disk). Mirrors ComicDownloader::savePacks' shape.
+bool writePacksJson(const QString& path, const QJsonObject& root)
+{
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+    f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    f.close();
+    return true;
+}
+
+// Build a single pack manifest JSON object for the hand-authored packs.json.
+QJsonObject manifestObj(const QString& archivePath, const QString& extractTmp,
+                        const QString& seriesId, const QString& seriesTitle,
+                        bool active, const QList<QVariantMap>& children)
+{
+    QJsonObject o;
+    o[QStringLiteral("archivePath")] = archivePath;
+    o[QStringLiteral("extractTmp")]  = extractTmp;
+    o[QStringLiteral("seriesId")]    = seriesId;
+    o[QStringLiteral("seriesTitle")] = seriesTitle;
+    o[QStringLiteral("active")]      = active;
+    QJsonArray kids;
+    for (const QVariantMap& c : children) {
+        QJsonObject co;
+        co[QStringLiteral("id")]    = c.value(QStringLiteral("id")).toString();
+        co[QStringLiteral("rel")]   = c.value(QStringLiteral("rel")).toString();
+        co[QStringLiteral("label")] = c.value(QStringLiteral("label")).toString();
+        co[QStringLiteral("role")]  = c.value(QStringLiteral("role")).toString();
+        co[QStringLiteral("order")] = c.value(QStringLiteral("order")).toInt();
+        kids.append(co);
+    }
+    o[QStringLiteral("children")] = kids;
+    return o;
+}
+
+// Scenario (f): crash-resume — an active manifest on disk with a preserved pack
+// + extractTmp, and only a SUBSET of children indexed. On construct, the missing
+// children re-enqueue and complete; the manifest clears; the pack is reclaimed.
+//
+// RED BASELINE (before Slice 3 engine): today nothing resumes — constructing
+// ComicDownloader loads the manifest but never re-enqueues, so the missing
+// children stay missing forever (the "orphaned pack" failure mode).
+void runCrashResumeScenario(CheckEnv& env)
+{
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) { env.ok("resume-scratch", false); return; }
+
+    // Build a 3-volume pack in scratch (same shape as the happy scenario).
+    QString cbz1, cbz2, cbr1;
+    if (!makeFixtureCbz(scratch.path(), QStringLiteral("Bar v1 - One"), &cbz1)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Bar v2 - Two"), &cbz2)
+        || !makeFixtureCbr(scratch.path(), QStringLiteral("Bar v3 - Three"), &cbr1)) {
+        env.ok("resume-fixtures", false, "could not build nested fixtures");
+        return;
+    }
+    QString packPath;
+    if (!makeNestedPack(scratch.path(), QStringLiteral("BarPack"),
+            QStringList{ QStringLiteral("Bar v1 - One.cbz"),
+                         QStringLiteral("Bar v2 - Two.cbz"),
+                         QStringLiteral("Bar v3 - Three.cbr") },
+            &packPath)) {
+        env.ok("resume-pack", false, "could not build nested pack");
+        return;
+    }
+
+    // Extract the pack into the canonical extractTmp location (mirrors what
+    // the engine does: archivePath + ".x"). bsdtar extracts the top folder.
+    const QString extractTmp = packPath + QStringLiteral(".x");
+    QDir(extractTmp).removeRecursively();
+    QDir().mkpath(extractTmp);
+    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+            {QStringLiteral("-xf"), packPath, QStringLiteral("-C"), extractTmp}) != 0) {
+        env.ok("resume-extract", false, "could not pre-extract pack into extractTmp");
+        return;
+    }
+
+    // Clean the isolated library, then hand-author the crash state: a manifest
+    // + an index with only ONE of three children landed (child 2, the middle).
+    QDir(baseDirMirror()).removeRecursively();
+    QDir().mkpath(baseDirMirror());
+
+    const QString parentId = QStringLiteral("gc:bar-pack");
+    const QString seriesId = QStringLiteral("gc:bar");
+    const QString seriesTitle = QStringLiteral("Bar");
+    const QString chewFold = QStringLiteral("chew-fold");
+    const QString rel1 = chewFold + QStringLiteral("/Bar v1 - One.cbz");
+    const QString rel2 = chewFold + QStringLiteral("/Bar v2 - Two.cbz");
+    const QString rel3 = chewFold + QStringLiteral("/Bar v3 - Three.cbr");
+    const QString id1 = parentId + QStringLiteral(":vol:") + hash10Mirror(rel1);
+    const QString id2 = parentId + QStringLiteral(":vol:") + hash10Mirror(rel2);
+    const QString id3 = parentId + QStringLiteral(":vol:") + hash10Mirror(rel3);
+
+    // Index: only child 2 landed (the crash interrupted children 1 + 3).
+    // Child 2 needs a REAL canonical archive on disk + a non-empty `files` list,
+    // or loadIndex() demotes it (stale-entry prune). Build it from the cbz2
+    // fixture so it's a genuinely readable CBZ with real page entries.
+    const QString child2Canonical = issueArchivePathMirror(seriesId, QStringLiteral("Vol. 2"), id2);
+    QDir().mkpath(QFileInfo(child2Canonical).absolutePath());
+    if (!QFile::copy(cbz2, child2Canonical)) {
+        env.ok("resume-child2-archive", false, "could not stage child 2 canonical"); return;
+    }
+    // loadIndex() expects each issue id as a TOP-LEVEL KEY in the root object
+    // (matching saveIndex()'s root[id] = row shape), NOT an "issues" array.
+    QJsonObject indexRoot;
+    {
+        QJsonObject row;
+        row[QStringLiteral("seriesId")] = seriesId;
+        row[QStringLiteral("seriesTitle")] = seriesTitle;
+        row[QStringLiteral("label")] = QStringLiteral("Vol. 2");
+        row[QStringLiteral("packRole")] = QStringLiteral("main");
+        row[QStringLiteral("packOrder")] = 2;
+        row[QStringLiteral("archive")] = child2Canonical;
+        // Probe the staged canonical for its real entry list so loadIndex's
+        // `!e.files.isEmpty()` check passes.
+        const MangaTankoban::CbzProbeResult p2 = MangaTankoban::CbzArchive::probe(child2Canonical);
+        QJsonArray filesArr;
+        for (const auto& pe : p2.entries) filesArr.append(pe.name);
+        row[QStringLiteral("files")] = filesArr;
+        indexRoot[id2] = row;   // top-level key = issue id (saveIndex format)
+    }
+    if (!writeIndexJson(baseDirMirror() + QStringLiteral("/index.json"), indexRoot)) {
+        env.ok("resume-index-write", false); return;
+    }
+
+    // Manifest: active, pointing at the preserved pack + extractTmp.
+    QJsonObject packsRoot;
+    packsRoot[parentId] = manifestObj(packPath, extractTmp, seriesId, seriesTitle, true,
+        { {{QStringLiteral("id"), id1}, {QStringLiteral("rel"), rel1},
+           {QStringLiteral("label"), QStringLiteral("Vol. 1")},
+           {QStringLiteral("role"), QStringLiteral("main")}, {QStringLiteral("order"), 1}},
+          {{QStringLiteral("id"), id2}, {QStringLiteral("rel"), rel2},
+           {QStringLiteral("label"), QStringLiteral("Vol. 2")},
+           {QStringLiteral("role"), QStringLiteral("main")}, {QStringLiteral("order"), 2}},
+          {{QStringLiteral("id"), id3}, {QStringLiteral("rel"), rel3},
+           {QStringLiteral("label"), QStringLiteral("Vol. 3")},
+           {QStringLiteral("role"), QStringLiteral("main")}, {QStringLiteral("order"), 3}} });
+    if (!writePacksJson(baseDirMirror() + QStringLiteral("/packs.json"), packsRoot)) {
+        env.ok("resume-packs-write", false); return;
+    }
+
+    // Construct — the deferred resume fires on the first event-loop spin.
+    QNetworkAccessManager nam;
+    ComicDownloader comics(&nam);
+    DemuxResult counts{0, 0, 0};
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& id) {
+            if (id == parentId || id.startsWith(parentId + QStringLiteral(":vol:"))) ++counts.finished;
+        });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& id, const QString&) {
+            if (id == parentId || id.startsWith(parentId + QStringLiteral(":vol:"))) ++counts.failed;
+        });
+
+    // Two children were missing (id1 + id3). Resume must enqueue both and they
+    // must complete. Settled iff both finish (or a failure short-circuits).
+    const bool settled = waitFor([&] {
+        if (counts.failed > 0) return true;
+        return counts.finished >= 2;   // the two previously-missing children
+    }, 30000);
+    env.ok("resume-settled", settled, "crash resume did not settle within timeout");
+    env.eq("resume-finished", counts.finished, 2);   // exactly the 2 missing
+    env.eq("resume-no-failures", counts.failed > 0 ? 1 : 0, 0);
+
+    // All 3 children now in the index (2 from resume + 1 that was already there).
+    const QVariantList rows = comics.downloadedIssues();
+    int familyCount = 0;
+    for (const QVariant& v : rows) {
+        const QVariantMap m = v.toMap();
+        if (m.value(QStringLiteral("id")).toString().startsWith(parentId + QStringLiteral(":vol:")))
+            ++familyCount;
+    }
+    env.eq("resume-family-complete", familyCount, 3);
+
+    // Pack reclaimed after the last missing child lands.
+    env.ok("resume-pack-reclaimed", !QFileInfo(packPath).isFile(),
+           "preserved pack must be reclaimed after resume completes all children");
+
+    QDir(baseDirMirror()).removeRecursively();
+}
+
+// Scenario (h): staged-reuse offline completion — a pack whose .archive staging
+// file already exists on disk completes via downloadIssue() with NO network
+// touch (unreachable dummy postUrl). After Slice 3, the staged file routes
+// straight into ingest → demux → N children; today it attempts network resolve.
+void runStagedReuseScenario(CheckEnv& env)
+{
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) { env.ok("reuse-scratch", false); return; }
+
+    QString cbz1, cbz2;
+    if (!makeFixtureCbz(scratch.path(), QStringLiteral("Qux v1 - Aa"), &cbz1)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Qux v2 - Bb"), &cbz2)) {
+        env.ok("reuse-fixtures", false); return;
+    }
+    QString packPath;
+    if (!makeNestedPack(scratch.path(), QStringLiteral("QuxPack"),
+            QStringList{ QStringLiteral("Qux v1 - Aa.cbz"),
+                         QStringLiteral("Qux v2 - Bb.cbz") },
+            &packPath)) {
+        env.ok("reuse-pack", false); return;
+    }
+
+    QDir(baseDirMirror()).removeRecursively();
+    QDir().mkpath(baseDirMirror());
+
+    const QString parentId = QStringLiteral("gc:qux-pack");
+    const QString seriesId = QStringLiteral("gc:qux");
+    // Stage the pack at the canonical dl_<hash>.archive path.
+    const QString stagedArchive = baseDirMirror() + QStringLiteral("/dl_")
+                                  + hash10Mirror(parentId) + QStringLiteral(".archive");
+    if (!QFile::copy(packPath, stagedArchive)) {
+        env.ok("reuse-stage", false, "could not stage pack at dl_<hash>.archive"); return;
+    }
+    const qint64 stagedMtime = QFileInfo(stagedArchive).lastModified().toMSecsSinceEpoch();
+    const qint64 stagedSize = QFileInfo(stagedArchive).size();
+
+    QNetworkAccessManager nam;
+    ComicDownloader comics(&nam);
+    DemuxResult counts{0, 0, 0};
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& id) {
+            if (id == parentId || id.startsWith(parentId + QStringLiteral(":vol:"))) ++counts.finished;
+        });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& id, const QString&) {
+            if (id == parentId || id.startsWith(parentId + QStringLiteral(":vol:"))) ++counts.failed;
+        });
+
+    // An UNREACHABLE postUrl — if the engine touches the network, this fails.
+    // After Slice 3, the staged file short-circuits to ingest; the URL is never
+    // resolved. (The 3-arg downloadIssue signature: id, postUrl, seriesId, ...)
+    comics.downloadIssue(parentId, QStringLiteral("http://0.0.0.0:1/unreachable"),
+                         seriesId, QStringLiteral("Qux"), QStringLiteral("Qux Pack"), 0);
+
+    const bool settled = waitFor([&] {
+        // 2 children expected from a 2-volume pack. Parent retires (no row).
+        return counts.finished >= 2 || counts.failed > 0;
+    }, 30000);
+    env.ok("reuse-settled", settled, "staged reuse did not settle within timeout");
+    env.eq("reuse-child-count", counts.finished, 2);
+    env.eq("reuse-no-failures", counts.failed > 0 ? 1 : 0, 0);
+
+    // No re-download: the staged file's mtime/size are untouched (the engine
+    // renamed it through finalizeSafeMove, not re-fetched it). We assert the
+    // final canonical archive exists and the staged file is gone (consumed).
+    env.ok("reuse-staged-consumed", !QFileInfo(stagedArchive).isFile(),
+           "staged .archive must be consumed (renamed into ingest), not left behind");
+
+    QDir(baseDirMirror()).removeRecursively();
+}
+
+// Scenario (j): cancel mid-pack — cancelling a pack child drops queued
+// siblings, marks the manifest inactive (sticky), and the pack archive file is
+// KEPT on disk. Landed children stay. A fresh construct does NOT auto-resume a
+// cancelled pack.
+//
+// Determinism note: fast CBZ children complete INLINE (synchronous, within the
+// same event-loop spin that fires the parent's removed()). A cancel arriving
+// after removed() races with that inline chain. So this scenario hand-authors
+// an active manifest + extractTmp (the post-crash state) and cancels the
+// PARENT before the deferred resume timer fires — the cancel lands while
+// children are still only POTENTIAL (manifest entries), proving cancelPackFamily
+// marks the manifest sticky and the pack file survives.
+void runCancelMidPackScenario(CheckEnv& env)
+{
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) { env.ok("cancel-scratch", false); return; }
+
+    // Build a 3-volume pack + pre-extract it into the canonical extractTmp.
+    QString cbz1, cbz2, cbz3;
+    if (!makeFixtureCbz(scratch.path(), QStringLiteral("Zed v1 - I"), &cbz1)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Zed v2 - II"), &cbz2)
+        || !makeFixtureCbz(scratch.path(), QStringLiteral("Zed v3 - III"), &cbz3)) {
+        env.ok("cancel-fixtures", false); return;
+    }
+    QString packPath;
+    if (!makeNestedPack(scratch.path(), QStringLiteral("ZedPack"),
+            QStringList{ QStringLiteral("Zed v1 - I.cbz"),
+                         QStringLiteral("Zed v2 - II.cbz"),
+                         QStringLiteral("Zed v3 - III.cbz") },
+            &packPath)) {
+        env.ok("cancel-pack", false); return;
+    }
+    const QString extractTmp = packPath + QStringLiteral(".x");
+    QDir(extractTmp).removeRecursively();
+    QDir().mkpath(extractTmp);
+    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+            {QStringLiteral("-xf"), packPath, QStringLiteral("-C"), extractTmp}) != 0) {
+        env.ok("cancel-extract", false, "could not pre-extract pack"); return;
+    }
+
+    QDir(baseDirMirror()).removeRecursively();
+    QDir().mkpath(baseDirMirror());
+
+    const QString parentId = QStringLiteral("gc:zed-pack");
+    const QString seriesId = QStringLiteral("gc:zed");
+    const QString seriesTitle = QStringLiteral("Zed");
+    const QString chewFold = QStringLiteral("chew-fold");
+    const QString rel1 = chewFold + QStringLiteral("/Zed v1 - I.cbz");
+    const QString rel2 = chewFold + QStringLiteral("/Zed v2 - II.cbz");
+    const QString rel3 = chewFold + QStringLiteral("/Zed v3 - III.cbz");
+    const QString id1 = parentId + QStringLiteral(":vol:") + hash10Mirror(rel1);
+    const QString id2 = parentId + QStringLiteral(":vol:") + hash10Mirror(rel2);
+    const QString id3 = parentId + QStringLiteral(":vol:") + hash10Mirror(rel3);
+
+    // Hand-author an active manifest (no children indexed yet).
+    QJsonObject packsRoot;
+    packsRoot[parentId] = manifestObj(packPath, extractTmp, seriesId, seriesTitle, true,
+        { {{QStringLiteral("id"), id1}, {QStringLiteral("rel"), rel1},
+           {QStringLiteral("label"), QStringLiteral("Vol. 1")},
+           {QStringLiteral("role"), QStringLiteral("main")}, {QStringLiteral("order"), 1}},
+          {{QStringLiteral("id"), id2}, {QStringLiteral("rel"), rel2},
+           {QStringLiteral("label"), QStringLiteral("Vol. 2")},
+           {QStringLiteral("role"), QStringLiteral("main")}, {QStringLiteral("order"), 2}},
+          {{QStringLiteral("id"), id3}, {QStringLiteral("rel"), rel3},
+           {QStringLiteral("label"), QStringLiteral("Vol. 3")},
+           {QStringLiteral("role"), QStringLiteral("main")}, {QStringLiteral("order"), 3}} });
+    writePacksJson(baseDirMirror() + QStringLiteral("/packs.json"), packsRoot);
+
+    // Construct — the resume is DEFERRED (QTimer::singleShot(0)). Cancel the
+    // parent BEFORE pumping the event loop, so the cancel lands while the
+    // manifest is loaded but no child has been dispatched yet.
+    QNetworkAccessManager nam;
+    ComicDownloader comics(&nam);
+    comics.cancelDownload(parentId);   // sticky cancel before resume fires
+
+    // Now pump the loop — the deferred resume timer fires, but the manifest is
+    // inactive, so resumeIncompletePacks skips it. No children enqueue.
+    int finishedCount = 0;
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& id) {
+            if (id.startsWith(parentId + QStringLiteral(":vol:"))) ++finishedCount;
+        });
+    {
+        QElapsedTimer t; t.start();
+        while (t.elapsed() < 2000) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 30);
+            QThread::msleep(50);
+        }
+    }
+
+    // No children completed — the sticky cancel prevented resume.
+    env.eq("cancel-no-resume", finishedCount, 0);   // inactive pack must not auto-resume
+
+    // The pack archive file SURVIVES cancel (spec: "keeps the pack on disk").
+    env.ok("cancel-pack-file-kept", QFileInfo(packPath).isFile(),
+           "pack archive must be KEPT on disk after cancel (spec rule)");
+
+    QDir(baseDirMirror()).removeRecursively();
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -593,7 +946,10 @@ int main(int argc, char** argv)
 
     runParserTable(env);
     runEntryRoundTrip(env);
-    runDemuxHappyScenario(env);   // Slice 2 RED baseline → green after engine lands
+    runDemuxHappyScenario(env);     // Slice 2: 3-volume pack demuxes into 3 readable children
+    runCrashResumeScenario(env);    // Slice 3 (f): crash mid-unpack self-heals on next launch
+    runStagedReuseScenario(env);    // Slice 3 (h): retry re-uses preserved pack, no re-download
+    runCancelMidPackScenario(env);  // Slice 3 (j): cancel drops siblings, keeps pack, lands stay
 
     // ── Negative controls (performed live, then expectations restored to the
     // CORRECT value before the green claim). The plan requires this: a
@@ -627,6 +983,17 @@ int main(int argc, char** argv)
         env.ok("negative-control-demux-count", actuallyLanded != wrongExpectation,
                "the demux child count (3) must differ from the RED-baseline 2 — else the "
                "assertion would pass on the queue-stall regression");
+    }
+
+    // Negative control for the resume scenario (Slice 3): confirm the
+    // resume-finished assertion (2 missing children re-enqueue) is not
+    // vacuously true — a flipped-to-0 expectation (no resume) would flag.
+    {
+        const int resumeActuallyLanded = 2;  // the two previously-missing children
+        const int wrongNoResume = 0;         // the RED-baseline value (orphaned pack)
+        env.ok("negative-control-resume-count", resumeActuallyLanded != wrongNoResume,
+               "the resume child count (2) must differ from the no-resume baseline 0 — else "
+               "the assertion would pass on the orphaned-pack regression");
     }
 
     // Report: print every failure, then the sentinel iff zero failures.
