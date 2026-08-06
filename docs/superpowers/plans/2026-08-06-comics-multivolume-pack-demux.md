@@ -1,6 +1,9 @@
 # Comics multi-volume pack demux — implementation plan
 
-**Date:** 2026-08-06
+**Date:** 2026-08-06 · **ARC CLOSED Runtime-validated 2026-08-07** — Slices 1–5 (Agent 1/ZCode)
++ Slice 7 accent fix (Agent 0/Claude) landed; Slice 6 human-witnessed journey completed: 12/12
+Chew volumes readable, pack reclaimed, Hemanth's verdict recorded. Remaining follow-ups (queue
+fold count/copy cosmetics, failed-row retry affordance) tracked in chat.md, not this plan.
 **Spec:** `docs/superpowers/specs/2026-08-06-comics-multivolume-pack-demux-design.md` (approved)
 **Ledgers consulted:** `docs/colosseum-test-verification.md` + `docs/colosseum-lanista-verification.md`
 (both read fresh 2026-08-06; every verification named below is drawn from their AVAILABLE
