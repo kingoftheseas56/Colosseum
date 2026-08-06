@@ -3,6 +3,7 @@
 
 #include "ComicDlsParse.h"
 #include "engine/ComicCoverId.h"
+#include "engine/ComicPackLabels.h"   // parsePackLabel() — demux volume label parser (Slice 1)
 #include "torrent/ComicTorrents.h"
 #include "torrent/ComicTorrentMagnet.h"
 
@@ -337,6 +338,11 @@ void ComicDownloader::loadIndex()
         e.archive     = o.value(QStringLiteral("archive")).toString();
         e.bytes       = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt     = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
+        // Pack-demux fields are OPTIONAL (Slice 1): absent on every legacy row,
+        // so a missing key leaves the Entry defaults (packRole empty, packOrder
+        // -1) and the row behaves exactly as an ordinary single issue.
+        e.packRole    = o.value(QStringLiteral("packRole")).toString();
+        e.packOrder   = o.value(QStringLiteral("packOrder")).toInt(-1);
         for (const QJsonValue& v : o.value(QStringLiteral("files")).toArray())
             e.files.append(v.toString());
         for (const QJsonValue& v : o.value(QStringLiteral("groups")).toArray())
@@ -562,6 +568,13 @@ void ComicDownloader::saveIndex() const
         QJsonArray groups;
         for (int g : it.value().groups) groups.append(g);
         o[QStringLiteral("groups")] = groups;
+        // Pack-demux fields are written ONLY when set (Slice 1), so a legacy
+        // single-issue row saves byte-identically to its pre-demux form — no
+        // spurious keys, no index churn for unchanged rows.
+        if (!it.value().packRole.isEmpty())
+            o[QStringLiteral("packRole")] = it.value().packRole;
+        if (it.value().packOrder != -1)
+            o[QStringLiteral("packOrder")] = it.value().packOrder;
         root[it.key()] = o;
     }
     // Atomic write (mirrors MangaDownloader.cpp) so a crash or a failed commit
@@ -2266,7 +2279,13 @@ QVariantList ComicDownloader::downloadedIssues() const
             {QStringLiteral("bytes"), e.bytes},
             {QStringLiteral("addedAt"), e.addedAt},
             {QStringLiteral("missing"), missing},
-            {QStringLiteral("art"), art}
+            {QStringLiteral("art"), art},
+            // Pack-demux fields (Slice 1): absent/empty on every ordinary issue;
+            // a demuxed volume carries its parsed role ("main"/"extra") and the
+            // deterministic order the shelf/reader consume. Existing QML that
+            // does not read these keys is unaffected (additive map entries).
+            {QStringLiteral("packRole"), e.packRole},
+            {QStringLiteral("packOrder"), e.packOrder}
         });
     }
     return out;

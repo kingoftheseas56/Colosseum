@@ -226,6 +226,16 @@ private:
         QList<int> groups;   // parallel to files; empty = no grouping (localPages() reports -1)
         qint64 bytes = 0;
         qint64 addedAt = 0;
+        // Multi-volume pack demux (Slice 1, 2026-08-06 — see
+        // docs/superpowers/specs/2026-08-06-comics-multivolume-pack-demux-design.md).
+        // An ordinary single issue has packRole empty and packOrder -1; both
+        // are OPTIONAL in index.json, so every legacy row loads unchanged. A
+        // demuxed volume carries packRole "main"/"extra" and a packOrder that
+        // orders mains v1..vN ascending and attaches extras to their volume.
+        // These are the ONLY inputs the QML shelf needs to build the mains-only
+        // reader chain and the Extras group (Slice 4's packVolumes() read API).
+        QString packRole;
+        int packOrder = -1;
         bool usesArchive() const { return !archive.isEmpty(); }
     };
     struct InFlight {

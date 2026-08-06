@@ -752,6 +752,67 @@ add_executable(comic_downloader_ingest_harness
 target_include_directories(comic_downloader_ingest_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_downloader_ingest_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui colosseum_libtorrent)
 
+# Multi-volume pack demux harness (Slice 1, 2026-08-06 — see
+# docs/superpowers/plans/2026-08-06-comics-multivolume-pack-demux.md).
+# At Slice 1 this exercises the volume label parser (engine/ComicPackLabels.h)
+# directly + the index Entry round-trip through the REAL loadIndex()/saveIndex()
+# (declared on agents/chat.md before this edit landed). The source list mirrors
+# comic_downloader_ingest_harness because it drives the same ComicDownloader
+# stack; the harness compiles ComicPackLabels.h inline (pure-function header).
+add_executable(comic_downloader_pack_demux_harness
+    ../tests/comic_downloader_pack_demux_harness.cpp
+    engine/ComicDownloader.cpp
+    engine/ComicDownloader.h
+    engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId()
+    engine/ComicCoverId.h
+    engine/CbzArchive.cpp          # ComicDownloader.cpp calls probe()/writeImagesAtomic()
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
+    engine/ComicDlsParse.cpp
+    engine/ComicDlsParse.h
+    engine/ComicEditionAssembler.cpp
+    engine/ComicEditionAssembler.h
+    torrent/ComicTorrents.cpp
+    torrent/ComicTorrents.h
+    torrent/ComicTorrentDownloader.cpp
+    torrent/ComicTorrentDownloader.h
+    torrent/ComicEditionFileSelector.cpp
+    torrent/ComicEditionFileSelector.h
+    torrent/ComicRequestLedger.cpp
+    torrent/ComicRequestLedger.h
+    torrent/ComicTorrentFilePicker.cpp
+    torrent/ComicTorrentFilePicker.h
+    torrent/ComicTorrentRanker.cpp
+    torrent/ComicTorrentRanker.h
+    torrent/ComicEditionIdentity.cpp
+    torrent/ComicEditionIdentity.h
+    torrent/ComicCoverage.cpp
+    torrent/ComicCoverage.h
+    torrent/ComicUploaderTrust.cpp
+    torrent/ComicUploaderTrust.h
+    torrent/ComicTorrentQueryPlanner.cpp
+    torrent/ComicTorrentQueryPlanner.h
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+    torrent/PirateBayIndexer.cpp
+    torrent/PirateBayIndexer.h
+    torrent/ExtTorrentsIndexer.cpp
+    torrent/ExtTorrentsIndexer.h
+    torrent/TorrentsCsvIndexer.cpp
+    torrent/TorrentsCsvIndexer.h
+    torrent/KnabenIndexer.cpp
+    torrent/KnabenIndexer.h
+    torrent/engine/TorrentEngine.cpp
+    torrent/engine/TorrentEngine.h
+    torrent/engine/DebugLogBuffer.cpp
+    torrent/engine/DebugLogBuffer.h
+    app_resources.qrc
+)
+target_include_directories(comic_downloader_pack_demux_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_downloader_pack_demux_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui colosseum_libtorrent)
+
 add_executable(comic_torrents_search_harness
     ../tests/comic_torrents_search_harness.cpp
     engine/ComicDownloader.cpp

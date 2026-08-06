@@ -14,8 +14,8 @@
 
 | Fact | Count |
 |---|---|
-| Compiled harness/test targets in `native/CMakeLists.txt` | **70** (+ the app + the `lanista` CLI) |
-| C++ harness sources in `tests/*.cpp` | 69 (zero orphan sources — every one is a target) |
+| Compiled harness/test targets in `native/CMakeLists.txt` | **71** (+ the app + the `lanista` CLI) |
+| C++ harness sources in `tests/*.cpp` | 70 (zero orphan sources — every one is a target) |
 | Hand-rolled QML harnesses in `tests/*.qml` | 88 (+ 1 fixture scene) |
 | Real Qt Quick Test files (`tests/qml/tst_*.qml`) | **2** |
 | PowerShell runners in `tests/*.ps1` | **150** (+ 18 in the gated-off player2 lab) |
@@ -51,7 +51,7 @@ half the compiled harnesses are run by nobody.
 
 - **Fast native gate:** `ctest --test-dir native/build-msvc -L unit --output-on-failure`
   — runs the registered pilot set (labels below). This is the default deterministic gate.
-- **Everything discovered:** `ctest --test-dir native/build-msvc -N` (26 today: 9
+- **Everything discovered:** `ctest --test-dir native/build-msvc -N` (29 today: 12
   `colosseum.*` registrations + 17 Player 2 lab tests the seam surfaced — see gaps).
 - Registration lives in `tests/CMakeLists.txt` (registers only; defines no targets),
   entered from the tail of `native/CMakeLists.txt` under `include(CTest)` +
@@ -98,6 +98,7 @@ half the compiled harnesses are run by nobody.
 | `colosseum.poster_scoreboard_harness` | unit | |
 | `colosseum.comicreader_cache_harness` | unit | |
 | `colosseum.biblio_catalog_logic_harness` | unit | fixture dir baked at compile time |
+| `colosseum.comic_downloader_pack_demux_harness` | unit | pack-demux Slice 1: volume label parser table (the 12 real Chew filenames) + index Entry round-trip of `packRole`/`packOrder`; legacy rows load unchanged. Mirrors `comic_downloader_ingest_harness` isolation (dedicated org/app, QTemporaryDir, path mirrors) |
 | `colosseum.selftest.red_canary` | selftest | WILL_FAIL negative control |
 
 All ran green under `ctest` 2026-08-06. Registration ≠ conversion: these still speak the
