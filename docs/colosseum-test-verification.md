@@ -111,7 +111,20 @@ to triage; excluded from the fast gate by having no `unit` label).
 
 ## Registered Qt Test targets
 
-**None yet** (slice 3 converts the first).
+| CTest name | Source | Proves | Status |
+|---|---|---|---|
+| `colosseum.qttest.window_state_policy` | `tests/auto/window/tst_window_state_policy.cpp` | WindowStatePolicy geometry contracts (4 as named data rows) + WindowModeStore settings round-trip, isolated INI in QTemporaryDir, GUILESS | 11/11 green 2026-08-06; negative control performed (one deliberate break → exactly one named red, all other cases still ran); labels `unit;windows;qttest` |
+
+Parity: the legacy `window_state_policy_harness` covers the identical contracts and
+stays built + registered until a parity review retires it (migration policy). The
+conversion's evidence gain, demonstrated live: the legacy `qFatal` idiom reports ONLY the
+first failure; the Qt Test reports every case independently.
+
+**Qt Test build facts (slice 3):** `Qt6::Test` is discovered in `tests/CMakeLists.txt`
+under `BUILD_TESTING` only — never linked into the app. Two deploy traps solved there,
+both verified live as 0xc0000135-before-main: Qt Test exes must land in `build-msvc/`
+beside the app-deployed Qt DLLs (`RUNTIME_OUTPUT_DIRECTORY`), and `Qt6Test.dll` itself
+is staged by a POST_BUILD copy (no app deploy step ever shipped it).
 
 ## Registered Qt Quick Test targets
 

@@ -34,6 +34,47 @@ colosseum_register_harness(poster_scoreboard_harness     unit)
 colosseum_register_harness(comicreader_cache_harness     unit)
 colosseum_register_harness(biblio_catalog_logic_harness  unit)
 
+# ── Qt Test targets (slice 3+) ───────────────────────────────────────────────
+# Test-only Qt components: discovered HERE, under BUILD_TESTING, never linked
+# into the shipping app (arc non-goal). Targets defined here are real Qt Tests:
+# per-case reporting, data rows, selectable by function/tag.
+find_package(Qt6 REQUIRED COMPONENTS Test)
+set(CMAKE_AUTOMOC ON)
+
+# Slice-3 pilot: windowstatepolicy/windowmodestore contracts. Same production
+# units and link set as the legacy window_state_policy_harness, which stays
+# built and registered until parity review retires it (ledger, migration
+# policy).
+set(COLOSSEUM_NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+add_executable(tst_window_state_policy
+    auto/window/tst_window_state_policy.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/windowstatepolicy.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/windowstatepolicy.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/windowmodestore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/windowmodestore.h")
+target_include_directories(tst_window_state_policy PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_window_state_policy
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test)
+# Land beside the app and the legacy harnesses: the Qt/FFmpeg DLLs are deployed
+# into build-msvc/ (two POST_BUILD steps on the app target), and an exe in a
+# subdirectory dies 0xc0000135 before main() — the exact disease the ledger
+# records for the Player 2 lab. Verified live on this target's first run.
+set_target_properties(tst_window_state_policy PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+# Qt6Test.dll is a test-only dependency no app deploy step ever staged — copy
+# it beside the exe exactly like the app target stages Qt6Sql.dll. Without
+# this the test dies 0xc0000135 before main() (verified live, both causes).
+add_custom_command(TARGET tst_window_state_policy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.window_state_policy
+         COMMAND tst_window_state_policy)
+set_tests_properties(colosseum.qttest.window_state_policy PROPERTIES
+    LABELS "unit;windows;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Red canary — the permanent negative control ──────────────────────────────
 # Proves ctest actually surfaces a failing command as red (WILL_FAIL inverts
 # it, so the suite stays green while the detection path is exercised on every
