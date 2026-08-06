@@ -615,12 +615,20 @@ Window {
         if (westernLayer.active && westernLayer.item) {
             var it = westernLayer.item
             it.bakedReleases = null                 // reset first so re-injection repaints
-            it.openChapterId = westernLayer.resumeChapterId || ""
             it.seriesTitle = westernLayer.title
             it.poster = westernLayer.baked.cover || ""
+            // Resolve the baked IDENTITY (gcdId + bakedReleases -> seriesId "gcd:<id>")
+            // BEFORE opening the reader. Opening the reader first (as this did) mounts
+            // ComicReaderShell while seriesId is still the transient "gc:<empty-slug>",
+            // so its resume reads the wrong (empty) progress key and lands on page 1 —
+            // then the identity flips to "gcd:<id>" and every save goes to the OTHER key,
+            // and the shell's first presentation writes page 1 over the real record.
+            // Confirmed via runtime trace 2026-08-06 (save under gcd:119237, restore under
+            // gc:). Set identity first; open the reader last, when seriesId is stable.
             it.gcdId = westernLayer.baked.gcdId
-            it.bakedReleases = westernLayer.baked.releases   // triggers paint (bakedReleases now non-null)
-            it.tagId = 0; it.tagSlug = ""                    // reset LAST — resolve() guard is true, no stray live lookup
+            it.bakedReleases = westernLayer.baked.releases   // seriesId now "gcd:<id>" (non-null baked)
+            it.tagId = 0; it.tagSlug = ""                    // resolve() guard true (baked non-null), no stray live lookup
+            it.openChapterId = westernLayer.resumeChapterId || ""   // open the reader LAST — identity fully stable
         } else westernLayer.active = true
     }
 
@@ -2267,13 +2275,19 @@ Window {
             item.backdrop = wall
             item.seriesTitle = westernLayer.title
             item.tagId = westernLayer.tagId
-            item.tagSlug = westernLayer.tagSlug        // set LAST — assigning it triggers resolve()
-            if (westernLayer.resumeChapterId) item.openChapterId = westernLayer.resumeChapterId
+            // Resolve the baked IDENTITY (-> seriesId "gcd:<id>") BEFORE opening the reader,
+            // so ComicReaderShell mounts with a STABLE seriesId and its resume reads the RIGHT
+            // progress key. Opening the reader first mounted it under the transient
+            // "gc:<empty-slug>" identity -> restored page 1, then saved to the OTHER key and
+            // wrote page 1 over the real record (runtime-confirmed 2026-08-06). Same fix as
+            // openGcdSeries() above.
             if (westernLayer.baked) {
                 item.poster = westernLayer.baked.cover || item.poster
                 item.gcdId = westernLayer.baked.gcdId
-                item.bakedReleases = westernLayer.baked.releases
+                item.bakedReleases = westernLayer.baked.releases   // seriesId now "gcd:<id>"
             }
+            item.tagSlug = westernLayer.tagSlug        // triggers resolve() (no-op when baked); live-mode identity
+            if (westernLayer.resumeChapterId) item.openChapterId = westernLayer.resumeChapterId   // open reader LAST — identity stable
             item.backRequested.connect(win.closeWestern)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
