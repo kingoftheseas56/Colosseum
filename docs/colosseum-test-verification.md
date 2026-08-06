@@ -47,7 +47,24 @@ half the compiled harnesses are run by nobody.
   they land in the same `build-msvc` dir the app deployed into — run them from elsewhere
   and they fail.
 
-## Standard commands (today — there is no standard)
+## Standard commands (the fuse box — slice 2, 2026-08-06)
+
+- **Fast native gate:** `ctest --test-dir native/build-msvc -L unit --output-on-failure`
+  — runs the registered pilot set (labels below). This is the default deterministic gate.
+- **Everything discovered:** `ctest --test-dir native/build-msvc -N` (26 today: 9
+  `colosseum.*` registrations + 17 Player 2 lab tests the seam surfaced — see gaps).
+- Registration lives in `tests/CMakeLists.txt` (registers only; defines no targets),
+  entered from the tail of `native/CMakeLists.txt` under `include(CTest)` +
+  `if(BUILD_TESTING)`. OFF skips registration and changes no build output.
+- **Toggle nuance (verified 2026-08-06):** configuring an EXISTING build dir with
+  `-DBUILD_TESTING=OFF` leaves the previous run's `CTestTestfile.cmake` manifests on
+  disk (CMake doesn't write them under OFF, so it doesn't remove them either) — `ctest`
+  then reads stale manifests. A fresh generate under OFF writes none. Don't trust
+  `ctest -N` on a dirty toggled dir.
+- **Red detection is self-proven:** `colosseum.selftest.red_canary` (WILL_FAIL) exercises
+  ctest's failure path on every run.
+
+## Legacy commands (the pre-seam estate — still authoritative for what it gates)
 
 - No master gate exists. Each `.ps1` under `tests/` is standalone; plans and handoffs name
   the gate to run. Output is stdout sentinels (`<NAME>_OK` / `FAIL: ...`) + exit codes.
@@ -69,9 +86,32 @@ half the compiled harnesses are run by nobody.
 - **QML idiom:** hand-rolled checks + `Timer` + `Qt.exit(0|1)` + stdout sentinel. None of
   the 88 imports QtTest (one exception below).
 
+## Registered CTest entries (slice 2 — existing harnesses, unconverted)
+
+| CTest name | Labels | Notes |
+|---|---|---|
+| `colosseum.window_state_policy_harness` | unit, windows | qFatal idiom — first failure hides the rest (slice-3 conversion pilot) |
+| `colosseum.search_history_store_harness` | unit | |
+| `colosseum.progress_store_harness` | unit | |
+| `colosseum.collection_store_harness` | unit | |
+| `colosseum.cbz_archive_harness` | unit | |
+| `colosseum.poster_scoreboard_harness` | unit | |
+| `colosseum.comicreader_cache_harness` | unit | |
+| `colosseum.biblio_catalog_logic_harness` | unit | fixture dir baked at compile time |
+| `colosseum.selftest.red_canary` | selftest | WILL_FAIL negative control |
+
+All ran green under `ctest` 2026-08-06. Registration ≠ conversion: these still speak the
+house sentinel/exit-code contract; CTest consumes the exit code.
+
+**Surfaced, not registered by us:** the top-level `include(CTest)` made the Player 2
+lab's 17 `add_test` entries visible from the top build dir for the first time (15 pass;
+2 fail environmentally in this build dir — `player2_state_machine_test` exits 0xc0000135
+= a DLL missing beside the test exe, `player2_seek_generation_test` fails — Player lane's
+to triage; excluded from the fast gate by having no `unit` label).
+
 ## Registered Qt Test targets
 
-**None.**
+**None yet** (slice 3 converts the first).
 
 ## Registered Qt Quick Test targets
 

@@ -1364,3 +1364,14 @@ add_executable(biblio_catalog_service_harness
 )
 target_include_directories(biblio_catalog_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql)
+
+# ── CTest registration seam (test ledger, migration slice 2 — 2026-08-06) ────
+# One standard discovery layer over the EXISTING harness estate; registrations
+# live in tests/CMakeLists.txt, never here. include(CTest) defines BUILD_TESTING
+# (default ON); OFF skips registration entirely and changes nothing else — the
+# harness targets above build either way, exactly as before this seam existed.
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
+                     "${CMAKE_CURRENT_BINARY_DIR}/tests")
+endif()
