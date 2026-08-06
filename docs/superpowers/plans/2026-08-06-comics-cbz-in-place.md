@@ -465,14 +465,72 @@ migration in Task 6 never converges.
 
 **Files:** modify `native/engine/ComicDownloader.cpp`.
 
-- [ ] Extend the harness RED: a user-imported CBZ ingests via the fast path with no extraction;
+- [x] Extend the harness RED: a user-imported CBZ ingests via the fast path with no extraction;
       a user-imported CBR still extracts-then-repacks; in both cases the user's own source file is
       still deleted on success, matching this function's existing documented ownership-transfer
       contract (not changed by this task — only its ingest mechanism now converges on the archive
       model).
-- [ ] Route through the same two-path ingest as Task 4 (shared helper, not a duplicate
+- [x] Route through the same two-path ingest as Task 4 (shared helper, not a duplicate
       implementation).
-- [ ] Verify: harness green; build green. Commit + push.
+- [x] Verify: harness green; build green. Commit + push.
+      **DONE 2026-08-06.** Extracted `onFinished()`'s probe-and-branch tail into a shared
+      `ingestArchiveByProbe(InFlight&)`; `onFinished()`, `ingestLocalArchive()`, and
+      `startNextQueued()`'s `localArchive` branch all call it — one ingest mechanism, no duplicate.
+      A natively-readable imported CBZ now takes the fast path (archive-in-place, no extraction, and
+      it completes SYNCHRONOUSLY — the harness proves "no extraction" by exactly this, since
+      extraction is inherently async); an imported CBR falls to extract-then-repack. Both success
+      paths consume the source, satisfying the ownership contract for free.
+
+      Added crash-recovery adoption to `ingestLocalArchive()` (the same pattern `downloadIssue()` got
+      in Task 4) — it's the torrent single-archive boundary too, and the ownership contract means the
+      caller's source may already be gone (a same-volume fast-path rename consumed it last time), so
+      an interrupted-prior-attempt canonical is sometimes the ONLY surviving copy; adoption reclaims
+      it instead of a dead end.
+
+      **Ownership-contract clarification (documented in the header):** the old "source deleted after
+      extraction OR terminal failure" is now "source CONSUMED on success, PRESERVED on failure." The
+      preserve-on-failure half already shipped in Task 4 (finalizeExtract's failure uses
+      failPreservingSource); Task 6 makes it uniform. Destroying the caller's only copy on a
+      transient/environmental failure is the exact data-loss shape this arc closes.
+
+      Opus-advisor pass (`--model claude-opus-5 --effort high`) confirmed preserve-on-failure correct
+      and found **two real blockers, both FIXED in this commit** (not deferred):
+      - **Extraction-path failures still deleted the source.** The three early extraction failures
+        (`beginExtract`/`runExtractor`/`onExtractDone`: "cannot create extract dir", "no extractor
+        available", "extraction failed") still called `failAndCleanup` → deletes `archivePath`. For a
+        local import that's the ONLY copy, so e.g. a machine with no bsdtar/7z would lose an imported
+        CBR outright — a purely environmental data loss. Fixed with a new `failIngest()` that gates
+        on `f.localArchive`: preserve the source (but still clean OUR extract temp), else the plain
+        failAndCleanup for HTTP (re-downloadable). Regression-tested (corrupt CBR import → failed,
+        source survives).
+      - **The adoption / isDownloaded `QFile::remove(archivePath)` could delete a LIVE library file.**
+        After an index loss a user could re-import the canonical file itself (browsing to
+        `<AppData>/comics/...`); the redundant-source remove would then destroy the comic the
+        freshly-written/existing row points at. Fixed with an `isLiveLibraryArchive()` guard (skip the
+        remove if the absolute source path matches any live `m_index` `archive`), applied to BOTH the
+        `isDownloaded` early-out and the adoption remove; sources now compared by absoluteFilePath.
+        Regression-tested (re-import the canonical → it survives, row intact).
+
+      Advisor also confirmed clean: the cross-volume-cancel source delete (matches the existing cancel
+      contract; unreachable for the torrent caller anyway — same volume), success-path consumption on
+      every branch, and the new synchronous-completion re-entrancy (both call sites are tail calls;
+      the Task 5 `startNextQueued` guard covers a reentrant `finished()` slot). One accepted
+      consequence documented as a follow-up in Execution notes: a preserved torrent-source archive
+      lingers in `comics-torrent/<infohash>/` (the torrent layer has no sweeper) — but that dir
+      already leaks on the SUCCESS path today, it doubles as libtorrent's resume cache (a re-request
+      rechecks-complete instantly), and the alternative destroys the user's only copy; a startup
+      sweep of orphaned `comics-torrent/*` is the right closure, later.
+
+      Harness (`comic_downloader_ingest_harness`, extended): 8 scenarios — imported-CBZ-fast-path,
+      imported-CBR-fallback, failed-import-preserves-source (blocker 1), re-import-canonical-guard
+      (blocker 2), plus the four assembled-edition scenarios (whose CANCEL blockers were switched from
+      CBZ to CBR: a CBZ blocker now finishes synchronously via the fast path, so it no longer keeps
+      the assembled edition QUEUED — a CBR stays async-extracting and does). The old main() block
+      asserted synchronous behavior via `app.exit()` before `app.exec()`, which the now-sync fast path
+      made hang (Qt ignores exit-before-exec); converted to a `waitFor` pump. 8/8 green, 4 consecutive
+      clean runs. Task 4 archive-ingest harness (HTTP path, unaffected — HTTP stays on failAndCleanup):
+      9/9 green. Production compiles clean under the full app's flags; final app link deferred only
+      because Hemanth's live session locks the exe.
 
 ### Task 7: Legacy migration — repair-before-prune, two-boot reclaim
 
@@ -556,3 +614,17 @@ migration in Task 6 never converges.
   the handler), which the retired branch consults alongside `liveArchivePaths` before deleting.
   Best landed with or just before Task 6, so all four paths get the guard at once. Advisor
   explicitly advised NOT holding Task 5 for it.
+- **Known leak, accepted not fixed (found during Task 6's advisor pass, 2026-08-06) — orphaned
+  `comics-torrent/<infohash>/` dirs.** Task 6's preserve-on-failure means a torrent-produced source
+  archive that fails to ingest lingers in `<AppData>/comics-torrent/<infohash>/` forever (the comics
+  torrent layer, unlike `BookTorrentDownloader`, has no `removeRecursively` sweeper — verified by
+  grep). Accepted, for the advisor's own reasons: (1) that directory ALREADY leaks on the SUCCESS
+  path today — `finalizeJob` calls `removeTorrent(..., deleteFiles=false)` and only the archive
+  inside gets consumed, never the `<infohash>/` dir; Task 6 adds bytes to an existing leak, doesn't
+  create one; (2) `dirFor(infoHash)` is deterministic and the `.fastresume` was deleted, so
+  re-requesting the same torrent rechecks-complete instantly — the "leak" doubles as libtorrent's
+  resume cache; (3) it's bounded by failed-ingest count, and the alternative (delete-on-failure)
+  destroys the user's only copy, the exact thing this arc closes. Proper closure is a startup sweep
+  of `comics-torrent/*` subdirs with no live job/ledger row — a small follow-up, NOT a coupling of
+  the torrent layer to an ingest completion callback (which the advisor flagged as worse than the
+  leak).

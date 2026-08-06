@@ -12,6 +12,7 @@
 #include "engine/ComicDownloader.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -22,7 +23,6 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QTemporaryDir>
-#include <QTimer>
 #include <QUrl>
 
 #include <cstdio>
@@ -61,6 +61,69 @@ bool makeCbz(const QString& root, const QString& name, QString* archivePath)
     if (exitCode != 0) return false;
     *archivePath = root + QLatin1Char('/') + name + QStringLiteral(".cbz");
     return QFile::rename(zip, *archivePath);
+}
+
+// A plain (non-zip) tar archive renamed .cbr: CbzArchive::probe() rejects it
+// cleanly (like a real CBR) so the two-path ingest takes the EXTRACTION
+// fallback, while bsdtar (the same tool runExtractor uses) extracts it. Real
+// JPEG pages so the repack's verify-probe passes. Used for the Task 6
+// "imported CBR still extracts-then-repacks" scenario.
+bool makeCbr(const QString& root, const QString& name, QString* archivePath)
+{
+    const QString pages = root + QLatin1Char('/') + name + QStringLiteral("-cbr-pages");
+    if (!QDir().mkpath(pages)) return false;
+    for (int i = 0; i < 2; ++i) {
+        QImage page(40, 40, QImage::Format_ARGB32);
+        page.fill(qRgb(30 * i, 120, 90));
+        if (!page.save(pages + QStringLiteral("/page_%1.jpg").arg(i, 3, 10, QChar('0')), "JPEG"))
+            return false;
+    }
+    const QString tarPath = root + QLatin1Char('/') + name + QStringLiteral(".tar");
+    const int rc = QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+        {QStringLiteral("-cf"), tarPath, QStringLiteral("-C"), pages, QStringLiteral(".")});
+    if (rc != 0) return false;
+    *archivePath = root + QLatin1Char('/') + name + QStringLiteral(".cbr");
+    return QFile::rename(tarPath, *archivePath);
+}
+
+// Mirrors of ComicDownloader's private path helpers (safeSeg/hash10/baseDir/
+// issueDir/issueArchivePath) so this harness can independently predict where a
+// canonical archive or a legacy loose folder lands, without reaching into
+// private internals. A drift here fails the scenarios loudly (wrong paths),
+// never a false green.
+QString baseDirMirror()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+           + QStringLiteral("/comics");
+}
+QString hash10Mirror(const QString& v)
+{
+    return QString::fromLatin1(
+        QCryptographicHash::hash(v.toUtf8(), QCryptographicHash::Sha1).toHex().left(10));
+}
+QString safeSegMirror(const QString& v)
+{
+    QString out;
+    for (const QChar c : v) {
+        if (c.isLetterOrNumber() || c == QChar('.') || c == QChar('_') || c == QChar('-')
+            || c == QChar(' '))
+            out.append(c);
+        else
+            out.append(QChar('_'));
+    }
+    out = out.trimmed();
+    while (out.endsWith(QChar('.'))) out.chop(1);
+    if (out.isEmpty()) out = QStringLiteral("item");
+    return out.left(80);
+}
+QString issueDirMirror(const QString& seriesId, const QString& label, const QString& id)
+{
+    return baseDirMirror() + QChar('/') + safeSegMirror(seriesId) + QChar('/')
+           + safeSegMirror(label) + QChar('-') + hash10Mirror(id);
+}
+QString issueArchivePathMirror(const QString& seriesId, const QString& label, const QString& id)
+{
+    return issueDirMirror(seriesId, label, id) + QStringLiteral(".cbz");
 }
 
 // Builds a Task-6-shaped "<id>.staging" dir of page_NNN.<ext> fixture files
@@ -300,8 +363,15 @@ bool runAssembledIngestCancelScenario(QNetworkAccessManager* nam)
 
     QTemporaryDir archiveRoot;
     QString blockerArchive;
-    if (!archiveRoot.isValid() || !makeCbz(archiveRoot.path(), QStringLiteral("blocker"), &blockerArchive)) {
-        std::printf("FAIL: could not create blocker CBZ fixture\n");
+    // A CBR blocker, NOT a CBZ: as of Task 6 a CBZ import takes the SYNCHRONOUS
+    // fast path (archive-in-place, no extraction), so a CBZ blocker would
+    // finish inline and the assembled edition would become ACTIVE rather than
+    // queued -- changing what this scenario tests. A CBR falls to the
+    // extraction fallback, which spawns an async bsdtar and stays "extracting"
+    // with the event loop unpumped, genuinely occupying the single lane and
+    // keeping the assembled edition QUEUED (which is the cancel path under test).
+    if (!archiveRoot.isValid() || !makeCbr(archiveRoot.path(), QStringLiteral("blocker"), &blockerArchive)) {
+        std::printf("FAIL: could not create blocker CBR fixture\n");
         return false;
     }
 
@@ -323,10 +393,11 @@ bool runAssembledIngestCancelScenario(QNetworkAccessManager* nam)
     QObject::connect(&comics, &ComicDownloader::removed, &comics,
         [&](const QString& fid) { if (fid == id) sawRemoved = true; });
 
-    // Occupies the single lane: beginExtract() starts a real bsdtar QProcess
-    // asynchronously and returns immediately, still "extracting" — since we
-    // never call app.exec() in this scenario, its finished signal cannot fire
-    // out from under the assertions below.
+    // Occupies the single lane: the CBR blocker's beginExtract() starts a real
+    // bsdtar QProcess asynchronously and returns immediately, still
+    // "extracting" — since we never pump the event loop in this scenario, its
+    // finished signal cannot fire out from under the assertions below, so the
+    // assembled edition below stays QUEUED.
     comics.ingestLocalArchive(blockerId, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
                               QStringLiteral("Blocker"), blockerArchive);
     comics.ingestAssembledEdition(id, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
@@ -378,8 +449,11 @@ bool runAssembledIngestCancelFailureScenario(QNetworkAccessManager* nam)
     QTemporaryDir archiveRoot;
     QString blockerArchive;
     QTemporaryDir stagingRoot;
+    // CBR blocker (see runAssembledIngestCancelScenario): keeps the assembled
+    // edition QUEUED via an async extraction, since a CBZ would now fast-path
+    // synchronously (Task 6).
     if (!archiveRoot.isValid() || !stagingRoot.isValid()
-        || !makeCbz(archiveRoot.path(), QStringLiteral("failure-blocker"), &blockerArchive)) {
+        || !makeCbr(archiveRoot.path(), QStringLiteral("failure-blocker"), &blockerArchive)) {
         std::printf("FAIL: could not create cancellation-failure fixtures\n");
         return false;
     }
@@ -433,49 +507,214 @@ int main(int argc, char** argv)
 
     QTemporaryDir temp;
     QString firstArchive;
-    QString secondArchive;
     if (!temp.isValid()
-        || !makeCbz(temp.path(), QStringLiteral("first"), &firstArchive)
-        || !makeCbz(temp.path(), QStringLiteral("second"), &secondArchive)) {
-        std::printf("FAIL: could not create CBZ fixtures\n");
+        || !makeCbz(temp.path(), QStringLiteral("first"), &firstArchive)) {
+        std::printf("FAIL: could not create CBZ fixture\n");
         return 1;
     }
 
     QNetworkAccessManager nam;
-    ComicDownloader comics(&nam);
-    comics.deleteIssue(QStringLiteral("torrent-ingest-1"));
-    comics.deleteIssue(QStringLiteral("torrent-ingest-2"));
 
-    int finishedCount = 0;
-    QObject::connect(&comics, &ComicDownloader::failed, &app,
-        [&app](const QString& id, const QString& reason) {
-            std::printf("FAIL: %s: %s\n", qPrintable(id), qPrintable(reason));
-            app.exit(1);
-        });
-    QObject::connect(&comics, &ComicDownloader::finished, &app,
-        [&](const QString& id) {
-            if (comics.localPages(id).size() != 2
-                || comics.statusOf(id).value(QStringLiteral("state")).toString() != QStringLiteral("done")) {
-                std::printf("FAIL: %s did not surface two reader pages as done\n", qPrintable(id));
-                app.exit(1);
-                return;
+    // ── Task 6: imported CBZ takes the FAST path (no extraction) ─────────────
+    // ingestLocalArchive() now routes through the same two-path ingest as
+    // onFinished(): a natively-readable CBZ moves into the library
+    // archive-in-place. Proven "no extraction" by: it completes SYNCHRONOUSLY
+    // (a same-volume fast-path move is inline; extraction is inherently async
+    // -- it spawns a bsdtar subprocess and needs the event loop), no loose
+    // page folder is created, and the pages come back as decodable
+    // {archive, entry} descriptors. And the ownership-transfer contract holds:
+    // the caller's source file is consumed on success.
+    {
+        const QString id = QStringLiteral("import-cbz-fast");
+        const QString seriesId = QStringLiteral("gc:test");
+        const QString label = QStringLiteral("Volume One");
+        ComicDownloader comics(&nam);
+        comics.deleteIssue(id);
+
+        bool sawFinished = false, sawFailed = false;
+        QString failReason;
+        QObject::connect(&comics, &ComicDownloader::finished, &comics,
+            [&](const QString& fid) { if (fid == id) sawFinished = true; });
+        QObject::connect(&comics, &ComicDownloader::failed, &comics,
+            [&](const QString& fid, const QString& r) { if (fid == id) { sawFailed = true; failReason = r; } });
+
+        comics.ingestLocalArchive(id, seriesId, QStringLiteral("Test Series"), label, firstArchive);
+        const bool finishedSynchronously = sawFinished;   // captured BEFORE any event-loop pump
+
+        if (!waitFor([&] { return sawFinished || sawFailed; })) {
+            std::printf("FAIL: imported CBZ ingest did not complete within timeout\n");
+            return 1;
+        }
+        if (sawFailed) { std::printf("FAIL: imported CBZ ingest failed: %s\n", qPrintable(failReason)); return 1; }
+        if (!finishedSynchronously) {
+            std::printf("FAIL: imported CBZ did NOT take the synchronous fast path "
+                        "(it went async -- extraction ran instead of an archive-in-place move)\n");
+            return 1;
+        }
+        if (QDir(issueDirMirror(seriesId, label, id)).exists()) {
+            std::printf("FAIL: imported CBZ created a loose page folder -- not archive-in-place\n");
+            return 1;
+        }
+        if (QFile::exists(firstArchive)) {
+            std::printf("FAIL: imported CBZ ownership-transfer broken -- source not consumed on success\n");
+            return 1;
+        }
+        if (!QFileInfo(issueArchivePathMirror(seriesId, label, id)).isFile()) {
+            std::printf("FAIL: imported CBZ did not land a canonical archive\n");
+            return 1;
+        }
+        const QVariantList pages = comics.localPages(id);
+        if (pages.size() != 2) {
+            std::printf("FAIL: imported CBZ expected 2 pages, got %d\n", int(pages.size()));
+            return 1;
+        }
+        for (const QVariant& pv : pages) {
+            const QVariantMap p = pv.toMap();
+            const QString archive = p.value(QStringLiteral("archive")).toString();
+            const QString entry = p.value(QStringLiteral("entry")).toString();
+            if (archive.isEmpty() || entry.isEmpty()
+                || MangaTankoban::CbzArchive::readEntry(archive, entry).isEmpty()) {
+                std::printf("FAIL: imported CBZ page is not a decodable archive descriptor\n");
+                return 1;
             }
-            if (++finishedCount == 2) app.exit(0);
-        });
+        }
+        comics.deleteIssue(id);
+        std::printf("OK: imported CBZ takes the fast path (no extraction), source consumed\n");
+    }
 
-    comics.ingestLocalArchive(QStringLiteral("torrent-ingest-1"), QStringLiteral("gc:test"),
-                              QStringLiteral("Test Series"), QStringLiteral("Volume One"), firstArchive);
-    comics.ingestLocalArchive(QStringLiteral("torrent-ingest-2"), QStringLiteral("gc:test"),
-                              QStringLiteral("Test Series"), QStringLiteral("Volume Two"), secondArchive);
+    // ── Task 6: imported CBR falls to EXTRACT-then-repack, still archive-in-place ──
+    {
+        const QString id = QStringLiteral("import-cbr-fallback");
+        const QString seriesId = QStringLiteral("gc:test");
+        const QString label = QStringLiteral("Volume CBR");
+        QString cbrArchive;
+        if (!makeCbr(temp.path(), QStringLiteral("import-cbr"), &cbrArchive)) {
+            std::printf("FAIL: could not build imported-CBR fixture\n");
+            return 1;
+        }
+        ComicDownloader comics(&nam);
+        comics.deleteIssue(id);
 
-    QTimer::singleShot(30000, &app, [&app]() {
-        std::printf("FAIL: extraction timeout\n");
-        app.exit(2);
-    });
-    const int code = app.exec();
-    comics.deleteIssue(QStringLiteral("torrent-ingest-1"));
-    comics.deleteIssue(QStringLiteral("torrent-ingest-2"));
-    if (code != 0) return code;
+        bool sawFinished = false, sawFailed = false;
+        QString failReason;
+        QObject::connect(&comics, &ComicDownloader::finished, &comics,
+            [&](const QString& fid) { if (fid == id) sawFinished = true; });
+        QObject::connect(&comics, &ComicDownloader::failed, &comics,
+            [&](const QString& fid, const QString& r) { if (fid == id) { sawFailed = true; failReason = r; } });
+
+        comics.ingestLocalArchive(id, seriesId, QStringLiteral("Test Series"), label, cbrArchive);
+        if (!waitFor([&] { return sawFinished || sawFailed; }, 30000)) {
+            std::printf("FAIL: imported CBR ingest did not complete within timeout\n");
+            return 1;
+        }
+        if (sawFailed) { std::printf("FAIL: imported CBR ingest failed: %s\n", qPrintable(failReason)); return 1; }
+        if (QDir(issueDirMirror(seriesId, label, id)).exists()) {
+            std::printf("FAIL: imported CBR produced a loose page folder -- repack regressed to flatten\n");
+            return 1;
+        }
+        if (QFile::exists(cbrArchive)) {
+            std::printf("FAIL: imported CBR ownership-transfer broken -- source not consumed on success\n");
+            return 1;
+        }
+        const QVariantList pages = comics.localPages(id);
+        if (pages.size() != 2) {
+            std::printf("FAIL: imported CBR expected 2 repacked pages, got %d\n", int(pages.size()));
+            return 1;
+        }
+        for (const QVariant& pv : pages) {
+            const QVariantMap p = pv.toMap();
+            const QString archive = p.value(QStringLiteral("archive")).toString();
+            const QString entry = p.value(QStringLiteral("entry")).toString();
+            if (archive.isEmpty() || entry.isEmpty()
+                || MangaTankoban::CbzArchive::readEntry(archive, entry).isEmpty()) {
+                std::printf("FAIL: imported CBR page is not a decodable archive descriptor\n");
+                return 1;
+            }
+        }
+        comics.deleteIssue(id);
+        std::printf("OK: imported CBR extracts-then-repacks into an archive row, source consumed\n");
+    }
+
+    // ── Task 6 review (blocker 1): an imported archive that FAILS to extract
+    //    must PRESERVE the caller's source, not delete its only copy ─────────
+    {
+        const QString id = QStringLiteral("import-corrupt-preserve");
+        // A .cbr of pure garbage: probe() rejects it (not a zip), and bsdtar +
+        // 7z both fail to extract it -> "archive extraction failed" -> the
+        // failIngest() path. Before the fix this deleted the source.
+        const QString corrupt = temp.path() + QStringLiteral("/corrupt.cbr");
+        { QFile f(corrupt); if (f.open(QIODevice::WriteOnly)) f.write("this is not any kind of archive, just bytes"); }
+
+        ComicDownloader comics(&nam);
+        comics.deleteIssue(id);
+        bool sawFinished = false, sawFailed = false;
+        QObject::connect(&comics, &ComicDownloader::finished, &comics,
+            [&](const QString& fid) { if (fid == id) sawFinished = true; });
+        QObject::connect(&comics, &ComicDownloader::failed, &comics,
+            [&](const QString& fid, const QString&) { if (fid == id) sawFailed = true; });
+
+        comics.ingestLocalArchive(id, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                                  QStringLiteral("Corrupt"), corrupt);
+        if (!waitFor([&] { return sawFinished || sawFailed; }, 30000)) {
+            std::printf("FAIL: corrupt import did not resolve within timeout\n");
+            return 1;
+        }
+        if (sawFinished || !sawFailed) {
+            std::printf("FAIL: corrupt import should have failed, got %s\n",
+                        sawFinished ? "finished" : "neither");
+            return 1;
+        }
+        if (!QFile::exists(corrupt)) {
+            std::printf("FAIL: a failed import DELETED the caller's only copy (blocker 1 regression)\n");
+            return 1;
+        }
+        QFile::remove(corrupt);
+        std::printf("OK: a failed import preserves the caller's source, not deletes it\n");
+    }
+
+    // ── Task 6 review (blocker 2): re-importing the canonical library file
+    //    itself must NOT delete it (index-loss re-import guard) ──────────────
+    {
+        const QString id = QStringLiteral("import-canonical-guard");
+        const QString seriesId = QStringLiteral("gc:test");
+        const QString label = QStringLiteral("Canonical Guard");
+        QString srcArchive;
+        if (!makeCbz(temp.path(), QStringLiteral("canon-src"), &srcArchive)) {
+            std::printf("FAIL: could not build canonical-guard fixture\n");
+            return 1;
+        }
+        ComicDownloader comics(&nam);
+        comics.deleteIssue(id);
+        bool firstDone = false;
+        QObject::connect(&comics, &ComicDownloader::finished, &comics,
+            [&](const QString& fid) { if (fid == id) firstDone = true; });
+        comics.ingestLocalArchive(id, seriesId, QStringLiteral("Test Series"), label, srcArchive);
+        if (!waitFor([&] { return firstDone; })) { std::printf("FAIL: canonical-guard first import timed out\n"); return 1; }
+
+        const QString canonical = issueArchivePathMirror(seriesId, label, id);
+        if (!QFileInfo(canonical).isFile()) { std::printf("FAIL: canonical-guard first import didn't land a canonical\n"); return 1; }
+
+        // Now re-import pointing AT the canonical itself (the shape of a user
+        // browsing to <AppData>/comics/... after an index loss). isDownloaded
+        // is true; the redundant-source remove must be SKIPPED for a live
+        // library archive -- otherwise the canonical is destroyed.
+        bool secondDone = false;
+        QObject::connect(&comics, &ComicDownloader::finished, &comics,
+            [&](const QString& fid) { if (fid == id) secondDone = true; });
+        comics.ingestLocalArchive(id, seriesId, QStringLiteral("Test Series"), label, canonical);
+        if (!waitFor([&] { return secondDone; })) { std::printf("FAIL: canonical-guard re-import timed out\n"); return 1; }
+
+        if (!QFileInfo(canonical).isFile()) {
+            std::printf("FAIL: re-importing the canonical DELETED it (blocker 2 regression)\n");
+            return 1;
+        }
+        if (!comics.isDownloaded(id) || comics.localPages(id).size() != 2) {
+            std::printf("FAIL: library row broken after re-importing the canonical\n");
+            return 1;
+        }
+        comics.deleteIssue(id);
+        std::printf("OK: re-importing the canonical library file does not destroy it\n");
+    }
 
     // ingestAssembledEdition() — separate ComicDownloader instances so these
     // scenarios never interact with the event loop or signal handlers wired up
@@ -487,5 +726,6 @@ int main(int argc, char** argv)
     if (!runAssembledIngestCancelScenario(&nam)) return 1;
     if (!runAssembledIngestCancelFailureScenario(&nam)) return 1;
 
+    Q_UNUSED(app);
     return 0;
 }

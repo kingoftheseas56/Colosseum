@@ -413,6 +413,7 @@ void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString
     const QString id = issueIdIn.trimmed();
     const QString archivePath = QDir::cleanPath(archivePathIn);
     const QFileInfo archive(archivePath);
+    const QString absSource = archive.absoluteFilePath();
     static const QSet<QString> allowed{
         QStringLiteral("cbr"), QStringLiteral("cbz"),
         QStringLiteral("cb7"), QStringLiteral("cbt")
@@ -426,7 +427,12 @@ void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString
         return;
     }
     if (isDownloaded(id)) {
-        QFile::remove(archivePath);
+        // Redundant re-ingest of an already-downloaded id -- the source this
+        // call brought is surplus, so honor the delete-on-success contract...
+        // UNLESS the caller browsed to a live library archive itself (e.g.
+        // re-importing the canonical after an index loss): deleting that would
+        // destroy the comic the index still points at (Task 6 review).
+        if (!isLiveLibraryArchive(absSource)) QFile::remove(absSource);
         emit finished(id);
         return;
     }
@@ -436,11 +442,32 @@ void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString
     for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
         if (it.value().id == id) return;
 
+    // Crash-recovery adoption (Task 6): the same check downloadIssue() runs.
+    // ingestLocalArchive() is the single-archive ingest boundary every torrent
+    // path funnels through too, so an interrupted prior attempt for this id can
+    // leave a valid canonical with no index row (the app was killed after the
+    // move/repack but before saveIndex). Adopt it directly rather than
+    // re-ingesting -- and, critically for this path, the ownership-transfer
+    // contract means the caller's source may already be gone (a same-volume
+    // fast-path rename consumed it last time), so re-ingesting isn't always
+    // even possible; the orphaned canonical is the surviving copy. On adoption
+    // the source this call brought is redundant, so honor the delete-on-success
+    // contract by removing it -- again, unless it IS a live library archive
+    // (the user re-imported the canonical the adopted row now points at).
+    const QString adoptLabel = issueLabel.isEmpty() ? id : issueLabel;
+    if (!m_index.contains(id)
+        && QFileInfo(issueArchivePath(seriesId, adoptLabel, id)).isFile()
+        && adoptExistingCanonicalIfValid(id, seriesId, seriesTitle, adoptLabel)) {
+        if (!isLiveLibraryArchive(absSource)) QFile::remove(absSource);
+        emit finished(id);
+        return;
+    }
+
     InFlight flight;
     flight.id = id;
     flight.seriesId = seriesId;
     flight.seriesTitle = seriesTitle;
-    flight.label = issueLabel.isEmpty() ? id : issueLabel;
+    flight.label = adoptLabel;
     flight.archivePath = archive.absoluteFilePath();
     flight.receivedBytes = archive.size();
     flight.expectedBytes = archive.size();
@@ -453,7 +480,12 @@ void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString
         return;
     }
     m_active = new InFlight(std::move(flight));
-    beginExtract(*m_active);
+    // Task 6: converge on the SAME two-path ingest onFinished() uses -- a
+    // natively-readable imported CBZ moves in with no extraction; a CBR (or an
+    // unreadable CBZ) still extracts-then-repacks. Both consume archivePath on
+    // success, preserving this function's ownership-transfer contract. Was an
+    // unconditional beginExtract().
+    ingestArchiveByProbe(*m_active);
 }
 
 void ComicDownloader::ingestAssembledEdition(const QString& editionIdIn, const QString& seriesId,
@@ -1016,21 +1048,32 @@ void ComicDownloader::onFinished()
         return;
     }
     emit progress(f.id, static_cast<double>(f.receivedBytes), static_cast<double>(f.receivedBytes));
+    ingestArchiveByProbe(f);
+}
 
-    // Two-path ingest (Task 4): probe first. A natively-readable CBZ is moved
-    // into the library archive-in-place -- no extraction, no repack. Anything
-    // else (a CBR, or a CBZ that fails probe()'s content checks) falls
-    // through to the existing extract-then-repack fallback, unchanged in its
-    // extraction half. Not gated by file extension -- GetComics mislabels
-    // suffixes; probe by content, always.
+// The shared two-path-ingest decision (Task 4, extended to a shared helper in
+// Task 6): probe the archive at f.archivePath first. A natively-readable CBZ
+// is moved into the library archive-in-place -- no extraction, no repack.
+// Anything else (a CBR, or a CBZ that fails probe()'s content checks) falls
+// through to the existing extract-then-repack fallback. Not gated by file
+// extension -- a source may lie about its suffix; probe by content, always.
+//
+// Both branches CONSUME f.archivePath on success: finalizeSafeMove() renames
+// it into place (same volume) or copies-then-deletes it (cross volume);
+// finalizeExtract() deletes it after saveIndex(). This is exactly the
+// ownership-transfer contract ingestLocalArchive() documents (the caller's
+// source file is deleted on success), so routing a local import through here
+// preserves that contract for free -- no per-caller special-casing.
+void ComicDownloader::ingestArchiveByProbe(InFlight& f)
+{
     const MangaTankoban::CbzProbeResult probe = MangaTankoban::CbzArchive::probe(f.archivePath);
     if (probe.nativelyReadable) {
-        qInfo() << "[ComicDownloader] archive complete id=" << f.id << "bytes=" << f.receivedBytes
+        qInfo() << "[ComicDownloader] archive ready id=" << f.id << "bytes=" << f.receivedBytes
                 << "— natively readable, moving into place (no extraction)";
         finalizeSafeMove(f, probe);
         return;
     }
-    qInfo() << "[ComicDownloader] archive complete id=" << f.id << "bytes=" << f.receivedBytes
+    qInfo() << "[ComicDownloader] archive ready id=" << f.id << "bytes=" << f.receivedBytes
             << "— not natively readable, extracting";
     beginExtract(f);
 }
@@ -1094,6 +1137,36 @@ void ComicDownloader::failPreservingSource(InFlight& f, const QString& reason)
     f.partPath.clear();
     f.extractTmp.clear();
     failAndCleanup(f, reason);
+}
+
+void ComicDownloader::failIngest(InFlight& f, const QString& reason)
+{
+    if (!f.localArchive) {
+        // HTTP download: the staging file is re-downloadable, so deleting it
+        // (failAndCleanup's default) costs nothing and avoids a leak.
+        failAndCleanup(f, reason);
+        return;
+    }
+    // Local-archive import (torrent-produced or user-picked): the source is
+    // the ONLY copy. Preserve it -- but still let failAndCleanup clean up OUR
+    // extraction temp dir (it's ours, not the source), so spare only
+    // archivePath/partPath, NOT extractTmp (the difference from
+    // failPreservingSource, which preserves the temp dir too for a
+    // repair-before-prune retry -- pointless here, the extraction failed).
+    qCritical() << "[ComicDownloader] preserving imported source on failure id=" << f.id
+               << "reason=" << reason << "source=" << f.archivePath;
+    f.archivePath.clear();
+    f.partPath.clear();
+    failAndCleanup(f, reason);
+}
+
+bool ComicDownloader::isLiveLibraryArchive(const QString& absPath) const
+{
+    if (absPath.isEmpty()) return false;
+    for (const Entry& e : m_index)
+        if (e.usesArchive() && QFileInfo(e.archive).absoluteFilePath() == absPath)
+            return true;
+    return false;
 }
 
 void ComicDownloader::finalizeSafeMove(InFlight& f, const MangaTankoban::CbzProbeResult& probe)
@@ -1344,7 +1417,7 @@ void ComicDownloader::startNextQueued()
         if (m_active->assembledIngest)
             publishAssembledEdition(*m_active);
         else if (m_active->localArchive)
-            beginExtract(*m_active);
+            ingestArchiveByProbe(*m_active);   // Task 6: two-path ingest, was beginExtract()
         else
             startAttempt(*m_active);
     }
@@ -1360,7 +1433,7 @@ void ComicDownloader::beginExtract(InFlight& f)
     f.extractTmp = f.archivePath + QStringLiteral(".x");
     QDir(f.extractTmp).removeRecursively();
     if (!QDir().mkpath(f.extractTmp)) {
-        failAndCleanup(f, QStringLiteral("cannot create extract dir"));
+        failIngest(f, QStringLiteral("cannot create extract dir"));
         return;
     }
     runExtractor(f, 0);
@@ -1382,7 +1455,7 @@ void ComicDownloader::runExtractor(InFlight& f, int which)
     }
     if (exe.isEmpty()) {
         if (which == 0) { runExtractor(f, 1); return; }
-        failAndCleanup(f, QStringLiteral("no archive extractor available (tar/7z)"));
+        failIngest(f, QStringLiteral("no archive extractor available (tar/7z)"));
         return;
     }
     if (m_proc) { m_proc->deleteLater(); m_proc = nullptr; }
@@ -1408,7 +1481,7 @@ void ComicDownloader::onExtractDone(int exitCode, int which)
             runExtractor(f, 1);
             return;
         }
-        failAndCleanup(f, QStringLiteral("archive extraction failed (not a cbr/cbz?)"));
+        failIngest(f, QStringLiteral("archive extraction failed (not a cbr/cbz?)"));
         return;
     }
     finalizeExtract(f);

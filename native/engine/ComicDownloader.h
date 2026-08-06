@@ -74,9 +74,17 @@ public:
                                    const QString& seriesId, const QString& seriesTitle,
                                    const QString& issueLabel, double expectedBytes = 0);
 
-    // Feed a CBR/CBZ/CB7/CBT produced by another transport into the same
-    // extraction/index/reader pipeline. Ownership transfers to this object:
-    // the source archive is deleted after extraction or terminal failure.
+    // Feed a CBR/CBZ/CB7/CBT produced by another transport into the SAME
+    // two-path ingest onFinished() uses (Task 6): a natively-readable CBZ
+    // moves into the library archive-in-place with no extraction; anything
+    // else extracts-then-repacks. Ownership transfers to this object: the
+    // source archive is CONSUMED on success (moved into place, or copied then
+    // deleted). On FAILURE the source is now PRESERVED, not deleted (Task 4's
+    // repair-before-prune, inherited via the shared path) -- a failed ingest
+    // must never destroy the caller's only copy; a retry or crash-recovery
+    // adoption reclaims it instead. (Was: deleted on failure too -- changed
+    // deliberately, because destroying a source on a transient failure is the
+    // exact data-loss shape this arc exists to close.)
     Q_INVOKABLE void ingestLocalArchive(const QString& issueId, const QString& seriesId,
                                         const QString& seriesTitle, const QString& issueLabel,
                                         const QString& archivePath);
@@ -305,6 +313,22 @@ private:
     // failAndCleanup() for these specific failures would not (it would delete
     // the very source this task exists to protect).
     void failPreservingSource(InFlight& f, const QString& reason);
+    // Terminal failure for an EXTRACTION-path failure (missing extractor,
+    // unreadable payload) that respects the ingest source's ownership (Task 6):
+    // a local-archive import (torrent-produced or user-picked) has no other
+    // copy, so its source is PRESERVED on failure -- but OUR extraction temp
+    // dir is still cleaned up (it's ours, not the source). An HTTP download's
+    // staging file is re-downloadable, so it keeps the plain failAndCleanup()
+    // (deleting a re-downloadable temp buys nothing). Deleting a local import's
+    // only copy on an environmental failure is the exact data-loss shape this
+    // arc closes.
+    void failIngest(InFlight& f, const QString& reason);
+    // True if `absPath` is the archive of some live m_index row -- a guard for
+    // the ingestLocalArchive() removes: after an index loss a user could
+    // re-import the canonical file itself, and blindly deleting the caller's
+    // source would then destroy a comic the freshly-written/existing row still
+    // points at (Task 6 review).
+    bool isLiveLibraryArchive(const QString& absPath) const;
     void cancelAndCleanup(InFlight& f);
     DownloadFileOps::Result cleanupCancelledPayload(InFlight& f);
     void closePart(InFlight& f);
@@ -318,6 +342,16 @@ private:
     void cleanupExtract(InFlight& f);
 
     // ── Two-path ingest (Task 4, CBZ-in-place plan) ───────────────────────────
+    // The shared probe-then-branch decision: a natively-readable CBZ at
+    // f.archivePath takes the fast path (finalizeSafeMove, archive-in-place),
+    // anything else falls to extract-then-repack (beginExtract). Called from
+    // onFinished() (HTTP download) AND ingestLocalArchive() (Task 6:
+    // user-imported / torrent-produced single archives) so both share ONE
+    // ingest mechanism, not a duplicated branch. Both success paths consume
+    // f.archivePath, which is exactly ingestLocalArchive's ownership-transfer
+    // contract.
+    void ingestArchiveByProbe(InFlight& f);
+
     // The canonical archive location for an issue -- a FILE sibling to (never
     // colliding with) the legacy loose-folder path issueDir() returns, so
     // Task 7's migration can have both `archive` and `dir` populated for one
