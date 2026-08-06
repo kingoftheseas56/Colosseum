@@ -48,7 +48,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | Command | Gate | What it does | Honest limits |
 |---|---|---|---|
 | `ping` | Read | schema, pid, pipe, gate states, sorted command list | authoritative capability probe — trust this over any doc, including this one |
-| `get-state` | Read | root windows (title, geometry, visible, active) + artifact runDir | **root windows only** |
+| `get-state` | Read | root windows (title, geometry, visible, active) + artifact runDir + **resolved `appDataRoot`/`cacheRoot`** (the isolation-proof seam, added 2026-08-06) | **root windows only** |
 | `qml-get` | Read | read named QML properties off an item (by objectName or handle) | property equality only, values as QVariant→JSON |
 | `ui-query` | Read | one item's scene rect, visible, enabled, opacity, clippedByWindow | clipping measured against the FIRST root window only |
 | `dump-ui` | Read | every item with a non-empty objectName (DFS, depth, scene coords) | unnamed items invisible; no visibility filter |
@@ -58,7 +58,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `ui-text-input` | Drive | forceActiveFocus + per-char KeyPress | no KeyRelease pairs |
 | `ui-scroll` | Drive | wheel event, `dy` (default −120) | no scroll phases |
 | `ui-wait-for` | Read | poll one property until **equal** to a value | 50 ms poll, default 3 s timeout, strict equality ONLY — no operators, no compound predicates |
-| `invoke-read` | Read | allowlisted C++ method calls | **exactly 6 methods, all `TankobanVolumes`**; QString args (max 3); returns only list/map/bool |
+| `invoke-read` | Read | allowlisted C++ method calls | **8 methods**: six `TankobanVolumes` reads + `BiblioImageDiag.rowsForUrl(urlFragment)` / `BiblioImageDiag.recentRows(limitText)` (per-URL image-network rows: status, error, cacheHit, bytes, contentType, timing — newest first; added 2026-08-06). QString args (max 3); returns only list/map/bool |
 | `events-tail` | Read | last N lines of the JSONL event log | see "Event log truths" |
 | `log-mark` | Read | append a correlation mark to the event log | the ONLY event type that exists today |
 
@@ -95,9 +95,48 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   loader, model, image, network, warning, or player events. `events-tail` reads the whole file
   per call.
 
+### Test sessions — `lanista session run` (added 2026-08-06, pilot-proven 13/13)
+
+- `lanista session run <scenario.json> [--exe] [--qml] [--tag <t>] [--drive] [--seed <dir>]
+  [--ready-ms] [--keep-going]` — launches a DISPOSABLE tagged app on a unique pipe
+  (`ColosseumLanista-<sessionId>`; refuses the daily default), waits for `ping` readiness with
+  a **pid match**, **proves isolation from the app's own `get-state` report** (both
+  `appDataRoot` and `cacheRoot` must carry the `Colosseum-dltest-<tag>` marker or the session
+  kills itself), runs the scenario, pulls grabs, stops graceful-then-kill, and writes a
+  `colosseum.session.v1` manifest + `stdout.log`/`stderr.log` into
+  `artifacts/lanista-sessions/<id>/`. Exit codes follow the runner contract (infra 4 on any
+  start/isolation failure).
+- **Empirical correction (pilot, 2026-08-06): `COLOSSEUM_APPDATA_TAG` re-roots the image
+  cache too** — `CacheLocation` derives from `applicationName` on Windows and both cache
+  users resolve their path after the tag is applied. The earlier "does NOT move
+  CacheLocation" caution below is retired; the session controller still asserts it per run
+  rather than trusting the rule.
+- `--seed <dir>` copies a fixture tree into the tagged AppData root pre-launch. Registry-backed
+  QSettings are NOT seedable this way — only file-backed stores.
+- Interactive `session start`/`stop` (a session outliving one command) does NOT exist —
+  deferred to the MCP-facade arc. All per-card/dynamic logic must live inside a runner verb.
+
+### Named automation surfaces (added 2026-08-06)
+
+- `modePill_<Tankoban|Biblio|Theatre|Vinyl>` (TopBar mode switch — plain Items with child
+  MouseArea, invisible to `ui-snapshot`'s interactive walk, clickable BY NAME only)
+- `bootSplash` (wait `visible == false` before driving ANYTHING — clicks land "green" on the
+  occluded tree while it owns the screen; proven by pixels in pilot run 1)
+- `biblioDiscoverPage` with `loading` (bool) and `freshness` (string: `"bundled"` = one-book
+  built-in fallback wall; `"fresh"/"aging"/"stale"` = real catalog rows — wait for `"fresh"`
+  before asserting on catalog content; proven necessary in pilot run 3)
+- `discoverCard_<itemId>` on materialized Discover delegates (world-neutral; skeletons
+  unnamed), with `discoverCard_<id>_art` (RoundedPosterImage: `activeSource`, `exhausted`,
+  `candidateIndex`, `sources`, `ready`) and `discoverCard_<id>_art_img` (the inner `Image`:
+  `source`, `status`, `sourceSize`, `paintedWidth/Height`). **Only delegates near the
+  viewport exist** — GridView virtualization; scrolling materializes more.
+
 ### Scenario runner (`native/tools/lanista.cpp`)
 
-- Pure client — **it never launches the app**; something else must boot the process first.
+- Pure client for every verb except `session run` (above); `run`/`suite` still require the
+  app booted externally.
+- A step's client deadline honors its own `payload.timeout_ms` (+5 s slack, floor 10 s) —
+  long `ui-wait-for`s no longer die at a flat 10 s cap as phantom INFRA (fixed 2026-08-06).
 - Verbs: single command (`lanista <cmd> k=v [--grab target]`), `run <scenario.json>
   [--keep-going]`, `expect <cmd> <dot.path> <op> [value]`, `bless <target> <golden>`, `suite
   [--dir] [--out]` (JUnit + Markdown + failure PNGs), `brief <arc>` (eyes-on gallery).
@@ -125,9 +164,10 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 
 - `COLOSSEUM_LANISTA_PIPE` — unique pipe per instance. **Required** for any test session.
 - `COLOSSEUM_APPDATA_TAG=<tag>` — re-roots every `AppDataLocation` store (settings, indexes,
-  downloads, lanista logs/runs) to a disposable `Colosseum-dltest-<tag>` sibling. **Does NOT
-  move `CacheLocation`** — the image cache (`<Cache>/colosseum-images`) is still SHARED with the
-  daily app. Does not change the pipe name.
+  downloads, lanista logs/runs) **and `CacheLocation` (the image cache included)** to
+  disposable `Colosseum-dltest-<tag>` siblings — both derive from `applicationName` on
+  Windows, verified empirically by the pilot's isolation assert (2026-08-06). Does not change
+  the pipe name; `session run` sets the pipe itself.
 - `dev.bat` isolates **nothing**: no pipe override, no data tag, no gates — it shares the daily
   app's data, cache, and default pipe. It is a live-reload convenience, not a test session.
 
@@ -159,14 +199,17 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
 
 ## UNAVAILABLE (nothing designed will change this soon — plan around it)
 
-- **Per-card image diagnostics.** `PosterScoreboard`/`NetScoreboard` counts arrived/failed/
-  undecodable **per HOST only** — no URL, no card mapping, no cache hit/miss, no decode size,
-  no timing. And `NetScoreboard.summary` is **not** on the `invoke-read` allowlist, so it isn't
-  reachable through the bridge at all today.
+- **A per-card WALK/JOIN.** The halves exist separately (per-URL rows via
+  `BiblioImageDiag`, per-card QML truth via the named `discoverCard_*` chain) but nothing
+  enumerates the wall's cards and joins the two into per-card verdicts — scenario JSON is
+  static and cannot loop over names it discovers at runtime. Needs a runner verb.
 - **Any typed event or event wait.** `ui-wait-for` strict property equality is the only wait.
+- **Interactive sessions** (`session start`/`stop` — a session an agent drives command by
+  command). Only the self-contained `session run` exists.
 - **Secondary windows and own-window popups** — invisible to state, snapshot, and grabs.
-- **Launching the app from the runner** — orchestration is external today.
 - **Semantic sharpness/size verdicts on pixels** — dHash drift only.
+- **Absence assertions.** `expect` has `exists` but no `absent` — a scenario cannot assert a
+  path is missing (e.g. "no un-normalized fetch rows"). Note it when a plan needs one.
 
 ## HUMAN-ONLY (never claim these from the bridge)
 
