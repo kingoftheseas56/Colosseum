@@ -218,6 +218,10 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
    path, demanded by the three-layer minimize/restore regression (test ledger, slice 7):
    the bridge cannot reach the Windows taskbar, so restoring a minimized session is
    impossible today and that slice's runtime layer is Bridge blocked on exactly this.
+   **Named alternative shape (tooling map, 2026-08-06):** an outside-the-process
+   FlaUI/winapp prototype — it acts where in-process code can't (real taskbar, real
+   focus) and verifies what Windows shows the user. Decide in-process vs. outside when
+   the demand's customer arrives; see `docs/colosseum-verification-tooling-map.md`.
 
 ## UNAVAILABLE (nothing designed will change this soon — plan around it)
 
