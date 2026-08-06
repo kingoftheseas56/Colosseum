@@ -75,6 +75,30 @@ set_tests_properties(colosseum.qttest.window_state_policy PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Qt Quick Test runner (slice 4) ───────────────────────────────────────────
+# One repo-built runner over tests/qml/tst_*.qml, replacing the Qt-install
+# qmltestrunner.exe path hardcoded in the legacy .ps1 gates. -input points at
+# the SOURCE tests/qml dir so the tests' file-relative production imports
+# ("../../qml/...") resolve against the real tree. These tests open REAL
+# windows (physical hit-testing is their point): label `qml`, never an
+# offscreen gate.
+find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
+add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
+target_link_libraries(colosseum_qml_tests
+    PRIVATE Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+set_target_properties(colosseum_qml_tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET colosseum_qml_tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QuickTest>" "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qml
+         COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml")
+set_tests_properties(colosseum.qml PROPERTIES
+    LABELS "qml;windows"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 300)
+
 # ── Red canary — the permanent negative control ──────────────────────────────
 # Proves ctest actually surfaces a failing command as red (WILL_FAIL inverts
 # it, so the suite stays green while the detection path is exercised on every

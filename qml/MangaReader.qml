@@ -23,4 +23,10 @@
 import QtQuick
 import "comicreader"
 
-ComicReaderShell { }
+// Automation identity (Lanista, Qt Test arc slice 6): the reader's authoritative
+// session state — seriesId, chapterId/curChapterId, currentPage, pageCount, mode,
+// _stripRestorePending — is readable through the bridge as stable properties on
+// this ONE name (`qml-get comicReaderShell`). The reader-state vocabulary shared
+// by tests and Lanista IS these properties; a versioned C++ snapshot object waits
+// for a consumer that needs more than they answer (demand-driven, per doctrine).
+ComicReaderShell { objectName: "comicReaderShell" }

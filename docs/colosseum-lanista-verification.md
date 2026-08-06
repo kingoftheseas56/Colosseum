@@ -196,6 +196,10 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
    `lanista_probe`, …) with real deadlines; refuse the daily-app pipe unless explicit.
 8. **WebEngine + media observation** — read-only URL/DOM-readiness/console and
    source/buffering/seek probes behind the proper gates.
+9. **`window-set-state` (Drive-gated)** — minimize/restore/normal via the real QWindow
+   path, demanded by the three-layer minimize/restore regression (test ledger, slice 7):
+   the bridge cannot reach the Windows taskbar, so restoring a minimized session is
+   impossible today and that slice's runtime layer is Bridge blocked on exactly this.
 
 ## UNAVAILABLE (nothing designed will change this soon — plan around it)
 

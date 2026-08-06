@@ -126,17 +126,28 @@ both verified live as 0xc0000135-before-main: Qt Test exes must land in `build-m
 beside the app-deployed Qt DLLs (`RUNTIME_OUTPUT_DIRECTORY`), and `Qt6Test.dll` itself
 is staged by a POST_BUILD copy (no app deploy step ever shipped it).
 
-## Registered Qt Quick Test targets
+## Registered Qt Quick Test targets (slice 4–5, 2026-08-06)
 
-**None registered.** Two Quick Test FILES exist and run via external `qmltestrunner`:
+**One runner, one CTest entry, four test files, 21 cases:**
+`colosseum.qml` runs the repo-built `colosseum_qml_tests` (QUICK_TEST_MAIN_WITH_SETUP —
+the setup object supplies a TEST application identity + INI settings in a per-run temp
+dir, because production `Settings` blocks fail to initialize without one; verified live)
+with `-input` pointed at the SOURCE `tests/qml/`, so file-relative production imports
+resolve against the real tree. Labels `qml;windows` — these open REAL windows; never an
+offscreen gate. Qt6::QuickTest discovered only under BUILD_TESTING; `Qt6QuickTest.dll`
+staged by POST_BUILD beside the exe (same 0xc0000135 disease as Qt6Test.dll).
 
-| File | Proves | Needs | Gate |
-|---|---|---|---|
-| `tests/qml/tst_comicreader_title_controls.qml` | REAL mouse hit-testing against production `ComicReaderHud` (visible 900×600 window — the whole point; offscreen never exercises real hit-testing) | visible window | `test_comicreader_chrome.ps1` |
-| `tests/qml/tst_search_history_flow.qml` | search-history flow against production QML | visible window | `test_search_history_p0.ps1` |
+| File | Proves | Notes |
+|---|---|---|
+| `tst_comicreader_title_controls.qml` | REAL mouse hit-testing against production `ComicReaderHud` | pre-existing; legacy `qmltestrunner` gate still works |
+| `tst_search_history_flow.qml` | search-history flow against production QML | pre-existing. **KNOWN FLAKE:** `test_biblioRecentChipBodyAndRemoveHaveIndependentClickTargets` fails ~1 run in 3 (real-window focus/timing); pre-dates the runner — reconciliation owed by its owner, not silently rerun-until-green |
+| `tst_comicreader_resume_race.qml` | the four resume-race regressions (T1 mount-time page-1 cannot overwrite a restore · T2 manualActivity disarms · T3 give-up clears both arms · T4 goMinimize flushes synchronously before emitting once) as independent cases: tryVerify on the debounced write, SignalSpy, createTemporaryObject; T3 injects a `seriesRecords` record (`layout: long_strip`) because the fraction arms only at long_strip OPEN — the legacy harness got that from ambient runner prefs. Negative control performed (one flipped expectation → exactly one named red). Converted from `comicreader_resume_race_harness.qml`, which stays with its gate until parity review | slice-5 pilot |
+| `window_behavior_harness.qml` | (still top-level, still orphaned) | adoption candidate |
 
-Also: `tests/window_behavior_harness.qml` is the ONLY top-level file importing QtTest
-(2 TestCases) — **and no runner references it.** Orphaned Quick Test.
+**Conversion learning worth keeping:** QML `Settings` writes are batched/deferred — a
+test that writes a preference through one component instance and expects another
+instance to read it immediately is racing the batch timer. Inject the record layer
+instead; never "fix" it with a wait.
 
 ## Existing bespoke estate — classification
 
@@ -268,6 +279,30 @@ race is a real shipped regression worth permanent per-case protection).
 **Leave bespoke (do not convert):** the probes, the seeders, the live-network triage
 tools, the grep-gates (retire or fold into behavior gates over time, don't convert), the
 giant comicreader shells until the pilot pattern is proven.
+
+## Reader-state vocabulary (slice 6, 2026-08-06)
+
+The reader's authoritative session state is readable as stable properties on ONE named
+surface: `qml-get comicReaderShell` (production `MangaReader.qml` names its shell) —
+`seriesId`, `curChapterId`, `currentPage`, `pageCount`, `mode`, `_stripRestorePending`.
+This is the shared state vocabulary for Qt Quick Test assertions AND Lanista replays. A
+versioned C++ snapshot object (`colosseum.reader-state.v1`) is deliberately DEFERRED
+until a consumer needs more than these properties answer — demand-driven, not built on
+spec.
+
+## Three-layer minimize/restore regression (slice 7 — layer status, 2026-08-06)
+
+- **Qt Test:** pass — `colosseum.qttest.window_state_policy` (geometry + window-mode
+  persistence round-trip).
+- **Qt Quick Test:** pass — `tst_comicreader_resume_race.qml` (restored-state
+  consumption, stale-write prevention, synchronous minimize flush).
+- **Lanista (real OS minimize → taskbar restore → same page):** **Bridge blocked.** The
+  bridge cannot restore a minimized window: `ui-click` needs an on-screen item, nothing
+  can reach the Windows taskbar, and no window-state command exists. Smallest
+  prerequisite, recorded in the Lanista ledger's Planned section: a Drive-gated
+  `window-set-state` command (minimize/restore via QWindow showMinimized/showNormal —
+  the real product path, not a simulation). Until it lands, the assembled-app
+  minimize/restore proof remains human-witnessed only.
 
 ## Runtime boundary (unchanged by this arc)
 
