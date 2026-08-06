@@ -117,6 +117,10 @@ Item {
     readonly property alias catalogMenuModel: browser.catalogMenuModel
     property alias items: browser.items
     property alias loading: browser.loading
+    // Automation seam (Lanista pilot): "bundled" means the one-book built-in fallback wall;
+    // "fresh"/"aging"/"stale" mean real catalog rows. The pilot waits on this instead of
+    // guessing when the async built-in→live flip has happened.
+    readonly property alias freshness: browser.freshness
 
     function applyPin(p, returnToExplore) {
         pin = p || null

@@ -107,6 +107,9 @@ Item {
         // the real artwork — genuine rounded crop, bounded decode, candidate fallback, cheap depth.
         RoundedPosterImage {
             id: art
+            // Automation identity (Lanista): ride the card's name so the bridge can read this
+            // renderer's candidate/decode state for a specific item. Empty when the card is unnamed.
+            objectName: card.objectName.length > 0 ? card.objectName + "_art" : ""
             visible: !card.skeleton
             anchors.fill: parent
             radius: card._m.posterRadius

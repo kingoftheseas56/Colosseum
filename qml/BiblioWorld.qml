@@ -147,6 +147,9 @@ WorldPage {
     //    switches, exactly like Theatre's DiscoverPage. ──
     BiblioDiscoverPage {
         id: discoverPage
+        // Automation identity (Lanista): the pilot scenario waits on this page's `loading`
+        // flag instead of sleeping — a name is what makes that wait addressable.
+        objectName: "biblioDiscoverPage"
         visible: biblio.activeTab === "discover"
         width: parent.width
         height: visible ? Math.max(620, biblio.height - 200) : 0

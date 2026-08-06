@@ -91,6 +91,9 @@ Item {
         }
         Image {
             id: art
+            // Automation identity (Lanista): the decode-truth surface (status/sourceSize/painted
+            // size live HERE, not on the wrapper). Named only when the owner named the wrapper.
+            objectName: root.objectName.length > 0 ? root.objectName + "_img" : ""
             anchors.fill: parent
             source: root.activeSource
             fillMode: Image.PreserveAspectCrop

@@ -20,9 +20,12 @@
 //   4  infrastructure: the bridge was unreachable (NO_PIPE / TIMEOUT) — NOT a red
 //   5  scenario error: the scenario file was unopenable, malformed, or empty
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDate>
+#include <QDateTime>
 #include <QDir>
 #include <QDirIterator>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -31,7 +34,12 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QLocalSocket>
+#include <QProcess>
+#include <QProcessEnvironment>
 #include <QRegularExpression>
+#include <QStandardPaths>
+#include <QThread>
+#include <QUuid>
 #include <iostream>
 
 #include "tools/LanistaHash.h"
@@ -190,6 +198,222 @@ static bool opMatches(const QJsonValue& actual, const QString& op, const QString
 
 static QString goldenDir() { return QStringLiteral("tests/lanista_goldens"); }
 
+// ── test sessions (decision brief 2026-08-06 §1–§3) ─────────────────────────
+//
+// A session is a CLIENT-OWNED disposable app process: unique pipe (never the
+// daily app's default), tagged AppData/cache roots (COLOSSEUM_APPDATA_TAG),
+// explicit gates, captured stdout/stderr, a readiness ping that must answer
+// with the launched pid, an ISOLATION PROOF (both storage roots must carry the
+// tag — asserted against get-state, never assumed from Qt's path rules), and a
+// machine-readable session.json manifest. The daily app is not a test fixture:
+// a session that would land on the default pipe refuses to start.
+
+struct SessionSpec {
+    QString exe = QStringLiteral("native/build-msvc/colosseum.exe");
+    QString qml = QStringLiteral("qml/Main.qml");
+    QString tag;                 // COLOSSEUM_APPDATA_TAG value; defaults to the session id
+    QString seedDir;             // optional fixture tree copied into the AppData root pre-launch
+    bool drive = false;          // COLOSSEUM_LANISTA_DRIVE=1
+    int readyMs = 30000;         // ping-until-ready deadline
+};
+
+static bool copyTree(const QString& srcDir, const QString& dstDir)
+{
+    QDir().mkpath(dstDir);
+    QDirIterator it(srcDir, QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        const QString rel = QDir(srcDir).relativeFilePath(it.filePath());
+        const QString dst = dstDir + QLatin1Char('/') + rel;
+        if (it.fileInfo().isDir()) {
+            if (!QDir().mkpath(dst)) return false;
+        } else {
+            QDir().mkpath(QFileInfo(dst).absolutePath());
+            if (!QFile::copy(it.filePath(), dst)) return false;
+        }
+    }
+    return true;
+}
+
+static QString fileSha256(const QString& path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    QCryptographicHash h(QCryptographicHash::Sha256);
+    h.addData(&f);
+    return QString::fromLatin1(h.result().toHex());
+}
+
+struct Session {
+    SessionSpec spec;
+    QString id;
+    QString pipe;
+    QString dir;                 // artifacts/lanista-sessions/<id>/
+    QString appDataRoot;         // as REPORTED by the app, not as computed
+    QString cacheRoot;
+    QProcess proc;
+    QJsonObject manifest;
+    QString error;               // non-empty => start failed
+
+    void writeManifest()
+    {
+        QFile f(dir + QStringLiteral("/session.json"));
+        if (f.open(QIODevice::WriteOnly))
+            f.write(QJsonDocument(manifest).toJson(QJsonDocument::Indented));
+    }
+};
+
+// Launch + prove isolation. On ANY failure the child is killed and error is set:
+// a session that cannot prove it is disposable must not survive to be driven.
+static void startSession(Session& s)
+{
+    // Identity. QUuid keeps parallel sessions collision-free without needing a
+    // registry; the stamp keeps the artifact dirs humanly sortable.
+    s.id = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"))
+         + QLatin1Char('-')
+         + QUuid::createUuid().toString(QUuid::Id128).left(8);
+    if (s.spec.tag.isEmpty()) s.spec.tag = s.id;
+    s.pipe = QStringLiteral("ColosseumLanista-") + s.id;
+    s.dir = QStringLiteral("artifacts/lanista-sessions/") + s.id;
+    QDir().mkpath(s.dir);
+
+    // The daily-app safety line: the controller never lands on the default pipe.
+    if (s.pipe == QStringLiteral("ColosseumLanista")) {
+        s.error = QStringLiteral("refusing the daily app's default pipe");
+        return;
+    }
+    if (!QFileInfo::exists(s.spec.exe)) {
+        s.error = QStringLiteral("exe not found: ") + s.spec.exe;
+        return;
+    }
+
+    // Optional fixture seed. The tagged AppData root is deterministic on Windows
+    // (Roaming/<Org>/<AppName>); computed ONLY for seeding — isolation is still
+    // proven from the app's own report after boot.
+    const QString expectedAppData =
+        QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+        + QStringLiteral("/Brotherhood/Colosseum-dltest-") + s.spec.tag;
+    if (!s.spec.seedDir.isEmpty()) {
+        if (!QDir(s.spec.seedDir).exists()) {
+            s.error = QStringLiteral("seed dir not found: ") + s.spec.seedDir;
+            return;
+        }
+        if (!copyTree(s.spec.seedDir, expectedAppData)) {
+            s.error = QStringLiteral("seed copy failed into ") + expectedAppData;
+            return;
+        }
+    }
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("COLOSSEUM_LANISTA_PIPE"), s.pipe);
+    env.insert(QStringLiteral("COLOSSEUM_APPDATA_TAG"), s.spec.tag);
+    if (s.spec.drive)
+        env.insert(QStringLiteral("COLOSSEUM_LANISTA_DRIVE"), QStringLiteral("1"));
+    env.insert(QStringLiteral("QT_FORCE_STDERR_LOGGING"), QStringLiteral("1"));
+    s.proc.setProcessEnvironment(env);
+    s.proc.setStandardOutputFile(s.dir + QStringLiteral("/stdout.log"));
+    s.proc.setStandardErrorFile(s.dir + QStringLiteral("/stderr.log"));
+    s.proc.setProgram(s.spec.exe);
+    s.proc.setArguments({s.spec.qml});
+
+    const QString launchedAt = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
+    s.proc.start();
+    if (!s.proc.waitForStarted(10000)) {
+        s.error = QStringLiteral("process failed to start");
+        return;
+    }
+    const qint64 pid = s.proc.processId();
+
+    // Readiness: ping the SESSION pipe until it answers — with OUR pid. A pid
+    // mismatch means a stranger owns this pipe name; kill our child and abort
+    // rather than drive an unknown process.
+    g_pipe = s.pipe;
+    QString readyAt;
+    QElapsedTimer clock; clock.start();
+    while (clock.elapsed() < s.spec.readyMs) {
+        const QJsonObject pong = call({{QStringLiteral("cmd"), QStringLiteral("ping")},
+                                       {QStringLiteral("seq"), 1}}, 2000);
+        if (pong.value(QStringLiteral("type")).toString() == QStringLiteral("reply")) {
+            if (qint64(pong.value(QStringLiteral("pid")).toDouble()) != pid) {
+                s.proc.kill(); s.proc.waitForFinished(5000);
+                s.error = QStringLiteral("pipe answered with a foreign pid");
+                return;
+            }
+            readyAt = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
+            break;
+        }
+        if (s.proc.state() != QProcess::Running) {
+            s.error = QStringLiteral("app exited before ready (code %1) — see %2/stderr.log")
+                          .arg(s.proc.exitCode()).arg(s.dir);
+            return;
+        }
+        QThread::msleep(250);
+    }
+    if (readyAt.isEmpty()) {
+        s.proc.kill(); s.proc.waitForFinished(5000);
+        s.error = QStringLiteral("bridge never became ready");
+        return;
+    }
+
+    // Isolation proof: the app's OWN resolved roots must carry the tag. This is
+    // the acceptance gate that turns "Qt should re-root both" into evidence.
+    const QJsonObject st = call({{QStringLiteral("cmd"), QStringLiteral("get-state")},
+                                 {QStringLiteral("seq"), 2}});
+    s.appDataRoot = st.value(QStringLiteral("appDataRoot")).toString();
+    s.cacheRoot = st.value(QStringLiteral("cacheRoot")).toString();
+    const QString marker = QStringLiteral("Colosseum-dltest-") + s.spec.tag;
+    if (!s.appDataRoot.contains(marker) || !s.cacheRoot.contains(marker)) {
+        s.proc.kill(); s.proc.waitForFinished(5000);
+        s.error = QStringLiteral("ISOLATION FAILED — appDataRoot=%1 cacheRoot=%2 (expected marker %3)")
+                      .arg(s.appDataRoot, s.cacheRoot, marker);
+        return;
+    }
+
+    s.manifest = QJsonObject{
+        {QStringLiteral("schema"), QStringLiteral("colosseum.session.v1")},
+        {QStringLiteral("sessionId"), s.id},
+        {QStringLiteral("tag"), s.spec.tag},
+        {QStringLiteral("pipe"), s.pipe},
+        {QStringLiteral("exe"), QFileInfo(s.spec.exe).absoluteFilePath()},
+        {QStringLiteral("exeSha256"), fileSha256(s.spec.exe)},
+        {QStringLiteral("qml"), s.spec.qml},
+        {QStringLiteral("pid"), double(pid)},
+        {QStringLiteral("drive"), s.spec.drive},
+        {QStringLiteral("seedDir"), s.spec.seedDir},
+        {QStringLiteral("launchedAt"), launchedAt},
+        {QStringLiteral("readyAt"), readyAt},
+        {QStringLiteral("appDataRoot"), s.appDataRoot},
+        {QStringLiteral("cacheRoot"), s.cacheRoot},
+        {QStringLiteral("stdoutPath"), s.dir + QStringLiteral("/stdout.log")},
+        {QStringLiteral("stderrPath"), s.dir + QStringLiteral("/stderr.log")},
+    };
+    s.writeManifest();
+}
+
+// Graceful-first stop: closeAllWindows via the process's own WM_CLOSE path
+// (QProcess::terminate posts it on Windows), bounded wait, then kill. The
+// manifest records which one it took — a kill is evidence, not housekeeping.
+static void stopSession(Session& s)
+{
+    QString killReason = QStringLiteral("graceful");
+    if (s.proc.state() == QProcess::Running) {
+        s.proc.terminate();
+        if (!s.proc.waitForFinished(8000)) {
+            s.proc.kill();
+            s.proc.waitForFinished(5000);
+            killReason = QStringLiteral("killed after graceful timeout");
+        }
+    }
+    s.manifest.insert(QStringLiteral("exitedAt"),
+                      QDateTime::currentDateTime().toString(Qt::ISODateWithMs));
+    s.manifest.insert(QStringLiteral("exitCode"), s.proc.exitCode());
+    s.manifest.insert(QStringLiteral("crashed"),
+                      s.proc.exitStatus() == QProcess::CrashExit);
+    s.manifest.insert(QStringLiteral("killReason"), killReason);
+    s.writeManifest();
+}
+
 // Grab a target through the bridge; returns the PNG path or empty.
 static QString grabTarget(const QString& target, int seq)
 {
@@ -296,7 +520,15 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing)
                             {QStringLiteral("seq"), ++seq}};
             if (step.contains(QStringLiteral("payload")))
                 req.insert(QStringLiteral("payload"), step.value(QStringLiteral("payload")));
-            const QJsonObject reply = call(req, 10000);
+            // The client deadline must OUTLIVE a step's own declared server-side wait
+            // (ui-wait-for timeout_ms) — the first pilot run proved a 60 s wait dies at
+            // the old flat 10 s client cap as a phantom INFRA while the server is still
+            // honestly polling. Server timeout + 5 s slack, floor 10 s.
+            int stepTimeout = 10000;
+            const int waitMs = step.value(QStringLiteral("payload")).toObject()
+                                   .value(QStringLiteral("timeout_ms")).toInt(0);
+            if (waitMs > 0) stepTimeout = qMax(stepTimeout, waitMs + 5000);
+            const QJsonObject reply = call(req, stepTimeout);
 
             // I3: a step whose call() came back NO_PIPE/TIMEOUT is an INFRA
             // failure, not a red assertion — the bridge is gone, so keep the run
@@ -383,6 +615,10 @@ static void printUsage(std::ostream& os)
        << "  lanista bless <target> <name>\n"
        << "  lanista suite [--dir <scenarioDir>] [--out <reportDir>]\n"
        << "  lanista brief <arcName> [--from <runDir>]\n"
+       << "  lanista session run <scenario.json> [--exe <path>] [--qml <path>] [--tag <t>]\n"
+       << "                      [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going]\n"
+       << "     (launches a DISPOSABLE tagged app on a unique pipe, proves isolation,\n"
+       << "      runs the scenario, stops the app, writes artifacts/lanista-sessions/<id>/)\n"
        << "\n"
        << "exit codes:\n"
        << "  0  pass (green)\n"
@@ -414,6 +650,68 @@ int main(int argc, char** argv)
     if (verb == QStringLiteral("--help") || verb == QStringLiteral("-h")) {
         printUsage(std::cout);
         return 0;
+    }
+
+    if (verb == QStringLiteral("session")) {
+        if (args.isEmpty() || args.takeFirst() != QStringLiteral("run")) {
+            std::cerr << "session run <scenario.json> [--exe <path>] [--qml <path>] "
+                         "[--tag <t>] [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going]\n";
+            return 2;
+        }
+        SessionSpec spec;
+        const bool keep = args.removeAll(QStringLiteral("--keep-going")) > 0;
+        spec.drive = args.removeAll(QStringLiteral("--drive")) > 0;
+        auto takeOpt = [&args](const QString& flag) -> QString {
+            const int i = args.indexOf(flag);
+            if (i < 0 || i + 1 >= args.size()) return {};
+            const QString v = args[i + 1];
+            args.removeAt(i); args.removeAt(i);
+            return v;
+        };
+        if (const QString v = takeOpt(QStringLiteral("--exe")); !v.isEmpty()) spec.exe = v;
+        if (const QString v = takeOpt(QStringLiteral("--qml")); !v.isEmpty()) spec.qml = v;
+        if (const QString v = takeOpt(QStringLiteral("--tag")); !v.isEmpty()) spec.tag = v;
+        if (const QString v = takeOpt(QStringLiteral("--seed")); !v.isEmpty()) spec.seedDir = v;
+        if (const QString v = takeOpt(QStringLiteral("--ready-ms")); !v.isEmpty())
+            spec.readyMs = v.toInt();
+        if (args.isEmpty()) { std::cerr << "session run: missing <scenario.json>\n"; return 2; }
+        const QString scenario = args.takeFirst();
+
+        Session s; s.spec = spec;
+        startSession(s);
+        if (!s.error.isEmpty()) {
+            std::cerr << "SESSION START FAILED: " << s.error.toStdString() << "\n";
+            stopSession(s);
+            return 4;   // the bridge/app never became drivable — infrastructure, not a red
+        }
+        std::cout << "SESSION " << s.id.toStdString() << " pipe=" << s.pipe.toStdString()
+                  << "\n  appData=" << s.appDataRoot.toStdString()
+                  << "\n  cache=" << s.cacheRoot.toStdString() << "\n";
+
+        const ScenarioRun run = runScenario(scenario, keep);
+        int failed = 0;
+        for (const auto& r : run.steps) if (!r.pass) ++failed;
+
+        // Pull the app-side artifacts (grabs) into the session dir before the
+        // tagged tree is considered disposable.
+        const QJsonObject st = call({{QStringLiteral("cmd"), QStringLiteral("get-state")},
+                                     {QStringLiteral("seq"), 9000}});
+        const QString runDir = st.value(QStringLiteral("runDir")).toString();
+        if (!runDir.isEmpty() && QDir(runDir).exists()) {
+            QDirIterator pngs(runDir, {QStringLiteral("*.png")}, QDir::Files);
+            while (pngs.hasNext()) {
+                pngs.next();
+                QFile::copy(pngs.filePath(),
+                            s.dir + QLatin1Char('/') + pngs.fileName());
+            }
+        }
+        stopSession(s);
+
+        std::cout << run.steps.size() << " steps, " << failed << " failed"
+                  << "  (manifest: " << s.dir.toStdString() << "/session.json)\n";
+        if (run.scenarioError) return 5;
+        if (run.infra) return 4;
+        return failed ? 1 : 0;
     }
 
     if (verb == QStringLiteral("run")) {

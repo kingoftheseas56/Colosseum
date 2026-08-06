@@ -701,6 +701,14 @@ Item {
                 id: card
                 required property int index
                 readonly property bool isSkel: card.index >= browser.items.length
+                // Automation identity (Lanista): a stable per-item name so the bridge can address
+                // a specific card across delegate recycling. Derived from the item's own id (or
+                // title as fallback), NEVER the row index — recycling reuses indices. Skeletons
+                // stay unnamed. World-neutral by construction: whatever items the adapter serves.
+                objectName: (!card.isSkel && card.item && (card.item.id || card.item.title))
+                            ? ("discoverCard_" + String(card.item.id !== undefined && String(card.item.id).length > 0
+                                                        ? card.item.id : card.item.title))
+                            : ""
                 width: wall.cellWidth - 14
                 height: wall.cellHeight - 14
                 visualProfile: browser.posterVisualProfile

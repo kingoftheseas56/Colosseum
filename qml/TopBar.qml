@@ -60,6 +60,10 @@ Item {
     //      comingSoon → a placeholder mode (e.g. Vinyl): muted "SOON" tag, not navigable. ----
     component Pill: Item {
         id: pill
+        // Automation identity (Lanista): the pills are plain Items made clickable by a child
+        // MouseArea — the one shape ui-snapshot's superclass walk documents it cannot detect —
+        // so a stable name is what makes mode navigation drivable at all.
+        objectName: "modePill_" + label
         property string label
         property url icon
         property bool comingSoon: false

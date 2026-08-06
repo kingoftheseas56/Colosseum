@@ -597,7 +597,16 @@ QJsonObject LanistaServer::cmdGetState() const
     }
     return {{QStringLiteral("windows"), windows},
             // Reported as a path; it is not created until an artifact is written.
-            {QStringLiteral("runDir"), m_runDir}};
+            {QStringLiteral("runDir"), m_runDir},
+            // The app's RESOLVED storage roots, re-read per call. These exist so a
+            // test-session controller can PROVE isolation (both must carry the
+            // COLOSSEUM_APPDATA_TAG suffix) instead of assuming Qt's path rules —
+            // on Windows both derive from applicationName, but that is an
+            // implementation fact to verify, not a contract to trust.
+            {QStringLiteral("appDataRoot"),
+             QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)},
+            {QStringLiteral("cacheRoot"),
+             QStandardPaths::writableLocation(QStandardPaths::CacheLocation)}};
 }
 
 // ── Task 3 reads ─────────────────────────────────────────────────────────────
@@ -988,7 +997,7 @@ void LanistaServer::cmdUiWaitFor(const QJsonObject& p, Replier reply)
 // return-type branch never masquerades as a missing method.
 void LanistaServer::cmdInvokeRead(const QJsonObject& p, Replier reply) const
 {
-    // EXACTLY the six verified TankobanVolumes reads — the whole safety boundary.
+    // EXACTLY the verified reads below — the whole safety boundary.
     static const QSet<QString> kAllowlist = {
         QStringLiteral("TankobanVolumes.volumesForSeries"),
         QStringLiteral("TankobanVolumes.statusOf"),
@@ -996,6 +1005,11 @@ void LanistaServer::cmdInvokeRead(const QJsonObject& p, Replier reply) const
         QStringLiteral("TankobanVolumes.downloadedVolumes"),
         QStringLiteral("TankobanVolumes.modeEnabled"),
         QStringLiteral("TankobanVolumes.localPages"),
+        // Per-URL image-network diagnostics (Lanista pilot, decision brief
+        // 2026-08-06 §4). Both take one QString and return QVariantList —
+        // squarely inside the existing marshalling, no seam extension needed.
+        QStringLiteral("BiblioImageDiag.rowsForUrl"),
+        QStringLiteral("BiblioImageDiag.recentRows"),
     };
 
     const QString objName = p.value(QStringLiteral("object")).toString();

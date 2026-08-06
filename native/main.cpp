@@ -58,6 +58,7 @@
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
+#include "net/BiblioImageDiag.h"
 #include <QNetworkProxyFactory>
 #include <QSet>
 #include <algorithm>
@@ -193,12 +194,14 @@ public:
     // lanes (torrent search) where a stale cached response would freeze seeder counts.
     CachingNam(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
                QObject *parent = nullptr, bool useCache = true,
-               PosterScoreboard *scoreboard = nullptr)
+               PosterScoreboard *scoreboard = nullptr,
+               BiblioImageDiag *imageDiag = nullptr)
         : QNetworkAccessManager(parent),
           m_pinnedHosts(std::move(pinnedHosts)),
           m_ipv4ByHost(std::move(ipv4ByHost)),
           m_useCache(useCache),
-          m_scoreboard(scoreboard) {
+          m_scoreboard(scoreboard),
+          m_imageDiag(imageDiag) {
         if (m_useCache) {
             auto *cache = new QNetworkDiskCache(this);
             const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
@@ -259,11 +262,15 @@ protected:
             r.setRawHeader("Accept-Encoding", "gzip");
             QNetworkReply *inner = QNetworkAccessManager::createRequest(op, r, outgoing);
             watch(host, inner);   // watch the INNER reply: GunzipReply doesn't forward attributes
+            if (m_imageDiag) m_imageDiag->track(inner, req.url());
             evictOnFailure(inner, r.url());
             return new GunzipReply(inner);
         }
         QNetworkReply *reply = QNetworkAccessManager::createRequest(op, r, outgoing);
         watch(host, reply);
+        // Per-URL diagnostics keyed by the PRE-rewrite URL — the one QML's Image
+        // asked for, so a card's `source` property matches its rows exactly.
+        if (m_imageDiag) m_imageDiag->track(reply, req.url());
         // The key is the url AFTER any pin rewrite — that is what the cache stored under.
         evictOnFailure(reply, r.url());
         return reply;
@@ -274,6 +281,7 @@ private:
     QHash<QString, QString> m_ipv4ByHost;
     bool m_useCache = true;
     PosterScoreboard *m_scoreboard = nullptr;
+    BiblioImageDiag *m_imageDiag = nullptr;
 
     void watch(const QString &host, QNetworkReply *reply) {
         if (!m_scoreboard)
@@ -335,19 +343,22 @@ private:
 class CachingNamFactory : public QQmlNetworkAccessManagerFactory {
 public:
     CachingNamFactory(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
-                      PosterScoreboard *scoreboard)
+                      PosterScoreboard *scoreboard, BiblioImageDiag *imageDiag = nullptr)
         : m_pinnedHosts(std::move(pinnedHosts)),
           m_ipv4ByHost(std::move(ipv4ByHost)),
-          m_scoreboard(scoreboard) {}
+          m_scoreboard(scoreboard),
+          m_imageDiag(imageDiag) {}
 
     QNetworkAccessManager *create(QObject *parent) override {
-        return new CachingNam(m_pinnedHosts, m_ipv4ByHost, parent, /*useCache=*/true, m_scoreboard);
+        return new CachingNam(m_pinnedHosts, m_ipv4ByHost, parent, /*useCache=*/true,
+                              m_scoreboard, m_imageDiag);
     }
 
 private:
     QStringList m_pinnedHosts;
     QHash<QString, QString> m_ipv4ByHost;
     PosterScoreboard *m_scoreboard = nullptr;   // owned by the app, outlives every NAM
+    BiblioImageDiag *m_imageDiag = nullptr;     // same ownership contract as the scoreboard
 };
 
 // Resolve a host's IPv4, retrying briefly on a miss. The pin is computed ONCE at
@@ -716,9 +727,13 @@ int main(int argc, char *argv[]) {
             qInfo("[img] swept %d empty entries from the image cache (they render as blank "
                   "tiles and never re-fetch)", swept);
     }
+    // Per-URL image diagnostics behind the Lanista biblio.imageDiag probe (decision
+    // brief 2026-08-06 §4) — same lifetime contract as the scoreboard beside it.
+    auto *imageDiag = new BiblioImageDiag(&app);
     engine.setNetworkAccessManagerFactory(
-        new CachingNamFactory(namPinnedHosts, ipv4ByHost, scoreboard));
+        new CachingNamFactory(namPinnedHosts, ipv4ByHost, scoreboard, imageDiag));
     engine.rootContext()->setContextProperty(QStringLiteral("NetScoreboard"), scoreboard);
+    engine.rootContext()->setContextProperty(QStringLiteral("BiblioImageDiag"), imageDiag);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, scoreboard, [scoreboard] {
         const QString text = scoreboard->summaryText();
         if (!text.isEmpty())
