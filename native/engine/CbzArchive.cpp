@@ -19,9 +19,24 @@ void setError(QString* error, const QString& value)
     if (error) *error = value;
 }
 
+// Paths handed to miniz MUST be UTF-8, not QFile::encodeName's local 8-bit:
+// the vendored miniz on MSVC decodes every incoming path as UTF-8
+// (mz_utf8z_to_widechar -> _wfopen_s/_wstat64). Feeding it ANSI bytes makes
+// any non-ASCII character (e.g. U+00B4 in a scanner-named CBR) an invalid
+// UTF-8 sequence: the decoded wide path is mangled, stat/open miss a file
+// Qt's own UTF-16 APIs resolve fine, and the pack dies "file stat failed"
+// while the pages sit intact on disk. Root-caused live on the Chew v1 pair
+// (2026-08-07, Slice 7); regression-guarded by the pack-demux harness's
+// accent scenario. ASCII paths are byte-identical either way — this changes
+// nothing for them.
+//
+// Vendored-miniz trap (advisor-flagged, latent, not our code path): miniz's
+// MZ_DELETE_FILE is plain ANSI remove() — only mz_zip_add_mem_to_archive_
+// file_in_place() uses it, which this file never calls. If anyone ever
+// adopts that convenience API, its delete leg breaks on accented names.
 QByteArray nativePath(const QString& path)
 {
-    return QFile::encodeName(QDir::toNativeSeparators(path));
+    return QDir::toNativeSeparators(path).toUtf8();
 }
 
 bool imageNameAccepted(const QString& name)

@@ -581,6 +581,100 @@ void runDemuxHappyScenario(CheckEnv& env)
     QDir(baseDirMirror()).removeRecursively();
 }
 
+// Scenario (l)+(m): accent-path ingest — Slice 7 (the live Chew failure).
+//
+// The two live Chew volumes that failed "file stat failed" were exactly the two
+// whose filenames carry a non-ASCII accent (U+00B4). Root cause (systematic
+// debugging, 2026-08-07, probe-confirmed against the live preserved tree):
+// CbzArchive::nativePath() hands miniz ANSI bytes (QFile::encodeName), but the
+// vendored miniz on MSVC decodes every path as UTF-8 (mz_utf8z_to_widechar →
+// _wstat64/_wfopen_s). ANSI ´ = 0xB4 is invalid UTF-8 → the decoded wide path
+// is mangled → stat/open miss a file Qt's UTF-16 APIs resolve fine. ASCII is
+// identical in both encodings — which is why 10 of 12 live volumes landed.
+//
+// Fixture note (learned the hard way): the accent must NOT travel through a
+// zip round-trip — Windows bsdtar's zip writer transliterates ´ to ' (proven:
+// a tar -a round-trip returned "Taster's"), which silently de-fangs the
+// fixture and turns the scenario into a vacuous green. So the accent rides
+// the archive FILE NAME, written by Qt (always faithful), via direct
+// ingestLocalArchive — the same seam the demux children hit (archivePath →
+// extractTmp inherits the accent):
+//   - accent-named CBZ → probe()'s open gets the accent path. Today: open
+//     fails → needless extract → repack dies at add. After: fast path, no
+//     extraction.
+//   - accent-named CBR → extract succeeds (bsdtar via QProcess is wide-safe),
+//     then the repack's add dies statting pages under the accent extract dir.
+//     The exact live killer.
+//
+// RED BASELINE (before the Slice 7 nativePath fix): both ingests FAIL, zero
+// entries land. The assertions expect 2 landed → red today, green after.
+void runAccentPathScenario(CheckEnv& env)
+{
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) { env.ok("accent-scratch", false); return; }
+
+    // U+00B4 as an explicit QChar — never a raw byte in source (MSVC source
+    // encoding must not be load-bearing for this fixture).
+    const QString accentBase = QStringLiteral("Chew v1 - Taster") + QChar(0x00B4)
+                               + QStringLiteral("s Choise");
+    QString cbz, cbr;
+    if (!makeFixtureCbz(scratch.path(), accentBase, &cbz)
+        || !makeFixtureCbr(scratch.path(), accentBase + QStringLiteral(" - Bonus"), &cbr)) {
+        env.ok("accent-fixtures", false, "could not build accent-named fixtures");
+        return;
+    }
+    // Guard against the transliteration trap: the fixture files must REALLY
+    // carry the accent on disk, or every assertion below is vacuous.
+    env.ok("accent-fixture-name-faithful",
+           QFileInfo(cbz).fileName().contains(QChar(0x00B4))
+               && QFileInfo(cbr).fileName().contains(QChar(0x00B4)),
+           "fixture filenames lost the accent — the scenario would be vacuous");
+
+    QDir(baseDirMirror()).removeRecursively();
+
+    QNetworkAccessManager nam;
+    ComicDownloader comics(&nam);
+    const QString idCbz = QStringLiteral("gc:accent-cbz");
+    const QString idCbr = QStringLiteral("gc:accent-cbr");
+    const QString seriesId = QStringLiteral("gc:accent");
+
+    int finished = 0, failed = 0;
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& id) { if (id == idCbz || id == idCbr) ++finished; });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& id, const QString&) { if (id == idCbz || id == idCbr) ++failed; });
+
+    comics.ingestLocalArchive(idCbz, seriesId, QStringLiteral("Accent"),
+                              QStringLiteral("Vol. 1"), cbz);
+    comics.ingestLocalArchive(idCbr, seriesId, QStringLiteral("Accent"),
+                              QStringLiteral("Vol. 1 - Bonus"), cbr);
+
+    const bool settled = waitFor([&] { return finished + failed >= 2; }, 30000);
+    env.ok("accent-settled", settled, "accent ingests did not settle within timeout");
+
+    // RED today: both fail at the ANSI-into-UTF-8-decoder seam. GREEN after
+    // Slice 7 (nativePath → UTF-8): both land, none fail.
+    env.eq("accent-landed", finished, 2);
+    env.eq("accent-failed", failed, 0);
+
+    // Both indexed and readable.
+    const QVariantList rows = comics.downloadedIssues();
+    int accentRows = 0;
+    for (const QVariant& v : rows) {
+        const QVariantMap m = v.toMap();
+        const QString id = m.value(QStringLiteral("id")).toString();
+        if (id != idCbz && id != idCbr) continue;
+        ++accentRows;
+        env.ok("accent-pages-readable", m.value(QStringLiteral("pages")).toInt() >= 1,
+               "each accent ingest must expose >=1 readable page");
+        env.ok("accent-not-missing", !m.value(QStringLiteral("missing")).toBool(),
+               "each accent ingest must not be missing on disk");
+    }
+    env.eq("accent-rows-indexed", accentRows, 2);
+
+    QDir(baseDirMirror()).removeRecursively();
+}
+
 // Write a packs.json manifest directly (hand-authored, to simulate a crash that
 // left the manifest on disk). Mirrors ComicDownloader::savePacks' shape.
 bool writePacksJson(const QString& path, const QJsonObject& root)
@@ -1129,6 +1223,7 @@ int main(int argc, char** argv)
     runStagedReuseScenario(env);    // Slice 3 (h): retry re-uses preserved pack, no re-download
     runCancelMidPackScenario(env);  // Slice 3 (j): cancel drops siblings, keeps pack, lands stay
     runPackVolumesReadApiScenario(env);  // Slice 4 (k): ordered mains/extras read API for the shelf
+    runAccentPathScenario(env);          // Slice 7 (l)+(m): accent-named volumes survive the packer
 
     // ── Negative controls (performed live, then expectations restored to the
     // CORRECT value before the green claim). The plan requires this: a

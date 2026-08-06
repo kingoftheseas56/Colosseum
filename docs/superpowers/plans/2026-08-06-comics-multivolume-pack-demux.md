@@ -412,6 +412,91 @@ the Slice-2/3 contracts.
 
 ---
 
+### Slice 7: Unicode-safe CBZ file I/O (the accent fix — added 2026-08-07 from the live gate)
+
+**Purpose:** The two Chew volumes whose folder names carry a non-ASCII accent (´) stop
+failing "file stat failed" during packing — and the same latent trap stops threatening any
+comic whose internal paths carry non-ASCII, pack or no pack.
+**Origin:** Slice 6 live run, 2026-08-07. Diagnosis (systematic-debugging, root cause
+confirmed): `CbzArchive` hands ALL file paths to miniz as 8-bit bytes via
+`QFile::encodeName` (`CbzArchive.cpp:24`); miniz's C-level stat/fopen cannot resolve the
+accent under the process codepage while Qt's UTF-16 APIs see the file fine
+(`writeImagesAtomic`'s :159 existence check passes, :184 `mz_zip_writer_add_file` fails).
+Proven live: `Chew-v1-000.jpg` exists on disk (983,097 bytes) under the ´-named extract
+tree; 10/10 ASCII-path volumes succeeded, 2/2 accent-path volumes failed. NOT a demux bug —
+a latent CBZ-in-place-arc seam the pack surfaced. Alternatives discriminated: path length
+(226 < 260), genuinely-missing file (disproven by disk listing).
+**Dependencies:** Slices 1–5 (landed, `704ef9c`).
+**Implementation guidance:** All five miniz file-path call sites in
+`native/engine/CbzArchive.cpp` go Unicode-safe; the vendored miniz already exports the
+needed APIs (verified: `mz_zip_reader_init_cfile` :1196, `mz_zip_writer_init_cfile` :1338,
+`mz_zip_writer_add_mem` :1353; `MINIZ_NO_STDIO` not defined):
+  - Reader inits (`imageEntries` :83, `readEntry` :120, `probe` :233): open `FILE*` via
+    `_wfopen` on the UTF-16 path (Windows; `fopen`+`encodeName` fallback elsewhere) →
+    `mz_zip_reader_init_cfile(&zip, f, size, 0)` with size from `QFileInfo`. Caller owns
+    the `FILE*` — verify against miniz source whether `mz_zip_reader_end` closes a
+    CFILE-type handle, and `fclose` accordingly on every exit path.
+  - Writer init (`writeImagesAtomic` :174): same via `_wfopen` L"wb" →
+    `mz_zip_writer_init_cfile`.
+  - Source-page add (:184): replace `mz_zip_writer_add_file` with a `QFile` read
+    (UTF-16-safe) + `mz_zip_writer_add_mem(&zip, entry, data, size, MZ_NO_COMPRESSION)` —
+    one page in memory at a time, never the whole book.
+  Entry names inside the zip stay UTF-8 as today (:181). No behavior change for ASCII
+  paths; byte-identical archives expected.
+  **Execution deviation (2026-08-07, recorded not silent):** the landed fix is SMALLER
+  than this guidance. Ground truth at execution: the vendored miniz on MSVC already
+  converts every incoming path UTF-8 → wide internally (`mz_fopen`/`mz_stat64`,
+  miniz.c:3075/3097) — the cfile/_wfopen/add_mem surgery is unnecessary. The actual
+  defect was `nativePath()` feeding it ANSI (`QFile::encodeName`); the fix is that one
+  helper returning `.toUtf8()`, which corrects all five call sites at once. Same
+  contract ("all miniz file I/O Unicode-safe"), minimal keystrokes. Discriminating
+  evidence: the live preserved Chew tree + a short-prefix accent copy both failed
+  pre-fix and both flip OK post-fix via a temporary probe mode (stripped before
+  commit); locale and path-length hypotheses eliminated empirically. Fixture learning
+  baked into the scenario: Windows bsdtar's ZIP writer transliterates ´ → ' — an accent
+  fixture must carry the accent in the archive FILE name (Qt-written), never through a
+  zip entry-name round-trip, and the scenario self-guards with an
+  `accent-fixture-name-faithful` check.
+**Behavior to preserve:** every existing green scenario in
+`comic_downloader_pack_demux_harness` and `comic_downloader_ingest_harness`; probe()'s
+acceptance/rejection semantics (readable CBZ vs CBR) unchanged for ASCII paths; the
+atomic `.part` → rename publish contract; `MZ_NO_COMPRESSION` storage.
+**Baseline:** RED first — new harness scenario(s) BEFORE the fix, recorded failing:
+  (l) a nested pack whose CBR (tar-as-cbr) sits in / is named with a `´` path component and
+  whose pages live in a subfolder → today the child fails "file stat failed" at repack;
+  (m) an accent-named nested CBZ → today probe's 8-bit open fails → falls to extract →
+  repack dies the same way; after the fix probe reads it natively (fast path, no
+  extraction at all — assert no extract dir was created).
+**Focused tests:**
+  - Qt Test: none — house CHECK-collecting idiom harness (arc convention).
+  - Qt Quick Test: not applicable — no QML.
+  - Existing harnesses: full `unit` gate + `comic_downloader_ingest_harness` green
+    (guards ASCII-path no-regression); `cbz_archive_harness` green (direct CbzArchive
+    contracts).
+  - Negative control: the recorded RED runs of (l)/(m) on the unfixed tree ARE the proof
+    the scenarios can fail; after the fix, additionally flip one expectation (e.g. assert
+    extraction DID occur in (m)) → exactly that check red → restore.
+**Test seam status:** available.
+**Lanista actions:** `human-witnessed:` — after landing: Hemanth presses retry on the two
+failed rows (Vol. 1, Vol. 1 — Bonus); expected: both land, Chew shelf shows 12, pack +
+extract tree reclaimed (my read-only disk check), then Slice 6 steps 3–5 conclude.
+**Completion signal:** harness event-loop on `finished`/`failed` signals (timeout-guarded);
+live: Hemanth's per-step verdict.
+**State / events / probes:** harness asserts index rows, canonical CBZ presence, manifest
+state on disk; live: my read-only checks — 12 Chew index entries, `dl_c5c1573258.archive`
+gone, `packs.json` cleared.
+**Visual evidence:** Hemanth's eyes (Qt/D3D uncapturable headless).
+**Regression paths:** Slice 6 step 5 sweep (catalogue series, ordinary single comic,
+away/back, restart) — still owed from the interrupted gate.
+**Evidence artifacts:** RED + green harness stdout in session notes; disk listings;
+Hemanth's verdicts in the closing report; chat.md LANDED line.
+**Bridge status:** available (human-witnessed lane; bridge barred from the daily app).
+**Completion criterion:** scenarios (l)/(m) green 3–4 consecutive runs + full `unit` gate
+green + negative control performed + both live volumes landed under Hemanth's eyes → THEN
+the arc's Slice 6 criterion applies as written.
+
+---
+
 ## Execution notes
 
 - **Order:** 1 → 2 → 3 → 4 → 5 → 6. Slices 1–4 are each independently landable; 5 lands as
