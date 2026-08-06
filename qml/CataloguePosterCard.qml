@@ -252,11 +252,15 @@ Item {
     }
 
     // author — Biblio's always-on identity line (never gated by hover/focus/reveal).
+    // Anchored to the title's PAINTED text, not its reserved block: the title box always
+    // holds two lines so grid rows stay even, which left a phantom empty line between a
+    // one-line title and its author (Hemanth's eyes, 2026-08-06). contentHeight follows
+    // the real line count, so the byline hugs the title at any title length.
     Text {
         id: authorLabel
         visible: card.showAuthorAtRest && !card.skeleton && card.authorText.length > 0
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.top: titleText.bottom; anchors.topMargin: 2
+        anchors.top: titleText.top; anchors.topMargin: titleText.contentHeight + 3
         text: card.authorText
         color: theme.inkDim
         font.family: theme.ui; font.pixelSize: 11
