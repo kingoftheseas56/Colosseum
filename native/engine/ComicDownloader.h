@@ -293,6 +293,25 @@ private:
     void loadIndex();
     void saveIndex() const;
 
+    // Boot-time legacy migration (Task 7, CBZ-in-place plan): every western
+    // comic downloaded before this arc is a loose page_NNN.<ext> folder (a
+    // `dir` row, no `archive`). Convert each to the canonical CBZ-in-place
+    // model, repair-before-prune, across TWO boots:
+    //   Pass 1 (a legacy dir row this boot) -- pack the loose pages into the
+    //     canonical CBZ, round-trip-verify it, set `archive`, and LEAVE `dir`
+    //     ALONE. The loose files are NOT reclaimed the same boot -- the
+    //     deliberate amendment past manga's own migrateLegacy(), so a bad pack
+    //     can never destroy the only copy before a separate boot re-verifies.
+    //   Pass 2 (a row that arrived already archive+dir from a PRIOR boot) --
+    //     independently re-probe the archive; if openable, remove the loose
+    //     dir and clear `dir`; if the archive is present-but-unreadable,
+    //     demote it back to the dir (clear `archive`) so the next boot re-packs.
+    // A row with any listed page missing migrates not at all (untouched, warn).
+    // Runs SYNCHRONOUSLY from loadIndex() -- one-shot per row, rare, before the
+    // app is interactive; a materially different cost than freezing a live
+    // session (why Task 4/5's live repacks go off-thread but this need not).
+    void migrateLegacyComicsInPlace();
+
     void onResolveFinished(QNetworkReply* reply);
     QStringList parsePostHtml(const QByteArray& html) const;
     void startDownload(InFlight&& f);

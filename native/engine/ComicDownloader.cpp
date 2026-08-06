@@ -89,6 +89,53 @@ bool isImageFile(const QString& name)
     return kExts.contains(QFileInfo(name).suffix().toLower());
 }
 
+// Order-independent set equality between a probe result's entry names and a
+// row's `files` list -- the gate legacy migration uses to accept a freshly
+// packed (or a crash-recovery leftover) canonical. writeImagesAtomic() writes
+// entries in `files` order, but probe() re-sorts by a numeric collator, so a
+// positional comparison would spuriously fail an otherwise-correct archive
+// whose pages are numbered out of collation order; and a plain size check
+// would accept an archive that dropped one page but gained a duplicate. Names
+// as a set (plus a size match to reject dupes/extras) is the honest check.
+bool probeEntriesMatchFiles(const MangaTankoban::CbzProbeResult& probe, const QStringList& files)
+{
+    if (probe.entries.size() != files.size()) return false;
+    QSet<QString> got;
+    // Normalize separators on BOTH sides: writeImagesAtomic() stores an entry
+    // name as QDir::fromNativeSeparators(relative) (CbzArchive.cpp), so a
+    // legacy `files` entry carrying a native backslash subpath would otherwise
+    // never match its own packed entry.
+    for (const auto& e : probe.entries) got.insert(QDir::fromNativeSeparators(e.name));
+    if (got.size() != files.size()) return false;   // a duplicate name in the archive
+    for (const QString& n : files)
+        if (!got.contains(QDir::fromNativeSeparators(n))) return false;
+    return true;
+}
+
+// Stronger than probe()'s {first,middle,last} sniff sample: for the one-shot,
+// IRREVERSIBLE migration of an irreplaceable comic, verify EVERY page. Because
+// writeImagesAtomic() stores uncompressed (MZ_NO_COMPRESSION), each packed
+// entry's stored uncompressed size must equal its loose source file's size
+// exactly -- a free check (the central directory already carries the size, no
+// inflation) that catches a truncated or mis-sourced page OUTSIDE probe()'s
+// sample window before Pass 2 can ever delete the loose original. Requires the
+// loose `dir` to still exist (true in both Pass 1 and Pass 2 by construction).
+bool archiveMatchesSourceExactly(const MangaTankoban::CbzProbeResult& probe,
+                                 const QString& dir, const QStringList& files)
+{
+    if (!probeEntriesMatchFiles(probe, files)) return false;
+    QHash<QString, quint64> sizeByName;
+    for (const auto& e : probe.entries)
+        sizeByName.insert(QDir::fromNativeSeparators(e.name), e.uncompressedBytes);
+    for (const QString& name : files) {
+        const auto it = sizeByName.constFind(QDir::fromNativeSeparators(name));
+        if (it == sizeByName.constEnd()) return false;
+        const qint64 srcSize = QFileInfo(QDir(dir).absoluteFilePath(name)).size();
+        if (static_cast<qint64>(it.value()) != srcSize) return false;
+    }
+    return true;
+}
+
 bool looksLikeHtml(const QByteArray& firstChunk, const QString& contentType)
 {
     if (contentType.contains(QStringLiteral("text/html"), Qt::CaseInsensitive)) return true;
@@ -275,6 +322,11 @@ void ComicDownloader::loadIndex()
     QFile f(baseDir() + QStringLiteral("/index.json"));
     if (!f.open(QIODevice::ReadOnly)) return;
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+    // Close the read handle BEFORE the migration below can saveIndex() -- on
+    // Windows a still-open ReadOnly handle (no FILE_SHARE_DELETE) blocks
+    // QSaveFile::commit()'s atomic rename over index.json, so the migration
+    // would compute correctly and then silently fail to persist (Task 7).
+    f.close();
     for (auto it = root.begin(); it != root.end(); ++it) {
         const QJsonObject o = it.value().toObject();
         Entry e;
@@ -307,6 +359,188 @@ void ComicDownloader::loadIndex()
             m_index.insert(it.key(), e);
         }
     }
+
+    // One-shot, synchronous legacy migration (Task 7). Runs after every row is
+    // loaded/demoted above, so it sees each row's final on-disk shape -- and
+    // saves the index itself if anything changed.
+    migrateLegacyComicsInPlace();
+}
+
+// ── Task 7: boot-time legacy CBZ-in-place migration ─────────────────────────
+// Repair-before-prune, two-boot. See the header comment for the full contract.
+// The two passes are disjoint by a row's AS-LOADED shape: a Pass-1 candidate
+// arrives with NO archive; a Pass-2 candidate arrives with a real archive AND
+// a leftover dir. So a single pass over the loaded rows, branching on that
+// shape, correctly does Pass 1 OR Pass 2 for each -- a row Pass 1 migrates
+// this boot (now archive+dir) is not re-examined for Pass 2 until the NEXT
+// boot loads it in that shape, which is exactly the one-boot delay the design
+// wants.
+//
+// ASSUMPTION (documented, not enforced): loadIndex() runs exactly ONCE per
+// process (only the constructor calls it today). The "one boot delay" between
+// packing and reclaiming is therefore a one-PROCESS delay. If a future
+// "refresh library" ever re-runs loadIndex() in the same process, Pass 1's
+// output would be seen by Pass 2 in that same process, collapsing the delay --
+// still not data loss (Pass 2 independently re-verifies the archive page-for-
+// page against the loose source before deleting anything), but it removes the
+// human eyes-on window. A re-run path must gate migration behind a
+// process-scoped guard before shipping.
+void ComicDownloader::migrateLegacyComicsInPlace()
+{
+    bool changed = false;
+    const QList<QString> ids = m_index.keys();   // stable snapshot; no keys added/removed here
+    for (const QString& id : ids) {
+        Entry& e = m_index[id];
+
+        // ── Pass 2: a row already migrated on a PRIOR boot -- archive is a
+        //    real file and a leftover legacy dir still sits beside it. Only
+        //    fires when the dir actually EXISTS (there are loose files to
+        //    reclaim); a stale/empty dir string on a valid archive row is
+        //    inert and left alone. ──
+        if (e.usesArchive() && QFileInfo(e.archive).isFile()
+            && !e.dir.isEmpty() && QDir(e.dir).exists()) {
+            QString err;
+            const MangaTankoban::CbzProbeResult probe =
+                MangaTankoban::CbzArchive::probe(e.archive, &err);
+            // Independent re-verification of the delete's precondition -- and
+            // deliberately STRICTER than a bare openable check: the archive
+            // must hold exactly this row's pages at exactly the loose source's
+            // byte sizes. Pass 2 guards the one irreversible operation in the
+            // whole migration, so it must never re-verify LESS than Pass 1 did.
+            if (probe.nativelyReadable
+                && archiveMatchesSourceExactly(probe, e.dir, e.files)) {
+                // Remove the redundant loose files FIRST, THEN clear `dir`.
+                // Safe ordering here (unlike the download path's save-then-
+                // delete): the archive is already the durable, INDEXED copy
+                // from a prior boot and was just re-verified page-for-page, so
+                // the loose dir is pure redundancy. Clear `dir` ONLY if the
+                // removal fully succeeded -- a partially-removed dir keeps
+                // `dir` set and is retried next boot, never silently orphaned.
+                const QString legacyDir = e.dir;
+                if (QDir(legacyDir).removeRecursively()) {
+                    e.dir.clear();
+                    changed = true;
+                    qInfo() << "[comics] legacy migration pass 2: reclaimed loose dir"
+                            << legacyDir << "id=" << id;
+                } else {
+                    qWarning() << "[comics] legacy migration pass 2: could not remove loose "
+                                  "dir, leaving `dir` set to retry next boot" << legacyDir
+                               << "id=" << id;
+                }
+            } else {
+                // Present but not decodable / not matching -- demote back to
+                // the dir so the next boot's Pass 1 re-packs from the loose
+                // source. Never deletes anything.
+                qWarning() << "[comics] legacy migration: archive present but unreadable/"
+                              "mismatched, demoting to dir for re-pack" << e.archive << err
+                           << "id=" << id;
+                e.archive.clear();
+                changed = true;
+            }
+            continue;
+        }
+
+        // ── Pass 1: a legacy dir-only row -- pack into the canonical CBZ this
+        //    boot, set `archive`, and LEAVE `dir` alone (reclaimed a boot
+        //    later by Pass 2). ──
+        if (!e.usesArchive() && !e.dir.isEmpty() && !e.files.isEmpty()) {
+            // Every listed page must be present, or migrate not at all --
+            // untouched, warned, nothing packed, nothing deleted. The row
+            // still works off its dir; a later run migrates it once whole.
+            // Sum the source bytes in the same sweep for the space preflight.
+            bool allPresent = true;
+            qint64 sourceBytes = 0;
+            for (const QString& name : e.files) {
+                const QFileInfo pageInfo(QDir(e.dir).absoluteFilePath(name));
+                if (name.isEmpty() || !pageInfo.isFile()) {
+                    allPresent = false;
+                    break;
+                }
+                sourceBytes += pageInfo.size();
+            }
+            if (!allPresent) {
+                qWarning() << "[comics] legacy migration: a listed page is missing, "
+                              "leaving the row untouched" << "id=" << id << e.dir;
+                continue;
+            }
+
+            const QString canonical = issueArchivePath(e.seriesId, e.label, id);
+            QString err;
+            bool haveValidCanonical = false;
+
+            // Crash recovery: a canonical from an interrupted prior migration
+            // already sits on disk. Adopt it (no repack) if it round-trips AND
+            // holds exactly this row's pages at exactly the loose byte sizes;
+            // otherwise discard + re-pack.
+            if (QFileInfo(canonical).isFile()) {
+                const MangaTankoban::CbzProbeResult probe =
+                    MangaTankoban::CbzArchive::probe(canonical, &err);
+                if (probe.nativelyReadable
+                    && archiveMatchesSourceExactly(probe, e.dir, e.files)) {
+                    haveValidCanonical = true;
+                    qInfo() << "[comics] legacy migration: adopted an interrupted-prior canonical "
+                               "(no repack)" << canonical << "id=" << id;
+                } else {
+                    qWarning() << "[comics] legacy migration: stale/partial canonical, removing "
+                                  "and re-packing" << canonical << err << "id=" << id;
+                    if (!QFile::remove(canonical)) {
+                        qWarning() << "[comics] legacy migration: cannot remove stale canonical, "
+                                      "skipping (loose source preserved)" << canonical << "id=" << id;
+                        continue;
+                    }
+                }
+            }
+
+            if (!haveValidCanonical) {
+                // Space preflight: the pack is uncompressed (a straight copy),
+                // and both the loose dir AND the new archive coexist until a
+                // LATER boot reclaims the loose files -- so refuse rather than
+                // risk filling the volume (a disk-full mid-write also fails the
+                // saveIndex() commit). Skip-with-warning, never partial-write.
+                const qint64 avail =
+                    QStorageInfo(QFileInfo(canonical).absolutePath()).bytesAvailable();
+                if (avail >= 0 && avail < sourceBytes + kDiskSpaceSafetyBytes) {
+                    qWarning() << "[comics] legacy migration: insufficient free space to pack, "
+                                  "skipping (need" << sourceBytes << "have" << avail << ") id=" << id;
+                    continue;
+                }
+                // A multi-GB legacy comic packs synchronously here, before the
+                // UI is up -- log start/finish with the byte count so a
+                // several-second startup pause is never mistaken for a hang.
+                qInfo() << "[comics] legacy migration: packing" << e.files.size() << "pages ("
+                        << sourceBytes << "bytes) id=" << id
+                        << "-- one-time step, app start may pause";
+                if (!MangaTankoban::CbzArchive::writeImagesAtomic(canonical, e.dir, e.files, &err)) {
+                    qWarning() << "[comics] legacy migration: pack failed, leaving the row "
+                                  "untouched (loose source preserved)" << "id=" << id << err;
+                    continue;
+                }
+                const MangaTankoban::CbzProbeResult probe =
+                    MangaTankoban::CbzArchive::probe(canonical, &err);
+                if (!probe.nativelyReadable
+                    || !archiveMatchesSourceExactly(probe, e.dir, e.files)) {
+                    qWarning() << "[comics] legacy migration: packed archive failed page-for-page "
+                                  "verify, discarding (loose source preserved)" << "id=" << id << err;
+                    QFile::remove(canonical);
+                    continue;
+                }
+            }
+
+            // Persist `archive`; LEAVE `dir` set (both populated) for exactly
+            // one boot. `files` stays the legacy page names -- writeImagesAtomic
+            // wrote under exactly those names, so readEntry() resolves them, and
+            // probe()'s collator sort must never leak into the page list (the
+            // Task 5 order-preservation lesson).
+            e.archive = canonical;
+            e.bytes   = QFileInfo(canonical).size();
+            changed   = true;
+            qInfo() << "[comics] legacy migration pass 1: packed id=" << id
+                    << "pages=" << e.files.size() << "archive=" << canonical
+                    << "(dir left for reclaim next boot)";
+        }
+    }
+
+    if (changed) saveIndex();
 }
 
 void ComicDownloader::saveIndex() const

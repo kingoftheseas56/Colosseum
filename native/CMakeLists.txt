@@ -640,6 +640,64 @@ add_executable(comic_downloader_archive_ingest_harness
 target_include_directories(comic_downloader_archive_ingest_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_downloader_archive_ingest_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui colosseum_libtorrent)
 
+# Task 7 (CBZ-in-place plan): boot-time legacy migration -- migrateLegacyComics
+# InPlace() runs from loadIndex(). Same comics-stack source list + links as the
+# archive-ingest harness (ComicDownloader.cpp transitively requires
+# ComicTorrents.cpp -> TorrentEngine.cpp/colosseum_libtorrent to link).
+add_executable(comic_downloader_legacy_migration_harness
+    ../tests/comic_downloader_legacy_migration_harness.cpp
+    engine/ComicDownloader.cpp
+    engine/ComicDownloader.h
+    engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
+    engine/ComicCoverId.h
+    engine/CbzArchive.cpp          # ComicDownloader.cpp calls probe()/writeImagesAtomic() directly, Task 4
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
+    engine/ComicDlsParse.cpp
+    engine/ComicDlsParse.h
+    engine/ComicEditionAssembler.cpp
+    engine/ComicEditionAssembler.h
+    torrent/ComicTorrents.cpp
+    torrent/ComicTorrents.h
+    torrent/ComicTorrentDownloader.cpp
+    torrent/ComicTorrentDownloader.h
+    torrent/ComicEditionFileSelector.cpp
+    torrent/ComicEditionFileSelector.h
+    torrent/ComicRequestLedger.cpp
+    torrent/ComicRequestLedger.h
+    torrent/ComicTorrentFilePicker.cpp
+    torrent/ComicTorrentFilePicker.h
+    torrent/ComicTorrentRanker.cpp
+    torrent/ComicTorrentRanker.h
+    torrent/ComicEditionIdentity.cpp
+    torrent/ComicEditionIdentity.h
+    torrent/ComicCoverage.cpp
+    torrent/ComicCoverage.h
+    torrent/ComicUploaderTrust.cpp
+    torrent/ComicUploaderTrust.h
+    torrent/ComicTorrentQueryPlanner.cpp
+    torrent/ComicTorrentQueryPlanner.h
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+    torrent/PirateBayIndexer.cpp
+    torrent/PirateBayIndexer.h
+    torrent/ExtTorrentsIndexer.cpp
+    torrent/ExtTorrentsIndexer.h
+    torrent/TorrentsCsvIndexer.cpp
+    torrent/TorrentsCsvIndexer.h
+    torrent/KnabenIndexer.cpp
+    torrent/KnabenIndexer.h
+    torrent/engine/TorrentEngine.cpp
+    torrent/engine/TorrentEngine.h
+    torrent/engine/DebugLogBuffer.cpp
+    torrent/engine/DebugLogBuffer.h
+    app_resources.qrc
+)
+target_include_directories(comic_downloader_legacy_migration_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_downloader_legacy_migration_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui colosseum_libtorrent)
+
 add_executable(comic_downloader_ingest_harness
     ../tests/comic_downloader_ingest_harness.cpp
     engine/ComicDownloader.cpp
