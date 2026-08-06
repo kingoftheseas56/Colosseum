@@ -101,10 +101,11 @@ Item {
         var tabBar = harness.findByObjectName(world, "biblioTabBar")
         ok(tabBar !== null, "the tab bar is mounted (objectName biblioTabBar)")
         if (tabBar) {
-            ok(tabBar.tabModel.length === 2, "the tab bar shows exactly two tabs, got " + tabBar.tabModel.length)
+            ok(tabBar.tabModel.length === 3, "the tab bar shows exactly three tabs, got " + tabBar.tabModel.length)
             ok(tabBar.tabModel[0] && tabBar.tabModel[0].key === "discover"
-               && tabBar.tabModel[1] && tabBar.tabModel[1].key === "explore",
-               "tab order is Discover, Explore, got " + JSON.stringify(tabBar.tabModel))
+               && tabBar.tabModel[1] && tabBar.tabModel[1].key === "explore"
+               && tabBar.tabModel[2] && tabBar.tabModel[2].key === "library",
+               "tab order is Discover, Explore, Library, got " + JSON.stringify(tabBar.tabModel))
         }
 
         // ═══════════════════════ the three shared widgets ═══════════════════════
@@ -154,6 +155,21 @@ Item {
         ok(world._explorePageForTest.height > 0, "Explore page takes real height once visible (its shelves can render)")
         ok(world._discoverPageForTest.visible === false, "Discover page hides once Explore's tab is active")
         world.activeTab = "discover"
+
+        // ═══════════════════════ Library tab (Slice 2): retained page, visibility-gated, no Loader ═══════════════════════
+        ok(world._libraryPageForTest !== null, "BiblioLibraryPage is mounted as a retained child (test seam _libraryPageForTest)")
+        ok(harness.countByObjectName(world, "biblioLibraryPage") === 1, "exactly one biblioLibraryPage exists")
+        ok(world._libraryPageForTest.visible === false, "Library page is hidden on the default (discover) tab")
+        ok(world._libraryPageForTest.height === 0, "Library page collapses to zero height while hidden")
+        var libraryRef = world._libraryPageForTest
+        world.activeTab = "library"
+        ok(world._libraryPageForTest.visible === true, "Library page becomes visible once its tab is active")
+        ok(world._libraryPageForTest.height > 0, "Library page takes real height once visible")
+        ok(world._discoverPageForTest.visible === false && world._explorePageForTest.visible === false,
+           "Discover + Explore both hide once Library's tab is active")
+        world.activeTab = "discover"
+        ok(world._libraryPageForTest === libraryRef,
+           "the SAME BiblioLibraryPage instance survives the round trip (never destroyed/recreated by a Loader)")
 
         // ═══════════════════════ pinned navigation + back-restoration ═══════════════════════
         world.activeTab = "explore"

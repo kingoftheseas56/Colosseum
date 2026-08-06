@@ -131,14 +131,20 @@ WorldPage {
         onResumeRequested: function(item) { biblio.collectionOpenRequested(item) }
     }
 
-    // Discover | Explore — Discover first and default (mirrors Theatre/Tankoban's discover-first
-    // tab order). Only the two shelf-owning pages below are gated by this tab.
+    // Discover | Explore | Library — Discover first and default (mirrors Theatre/Tankoban's
+    // discover-first tab order). Library is the Theatre-parity retained saved-shelf page (plan
+    // 2026-08-06-biblio-library-tab-theatre-parity.md, Slice 2): one Collection entry → one card.
     WorldTabBar {
         objectName: "biblioTabBar"
+        // Biblio-scoped pill stem: worldTab_<key> collides with Tankoban's Library/Manga/Comics
+        // pills when the warmer pre-builds Tankoban's world (resolveTarget's DFS walks hidden
+        // worlds too) — biblioTab_<key> is unique to this bar. See WorldTabBar.tabPrefix.
+        tabPrefix: "biblioTab"
         backdrop: biblio.backdrop
         currentTab: biblio.activeTab
         tabModel: [ { key: "discover", label: "Discover" },
-                    { key: "explore", label: "Explore" } ]
+                    { key: "explore", label: "Explore" },
+                    { key: "library", label: "Library" } ]
         onTabRequested: (tab) => biblio.activeTab = tab
     }
 
@@ -186,9 +192,31 @@ WorldPage {
         }
     }
 
+    // ── Library: the Theatre-parity retained saved-shelf page (Slice 2). One Collection entry
+    //    → one card; conservative Progress match enables Resume, else the card opens Details.
+    //    Retained (not Loader-swapped) so its search/filter/sort/scroll state survives tab
+    //    switches, exactly like Discover/Explore. Routing reuses the existing Main.qml doors:
+    //      resumeRequested  → continueResumeRequested  (Main.resumeContinue, biblio branch)
+    //      detailRequested  → collectionOpenRequested   (Main.openCollectionEntry, requires e.world)
+    //      removeRequested  → INLINE Collection.remove("biblio", id) (membership only — mirrors
+    //                         Theatre/Tankoban's inline remove; never Progress, never files). ──
+    BiblioLibraryPage {
+        id: libraryPage
+        objectName: "biblioLibraryPage"
+        visible: biblio.activeTab === "library"
+        width: parent.width
+        height: visible ? Math.max(620, biblio.height - 200) : 0
+        onResumeRequested: (record) => biblio.continueResumeRequested(record)
+        onDetailRequested: (entry) => biblio.collectionOpenRequested(entry)
+        onRemoveRequested: (entry) => {
+            if (typeof Collection !== "undefined") Collection.remove("biblio", String(entry.id))
+        }
+    }
+
     // Test seams: named references so the world harness can drive the real tab/pin/card-open
     // wiring without poking children[]. Production code never reads these; tests only (mirrors
     // BiblioDiscoverPage's own `_shellForTest` convention).
     readonly property Item _discoverPageForTest: discoverPage
     readonly property Item _explorePageForTest: explorePage
+    readonly property Item _libraryPageForTest: libraryPage
 }
