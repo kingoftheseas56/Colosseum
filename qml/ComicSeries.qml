@@ -24,6 +24,14 @@ Item {
     //      everything else — sections, filter/sort, downloads, reader — is inherited.
     property var bakedReleases: null       // null = live shelf; []+ = catalogue-fed
     property int gcdId: 0                  // the GCD run id (baked mode identity)
+    // ---- pack mode (Slice 5, 2026-08-07): a downloads-backed multi-volume shelf. The
+    //      demuxed volumes live in the downloads index (packVolumes() hands them back as
+    //      {mains, extras}); we inject them as bakedReleases the same way openGcdSeries
+    //      injects a catalogue run, but the identity is an explicit packSeriesId (the
+    //      parent's seriesId, e.g. "gc:chew") instead of a gcdId. When non-empty, this
+    //      mode wins over live (tagSlug) and catalogue (gcdId): packSeriesId is set BEFORE
+    //      openChapterId so ComicReaderShell mounts with a stable progress key (df003eb).
+    property string packSeriesId: ""       // pack-injection mode: the downloads-backed series identity
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -43,8 +51,12 @@ Item {
     property bool loading: true
     property string errorMsg: ""
     // Progress/reader key: live shelf = "gc:<tag>" (unchanged); baked mode = "gcd:<run>"
-    // ("gcd:…".indexOf("gc:") !== 0 — the continue router can't confuse the two).
-    readonly property string seriesId: bakedReleases !== null ? "gcd:" + gcdId : "gc:" + tagSlug
+    // ("gcd:…".indexOf("gc:") !== 0 — the continue router can't confuse the two); pack mode =
+    // the explicit packSeriesId (the parent seriesId, e.g. "gc:chew" — stable from injection).
+    // packSeriesId wins when set: a pack shelf is downloads-backed, not tag- or catalogue-fed.
+    readonly property string seriesId: packSeriesId.length > 0 ? packSeriesId
+                                     : bakedReleases !== null ? "gcd:" + gcdId
+                                     : "gc:" + tagSlug
 
     // --- shelf navigation: filter + sort (big series run to hundreds of releases).
     // View-only — the reader's chapter list stays date-newest-first so its
@@ -86,10 +98,29 @@ Item {
     }
     readonly property var collections: shown.filter(function(r) { return r.collection })
     readonly property var issues: shown.filter(function(r) { return !r.collection })
-    // the reader's chapter list: every release, newest-first (crossing = next issue)
-    readonly property var chaptersModel: releases.map(function(r) {
-        return { id: r.id, name: r.name, url: r.url, cover: r.cover, sizeMB: r.sizeMB }
-    })
+    // ---- pack mode (Slice 5): split the injected rows by packRole. The API (packVolumes)
+    //      already separates mains from extras and orders each by packOrder ASCENDING (v1
+    //      first); the filter here just re-derives the two lists from the flat releases array
+    //      so the section model stays consistent with filter/sort. ----
+    readonly property bool packMode: packSeriesId.length > 0
+    readonly property var packMains: shown.filter(function(r) { return r.packRole === "main" })
+    readonly property var packExtras: shown.filter(function(r) { return r.packRole === "extra" })
+    // The section list the table Repeater consumes. Pack mode = VOLUMES + EXTRAS (by role);
+    // live/catalogue = COLLECTED EDITIONS + ISSUES (by collection flag, unchanged).
+    readonly property var sectionModel: packMode
+        ? [ { label: "VOLUMES", items: packMains }, { label: "EXTRAS", items: packExtras } ]
+        : [ { label: "COLLECTED EDITIONS", items: collections }, { label: "ISSUES", items: issues } ]
+    // the reader's chapter list. Pack mode = MAINS ONLY, DESCENDING by packOrder (v8→v1, index 0
+    // = newest/highest volume — the crossing convention: nextEntry steps index-1 toward v1, the
+    // natural reading order). The API hands mains ascending; we reverse here. Extras NEVER appear
+    // in the crossing chain — opening one sets page.soloChapters (a single-entry array) at click.
+    // Live/catalogue mode = every release newest-first (crossing = next issue), unchanged.
+    readonly property var chaptersModel: packMode
+        ? packMains.slice().sort(function(a, b) { return (b.packOrder || 0) - (a.packOrder || 0) })
+                    .map(function(r) { return { id: r.id, name: r.name } })
+        : releases.map(function(r) {
+            return { id: r.id, name: r.name, url: r.url, cover: r.cover, sizeMB: r.sizeMB }
+        })
 
     Theme { id: theme }
 
@@ -471,10 +502,10 @@ Item {
                         width: parent.width
 
                         Repeater {
-                            model: [
-                                { label: "COLLECTED EDITIONS", items: page.collections },
-                                { label: "ISSUES", items: page.issues }
-                            ]
+                            // Pack mode renders VOLUMES + EXTRAS (by packRole); live/catalogue
+                            // renders COLLECTED EDITIONS + ISSUES (by collection flag). The
+                            // delegate is shape-agnostic — it reads modelData.label / .items.
+                            model: page.sectionModel
                             delegate: Column {
                                 id: section
                                 required property var modelData
@@ -526,6 +557,13 @@ Item {
                                             return bits.join(" · ")
                                         }
                                         function openReader() {
+                                            // Pack extras open SOLO (single-entry chapters array —
+                                            // no crossing into/from an extra). Mains clear solo so
+                                            // the reader binds the full mains-descending chain.
+                                            if (String(row.modelData.packRole || "") === "extra")
+                                                page.soloChapters = [ { id: row.relId, name: row.modelData.name } ]
+                                            else
+                                                page.soloChapters = null
                                             page.openChapterId = row.relId
                                             page.openChapterLabel = row.modelData.name
                                         }
@@ -756,6 +794,10 @@ Item {
     // MangaSeries' reader. `western: true` flips its page/download source to Comics.
     property string openChapterId: ""
     property string openChapterLabel: ""
+    // Transient: when non-null, the reader binds THIS as its chapters array instead of
+    // chaptersModel. Set by openReader() when an extra is clicked (single-entry — no crossing).
+    // Cleared (null) when a main is clicked, restoring the full mains-descending chain.
+    property var soloChapters: null
     MangaReader {
         id: readerLayer
         anchors.fill: parent; z: 60
@@ -765,7 +807,7 @@ Item {
         seriesTitle: page.seriesTitle
         seriesId: page.seriesId
         seriesCover: page.poster
-        chapters: page.chaptersModel
+        chapters: page.soloChapters || page.chaptersModel
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
         // Do NOT clear openChapterId here — Main.qml's closeComicReader() reads it (still live)

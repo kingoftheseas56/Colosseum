@@ -632,6 +632,53 @@ Window {
         } else westernLayer.active = true
     }
 
+    // ---- a demuxed multi-volume pack shelf (Slice 5, 2026-08-07). The downloads index
+    //      already holds the demuxed volumes (Slice 2's demultiplexPack wrote them with
+    //      packRole "main"/"extra" + packOrder); packVolumes() (Slice 4) hands them back as
+    //      {mains:[...], extras:[...]} in natural reading order. We inject those rows into the
+    //      western series surface as a BAKED release list, with a packSeriesId that pins the
+    //      reader's progress identity — mirroring openGcdSeries' baked injection (Main.qml:591)
+    //      but sourced from the downloads store instead of the catalogue.
+    //
+    //      IDENTITY-ORDERING LAW (df003eb, non-negotiable): packSeriesId + bakedReleases are
+    //      set BEFORE openChapterId — ComicReaderShell must mount with a STABLE seriesId so its
+    //      resume reads the right progress key. Same sequence as openGcdSeries.
+    //      d: { seriesId, seriesTitle, resumeChapterId? } ----
+    function _packRow(r) {
+        // Map a packVolumes() row to the release shape ComicSeries.qml renders. The pack
+        // fields (packRole/packOrder/packId/pages) ride along so the section builder can split
+        // mains from extras and the reader chain can build a mains-only crossing list.
+        return { id: String(r.id || ""), name: String(r.label || ""),
+                 url: "", cover: String(r.art || ""), year: 0, sizeMB: 0, synopsis: "",
+                 date: "", collection: false,
+                 packRole: String(r.packRole || ""), packOrder: Number(r.packOrder || 0),
+                 packId: String(r.id || ""), pages: Number(r.pages || 0) }
+    }
+    function openPackSeries(d) {
+        var seriesId = String((d && d.seriesId) || "")
+        if (!seriesId.length) { console.warn("pack: openPackSeries — no seriesId"); return }
+        var pv = (typeof Comics !== "undefined") ? Comics.packVolumes(seriesId) : { mains: [], extras: [] }
+        var rel = []
+        var mains = pv.mains || []
+        var extras = pv.extras || []
+        for (var i = 0; i < mains.length; i++) rel.push(_packRow(mains[i]))
+        for (var j = 0; j < extras.length; j++) rel.push(_packRow(extras[j]))
+        if (!rel.length) { console.warn("pack: openPackSeries — no volumes for", seriesId); return }
+        westernLayer.baked = { packSeriesId: seriesId, releases: rel, cover: "" }
+        westernLayer.title = (d && d.seriesTitle) || ""
+        westernLayer.tagSlug = ""; westernLayer.tagId = 0
+        westernLayer.resumeChapterId = (d && d.resumeChapterId) || ""
+        if (westernLayer.active && westernLayer.item) {
+            var it = westernLayer.item
+            it.bakedReleases = null                 // reset first so re-injection repaints
+            it.seriesTitle = westernLayer.title
+            it.packSeriesId = westernLayer.baked.packSeriesId   // identity FIRST (df003eb)
+            it.bakedReleases = westernLayer.baked.releases      // seriesId now stable
+            it.tagId = 0; it.tagSlug = ""                       // resolve() guard: baked, no live lookup
+            it.openChapterId = westernLayer.resumeChapterId || ""   // open reader LAST — identity stable
+        } else westernLayer.active = true
+    }
+
     // ---- a universe's comic row: the entry pins VERIFIED GetComics post IDs, so there is
     //      no tag to resolve and no catalogue series. Mirrors openGcdSeries' baked injection
     //      (Main.qml:578) — an explicit release list, tagSlug/tagId deliberately empty.
@@ -1010,10 +1057,15 @@ Window {
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "title": item.title || "" })
         } else if (item.kind === "comic") {
-            // comics open only via the gc:/gcd: lanes; a stale foreign-prefixed id (retired
-            // source, cut 2026-07-12) is an honest no-op, not an empty western shelf (mirrors
-            // the browse guard)
-            if (String(item.seriesId || "").indexOf("gc:") === 0)
+            // A demuxed pack child carries packRole (Slice 1 field, forwarded by
+            // tankobanItems from downloadedIssueRow). Route it to the downloads-backed
+            // pack shelf — NOT the live gc:/gcd: tag lanes, which can't see the demuxed
+            // volumes. Ordinary single issues (empty packRole) stay on the existing paths.
+            if (item.packRole && String(item.packRole).length > 0) {
+                win.openPackSeries({ seriesId: item.seriesId,
+                                     seriesTitle: item.seriesTitle,
+                                     resumeChapterId: item.id })
+            } else if (String(item.seriesId || "").indexOf("gc:") === 0)
                 win.openWesternAt(item.seriesTitle, String(item.seriesId).slice(3), item.id)
             else if (String(item.seriesId || "").indexOf("gcd:") === 0)
                 win.openGcdSeries({ gcdId: Number(String(item.seriesId).slice(4)),
@@ -2269,22 +2321,29 @@ Window {
         property string tagSlug: ""
         property int    tagId: 0
         property string resumeChapterId: ""   // Continue/session resume: straight into the reader
-        property var    baked: null           // catalogue run page (spec 2026-07-17): {gcdId,releases,cover}
+        property var    baked: null           // catalogue run {gcdId,releases,cover} OR pack {packSeriesId,releases,cover} OR universe {gcdId:0,releases,cover}
         source: "ComicSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.seriesTitle = westernLayer.title
             item.tagId = westernLayer.tagId
-            // Resolve the baked IDENTITY (-> seriesId "gcd:<id>") BEFORE opening the reader,
-            // so ComicReaderShell mounts with a STABLE seriesId and its resume reads the RIGHT
+            // Resolve the baked IDENTITY (-> seriesId "gcd:<id>" for catalogue, or the explicit
+            // packSeriesId for a downloads-backed pack shelf) BEFORE opening the reader, so
+            // ComicReaderShell mounts with a STABLE seriesId and its resume reads the RIGHT
             // progress key. Opening the reader first mounted it under the transient
             // "gc:<empty-slug>" identity -> restored page 1, then saved to the OTHER key and
             // wrote page 1 over the real record (runtime-confirmed 2026-08-06). Same fix as
-            // openGcdSeries() above.
+            // openGcdSeries() above. The pack branch (Slice 5) sets packSeriesId — an explicit
+            // downloads-backed identity that needs no gcdId resolution.
             if (westernLayer.baked) {
                 item.poster = westernLayer.baked.cover || item.poster
-                item.gcdId = westernLayer.baked.gcdId
-                item.bakedReleases = westernLayer.baked.releases   // seriesId now "gcd:<id>"
+                if (westernLayer.baked.packSeriesId !== undefined
+                    && String(westernLayer.baked.packSeriesId).length > 0) {
+                    item.packSeriesId = westernLayer.baked.packSeriesId   // pack identity (stable, explicit)
+                } else {
+                    item.gcdId = westernLayer.baked.gcdId                 // catalogue identity
+                }
+                item.bakedReleases = westernLayer.baked.releases   // seriesId now stable (gcd:<id> or pack id)
             }
             item.tagSlug = westernLayer.tagSlug        // triggers resolve() (no-op when baked); live-mode identity
             if (westernLayer.resumeChapterId) item.openChapterId = westernLayer.resumeChapterId   // open reader LAST — identity stable
