@@ -21,7 +21,6 @@
 import QtQuick
 import "Catalog.js" as Catalog
 import "BiblioApi.js" as BiblioApi
-import "CollectionBackfill.js" as CollectionBackfill
 
 WorldPage {
     id: biblio
@@ -120,16 +119,9 @@ WorldPage {
         onSeeAllRequested: biblio.continueSeeAllRequested()
     }
 
-    ContinueRow {
-        objectName: "biblioYourCollection"
-        title: "Your Collection"
-        showSeeAll: false
-        items: (Collection.revision, Progress.revision,
-                CollectionBackfill.withProgressCovers(Collection.items("biblio"), Progress.recent("book", 200)))
-        forgetHandler: function(e) { Collection.remove("biblio", String(e.id)) }
-        onDetailRequested: function(item) { biblio.collectionOpenRequested(item) }
-        onResumeRequested: function(item) { biblio.collectionOpenRequested(item) }
-    }
+    // Your Collection row REMOVED (Hemanth 2026-08-07): it was functionally identical to the
+    // Library tab — same Collection.items("biblio") source, two surfaces. Library is the single
+    // home for saved books now; Continue Reading (above) carries the in-progress titles.
 
     // Discover | Explore | Library — Discover first and default (mirrors Theatre/Tankoban's
     // discover-first tab order). Library is the Theatre-parity retained saved-shelf page (plan

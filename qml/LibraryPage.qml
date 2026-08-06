@@ -237,9 +237,13 @@ Item {
         anchors.topMargin: 22; anchors.bottomMargin: 18
         clip: true; boundsBehavior: Flickable.StopAtBounds
         model: root.visibleRows
-        readonly property int columnCount: Math.max(2, Math.floor(width / 178))
+        // fixed gallery poster size (148×222) matches ContinueTile / discover shelves — the
+        // deliberate, consistent card size that reads as one family with the rest of the app.
+        readonly property int posterW: 148
+        readonly property int posterH: 222   // posterW × gallery.posterRatio (1.5)
+        readonly property int columnCount: Math.max(2, Math.floor((width + 20) / (posterW + 20)))
         cellWidth: Math.floor(width / columnCount)
-        cellHeight: Math.floor((cellWidth - 16) * 1.5) + 56
+        cellHeight: posterH + 60
         cacheBuffer: cellHeight * 2
         ScrollBar.vertical: HouseScrollBar { flick: wall }
         onContentYChanged: root.closeMenu()
@@ -248,17 +252,35 @@ Item {
             id: card
             required property var modelData
             required property int index
-            width: wall.cellWidth - 16; height: wall.cellHeight - 18; x: 8
-            readonly property real coverH: (wall.cellWidth - 16) * 1.5
+            width: wall.posterW; height: wall.cellHeight - 18
+            x: (wall.cellWidth - width) / 2
+            readonly property real coverH: wall.posterH
+            readonly property bool hovered: cardHover.hovered || root.menuRowId === card.modelData.entry.id
             readonly property bool watched: modelData.state === "watched"
 
+            // ── two offset depth plates behind the poster (ContinueTile world grammar) ──
+            // plate 1: subtle drop, darkens on hover
             Rectangle {
-                id: cover
+                x: 0; y: 3; width: card.width; height: card.coverH; radius: 13
+                color: Qt.rgba(0, 0, 0, card.hovered ? 0.42 : 0.28)
+                Behavior on color { ColorAnimation { duration: 200 } }
+            }
+            // plate 2: deeper, slides down on hover (the lift)
+            Rectangle {
+                x: -2; y: card.hovered ? 11 : 7
+                width: card.width + 4; height: card.coverH; radius: 15
+                color: Qt.rgba(0, 0, 0, card.hovered ? 0.20 : 0.10)
+                Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                Behavior on color { ColorAnimation { duration: 200 } }
+            }
+
+            // ── the poster (cover art + scrim + badges + hairline), one rounded mask ──
+            Item {
+                id: worldContent
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                height: card.coverH; radius: 6; clip: true; color: "#1b1d22"
-                border.width: 1; border.color: cardHover.hovered ? theme.gold : theme.edge
-                opacity: card.watched ? 0.45 : 1
-                Behavior on border.color { ColorAnimation { duration: 130 } }
+                height: card.coverH
+                layer.enabled: true
+                layer.effect: MultiEffect { maskEnabled: true; maskSource: worldMask; maskThresholdMin: 0.5 }
 
                 Rectangle {
                     anchors.fill: parent
@@ -280,7 +302,7 @@ Item {
                     source: card.modelData.entry.cover || card.modelData.entry.art || ""
                     fillMode: Image.PreserveAspectCrop; verticalAlignment: Image.AlignTop
                     asynchronous: true; cache: true
-                    opacity: status === Image.Ready ? 1 : 0
+                    opacity: status === Image.Ready ? (card.watched ? 0.45 : 1) : 0
                     Behavior on opacity { NumberAnimation { duration: 180 } }
                 }
 
@@ -304,7 +326,7 @@ Item {
                 }
                 // watched ✓ — top-right (hidden while hovering so the ⋮ can take the corner)
                 Rectangle {
-                    visible: card.watched && !cardHover.hovered
+                    visible: card.watched && !card.hovered
                     anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8
                     width: 22; height: 22; radius: 11; color: Qt.rgba(0.04, 0.04, 0.055, 0.72)
                     border.width: 1; border.color: theme.edge
@@ -321,14 +343,38 @@ Item {
                     }
                 }
             }
+            // stable rounded mask source (no animation) — a texture provider, not drawn directly
+            Item {
+                id: worldMask
+                visible: false
+                anchors.fill: worldContent
+                layer.enabled: true
+                Rectangle { anchors.fill: parent; radius: 12; color: "black" }
+            }
 
-            // ⋮ hover button — top-right
+            // ── the hover film + gold edge (ContinueTile shared grammar) ──
+            Rectangle {
+                anchors.fill: worldContent
+                radius: 12; color: "transparent"
+                border.width: 2
+                border.color: card.hovered ? theme.gold : "transparent"
+                Behavior on border.color { ColorAnimation { duration: 120 } }
+            }
+            Rectangle {
+                anchors.fill: worldContent
+                radius: 12
+                color: card.hovered ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                Behavior on color { ColorAnimation { duration: 120 } }
+            }
+
+            // ⋮ button — top-right, fades in on hover (ContinueTile shared grammar)
             Rectangle {
                 id: dots
-                anchors.right: cover.right; anchors.top: cover.top; anchors.margins: 8
+                anchors.right: worldContent.right; anchors.top: worldContent.top; anchors.margins: 8
                 width: 26; height: 26; radius: 8; color: Qt.rgba(0.04, 0.04, 0.075, 0.82)
                 border.width: 1; border.color: root.menuRowId === card.modelData.entry.id ? theme.gold : theme.edge
-                visible: cardHover.hovered || root.menuRowId === card.modelData.entry.id
+                opacity: card.hovered ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 150 } }
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -341,7 +387,7 @@ Item {
 
             Text {
                 anchors.left: parent.left; anchors.right: parent.right
-                anchors.top: cover.bottom; anchors.topMargin: 9
+                anchors.top: worldContent.bottom; anchors.topMargin: 9
                 text: card.modelData.entry.title || "Untitled"
                 color: card.watched ? theme.inkDim : theme.ink
                 font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
@@ -349,7 +395,7 @@ Item {
             }
             Text {
                 anchors.left: parent.left; anchors.right: parent.right
-                anchors.top: parent.top; anchors.topMargin: card.coverH + 30
+                anchors.top: worldContent.bottom; anchors.topMargin: 30
                 text: {
                     var parts = []
                     if (card.modelData.year > 0) parts.push(card.modelData.year)
@@ -362,7 +408,7 @@ Item {
 
             HoverHandler { id: cardHover }
             MouseArea {
-                anchors.fill: cover; cursorShape: Qt.PointingHandCursor
+                anchors.fill: worldContent; cursorShape: Qt.PointingHandCursor
                 onClicked: root.detailRequested(card.modelData.entry)
             }
         }

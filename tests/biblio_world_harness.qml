@@ -108,37 +108,39 @@ Item {
                "tab order is Discover, Explore, Library, got " + JSON.stringify(tabBar.tabModel))
         }
 
-        // ═══════════════════════ the three shared widgets ═══════════════════════
+        // ═══════════════════════ the shared widgets ═══════════════════════
         // render exactly once, above the tab bar, shared (not duplicated) across both tabs.
+        // Your Collection row was removed (Hemanth 2026-08-07): the Library tab is the single
+        // home for saved books now, so the Featured carousel + Continue Reading are the two
+        // shared widgets above the tab bar.
         var fc = harness.findByObjectName(world, "biblioFeaturedCarousel")
         var cr1 = harness.findByObjectName(world, "biblioContinueReading")
-        var cr2 = harness.findByObjectName(world, "biblioYourCollection")
-        ok(fc !== null && cr1 !== null && cr2 !== null,
-           "Featured carousel + both Continue rows are all mounted")
+        ok(fc !== null && cr1 !== null,
+           "Featured carousel + Continue Reading are both mounted")
         ok(harness.countByObjectName(world, "biblioFeaturedCarousel") === 1, "Featured carousel renders exactly once")
         ok(harness.countByObjectName(world, "biblioContinueReading") === 1, "Continue Reading renders exactly once")
-        ok(harness.countByObjectName(world, "biblioYourCollection") === 1, "Your Collection renders exactly once")
+        ok(harness.countByObjectName(world, "biblioYourCollection") === 0,
+           "Your Collection row is gone (Library tab is the single home for saved books)")
 
         if (fc && tabBar) {
             var board = fc.parent
-            ok(board !== null && board === cr1.parent && board === cr2.parent && board === tabBar.parent,
-               "the three shared widgets and the tab bar are all siblings on the same board (not per-tab-nested)")
+            ok(board !== null && board === cr1.parent && board === tabBar.parent,
+               "the shared widgets and the tab bar are all siblings on the same board (not per-tab-nested)")
             if (board) {
                 var kids = board.children
-                var iFc = kids.indexOf(fc), iCr1 = kids.indexOf(cr1), iCr2 = kids.indexOf(cr2), iTab = kids.indexOf(tabBar)
-                ok(iFc >= 0 && iCr1 >= 0 && iCr2 >= 0 && iTab >= 0
-                   && iFc < iTab && iCr1 < iTab && iCr2 < iTab,
-                   "the three shared widgets sit ABOVE the tab bar in board order, got indices "
-                   + JSON.stringify({fc:iFc, cr1:iCr1, cr2:iCr2, tab:iTab}))
+                var iFc = kids.indexOf(fc), iCr1 = kids.indexOf(cr1), iTab = kids.indexOf(tabBar)
+                ok(iFc >= 0 && iCr1 >= 0 && iTab >= 0
+                   && iFc < iTab && iCr1 < iTab,
+                   "the shared widgets sit ABOVE the tab bar in board order, got indices "
+                   + JSON.stringify({fc:iFc, cr1:iCr1, tab:iTab}))
             }
         }
 
         // switching tabs never touches the shared widgets (no duplication, no teardown).
         world.activeTab = "explore"
         ok(harness.countByObjectName(world, "biblioFeaturedCarousel") === 1
-           && harness.countByObjectName(world, "biblioContinueReading") === 1
-           && harness.countByObjectName(world, "biblioYourCollection") === 1,
-           "the three shared widgets stay singular after switching to Explore")
+           && harness.countByObjectName(world, "biblioContinueReading") === 1,
+           "the shared widgets stay singular after switching to Explore")
         world.activeTab = "discover"
 
         // ═══════════════════════ Discover renders no rails/mosaics; Explore-only when active ═══════════════════════
