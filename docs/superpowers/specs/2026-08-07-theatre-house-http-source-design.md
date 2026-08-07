@@ -211,16 +211,26 @@ stays a thin gap-filler and this arc ends early. That is a success, not a failur
    headers fails. Proves the channel is doing the work and not passing vacuously.
 2. **No leak.** After playing a header-carrying source, a subsequent source with no headers plays
    with none set.
-3. **Coverage bar.** From a sample of **20 titles drawn from Theatre's own shelves** (Discover,
-   Trending, Continue Watching, and one running series across three episodes), **at least 18 offer
-   a confirmed HTTP row.** Recorded per title, not asserted.
+3. **Coverage — measured and reported, target set by Hemanth after the first measurement.**
+   From a sample of **20 titles drawn from Theatre's own shelves** (Discover, Trending, Continue
+   Watching, and one running series across three episodes), record per title whether a confirmed
+   HTTP row appeared, at what quality, and from which provider.
 
-   > **Translation flagged for Hemanth.** He locked the bar as "everything on Theatre's shelves
-   > plays." 18-of-20 is my reading of that as something a test can fail, not a quiet softening:
-   > a 20-of-20 gate would fail the whole arc on one obscure title that slipped into a shelf, and
-   > would make the criterion untestable in practice. If he wants the stricter reading, this
-   > becomes 20-of-20 and slice 5 runs longer. **His call, and it is the only number in this spec
-   > that is mine rather than his.**
+   > **Corrected 2026-08-07, Hemanth pushed back and was right.** An earlier draft set this gate at
+   > 18-of-20. **That number was invented — no title has ever been tested over HTTP in this app.**
+   > Setting a coverage target before the first measurement is backwards, and a fabricated number
+   > in an acceptance criterion is worse than no number: it looks like evidence.
+   >
+   > The honest structure: **coverage is a measurement, not a pass/fail.** Slice 3 produces the
+   > first real figure using the HTTP addons that already ship. Hemanth ratifies the target from
+   > that figure, before provider work begins. The plan carries a **floor** only — below 10 of 20
+   > the lane is a novelty rather than a real alternative to torrents, and the arc should be
+   > reconsidered rather than pushed.
+   >
+   > What makes this safe to leave open: **a title with no HTTP row is not a title he cannot
+   > watch.** It plays over torrents exactly as it does today. HTTP is an added lane, never a
+   > replacement, so a low coverage number costs capability nothing — it only means the bonus lane
+   > is narrower than hoped.
 4. **Honesty.** No row that says `Checked · plays now` fails to start playing. A single violation
    fails this criterion — the whole promise is that the receipt is true.
 5. **Speed.** The sheet is interactive immediately; HTTP rows resolve within **4 seconds** or drop.

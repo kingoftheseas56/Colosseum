@@ -211,9 +211,17 @@ control's result.
 
 **Bridge status:** available (depends on slice 2's names).
 
-**Completion criterion:** a 20-title table exists with a pass count against the bar, WebStreamr's
+**Completion criterion:** a 20-title table exists with the measured coverage figure, WebStreamr's
 liveness settled, the deliberate-failure control recorded, and an explicit recommendation on
 whether slices 5–6 are still needed at full size.
+
+> **This slice produces the coverage target; it does not test against one.** An earlier draft
+> carried an 18-of-20 gate that was invented before any title had ever been tested. Hemanth caught
+> it. Slice 3 reports the real figure and **proposes** a target; **Hemanth ratifies it before slice
+> 6 begins.** The only number fixed in advance is the floor: **below 10 of 20 the lane is a novelty
+> and the arc is reconsidered rather than pushed.** Report the figure with its per-title table, and
+> report *why* each miss missed (no provider had it / provider had it but preflight failed) — those
+> two failures point at completely different work.
 
 ---
 
@@ -398,10 +406,19 @@ HTTP source.
 
 **Bridge status:** available.
 
-**Completion criterion:** **at least 18 of 20** shelf titles offer a confirmed HTTP row, recorded
-per title. *(Hemanth flagged this number as Claude's translation of "everything on Theatre's
-shelves" — if he elects the strict reading it becomes 20 of 20 and this slice runs longer.)*
-No source in the sample that says `Checked · plays now` fails to start.
+**Completion criterion — two parts, and only the first is pass/fail:**
+
+1. **The honesty gate, absolute.** In the whole 20-title sweep, **no row that says
+   `Checked · plays now` may fail to start playing.** One violation fails this slice. This is the
+   feature's entire promise and it does not depend on any coverage guess.
+2. **The coverage target Hemanth ratified after slice 3**, measured per title and reported beside
+   slice 3's baseline so the delta from the house providers is visible.
+
+**Stop rule, so this slice cannot run forever:** measure coverage after each provider is added.
+When a newly added provider brings **fewer than one additional title** into the 20-sample, stop
+adding providers and report the figure. Chasing the long tail past that point costs maintenance
+forever and buys almost nothing — the P-Stream half-life makes every extra provider a standing
+liability, not a one-off cost.
 
 ---
 
