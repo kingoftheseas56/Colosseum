@@ -137,8 +137,6 @@ add_executable(colosseum
     devtools/LanistaServer.h
     devtools/LanistaEventLog.cpp
     devtools/LanistaEventLog.h
-    reader/BookBridge.cpp
-    reader/BookBridge.h
     reader/BookStores.cpp
     reader/BookStores.h
     reader2/Reader2Bridge.cpp

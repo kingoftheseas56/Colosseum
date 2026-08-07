@@ -63,7 +63,6 @@
 #include <QSet>
 #include <algorithm>
 #include "anime/AnimeOrderService.h"
-#include "reader/BookBridge.h"
 #include "reader2/Reader2Bridge.h"
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
@@ -769,17 +768,18 @@ int main(int argc, char *argv[]) {
     // Western-comics download backbone (GetComics release → archive → local page
     // dir) exposed to QML as `Comics`. BookDownloader lineage: ONE signed-link
     // file per release post, extracted so MangaReader reads it like a chapter.
-    // Foliate EPUB reader bridge exposed to the WebEngine reader's QWebChannel as
-    // `BookBridge` (a JS shim maps it to window.electronAPI). Ported from TB2.
-    auto *bookBridge = new BookBridge(&app);
-    engine.rootContext()->setContextProperty(QStringLiteral("BookBridge"), bookBridge);
-
     // The FRESH reader's native seam (Task 16 swap): Biblio's reader layer is
     // qml/reader2/ReaderShell over the vendored Anx foliate paper. QML sees the full
     // bridge; the paper's QWebChannel gets ONLY its filesRead/paperEvent gate
-    // (Reader2Bridge.paperGate — least privilege). Shares BookStores files with
-    // BookBridge byte-identically, so old-reader progress/marks resume unchanged.
-    // BookBridge stays constructed above for the remaining callers (audiobook strip).
+    // (Reader2Bridge.paperGate — least privilege). It reads and writes the SAME
+    // BookStores files (native/reader/BookStores.h) the retired TB2 BookBridge used,
+    // byte-identically, so old-reader progress/marks resume unchanged.
+    //
+    // BookBridge itself was DELETED 2026-08-07: the Task 16 swap replaced its door
+    // (Main.qml loads reader2/ReaderShell), and the one caller it was being kept for
+    // — the standalone audiobook strip — was retired 2026-07-18 (Main.qml:1412). It
+    // had no live caller in qml/, tests/ or native/. BookStores stays: it is shared
+    // storage, not part of the old reader.
     auto *reader2Bridge = new Reader2Bridge(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), reader2Bridge);
 
@@ -1089,14 +1089,13 @@ int main(int argc, char *argv[]) {
     auto *audioPairing = new AudioPairingStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("AudioPairing"), audioPairing);
 
-    // Hand the reader bridge the SAME audiobook library + pairing store QML uses,
-    // so a pairing saved in the reader's Audio tab is what the auto-load path reads.
-    bookBridge->setAudiobooks(audiobooks);
-    bookBridge->setPairing(audioPairing);
+    // (Deleted 2026-08-07 with BookBridge: two setters that handed the retired bridge the
+    // audiobook library + pairing store. Nothing read them — the reader takes `AudioPairing`
+    // straight as a context property, see qml/reader2/ReaderShell.qml:310-314.)
 
     // Read-along auto-attach (Task 12): when an audiobook finishes downloading from a
     // book's page, the downloader writes the pairing under the reader's bookId itself —
-    // no pairing UI. Same store instance QML/BookBridge use, so the Audio tab reads it.
+    // no pairing UI. Same store instance QML uses, so the reader's Audio tab reads it.
     audiobooks->setPairing(audioPairing);
 
     // Durable, world-scoped recent searches. Search QML reloads this store when its Loader
