@@ -11,24 +11,36 @@ tools/
 # the CLI source (and future edits, e.g. Task 11 wiring suite/brief) commit without -f.
 !native/tools/
 *-proto.png
-mocks/*-shot.png
 .codex-history/
 .worktrees/
 
 # Cover art — fetched from remote URLs (Catalog.js) + cached to disk; not source
 assets/covers/
 
-# Per-machine settings (QtCore Settings ini) — Hemanth's local picks, not source.
-# wallpapers.ini stays untracked-but-unignored (pre-existing convention); player.ini
-# is new in this task so it goes in .gitignore straight away — never tempt a commit.
+# Per-machine settings (QtCore Settings ini) — local picks, not source.
 player.ini
+wallpapers.ini
 
 # OS / editor cruft
 *.log
 Thumbs.db
 .DS_Store
 tests/xoxo_fixtures.gen.js
-artifacts/reader-bakeoff/
+
+# --- Internal brotherhood process material (not for the public repo) ---
+# Agent handoffs, dataset probes, dev-tool mock HTML, lanista eyes-on output.
+agents/
+# Verification run logs and dev-tool session output (lanista writes here at runtime).
+artifacts/
+# Dev-only UI mock HTML pages and their generators.
+mocks/
+# Brother planning machinery: plans, specs, handoffs, ideas, mock HTML.
+docs/superpowers/
+# Generated code encyclopedia: embeds verbatim C++ + internal commentary.
+docs/encyclopedia/
+
+# --- Generated catalogue bulk (runtime uses resources/comics_db.json, not this) ---
+qml/comics_db.gen.js
 
 # Comics catalogue SQLite db — pipeline-deployed by scripts/comics_brain/catalogue_build.py,
 # not shipped through git; app degrades gracefully when absent.
