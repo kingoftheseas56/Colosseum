@@ -43,6 +43,19 @@
   Tankoban's library + reader because it solves the same problem on the desktop.
 - **Kin:** first dedicated **comics/manga desktop** reference in the roster; complements the reader
   work already in `reader2/`.
+- **Functional inheritance (assessed 2026-08-07) — narrow, take UI not internals.** Tankoban has
+  already gone *further* than Houdoku on the core: our native reader (decode coordinator, scaled
+  cache tiers, double-page pairing/coupling, long-strip geometry, render profile) is deeper than
+  Houdoku's Electron reader, and our download-and-keep pipeline is Tankoban's whole backbone. Its
+  Tiyo plugin-source model is not a fit (we have native sources + the new Theatre extension model).
+  **The one genuinely inheritable feature is tracker sync:** Houdoku pushes reading progress to
+  **AniList / MyAnimeList / MangaUpdates**; Tankoban only *pulls* AniList art/metadata today
+  (`MangaSeries.qml`: `AniList art() → banner/cover/synopsis/genres/year/score`) and never writes
+  progress back. Reader already knows the position (resume), so this is sending it outward, not new
+  plumbing. Smaller cousin: Discord "now reading" presence (Harbor already does this for video —
+  `src-tauri/src/discord_rp.rs`). **Product flag for Hemanth:** tracker sync introduces an opt-in
+  user login to *their own* tracker account — distinct from the no-login-*source* rule, but still a
+  sign-in where there is none today; his call whether Tankoban has one at all.
 
 ## When one of these becomes real
 
