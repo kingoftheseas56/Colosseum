@@ -18,6 +18,10 @@ import "Magnet.js" as Magnet
 Item {
     id: sheet
     anchors.fill: parent
+    // Slice-2 automation surface (no visual effect): names the sheet root so the Lanista bridge can
+    // read its state (`qml-get sourcesSheet.loading/rowCount/httpRowCount`) and prove the source-sheet
+    // slices (5–7) in the running app instead of by eye. dump-ui sees named items only.
+    objectName: "sourcesSheet"
 
     property Item backdrop
     property string label: ""
@@ -41,6 +45,15 @@ Item {
     // Hosted rows lead, then the quality-filtered stream rows. Hosted rows exist only in
     // play mode, so download/season asks show exactly what they always did.
     property var visibleRows: (sheet.mode === "play" ? sheet.hostedRows : []).concat(filteredRows())
+    // Slice-2 automation surface (no visual effect): row counts read by the bridge via
+    // `qml-get sourcesSheet.*`. `loading` (below) is the sheet's own state; these count what shows.
+    property int rowCount: sheet.visibleRows.length
+    property int httpRowCount: {
+        var n = 0;
+        for (var i = 0; i < sheet.visibleRows.length; ++i)
+            if (sheet.visibleRows[i] && sheet.visibleRows[i].streamKind === "Direct") ++n;
+        return n;
+    }
     // "play" (default — every pre-existing caller), "download" (choosing a row
     // queues that exact torrent instead of playing, spec 2026-07-11), or "season"
     // (2026-07-19): the season checkout's picker — only FULL-SEASON torrents are
@@ -444,10 +457,22 @@ Item {
             delegate: Item {
                 id: row
                 required property var modelData
+                required property int index
                 property bool copiedTick: false
                 // A hosted-player (VidKing) row: no torrent, no quality/seed/size claim,
                 // no copy or download. It plays inside a restricted WebEngine surface.
                 property bool isHosted: row.modelData.kind === "hostedPlayer"
+                // Slice-2 automation surface (no visual effect): names each source row and exposes
+                // read-only state so the Lanista bridge can address it and prove slices 5–7 in the
+                // running app. dump-ui sees only named items; this is that name.
+                objectName: "sourceRow_" + row.index
+                property string streamKind: row.isHosted ? "Hosted" : (row.modelData.streamKind || "Torrent")
+                property string providerName: row.modelData.addonName || row.modelData.sourceName || ""
+                // Today every shown row is ready; slice 5 drives HTTP rows "checking" → "confirmed".
+                // Plain string on purpose — ui-wait-for polls strict-equality only.
+                property string checkState: "confirmed"
+                // Slice 7 flips this when a series pre-picks the source that worked last episode.
+                property bool preselected: false
                 width: ListView.view.width
                 height: 150
 
