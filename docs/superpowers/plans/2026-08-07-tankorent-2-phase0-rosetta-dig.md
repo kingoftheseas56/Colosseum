@@ -69,8 +69,17 @@ Verified on disk 2026-08-07 by read-only inspection:
 - **`COLOSSEUM_STREAM_SERVER` env var exists** and is the FIRST candidate in
   `findRuntimeDir()` — the sanctioned way to point a run at a different runtime dir without
   editing code.
-- **Stock caps the app overrides** (per the in-code comment, from `server.js getDefaults`):
-  35 connections, 1.6 / 2.5 MB/s soft/hard download limits.
+- **Stock caps the app overrides** — ~~per the in-code comment: 35 connections, 1.6 / 2.5 MB/s~~
+  **CORRECTED by Slice 0 (2026-08-07), read live off the specimen (server 4.20.17):
+  `btMaxConnections` 55, soft limit 2,621,440 (2.5 MB/s), hard limit 3,670,016 (3.5 MB/s).**
+  The `streamserver.cpp:256-264` comment describes an older server and is stale; a comment fix
+  is owed to A4's lane. Slice 0 also surfaced three knobs the comment never mentioned:
+  `btMinPeersForStable` **5** (a peers-count threshold — a direct candidate for the
+  "200 seeders reads as single digits" thread), `btHandshakeTimeout` 20000 ms,
+  `btRequestTimeout` 4000 ms. Evidence: `docs/research/tankorent2-phase0/00-specimen.md`.
+- **There is NO port environment knob** (Slice 0, verified by enumerating every `process.env`
+  read in the bundle). The listen port is the literal `port = 11470` with an increment-on-error
+  fallback to 11474. See the amended isolation contract below.
 
 ## Laws this plan operates under
 
@@ -153,10 +162,25 @@ StremioService install (copy, never symlink, never move — the install stays pr
 Record SHA-256 of `server.js` and `stremio-runtime.exe` plus file sizes and timestamps in
 `00-specimen.md`. Write a launcher script `_t2lab/run-specimen.sh` that starts the runtime
 with `APP_PATH=_t2lab/cache`, `NO_HTTPS_SERVER=1`, `NODE_OPTIONS` removed (mirroring
-`streamserver.cpp:111-115`), and forces a **non-11470 port** — determine the port knob from
-the bundle/env during this slice and record it; if no port knob exists, record that fact and
-the launcher instead asserts 11470 is free before starting, refusing to run if it is not.
-Add `_t2lab/` to `.gitignore` if not already covered.
+`streamserver.cpp:111-115`), and forces a **non-11470 port**.
+
+> **AMENDED 2026-08-07 during execution — the original fallback was unsafe.** This slice
+> originally said: "if no port knob exists … the launcher instead asserts 11470 is free before
+> starting, refusing to run if it is not." **No port knob exists** (verified: no `process.env`
+> read in the bundle influences the port), and that fallback has the danger inverted — the
+> hazard is 11470 being *free*, because then the lab binds it and Colosseum's adopt-first probe
+> captures the lab engine on the next Play. At baseline 11470 *was* free, so it would have
+> fired immediately.
+>
+> **Implemented instead:** a second copy `_t2lab/specimen-lab/` with every literal `11470`
+> rewritten to `11480` — six sites, one byte each, no offset shift. Site 1 is the listener;
+> sites 2–5 are outbound self-references that, left alone, would make the lab phone the REAL
+> service; site 6 is a CORS check moved for consistency. The `port++ < 11474` retry band is
+> deliberately left untouched so a busy lab port fails loudly instead of walking back toward
+> production. `_t2lab/specimen/` stays byte-identical to the install and is what Slice 1 reads.
+> Tooling committed at `docs/research/tankorent2-phase0/tools/`.
+
+`native/build*/` in `.gitignore` already covers `_t2lab/` — no new rule needed (verified).
 
 **Behavior to preserve:** the StremioService install is unmodified (hashes match before and
 after); the official service, if running, is neither killed nor reconfigured; Colosseum's
