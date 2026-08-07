@@ -5,7 +5,6 @@ $progress = Get-Content -Raw -LiteralPath (Join-Path $root "native\ProgressStore
 $player = Get-Content -Raw -LiteralPath (Join-Path $root "qml\PlayerPage.qml")
 $main = Get-Content -Raw -LiteralPath (Join-Path $root "qml\Main.qml")
 $series = Get-Content -Raw -LiteralPath (Join-Path $root "qml\TheatreSeries.qml")
-$hosted = Get-Content -Raw -LiteralPath (Join-Path $root "qml\HostedPlayerPage.qml")
 
 function Assert-Contains($Text, $Pattern, $Message) {
     if ($Text -notmatch $Pattern) {
@@ -52,9 +51,9 @@ Assert-Contains $series 'Progress\.rememberLastSeason\(currentId\(\), activeSeas
 Assert-Contains $series 'function\s+nextUpEpisodeNumber\(\)' `
     "TheatreSeries should compute a next-up episode from watched progress."
 
-# Task 3 — keyless TMDB identity for hosted playback (VidKing).
+# Task 3 — keyless TMDB identity carried to source extensions (NoTorrent accepts tmdb ids).
 Assert-Contains $series 'property int tmdbId' `
-    "TheatreSeries must hold the resolved TMDB identity for hosted playback."
+    "TheatreSeries must hold the resolved TMDB identity for source extensions."
 Assert-Contains $series 'tmdbId\s*=\s*0' `
     "TheatreSeries must reset tmdbId to zero before each item load."
 Assert-Contains $series 'page\.tmdbId\s*=\s*Math\.max\(0,\s*Math\.floor\(Number\(meta\.moviedb_id\s*\|\|\s*meta\.tmdbId' `
@@ -64,39 +63,16 @@ Assert-Contains $series '"tmdbId":\s*page\.tmdbId' `
 Assert-Contains $series '"imdbId":\s*page\.currentId\(\)' `
     "Play-mode source asks must carry the imdb id into the sheet's playback context."
 
-# Task 6 — hosted playback writes the same Progress payload shape as mpv, keyed by the
-# existing Colosseum video id, so Continue Watching resumes VidKing.
-Assert-Contains $hosted 'Progress\.recordSilent\(' `
-    "HostedPlayerPage must persist the 5-second heartbeat silently."
-Assert-Contains $hosted 'Progress\.record\(' `
-    "HostedPlayerPage must write lifecycle progress with a notify."
-Assert-Contains $hosted '"id":\s*(request|r)\.mediaId' `
-    "Hosted progress must be keyed by the existing Colosseum video id."
-Assert-Contains $hosted '"hostedPlayerId":\s*(request|r)\.providerId' `
-    "Hosted resume metadata must mark the provider so Continue routes back to VidKing."
-Assert-Contains $hosted '"position":\s*[a-zA-Z.]*(lastPosition|currentTime|position)' `
-    "Hosted resume must carry the last playback position in seconds."
-
-# Task 7 — Continue Watching routes a hosted entry back to VidKing BEFORE the torrent/local
-# branches, and only while net.vidking.player is installed and enabled. The hosted Loader is
-# separate from playerLayer and never changes usePlayer2.
-Assert-Contains $main 'openHostedPlayerSession' `
-    "Main must expose openHostedPlayerSession as the hosted entry point."
-Assert-Contains $main '"contentKind":\s*"hosted-video"' `
-    "Hosted sessions must declare contentKind hosted-video."
-Assert-Contains $main 'hostedPlayerLayer' `
-    "Main must declare a hostedPlayerLayer Loader beside playerLayer."
-Assert-Contains $main 'function minimizeHostedPlayer' `
-    "Main must declare minimizeHostedPlayer()."
-Assert-Contains $main 'function closeHostedPlayerSession' `
-    "Main must declare closeHostedPlayerSession()."
-Assert-Contains $main 'hostedPlayerLayer\.active\s*=\s*false' `
-    "Minimize/close must UNLOAD the hosted Loader so no warm iframe survives."
+# Task 6/7 rewritten at the VidKing teardown (House HTTP slice 4, 2026-08-07): the hosted
+# player is GONE. What must remain is the graceful degrade — an old Continue Watching entry
+# stamped hostedPlayerId routes to the Theatre detail (a real source pick), never crashes,
+# and no hosted machinery lingers in Main.
 Assert-Contains $main 'r\.hostedPlayerId' `
-    "resumeContinue must check resume.hostedPlayerId before localPath/infoHash."
+    "resumeContinue must still recognize pre-teardown hosted entries (graceful degrade)."
 Assert-Contains $main 'openTheatreSeries' `
-    "A disabled/removed VidKing Continue must fall back to Theatre detail."
-Assert-Contains $main 'reopenSources' `
-    "Back to Sources must restore the original Sources context."
+    "A pre-teardown hosted Continue entry must fall back to Theatre detail."
+if ($main -match 'openHostedPlayerSession|hostedPlayerLayer|hosted-video') {
+    throw "Main still carries hosted-player machinery - the teardown is incomplete."
+}
 
 Write-Host "Theatre progress parity structure OK."

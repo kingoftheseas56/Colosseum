@@ -12,7 +12,6 @@
 import QtQuick
 import QtQuick.Controls
 import "AddonClient.js" as AddonClient
-import "HostedPlayerApi.js" as HostedPlayerApi
 import "Magnet.js" as Magnet
 
 Item {
@@ -35,10 +34,6 @@ Item {
     property bool loading: false
     property bool timedOut: false
     property var rows: []
-    // Hosted-player rows (VidKing) are built APP-SIDE from a trusted provider registry,
-    // synchronously, and kept entirely separate from the fetched stream `rows`: they never
-    // enter the torrent/quality/warm-up machinery. Play mode only.
-    property var hostedRows: []
     property var askedNames: []     // the extensions this ask went out to, ask-order
     property int gen: 0
     property string qualityFilter: "all"
@@ -49,11 +44,7 @@ Item {
     // keeps today's behavior exactly. Ordering itself is untouched — no silent re-ranking.
     property string extFilter: "all"
     property bool extMenuOpen: false
-    // Hosted rows lead, then the quality-filtered stream rows. Hosted rows exist only in
-    // play mode, so download/season asks show exactly what they always did. An extension
-    // pick hides them — VidKing leading a "NoTorrent only" list would be a lie.
-    property var visibleRows: (sheet.mode === "play" && sheet.extFilter === "all"
-                               ? sheet.hostedRows : []).concat(filteredRows())
+    property var visibleRows: filteredRows()
     // Slice-2 automation surface (no visual effect): row counts read by the bridge via
     // `qml-get sourcesSheet.*`. `loading` (below) is the sheet's own state; these count what shows.
     property int rowCount: sheet.visibleRows.length
@@ -91,9 +82,6 @@ Item {
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
     // download/season mode's row action: the full chosen row (infoHash/fileIdx/url/…)
     signal downloadRequested(var row)
-    // a hosted-player row was chosen → hand it up (Main opens the WebEngine surface).
-    // NEVER routed through playRequested/infoHash/url — a hosted player is not a stream.
-    signal hostedPlayerRequested(var row, var playbackContext)
     // season mode only: the ask came back with no full-season torrent
     signal seasonNoPacks()
 
@@ -114,7 +102,6 @@ Item {
         sheet.backdropUrl = (context && context.backdrop) ? context.backdrop : "";
         sheet.playbackContext = context || ({});
         sheet.rows = [];
-        sheet.hostedRows = [];
         sheet.qualityFilter = "all";
         sheet.extFilter = "all";
         sheet.extMenuOpen = false;
@@ -129,28 +116,11 @@ Item {
         var installedList = (typeof Extensions !== "undefined")
                             ? Extensions.installed() : [];
 
-        // Hosted-player rows first, built synchronously from the trusted registry. The
-        // `type` comes from this ask (never a manifest); the id fields ride in the context.
-        var hostedExts = AddonClient.hostedPlayerExtensions(installedList, type, id);
-        var hostedMedia = {
-            "type": type,
-            "imdbId": sheet.playbackContext.imdbId || sheet.subId,
-            "tmdbId": sheet.playbackContext.tmdbId || 0,
-            "season": sheet.playbackContext.season,
-            "episode": sheet.playbackContext.episode
-        };
-        sheet.hostedRows = (sheet.mode === "play")
-            ? HostedPlayerApi.rowsFor(hostedExts, hostedMedia) : [];
-
         // every enabled stream extension that accepts this title, installed order
         var exts = AddonClient.streamExtensions(installedList, type, id);
-        // askedNames lists hosted providers once, then the stream extensions.
-        var hostedNames = sheet.hostedRows.map(function(r) { return r.sourceName; });
-        sheet.askedNames = hostedNames.concat(exts.map(function(e) {
+        sheet.askedNames = exts.map(function(e) {
             return (e.manifest && e.manifest.name) || e.id;
-        }));
-        // No ordinary stream extension: with hosted rows in hand the sheet still shows
-        // them (loading stops, sheet stays open); with none, the empty state explains.
+        });
         if (!exts.length) { sheet.loading = false; seasonSettle(); return; }
 
         AddonClient.loadStreams(exts, type, id,
@@ -478,8 +448,6 @@ Item {
 
         Text {
             anchors.centerIn: parent
-            // A hosted row is a source too — the empty state hides the moment there is
-            // anything to show, so "no sources" never prints beneath a VidKing row.
             visible: sheet.visibleRows.length === 0
             text: sheet.loading ? "Finding sources…"
                   : (sheet.timedOut ? "Sources timed out. Try again."
@@ -506,14 +474,11 @@ Item {
                 required property var modelData
                 required property int index
                 property bool copiedTick: false
-                // A hosted-player (VidKing) row: no torrent, no quality/seed/size claim,
-                // no copy or download. It plays inside a restricted WebEngine surface.
-                property bool isHosted: row.modelData.kind === "hostedPlayer"
                 // Slice-2 automation surface (no visual effect): names each source row and exposes
                 // read-only state so the Lanista bridge can address it and prove slices 5–7 in the
                 // running app. dump-ui sees only named items; this is that name.
                 objectName: "sourceRow_" + row.index
-                property string streamKind: row.isHosted ? "Hosted" : (row.modelData.streamKind || "Torrent")
+                property string streamKind: row.modelData.streamKind || "Torrent"
                 property string providerName: row.modelData.addonName || row.modelData.sourceName || ""
                 // Today every shown row is ready; slice 5 drives HTTP rows "checking" → "confirmed".
                 // Plain string on purpose — ui-wait-for polls strict-equality only.
@@ -551,29 +516,24 @@ Item {
                         Text { text: row.modelData.addonName; color: theme.ink
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: row.isHosted ? "HOSTED PLAYER"
-                                                  : (row.modelData.qualityLine || row.modelData.quality)
+                        Text { text: row.modelData.qualityLine || row.modelData.quality
                             color: theme.gold
                             font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
                             anchors.verticalCenter: parent.verticalCenter }
                     }
                     Text {
                         width: parent.width
-                        // Hosted rows are optimistic: a valid TMDB id means we can OFFER the
-                        // row, not that VidKing has a playable source — say so plainly.
-                        text: row.isHosted ? "Web player · availability checked when opened"
-                                           : row.modelData.release
+                        text: row.modelData.release
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
                     }
                     Text {
-                        visible: !row.isHosted
                         width: parent.width
                         text: sheet.metaText(row.modelData)
                         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight
                     }
                     Row {
                         spacing: 8
-                        visible: !row.isHosted && row.modelData.audio !== undefined
+                        visible: row.modelData.audio !== undefined
                         Text { text: row.modelData.audio; color: theme.ink
                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
@@ -591,7 +551,6 @@ Item {
                     }
                     Row {
                         spacing: 7
-                        visible: !row.isHosted
                         Repeater {
                             model: row.modelData.tags || []
                             delegate: Rectangle {
@@ -604,7 +563,6 @@ Item {
                         }
                     }
                     Text {
-                        visible: !row.isHosted
                         text: (row.modelData.streamKind || "Torrent") + " · " + (row.modelData.streamLabel || "P2P stream")
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                     }
@@ -629,10 +587,7 @@ Item {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (row.isHosted) {            // a hosted player: hand it up, never mpv/torrent
-                            sheet.hostedPlayerRequested(row.modelData, sheet.playbackContext)
-                            sheet.hide()
-                        } else if (sheet.mode !== "play") {   // download & season: the pick IS the download
+                        if (sheet.mode !== "play") {   // download & season: the pick IS the download
                             sheet.downloadRequested(row.modelData)
                             sheet.hide()
                         } else {
@@ -649,7 +604,7 @@ Item {
                 // it stacks ABOVE it — copy clicks never fall through into playback.
                 Rectangle {
                     id: copyBtn
-                    visible: !row.isHosted   // a hosted player exposes no magnet/url to copy
+                    visible: true
                     anchors.right: play.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
@@ -682,8 +637,7 @@ Item {
                 // the sheet; the tick is per-TITLE, not per-row — see titleQueued above.
                 Rectangle {
                     id: dlBtn
-                    // Hidden for hosted rows: a hosted player cannot download.
-                    visible: sheet.mode === "play" && typeof Download !== "undefined" && !row.isHosted
+                    visible: sheet.mode === "play" && typeof Download !== "undefined"
                     anchors.right: copyBtn.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20

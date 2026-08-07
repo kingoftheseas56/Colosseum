@@ -63,11 +63,6 @@ public:
     // present, otherwise fetches. Emits installFinished / installFailed.
     Q_INVOKABLE void install(const QString& rawUrl);
 
-    // Reinstall an APP-OWNED bundled extension by id (no network manifest fetch).
-    // Currently only "net.vidking.player": re-enables it if present, appends the
-    // trusted row if the user had removed it. Unknown ids emit installFailed.
-    Q_INVOKABLE void installBundled(const QString& id);
-
     Q_INVOKABLE void remove(const QString& id);          // core rows refuse
     Q_INVOKABLE void setEnabled(const QString& id, bool on);  // core rows refuse
     // Absolute reorder. NOT ±steps: a world-relative arrow press is not a global
@@ -93,9 +88,6 @@ private:
     void migrateDefaults();            // existing install: add house rows a newer
                                        // defaults version introduced, once only
     bool appendHouseDefaults(bool onlyMissing);   // true if anything added or refreshed
-    // The one place VidKing's trusted manifest is built — shared by the house-defaults
-    // seed and installBundled, so a reinstall is byte-identical to the seeded row.
-    static QVariantMap vidkingManifest();
     void bump();
     int  indexOfId(const QString& id) const;
     QString indexPath() const;         // <appdata>/extensions/installed.json

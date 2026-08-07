@@ -246,8 +246,8 @@ function mapCinemeta(meta, index) {
         id: meta.id || meta.imdb_id || "",
         type: meta.type || "movie",
         // Keyless TMDB identity: Cinemeta ships `moviedb_id`, which is a TMDB id. Preserved
-        // so hosted players (VidKing) can build their embed URL without any TMDB API key.
-        // Absent stays 0 — an unknown id offers no hosted row rather than a wrong one.
+        // as generic title identity for source extensions (NoTorrent accepts tmdb ids).
+        // Absent stays 0 — an unknown id is never guessed.
         tmdbId: Number(meta.moviedb_id || meta.tmdbId || 0),
         caption: metaTitle(meta),
         title: metaTitle(meta),

@@ -3,9 +3,5 @@
     <file alias="colosseum.ico">../assets/icons/colosseum.ico</file>
     <file alias="tankoban/manga_uploader_trust.json">torrent/manga_uploader_trust.json</file>
     <file alias="tankorent/comics_uploader_trust.json">torrent/comics_uploader_trust.json</file>
-    <!-- VidKing hosted-player wrapper: the local parent page + its brain, loaded as
-         qrc:/hostedplayer/host.html by HostedPlayerPage's restricted WebEngineView. -->
-    <file alias="hostedplayer/host.html">../resources/hostedplayer/host.html</file>
-    <file alias="hostedplayer/host.js">../resources/hostedplayer/host.js</file>
 </qresource>
 </RCC>

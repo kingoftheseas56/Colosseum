@@ -399,22 +399,6 @@ function torrentioEnabled(installedList) {
     return false;   // not installed at all
 }
 
-// The enabled hosted-player extensions that accept this media, in installed order.
-// A hosted player (VidKing) plays inside a restricted iframe — it is NOT a stream well,
-// so it is matched here with the `hosted-player` resource and deliberately kept out of
-// streamExtensions/loadStreams. parseStream is untouched: an iframe row never becomes a
-// url:<embed> row and never reaches mpv. The actual embed URL is built app-side, keyed by
-// providerId, in HostedPlayerApi.js — this only answers "which hosted players apply?".
-function hostedPlayerExtensions(installedList, type, id) {
-    var out = [];
-    for (var i = 0; i < (installedList || []).length; i++) {
-        var e = installedList[i];
-        if (!e || e.enabled !== true) continue;
-        if (accepts(e.manifest, "hosted-player", type, id)) out.push(e);
-    }
-    return out;
-}
-
 // The extensions that would answer a stream ask, in installed (ask) order.
 // installedList = Extensions.installed(); type "movie"|"series"; id "tt…"/"tt…:s:e"/"kitsu:…".
 function streamExtensions(installedList, type, id) {

@@ -20,10 +20,6 @@ Item {
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
-    // A hosted-player (VidKing) row was chosen in the Sources sheet. Carries a typed
-    // request up to Main → openHostedPlayerSession. NEVER routed through playRequested,
-    // infoHash, url:, Stream, or Download — a hosted player is not a stream.
-    signal hostedPlayerRequested(var request)
 
     property string title: ""
     property string mediaType: "movie"
@@ -69,9 +65,10 @@ Item {
     // the identity everything keys off (episode stream ids, progress, last-season).
     property string resolvedId: ""
     // Keyless TMDB id from the RESOLVED Cinemeta record (moviedb_id). 0 when unknown.
-    // Hosted playback (VidKing) reads this; it is taken from the final Cinemeta meta,
-    // never the original anime provider object, so an anime→Cinemeta pivot keeps the
-    // right id. Reset to 0 before every load so a stale id can never leak across titles.
+    // Generic title identity carried in the sources context (extensions like NoTorrent
+    // accept tmdb ids); taken from the final Cinemeta meta, never the original anime
+    // provider object, so an anime→Cinemeta pivot keeps the right id. Reset to 0 before
+    // every load so a stale id can never leak across titles.
     property int tmdbId: 0
 
     function currentId() {
@@ -635,7 +632,7 @@ Item {
             }
             if (meta.id) resolvedId = String(meta.id);
             // Take the TMDB id from the FINAL Cinemeta record (after any anime→imdb pivot),
-            // so hosted playback resolves the right title rather than the anime provider's id.
+            // so source extensions resolve the right title rather than the anime provider's id.
             page.tmdbId = Math.max(0, Math.floor(Number(meta.moviedb_id || meta.tmdbId || 0)));
             if (meta.name) title = meta.name;
             var bg = TheatreApi.normalizeArtUrl(meta.background || "");
@@ -990,7 +987,7 @@ Item {
                                                          "title": page.title,
                                                          "metaLine": page.episodeSourceLine(ep),
                                                          "backdrop": page.sourceBackdrop(),
-                                                         // hosted-player identity (VidKing) — play-mode only
+                                                         // title identity for source extensions
                                                          "tmdbId": page.tmdbId,
                                                          "imdbId": page.currentId(),
                                                          "season": page.episodeSeason(ep),
@@ -1007,7 +1004,7 @@ Item {
                                             "year": page.year,
                                             "metaLine": page.sourceMetaLine(),
                                             "backdrop": page.sourceBackdrop(),
-                                            // hosted-player identity (VidKing) — movie, no season/episode
+                                            // title identity for source extensions — movie, no season/episode
                                             "tmdbId": page.tmdbId,
                                             "imdbId": page.currentId()
                                         })
@@ -1595,7 +1592,7 @@ Item {
                                                  "title": page.title,
                                                  "metaLine": page.episodeSourceLine(ep.modelData),
                                                  "backdrop": page.sourceBackdrop(),
-                                                 // hosted-player identity (VidKing) — play-mode only
+                                                 // title identity for source extensions
                                                  "tmdbId": page.tmdbId,
                                                  "imdbId": page.currentId(),
                                                  "season": page.episodeSeason(ep.modelData),
@@ -1950,62 +1947,11 @@ Item {
 
     ScrollGlide { flick: flick }
 
-    // Back to Sources (from the hosted player): replay the EXACT Sources sheet the user left
-    // — same kind, same media id, same title/context, play mode. The request carries the
-    // hosted identity (type, mediaId, season, episode, tmdbId, imdbId, title, backdrop); we
-    // rebuild the context the show() call expects so hosted rows reappear at the top. This is
-    // additive: it only runs when Main calls it after a hosted Back-to-Sources.
-    function reopenSources(request) {
-        if (!request || !request.mediaId) return
-        var isSeries = request.type === "series" && Number(request.season) > 0 && Number(request.episode) > 0
-        if (isSeries) {
-            var epLabel = (request.title || page.title) + " - S" + request.season + "E" + request.episode
-            page.sheetEpisode = null
-            sources.show("series", request.mediaId, epLabel, {
-                "title": request.title || page.title,
-                "metaLine": "Season " + request.season + " · Episode " + request.episode,
-                "backdrop": request.backdrop || page.banner,
-                "tmdbId": request.tmdbId || page.tmdbId,
-                "imdbId": request.imdbId || page.currentId(),
-                "season": Number(request.season),
-                "episode": Number(request.episode)
-            })
-        } else {
-            page.sheetEpisode = null
-            sources.show("movie", request.mediaId, request.title || page.title, {
-                "title": request.title || page.title,
-                "backdrop": request.backdrop || page.banner,
-                "tmdbId": request.tmdbId || page.tmdbId,
-                "imdbId": request.imdbId || request.mediaId
-            })
-        }
-    }
-
     SourcesSheet {
         id: sources
         z: 60
         backdrop: page.backdrop
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
-        // A hosted-player row → a typed request. Series mediaId is the episode stream id
-        // (sources.subId); movie mediaId is the title id. Handed straight up to Main; it
-        // never touches playRequested, infoHash, url:, Stream, or Download.
-        onHostedPlayerRequested: (row, context) => {
-            var isSeries = context && context.season !== undefined
-            var request = {
-                "providerId": row.providerId,
-                "extensionId": row.extensionId,
-                "type": isSeries ? "series" : "movie",
-                "imdbId": context.imdbId,
-                "tmdbId": context.tmdbId,
-                "season": context.season || 0,
-                "episode": context.episode || 0,
-                "mediaId": isSeries ? sources.subId : page.currentId(),
-                "title": context.title || page.title,
-                "backdrop": context.backdrop || page.banner,
-                "position": 0
-            }
-            page.hostedPlayerRequested(request)
-        }
         onDownloadRequested: (row) => {
             if (page.pendingSeasonPick) {
                 // season-mode pick: the chosen FULL-SEASON torrent pins the checkout

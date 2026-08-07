@@ -133,10 +133,7 @@ Item {
         for (var k in pendingUrls) p[k] = true;
         p[item.url] = true;
         pendingUrls = p;
-        // A bundled card is app-owned — reinstall it by id with no network manifest fetch.
-        // Remote Stremio cards keep fetching their manifest by url, unchanged.
-        if (item.bundled === true) Extensions.installBundled(item.id);
-        else Extensions.install(item.url);
+        Extensions.install(item.url);
     }
     function loadCommunity() {
         communityLoading = true;

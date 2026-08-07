@@ -81,13 +81,7 @@ var RAILS = [
               desc: "Subtitles in every language, matched to the exact episode playing.",
               kind: "subtitles · everything",
               url: "https://opensubtitles-v3.strem.io/manifest.json",
-              tone1: "#233a33", tone2: "#0f1a17" },
-            // VidKing is bundled, not fetched: `bundled:true` routes its install through
-            // Extensions.installBundled(id), never a remote manifest fetch.
-            { id: "net.vidking.player", name: "VidKing",
-              desc: "Keyless hosted playback for movies and series.",
-              kind: "hosted player · movies, shows", url: "bundled:vidking", bundled: true,
-              tone1: "#3a3020", tone2: "#171207" }
+              tone1: "#233a33", tone2: "#0f1a17" }
         ]
     },
     {
@@ -279,13 +273,11 @@ function isUniverse(entry) {
 function isCatalogue(entry) {
     return entry && entry.core === true && _hasResource(entry.manifest || entry, "catalog");
 }
-// A well is anything that FETCHES a playable answer and is not a locked catalogue.
-// Two resources qualify: `stream` (torrent/direct rows) and `hosted-player` (VidKing's
-// embedded web surface). Both are ranked, removable, and asked in installed order — the
-// hosted player just fetches a restricted iframe instead of a stream URL.
+// A well is anything that FETCHES a playable answer and is not a locked catalogue:
+// the `stream` resource (torrent/direct rows), ranked, removable, asked in installed order.
 function isWell(entry) {
     var m = (entry && entry.manifest) || entry;
-    return !isCatalogue(entry) && (_hasResource(m, "stream") || _hasResource(m, "hosted-player"));
+    return !isCatalogue(entry) && _hasResource(m, "stream");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

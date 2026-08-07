@@ -28,9 +28,11 @@ constexpr int kDescriptionCap = 400;
 // 7 gave the universes their real names and artwork.
 // 8 seeds the keyless VidKing hosted-player extension into Theatre (enabled, removable).
 // 9 seeds NoTorrent as Theatre's direct-HTTP source (measured 18/18 coverage, House HTTP slice 3).
+// 10 retires VidKing (House HTTP slice 4, Hemanth 2026-08-07): the hosted-player surface is
+//    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 9;
+constexpr int kHouseDefaultsVersion = 10;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -101,24 +103,6 @@ void ExtensionsStore::bump()
 // Returns true if anything was actually added or refreshed — the caller cannot infer
 // that from the row COUNT, because a generation can add as many rows as it retires and
 // a manifest refresh changes no count at all.
-// VidKing's trusted, APP-OWNED manifest. Built the same way appendHouseDefaults's local
-// `manifest` lambda builds a non-configurable row, so the seeded row and an installBundled
-// reinstall are identical. The `hosted-player` resource is what AddonClient and
-// HostedPlayerApi key on; it is deliberately NOT `stream`, so VidKing can never fall into
-// the mpv/torrent ladder. Keyless: idPrefixes ["tt"], no token or account field.
-QVariantMap ExtensionsStore::vidkingManifest()
-{
-    QVariantMap m;
-    m.insert(QStringLiteral("id"), QStringLiteral("net.vidking.player"));
-    m.insert(QStringLiteral("name"), QStringLiteral("VidKing"));
-    m.insert(QStringLiteral("description"),
-             QStringLiteral("Keyless hosted playback for movies and series through VidKing's web player."));
-    m.insert(QStringLiteral("resources"), QStringList{ QStringLiteral("hosted-player") });
-    m.insert(QStringLiteral("types"),
-             QStringList{ QStringLiteral("movie"), QStringLiteral("series") });
-    m.insert(QStringLiteral("idPrefixes"), QStringList{ QStringLiteral("tt") });
-    return m;
-}
 
 bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
 {
@@ -203,12 +187,6 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  { QStringLiteral("stream") },
                  { QStringLiteral("movie"), QStringLiteral("series") },
                  { QStringLiteral("tt"), QStringLiteral("tmdb_") }, false));
-    // VidKing — a keyless hosted web player. Not a stream well: it plays inside a
-    // restricted WebEngine iframe, never through mpv/torrent/download. Ships enabled and
-    // removable (core:false); its manifest is app-owned (built in vidkingManifest()), so a
-    // remote registry can never redirect the embed. Transport "bundled:vidking" marks it
-    // as having no manifest document to fetch. (Theatre VidKing plan, generation 8.)
-    add("net.vidking.player", "bundled:vidking", false, vidkingManifest());
     add("community.anime.kitsu", "https://anime-kitsu.strem.fun/manifest.json", false,
         manifest("community.anime.kitsu", "Anime Kitsu",
                  "The anime shelf's brain — proper seasons, splits and episode orders.",
@@ -332,6 +310,9 @@ void ExtensionsStore::seed()
 static const char* const kRetiredIds[] = {
     "colosseum.catalogue.weebcentral",
     "colosseum.catalogue.getcomics",
+    // Generation 10: the VidKing hosted player is gone from the app (House HTTP slice 4) —
+    // a profile still carrying the row would render nothing for it.
+    "net.vidking.player",
 };
 
 // An existing profile predates a house row that now ships. Add only what is absent,
@@ -419,38 +400,6 @@ QString ExtensionsStore::universePayload(const QString& file) const
 }
 
 // ------------------------------------------------------------------ mutations
-
-// Reinstall an app-owned bundled extension without any network fetch. This is the path
-// that makes VidKing genuinely REMOVABLE: a user can throw it out (remove()), and the
-// defaults-version marker stops the migration resurrecting it — but Extensions still
-// offers a one-click way to bring the trusted row back, enabled, byte-identical to seed.
-void ExtensionsStore::installBundled(const QString& id)
-{
-    if (id != QStringLiteral("net.vidking.player")) {
-        emit installFailed(QStringLiteral("bundled:vidking"),
-                           QStringLiteral("Unknown bundled extension."));
-        return;
-    }
-    const int at = indexOfId(id);
-    if (at >= 0) {
-        // Already carried — just make sure it is switched on. Position and core flag are
-        // the user's; we do not disturb them.
-        if (!m_items.at(at).value(QStringLiteral("enabled")).toBool())
-            m_items[at].insert(QStringLiteral("enabled"), true);
-    } else {
-        QVariantMap e;
-        e.insert(QStringLiteral("id"), id);
-        e.insert(QStringLiteral("transportUrl"), QStringLiteral("bundled:vidking"));
-        e.insert(QStringLiteral("installedAt"), QDateTime::currentSecsSinceEpoch());
-        e.insert(QStringLiteral("enabled"), true);
-        e.insert(QStringLiteral("core"), false);
-        e.insert(QStringLiteral("manifest"), vidkingManifest());
-        m_items.append(e);
-    }
-    saveIndex();
-    bump();
-    emit installFinished(id, QStringLiteral("VidKing"));
-}
 
 void ExtensionsStore::remove(const QString& id)
 {

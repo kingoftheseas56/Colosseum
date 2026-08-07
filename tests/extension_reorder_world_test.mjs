@@ -49,8 +49,9 @@ const shipped = () => [
   E('colosseum.well.libgen',           false, STR, ['book']),
   E('colosseum.well.indexers',         false, STR, ['comic', 'book', 'audiobook']),
   E('colosseum.well.audiobookbay',     false, STR, ['audiobook']),
-  // VidKing seeds into Theatre as a hosted-player well (movie+series), after Torrentio.
-  E('net.vidking.player',              false, ['hosted-player'], ['movie', 'series'])
+  // NoTorrent seeds into Theatre as a direct-HTTP stream well (movie+series), after
+  // Torrentio (gen 9; VidKing retired gen 10 — House HTTP slice 4).
+  E('com.notorrent.addon',             false, STR, ['movie', 'series'])
 ];
 
 const short = id => id.replace('colosseum.well.', '').replace('colosseum.catalogue.', '');
@@ -80,14 +81,14 @@ eq(wellsIn(shipped(), 'tankoban'), ['nyaa', 'weebcentral.pages', 'getcomics.issu
    'Tankoban wells');
 eq(wellsIn(shipped(), 'biblio'), ['libgen', 'indexers', 'audiobookbay'], 'Biblio wells');
 
-console.log('\nVidKing is a Theatre well and reorders within Theatre, never ranking core Cinemeta');
+console.log('\nNoTorrent is a Theatre well and reorders within Theatre, never ranking core Cinemeta');
 {
   const theatreWells = () => shipped().filter(e => mod.inWorld(e, 'theatre') && mod.isWell(e)).map(e => e.id);
-  eq(theatreWells(), ['com.stremio.torrentio.addon', 'net.vidking.player'],
-     'Theatre wells = Torrentio then VidKing');
-  const after = press(shipped(), 'theatre', 'net.vidking.player', -1);
+  eq(theatreWells(), ['com.stremio.torrentio.addon', 'com.notorrent.addon'],
+     'Theatre wells = Torrentio then NoTorrent');
+  const after = press(shipped(), 'theatre', 'com.notorrent.addon', -1);
   eq(after.filter(e => mod.inWorld(e, 'theatre') && mod.isWell(e)).map(e => e.id),
-     ['net.vidking.player', 'com.stremio.torrentio.addon'], 'VidKing ▲ swaps with Torrentio');
+     ['com.notorrent.addon', 'com.stremio.torrentio.addon'], 'NoTorrent ▲ swaps with Torrentio');
   eq(after[0].id, 'com.linvo.cinemeta', 'Cinemeta stays first — a core catalogue is never ranked');
 }
 
