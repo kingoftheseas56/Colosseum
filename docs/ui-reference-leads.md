@@ -70,6 +70,37 @@
   user login to *their own* tracker account — distinct from the no-login-*source* rule, but still a
   sign-in where there is none today; his call whether Tankoban has one at all.
 
+## Biblio — the frontier mode (positioning, added 2026-08-07)
+
+Hemanth's read 2026-08-07: Tankoban and Theatre have organically settled — they have flown past
+their open-source references and there is no one left in-niche to copy. **Biblio is the one mode not
+there yet**, and the reason is structural, not neglect.
+
+**The honest landscape (verified 2026-08-07):** open-source book software is *rich*, not absent —
+Calibre (20-year library-manager giant), KOReader (e-ink reader), Foliate (GNOME reader), Thorium
+(accessibility/Readium reader), Readest (modern cross-platform reader), Kavita (self-hosted
+comics+books server). But every one is either a **librarian's tool** (Calibre: organize a big
+collection, not lean-back reading) or a **bare reader** (Foliate/Thorium/Readest: open a book you
+already have — no discovery, no acquisition, no library-as-experience).
+
+**None is Biblio's actual shape:** discover → acquire → read beautifully as one continuous, no-login
+flow, inside the same shell as films and comics. That *whole* has **no open-source peer**; the only
+product that IS that whole is **Kindle** (and Kobo / Apple Books) — proprietary. So Biblio's
+competitor is Kindle, and its open-source references cover only the *parts*.
+
+**What this means for method — where references exist vs. where Biblio must invent:**
+
+- **Reading pane = proven craft, study it.** Reader references, closest-in-spirit first: **Readest**
+  (modern, cross-platform, consumer-feeling), **Thorium** (Readium engine + accessibility),
+  **Foliate** (clean native reading), **KOReader** (deep reading-engine behavior). Biblio's epub
+  reader (Reader 2, A2's lane) should stand on these, not reinvent from zero.
+- **Discover → acquire → unified-library experience = no peer, invent it.** This is the part "not
+  there yet." It cannot be a catch-up/parity job because no one is ahead — it is a taste project the
+  way Theatre's discovery was, built from Hemanth's judgment. Lane: Agent 2.
+
+**Corollary for Tankoban/Theatre:** "settled" = the reference era ended, not the work. Next gains
+come from Hemanth's own friction in real use, not from copying anyone — there is no one ahead.
+
 ## When one of these becomes real
 
 Scoping either arc runs through `brotherhood-brainstorming` like any surface work. The reference is
