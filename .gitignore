@@ -34,6 +34,9 @@ agents/
 artifacts/
 # Dev-only UI mock HTML pages and their generators.
 mocks/
+# Retired bespoke universe pages (One Piece, Dragon Ball, Cosmere, etc.) —
+# half-built feature clutter, not 1.0-relevant. No runtime references.
+archive/
 # Brother planning machinery: plans, specs, handoffs, ideas, mock HTML.
 docs/superpowers/
 # Generated code encyclopedia: embeds verbatim C++ + internal commentary.
