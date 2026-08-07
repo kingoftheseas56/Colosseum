@@ -182,7 +182,9 @@ the spec flags as unverified. Write `docs/research/theatre-http-source/01-existi
 **Behavior to preserve:** the daily app's installed extension list is never touched — this runs in
 a tagged session with its own AppData root.
 
-**Baseline:** the spec's bar (18 of 20). The measurement IS the baseline for slices 5–6.
+**Baseline:** none to reproduce — **this slice IS the baseline.** No coverage figure exists yet for
+any HTTP source in this app; that absence is exactly why the target is unset. Slices 5–6 measure
+their delta against whatever this slice records.
 
 **Focused tests:**
 - Qt Test / Qt Quick Test: not applicable — investigation slice, no code.
@@ -512,8 +514,12 @@ visible and one click to override.
 6. **Order and gating.** 1 and 2 are independent and may run in parallel; 3 needs 1; 4 needs 3; 5
    needs 1, 2, 4; 6 needs 5 and is sized by 3; 7 needs 5. **Slice 3 can legitimately shrink or
    delete slice 6, and that is a success.**
-7. **One number is not mine to finalise.** Slice 6's 18-of-20 is carried from the spec with
-   Hemanth's flag intact.
+7. **No invented numbers survive.** An earlier draft carried an 18-of-20 coverage gate; Hemanth
+   challenged it and it was fabricated — nothing had been measured. It is gone. Slice 6's pass/fail
+   is now the **honesty gate** (no row that claims `Checked` may fail to play — absolute, one
+   violation fails), while coverage is a **measurement** slice 3 produces and Hemanth ratifies. The
+   only figure fixed in advance is a floor of 10 of 20, below which the arc is reconsidered rather
+   than pushed. Slice 6 also carries a stop rule so provider-chasing cannot run forever.
 
 ---
 
