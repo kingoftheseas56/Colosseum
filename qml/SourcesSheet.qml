@@ -42,9 +42,18 @@ Item {
     property var askedNames: []     // the extensions this ask went out to, ask-order
     property int gen: 0
     property string qualityFilter: "all"
+    // Extension picker (2026-08-07, Hemanth's call after the NoTorrent burial): rows sort by ask
+    // order, so a freshly-seeded extension's rows land below every earlier extension's — present
+    // but off-screen (dossier: docs/research/theatre-http-source/02-notorrent-burial-dossier.md).
+    // The top "All ▾" bar was decorative; it now filters the table to one extension's rows. "all"
+    // keeps today's behavior exactly. Ordering itself is untouched — no silent re-ranking.
+    property string extFilter: "all"
+    property bool extMenuOpen: false
     // Hosted rows lead, then the quality-filtered stream rows. Hosted rows exist only in
-    // play mode, so download/season asks show exactly what they always did.
-    property var visibleRows: (sheet.mode === "play" ? sheet.hostedRows : []).concat(filteredRows())
+    // play mode, so download/season asks show exactly what they always did. An extension
+    // pick hides them — VidKing leading a "NoTorrent only" list would be a lie.
+    property var visibleRows: (sheet.mode === "play" && sheet.extFilter === "all"
+                               ? sheet.hostedRows : []).concat(filteredRows())
     // Slice-2 automation surface (no visual effect): row counts read by the bridge via
     // `qml-get sourcesSheet.*`. `loading` (below) is the sheet's own state; these count what shows.
     property int rowCount: sheet.visibleRows.length
@@ -107,6 +116,8 @@ Item {
         sheet.rows = [];
         sheet.hostedRows = [];
         sheet.qualityFilter = "all";
+        sheet.extFilter = "all";
+        sheet.extMenuOpen = false;
         sheet.timedOut = false;
         sheet.refreshTitleQueued();
         sheet.loading = true;
@@ -179,6 +190,7 @@ Item {
         }
     }
     onQualityFilterChanged: sheet.warmTopRow()          // he narrowed the list → warm the new top
+    onExtFilterChanged: sheet.warmTopRow()              // same on an extension pick (url rows no-op)
 
     // season mode, ask over, zero full-season torrents → hand the page the
     // auto-pick fallback and get out of the way
@@ -193,6 +205,7 @@ Item {
     function hide() {
         sheet.gen += 1;
         sheet.open = false;
+        sheet.extMenuOpen = false;
         timeout.stop();
     }
 
@@ -206,8 +219,35 @@ Item {
         return out;
     }
 
-    function filteredRows() {
+    // baseRows narrowed to the picked extension. The quality pills and their counts sit ON TOP of
+    // this, so "1080p 12" stays truthful inside a "NoTorrent" pick.
+    function extRows() {
         var base = baseRows();
+        if (sheet.extFilter === "all") return base;
+        var out = [];
+        for (var i = 0; i < base.length; ++i)
+            if (base[i].addonName === sheet.extFilter) out.push(base[i]);
+        return out;
+    }
+
+    // The picker's menu: All + each extension that actually answered, with its row count.
+    function extOptions() {
+        var base = baseRows();
+        var counts = ({});
+        var order = [];
+        for (var i = 0; i < base.length; ++i) {
+            var n = base[i].addonName || "?";
+            if (counts[n] === undefined) { counts[n] = 0; order.push(n); }
+            counts[n]++;
+        }
+        var out = [{ name: "all", label: "All", count: base.length }];
+        for (var j = 0; j < order.length; ++j)
+            out.push({ name: order[j], label: order[j], count: counts[order[j]] });
+        return out;
+    }
+
+    function filteredRows() {
+        var base = extRows();
         if (sheet.qualityFilter === "all") return base;
         var out = [];
         for (var i = 0; i < base.length; ++i)
@@ -216,7 +256,7 @@ Item {
     }
 
     function countFor(q) {
-        var base = baseRows();
+        var base = extRows();
         if (q === "all") return base.length;
         var n = 0;
         for (var i = 0; i < base.length; ++i)
@@ -346,14 +386,21 @@ Item {
         Text {
             anchors.left: gridBadge.right; anchors.leftMargin: 20
             anchors.verticalCenter: parent.verticalCenter
-            text: "All"; color: theme.ink; font.family: theme.ui; font.pixelSize: 22
+            text: sheet.extFilter === "all" ? "All" : sheet.extFilter
+            color: sheet.extFilter === "all" ? theme.ink : theme.gold
+            font.family: theme.ui; font.pixelSize: 22
         }
         Text {
             anchors.right: parent.right; anchors.rightMargin: 24
             anchors.verticalCenter: parent.verticalCenter
             text: "▾"; color: theme.inkDim; font.family: theme.display; font.pixelSize: 18
+            rotation: sheet.extMenuOpen ? 180 : 0
+            Behavior on rotation { NumberAnimation { duration: 140 } }
         }
-        MouseArea { id: tbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor }
+        // The extension picker (2026-08-07). This bar LOOKED like a picker and did nothing —
+        // now it filters the table to one extension's rows (the NoTorrent burial fix).
+        MouseArea { id: tbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: sheet.extMenuOpen = !sheet.extMenuOpen }
     }
 
     // quality quick-filter pills (active = gold fill)
@@ -663,5 +710,67 @@ Item {
         }
 
         ScrollGlide { flick: list }
+    }
+
+    // ===================== extension picker menu (declared after the table so it stacks above) =====
+    // Click-away closer: any click outside the menu closes it without falling through.
+    MouseArea {
+        anchors.fill: parent
+        visible: sheet.extMenuOpen
+        onClicked: sheet.extMenuOpen = false
+    }
+    Rectangle {
+        id: extMenu
+        objectName: "extPickerMenu"
+        visible: sheet.extMenuOpen
+        anchors.left: topBar.left; anchors.right: topBar.right
+        anchors.top: topBar.bottom; anchors.topMargin: 6
+        height: extMenuCol.implicitHeight + 16
+        radius: 16
+        color: "#141414"
+        border.width: 1; border.color: theme.edge
+        Column {
+            id: extMenuCol
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.top: parent.top; anchors.topMargin: 8
+            Repeater {
+                model: sheet.extMenuOpen ? sheet.extOptions() : []
+                delegate: Item {
+                    id: extOpt
+                    required property var modelData
+                    required property int index
+                    objectName: "extPick_" + extOpt.index
+                    property bool on: sheet.extFilter === extOpt.modelData.name
+                    width: parent.width; height: 52
+                    Rectangle {
+                        anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
+                        radius: 10
+                        color: extOptMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent"
+                    }
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 28
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: extOpt.modelData.label
+                        color: extOpt.on ? theme.gold : theme.ink
+                        font.family: theme.ui; font.pixelSize: 16
+                        font.weight: extOpt.on ? Font.DemiBold : Font.Normal
+                    }
+                    Text {
+                        anchors.right: parent.right; anchors.rightMargin: 28
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: extOpt.modelData.count + (extOpt.modelData.count === 1 ? " source" : " sources")
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                    }
+                    MouseArea {
+                        id: extOptMa; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            sheet.extFilter = extOpt.modelData.name
+                            sheet.extMenuOpen = false
+                        }
+                    }
+                }
+            }
+        }
     }
 }

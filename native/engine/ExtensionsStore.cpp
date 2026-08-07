@@ -27,9 +27,10 @@ constexpr int kDescriptionCap = 400;
 // descriptions. 4 renamed the vault row to "Colosseum Grand Database".
 // 7 gave the universes their real names and artwork.
 // 8 seeds the keyless VidKing hosted-player extension into Theatre (enabled, removable).
+// 9 seeds NoTorrent as Theatre's direct-HTTP source (measured 18/18 coverage, House HTTP slice 3).
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 8;
+constexpr int kHouseDefaultsVersion = 9;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -192,6 +193,16 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  { QStringLiteral("stream") },
                  { QStringLiteral("movie"), QStringLiteral("series"), QStringLiteral("anime") },
                  { QStringLiteral("tt"), QStringLiteral("kitsu") }, true));
+    // NoTorrent — direct HTTP streams that play instantly, no torrent, no seeding. Seeded enabled
+    // as Theatre's HTTP source ALONGSIDE Torrentio (not instead of it). Measured 2026-08-07 to
+    // cover 18/18 Discover-catalog titles (House HTTP Source slice 3); its URLs are self-authed on
+    // its own worker, so it needs no proxy headers. Generation 9.
+    add("com.notorrent.addon", "https://addon.notorrent2.workers.dev/manifest.json", false,
+        manifest("com.notorrent.addon", "NoTorrent",
+                 "Direct HTTP streams — movies and shows that play instantly, no torrent, no seeding.",
+                 { QStringLiteral("stream") },
+                 { QStringLiteral("movie"), QStringLiteral("series") },
+                 { QStringLiteral("tt"), QStringLiteral("tmdb_") }, false));
     // VidKing — a keyless hosted web player. Not a stream well: it plays inside a
     // restricted WebEngine iframe, never through mpv/torrent/download. Ships enabled and
     // removable (core:false); its manifest is app-owned (built in vidkingManifest()), so a
