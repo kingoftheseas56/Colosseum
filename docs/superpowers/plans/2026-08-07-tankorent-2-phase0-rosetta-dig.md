@@ -178,7 +178,7 @@ with `APP_PATH=_t2lab/cache`, `NO_HTTPS_SERVER=1`, `NODE_OPTIONS` removed (mirro
 > service; site 6 is a CORS check moved for consistency. The `port++ < 11474` retry band is
 > deliberately left untouched so a busy lab port fails loudly instead of walking back toward
 > production. `_t2lab/specimen/` stays byte-identical to the install and is what Slice 1 reads.
-> Tooling committed at `docs/research/tankorent2-phase0/tools/`.
+> Tooling committed at `docs/research/tankorent2-phase0/labscripts/`.
 
 `native/build*/` in `.gitignore` already covers `_t2lab/` — no new rule needed (verified).
 

@@ -3,7 +3,7 @@
 - **Executed:** 2026-08-07 · **Plan:** `docs/superpowers/plans/2026-08-07-tankorent-2-phase0-rosetta-dig.md` @ `55304c5`
 - **Status:** Runtime-validated (see the layer matrix at the end)
 - **Lab location:** `native/build-msvc/_t2lab/` — gitignored by the existing `native/build*/` rule.
-  Reproducible tooling is committed under `docs/research/tankorent2-phase0/tools/`.
+  Reproducible tooling is committed under `docs/research/tankorent2-phase0/labscripts/`.
 
 ## Baseline (recorded BEFORE anything was copied or started)
 
@@ -165,8 +165,8 @@ Rule 1 (`taskkill //IM` would also kill a brother's runtime).
 | Pristine specimen | `_t2lab/specimen/` (local) |
 | Patched lab copy | `_t2lab/specimen-lab/` (local) |
 | Lab's own cache | `_t2lab/cache/` (local; `server-settings.json` + `stremio-cache`) |
-| Port patcher | `docs/research/tankorent2-phase0/tools/patch_port.py` |
-| Launcher / stopper | `docs/research/tankorent2-phase0/tools/run-specimen.sh`, `stop-specimen.sh` |
+| Port patcher | `docs/research/tankorent2-phase0/labscripts/patch_port.py` |
+| Launcher / stopper | `docs/research/tankorent2-phase0/labscripts/run-specimen.sh`, `stop-specimen.sh` |
 
 ## Layer matrix
 
