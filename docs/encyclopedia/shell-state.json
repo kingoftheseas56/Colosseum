@@ -1,0 +1,46 @@
+{
+  "entries": {
+    "native/CollectionStore.h": {
+      "accepted_blob": "7c44bce37c1fa1ceab951974a8b657f37d769846",
+      "accepted_comment": "// CollectionStore — the \"Your Collection\" shelf: what the user CHOSE to save via\n// the + Library toggle. NOT Continue: distinct from ProgressStore (auto history) —\n// an entry can exist unstarted and survives finishing. One store, three worlds.\n//\n// QML side (the only contract):\n//   Collection.add(world, { id, type, title, cover, payload })   // upsert; stamps addedAt\n//   Collection.remove(world, id)\n//   Collection.has(world, id)\n//   Collection.items(world)        // newest-first by addedAt\n//   Collection.revision            // bump on every change — name it in a binding to make\n//                                  //   has()/items()-based bindings re-evaluate reactively.\n//\n// `type` must ride on every entry (universe-tile law: a tile without type opens a\n// series as a movie and dies). `payload` is the world-specific reopen snapshot.\n// Persistence mirrors ProgressStore: one JSON blob under \"collection/entries\"."
+    },
+    "native/SearchHistoryStore.h": {
+      "accepted_blob": "727a8bf03aca45e37a6c65fc1d74c64ef2387037",
+      "accepted_comment": "// SearchHistoryStore -- a tiny, durable MRU list for the three world search surfaces.\n// It owns the disk boundary so QML Loader recreation and provider callbacks cannot decide\n// whether a user search is remembered."
+    },
+    "native/SessionStore.h": {
+      "accepted_blob": "acacabc4e4d98f65a2727f3b1fcc78df7111f379",
+      "accepted_comment": "// SessionStore - the OS-shell's open-sessions model, exposed to QML as `Sessions`.\n// One small thing: the list of \"things you currently have open\" (a comic, a movie, a\n// book), which one is ACTIVE, and the saved-state blob each carries so it can be torn\n// down and rebuilt exactly where you left it (Approach 2 - only the active session is\n// ever instantiated). The Taskbar reads this to draw app-grouped tiles; Main.qml's\n// switch glue listens to activeChanged to capture/teardown/restore.\n//\n// QML contract:\n//   Sessions.openOrSwitch({appType, contentKind, target, title}) -> id  (dedups by target key)\n//   Sessions.switchTo(id)\n//   Sessions.close(id)\n//   Sessions.saveState(id, obj)   // switch glue writes captured state before teardown\n//   QVariantMap Sessions.get(id)  // one record (empty map if not found)\n//   QVariantList Sessions.list()  // records in open order\n//   QVariantList Sessions.groups()// [{appType,title,icon,sessions:[record,...]}] for the taskbar\n//   Sessions.activeId             // \"\" = none (home shell)\n//   Sessions.revision             // bump on every change; name it in a binding to stay reactive\n// signals: activeChanged(prevId, nextId)"
+    },
+    "native/main.cpp": {
+      "accepted_blob": "d34b310e1cc15c4514f7e27c0ee20d1b6b03149c",
+      "accepted_comment": "// Colosseum native launcher. Runs the live qml/ tree with an on-disk HTTP cache\n// and the same Metahub IPv4 pin Tankoban-3 uses for instant poster loading."
+    },
+    "qml/BootSplash.qml": {
+      "accepted_blob": "0047c94309ec4092463724fc1ba63dc7fefff171",
+      "accepted_comment": "// BootSplash — OS-style loader. Prefetches every catalog cover/banner into Qt's pixmap cache\n// (hidden Images with cache:true) behind a progress bar, then emits finished() so the shell reveals\n// with art already warm. A hard timeout guarantees boot always completes even if a CDN stalls."
+    },
+    "qml/BrowserDrawer.qml": {
+      "accepted_blob": "c99a291ae40b13391248727f0c35a83a35b1fb8b",
+      "accepted_comment": "// BrowserDrawer — Feature 8: the in-player episode/source browser (spec 2026-07-08,\n// mock-ratified: side drawer, season pills, auto-play best source).\n// Self-contained like ShortcutsSheet: props in, signals out, its own Theme. The video\n// keeps playing beside it. All derivations live in EpisodeBrowser.js (harness-tested);\n// this file only renders and forwards taps."
+    },
+    "qml/Main.qml": {
+      "accepted_blob": "bf748e5cdc52ded3bcd4ae916899e9facb4ecb92",
+      "accepted_comment": "// Colosseum — HOME (v1, on the proven spine)\n// Fullscreen-exclusive frameless OS surface: persistent wallpaper + frosted-glass chrome.\n//   Top bar -> universal Continue -> per-medium widgets.\n// Glass = proven material (see Glass.qml).\n// Run:  C:/Qt/6.11.1/mingw_64/bin/qml.exe qml/Main.qml      (Esc / Ctrl+Q to quit)"
+    },
+    "qml/Taskbar.qml": {
+      "accepted_blob": "9e6eab90fb1b2e344f8315f18243e9bcf6dbafcf",
+      "accepted_comment": "// Taskbar.qml - the OS-shell's auto-hiding switcher bar.\n// The closed Colosseum button and the open taskbar are the same object, so the bar\n// grows out of the button instead of swapping between two separate pieces."
+    },
+    "qml/TopBar.qml": {
+      "accepted_blob": "7fc81a9848f364a988593dec534aa0c599446a32",
+      "accepted_comment": "// TopBar — the shared Colosseum shell chrome: clock/date · library pills · system icons.\n// ONE source for the top bar across the home AND every world page.\n//   activeMedium == \"\"   → HOME: no pill is selected (the no-selection rule).\n//   activeMedium == \"X\"  → WORLD: pill X carries the gold selected accent, and a \"‹ Home\"\n//                          affordance appears at the left.\n// Emits intent signals; the host (home / world) decides what navigation happens."
+    },
+    "qml/WorldTabBar.qml": {
+      "accepted_blob": "9640d5226bb4cfe55f9ee542dbb67106433f07e7",
+      "accepted_comment": "// WorldTabBar — TheatreTabBar's glass pill bar, generalized to any tab set (parameterized\n// tabModel). Used by the Tankoban world (Manga|Comics); Theatre keeps TheatreTabBar for now\n// and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint."
+    }
+  },
+  "integrity": "sha256:9aee45abeda9ece3bdd4cd50982db9a7f88b667edd7fe30305206c99751572ff",
+  "schema": 1
+}
