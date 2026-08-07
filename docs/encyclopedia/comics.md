@@ -78,6 +78,25 @@ Full per-file descriptions: [`comics-index.md`](comics-index.md).
 6. **`qml/ComicSeriesPage.qml` contradicts itself** — its header says "PARKED… no door routes
    here," yet `qml/Main.qml` references it (`source: "ComicSeriesPage.qml"`). Resolve with the
    lane owner before trusting either statement. Flagged 2026-08-07, not yet settled.
+7. **A demuxed pack child is reached by `seriesId`, never by the parent issue id.**
+   `demultiplexPack()` gives each nested volume a NEW id and retires the parent with **no index
+   row** — so `isDownloaded(parentId)` is false and `localPages(parentId)` is empty **by design,
+   not by bug**. The link is `packRole` + shared `seriesId`: `routeDownloadItem()` sees `packRole`
+   and opens `openPackSeries()` (Main.qml:1059-1066), which injects `packVolumes(seriesId)`
+   (ComicDownloader.h:180). Main.qml states the boundary outright — pack children go to the
+   downloads-backed pack shelf, **"NOT the live gc:/gcd: tag lanes, which can't see the demuxed
+   volumes."** Before calling a "pack won't open" report a bug, check which door was used. The arc
+   is closed and runtime-validated (12-volume Chew journey, human-witnessed 2026-08-07); the
+   deterministic gate is `colosseum.comic_downloader_pack_demux_harness` (117 checks, with a
+   negative control on the ordering assertions).
+8. **The reader cannot say "downloaded but broken" — it only knows "not downloaded."**
+   `ComicReaderShell.load()` has exactly ONE empty-pages branch (ComicReaderShell.qml:417-424,
+   commented *"not downloaded"*), and no `unreadable`/`openError` state exists in the load path.
+   So an issue whose archive was moved, renamed or lost — `localPages()` early-returns empty when
+   `!QFileInfo(e.archive).isFile()` — renders **identically to one never downloaded**. That is why
+   such failures reach Hemanth as "it just fails" with no message. Adding a third state is a
+   PRODUCT decision (what should he see?), not a patch — route it through
+   `brotherhood-brainstorming`. Open as of 2026-08-07.
 
 ## 6. How to test it
 
