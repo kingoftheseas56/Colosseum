@@ -200,6 +200,9 @@ function parseStream(s, addonName, addonPriority) {
         url: directUrl,
         fileIdx: (s.fileIdx !== undefined && s.fileIdx !== null) ? s.fileIdx : 0,
         bingeGroup: (s.behaviorHints && s.behaviorHints.bingeGroup) || "",
+        // HTTP hosts that gate on a Referer/Origin deliver the required headers here; the player
+        // installs them via mpv.loadFileWithHeaders. Torrent rows carry none. (House HTTP, slice 1.)
+        headers: (s.behaviorHints && s.behaviorHints.proxyHeaders) || ({}),
         filename: (s.behaviorHints && s.behaviorHints.filename) || ""
     };
 }

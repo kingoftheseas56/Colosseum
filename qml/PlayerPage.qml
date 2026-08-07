@@ -874,7 +874,11 @@ Item {
                 "quality": c.qualityLine || c.quality || "",
                 "seeders": c.seeders !== undefined ? c.seeders : -1,
                 "sourceName": c.sourceName || c.addonName || "Torrentio",
-                "url": c.url || ""
+                "url": c.url || "",
+                // HTTP hosts that gate on a Referer/Origin ride their required headers this far;
+                // the play path installs them via mpv.loadFileWithHeaders. Must survive this
+                // reshape or the header channel is dead in the app. (House HTTP, slice 1.)
+                "headers": (c.headers && typeof c.headers === "object") ? c.headers : ({})
             })
         }
         if (!out.length && infoHash && String(infoHash).length) {
@@ -1168,7 +1172,13 @@ Item {
             root.mediaTransport = "Direct stream"
             root.currentPlaybackUrl = directUrl
             root.updateMediaSubtitle()
-            mpv.loadFile(directUrl)
+            // HTTP hosts that gate on a Referer/Origin need those headers on the request or the
+            // load fails silently; loadFileWithHeaders installs them (and loadFile clears them, so
+            // they never leak into the next stream). Header-free rows take the plain path.
+            if (c.headers && typeof c.headers === "object" && Object.keys(c.headers).length)
+                mpv.loadFileWithHeaders(directUrl, c.headers)
+            else
+                mpv.loadFile(directUrl)
             return
         }
         root.mediaTransport = "Torrent stream"

@@ -17,6 +17,7 @@
 #include <QtMath>
 
 #include "mpvproperties.h"
+#include "http_header_fields.h"
 
 MpvItem::MpvItem(QQuickItem *parent)
     : MpvAbstractItem(parent)
@@ -54,6 +55,10 @@ MpvItem::MpvItem(QQuickItem *parent)
     setProperty(QStringLiteral("stream-lavf-o"),
                 QStringLiteral("reconnect=1,reconnect_streamed=1,reconnect_delay_max=10,reconnect_on_network_error=1"));
     setProperty(QStringLiteral("user-agent"), QStringLiteral("VLC/3.0.20 LibVLC/3.0.20"));
+    // Keep the ytdl hook OFF. Colosseum resolves its own sources and never wants yt-dlp; left on,
+    // ytdl_hook would intercept http(s) URLs and install its OWN http-header-fields, clobbering the
+    // Referer/Origin headers loadFileWithHeaders sets — silently, and only in the real app. (slice 1)
+    setProperty(QStringLiteral("ytdl"), QStringLiteral("no"));
     setProperty(QStringLiteral("input-default-bindings"), QStringLiteral("no"));
     setProperty(QStringLiteral("input-cursor"), QStringLiteral("no"));
     setProperty(QStringLiteral("osc"), QStringLiteral("no"));
@@ -274,6 +279,27 @@ QString MpvItem::mapEndFileErrorCode(const QString &reason) const
 }
 
 void MpvItem::loadFile(const QString &file)
+{
+    // Clear any headers a prior loadFileWithHeaders installed BEFORE this load, so a header-carrying
+    // source cannot leak its Referer/Origin into the next stream. This is why the clear lives here
+    // and not in the caller. First line, before the same-URL short-circuit, so it runs on every
+    // call including a same-URL reload. Empty node array = reset, not a no-op (verified in MpvQt
+    // setNode + mpv option semantics). (Theatre House HTTP Source, slice 1.)
+    setProperty(QStringLiteral("http-header-fields"), QStringList());
+    issueLoadFile(file);
+}
+
+void MpvItem::loadFileWithHeaders(const QString &url, const QVariantMap &headers)
+{
+    // Install the addon-supplied Referer/Origin as mpv's http-header-fields, then load. A string
+    // list marshals to an MPV_FORMAT_NODE_ARRAY (one entry per header) — comma-safe. The formatting
+    // (and third-party-JSON injection guards) live in httpHeaderFieldsList so they are unit-tested
+    // without an mpv instance. loadFile clears the field again on the next plain load.
+    setProperty(QStringLiteral("http-header-fields"), httpHeaderFieldsList(headers));
+    issueLoadFile(url);
+}
+
+void MpvItem::issueLoadFile(const QString &file)
 {
     auto url = QUrl::fromUserInput(file);
     if (m_currentUrl != url) {

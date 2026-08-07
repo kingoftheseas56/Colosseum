@@ -78,6 +78,50 @@ set_tests_properties(colosseum.qttest.window_state_policy PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Theatre House HTTP Source slice 1: the map→mpv http-header-fields formatter as data rows
+# (comma/colon safety + the third-party-JSON injection guards). Header-only unit under test, so
+# the target compiles just the test TU. Same deploy pattern as tst_window_state_policy: land beside
+# the app's Qt DLLs and stage Qt6Test.dll, or it dies 0xc0000135 before main().
+add_executable(tst_http_header_fields auto/player/tst_http_header_fields.cpp)
+target_include_directories(tst_http_header_fields PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_http_header_fields PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_http_header_fields PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_http_header_fields POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.http_header_fields
+         COMMAND tst_http_header_fields)
+set_tests_properties(colosseum.qttest.http_header_fields PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
+# reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
+# field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
+# app's MpvQt/libmpv, whose DLLs already sit in build-msvc/ beside this exe. Loopback only, no live
+# network — safe under the `unit` gate. AUTOMOC (set ON above) processes MpvItem's Q_OBJECT.
+add_executable(http_header_channel_harness
+    http_header_channel_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
+target_include_directories(http_header_channel_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
+target_link_libraries(http_header_channel_harness
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Network MpvQt::MpvQt)
+set_target_properties(http_header_channel_harness PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.http_header_channel_harness
+         COMMAND http_header_channel_harness)
+set_tests_properties(colosseum.http_header_channel_harness PROPERTIES
+    LABELS "unit"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Qt Quick Test runner (slice 4) ───────────────────────────────────────────
 # One repo-built runner over tests/qml/tst_*.qml, replacing the Qt-install
 # qmltestrunner.exe path hardcoded in the legacy .ps1 gates. -input points at

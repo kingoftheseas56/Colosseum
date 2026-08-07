@@ -112,6 +112,10 @@ public:
     bool gifEncoding() const;
 
     Q_INVOKABLE void loadFile(const QString &file);
+    // Same as loadFile, but first installs `headers` as mpv's http-header-fields so a source that
+    // requires a Referer/Origin actually plays. loadFile clears the field, so headers set here can
+    // never leak into a later plain load. (Theatre House HTTP Source, slice 1.)
+    Q_INVOKABLE void loadFileWithHeaders(const QString &url, const QVariantMap &headers);
     Q_INVOKABLE void seekExact(double value);
     Q_INVOKABLE void seekStep(double delta);
     Q_INVOKABLE void frameStep();
@@ -161,6 +165,8 @@ Q_SIGNALS:
 
 private:
     void setupConnections();
+    // Shared body of loadFile / loadFileWithHeaders: update currentUrl, emit, issue `loadfile`.
+    void issueLoadFile(const QString &file);
     QString mapEndFileErrorCode(const QString &reason) const;
     void onPropertyChanged(const QString &property, const QVariant &value);
 
