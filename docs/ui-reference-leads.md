@@ -31,6 +31,19 @@
   Harbor was the **discovery-breadth** reference.
 - **Note:** Hayase itself is a torrent client (established 2026-08-07, not an HTTP source) — we take
   its **UI only**, nothing about its sourcing.
+- **Functional inheritance (assessed 2026-08-07) — take UI, essentially nothing under the hood.**
+  Hayase's functional core is deep AniList integration + anime + torrent streaming, and every part
+  is already decided: **list/progress sync** (AniList/Kitsu/MAL) is the same feature Hemanth
+  *declined* from Houdoku; **auto torrent↔episode matching** and **RSS airing feeds** are anime, a
+  *deferred* lane; **torrent streaming while downloading** is what Stremio already gives Theatre
+  (Tankorent 2.0 was investigated and STOPPED 2026-08-07 — Stremio is good enough); its **player**
+  (all subtitle formats, multi-audio, preview thumbnails) is already matched or beaten by our native
+  mpv; its **airing calendar** we already have. The one *substantial* gap is **watch-together /
+  group viewing** — real and distinct, but a large social/account/server feature that cuts against a
+  personal, offline-first, no-login app; **recommended against**, not just deferred. Remaining
+  candidates are minor general player comforts (media keys, pause-on-lost-focus, mini-player,
+  download-progress-on-the-scrubber — largely covered by the buffering readout, Discord "now
+  watching" presence — Harbor precedent). None warrants an arc; a small QoL audit at most.
 
 ### Houdoku → **Tankoban** (comics/manga library + reader) · Agent 1's lane
 
