@@ -3,7 +3,9 @@
 // posters on top, no metadata brain in v1). The shelf is the tag's release posts,
 // newest-first, lightly grouped: collections (TPB/omnibus/treasury) lead, single
 // issues follow. Each release = ONE volume unit (TB2-ratified: TPB is king) — a
-// single archive download, extracted by `Comics` into a page dir MangaReader eats.
+// single archive download, ingested by `Comics` into ONE canonical CBZ the reader
+// opens directly (CBZ-in-place, 2026-08-06: a readable CBZ moves in unextracted;
+// anything else extracts then repacks). Legacy page dirs migrate on boot.
 // Covers: each release's own og_image (exact by construction); iTunes art is the
 // series-level hero only. Same glass-over-wallpaper language as MangaSeries.
 

@@ -4,8 +4,9 @@
 // stream. A GetComics release post is one archive file (.cbr/.cbz) — the volume
 // unit. This is the BookDownloader lineage (single-file HTTP stream, .part →
 // rename, stale-HTML failover), NOT MangaDownloader's page→cbz pipeline, plus
-// one extra stage the reader needs: extract the archive into a loose page dir
-// so MangaReader consumes it exactly like a downloaded manga chapter.
+// one ingest stage: land the volume as ONE canonical CBZ in the library. Since
+// the CBZ-in-place arc (2026-08-06) a natively-readable CBZ MOVES into place with
+// no extraction at all; anything else extracts then repacks into a CBZ.
 //
 // Pipeline (design: docs/superpowers/specs/2026-07-04-colosseum-western-comics-
 // getcomics-design.md, ratified — GetComics for both catalog and download):
@@ -17,18 +18,24 @@
 //      write <dir>/<file>.part in chunks (readyRead, NEVER readAll — TPBs run
 //      300MB–1GB), text/html first-chunk detection (ad-gate/interstitial ⇒
 //      failover to next link), retry 2/4/8s, atomic rename.
-//   3. extract: the archive is RAR (cbr) or zip (cbz). v1 extractor = the OS's
-//      bundled bsdtar (C:\Windows\System32\tar.exe, libarchive — reads BOTH;
-//      proven on the real Kyoshi Warriors #2 RAR5, 25 pages in 1.6s), with an
-//      installed 7-Zip as fallback. No vendored libunrar/7z — reduction reflex.
-//      Pages land as <dir>/page_NNN.<ext> (MangaDownloader's naming), archive
-//      and temp dir are deleted after.
-//   4. index: {issueId → seriesId, title, dir, files, bytes}; localPages(id)
+//   3. ingest (TWO PATHS — CBZ-in-place, 2026-08-06): probe the download first.
+//      A natively-readable CBZ is MOVED into the library as-is — no extraction,
+//      no repack, no loose pages. Anything else (RAR/cbr, cb7, cbt, or a CBZ the
+//      reader cannot open) is extracted and repacked into one canonical CBZ.
+//      Extraction still uses the OS's bundled bsdtar (C:\Windows\System32\tar.exe,
+//      libarchive — reads BOTH; proven on the real Kyoshi Warriors #2 RAR5, 25
+//      pages in 1.6s), with an installed 7-Zip as fallback. No vendored
+//      libunrar/7z — reduction reflex. On SUCCESS the source archive is consumed
+//      (moved, or copied then deleted); on FAILURE it is PRESERVED, not deleted.
+//   4. index: {issueId → seriesId, title, archive|dir, files, bytes}. `archive`
+//      wins whenever both are set (see Entry's storage-precedence note); a legacy
+//      loose-folder row has `archive` empty and is migrated on boot. localPages(id)
 //      returns the same [{index, url, group}] shape Downloads.localPages does,
-//      so MangaReader reads western issues through the same machinery.
+//      so the reader reads western issues through the same machinery.
 //
 // On-disk layout (AppDataLocation, not the purgeable cache):
-//   <appdata>/comics/<series>/<issue>-<hash10>/page_000.jpg ...
+//   <appdata>/comics/<series>/<issue>-<hash10>.cbz      ← canonical, archive rows
+//   <appdata>/comics/<series>/<issue>-<hash10>/page_000.jpg ...  ← legacy, migrating
 //   <appdata>/comics/index.json
 
 #pragma once
