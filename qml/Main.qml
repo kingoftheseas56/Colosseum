@@ -1196,6 +1196,17 @@ Window {
         }
     }
     //  detail (click anywhere else on the card): the series / movie / book page.
+    // The no-hang floor for detailContinue's movie/series race: if neither typed meta ask
+    // has answered (deep-tail title, offline, or a stalled transport leg), open as a movie
+    // — a sparse detail page beats a click that does nothing.
+    Timer {
+        id: continueKindFloor
+        interval: 4000
+        repeat: false
+        property var settle: null
+        onTriggered: if (settle) settle()
+    }
+
     function detailContinue(entry) {
         if (!entry) return
         var title = entry.title || entry.caption || ""
@@ -1215,12 +1226,25 @@ Window {
                 }
                 win.resumeContinue(entry); return   // raw torrent, no detail page
             }
-            // resolve movie vs series live from Cinemeta (probe series first; a hit → series, else movie),
-            // then open the Theatre detail. No stored type needed, so existing entries work too.
-            TheatreApi.loadMeta("series", id, function(meta) {
-                win.openTheatreSeries({ id: id, type: meta ? "series" : "movie",
-                                        title: title, cover: entry.cover || "" })
-            })
+            // Resolve movie vs series live from Cinemeta, then open the Theatre detail —
+            // no stored type needed, so existing entries work too.
+            // Cinemeta answers a wrong-type meta ask with a 307 into the unpinned live host —
+            // a leg the pinned transport cannot follow (it stalls, and QML XHR ignores
+            // .timeout) — so a lone series-probe hung forever on every movie tile
+            // (diagnosed 2026-08-08). Race both typed asks instead: the matching type's
+            // direct 200 settles in well under a second, and the 4s floor below opens the
+            // tile as a movie rather than letting the click die silently.
+            var settled = false
+            var settle = function(type, meta) {
+                if (settled) return
+                settled = true
+                continueKindFloor.stop()
+                win.openTheatreSeries({ id: id, type: type, title: title, cover: entry.cover || "" })
+            }
+            TheatreApi.loadMeta("movie", id, function(meta) { if (meta) settle("movie", meta) })
+            TheatreApi.loadMeta("series", id, function(meta) { if (meta) settle("series", meta) })
+            continueKindFloor.settle = function() { settle("movie", null) }
+            continueKindFloor.restart()
         } else if (entry.kind === "tankoban") {
             // detail = the manga series page; Tankoban Mode restores itself from the
             // service's per-series flag once the id resolves.
