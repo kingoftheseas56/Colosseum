@@ -179,8 +179,9 @@ Human aesthetic verdict: not applicable — no surface
 Overall:                Runtime-validated
 ```
 
-**One regression path remains open and is Hemanth's:** the plan's post-run sanity check is a
-human-witnessed film — open Colosseum, play anything in Theatre, confirm it starts normally.
-Baseline recorded no engine on 11470 and the lab never took that port, so the expectation is
-"unchanged," but the plan ordered eyes and eyes are the gate. Recorded as **pending** until he
-confirms.
+**Regression path CLOSED — human-witnessed, 2026-08-07 13:21.** Hemanth played *Batman: The
+Animated Series* S1E39 (1080p, 1337x source) in Theatre after the lab run and confirmed:
+**"yeah it's starting like it always does."** Screenshot evidence shows normal playback at
+0:29/22:31 with full transport chrome. The lab run left production streaming untouched, as
+designed. This human verdict IS the runtime evidence for the slice per the executing-plans
+contract.
