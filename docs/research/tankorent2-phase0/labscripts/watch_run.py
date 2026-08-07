@@ -58,6 +58,7 @@ class Puller(threading.Thread):
         super().__init__(daemon=True)
         self.url = "http://127.0.0.1:%d/%s/%d" % (port, ih, idx)
         self.first_byte_at = None
+        self.first_byte_abs = None
         self.bytes = 0
         self.err = None
         self.stop = threading.Event()
@@ -73,6 +74,7 @@ class Puller(threading.Thread):
                         break
                     if self.first_byte_at is None:
                         self.first_byte_at = time.monotonic() - t0
+                        self.first_byte_abs = time.monotonic()
                     self.bytes += len(chunk)
         except Exception as e:               # noqa: BLE001 - report, never crash the run
             self.err = repr(e)
@@ -115,6 +117,11 @@ def main():
     if not a.no_pull:
         puller = Puller(a.port, ih, a.idx)
         puller.start()
+
+    # Cold-open is measured from CREATE, not from the puller's own start: the user
+    # presses Play once, and everything after that instant is wait. Measuring from
+    # the pull would hide however long metadata and the first peers took.
+    t_press_play = t_create
 
     t0 = time.monotonic()
     samples = []
@@ -174,10 +181,18 @@ def main():
           % max((r["downloadSpeed"] or 0) for r in samples))
     print("  final streamProgress : %s" % last["streamProgress"])
     if puller:
-        print("  first byte to client : %s"
-              % ("%.2f s" % puller.first_byte_at if puller.first_byte_at
-                 else "NEVER (%s)" % puller.err))
+        if puller.first_byte_abs:
+            cold = puller.first_byte_abs - t_press_play
+            print("  COLD OPEN (create->first byte): %.2f s" % cold)
+            print("  RESULT_COLD_OPEN_S=%.3f" % cold)      # machine-readable
+        else:
+            print("  COLD OPEN: NEVER (%s)" % puller.err)
+            print("  RESULT_COLD_OPEN_S=-1")
         print("  bytes pulled         : %s" % puller.bytes)
+    print("  RESULT_PEAK_PEERS=%d" % max((r["peers"] or 0) for r in samples))
+    print("  RESULT_PEAK_KNOWN=%d" % max((r["unique"] or 0) for r in samples))
+    print("  RESULT_PEAK_SPEED_BPS=%d" % max((r["downloadSpeed"] or 0) for r in samples))
+    print("  RESULT_PEAK_TRIES=%d" % max((r["tries"] or 0) for r in samples))
     print("  sources (final)      : %s" % json.dumps(last.get("sources")))
     print("  log: %s" % path)
 
