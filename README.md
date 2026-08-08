@@ -9,27 +9,74 @@
 </p>
 
 <p align="center">
-  Qt 6 · QML · C++ · Qt WebEngine · mpv · FFmpeg · libtorrent · Stremio-compatible extensions
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/release-1.0-111111?style=flat-square" alt="1.0" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-777777?style=flat-square" alt="MIT License" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/release-1.0-111111?style=flat-square" alt="1.0" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-view-777777?style=flat-square" alt="License" /></a>
+  <img src="docs/media/hero.gif" alt="Colosseum home — Continue row and world shelves" width="840" />
 </p>
+
+## Overview
+
+Your media library lives in five different apps: one for manga, one for comics, one for books,
+one for audiobooks, one for film and TV. Each has its own catalogue, its own reader or player,
+its own idea of progress — and none of them talk to each other.
+
+Colosseum is one fullscreen home for all of it. Three worlds — **Tankoban** (manga and western
+comics), **Biblio** (ebooks and audiobooks), **Theatre** (movies, shows, anime) — share a single
+shell: one Continue row across every medium, one collection, one downloads vault, one taskbar of
+open sessions. Each medium keeps the surface it deserves: a real comic reader, a real book
+reader with audiobook read-along, a real video player. Browsing is catalogue-first and
+discovery-rich; reading is download-fed, so your shelf works offline.
 
 > [!IMPORTANT]
 > Colosseum 1.0 is a Windows 10/11 desktop release. Download the installer from
 > [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for a per-user install —
-> no administrator required. Building from source is documented below for developers.
+> no administrator required. Building from source is documented below.
 
-<!-- screenshot gallery lands here: round 2 -->
+## Highlights
 
-## What Colosseum is
+- **Three worlds, one shell.** Universal Continue, Collection, downloads, search history,
+  wallpapers, and window sessions shared across manga, comics, books, audiobooks, and video.
+- **Real readers and players, built in.** A from-scratch comic reader (long strip, paired
+  pages, RTL, exact resume), an ebook reader with typography control and audiobook
+  read-along, and an mpv-based player with subtitles, skip segments, episode queues, and
+  seek thumbnails.
+- **Deep catalogues that work offline.** Theatre shelves ranked by a local IMDb index;
+  manga discovery from a bundled MAL catalogue; Apple Books charts for Biblio — live rows
+  layered on top when the network is there.
+- **Stremio-compatible extensions.** A world-aware Sources picker, Browse and Installed
+  management, and per-world source chains. NoTorrent ships by default and is removable
+  like any extension.
+- **Download-fed by design.** Acquisition lands in one vault; reading and listening never
+  depend on a live connection to the source that provided the file.
 
-Colosseum is a fullscreen-first desktop shell built around three connected worlds. Each medium keeps its own reader, player, metadata rules, and acquisition policy; the worlds share one shell for Continue, Collection, downloads, wallpapers, open sessions, search history, and the taskbar.
+## Screenshots
 
-Qt Quick / QML owns presentation. Native C++ owns durable state, files, catalogs, readers, playback engines, torrent transport, WebEngine bridges, downloads, and system integration.
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/screens/tankoban-series.png" alt="One Piece Tankoban series page" /><br /><sub>Tankoban series — volume view</sub></td>
+    <td align="center"><img src="docs/media/screens/comic-reader.png" alt="Comic reader with page scrubber" /><br /><sub>Comic reader</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/screens/biblio-book.png" alt="Biblio book page" /><br /><sub>Biblio book page</sub></td>
+    <td align="center"><img src="docs/media/screens/reader2-typography.png" alt="Ebook reader typography panel" /><br /><sub>Reader — themes and typography</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/screens/theatre-series.png" alt="Theatre series page" /><br /><sub>Theatre series page</sub></td>
+    <td align="center"><img src="docs/media/screens/player-hud.png" alt="Player HUD" /><br /><sub>Native player</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/media/screens/player-loading.png" alt="Cinematic loading screen" width="70%" /><br /><sub>Cinematic loader</sub></td>
+  </tr>
+</table>
+
+<!-- VIDEO EMBEDS: drag 01-hero-home.mp4, 02-theatre-discover.mp4, 05-tankoban-discover.mp4
+     into this section in the GitHub editor; each becomes a playable embed. -->
+
+## The three worlds
 
 | World | For | Built-in sources |
 |---|---|---|
@@ -59,6 +106,13 @@ The extension system is Stremio-compatible and has three surfaces: **Sources** (
 ## Wallpapers
 
 Each world can persist its own wallpaper. The picker ships original Colosseum shaders — **Noir Flow** and **Low Poly** (animated) and **Aurora Flow** (adapted from an LGPL KDE Plasma wallpaper) — plus native mesh-gradient stills (Twilight, Ember, Mint). A curated KDE Plasma still shelf and Wallhaven search are also available. Animated scenes freeze while immersive media owns the screen.
+
+## Tech stack
+
+Qt 6 (Quick / QML, WebEngine, SQL, Concurrent) · C++ · MpvQt + libmpv · FFmpeg ·
+libtorrent-rasterbar · SQLite catalogues · Stremio-compatible extension protocol.
+QML owns presentation; native C++ owns durable state, files, catalogs, readers, playback
+engines, torrent transport, WebEngine bridges, downloads, and system integration.
 
 ## Install
 
@@ -90,6 +144,16 @@ cmake --build native/build-msvc
 
 Then run the live QML loop with `dev.bat`. Player 2 additionally requires
 `-DCOLOSSEUM_PLAYER2_IN_APP=ON` at configure time and `COLOSSEUM_PLAYER2=1` at boot.
+
+## First run
+
+1. Launch Colosseum — it opens fullscreen on Home, with each world one click away.
+2. Pick a world and browse its Discover shelves, or search within the world.
+3. On a series, book, or title page: **Read** / **Watch** streams or opens immediately;
+   download actions pull media into the vault for offline reading and listening.
+4. Everything you start appears in **Continue** on Home and in each world; open surfaces
+   live on the taskbar as switchable sessions.
+5. Extensions, wallpapers, and preferences live behind the shell's top-bar controls.
 
 ## Known boundaries
 
@@ -127,6 +191,23 @@ Colosseum/
 ├── dev.bat      Standard Windows QML live-reload loop
 └── dist/        Built installers
 ```
+
+## Contributing
+
+Colosseum is developed in the open and steered by what its users actually hit. The most
+valuable contribution is a **real issue**: a bug, a rough edge, a source that stopped
+working, a feature you reached for and didn't find. Open one at
+[Issues](https://github.com/kingoftheseas56/Colosseum/issues) — include what you clicked,
+what you expected, and what happened. The app writes a rolling log at
+`%APPDATA%/Brotherhood/Colosseum/logs/colosseum.log`; attaching its tail makes most bugs
+diagnosable in one pass.
+
+Pull requests are welcome for focused fixes. For anything larger, open an issue first so
+the approach can be agreed before the work.
+
+## License
+
+[MIT](LICENSE) © 2026 Hemanth Ganneni
 
 > [!NOTE]
 > Colosseum is a client and does not host media. External APIs, sites, extensions, indexers, datasets, and scrapers are independent services and can change or disappear. Use sources and content only where you have the right to access them.
