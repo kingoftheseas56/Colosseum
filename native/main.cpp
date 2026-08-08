@@ -91,12 +91,15 @@
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
+// NOT Player-2 stuff: the stall probe is the app's own QGuiApplication subclass, used
+// unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
+// compiled only because P2 was always linked — the first stock (P2-off) build broke on it.
+#include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
 #ifdef COLOSSEUM_PLAYER2
 #include "player2/Player2Backend.h"
 #include "player2/video/Player2VideoItem.h"
-#include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 #endif
 
 // gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
