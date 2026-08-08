@@ -38,6 +38,7 @@ Item {
 
     ComicReaderShell {
         id: shell
+        objectName: "comicReaderShell"   // the reader-state vocabulary surface (test ledger slice 6)
         anchors.fill: parent
         focus: true
 
@@ -49,9 +50,9 @@ Item {
         entryKind: "manga"
         western: false
         pageStore: vaultStore
-        // Slice 8 opens only; a Vault comic must not write into the catalogue reading history
-        // yet (Open Recent + reopen semantics is Slice 9) — null the Progress sink like the preview.
-        progress: null
+        // Real Progress (Slice 9): a Vault comic records + resumes at its saved page, keyed by
+        // seriesId == the content id, so reopening from the recent list lands where it was left.
+        progress: (typeof Progress !== "undefined") ? Progress : null
 
         onMinimizeRequested: root.minimizeRequested()
         onCloseRequested: root.closeRequested()

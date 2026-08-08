@@ -169,7 +169,9 @@ add_executable(colosseum
     engine/VaultStoreIo.h          # header-only atomic save/load w/ .bak (Slice 2)
     engine/VaultIdentity.cpp       # content-addressed id — LocalLaunch::route keys progress to it (Slice 2)
     engine/VaultIdentity.h
-    engine/LocalLaunch.cpp         # launch router + QML open() orchestration (Slice 7/8)
+    engine/VaultRecent.cpp         # Open Media recent-files store (Slice 9)
+    engine/VaultRecent.h
+    engine/LocalLaunch.cpp         # launch router + QML open() orchestration (Slice 7/8/9)
     engine/LocalLaunch.h
     engine/VaultPageStore.cpp      # ComicReaderShell injected-store adapter for local CBZ (Slice 7)
     engine/VaultPageStore.h

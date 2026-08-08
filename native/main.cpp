@@ -977,7 +977,11 @@ int main(int argc, char *argv[]) {
     // session is created (no dead taskbar tiles). VaultPageStore adapts a local
     // CBZ to ComicReaderShell's injected-store contract so it reads with zero
     // reader edits. C++ decides the route; Main.qml paints the door.
-    auto *localLaunch = new LocalLaunch(&app);
+    const QString vaultDir =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/vault");
+    QDir().mkpath(vaultDir);
+    auto *localLaunch = new LocalLaunch(vaultDir, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalLaunch"), localLaunch);
     auto *vaultPageStore = new VaultPageStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultPageStore"), vaultPageStore);

@@ -16,14 +16,20 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QVariantList>
 #include <QVariantMap>
+
+#include "VaultRecent.h"
 
 class LocalLaunch : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit LocalLaunch(QObject* parent = nullptr) : QObject(parent) {}
+    // vaultDir is <appdata>/vault in production, a QTemporaryDir in tests; empty →
+    // the recent store is inert (no persistence). Static routing needs no instance.
+    explicit LocalLaunch(QString vaultDir = QString(), QObject* parent = nullptr)
+        : QObject(parent), m_recent(vaultDir) {}
 
     enum class Family { Unknown, Comic, Book, Video };
     enum class Reject { None, NotFound, Unsupported, Corrupt, NoDecoder };
@@ -64,4 +70,17 @@ public:
     // until then a folder drop shows an explain + "Select Media Files…" instead of
     // enumerating. QML uses this to tell a dropped folder from a dropped file.
     Q_INVOKABLE bool isDir(const QString& pathOrUrl) const;
+
+    // ── Open Recent (Slice 9): the Open Media control remembers ──────────────
+    // Every ACCEPTED open() records a move-to-front shortcut; the panel lists them
+    // for one-click reopen, and clearRecent() wipes the shortcuts WITHOUT touching
+    // reading progress (a separate store). recentChanged() rebinds the panel.
+    Q_INVOKABLE QVariantList recentItems() const { return m_recent.items(); }
+    Q_INVOKABLE void clearRecent();
+
+signals:
+    void recentChanged();
+
+private:
+    VaultRecent m_recent;
 };

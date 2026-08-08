@@ -157,6 +157,20 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   `tests/lanista_scenarios/vault_launch_smoke.json` proves the assembled app exposes the
   control (7/7 in isolated session, 2026-08-09). The native picker / OS drag-drop / Ctrl+O
   are outside the first-root-window model — human-witnessed by design.
+- **Vault Open Recent (Slice 9, added 2026-08-09):** `openRecentDisclosure` (the caret on the Open
+  Media control that opens the panel), `openRecentPanel` (the same-window popup; property `rowCount`
+  is exact-value waitable), `openRecentRow_<n>` (one per recent entry), `openRecentClear` (wipe
+  shortcuts). Scenario `tests/lanista_scenarios/vault_open_recent.json` proves the panel renders a
+  seeded recent list and a row click reopens the file into the vault comic reader (`comicReaderShell`
+  `pageCount == 3`, `seriesId` matches `^vault:`), `localLaunchState.openCount == 1` — 13/13 in an
+  isolated session (2026-08-09). **⚠ `--seed` limitation (tooling, not this slice):** `session run
+  --seed` copies into `GenericDataLocation` (`AppData/Local`), so **AppDataLocation stores (Roaming)
+  — including VaultRecent's `open-recent.json` — are NOT reached**; until the seeder also targets
+  AppDataLocation, the recent list must be pre-placed at
+  `<Roaming>/Brotherhood/Colosseum-dltest-<tag>/vault/open-recent.json` (the 13/13 run used this).
+  Also pass `--seed` an ABSOLUTE dir (a relative one nests under its own path). Reading progress is
+  registry-backed QSettings — not seedable at all — so reopen-resume-at-page and
+  completed-video-restart are human-witnessed.
 
 ### Scenario runner (`native/tools/lanista.cpp`)
 

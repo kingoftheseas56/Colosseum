@@ -1373,7 +1373,37 @@ Window {
         localLaunchState.openCount = localLaunchState.openCount + 1
         if (r.family === "comic")      win.openVaultComic(r.path, r.vaultId, r.title)
         else if (r.family === "book")  win.openBookSession(r.path, { "id": r.vaultId, "title": r.title })
-        else if (r.family === "video") win.openLocalVideoSession({ "path": r.path, "id": r.vaultId, "title": r.title, "kind": "video" })
+        else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
+    }
+    // Build the player target for a local video, resuming at the saved spot. A finished movie
+    // (>=90%) is dropped from Progress, so its lookup is empty → position 0 → restart from the
+    // top; an unfinished one carries its resume position (Slice 9 reopen semantics).
+    function videoTargetFor(path, vaultId, title) {
+        var pos = 0
+        if (typeof Progress !== "undefined") {
+            var pg = Progress.get("video", vaultId || "")
+            if (pg && pg.resume && pg.resume.position !== undefined)
+                pos = Number(pg.resume.position) || 0
+        }
+        return { "path": path, "id": vaultId, "title": title, "kind": "video", "position": pos }
+    }
+    // One-click reopen from the recent list. A dead file offers nothing. If the file is already
+    // open, focus its tile (no duplicate, no re-count); otherwise route it fresh — comics/books
+    // resume via their reader, video resumes-or-restarts via videoTargetFor above.
+    function reopenRecent(entry) {
+        if (!entry || !entry.available) return
+        var existing = win.findVaultSession(entry.vaultId)
+        if (existing.length) { Sessions.switchTo(existing); return }
+        win.openLocalMedia([entry.path])
+    }
+    function findVaultSession(vaultId) {
+        if (!vaultId) return ""
+        var list = Sessions.list()
+        for (var i = 0; i < list.length; i++) {
+            var t = list[i].target || ({})
+            if (String(t.id || "") === vaultId) return list[i].id
+        }
+        return ""
     }
     // A loose local comic has no series page — open it in the standalone Vault reader host
     // (vaultComicLayer) as a taskbar comic session keyed to its content id.
@@ -2858,6 +2888,7 @@ Window {
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
         onOpenMediaClicked: openMediaDialog.open()
+        onOpenRecentRequested: openRecentPanel.toggle()
         downloadsBadge: win.totalActiveDownloads
         downloadsActive: downloadsLayer.active
         onDownloadsClicked: downloadsLayer.active ? win.closeDownloadsPage() : win.openDownloadsPage()
@@ -2929,6 +2960,40 @@ Window {
         sequences: ["Ctrl+O"]
         context: Qt.ApplicationShortcut
         onActivated: openMediaDialog.open()
+    }
+
+    // ── Open Recent panel (Slice 9): the Open Media control remembers ──
+    // A same-window popup (so the bridge can see it) that pops up above the taskbar dock near the
+    // Open Media control. Lists recently opened local files for one-click reopen; a dead file is
+    // shown dimmed and offers nothing; Clear wipes the shortcuts (never reading progress).
+    // Click-away MouseArea below (z:905) closes it; the panel (z:906) sits above it.
+    MouseArea {
+        anchors.fill: parent
+        z: 905
+        visible: openRecentPanel.open
+        onClicked: openRecentPanel.open = false
+    }
+    OpenRecentPanel {
+        id: openRecentPanel
+        objectName: "openRecentPanel"
+        z: 906
+        visible: opacity > 0.01
+        opacity: 0
+        property bool open: false
+        x: (Math.max(18, Math.min(80, parent.width * 0.045))) + 58
+        y: parent.height - height - 96
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+
+        function refresh() { model = (typeof LocalLaunch !== "undefined") ? LocalLaunch.recentItems() : [] }
+        function toggle() { open = !open }
+        onOpenChanged: { if (open) refresh(); opacity = open ? 1 : 0 }
+        Component.onCompleted: refresh()
+        Connections {
+            target: (typeof LocalLaunch !== "undefined") ? LocalLaunch : null
+            function onRecentChanged() { openRecentPanel.refresh() }
+        }
+        onReopenRequested: (entry) => { win.reopenRecent(entry); openRecentPanel.open = false }
+        onClearRequested: if (typeof LocalLaunch !== "undefined") LocalLaunch.clearRecent()
     }
 
     // A quiet, no-color status pill for local-open feedback: a categorized rejection, or the

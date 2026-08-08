@@ -144,7 +144,9 @@ add_executable(tst_vault_stores
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h")
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultRecent.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultRecent.h")
 target_include_directories(tst_vault_stores PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_vault_stores PRIVATE Qt6::Core Qt6::Test)
 set_target_properties(tst_vault_stores PROPERTIES
@@ -294,7 +296,9 @@ add_executable(vault_launch_router_harness
     "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.h"
     "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp")
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultRecent.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultRecent.h")
 target_include_directories(vault_launch_router_harness PRIVATE
     "${COLOSSEUM_NATIVE_DIR}" ${Libmpv_INCLUDE_DIRS})
 target_compile_definitions(vault_launch_router_harness PRIVATE

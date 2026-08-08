@@ -9,10 +9,12 @@
 
 #include "engine/VaultConfig.h"
 #include "engine/VaultIdentity.h"
+#include "engine/VaultRecent.h"
 #include "engine/VaultStoreIo.h"
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -42,6 +44,10 @@ private slots:
     void reconcile_rename_reattaches_progress();
     void reconcile_two_candidate_ambiguity_does_not_migrate();
     void reconcile_persists_across_reload();
+
+    // ── VaultRecent (Slice 9) ──
+    void recent_records_dedups_caps_and_reloads();
+    void recent_clear_wipes_shortcuts_not_progress();
 };
 
 void tst_vault_stores::config_round_trips_all_intent()
@@ -195,6 +201,70 @@ void tst_vault_stores::reconcile_persists_across_reload()
         QCOMPARE(id.resolve(cidB), idA); // alias survived the round-trip
         QVERIFY(id.knows(idA));
     }
+}
+
+void tst_vault_stores::recent_records_dedups_caps_and_reloads()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    // a real file for the availability check; a made-up path stays unavailable
+    const QString real = QDir(tmp.path()).filePath(QStringLiteral("here.cbz"));
+    writeRaw(real, QByteArrayLiteral("x"));
+    const QString gone = QStringLiteral("D:/nope/missing.cbz");
+
+    {
+        VaultRecent r(tmp.path());
+        r.record(gone, QStringLiteral("Missing"), QStringLiteral("comic"), QStringLiteral("vault:1"));
+        r.record(real, QStringLiteral("Here"), QStringLiteral("comic"), QStringLiteral("vault:2"));
+        QCOMPARE(r.count(), 2);
+
+        const QVariantList items = r.items();
+        QCOMPARE(items.size(), 2);
+        QCOMPARE(items.at(0).toMap().value(QStringLiteral("path")).toString(), real); // most-recent-first
+        QVERIFY(items.at(0).toMap().value(QStringLiteral("available")).toBool());     // exists on disk
+        QVERIFY(!items.at(1).toMap().value(QStringLiteral("available")).toBool());    // dead path shows state
+
+        // dedup: re-recording the missing one moves it to the front, count stays 2
+        r.record(gone, QStringLiteral("Missing"), QStringLiteral("comic"), QStringLiteral("vault:1"));
+        QCOMPARE(r.count(), 2);
+        QCOMPARE(r.items().at(0).toMap().value(QStringLiteral("path")).toString(), gone);
+
+        // cap at kMax
+        for (int i = 0; i < VaultRecent::kMax + 5; ++i)
+            r.record(QStringLiteral("D:/f/%1.cbz").arg(i), QStringLiteral("f"),
+                     QStringLiteral("comic"), QStringLiteral("vault:f%1").arg(i));
+        QCOMPARE(r.count(), VaultRecent::kMax);
+    }
+    // survives restart (round-trip through open-recent.json)
+    VaultRecent r2(tmp.path());
+    QCOMPARE(r2.count(), VaultRecent::kMax);
+}
+
+void tst_vault_stores::recent_clear_wipes_shortcuts_not_progress()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    // a stand-in for the SEPARATE progress store that lives beside the recent store
+    const QString progress = QDir(tmp.path()).filePath(QStringLiteral("progress.json"));
+    const QByteArray progressBytes = QByteArrayLiteral("{\"vault:2\":{\"page\":7}}");
+    writeRaw(progress, progressBytes);
+
+    VaultRecent r(tmp.path());
+    r.record(QStringLiteral("D:/a.cbz"), QStringLiteral("A"), QStringLiteral("comic"), QStringLiteral("vault:2"));
+    r.record(QStringLiteral("D:/b.mp4"), QStringLiteral("B"), QStringLiteral("video"), QStringLiteral("vault:3"));
+    QCOMPARE(r.count(), 2);
+
+    r.clear();
+    QCOMPARE(r.count(), 0);          // shortcuts wiped
+    QVERIFY(r.items().isEmpty());
+
+    // reading progress is a SEPARATE store — Clear must never touch it
+    QVERIFY(QFileInfo::exists(progress));
+    QFile pf(progress);
+    QVERIFY(pf.open(QIODevice::ReadOnly));
+    QCOMPARE(pf.readAll(), progressBytes);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_stores)

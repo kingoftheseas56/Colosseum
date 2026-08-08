@@ -19,6 +19,7 @@ Item {
     signal closeRequested(string id)
     signal startClicked()
     signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
+    signal openRecentRequested()          // Open Recent disclosure — the remembered files (Slice 9)
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
     property bool downloadsActive: false  // the Downloads page is the front surface
@@ -175,6 +176,32 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.openMediaClicked()
+                }
+                // Recent disclosure (Slice 9): the corner caret opens the remembered-files list;
+                // the icon itself still opens the picker (Slice 8 preserved). Declared after omMa
+                // so its click wins in the corner it occupies.
+                Rectangle {
+                    objectName: "openRecentDisclosure"
+                    width: 15; height: 15; radius: 4
+                    anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.rightMargin: -1; anchors.bottomMargin: -1
+                    color: recentMa.containsMouse ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0.10, 0.10, 0.13, 0.95)
+                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.22)
+                    Canvas {
+                        anchors.centerIn: parent; width: 9; height: 6
+                        onPaint: {
+                            var ctx = getContext("2d"); ctx.reset()
+                            ctx.strokeStyle = "#cfcfd6"; ctx.lineWidth = 1.4; ctx.lineCap = "round"
+                            ctx.beginPath(); ctx.moveTo(1, 1); ctx.lineTo(4.5, 4.5); ctx.lineTo(8, 1); ctx.stroke()
+                        }
+                    }
+                    MouseArea {
+                        id: recentMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: bar.openRecentRequested()
+                    }
                 }
             }
 

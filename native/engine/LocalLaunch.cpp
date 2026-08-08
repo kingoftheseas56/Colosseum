@@ -148,10 +148,24 @@ QVariantMap LocalLaunch::open(const QStringList& pathsOrUrls)
     }
     QVariantMap m = routeInfo(pathsOrUrls.first());
     m[QStringLiteral("ignored")] = pathsOrUrls.size() - 1;
+    // An accepted open is remembered for one-click reopen (Slice 9); a rejection is not.
+    if (m.value(QStringLiteral("accepted")).toBool()) {
+        m_recent.record(m.value(QStringLiteral("path")).toString(),
+                        m.value(QStringLiteral("title")).toString(),
+                        m.value(QStringLiteral("family")).toString(),
+                        m.value(QStringLiteral("vaultId")).toString());
+        emit recentChanged();
+    }
     return m;
 }
 
 bool LocalLaunch::isDir(const QString& pathOrUrl) const
 {
     return QFileInfo(toLocalPath(pathOrUrl)).isDir();
+}
+
+void LocalLaunch::clearRecent()
+{
+    m_recent.clear();      // wipes shortcuts only — reading progress is a separate store
+    emit recentChanged();
 }
