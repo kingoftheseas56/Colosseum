@@ -159,6 +159,31 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault index (execution plan Slice 3, 2026-08-08) ─────────────────────────
+# VaultIndex — the rebuildable SQLite scan product: transactional full-replace
+# publish (a cancelled/errored publish rolls back, previous contents intact),
+# incremental upsert, and numeric-aware folder-order listing. Qt6::Sql; the
+# qsqlite driver resolves because the exe lands in build-msvc/ beside the
+# app-deployed plugin (ledger deploy note). GUILESS; QTemporaryDir DB per run.
+add_executable(tst_vault_index
+    auto/vault/tst_vault_index.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h")
+target_include_directories(tst_vault_index PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_index PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_index PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_index POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_index
+         COMMAND tst_vault_index)
+set_tests_properties(colosseum.qttest.vault_index PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
