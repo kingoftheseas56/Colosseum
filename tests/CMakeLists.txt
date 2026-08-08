@@ -102,6 +102,35 @@ set_tests_properties(colosseum.qttest.http_header_fields PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault kit (execution plan Slice 1, 2026-08-08) ───────────────────────────
+# The Vault's pure-logic kit (VaultKit): census classifier (kind inference,
+# mixed-leaf flag, loose capture, scanIgnore needles), the ported title cleaner,
+# and the season/episode grammar + season-climb guard. Pure Qt6::Core — VaultKit
+# has no app deps — and GUILESS. The committed fixture tree is baked in via
+# VAULT_FIXTURES_DIR (house pattern: TANKOBAN_FIXTURES_DIR). Same deploy pattern
+# as tst_window_state_policy: land beside the app's Qt DLLs and stage Qt6Test.dll
+# or the exe dies 0xc0000135 before main().
+add_executable(tst_vault_kit
+    auto/vault/tst_vault_kit.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_vault_kit PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_vault_kit PRIVATE
+    VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+target_link_libraries(tst_vault_kit PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_vault_kit PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_kit POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_kit
+         COMMAND tst_vault_kit)
+set_tests_properties(colosseum.qttest.vault_kit PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
