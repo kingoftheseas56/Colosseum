@@ -15,6 +15,11 @@ set -euo pipefail
 
 VERSION="${1:-0.1}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Release integrity (1.0 lesson): the daily build dir can contain uncommitted WIP compiled
+# in. Point BUILD_DIR at a clean sandbox build of committed HEAD (git archive -> cmake)
+# so the shipped exe is reproducible from the release tag. Defaults to the daily dir for
+# local smoke-packaging only.
+BUILD_DIR="${BUILD_DIR:-$REPO/native/build-msvc}"
 STREMIO_SRC="${STREMIO_SRC:-/c/Users/Suprabha/AppData/Local/Programs/StremioService}"
 MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
 DIST="$REPO/dist"
@@ -23,7 +28,7 @@ OUT="$DIST/Colosseum-$VERSION-setup.exe"
 
 [ -x "$MAKENSIS" ] || { echo "makensis not found at $MAKENSIS"; exit 1; }
 [ -f "$STREMIO_SRC/stremio-runtime.exe" ] || { echo "Stremio source missing: $STREMIO_SRC"; exit 1; }
-[ -f "$REPO/native/build-msvc/colosseum.exe" ] || { echo "current build missing: native/build-msvc/colosseum.exe"; exit 1; }
+[ -f "$BUILD_DIR/colosseum.exe" ] || { echo "build missing: $BUILD_DIR/colosseum.exe"; exit 1; }
 
 echo "[1/6] clean stage -> $STAGE"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
@@ -31,8 +36,9 @@ rm -rf "$STAGE"; mkdir -p "$STAGE"
 echo "[2/6] source tree at HEAD (tracked files)"
 git -C "$REPO" archive --format=tar HEAD | tar -x -C "$STAGE"
 
-echo "[3/6] overlay CURRENT windeployqt runtime (today's build)"
-cp -r "$REPO/native/build-msvc" "$STAGE/native/"
+echo "[3/6] overlay windeployqt runtime from $BUILD_DIR"
+mkdir -p "$STAGE/native/build-msvc"
+cp -r "$BUILD_DIR/." "$STAGE/native/build-msvc/"
 # Felt-speed Stage 0: an installer without the webp decoder ships blank covers. Refuse.
 [ -f "$STAGE/native/build-msvc/imageformats/qwebp.dll" ] \
   || { echo "qwebp.dll missing from runtime — run native/deploy-runtime.bat first"; exit 1; }
