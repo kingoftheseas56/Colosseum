@@ -8,7 +8,7 @@
 
 **Tech Stack:** C++17, Qt 6.11.1 Core/Network/QML/Quick/Concurrent, OpenSSL Ed25519 through `OpenSSL::Crypto`, QML/Qt Quick Test, CMake/Ninja/MSVC 2022, NSIS MUI2, Python 3 standard library, GitHub Releases REST API.
 
-**Planning protocol:** Prepared and self-reviewed with the Brotherhood runtime's `writing-plans` skill at `../runtime/codex/skills/writing-plans/SKILL.md`. Brotherhood Rule 28 governs execution: work directly on `master`; a worktree requires Hemanth's explicit approval.
+**Planning protocol:** Prepared and self-reviewed with the Brotherhood `brotherhood-writing-plans` skill at `../runtime/claude/skills/brotherhood-writing-plans/SKILL.md`. Brotherhood Rule 28 governs execution: work directly on `master`; a worktree requires Hemanth's explicit approval.
 
 ## Global Constraints
 
@@ -26,6 +26,9 @@
 - Use only HTTPS GitHub release delivery in production; loopback HTTP is allowed only through injected test configuration.
 - Declare the exact additive `native/CMakeLists.txt` and `qml/Main.qml` changes in Brotherhood coordination before editing those shared files.
 - Run deterministic tests inside each task. Run the full app build, unit label, QML gate, installer matrix, and clean-machine update proof before release.
+- Every automated runtime replay uses `lanista session run` only: its unique pipe and tagged AppData/cache root are mandatory. Never drive the daily app or its default pipe.
+- Update runtime fixtures use a test-only compiled public key and committed signed fixture bytes; the release private key remains outside the repository. `package_release.sh` must reject a build configured with `COLOSSEUM_UPDATE_TESTING=ON`.
+- Lanista-visible QML names use the `colosseumUpdate...` namespace. Every wait is `ui-wait-for` on a named property; no sleeps and no bare QML `id` targets.
 - Commit only the task's files by explicit path, verify the committed artifact, and push `master` after every task.
 
 ---
@@ -38,6 +41,7 @@
 - Create `native/update/UpdateManifest.h/.cpp` — inert manifest data model and post-signature JSON/schema parser.
 - Create `native/update/UpdateTrust.h/.cpp` — Ed25519 raw-byte verification plus SHA-256 helpers.
 - Create `native/update/UpdatePublicKey.h` — embedded 32-byte production public key only.
+- Create `native/update/UpdateTestPublicKey.h` — test-build-only 32-byte public key for Lanista fixture verification; never selected by a release build.
 - Create `native/update/UpdateReleaseClient.h/.cpp` — GitHub latest-release discovery, ETag, exact asset selection, manifest/signature fetch, and trust gate.
 - Create `native/update/UpdateCache.h/.cpp` — bounded update-cache layout, atomic state writes, safe path checks, chronicle/artwork adoption, and cleanup.
 - Create `native/update/UpdateDownload.h/.cpp` — streamed `.part` download, Range/ETag resume, progress, cancel, and final size/hash verification.
@@ -78,7 +82,89 @@
 - Create `tests/test_update_data_boundary.ps1`.
 - Create `tests/update_release_tooling_test.py`.
 - Create `tests/installer/update_matrix.ps1`.
+- Create `tests/lanista_scenarios/update_available.json` and `tests/lanista_scenarios/update_up_to_date.json`.
+- Create `tests/lanista_fixtures/update-available/` and `tests/lanista_fixtures/update-up-to-date/` — Task 4 cache-shaped, production-inert data signed by the test key.
+- Create `tests/test_update_lanista.ps1` — isolated session runner for both update states.
 - Modify `tests/CMakeLists.txt` and `docs/colosseum-test-verification.md` with every new registered gate.
+- Modify `docs/colosseum-lanista-verification.md` with the update automation surfaces and replay contract when they land.
+
+---
+
+## Brotherhood Lanista runtime coverage
+
+### Slice L1: A verified cached update is visible and opens from the taskbar
+
+**Purpose:** Prove in a disposable running Colosseum that the quiet Update taskbar signal opens the approved page and presents a verified release, not merely that its QML components compile.
+
+**Dependencies:** Tasks 2, 4, 5, 6, 7, and 8. Task 2 supplies the test-build public key; Task 4 defines the cache layout; Tasks 6–7 add the named surfaces; Task 8 wires the real service into the real shell.
+
+**Implementation guidance:** In a `COLOSSEUM_UPDATE_TESTING=ON` build only, `UpdateTrust` selects `UpdateTestPublicKey.h`; the normal build uses only `UpdatePublicKey.h`. The committed `update-available` seed contains a signed manifest, signature, cached presentation, and no installer payload. Add these stable automation surfaces: `colosseumUpdateTaskbarButton`, `colosseumUpdateBadge`, `colosseumUpdatePage`, `colosseumUpdatePrimaryAction`, `colosseumUpdateStatusText`, `colosseumUpdateProgress`, and `colosseumUpdateHighlights`. `colosseumUpdatePage` exposes read-only `automationState` and `automationVersion` properties bound to the real `Updates` object.
+
+**Behavior to preserve:** A source-tree/development launch still performs no automatic GitHub check; the normal taskbar pages remain mutually exclusive; no fixture, test key, or test-mode switch can enter a packaged installer.
+
+**Baseline:** Before Tasks 6–8, launch an isolated session with the fixture seed and record that `colosseumUpdateTaskbarButton` / `colosseumUpdatePage` are absent. Preserve the failing scenario output under `artifacts/lanista-sessions/`.
+
+**Focused tests:**
+
+- **Qt Test:** `update_manifest_trust_harness`, `update_release_client_harness`, `update_cache_download_harness`, `update_service_harness`, and `update_install_bridge_harness`; the service cache case must prove the signed fixture reaches `Available` without a network request.
+- **Qt Quick Test:** `tst_update_page.qml` verifies the exact state/action mapping with its fake service; its expectations use the same `automationState` names as the runtime page.
+- **Existing harnesses:** `tests/test_update_taskbar_p0.ps1`, `tests/test_fullscreen_controls_p0.ps1`, and the new `tests/test_update_lanista.ps1`. The existing `tests/test_lanista.ps1` remains the bridge-contract gate, not the update feature replay.
+- **Negative control:** flip one byte in the seeded manifest signature and assert the service does not expose `Available`; rename `colosseumUpdateTaskbarButton` in the scenario once and record the resulting `NO_SUCH_ITEM` before restoring it.
+
+**Test seam status:** migration required until Task 8 adds the scenario runner and records it in both verification ledgers; available afterward.
+
+**Lanista actions:** `lanista session run tests/lanista_scenarios/update_available.json --exe native/build-msvc/colosseum.exe --tag updater-available --drive --seed tests/lanista_fixtures/update-available --verbose`. The scenario must: `ping`; use `get-state` to assert both `appDataRoot` and `cacheRoot` contain the session tag; `ui-wait-for bootSplash.visible == false`; `ui-query colosseumUpdateTaskbarButton` for visible/enabled/not-clipped; `ui-click colosseumUpdateTaskbarButton`; `ui-wait-for colosseumUpdatePage.visible == true`; `qml-get` the page's `automationState` / `automationVersion` and status-text `text`; and grab the whole window after the page opens. It must never call the download/install action.
+
+**Completion signal:** `colosseumUpdatePage.visible == true` followed by `colosseumUpdatePage.automationState == "Available"`; these are exact `ui-wait-for` comparisons, not elapsed-time waits.
+
+**State / events / probes:** `get-state` proves isolation; `qml-get colosseumUpdatePage` returns `automationState: "Available"` and `automationVersion: "1.1.1"`; `qml-get colosseumUpdateStatusText` returns the user-facing available copy. Do not claim typed update events: the ledger lists no such event plane.
+
+**Visual evidence:** the session manifest, stdout/stderr, and whole-window grab in `artifacts/lanista-sessions/<id>/` show the gold taskbar badge, opened Update page, version, and feature cards. dHash may flag broad drift only; Hemanth remains the aesthetic judge.
+
+**Regression paths:** close Update, open Downloads, reopen Update, and confirm the page is still exclusive; navigate away and back without losing the cached chronicle.
+
+**Evidence artifacts:** the two session directories, their `colosseum.session.v1` manifests, scenario stdout/stderr, and the Task 11 eyes-on gallery.
+
+**Bridge status:** available — `session run`, `get-state`, `ui-query`, `ui-click`, `ui-wait-for`, `qml-get`, and whole-window grabs are all listed as available in the Lanista ledger.
+
+**Completion criterion:** only `Runtime-validated` when the committed test build passes deterministic gates, the available-state replay completes in an isolated session with the stated probes/grab, the regressions replay, and the production build is reconfigured with `COLOSSEUM_UPDATE_TESTING=OFF` before packaging.
+
+### Slice L2: The latest chronicle remains visible when no action is available
+
+**Purpose:** Prove the same real page remains useful after completion: the latest update story survives in `UpToDate` and does not leave a deceptive action button.
+
+**Dependencies:** Slice L1 and Tasks 4–8.
+
+**Implementation guidance:** The `update-up-to-date` seed mirrors Task 4's cache contract with a verified latest chronicle and no available release. It shares the names from Slice L1; the primary action is disabled or replaced with the approved check-again affordance according to the locked page state.
+
+**Behavior to preserve:** No installer is downloaded or launched by this replay; a stale/corrupt cache never masquerades as an up-to-date result.
+
+**Baseline:** Preserve the pre-implementation missing-page result separately from Slice L1; do not fabricate a before image after the page lands.
+
+**Focused tests:**
+
+- **Qt Test:** `update_service_harness` exercises persisted chronicle loading and rejects an invalid signature.
+- **Qt Quick Test:** `tst_update_page.qml` asserts `UpToDate` retains highlights and its action mapping.
+- **Existing harnesses:** `tests/test_update_lanista.ps1` runs the second scenario plus the taskbar/fullscreen regression gates.
+- **Negative control:** delete the signed chronicle fixture asset or corrupt its signature and prove the page lands in the recoverable state rather than `UpToDate`.
+
+**Test seam status:** migration required until Task 8's runner/fixtures are registered; available afterward.
+
+**Lanista actions:** `lanista session run tests/lanista_scenarios/update_up_to_date.json --exe native/build-msvc/colosseum.exe --tag updater-current --drive --seed tests/lanista_fixtures/update-up-to-date --verbose`; wait for `bootSplash.visible == false`, click `colosseumUpdateTaskbarButton`, wait for `colosseumUpdatePage.visible == true`, then read `automationState`, the primary action's enabled/text properties, and `colosseumUpdateHighlights.visible`; take a whole-window grab.
+
+**Completion signal:** `colosseumUpdatePage.automationState == "UpToDate"` and `colosseumUpdateHighlights.visible == true`.
+
+**State / events / probes:** `qml-get` asserts `UpToDate`, the expected primary-action state, and visible highlights. The only event allowed is an optional `log-mark` correlation; no invented lifecycle/update event wait.
+
+**Visual evidence:** the isolated-session window grab shows the latest illustrated chronicle and the no-update state together.
+
+**Regression paths:** open Update from every normal taskbar page and return; relaunch a second tagged session using the same seed and prove it produces the same state without contacting GitHub.
+
+**Evidence artifacts:** `artifacts/lanista-sessions/<id>/` for the UpToDate run and `tests/test_update_lanista.ps1` output.
+
+**Bridge status:** available.
+
+**Completion criterion:** `Runtime-validated` only after the UpToDate session passes, the negative control is recorded RED then restored, and Task 11 captures Hemanth's aesthetic verdict from the real release candidate.
 
 ---
 
@@ -206,6 +292,7 @@ push `origin master`.
 - Create: `native/update/UpdateTrust.h`
 - Create: `native/update/UpdateTrust.cpp`
 - Create: `native/update/UpdatePublicKey.h`
+- Create: `native/update/UpdateTestPublicKey.h`
 - Create: `tests/update_manifest_trust_harness.cpp`
 - Modify: `native/CMakeLists.txt`
 - Modify: `tests/CMakeLists.txt`
@@ -260,6 +347,10 @@ for ($i = 0; $i -lt $expectedPrefix.Length; $i++) {
 
 Use `apply_patch` to place the printed 32 public bytes into `UpdatePublicKey.h`. Never copy the PEM
 or DER file into the repository. Record the public-key SHA-256 in a comment for operator comparison.
+Create a separate `UpdateTestPublicKey.h` with only the 32 public bytes for the committed Lanista
+fixture signatures. Its matching test private key remains outside the repository. CMake selects this
+header only for `COLOSSEUM_UPDATE_TESTING=ON`; a normal/release build must compile only against the
+production key.
 
 - [ ] **Step 4: Implement the immutable data model and trust seam**
 
@@ -291,7 +382,10 @@ QByteArray sha256(QIODevice* device, QString* error);
 
 Use OpenSSL EVP Ed25519 without accepting PEM or algorithm metadata from the release. Parsing must
 allow only the schema's named keys and enforce bounded text/card counts and lengths before creating
-QVariants later. `UpdatePublicKey.h` contains exactly one 32-byte production public key constant.
+QVariants later. `UpdatePublicKey.h` contains exactly one 32-byte production public key constant;
+`UpdateTestPublicKey.h` can be selected only by the explicit test-build CMake definition. Add a
+test assertion that the normal app target cannot compile with the test-key definition accidentally
+set by packaging.
 Add a focused `colosseum_update_crypto` interface target: link `OpenSSL::Crypto` when the imported
 target exists, otherwise reuse `${OPENSSL_MSVC_ROOT}/include` and
 `${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib`. Link the app and trust harness through that target rather
@@ -412,6 +506,8 @@ Commit as `feat(updater): discover trusted GitHub releases`, then push `origin m
 - Create: `native/update/UpdateDownload.h`
 - Create: `native/update/UpdateDownload.cpp`
 - Create: `tests/update_download_harness.cpp`
+- Create: `tests/lanista_fixtures/update-available/`
+- Create: `tests/lanista_fixtures/update-up-to-date/`
 - Modify: `native/CMakeLists.txt`
 - Modify: `tests/CMakeLists.txt`
 - Modify: `docs/colosseum-test-verification.md`
@@ -463,6 +559,11 @@ signals:
 `QStandardPaths::writableLocation(AppDataLocation) + "/updates"`; tests inject a `QTemporaryDir`.
 Persist metadata with `QSaveFile`, stream bytes through `readyRead`, hash the completed file off the
 GUI thread, and compare size and digest before renaming. Validate canonical paths before cleanup.
+Define the cache's on-disk state/document names here, then create both Lanista seed directories in
+that exact layout. Each seed contains only signed manifest/presentation/cache metadata and optional
+local artwork â€” never an installer executable. The Available seed carries version `1.1.1`; the
+UpToDate seed carries the verified latest chronicle. Both signatures verify only with the Task 2
+test public key in a `COLOSSEUM_UPDATE_TESTING=ON` build.
 
 - [ ] **Step 4: Verify GREEN plus corruption negative control**
 
@@ -503,6 +604,9 @@ six-hour throttle, manual bypass, available/unseen, `markSeen()` clearing only u
 cancel/resume, verify, ready, persisted chronicle, offline restart, superseding release, failed
 target suppression, minimum-updater/manual-path state, verified artwork caching, corrupt/missing
 optional artwork falling back without losing the release, and Ready calling the injected launcher.
+Add the two Task 4 seed directories as read-only cache-load cases: in the test-key configuration,
+Available and UpToDate are reconstructed without a network request; a one-byte signature mutation
+must not reach either visible state.
 
 - [ ] **Step 2: Build to verify RED**
 
@@ -604,6 +708,10 @@ property bool updateAvailable: false
 property bool updateUnseen: false
 ```
 
+The clickable item must be `objectName: "colosseumUpdateTaskbarButton"`; the availability dot is
+`colosseumUpdateBadge`. They are stable automation surfaces, never QML-only ids. This task remains
+`Test-reported` until Task 8 replays the real shell route through Slice L1.
+
 The badge is a 12px gold circle visible for `updateAvailable`; its `SequentialAnimation` runs only
 for `updateUnseen`. Add `openUpdatePage()`/`closeUpdatePage()` in `Main.qml`; opening any taskbar
 full page closes Downloads, Extensions, Settings, and Update before activating exactly one. Opening
@@ -634,11 +742,13 @@ Commit as `feat(updater): add taskbar update notification`, then push `origin ma
 - Create: `qml/update/UpdateReleaseHero.qml`
 - Create: `qml/update/UpdateHighlightCard.qml`
 - Create: `tests/qml/tst_update_page.qml`
+- Create: `tests/lanista_scenarios/update_available.json`
+- Create: `tests/lanista_scenarios/update_up_to_date.json`
 - Modify: `qml/Main.qml`
 
 **Interfaces:**
 - Consumes: the exact `UpdateService` properties/actions from Task 5.
-- Produces: full-page Update UI with object names `updatePage`, `updatePrimaryAction`, `updateProgress`, `updateHighlights`, and `updateStatusText`.
+- Produces: full-page Update UI with object names `colosseumUpdatePage`, `colosseumUpdatePrimaryAction`, `colosseumUpdateProgress`, `colosseumUpdateHighlights`, and `colosseumUpdateStatusText`; the page exposes read-only `automationState` and `automationVersion` bound to the actual service.
 
 - [ ] **Step 1: Write the failing Qt Quick Test**
 
@@ -681,6 +791,13 @@ function invokePrimaryAction() {
 ```
 
 The test must exercise the actual click and prove the service method ran with its receiver intact.
+Create the two static Lanista scenarios now, but do not run them until Task 8 has exposed the real
+`Updates` service in an isolated app process. `update_available.json` waits for
+`bootSplash.visible == false`, clicks `colosseumUpdateTaskbarButton`, waits for
+`colosseumUpdatePage.visible == true`, and reads the Available properties described in Slice L1.
+`update_up_to_date.json` follows the same route and reads the UpToDate properties described in
+Slice L2. Both use namespaced `objectName` targets only, explicit `timeout_ms`, whole-window grabs,
+and no download/install click.
 
 - [ ] **Step 4: Verify QML GREEN and loadability**
 
@@ -710,6 +827,8 @@ Commit as `feat(updater): add illustrated update page`, then push `origin master
 - Create: `native/update/UpdateInstallBridge.cpp`
 - Modify: `tests/CMakeLists.txt`
 - Modify: `docs/colosseum-test-verification.md`
+- Create: `tests/test_update_lanista.ps1`
+- Modify: `docs/colosseum-lanista-verification.md`
 
 **Interfaces:**
 - Consumes: `UpdateService` and `COLOSSEUM_VERSION`.
@@ -753,7 +872,15 @@ In `main.cpp`, create a dedicated update NAM and service after application ident
 it as `Updates`, load QML, then invoke `startAutomaticChecks()` only after `rootObjects()` is
 non-empty. Disable automatic checks when the executable resolves inside a Git checkout or
 `COLOSSEUM_DEV` is set; allow explicit test opt-in only through injected configuration, not a public
-release environment variable.
+release environment variable. Add the test-build CMake option `COLOSSEUM_UPDATE_TESTING` (default
+OFF) that selects only the Task 2 public test key, permits the signed Task 4 cache seeds to load,
+and is compiled out of packaging: `package_release.sh` must inspect `CMakeCache.txt` and refuse
+ON. It does not enable download, installer launch, or a production GitHub override. Add
+`tests/test_update_lanista.ps1`: it builds the explicit test configuration in the approved build
+directory, runs both `lanista session run` scenarios with `--drive`, `--seed`, `--tag`, and
+`--verbose`, preserves their session paths, then uses a PowerShell `finally` block to restore
+`COLOSSEUM_UPDATE_TESTING=OFF` and rebuild `colosseum` before exiting. Update both ledgers in the
+same commit with the runner, object names, scenario commands, isolation guarantee, and status.
 
 - [ ] **Step 4: Build and verify GREEN**
 
@@ -763,9 +890,12 @@ Run:
 native\build-target.bat update_install_bridge_harness
 native\build-target.bat colosseum
 ctest --test-dir native/build-msvc -R "colosseum.update_(install_bridge|service)_harness" --output-on-failure
+powershell -ExecutionPolicy Bypass -File tests\test_update_lanista.ps1
 ```
 
-Expected: bridge/service tests pass and the full app links with `Updates` available.
+Expected: bridge/service tests pass; both isolated Lanista sessions create manifests under
+`artifacts/lanista-sessions/`, report the Available and UpToDate state respectively, and the final
+restored build has `COLOSSEUM_UPDATE_TESTING=OFF`. Record the two session paths in the task handoff.
 
 - [ ] **Step 5: Commit and push**
 
@@ -823,8 +953,9 @@ happened on the Update page.
 - [ ] **Step 4: Tighten packaging inputs**
 
 `package_release.sh X.Y.Z` must reject non-canonical versions, dirty source trees, tag mismatch,
-missing clean `BUILD_DIR`, missing runtime sentinels, and installer filename drift. It must print the
-installer path, byte size, and SHA-256 as machine-readable final lines for Task 10.
+missing clean `BUILD_DIR`, `COLOSSEUM_UPDATE_TESTING=ON` in the build cache, missing runtime
+sentinels, and installer filename drift. It must print the installer path, byte size, and SHA-256 as
+machine-readable final lines for Task 10.
 
 - [ ] **Step 5: Verify GREEN with the matrix and real package smoke**
 
@@ -973,9 +1104,12 @@ powershell -ExecutionPolicy Bypass -File tests\test_update_taskbar_p0.ps1
 powershell -ExecutionPolicy Bypass -File tests\test_update_data_boundary.ps1
 powershell -ExecutionPolicy Bypass -File tests\installer\update_matrix.ps1
 python tests\update_release_tooling_test.py
+powershell -ExecutionPolicy Bypass -File tests\test_update_lanista.ps1
 ```
 
-Expected: full build and every gate pass; record exact test counts in the verification ledger.
+Expected: full build and every deterministic gate pass; the Lanista runner preserves two isolated
+session manifests and restores the production-key build before returning. Record exact test counts
+and both session paths in the verification ledgers.
 
 - [ ] **Step 2: Build and verify a GitHub draft from the committed tag candidate**
 
@@ -1002,10 +1136,12 @@ pass/fail evidence in the ledger.
 
 - [ ] **Step 4: Perform eyes-on verification of the approved surface**
 
-Launch the committed binary. Confirm under Hemanth's eyes: quiet gold taskbar badge/pulse, click
-opens the approved page, feature cards remain while downloading, progress is readable, Ready becomes
-**Restart and update**, and UpToDate preserves the latest illustrated chronicle. Check 1280x720 and
-the normal display size, keyboard navigation, and reduced motion.
+Launch the committed production binary. Review the two Lanista whole-window grabs and then confirm
+under Hemanth's eyes: quiet gold taskbar badge/pulse, click opens the approved page, feature cards
+remain while downloading, progress is readable, Ready becomes **Restart and update**, and UpToDate
+preserves the latest illustrated chronicle. Check 1280x720 and the normal display size, keyboard
+navigation, and reduced motion. Record Hemanth's approved/rejected/pending aesthetic verdict beside
+the Slice L1/L2 session manifests; Lanista proves state and route, never taste.
 
 - [ ] **Step 5: Cross-substrate self-review against the written Definition of Done**
 
