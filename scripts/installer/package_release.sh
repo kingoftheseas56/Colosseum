@@ -14,6 +14,10 @@
 set -euo pipefail
 
 VERSION="${1:-0.1}"
+if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+  echo "version must be canonical X.Y.Z: $VERSION"
+  exit 1
+fi
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # Release integrity (1.0 lesson): the daily build dir can contain uncommitted WIP compiled
 # in. Point BUILD_DIR at a clean sandbox build of committed HEAD (git archive -> cmake)
@@ -26,9 +30,23 @@ DIST="$REPO/dist"
 STAGE="$DIST/stage"
 OUT="$DIST/Colosseum-$VERSION-setup.exe"
 
+if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=all)" ]; then
+  echo "refusing to package dirty source tree"
+  exit 1
+fi
+EXPECTED_TAG="v$VERSION"
+HEAD_TAG="$(git -C "$REPO" describe --exact-match --tags HEAD 2>/dev/null || true)"
+if [ "$HEAD_TAG" != "$EXPECTED_TAG" ]; then
+  echo "refusing tag mismatch: HEAD=$HEAD_TAG expected=$EXPECTED_TAG"
+  exit 1
+fi
+
 [ -x "$MAKENSIS" ] || { echo "makensis not found at $MAKENSIS"; exit 1; }
 [ -f "$STREMIO_SRC/stremio-runtime.exe" ] || { echo "Stremio source missing: $STREMIO_SRC"; exit 1; }
 [ -f "$BUILD_DIR/colosseum.exe" ] || { echo "build missing: $BUILD_DIR/colosseum.exe"; exit 1; }
+[ -f "$BUILD_DIR/CMakeCache.txt" ] || { echo "clean CMake build cache missing: $BUILD_DIR/CMakeCache.txt"; exit 1; }
+grep -Eq '^CMAKE_BUILD_TYPE:STRING=Release$' "$BUILD_DIR/CMakeCache.txt" \
+  || { echo "BUILD_DIR is not a Release build: $BUILD_DIR"; exit 1; }
 
 # The test-key updater build is intentionally not shippable.  Check the cache
 # before archiving or stripping the build so a release can never embed the
@@ -48,9 +66,14 @@ git -C "$REPO" archive --format=tar HEAD | tar -x -C "$STAGE"
 echo "[3/6] overlay windeployqt runtime from $BUILD_DIR"
 mkdir -p "$STAGE/native/build-msvc"
 cp -r "$BUILD_DIR/." "$STAGE/native/build-msvc/"
-# Felt-speed Stage 0: an installer without the webp decoder ships blank covers. Refuse.
-[ -f "$STAGE/native/build-msvc/imageformats/qwebp.dll" ] \
-  || { echo "qwebp.dll missing from runtime — run native/deploy-runtime.bat first"; exit 1; }
+# Felt-speed runtime sentinels: an installer without these files is not shippable.
+for sentinel in \
+  "$STAGE/native/build-msvc/colosseum.exe" \
+  "$STAGE/native/build-msvc/imageformats/qwebp.dll" \
+  "$STAGE/native/build-msvc/platforms/qwindows.dll" \
+  "$STAGE/native/build-msvc/Qt6Core.dll"; do
+  [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
+done
 
 echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, tools/, qml/, resources/, translations/)"
 ( cd "$STAGE/native/build-msvc"
@@ -82,4 +105,10 @@ MSYS_NO_PATHCONV=1 "$MAKENSIS" \
     "/DOUTFILE=$(cygpath -w "$OUT")" "$(cygpath -w "$REPO/scripts/installer/colosseum.nsi")"
 
 echo "DONE -> $OUT"
-ls -la "$OUT" 2>/dev/null && du -h "$OUT" | cut -f1
+EXPECTED_NAME="Colosseum-$VERSION-setup.exe"
+[ "$(basename "$OUT")" = "$EXPECTED_NAME" ] || { echo "installer filename drift: $OUT"; exit 1; }
+[ -f "$OUT" ] || { echo "installer output missing: $OUT"; exit 1; }
+INSTALLER_BYTES="$(wc -c < "$OUT" | tr -d '[:space:]')"
+INSTALLER_SHA256="$(sha256sum "$OUT" | awk '{print $1}')"
+printf 'INSTALLER_PATH=%s\nINSTALLER_BYTES=%s\nINSTALLER_SHA256=%s\n' \
+  "$OUT" "$INSTALLER_BYTES" "$INSTALLER_SHA256"
