@@ -30,6 +30,11 @@ Item {
     property bool updateAvailable: false   // a verified newer release exists
     property bool updateUnseen: false      // the user has not opened its chronicle yet
 
+    // A verified release is a taskbar event, not a silent state change.  Reveal the
+    // dock once so the update affordance is visible without requiring the user to
+    // discover the closed-shell hit target first.
+    onUpdateAvailableChanged: if (updateAvailable) reveal()
+
     onOpenChanged: if (!open) fan.visible = false
 
     // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
@@ -108,6 +113,7 @@ Item {
             spacing: 14
 
             Item {
+                objectName: "colosseumTaskbarHomeButton"
                 Layout.preferredWidth: 48
                 Layout.preferredHeight: 48
                 Layout.alignment: Qt.AlignVCenter
@@ -261,6 +267,8 @@ Item {
             Item {
                 id: updateButton
                 objectName: "colosseumUpdateTaskbarButton"
+                property alias updateAvailable: bar.updateAvailable
+                property alias updateUnseen: bar.updateUnseen
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter

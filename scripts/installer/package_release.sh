@@ -30,6 +30,15 @@ OUT="$DIST/Colosseum-$VERSION-setup.exe"
 [ -f "$STREMIO_SRC/stremio-runtime.exe" ] || { echo "Stremio source missing: $STREMIO_SRC"; exit 1; }
 [ -f "$BUILD_DIR/colosseum.exe" ] || { echo "build missing: $BUILD_DIR/colosseum.exe"; exit 1; }
 
+# The test-key updater build is intentionally not shippable.  Check the cache
+# before archiving or stripping the build so a release can never embed the
+# Lanista-only trust root by accident.
+if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
+  && grep -Eq '^COLOSSEUM_UPDATE_TESTING:BOOL=ON$' "$BUILD_DIR/CMakeCache.txt"; then
+  echo "refusing to package COLOSSEUM_UPDATE_TESTING=ON build"
+  exit 1
+fi
+
 echo "[1/6] clean stage -> $STAGE"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 

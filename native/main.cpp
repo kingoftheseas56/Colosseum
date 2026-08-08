@@ -32,6 +32,9 @@
 #include <QThread>
 #include <QTimer>
 
+#include <memory>
+#include <functional>
+
 #include "ClipboardHelper.h"
 #include "MangaEngine.h"
 #include "ProgressStore.h"
@@ -39,6 +42,12 @@
 #include "SearchHistoryStore.h"
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
+#include "update/UpdateCache.h"
+#include "update/UpdateDownload.h"
+#include "update/UpdateInstallBridge.h"
+#include "update/UpdateReleaseClient.h"
+#include "update/UpdateService.h"
+#include "update/UpdateTrust.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
@@ -552,6 +561,132 @@ int main(int argc, char *argv[]) {
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 
     QQmlApplicationEngine engine;
+
+    // Auto-update is a post-first-paint service.  It has its own network manager,
+    // cache, and installer bridge so release traffic never shares a catalogue lane
+    // and no check can block construction of the QML tree.
+    auto *updateNam = new QNetworkAccessManager(&app);
+    auto *updateCache = new Colosseum::Update::UpdateCache(
+        Colosseum::Update::UpdateCache::productionRoot());
+    auto *updateDownloader = new Colosseum::Update::UpdateDownload(updateNam, updateCache, &app);
+    Colosseum::Update::ReleaseClientConfig updateConfig;
+    updateConfig.latestReleaseUrl = QUrl(
+        QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest"));
+    updateConfig.repository = QStringLiteral("kingoftheseas56/Colosseum");
+    updateConfig.publicKey = QByteArray(Colosseum::Update::embeddedUpdatePublicKey().data(),
+                                        Colosseum::Update::embeddedUpdatePublicKey().size());
+    auto *updateClient = new Colosseum::Update::UpdateReleaseClient(
+        updateNam, updateConfig, &app);
+    auto *updateBridge = new Colosseum::Update::UpdateInstallBridge(&app);
+
+    struct ActiveUpdateCallbacks final {
+        std::function<void(qint64, qint64, qint64)> progress;
+        std::function<void(const QString&)> completed;
+        std::function<void(const QString&, bool)> failed;
+    };
+    const auto updateCallbacks = std::make_shared<ActiveUpdateCallbacks>();
+    QObject::connect(updateDownloader, &Colosseum::Update::UpdateDownload::progress,
+                     &app, [updateCallbacks](qint64 received, qint64 total, qint64 speed) {
+        if (updateCallbacks->progress)
+            updateCallbacks->progress(received, total, speed);
+    });
+    QObject::connect(updateDownloader, &Colosseum::Update::UpdateDownload::completed,
+                     &app, [updateCallbacks](const QString& path) {
+        if (updateCallbacks->completed)
+            updateCallbacks->completed(path);
+    });
+    QObject::connect(updateDownloader, &Colosseum::Update::UpdateDownload::failed,
+                     &app, [updateCallbacks](const QString& code, bool resumable) {
+        if (updateCallbacks->failed)
+            updateCallbacks->failed(code, resumable);
+    });
+
+    Colosseum::Update::UpdateServiceHooks updateHooks;
+    updateHooks.checkLatest = [updateClient](const QString& priorEtag,
+                                              Colosseum::Update::UpdateReleaseClient::Callback done) {
+        updateClient->checkLatest(priorEtag, std::move(done));
+    };
+    updateHooks.startDownload = [updateDownloader, updateCallbacks](
+        const Colosseum::Update::DownloadRequest& request,
+        Colosseum::Update::UpdateServiceHooks::DownloadProgress progress,
+        Colosseum::Update::UpdateServiceHooks::DownloadCompleted completed,
+        Colosseum::Update::UpdateServiceHooks::DownloadFailed failed) {
+        updateCallbacks->progress = std::move(progress);
+        updateCallbacks->completed = std::move(completed);
+        updateCallbacks->failed = std::move(failed);
+        updateDownloader->start(request);
+    };
+    updateHooks.cancelDownload = [updateDownloader] { updateDownloader->cancel(); };
+    updateHooks.installLauncher = [updateBridge](const QString& installer,
+                                                 const Colosseum::Update::Version& target,
+                                                 QString* error) {
+        const auto launch = updateBridge->prepare(installer, target, error);
+        return launch.has_value() && updateBridge->launchDetached(*launch, error);
+    };
+    updateHooks.fetchArtwork = [updateNam](const QString&, const QUrl& url, qint64 cap,
+                                           Colosseum::Update::UpdateServiceHooks::ArtworkCompleted done,
+                                           Colosseum::Update::UpdateServiceHooks::ArtworkFailed failed) {
+        if (!url.isValid() || url.scheme() != QLatin1String("https")) {
+            failed(QStringLiteral("unsafe_artwork_url"));
+            return;
+        }
+        QNetworkRequest request(url);
+        request.setRawHeader("User-Agent", "Colosseum/1.1.0");
+        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                             QNetworkRequest::NoLessSafeRedirectPolicy);
+        QNetworkReply *reply = updateNam->get(request);
+        const auto bytes = std::make_shared<QByteArray>();
+        const auto settled = std::make_shared<bool>(false);
+        QObject::connect(reply, &QNetworkReply::readyRead, reply, [reply, bytes, settled, cap, failed] {
+            if (*settled)
+                return;
+            bytes->append(reply->readAll());
+            if (bytes->size() > cap) {
+                *settled = true;
+                reply->abort();
+                failed(QStringLiteral("artwork_too_large"));
+            }
+        });
+        QObject::connect(reply, &QNetworkReply::finished, reply,
+                         [reply, bytes, settled, done, failed] {
+            if (*settled) {
+                reply->deleteLater();
+                return;
+            }
+            bytes->append(reply->readAll());
+            *settled = true;
+            const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300)
+                failed(QStringLiteral("artwork_download_failed"));
+            else
+                done(*bytes);
+            reply->deleteLater();
+        });
+    };
+
+    QString installedVersionText = QStringLiteral(COLOSSEUM_VERSION);
+#ifdef COLOSSEUM_UPDATE_TESTING
+    // Lanista's UpToDate fixture uses the same signed release chronicle as the
+    // Available case, but boots the test binary at that release version so the
+    // service can exercise its no-newer-release branch without a second signing key.
+    if (qEnvironmentVariableIsSet("COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION"))
+        installedVersionText = qEnvironmentVariable("COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION");
+#endif
+    const auto installedVersion = Colosseum::Update::Version::parseCanonical(installedVersionText);
+    if (!installedVersion)
+        return -1;
+    auto *updates = new Colosseum::Update::UpdateService(
+        *installedVersion, updateCache->rootPath(), std::move(updateHooks), &app);
+    updateBridge->acknowledgeHealthyBoot(QCoreApplication::arguments());
+    engine.rootContext()->setContextProperty(QStringLiteral("Updates"), updates);
+    const bool installedUpdateEligible = updateBridge->installedBuildEligible();
+#ifdef COLOSSEUM_UPDATE_TESTING
+    constexpr bool updateTestingBuild = true;
+#else
+    constexpr bool updateTestingBuild = false;
+#endif
+    if (!installedUpdateEligible && !updateTestingBuild)
+        qInfo("[update] automatic checks disabled (source/dev build or missing installed layout)");
     // ---- the user lane (argless launch: double-click / shortcut / Colosseum.bat) ----
     // With a QML-path argument (dev.bat, test harnesses) NONE of this runs — that lane
     // is byte-for-byte the old behavior: relative path, no network, no CWD change.
@@ -1119,6 +1254,8 @@ int main(int argc, char *argv[]) {
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
+    if (installedUpdateEligible && !updateTestingBuild)
+        QTimer::singleShot(0, updates, &Colosseum::Update::UpdateService::startAutomaticChecks);
 
     // Lanista dev-control bridge — ALWAYS ON for reads/grabs (Hemanth, spec
     // 2026-08-01 §3). Local named pipe only, never a network port. Driving and

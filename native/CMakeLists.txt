@@ -97,6 +97,16 @@ add_executable(colosseum
     update/UpdateTrust.h
     update/UpdatePublicKey.h
     update/UpdateTestPublicKey.h
+    update/UpdateCache.cpp
+    update/UpdateCache.h
+    update/UpdateDownload.cpp
+    update/UpdateDownload.h
+    update/UpdateReleaseClient.cpp
+    update/UpdateReleaseClient.h
+    update/UpdateService.cpp
+    update/UpdateService.h
+    update/UpdateInstallBridge.cpp
+    update/UpdateInstallBridge.h
     app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
     ClipboardHelper.h
@@ -401,6 +411,18 @@ target_compile_definitions(update_service_harness PRIVATE
     COLOSSEUM_UPDATE_TESTING=1
     COLOSSEUM_UPDATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/lanista_fixtures")
 target_link_libraries(update_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent colosseum_update_crypto)
+
+add_executable(update_install_bridge_harness
+    ../tests/update_install_bridge_harness.cpp
+    update/UpdateInstallBridge.cpp
+    update/UpdateInstallBridge.h
+    update/UpdateCache.cpp
+    update/UpdateCache.h
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
+)
+target_include_directories(update_install_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(update_install_bridge_harness PRIVATE Qt6::Core Qt6::Network)
 
 
 add_executable(search_history_store_harness

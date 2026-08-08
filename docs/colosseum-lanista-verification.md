@@ -191,6 +191,22 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 
 ---
 
+## Updater runtime coverage (2026-08-08)
+
+The auto-update slice now has two disposable, test-key-only sessions driven by the existing
+`session run` bridge. `tests/test_update_lanista.ps1` configures `COLOSSEUM_UPDATE_TESTING=ON`,
+passes absolute fixture paths, gives each run a unique tagged root, and restores the shipping
+configuration (`COLOSSEUM_UPDATE_TESTING=OFF`) in `finally`.
+
+| Scenario | Seed / assertions | Evidence |
+|---|---|---|
+| `tests/lanista_scenarios/update_available.json` | signed `Available` chronicle; boot wait, taskbar notification/reveal, click-through to `colosseumUpdatePage`, exact `automationState`/`automationVersion`/primary label, user-facing status copy, actionable hero, whole-window grab | Runtime-validated in isolated session `20260808-214748-da4e4ed9`; `12 steps, 0 failed` |
+| `tests/lanista_scenarios/update_up_to_date.json` | signed latest release; `UpToDate` state, no-update primary label/action, retained highlights/status, whole-window grab | Runtime-validated in isolated session `20260808-214805-78bd31d8`; `13 steps, 0 failed` |
+
+The sessions prove only the assembled test-key build and disposable tagged roots. They do not
+claim GitHub network reachability, installer installation, or aesthetic approval of the update
+chronicle; those remain unit/eyes-on concerns.
+
 ## PLANNED (designed, NOT built — using any of these is a Bridge blocked violation)
 
 From the preflight capability guide (2026-08-06). Ordering is decided in the Test Session +

@@ -40,7 +40,10 @@ UpdateCache::UpdateCache(QString root)
 
 QString UpdateCache::productionRoot()
 {
-    return QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+    // Installer payloads are machine-local and can be large; keep the update
+    // chronicle beside the Windows local cache rather than roaming it through
+    // profile sync. This also matches Lanista's disposable AppLocalData root.
+    return QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
                            + QStringLiteral("/updates"));
 }
 
