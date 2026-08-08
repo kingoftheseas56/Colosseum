@@ -1400,7 +1400,7 @@ endif()
 # exist inside the main build." Player 1 (MpvItem) is the only shipped player; the player2 lab and
 # its CTest suite stay in the tree, opt-in, for the day player 1 hits a wall it cannot solve.
 # Flipping this ON restores the old wiring intact (link + COLOSSEUM_PLAYER2 def + FFmpeg-62 copies).
-option(COLOSSEUM_PLAYER2_IN_APP "Link the Player 2 backend into the app (default engine)" ON)
+option(COLOSSEUM_PLAYER2_IN_APP "Link the Player 2 backend into the app (default engine)" OFF)
 if(COLOSSEUM_PLAYER2_IN_APP)
     if(NOT TARGET player2_core)
         add_subdirectory(player2)
