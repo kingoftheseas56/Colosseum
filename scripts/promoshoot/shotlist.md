@@ -29,3 +29,12 @@ Capture notes:
   clicks, no wallpaper switching, no settings edits during capture.
 - Fresh launch takes foreground by itself; do not run captures with other windows raised.
 - Driver: `shoot.py` (Lanista pipe choreography + ffmpeg ddagrab).
+
+Field rules learned 2026-08-08 (first shoot):
+- NEVER script-click 24x24 targets on Continue tiles — that is the hover-invisible remove
+  button (opacity 0 but always active); it deletes a real Progress entry (registry-shared).
+- World pills, marquee Read/Details, and browse toggles are TapHandlers — invisible to
+  ui-snapshot, unclickable by handle. Boot per-world with COLOSSEUM_OPEN_WORLD instead.
+- The featured marquee auto-rotates; timing a click on it is a lottery. Grab stills from
+  stable surfaces.
+- OS-level clicks require the app freshly launched into the foreground and the machine idle.

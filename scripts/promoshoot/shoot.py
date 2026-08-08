@@ -91,20 +91,24 @@ def clip_theatre():
     b = board()
     scroll(b, -450, n=12, gap=0.3); to_top(b)      # warm the art
     def go():
-        time.sleep(2.2)                      # hold marquee + Continue
-        scroll(b, -320, n=9, gap=0.75)       # descend Discover rows
-        time.sleep(1.2)
-    record('02-theatre-discover', 17, go)
+        time.sleep(2.6)                      # hold marquee + Continue
+        scroll(b, -320, n=4, gap=1.15)       # linger through the showcase shelves
+        time.sleep(1.4)
+        scroll(b, -320, n=4, gap=0.8)        # ease into the Popular grid
+        time.sleep(1.5)
+    record('02-theatre-discover', 18, go)
 
 def clip_tanko():
     # requires the instance booted with COLOSSEUM_OPEN_WORLD=Tankoban
     b = board()
     scroll(b, -450, n=12, gap=0.3); to_top(b)      # warm the art
     def go():
-        time.sleep(2.0)
-        scroll(b, -320, n=9, gap=0.75)
-        time.sleep(1.2)
-    record('05-tankoban-discover', 16, go)
+        time.sleep(2.4)
+        scroll(b, -320, n=4, gap=1.15)       # linger through the Discover shelves
+        time.sleep(1.4)
+        scroll(b, -320, n=4, gap=0.8)        # ease into the manga wall
+        time.sleep(1.5)
+    record('05-tankoban-discover', 18, go)
 
 CLIPS = {'hero': clip_hero, 'theatre': clip_theatre, 'tanko': clip_tanko}
 
