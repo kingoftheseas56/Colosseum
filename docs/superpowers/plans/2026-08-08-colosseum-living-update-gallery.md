@@ -456,6 +456,9 @@ Implementation guidance:
 - Repeat with a signed manifest whose test payload intentionally fails the required payload sentinel
   after extraction. Confirm rollback relaunches the prior version, preserves all user state, records
   the failed target, and suppresses automatic retry.
+- After the committed-artifact rerun, use `brotherhood-review` on the complete implementation diff
+  and runtime evidence against the 13-item Definition of Done in the approved spec. Score every item
+  MET/PARTIAL/NOT-MET and require a final APPROVE; fix every PARTIAL/NOT-MET before handoff.
 
 Behavior to preserve:
 Normal fresh install/uninstall, manual bootstrap truth, draft invisibility to stable users, explicit
@@ -524,7 +527,8 @@ Completion criterion:
 Every deterministic and isolated runtime gate is green; successful and rollback installed journeys
 both preserve state; version/tag/manifest/installer identity matches without manual metadata edits;
 Hemanth approves the installed QML surface; the GitHub releases remain drafts pending his separate
-publication decision.
+publication decision; the post-implementation Brotherhood review ends APPROVE with no PARTIAL or
+NOT-MET item.
 
 ---
 

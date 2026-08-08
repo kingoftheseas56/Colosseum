@@ -59,5 +59,7 @@ Definition of Done in `docs/superpowers/specs/2026-08-08-colosseum-auto-update-d
   open until Hemanth records approval.
 - **Plan self-check:** five slices contain every required Brotherhood field; placeholder scan is
   clean; component/property/object-name vocabulary is consistent across implementation and replay.
+- **Close-loop review:** Slice 5 requires a fresh Brotherhood review of the completed diff and
+  runtime evidence against all 13 spec items; this plan review cannot be reused as code approval.
 
 APPROVE — the plan covers every written completion item, preserves the landed security machinery, and makes the three visible states plus clean-machine update journey independently falsifiable.
