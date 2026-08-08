@@ -52,6 +52,7 @@ public:
         QString author;
         QString format;
         bool progressed = false;
+        QString coverRef; // comic: the CBZ entry name for image://comiccover/; else ""
     };
 
     explicit VaultIndex(const QString& dbPath, QObject* parent = nullptr);

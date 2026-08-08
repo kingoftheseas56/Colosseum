@@ -218,6 +218,39 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault enricher (execution plan Slice 5, 2026-08-08) ──────────────────────
+# VaultEnricher — thin fact-filler reusing CbzArchive (comic pages + cover entry
+# for image://comiccover/) and ffprobe (duration cache); writes facts back to the
+# index. Compiles CbzArchive + miniz (its ZIP backend). Qt6::Sql for the index;
+# real CBZ via TANKOBAN_FIXTURES_DIR, corrupt CBZ via VAULT_FIXTURES_DIR. GUILESS
+# (cover DECODE is the existing image://comiccover/ provider's job, not tested here).
+add_executable(tst_vault_enricher
+    auto/vault/tst_vault_enricher.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultEnricher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultEnricher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c")
+target_include_directories(tst_vault_enricher PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_vault_enricher PRIVATE
+    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/tankoban"
+    VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+target_link_libraries(tst_vault_enricher PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_enricher PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_enricher POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_enricher
+         COMMAND tst_vault_enricher)
+set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the

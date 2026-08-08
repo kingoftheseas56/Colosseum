@@ -42,7 +42,7 @@ void VaultIndex::ensureSchema()
         " kind TEXT, path TEXT, displayTitle TEXT, realName TEXT, subfolder TEXT,"
         " sortKey TEXT, size INTEGER, mtimeMs INTEGER,"
         " pages INTEGER, durationSec REAL, author TEXT, format TEXT,"
-        " progressed INTEGER DEFAULT 0)"));
+        " progressed INTEGER DEFAULT 0, coverRef TEXT)"));
     q.exec(QStringLiteral(
         "CREATE INDEX IF NOT EXISTS idx_files_kind ON files(kind)"));
     q.exec(QStringLiteral(
@@ -84,8 +84,8 @@ bool VaultIndex::insertRow(const FileRow& row)
         "INSERT OR REPLACE INTO files"
         " (id, rootPath, subtreePath, groupKey, groupTitle, kind, path,"
         "  displayTitle, realName, subfolder, sortKey, size, mtimeMs,"
-        "  pages, durationSec, author, format, progressed)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"));
+        "  pages, durationSec, author, format, progressed, coverRef)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"));
     q.addBindValue(row.id);
     q.addBindValue(row.rootPath);
     q.addBindValue(row.subtreePath);
@@ -104,6 +104,7 @@ bool VaultIndex::insertRow(const FileRow& row)
     q.addBindValue(row.author);
     q.addBindValue(row.format);
     q.addBindValue(row.progressed ? 1 : 0);
+    q.addBindValue(row.coverRef);
     return q.exec();
 }
 
@@ -209,7 +210,7 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "SELECT id, path, displayTitle, realName, subfolder, kind, size, mtimeMs,"
-        "       pages, durationSec, author, format, progressed"
+        "       pages, durationSec, author, format, progressed, coverRef"
         " FROM files WHERE subtreePath = ?"
         " ORDER BY subfolder COLLATE NOCASE, sortKey"));
     q.addBindValue(subtreePath);
@@ -229,6 +230,7 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
             m[QStringLiteral("author")] = q.value(10).toString();
             m[QStringLiteral("format")] = q.value(11).toString();
             m[QStringLiteral("progressed")] = q.value(12).toInt() != 0;
+            m[QStringLiteral("coverRef")] = q.value(13).toString();
             out.append(m);
         }
     }
