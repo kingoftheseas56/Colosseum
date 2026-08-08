@@ -89,15 +89,15 @@ public:
         const bool wasActive = (m_activeId == id);
         m_sessions.removeAt(idx);
         bump();
-        if (wasActive) {
-            const QString next = m_sessions.isEmpty()
-                ? QString()
-                : m_sessions.at(qMin(idx, m_sessions.size() - 1))
-                      .toMap()
-                      .value(QStringLiteral("id"))
-                      .toString();
-            setActive(next);
-        }
+        // Closing the ACTIVE session lands on the world behind — NEVER on a parked neighbor.
+        // This used to promote the adjacent record (browser-tab semantics), which meant closing
+        // a comic while a movie sat minimized in the taskbar force-restored the movie: close()
+        // handed it activeId, and Main.qml's switch glue faithfully rebuilt its surface
+        // (Hemanth-reported 2026-08-08: "exit the comic reader and the video player opens").
+        // Sessions are taskbar windows, not tabs: closing one reveals the desktop behind it;
+        // a minimized session comes back only when the user clicks its tile.
+        if (wasActive)
+            setActive(QString());
     }
 
     Q_INVOKABLE void saveState(const QString &id, const QVariantMap &state) {
@@ -178,7 +178,9 @@ public:
         ok &= (groups().at(0).toMap().value(QStringLiteral("sessions")).toList().size() == 2);
         switchTo(b);
         close(b);
-        ok &= (m_activeId == c || m_activeId == a);
+        // closing the active session lands on the world behind ("" = none), never a neighbor —
+        // the old promote-a-neighbor expectation is exactly the bug of 2026-08-08.
+        ok &= m_activeId.isEmpty();
         ok &= (m_sessions.size() == 2);
         // one-tab-per-show (spec 2026-07-11): same show replaces in place, identical
         // content reuses, different show gets its own session.
