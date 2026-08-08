@@ -276,6 +276,40 @@ set_tests_properties(colosseum.vault_admission_probe_harness PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault launch router (execution plan Slice 7, 2026-08-08) ─────────────────
+# LocalLaunch (classify -> backend-validate -> route, reject before session) +
+# VaultPageStore (the ComicReaderShell injected-store adapter returning
+# [{index,archive,entry,group}] descriptors). The harness drives both over real
+# fixtures: valid CBZ/MP4/epub accept; corrupt/non-video/png/missing reject; the
+# page store lists the CBZ in natural order. Composes MediaAdmissionProbe (real
+# libmpv) + CbzArchive + miniz + VaultKit + VaultIdentity. House idiom; headless.
+add_executable(vault_launch_router_harness
+    vault_launch_router_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalLaunch.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalLaunch.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPageStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPageStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/MediaAdmissionProbe.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp")
+target_include_directories(vault_launch_router_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" ${Libmpv_INCLUDE_DIRS})
+target_compile_definitions(vault_launch_router_harness PRIVATE
+    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/tankoban"
+    VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+target_link_libraries(vault_launch_router_harness PRIVATE Qt6::Core ${Libmpv_LIBRARIES})
+set_target_properties(vault_launch_router_harness PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.vault_launch_router_harness
+         COMMAND vault_launch_router_harness)
+set_tests_properties(colosseum.vault_launch_router_harness PROPERTIES
+    LABELS "unit"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
