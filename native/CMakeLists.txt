@@ -348,6 +348,23 @@ target_include_directories(update_manifest_trust_harness PRIVATE ${CMAKE_CURRENT
 target_compile_definitions(update_manifest_trust_harness PRIVATE COLOSSEUM_UPDATE_TESTING=1)
 target_link_libraries(update_manifest_trust_harness PRIVATE Qt6::Core colosseum_update_crypto)
 
+add_executable(update_release_client_harness
+    ../tests/update_release_client_harness.cpp
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
+    update/UpdateManifest.cpp
+    update/UpdateManifest.h
+    update/UpdateTrust.cpp
+    update/UpdateTrust.h
+    update/UpdatePublicKey.h
+    update/UpdateTestPublicKey.h
+    update/UpdateReleaseClient.cpp
+    update/UpdateReleaseClient.h
+)
+target_include_directories(update_release_client_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(update_release_client_harness PRIVATE COLOSSEUM_UPDATE_TESTING=1)
+target_link_libraries(update_release_client_harness PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
+
 
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp

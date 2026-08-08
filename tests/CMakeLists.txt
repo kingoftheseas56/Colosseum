@@ -38,6 +38,7 @@ colosseum_register_harness(biblio_catalog_logic_harness  unit)
 colosseum_register_harness(comic_downloader_pack_demux_harness unit)
 colosseum_register_harness(update_version_harness unit)
 colosseum_register_harness(update_manifest_trust_harness unit)
+colosseum_register_harness(update_release_client_harness unit)
 
 # ── Qt Test targets (slice 3+) ───────────────────────────────────────────────
 # Test-only Qt components: discovered HERE, under BUILD_TESTING, never linked
