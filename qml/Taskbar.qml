@@ -25,6 +25,10 @@ Item {
     property bool extensionsActive: false // the Extensions page is the front surface
     signal settingsClicked()
     property bool settingsActive: false   // the Settings page is the front surface
+    signal updateClicked()
+    property bool updateActive: false      // the Update page is the front surface
+    property bool updateAvailable: false   // a verified newer release exists
+    property bool updateUnseen: false      // the user has not opened its chronicle yet
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -249,6 +253,66 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.settingsClicked()
+                }
+            }
+
+            // ---- Update: a quiet release bell beside Settings. The gold dot persists while
+            // a verified release is available; only the unseen flag is allowed to animate.
+            Item {
+                id: updateButton
+                objectName: "colosseumUpdateTaskbarButton"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: updateMa.containsMouse || bar.updateActive
+                           ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/update.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.updateActive ? 1 : 0.75
+                }
+                Rectangle {
+                    visible: bar.updateActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                Rectangle {
+                    id: updateBadge
+                    objectName: "colosseumUpdateBadge"
+                    visible: bar.updateAvailable
+                    anchors.top: parent.top; anchors.right: parent.right
+                    anchors.topMargin: 2; anchors.rightMargin: 2
+                    width: 12; height: 12; radius: 6
+                    color: "#f0c44a"
+                    border.width: 1
+                    border.color: Qt.rgba(0.08, 0.07, 0.03, 0.88)
+
+                    SequentialAnimation on scale {
+                        running: bar.updateUnseen
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 1.0; to: 1.18; duration: 600; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 1.18; to: 1.0; duration: 600; easing.type: Easing.InOutSine }
+                        PauseAnimation { duration: 1200 }
+                    }
+                }
+                Accessible.role: Accessible.Button
+                Accessible.name: bar.updateAvailable ? "Update available" : "Updates"
+                MouseArea {
+                    id: updateMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.updateClicked()
                 }
             }
 

@@ -354,6 +354,7 @@ Window {
         else if (downloadsLayer.active) win.closeDownloadsPage()
         else if (extensionsLayer.active) win.closeExtensionsPage()
         else if (settingsLayer.active) win.closeSettingsPage()
+        else if (updateLayer.active) win.closeUpdatePage()
         else if (bookLayer.active) win.closeBook()
         else if (biblioGenreLayer.active) win.closeBiblioGenre()
         else if (biblioGenreIndexLayer.active) win.closeBiblioGenreIndex()
@@ -947,6 +948,7 @@ Window {
     function openDownloadsPage() {
         extensionsLayer.active = false
         settingsLayer.active = false
+        updateLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
     }
@@ -997,6 +999,7 @@ Window {
     function openExtensionsPage() {
         downloadsLayer.active = false
         settingsLayer.active = false
+        updateLayer.active = false
         extensionsLayer.active = true
         taskbar.open = false
     }
@@ -1006,10 +1009,23 @@ Window {
     function openSettingsPage() {
         downloadsLayer.active = false
         extensionsLayer.active = false
+        updateLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
     }
     function closeSettingsPage() { settingsLayer.active = false }
+    // ---- Update page: the verified release chronicle, mutually exclusive with the other
+    // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
+    function openUpdatePage() {
+        downloadsLayer.active = false
+        extensionsLayer.active = false
+        settingsLayer.active = false
+        updateLayer.active = true
+        taskbar.open = false
+        if (typeof Updates !== "undefined" && Updates.markSeen)
+            Updates.markSeen()
+    }
+    function closeUpdatePage() { updateLayer.active = false }
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
         if (item.world === "theatre") {
@@ -2699,6 +2715,23 @@ Window {
         }
     }
 
+    // ---- Update page: the release chronicle, entered from the permanent taskbar item ----
+    Loader {
+        id: updateLayer
+        anchors.fill: parent
+        z: 56
+        active: false
+        visible: active
+        source: "UpdatePage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeUpdatePage)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+        }
+    }
+
     // ---- download feedback (2026-07-18, Hemanth): clicking Download anywhere pops the
     //      taskbar out so the gold jobs badge is SEEN arriving — same auto-reveal (and same
     //      15s pull-back) as a minimize. Fires only when the live-job count GROWS (a finish
@@ -2746,6 +2779,10 @@ Window {
         onExtensionsClicked: extensionsLayer.active ? win.closeExtensionsPage() : win.openExtensionsPage()
         settingsActive: settingsLayer.active
         onSettingsClicked: settingsLayer.active ? win.closeSettingsPage() : win.openSettingsPage()
+        updateActive: updateLayer.active
+        updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
+        updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
+        onUpdateClicked: updateLayer.active ? win.closeUpdatePage() : win.openUpdatePage()
     }
 
     Loader {
