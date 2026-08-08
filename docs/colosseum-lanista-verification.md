@@ -200,12 +200,17 @@ configuration (`COLOSSEUM_UPDATE_TESTING=OFF`) in `finally`.
 
 | Scenario | Seed / assertions | Evidence |
 |---|---|---|
-| `tests/lanista_scenarios/update_available.json` | signed `Available` chronicle; boot wait, taskbar notification/reveal, click-through to `colosseumUpdatePage`, exact `automationState`/`automationVersion`/primary label, user-facing status copy, actionable hero, whole-window grab | Runtime-validated in isolated session `20260808-214748-da4e4ed9`; `12 steps, 0 failed` |
-| `tests/lanista_scenarios/update_up_to_date.json` | signed latest release; `UpToDate` state, no-update primary label/action, retained highlights/status, whole-window grab | Runtime-validated in isolated session `20260808-214805-78bd31d8`; `13 steps, 0 failed` |
+| `tests/lanista_scenarios/update_available.json` | signed `Available` chronicle; boot wait, taskbar notification/reveal, click-through to `colosseumUpdatePage`, exact `automationState`/`automationVersion`/primary label, user-facing status copy, actionable hero, whole-window grab | Runtime-validated in isolated session `20260808-223629-945d25ca`; `12 steps, 0 failed`; grab `.../seq112-1.png` |
+| `tests/lanista_scenarios/update_up_to_date.json` | signed latest release; `UpToDate` state, no-update primary label/action, retained highlights/status, whole-window grab | Runtime-validated in isolated session `20260808-223658-686af06c`; `13 steps, 0 failed`; grab `.../seq113-1.png` |
 
 The sessions prove only the assembled test-key build and disposable tagged roots. They do not
 claim GitHub network reachability, installer installation, or aesthetic approval of the update
 chronicle; those remain unit/eyes-on concerns.
+
+The committed smoke seed keeps the release highlight list empty so the route/state contract stays
+minimal; `tests/qml/tst_update_page.qml` carries the non-empty feature-card, long-copy, fallback,
+and reduced-motion cases. Hemanth's eyes-on pass is still required for the real release artwork and
+final card composition.
 
 ## PLANNED (designed, NOT built — using any of these is a Bridge blocked violation)
 

@@ -110,9 +110,32 @@ half the compiled harnesses are run by nobody.
 | `colosseum.vault_launch_router_harness` | unit | The Vault's launch router (execution plan Slice 7): `LocalLaunch` classifies by extension then backend-validates — comics via `CbzArchive` (CBR accepted by extension; no in-place CBR reader in Colosseum yet), video via the decoded-frame admission probe, books by extension (Reader 2 authoritative at open) — routing BEFORE any session and rejecting with a category (corrupt / no-decoder / unsupported / not-found). Plus `VaultPageStore`, the `ComicReaderShell` injected-store adapter returning `[{index,archive,entry,group}]` descriptors in natural order (mirrors `MangaVolumeIndex`; zero reader edits). Drives real fixtures — valid CBZ/MP4/epub accept; corrupt/non-video/png/missing reject; the page store lists `tiny-volume.cbz` in order — against real libmpv. House sentinel/exit-code; headless. Green 2026-08-08; negative control performed live (`validateComic` weakened to accept-all → the corrupt-CBZ reject + no-vault-id checks red; restored). App wiring (main.cpp registration, Main.qml `vault:` branch, PlayerPage local-subtitle gate, real-`ComicReaderShell` Qt Quick Test) deferred to Slices 8/10/14 |
 | `colosseum.selftest.red_canary` | selftest | WILL_FAIL negative control |
 
-The 18-test updater-inclusive `unit` gate (19 tests in this worktree because the unrelated Vault
-Kit Qt Test is also registered, including all five updater harnesses) ran green under `ctest`
-2026-08-08.
+## Auto-update verification (Task 11, 2026-08-08)
+
+The committed updater gates were rerun with the pinned Qt/CMake tools. `native\build-msvc.bat`
+completed with `BUILD_OK`; the updater-specific CTest harnesses (version, trust, release client,
+download, service, and install bridge) passed, as did the `colosseum.qml` Quick Test target.
+
+| Gate | Command | Result |
+|---|---|---|
+| Full build | `cmd /c native\build-msvc.bat` | `BUILD_OK` |
+| Updater CTest subset | `C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir native/build-msvc -R "colosseum.update_" --output-on-failure` | green (6 updater harnesses) |
+| QML gate | `C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir native/build-msvc -R colosseum.qml --output-on-failure` | 1/1 passed |
+| Taskbar contract | `tests\test_update_taskbar_p0.ps1` | `PASS` |
+| Version/data boundary | `tests\test_update_data_boundary.ps1` | `UPDATE_DATA_BOUNDARY_OK` |
+| Installer matrix | `tests\installer\update_matrix.ps1` | `UPDATE_MATRIX_OK` |
+| Release tooling | `python tests\update_release_tooling_test.py` | 3 tests passed |
+| Lanista runtime | `tests\test_update_lanista.ps1` | Available 12/12 and UpToDate 13/13; production cache restored `COLOSSEUM_UPDATE_TESTING=OFF` |
+
+The aggregate `-L unit` run was 24/25 green in this worktree; the sole failure is the unrelated
+dirty-worktree `colosseum.vault_launch_router_harness` fixture lane. It is outside the updater
+plan and was not changed. The updater subset above is the authoritative Task 11 unit result.
+
+Lanista evidence is preserved under `artifacts/lanista-sessions/` and the exact final paths are
+listed in `artifacts/update-lanista-session-paths.txt`.
+
+The six-test updater-inclusive subset ran green under `ctest` on 2026-08-08. The broader `-L unit`
+run is reported above with the unrelated dirty-worktree fixture failure called out explicitly.
 Registration ≠ conversion: these still speak the
 house sentinel/exit-code contract; CTest consumes the exit code.
 

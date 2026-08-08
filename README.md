@@ -122,6 +122,21 @@ Grab the latest **Colosseum-x.x-setup.exe** from
 [Releases](https://github.com/kingoftheseas56/Colosseum/releases). It installs per-user — no
 administrator needed — and runs on Windows 10/11.
 
+### Automatic updates
+
+Starting with 1.1.0, an installed Colosseum checks the stable GitHub Releases channel and shows a
+quiet **Update** icon in the taskbar when a signed release is ready. Open the Update page to read
+the release chronicle, review feature highlights, and choose **Download update**. Downloads stream
+to a resumable cache; after the installer verifies its manifest, choose **Restart and update** to
+apply the side-by-side update. The previous installation remains recoverable until the new shell
+boots successfully, and the page keeps the latest chronicle afterward.
+
+Colosseum renders release copy with local templates and accepts only HTTPS, signed, hash-verified
+release assets. Drafts, prereleases, malformed releases, and unsigned releases remain invisible.
+Source-tree/development launches do not perform automatic checks. Users on 1.0 should perform one
+final manual install from [Releases](https://github.com/kingoftheseas56/Colosseum/releases); later
+stable releases arrive through the Update page. The manual download remains a fallback.
+
 ### Build from source
 
 Requirements: Windows 10 or 11, Visual Studio 2022 C++ Build Tools, CMake 3.16+, Ninja, Qt 6.11.1
