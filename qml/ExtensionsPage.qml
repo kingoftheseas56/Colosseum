@@ -256,12 +256,6 @@ Item {
                    font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
             Text { text: "Extensions"; color: theme.ink; topPadding: 8
                    font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
-            Text {
-                topPadding: 14
-                font.family: theme.display; font.italic: true; font.pixelSize: 18
-                color: theme.inkDim
-                text: "New rows, new sources, new subtitles — the house grows by invitation."
-            }
             Item { width: 1; height: 20 }
             Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
 
