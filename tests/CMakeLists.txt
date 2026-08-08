@@ -132,6 +132,33 @@ set_tests_properties(colosseum.qttest.vault_kit PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault stores (execution plan Slice 2, 2026-08-08) ────────────────────────
+# VaultConfig (user-intent JSON: roots/kinds/scanIgnore/hidden, atomic write with
+# last-known-good .bak recovery) and VaultIdentity (content-addressed ids +
+# unique-signature rename/move re-attachment, ambiguity never silently merged),
+# sharing VaultStoreIo. Pure Qt6::Core, GUILESS; QTemporaryDir isolation, no net.
+add_executable(tst_vault_stores
+    auto/vault/tst_vault_stores.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h")
+target_include_directories(tst_vault_stores PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_stores PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_vault_stores PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_stores POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_stores
+         COMMAND tst_vault_stores)
+set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
