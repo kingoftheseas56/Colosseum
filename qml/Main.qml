@@ -2981,7 +2981,10 @@ Window {
         opacity: 0
         property bool open: false
         x: (Math.max(18, Math.min(80, parent.width * 0.045))) + 58
-        y: parent.height - height - 96
+        // hug the dock (Windows-taskbar-preview feel): the closed dock top is a deterministic
+        // parent.height - (closedSize 64 + bottomGap 16) = parent.height - 80, so sit the panel
+        // bottom ~2px above it (Hemanth 2026-08-09; tunable ±6px on eyes-on).
+        y: parent.height - height - 82
         Behavior on opacity { NumberAnimation { duration: 140 } }
 
         function refresh() { model = (typeof LocalLaunch !== "undefined") ? LocalLaunch.recentItems() : [] }
