@@ -66,6 +66,8 @@
 #include "engine/MangaTankobanService.h"
 #include "engine/LocalLaunch.h"
 #include "engine/VaultPageStore.h"
+#include "engine/VaultIndex.h"
+#include "engine/VaultLibrary.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
@@ -985,6 +987,16 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("LocalLaunch"), localLaunch);
     auto *vaultPageStore = new VaultPageStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultPageStore"), vaultPageStore);
+
+    // VaultLibrary — the thin QML read-model the Vault page + door + (later) shelves paint
+    // from. It wraps the rebuildable VaultIndex (SQLite at <vaultDir>/index-v1.sqlite) and
+    // owns the revision/scanning lifecycle so QML never touches raw index queries. Slice 10
+    // wires the index + read-model only; the scanner/config/enricher and Add-folder ingest
+    // land in Slice 11 (which also fixes the two publish/multi-root hazards before any scan
+    // goes live). An absent/empty index simply reads itemCount 0 → the empty Vault page.
+    auto *vaultIndex = new VaultIndex(vaultDir + QStringLiteral("/index-v1.sqlite"), &app);
+    auto *vaultLibrary = new VaultLibrary(vaultIndex, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.

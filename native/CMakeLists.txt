@@ -175,6 +175,10 @@ add_executable(colosseum
     engine/LocalLaunch.h
     engine/VaultPageStore.cpp      # ComicReaderShell injected-store adapter for local CBZ (Slice 7)
     engine/VaultPageStore.h
+    engine/VaultIndex.cpp          # rebuildable scan product — the queryable index (Slice 3), app-wired for the read-model (Slice 10)
+    engine/VaultIndex.h
+    engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
+    engine/VaultLibrary.h
     player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)
     player/MediaAdmissionProbe.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──

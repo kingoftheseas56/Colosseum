@@ -809,6 +809,7 @@ Window {
     // comicSeriesLayer was missing here, so the taskbar rode in front of that reader while
     // the other two + book + player suppressed it correctly (Hemanth, 2026-07-16).
     readonly property bool immersiveSurfaceOpen: win.playerOpen
+        || updateLayer.active
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
@@ -950,10 +951,24 @@ Window {
         extensionsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
+        vaultLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
     }
     function closeDownloadsPage() { downloadsLayer.active = false }
+
+    // ---- Vault page: the taskbar folder door's full-page, mutually exclusive with the other taskbar
+    // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
+    // Loader and reveals whatever the user stood on. ----
+    function openVaultPage() {
+        downloadsLayer.active = false
+        extensionsLayer.active = false
+        settingsLayer.active = false
+        updateLayer.active = false
+        vaultLayer.active = true
+        taskbar.open = false
+    }
+    function closeVaultPage() { vaultLayer.active = false }
 
     // ---- Extensions page: the store, entered from the taskbar beside Downloads ----
     // The installed roster, live. The universes rail derives from it rather than from a
@@ -1001,6 +1016,7 @@ Window {
         downloadsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
+        vaultLayer.active = false
         extensionsLayer.active = true
         taskbar.open = false
     }
@@ -1011,6 +1027,7 @@ Window {
         downloadsLayer.active = false
         extensionsLayer.active = false
         updateLayer.active = false
+        vaultLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
     }
@@ -1021,6 +1038,7 @@ Window {
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
+        vaultLayer.active = false
         updateLayer.active = true
         taskbar.open = false
         if (typeof Updates !== "undefined" && Updates.markSeen)
@@ -2722,6 +2740,29 @@ Window {
         }
     }
 
+    // ---- Vault page: "On this machine", entered from the taskbar folder door (Slice 10) ----
+    // A z:56 overlay exactly like downloadsLayer: opening it hides no world (it sits ABOVE the
+    // preserved Home/world/detail), so Back merely deactivates this Loader and reveals whatever the
+    // user stood on. Paints from the VaultLibrary read-model. Add-folder opens the native folder
+    // picker; the folder-scan ingest lands in Slice 11.
+    Loader {
+        id: vaultLayer
+        objectName: "vaultLayer"
+        anchors.fill: parent
+        z: 56
+        active: false
+        visible: active
+        source: "VaultPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeVaultPage)
+            item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+        }
+    }
+
     Connections {
         target: typeof Extensions !== "undefined" ? Extensions : null
         function onChanged() {
@@ -2892,6 +2933,8 @@ Window {
         downloadsBadge: win.totalActiveDownloads
         downloadsActive: downloadsLayer.active
         onDownloadsClicked: downloadsLayer.active ? win.closeDownloadsPage() : win.openDownloadsPage()
+        vaultActive: vaultLayer.active
+        onVaultClicked: vaultLayer.active ? win.closeVaultPage() : win.openVaultPage()
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: extensionsLayer.active ? win.closeExtensionsPage() : win.openExtensionsPage()
         settingsActive: settingsLayer.active
@@ -2930,6 +2973,26 @@ Window {
             var arr = []
             for (var i = 0; i < selectedFiles.length; i++) arr.push("" + selectedFiles[i])
             win.openLocalMedia(arr)   // multi-select opens the FIRST; the Next-to-Open tray is Slice 20
+        }
+    }
+
+    // Vault Add-folder picker (Slice 10). Opening the native folder picker is live now; what the app
+    // DOES with the chosen folder — canonicalize · add as a Vault root · scan · shelve — is Slice 11.
+    // vaultState is the invisible automation surface (a Lanista replay reads pageOpen / lastAddedFolder).
+    Item {
+        id: vaultState
+        objectName: "vaultState"
+        visible: false
+        property bool pageOpen: vaultLayer.active
+        property string lastAddedFolder: ""
+    }
+
+    FolderDialog {
+        id: vaultFolderDialog
+        title: "Add a folder to your Vault"
+        onAccepted: {
+            vaultState.lastAddedFolder = "" + selectedFolder
+            // Slice 11: hand selectedFolder to the C++ Vault command seam (VaultConfig.addRoot + scan).
         }
     }
 

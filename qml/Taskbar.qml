@@ -14,12 +14,19 @@ Item {
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
+    // The closed dock now holds the arch AND the permanent Vault folder door, so its closed width is
+    // explicit: 8 left + 48 home + 14 spacing + 46 door + 14 right = 130. closedSize stays 64 for the
+    // dock HEIGHT and the closed corner radius (changing closedSize itself would make a 130-tall
+    // capsule with a 65px radius). (Slice 10)
+    readonly property int closedWidth: 130
 
     signal switchRequested(string id)
     signal closeRequested(string id)
     signal startClicked()
     signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
     signal openRecentRequested()          // Open Recent disclosure — the remembered files (Slice 9)
+    signal vaultClicked()                 // Vault folder door — opens the "On this machine" page (Slice 10)
+    property bool vaultActive: false      // the Vault page is the front surface
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
     property bool downloadsActive: false  // the Downloads page is the front surface
@@ -87,7 +94,7 @@ Item {
         id: dock
         x: bar.leftEdge
         y: parent.height - height - bar.bottomGap
-        width: bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedSize
+        width: bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
         height: bar.closedSize
         radius: bar.open ? 18 : bar.closedSize / 2
         clip: true
@@ -147,6 +154,43 @@ Item {
                         bar.open = !bar.open
                         bar.autoRevealed = false   // opened (or closed) by hand → sticky, no pullback
                     }
+                }
+            }
+
+            // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
+            //      ALWAYS visible (unlike the open-only page controls), so it rides in the closed
+            //      capsule beside the arch; the dock widens to closedWidth to hold both. Clones the
+            //      page-control hover + gold active-underline language; no badge. ----
+            Item {
+                objectName: "taskbarVaultDoor"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: vaultMa.containsMouse || bar.vaultActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/vault-folder.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.vaultActive ? 1 : 0.75
+                }
+                Rectangle {   // active-page underline, same gold language as session tiles
+                    visible: bar.vaultActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                MouseArea {
+                    id: vaultMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.vaultClicked()
                 }
             }
 
