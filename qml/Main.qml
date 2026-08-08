@@ -2725,6 +2725,7 @@ Window {
         source: "UpdatePage.qml"
         onLoaded: {
             item.backdrop = wall
+            item.updates = typeof Updates !== "undefined" ? Updates : null
             item.backRequested.connect(win.closeUpdatePage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
