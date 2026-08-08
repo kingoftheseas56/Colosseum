@@ -184,6 +184,39 @@ set_tests_properties(colosseum.qttest.vault_index PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault scanner (execution plan Slice 4, 2026-08-08) ───────────────────────
+# VaultScanner — the cancellable off-thread census: pure buildScan() over the
+# fixture tree, generation-guarded applyResult() (stale drop, cancelled no-publish),
+# and the threaded scanRoot()/buffered-rescan wrapper. Composes VaultKit +
+# VaultIdentity + VaultIndex. Qt6::Concurrent for the pool; Qt6::Sql for the index;
+# fixtures via VAULT_FIXTURES_DIR. GUILESS; QTemporaryDir index+identity per run.
+add_executable(tst_vault_scanner
+    auto/vault/tst_vault_scanner.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_vault_scanner PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_vault_scanner PRIVATE
+    VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+target_link_libraries(tst_vault_scanner PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
+set_target_properties(tst_vault_scanner PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_scanner POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_scanner
+         COMMAND tst_vault_scanner)
+set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
