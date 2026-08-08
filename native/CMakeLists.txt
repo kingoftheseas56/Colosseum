@@ -177,6 +177,10 @@ add_executable(colosseum
     engine/VaultPageStore.h
     engine/VaultIndex.cpp          # rebuildable scan product — the queryable index (Slice 3), app-wired for the read-model (Slice 10)
     engine/VaultIndex.h
+    engine/VaultConfig.cpp         # user-intent store: roots + kind overrides (Slice 2), app-wired for scan/confirm (Slice 11)
+    engine/VaultConfig.h
+    engine/VaultScanner.cpp        # cancellable off-thread census + aggregate publish (Slice 4/11)
+    engine/VaultScanner.h
     engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
     engine/VaultLibrary.h
     player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)

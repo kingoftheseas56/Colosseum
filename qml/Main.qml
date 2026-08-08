@@ -2992,7 +2992,10 @@ Window {
         title: "Add a folder to your Vault"
         onAccepted: {
             vaultState.lastAddedFolder = "" + selectedFolder
-            // Slice 11: hand selectedFolder to the C++ Vault command seam (VaultConfig.addRoot + scan).
+            // C++ owns it: add the folder as an unconfirmed root and census it off-thread; the
+            // confirmation card rises on scanFinished (Slice 11).
+            if (typeof VaultLibrary !== "undefined")
+                VaultLibrary.addFolder("" + selectedFolder)
         }
     }
 

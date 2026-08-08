@@ -67,6 +67,9 @@
 #include "engine/LocalLaunch.h"
 #include "engine/VaultPageStore.h"
 #include "engine/VaultIndex.h"
+#include "engine/VaultConfig.h"
+#include "engine/VaultIdentity.h"
+#include "engine/VaultScanner.h"
 #include "engine/VaultLibrary.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
@@ -988,14 +991,17 @@ int main(int argc, char *argv[]) {
     auto *vaultPageStore = new VaultPageStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultPageStore"), vaultPageStore);
 
-    // VaultLibrary — the thin QML read-model the Vault page + door + (later) shelves paint
-    // from. It wraps the rebuildable VaultIndex (SQLite at <vaultDir>/index-v1.sqlite) and
-    // owns the revision/scanning lifecycle so QML never touches raw index queries. Slice 10
-    // wires the index + read-model only; the scanner/config/enricher and Add-folder ingest
-    // land in Slice 11 (which also fixes the two publish/multi-root hazards before any scan
-    // goes live). An absent/empty index simply reads itemCount 0 → the empty Vault page.
+    // VaultLibrary — the Vault's single QML façade: the read-model the page + door + shelves
+    // paint from, plus the scan/confirm commands. It wraps the rebuildable VaultIndex (SQLite at
+    // <vaultDir>/index-v1.sqlite), the cancellable off-thread VaultScanner, and the VaultConfig
+    // user-intent store (roots + kind overrides), so QML fires one gesture (addFolder/confirmRoot)
+    // and C++ owns the scan/publish threading and multi-step sequence. VaultEnricher (covers,
+    // durations) is still deferred — census facts shelve first; enrichment repaint lands later.
     auto *vaultIndex = new VaultIndex(vaultDir + QStringLiteral("/index-v1.sqlite"), &app);
-    auto *vaultLibrary = new VaultLibrary(vaultIndex, &app);
+    auto *vaultConfig = new VaultConfig(vaultDir, &app);
+    auto *vaultIdentity = new VaultIdentity(vaultDir, &app);
+    auto *vaultScanner = new VaultScanner(vaultIndex, vaultIdentity, &app);
+    auto *vaultLibrary = new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the

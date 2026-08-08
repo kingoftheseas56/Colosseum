@@ -169,6 +169,91 @@ Item {
         }
     }
 
+    // ---- scan pill (Slice 11): a folder census is running; cancelable. Shows the folder name;
+    //      the live "N of M" count fills in once the scanner emits per-file progress. ----
+    Rectangle {
+        id: scanPill
+        objectName: "vaultScanPill"
+        property bool scanning: (typeof VaultLibrary !== "undefined") ? VaultLibrary.scanning : false
+        property int doneCount: (typeof VaultLibrary !== "undefined")
+                                ? (VaultLibrary.scanProgressChanged, VaultLibrary.scanDone) : 0
+        property int totalCount: (typeof VaultLibrary !== "undefined")
+                                 ? (VaultLibrary.scanProgressChanged, VaultLibrary.scanTotal) : 0
+        property string rootPath: (typeof VaultLibrary !== "undefined")
+                                  ? (VaultLibrary.scanProgressChanged, VaultLibrary.scanningRoot) : ""
+        visible: scanning
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 44
+        width: pillRow.implicitWidth + 40
+        height: 52
+        radius: 26
+        color: Qt.rgba(0.04, 0.045, 0.065, 0.94)
+        border.width: 1
+        border.color: theme.edge
+
+        Row {
+            id: pillRow
+            anchors.centerIn: parent
+            spacing: 14
+
+            Item {
+                width: 16; height: 16
+                anchors.verticalCenter: parent.verticalCenter
+                Rectangle {
+                    id: spinner
+                    anchors.fill: parent
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: 2
+                    border.color: Qt.rgba(1, 1, 1, 0.14)
+                    Rectangle {
+                        width: 4; height: 4; radius: 2; color: theme.gold
+                        anchors.top: parent.top; anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                    RotationAnimator on rotation {
+                        running: scanPill.scanning; from: 0; to: 360
+                        duration: 900; loops: Animation.Infinite
+                    }
+                }
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: {
+                    var name = scanPill.rootPath.split(/[\\/]/).pop()
+                    var base = "Scanning " + (name || "folder")
+                    return (scanPill.totalCount > 0)
+                        ? (base + " — " + scanPill.doneCount + " of " + scanPill.totalCount)
+                        : (base + "…")
+                }
+                color: theme.ink
+                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+            }
+
+            Rectangle {
+                objectName: "vaultScanCancel"
+                width: cancelLabel.implicitWidth + 22; height: 30; radius: 15
+                anchors.verticalCenter: parent.verticalCenter
+                color: cancelMa.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.07)
+                Text {
+                    id: cancelLabel
+                    anchors.centerIn: parent
+                    text: "Cancel"
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 13
+                }
+                MouseArea {
+                    id: cancelMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: if (typeof VaultLibrary !== "undefined") VaultLibrary.cancelScan()
+                }
+            }
+        }
+    }
+
     // ---- top chrome: minimize · fullscreen · power (same vocabulary as Settings/Downloads) ----
     Item {
         anchors.top: parent.top

@@ -1,27 +1,26 @@
 #pragma once
-// VaultLibrary — the thin QML read-model over VaultIndex (Slice 10). QML paints the
-// Vault (door arrival, empty/scanning/populated states, later the shelves) from THIS
-// object and never touches raw VaultIndex: the index is persistence/query infrastructure,
-// this is the presentation seam that owns the revision + scanning lifecycle. It mirrors
-// the established LocalDownloads shape (revision + series() + items()) so QML only renders
-// normalized results and owns no backend orchestration. Decision: Phase-2 Preflight §1
-// (build the thin wrapper now — several consumers land in Phase 2, so keeping query/
-// invalidation semantics out of QML pays for itself immediately).
+// VaultLibrary — the Vault's single QML façade: the Slice-10 read-model plus the Slice-11
+// scan/confirm commands. QML paints from THIS object and fires gestures AT it; C++ owns the
+// scan/publish threading and the multi-step confirm sequence, so QML never sequences
+// addRoot→scan or setKind→confirm→publish itself (QML paints, C++ decides). It wraps
+// VaultIndex (queryable truth), VaultScanner (the cancellable off-thread census + aggregate
+// publish), and VaultConfig (user intent: roots + kind overrides). The read half mirrors
+// LocalDownloads (revision + series + items) so shelves only render normalized results.
 //
-// revision bumps ONLY on published truth. It is driven by VaultIndex::changed(), which the
-// index emits after a SUCCESSFUL publish()/upsert() only (VaultIndex.cpp:142,152) — never
-// on a scan merely starting, nor on a failed/cancelled publish. QML binds
-// (VaultLibrary.revision, VaultLibrary.series(kind)) so every shelf invalidates together.
-//
-// scanning is a SEPARATE signal from revision (a populated Vault may legitimately rescan
-// while its last good snapshot stays visible). Slice 10 wires no scanner, so scanning stays
-// false; Slice 11 drives it from VaultScanner start/finish via setScanning().
+// revision bumps ONLY on committed truth (VaultIndex::changed(), emitted after a successful
+// publish/upsert). scanning/scanningRoot drive the scan pill; candidate drives the confirmation
+// card. Commands: addFolder (add an unconfirmed root + census it), confirmRoot (persist the
+// card's chip reassignments, mark confirmed, publish the UNION of all confirmed roots),
+// dismissCard, cancelScan.
 
 #include <QObject>
 #include <QString>
 #include <QVariantList>
+#include <QVariantMap>
 
 class VaultIndex;
+class VaultScanner;
+class VaultConfig;
 
 class VaultLibrary : public QObject {
     Q_OBJECT
@@ -29,34 +28,64 @@ class VaultLibrary : public QObject {
     Q_PROPERTY(int revision READ revision NOTIFY changed)
     Q_PROPERTY(bool scanning READ scanning NOTIFY scanningChanged)
     Q_PROPERTY(int itemCount READ itemCount NOTIFY changed)
+    // ── scan pill ──
+    Q_PROPERTY(QString scanningRoot READ scanningRoot NOTIFY scanProgressChanged)
+    Q_PROPERTY(int scanDone READ scanDone NOTIFY scanProgressChanged)
+    Q_PROPERTY(int scanTotal READ scanTotal NOTIFY scanProgressChanged)
+    // ── confirmation card ──
+    Q_PROPERTY(QVariantList candidate READ candidate NOTIFY candidateChanged)
+    Q_PROPERTY(QString candidateRoot READ candidateRoot NOTIFY candidateChanged)
+    Q_PROPERTY(bool cardVisible READ cardVisible NOTIFY candidateChanged)
 
 public:
-    explicit VaultLibrary(VaultIndex* index, QObject* parent = nullptr);
+    explicit VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
+                          QObject* parent = nullptr);
 
     int revision() const { return m_revision; }
     bool scanning() const { return m_scanning; }
     int itemCount() const;
 
-    // series(kind): a thin normalization of VaultIndex::groupsForKind(kind) into the shelf's
-    // series-row shape { key, title, kind, count, subtreePath }, where key == groupKey and
-    // title == groupTitle. kind ∈ {"comic","book","video"}.
-    Q_INVOKABLE QVariantList series(const QString& kind) const;
+    QString scanningRoot() const { return m_scanningRoot; }
+    int scanDone() const { return m_scanDone; }
+    int scanTotal() const { return m_scanTotal; }
 
-    // items(kind, seriesKey): VaultIndex::filesInSubtree(seriesKey), item facts preserved as
-    // the index returns them (id/path/title/realName/subfolder/pages/duration/author/format/
-    // progress/coverRef). seriesKey == groupKey == subtreePath; kind is kept for API symmetry
-    // with LocalDownloads (a subtree belongs to one kind, so it is not needed for the query).
+    QVariantList candidate() const { return m_candidate; }
+    QString candidateRoot() const { return m_candidateRoot; }
+    bool cardVisible() const { return !m_candidate.isEmpty(); }
+
+    // series(kind): normalization of VaultIndex::groupsForKind → { key, title, kind, count,
+    // subtreePath }. items(kind, seriesKey): VaultIndex::filesInSubtree, facts preserved.
+    Q_INVOKABLE QVariantList series(const QString& kind) const;
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
 
-    // Slice 11 seam: the scanner drives scanning state through this.
-    void setScanning(bool scanning);
+    // ── commands (C++ owns the multi-step sequences) ──
+    // Add a folder as an UNCONFIRMED root and census it off-thread; scanFinished raises the card.
+    Q_INVOKABLE void addFolder(const QString& pathOrUrl);
+    // Confirm the candidate root: persist the card's chip reassignments (subtreePath → kind),
+    // mark the root confirmed, then re-census + publish the UNION of ALL confirmed roots.
+    Q_INVOKABLE void confirmRoot(const QString& root, const QVariantMap& kindOverrides);
+    // Not now — drop the candidate card; the root stays added-but-unconfirmed.
+    Q_INVOKABLE void dismissCard();
+    // Cancel an in-flight census.
+    Q_INVOKABLE void cancelScan();
 
 signals:
     void changed();
     void scanningChanged();
+    void scanProgressChanged();
+    void candidateChanged();
 
 private:
+    void setScanning(bool scanning);
+
     VaultIndex* m_index = nullptr;
+    VaultScanner* m_scanner = nullptr;
+    VaultConfig* m_config = nullptr;
     int m_revision = 0;
     bool m_scanning = false;
+    QString m_scanningRoot;
+    int m_scanDone = 0;
+    int m_scanTotal = 0;
+    QVariantList m_candidate;
+    QString m_candidateRoot;
 };
