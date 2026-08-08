@@ -1,6 +1,7 @@
 #include "update/UpdateCache.h"
 
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -14,6 +15,7 @@ namespace Colosseum::Update {
 namespace {
 
 constexpr int kSchemaVersion = 1;
+constexpr qint64 kArtworkCapBytes = 8LL * 1024LL * 1024LL;
 
 void fail(QString* error, const QString& message)
 {
@@ -198,6 +200,45 @@ bool UpdateCache::promotePart(const Version& version, const QString& assetName,
     }
     if (promotedPath)
         *promotedPath = installer;
+    return true;
+}
+
+QString UpdateCache::artworkPath(const QString& assetName, QString* error) const
+{
+    if (!safeAssetName(assetName)) {
+        fail(error, QStringLiteral("unsafe_asset_name"));
+        return {};
+    }
+    const QString path = QDir(m_root).filePath(QStringLiteral("artwork/") + assetName);
+    if (!validPath(path)) {
+        fail(error, QStringLiteral("unsafe_cache_path"));
+        return {};
+    }
+    return path;
+}
+
+bool UpdateCache::writeArtwork(const QString& assetName, const QByteArray& bytes,
+                               const QByteArray& expectedSha256, QString* error) const
+{
+    const QString path = artworkPath(assetName, error);
+    if (path.isEmpty() || expectedSha256.size() != 32 || bytes.size() > kArtworkCapBytes) {
+        if (error && error->isEmpty())
+            *error = QStringLiteral("invalid_artwork");
+        return false;
+    }
+    if (QCryptographicHash::hash(bytes, QCryptographicHash::Sha256) != expectedSha256) {
+        fail(error, QStringLiteral("artwork_sha256_mismatch"));
+        return false;
+    }
+    if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
+        fail(error, QStringLiteral("artwork_directory_unavailable"));
+        return false;
+    }
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
+        fail(error, QStringLiteral("artwork_write_failed"));
+        return false;
+    }
     return true;
 }
 

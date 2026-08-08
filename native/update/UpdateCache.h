@@ -37,6 +37,9 @@ public:
                                                  QString* error = nullptr) const;
     bool promotePart(const Version& version, const QString& assetName,
                      QString* promotedPath, QString* error = nullptr) const;
+    QString artworkPath(const QString& assetName, QString* error = nullptr) const;
+    bool writeArtwork(const QString& assetName, const QByteArray& bytes,
+                      const QByteArray& expectedSha256, QString* error = nullptr) const;
     bool removeSuperseded(const Version& keep, QString* error = nullptr) const;
     bool preflightSpace(qint64 additionalBytes, QString* error = nullptr) const;
 

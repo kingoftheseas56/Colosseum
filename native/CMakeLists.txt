@@ -377,6 +377,31 @@ add_executable(update_download_harness
 target_include_directories(update_download_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(update_download_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
 
+add_executable(update_service_harness
+    ../tests/update_service_harness.cpp
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
+    update/UpdateManifest.cpp
+    update/UpdateManifest.h
+    update/UpdateTrust.cpp
+    update/UpdateTrust.h
+    update/UpdatePublicKey.h
+    update/UpdateTestPublicKey.h
+    update/UpdateReleaseClient.cpp
+    update/UpdateReleaseClient.h
+    update/UpdateCache.cpp
+    update/UpdateCache.h
+    update/UpdateDownload.cpp
+    update/UpdateDownload.h
+    update/UpdateService.cpp
+    update/UpdateService.h
+)
+target_include_directories(update_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(update_service_harness PRIVATE
+    COLOSSEUM_UPDATE_TESTING=1
+    COLOSSEUM_UPDATE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/lanista_fixtures")
+target_link_libraries(update_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent colosseum_update_crypto)
+
 
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp

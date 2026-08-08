@@ -343,6 +343,8 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                                   }
                                   result.status = ReleaseCheckResult::Status::Valid;
                                   result.manifest = *manifest;
+                                  result.verifiedManifestBytes = state->manifestBytes;
+                                  result.verifiedSignatureBytes = signature.body;
                                   for (auto it = state->assets.constBegin(); it != state->assets.constEnd(); ++it)
                                       result.assetUrls.insert(it.key(), it->url);
                                   finish(std::move(result));

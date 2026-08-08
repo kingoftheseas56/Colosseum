@@ -21,6 +21,10 @@ struct ReleaseCheckResult {
     QHash<QString, QUrl> assetUrls;
     QString etag;
     QString errorCode;
+    // Exact verified bytes retained for the service chronicle.  The service
+    // re-verifies these bytes before loading them after a restart.
+    QByteArray verifiedManifestBytes;
+    QByteArray verifiedSignatureBytes;
 };
 
 struct ReleaseClientConfig {
