@@ -251,6 +251,31 @@ set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault admission probe (execution plan Slice 6, 2026-08-08) ───────────────
+# MediaAdmissionProbe drives its OWN headless libmpv handle and admits only on a
+# DECODED FRAME (dwidth>0), never FILE_LOADED. This harness runs it against real
+# ffmpeg-generated fixtures (valid MP4 admits; non-video bytes / truncated MP4 /
+# audio-only reject). House sentinel/exit-code idiom (like http_header_channel);
+# QCoreApplication only (the raw handle is headless). Links libmpv directly (not
+# MpvQt) — libmpv-2.dll already sits in build-msvc/ beside the exe.
+add_executable(vault_admission_probe_harness
+    vault_admission_probe_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/MediaAdmissionProbe.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MediaAdmissionProbe.h")
+target_include_directories(vault_admission_probe_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" ${Libmpv_INCLUDE_DIRS})
+target_compile_definitions(vault_admission_probe_harness PRIVATE
+    VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+target_link_libraries(vault_admission_probe_harness PRIVATE Qt6::Core ${Libmpv_LIBRARIES})
+set_target_properties(vault_admission_probe_harness PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.vault_admission_probe_harness
+         COMMAND vault_admission_probe_harness)
+set_tests_properties(colosseum.vault_admission_probe_harness PROPERTIES
+    LABELS "unit"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
