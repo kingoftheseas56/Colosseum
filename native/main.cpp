@@ -677,6 +677,34 @@ int main(int argc, char *argv[]) {
         return -1;
     auto *updates = new Colosseum::Update::UpdateService(
         *installedVersion, updateCache->rootPath(), std::move(updateHooks), &app);
+#ifdef COLOSSEUM_UPDATE_TESTING
+    if (qEnvironmentVariableIsSet("COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE")) {
+        const QString requestedState = qEnvironmentVariable("COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE");
+        Colosseum::Update::UpdateService::State state = Colosseum::Update::UpdateService::Idle;
+        if (requestedState == QStringLiteral("Downloading"))
+            state = Colosseum::Update::UpdateService::Downloading;
+        else if (requestedState == QStringLiteral("Paused"))
+            state = Colosseum::Update::UpdateService::Paused;
+        else if (requestedState == QStringLiteral("Verifying"))
+            state = Colosseum::Update::UpdateService::Verifying;
+        else if (requestedState == QStringLiteral("Ready"))
+            state = Colosseum::Update::UpdateService::Ready;
+        else
+            qWarning("[update] ignored unknown test presentation state: %s",
+                     requestedState.toUtf8().constData());
+
+        bool receivedOk = false;
+        bool totalOk = false;
+        const qint64 received = qEnvironmentVariable("COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES")
+                                    .toLongLong(&receivedOk);
+        const qint64 total = qEnvironmentVariable("COLOSSEUM_UPDATE_TEST_TOTAL_BYTES")
+                                 .toLongLong(&totalOk);
+        if (state != Colosseum::Update::UpdateService::Idle && receivedOk && totalOk)
+            updates->setTestingPresentationState(state, received, total);
+        else if (state != Colosseum::Update::UpdateService::Idle)
+            qWarning("[update] ignored invalid test presentation byte counts");
+    }
+#endif
     updateBridge->acknowledgeHealthyBoot(QCoreApplication::arguments());
     engine.rootContext()->setContextProperty(QStringLiteral("Updates"), updates);
     const bool installedUpdateEligible = updateBridge->installedBuildEligible();

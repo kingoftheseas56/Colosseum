@@ -87,6 +87,10 @@ public:
     Q_INVOKABLE void restartAndUpdate();
     void startAutomaticChecks();
 
+#ifdef COLOSSEUM_UPDATE_TESTING
+    void setTestingPresentationState(State state, qint64 received, qint64 total);
+#endif
+
 signals:
     void changed();
 

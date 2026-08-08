@@ -7,6 +7,7 @@
 #include <QTemporaryDir>
 
 #include <cstdlib>
+#include <cmath>
 #include <iostream>
 
 using namespace Colosseum::Update;
@@ -234,6 +235,41 @@ int main()
     require(offline.state() == UpdateService::Available
                 && offline.latestVersion() == QStringLiteral("1.1.1"),
             "offline restart reconstructs the signed chronicle");
+
+    QTemporaryDir noChronicleRoot;
+    UpdateService noChronicle(version("1.1.0"), noChronicleRoot.path());
+    noChronicle.setTestingPresentationState(UpdateService::Downloading,
+                                            224395264, 330301440);
+    require(noChronicle.state() == UpdateService::Idle
+                && noChronicle.receivedBytes() == 0
+                && noChronicle.totalBytes() == 0,
+            "presentation override cannot run without an authenticated chronicle");
+
+    persisted.setTestingPresentationState(UpdateService::Downloading,
+                                          224395264, 330301440);
+    require(persisted.state() == UpdateService::Downloading
+                && persisted.receivedBytes() == 224395264
+                && persisted.totalBytes() == 330301440
+                && std::abs(persisted.progress() - (224395264.0 / 330301440.0)) < 0.000001,
+            "downloading presentation exposes the exact fixture progress");
+    persisted.setTestingPresentationState(UpdateService::Paused, 224395264, 330301440);
+    require(persisted.state() == UpdateService::Paused,
+            "paused presentation state is accepted");
+    persisted.setTestingPresentationState(UpdateService::Verifying, 330301440, 330301440);
+    require(persisted.state() == UpdateService::Verifying,
+            "verifying presentation state is accepted");
+    persisted.setTestingPresentationState(UpdateService::Ready, 330301440, 330301440);
+    require(persisted.state() == UpdateService::Ready,
+            "ready presentation state is accepted");
+    persisted.setTestingPresentationState(UpdateService::Idle, 0, 0);
+    require(persisted.state() == UpdateService::Ready,
+            "unsupported presentation state is ignored");
+    UpdateService afterPresentation(version("1.1.0"), persistedRoot.path());
+    require(afterPresentation.state() == UpdateService::Available
+                && afterPresentation.receivedBytes() == 0
+                && afterPresentation.progress() == 0.0
+                && afterPresentation.totalBytes() != 330301440,
+            "presentation override is not persisted across restart");
 
     QTemporaryDir artworkRoot;
     QDir().mkpath(QDir(artworkRoot.path()).filePath(QStringLiteral("artwork")));

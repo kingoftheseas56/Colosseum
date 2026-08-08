@@ -166,6 +166,23 @@ void UpdateService::setState(State state)
     emitChanged();
 }
 
+#ifdef COLOSSEUM_UPDATE_TESTING
+void UpdateService::setTestingPresentationState(State state, qint64 received, qint64 total)
+{
+    if (!m_hasChronicle)
+        return;
+    if (state != Downloading && state != Paused && state != Verifying && state != Ready)
+        return;
+
+    total = qMax<qint64>(0, total);
+    received = qBound<qint64>(0, received, total);
+    m_state = state;
+    m_receivedBytes = received;
+    m_totalBytes = total;
+    emitChanged();
+}
+#endif
+
 void UpdateService::emitChanged()
 {
     emit changed();
