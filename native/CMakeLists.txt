@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon (Windows-only, harmless elsewhere)
 # C = the vendored third_party/miniz/miniz.c (gunzip for the Jikan Accept-Encoding workaround).
-project(colosseum LANGUAGES C CXX RC)
+project(colosseum VERSION 1.1.0 LANGUAGES C CXX RC)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -73,6 +73,8 @@ endif()
 
 add_executable(colosseum
     main.cpp
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
     app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
     ClipboardHelper.h
@@ -292,8 +294,18 @@ add_executable(colosseum
     engine/BiblioCatalog.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
+target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent)
+
+
+add_executable(update_version_harness
+    ../tests/update_version_harness.cpp
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
+)
+target_include_directories(update_version_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(update_version_harness PRIVATE Qt6::Core)
 
 
 add_executable(search_history_store_harness

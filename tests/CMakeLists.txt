@@ -36,6 +36,7 @@ colosseum_register_harness(biblio_catalog_logic_harness  unit)
 # Multi-volume pack demux (Slice 1): parser table + Entry round-trip. No net,
 # QTemporaryDir/isolated-AppData — deterministic, sentinel+exit-code contract.
 colosseum_register_harness(comic_downloader_pack_demux_harness unit)
+colosseum_register_harness(update_version_harness unit)
 
 # ── Qt Test targets (slice 3+) ───────────────────────────────────────────────
 # Test-only Qt components: discovered HERE, under BUILD_TESTING, never linked

@@ -489,6 +489,7 @@ int main(int argc, char *argv[]) {
     // GUI-thread stall, not the video engine; this names the work. See native/GuiStallProbe.h.
     ProbedGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Colosseum"));
+    app.setApplicationVersion(QStringLiteral(COLOSSEUM_VERSION));
     // App identity on the Windows taskbar / alt-tab / title: the amphitheatre glyph on a
     // dark tile (embedded via app_resources.qrc). The .exe file icon comes from app_icon.rc.
     app.setWindowIcon(QIcon(QStringLiteral(":/colosseum.ico")));
