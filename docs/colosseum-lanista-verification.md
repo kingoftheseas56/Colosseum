@@ -148,6 +148,15 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   `candidateIndex`, `sources`, `ready`) and `discoverCard_<id>_art_img` (the inner `Image`:
   `source`, `status`, `sourceSize`, `paintedWidth/Height`). **Only delegates near the
   viewport exist** — GridView virtualization; scrolling materializes more.
+- **Vault launch entry points (Slice 8, added 2026-08-09):** `taskbarOpenMedia` (the taskbar
+  Open Media… control — visible only while the dock is open; `ui-query` for visible/enabled/
+  clippedByWindow, `ui-click` opens a NATIVE dialog the bridge cannot see, so clicking it is
+  human-witnessed, not driven) and `localLaunchState` (an invisible status Item: `openCount`
+  `lastRouteKind` `lastRejectCategory`, exact-value waitable via `qml-get` — the launch
+  pillar's machine-checkable seam; idle at boot = `openCount 0`, empty strings). Scenario
+  `tests/lanista_scenarios/vault_launch_smoke.json` proves the assembled app exposes the
+  control (7/7 in isolated session, 2026-08-09). The native picker / OS drag-drop / Ctrl+O
+  are outside the first-root-window model — human-witnessed by design.
 
 ### Scenario runner (`native/tools/lanista.cpp`)
 

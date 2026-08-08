@@ -1,0 +1,23 @@
+{
+  "name": "vault-launch-baseline",
+  "comment": "Vault execution Slice 8 BASELINE: the taskbar open-dock state at pre-change HEAD. No Open Media control exists yet; absence is not assertable (Lanista ledger), so the before-state is captured as a whole-window grab. Isolated tagged session on a unique pipe — never the daily app.",
+  "steps": [
+    { "cmd": "ping", "label": "the baseline session answers, drive gated on",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "one visible window, isolated data root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "vaultS8base" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "open the taskbar dock",
+      "payload": { "target": "colosseumTaskbarHomeButton" } },
+    { "cmd": "ui-query", "label": "settle the dock open (a real round-trip, no sleep)",
+      "payload": { "object": "colosseumTaskbarHomeButton" },
+      "expect": [ { "path": "visible", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "baseline evidence: dock open, NO Open Media control present",
+      "payload": { "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "grabPath", "op": "exists" } ] }
+  ]
+}

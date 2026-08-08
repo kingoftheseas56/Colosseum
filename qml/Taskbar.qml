@@ -8,8 +8,8 @@ Item {
     id: bar
     anchors.fill: parent
 
-    property var groups: (Sessions.revision, Sessions.groups())
-    property string activeId: Sessions.activeId
+    property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []
+    property string activeId: (typeof Sessions !== "undefined") ? Sessions.activeId : ""
     property bool open: false
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
@@ -18,6 +18,7 @@ Item {
     signal switchRequested(string id)
     signal closeRequested(string id)
     signal startClicked()
+    signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
     property bool downloadsActive: false  // the Downloads page is the front surface
@@ -145,6 +146,35 @@ Item {
                         bar.open = !bar.open
                         bar.autoRevealed = false   // opened (or closed) by hand → sticky, no pullback
                     }
+                }
+            }
+
+            // ---- Open Media: hand the app a local file (Open Media…, Vault Slice 8) ----
+            // An ACTION, not a page: no active-underline, no badge — just icon + hover.
+            Item {
+                objectName: "taskbarOpenMedia"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: omMa.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/open-media.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: omMa.containsMouse ? 1 : 0.75
+                }
+                MouseArea {
+                    id: omMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.openMediaClicked()
                 }
             }
 

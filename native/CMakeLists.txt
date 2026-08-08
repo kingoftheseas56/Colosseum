@@ -163,6 +163,18 @@ add_executable(colosseum
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp
     engine/ExtensionsStore.h
+    # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
+    engine/VaultKit.cpp            # shared classifier / SxxExx grammar / walker (Slice 1)
+    engine/VaultKit.h
+    engine/VaultStoreIo.h          # header-only atomic save/load w/ .bak (Slice 2)
+    engine/VaultIdentity.cpp       # content-addressed id — LocalLaunch::route keys progress to it (Slice 2)
+    engine/VaultIdentity.h
+    engine/LocalLaunch.cpp         # launch router + QML open() orchestration (Slice 7/8)
+    engine/LocalLaunch.h
+    engine/VaultPageStore.cpp      # ComicReaderShell injected-store adapter for local CBZ (Slice 7)
+    engine/VaultPageStore.h
+    player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)
+    player/MediaAdmissionProbe.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
@@ -325,14 +337,16 @@ add_executable(colosseum
     engine/BiblioCatalog.cpp
     engine/BiblioCatalog.h
 )
-target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
+target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
+    ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
 endif()
 target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
-    Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent)
+    Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
+    ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
 
 
 add_executable(update_version_harness
@@ -1382,7 +1396,11 @@ endif()
 # ⚠ PACKAGING GATE: with this ON, a release build depends on the FFmpeg DLLs. The lab used a GPL
 # build; a shipped Colosseum wants the LGPL drop-in (Player 2 never encodes). Settle that before
 # cutting an installer - flagged 2026-07-25, still open.
-option(COLOSSEUM_PLAYER2_IN_APP "Link the Player 2 backend into the app (default engine)" ON)
+# OFF by Hemanth's ruling 2026-08-09: "player 2 has been largely discontinued, it has no reason to
+# exist inside the main build." Player 1 (MpvItem) is the only shipped player; the player2 lab and
+# its CTest suite stay in the tree, opt-in, for the day player 1 hits a wall it cannot solve.
+# Flipping this ON restores the old wiring intact (link + COLOSSEUM_PLAYER2 def + FFmpeg-62 copies).
+option(COLOSSEUM_PLAYER2_IN_APP "Link the Player 2 backend into the app (default engine)" OFF)
 if(COLOSSEUM_PLAYER2_IN_APP)
     if(NOT TARGET player2_core)
         add_subdirectory(player2)

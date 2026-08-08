@@ -64,6 +64,8 @@
 #include "engine/AppLog.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
+#include "engine/LocalLaunch.h"
+#include "engine/VaultPageStore.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
@@ -965,6 +967,17 @@ int main(int argc, char *argv[]) {
     // have no loose page file for the library grid to point at. Engine takes
     // ownership via addImageProvider, same as the comicreader provider above.
     engine.addImageProvider(QStringLiteral("comiccover"), new Colosseum::ComicCoverProvider());
+
+    // ── Vault local-media: the launch pillar (execution plan Slice 8) ──────────
+    // LocalLaunch routes a handed-in file (taskbar Open Media…, OS drag-drop,
+    // Ctrl+O) to the right reader/player and rejects the unopenable BEFORE any
+    // session is created (no dead taskbar tiles). VaultPageStore adapts a local
+    // CBZ to ComicReaderShell's injected-store contract so it reads with zero
+    // reader edits. C++ decides the route; Main.qml paints the door.
+    auto *localLaunch = new LocalLaunch(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("LocalLaunch"), localLaunch);
+    auto *vaultPageStore = new VaultPageStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("VaultPageStore"), vaultPageStore);
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.

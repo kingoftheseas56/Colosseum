@@ -170,7 +170,7 @@ is staged by a POST_BUILD copy (no app deploy step ever shipped it).
 
 ## Registered Qt Quick Test targets (slice 4–5, 2026-08-06)
 
-**One runner, one CTest entry, four test files, 21 cases:**
+**One runner, one CTest entry, five test files, 34 cases (2026-08-09):**
 `colosseum.qml` runs the repo-built `colosseum_qml_tests` (QUICK_TEST_MAIN_WITH_SETUP —
 the setup object supplies a TEST application identity + INI settings in a per-run temp
 dir, because production `Settings` blocks fail to initialize without one; verified live)
@@ -184,6 +184,7 @@ staged by POST_BUILD beside the exe (same 0xc0000135 disease as Qt6Test.dll).
 | `tst_comicreader_title_controls.qml` | REAL mouse hit-testing against production `ComicReaderHud` | pre-existing; legacy `qmltestrunner` gate still works |
 | `tst_search_history_flow.qml` | search-history flow against production QML | pre-existing. **KNOWN FLAKE:** `test_biblioRecentChipBodyAndRemoveHaveIndependentClickTargets` fails ~1 run in 3 (real-window focus/timing); pre-dates the runner — reconciliation owed by its owner, not silently rerun-until-green |
 | `tst_comicreader_resume_race.qml` | the four resume-race regressions (T1 mount-time page-1 cannot overwrite a restore · T2 manualActivity disarms · T3 give-up clears both arms · T4 goMinimize flushes synchronously before emitting once) as independent cases: tryVerify on the debounced write, SignalSpy, createTemporaryObject; T3 injects a `seriesRecords` record (`layout: long_strip`) because the fraction arms only at long_strip OPEN — the legacy harness got that from ambient runner prefs. Negative control performed (one flipped expectation → exactly one named red). Converted from `comicreader_resume_race_harness.qml`, which stays with its gate until parity review | slice-5 pilot |
+| `tst_open_media_control.qml` | the taskbar Open Media… control's signal seam (Vault execution Slice 8): drives the PRODUCTION `Taskbar` (Sessions guarded to undefined so the switcher shows no tiles) and proves the control renders ONLY while the dock is open (`visible: bar.open`) and a real `mouseClick` emits `openMediaClicked` exactly once. The native OS file dialog is NOT opened in-test — the signal is the unit; the dialog + routing + reader/player render are the Lanista replay (`vault_launch_smoke`) + the human-witnessed items. Negative control performed live (flip the click expectation 1→2 → exactly one named red, `test_click_emits_open_request` `Actual 1 / Expected 2`, all other cases still ran; restored) | 2 cases green 2026-08-09; labels `qml;windows` |
 | `window_behavior_harness.qml` | (still top-level, still orphaned) | adoption candidate |
 
 **Conversion learning worth keeping:** QML `Settings` writes are batched/deferred — a

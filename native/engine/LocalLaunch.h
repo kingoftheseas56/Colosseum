@@ -15,12 +15,16 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
+#include <QVariantMap>
 
 class LocalLaunch : public QObject
 {
     Q_OBJECT
 
 public:
+    explicit LocalLaunch(QObject* parent = nullptr) : QObject(parent) {}
+
     enum class Family { Unknown, Comic, Book, Video };
     enum class Reject { None, NotFound, Unsupported, Corrupt, NoDecoder };
 
@@ -46,4 +50,18 @@ public:
 
     // The full decision: classify -> validate -> route, rejecting before session.
     static Route route(const QString& path);
+
+    // ── QML-facing open orchestration (Slice 8 entry points) ──────────────
+    // `open` is fed the raw selections from the taskbar picker / an OS drag-drop /
+    // Ctrl+O (file:// urls OR plain paths); it routes the FIRST one — the
+    // Next-to-Open tray is Slice 20, so the rest are honestly ignored — and hands
+    // QML a ready-to-dispatch decision. C++ decides; QML opens the door.
+    //   { path, family, accepted, reject, vaultId, detail, title, ignored }
+    Q_INVOKABLE QVariantMap routeInfo(const QString& pathOrUrl) const;
+    Q_INVOKABLE QVariantMap open(const QStringList& pathsOrUrls);
+
+    // A dropped folder is NOT a file to route — the folder→Vault gesture is Slice 10, so
+    // until then a folder drop shows an explain + "Select Media Files…" instead of
+    // enumerating. QML uses this to tell a dropped folder from a dropped file.
+    Q_INVOKABLE bool isDir(const QString& pathOrUrl) const;
 };

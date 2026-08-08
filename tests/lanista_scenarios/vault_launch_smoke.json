@@ -1,0 +1,30 @@
+{
+  "name": "vault-launch-smoke",
+  "comment": "Vault execution Slice 8: the assembled app exposes the Open Media control in the taskbar dock, and the launch-state surface is present and idle at boot. The native picker / OS drag-drop / Ctrl+O are inherently outside the first-root-window model (human-witnessed by design, ledger: secondary windows/OS surfaces invisible) — this scenario proves what the bridge CAN reach. Isolated tagged session on a unique pipe; never the daily app.",
+  "steps": [
+    { "cmd": "ping", "label": "the smoke session answers, drive gated on",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "one visible window, isolated data root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "vaultS8smoke" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "the launch-state surface exists and is idle at boot",
+      "payload": { "object": "localLaunchState", "props": ["openCount", "lastRouteKind", "lastRejectCategory"] },
+      "expect": [ { "path": "props.openCount", "op": "==", "value": "0" },
+                  { "path": "props.lastRouteKind", "op": "==", "value": "" } ] },
+    { "cmd": "ui-click", "label": "open the taskbar dock",
+      "payload": { "target": "colosseumTaskbarHomeButton" } },
+    { "cmd": "ui-query", "label": "settle the dock open (a real round-trip, no sleep)",
+      "payload": { "object": "colosseumTaskbarHomeButton" },
+      "expect": [ { "path": "visible", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-query", "label": "the Open Media control renders, visible + actionable + unclipped",
+      "payload": { "object": "taskbarOpenMedia", "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "visible", "op": "==", "value": "true" },
+                  { "path": "enabled", "op": "==", "value": "true" },
+                  { "path": "clippedByWindow", "op": "==", "value": "false" },
+                  { "path": "grabPath", "op": "exists" } ] }
+  ]
+}

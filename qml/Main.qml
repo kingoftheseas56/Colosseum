@@ -9,6 +9,7 @@ import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtCore
+import QtQuick.Dialogs
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "UniverseExtApi.js" as UniverseApi
@@ -1358,6 +1359,44 @@ Window {
             "target": { "path": path, "book": b, "id": (b.id !== undefined ? ("" + b.id) : path) }
         })
     }
+
+    // ── Vault launch pillar (execution plan Slice 8): hand the app a local file ──
+    // The picker / an OS drag-drop / Ctrl+O all funnel here. LocalLaunch (C++) routes the
+    // FIRST file and decides if it can open at all; QML paints the door — the right reader/
+    // player as a normal taskbar session, or a categorized "can't open" with NO tile.
+    function openLocalMedia(paths) {
+        if (!paths || !paths.length) return
+        var r = LocalLaunch.open(paths)
+        localLaunchState.lastRouteKind = r.family || "unknown"
+        localLaunchState.lastRejectCategory = r.accepted ? "" : (r.reject || "unsupported")
+        if (!r.accepted) { win.showLocalRejection(r); return }
+        localLaunchState.openCount = localLaunchState.openCount + 1
+        if (r.family === "comic")      win.openVaultComic(r.path, r.vaultId, r.title)
+        else if (r.family === "book")  win.openBookSession(r.path, { "id": r.vaultId, "title": r.title })
+        else if (r.family === "video") win.openLocalVideoSession({ "path": r.path, "id": r.vaultId, "title": r.title, "kind": "video" })
+    }
+    // A loose local comic has no series page — open it in the standalone Vault reader host
+    // (vaultComicLayer) as a taskbar comic session keyed to its content id.
+    function openVaultComic(path, vaultId, title) {
+        if (!path) return
+        Sessions.openOrSwitch({
+            "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
+            "target": { "vaultPath": path, "id": vaultId || ("vault-file:" + path), "title": title || "" }
+        })
+    }
+    function showLocalRejection(r) {
+        var msg = "Can't open this file."
+        var c = r ? r.reject : ""
+        if (c === "corrupt") msg = "This comic looks damaged — there's nothing to read."
+        else if (c === "no-decoder") msg = "This video can't be played."
+        else if (c === "not-found") msg = "That file no longer exists."
+        else msg = "That file type isn't supported."
+        localLaunchToast.flash(msg, false)
+    }
+    function showFolderDropExplain() {
+        // The folder → Vault shelf gesture is Slice 10; until then, explain + offer the picker.
+        localLaunchToast.flash("Folders open in the Vault (coming soon). For now, pick media files:", true)
+    }
     // (openAudiobookSession retired 2026-07-18 — the standalone audiobook player is gone;
     // the READER is the one audiobook surface. AudiobookSession, the engine, lives on below.)
 
@@ -1412,6 +1451,14 @@ Window {
         else if (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length) win.closeComicSeries()
         else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
         else win.closeSeries()
+    }
+    // Vault comic (standalone reader host) session verbs — mirror the comic reader verbs,
+    // but the live surface is vaultComicLayer, not a series page.
+    function minimizeVaultComic() { Sessions.switchTo("") }
+    function closeVaultComic() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
+        else vaultComicLayer.active = false
     }
     // Book minimize is BACK (2026-07-18, Hemanth — the swap had dropped the affordance):
     // the fresh reader's chrome carries a minimize icon → minimized() lands here. Every
@@ -1477,6 +1524,19 @@ Window {
             }
             win.warmPlayerSessionId = rec.id
         } else if (rec.contentKind === "comic") {
+            if (t.vaultPath && String(t.vaultPath).length) {
+                // a loose local comic (Vault): no series page — mount the standalone reader
+                // host with the injected VaultPageStore (execution plan Slice 8).
+                vaultComicLayer.archivePath = t.vaultPath
+                vaultComicLayer.vaultId = t.id || ""
+                vaultComicLayer.title = t.title || rec.title || "Comic"
+                if (vaultComicLayer.active && vaultComicLayer.item) {
+                    vaultComicLayer.item.archivePath = t.vaultPath
+                    vaultComicLayer.item.vaultId = t.id || ""
+                    vaultComicLayer.item.title = vaultComicLayer.title
+                } else vaultComicLayer.active = true
+                return
+            }
             if (String(t.seriesId || "").indexOf("gc:") === 0) {
                 // GetComics content (western shelf OR LOCG-catalogue page) restores via the
                 // GetComics shelf — same tag, same reader, resumed at the chapter.
@@ -1561,7 +1621,8 @@ Window {
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — drop whichever is live
-            if (comicSeriesLayer.active) comicSeriesLayer.active = false
+            if (vaultComicLayer.active) vaultComicLayer.active = false
+            else if (comicSeriesLayer.active) comicSeriesLayer.active = false
             else if (westernLayer.active) westernLayer.active = false
             else seriesLayer.active = false
         } else if (rec.contentKind === "book")  {
@@ -2516,6 +2577,29 @@ Window {
         }
     }
 
+    // ---- Vault standalone comic reader: a single loose CBZ opened from the Vault, with the
+    // injected VaultPageStore — no series page behind it (execution plan Slice 8). ----
+    Loader {
+        id: vaultComicLayer
+        anchors.fill: parent
+        z: 57
+        active: false
+        visible: active
+        property string archivePath: ""
+        property string vaultId: ""
+        property string title: "Comic"
+        source: "comicreader/VaultComicReader.qml"
+        onLoaded: {
+            item.archivePath = vaultComicLayer.archivePath
+            item.vaultId = vaultComicLayer.vaultId
+            item.title = vaultComicLayer.title
+            item.minimizeRequested.connect(win.minimizeVaultComic)
+            item.closeRequested.connect(win.closeVaultComic)
+            item.backRequested.connect(win.closeVaultComic)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+        }
+    }
+
     // (The standalone audiobook player layer is retired — 2026-07-18, Hemanth: the reader
     // IS the audiobook player. AudiobookSession above stays: it is the ENGINE the reader's
     // HUD transport and Audio tab drive.)
@@ -2773,6 +2857,7 @@ Window {
         onSwitchRequested: (id) => Sessions.switchTo(id)
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
+        onOpenMediaClicked: openMediaDialog.open()
         downloadsBadge: win.totalActiveDownloads
         downloadsActive: downloadsLayer.active
         onDownloadsClicked: downloadsLayer.active ? win.closeDownloadsPage() : win.openDownloadsPage()
@@ -2784,6 +2869,112 @@ Window {
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         onUpdateClicked: updateLayer.active ? win.closeUpdatePage() : win.openUpdatePage()
+    }
+
+    // ── Vault launch entry points (execution plan Slice 8): Open Media…, drag-drop, Ctrl+O ──
+    // The taskbar Open Media control, an app-wide file DropArea, and Ctrl+O all funnel into
+    // win.openLocalMedia(). localLaunchState is the invisible automation surface (Lanista reads
+    // lastRouteKind / lastRejectCategory / openCount by objectName).
+    Item {
+        id: localLaunchState
+        objectName: "localLaunchState"
+        visible: false
+        property string lastRouteKind: ""
+        property string lastRejectCategory: ""
+        property int openCount: 0
+    }
+
+    FileDialog {
+        id: openMediaDialog
+        title: "Open Media"
+        fileMode: FileDialog.OpenFiles
+        nameFilters: [
+            "Media files (*.cbz *.cbr *.epub *.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
+            "Comics (*.cbz *.cbr)",
+            "Books (*.epub)",
+            "Video (*.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
+            "All files (*)"
+        ]
+        onAccepted: {
+            var arr = []
+            for (var i = 0; i < selectedFiles.length; i++) arr.push("" + selectedFiles[i])
+            win.openLocalMedia(arr)   // multi-select opens the FIRST; the Next-to-Open tray is Slice 20
+        }
+    }
+
+    // App-wide file drop. Sits LOW (z:5) so an open player/reader — and PlayerPage's own subtitle
+    // DropArea — claim drops on their surface first; only the general app surface routes a dropped
+    // media file here. A dropped FOLDER explains + offers the picker (the folder gesture is Slice 10).
+    DropArea {
+        id: appFileDrop
+        anchors.fill: parent
+        z: 5
+        keys: ["text/uri-list"]
+        onDropped: (drop) => {
+            if (!drop.hasUrls) { drop.accepted = false; return }
+            var files = []
+            var anyFolder = false
+            for (var i = 0; i < drop.urls.length; i++) {
+                var u = "" + drop.urls[i]
+                if (LocalLaunch.isDir(u)) anyFolder = true
+                else files.push(u)
+            }
+            drop.accepted = true
+            if (files.length === 0 && anyFolder) { win.showFolderDropExplain(); return }
+            win.openLocalMedia(files)
+        }
+    }
+
+    Shortcut {
+        sequences: ["Ctrl+O"]
+        context: Qt.ApplicationShortcut
+        onActivated: openMediaDialog.open()
+    }
+
+    // A quiet, no-color status pill for local-open feedback: a categorized rejection, or the
+    // folder-drop explain with a "Select Media Files…" action. Grays/white only (house rule).
+    Rectangle {
+        id: localLaunchToast
+        objectName: "localLaunchToast"
+        z: 950
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: parent.height - height - 96
+        width: Math.min(parent.width - 96, toastRow.implicitWidth + 40)
+        height: 52
+        radius: 12
+        color: Qt.rgba(0.05, 0.05, 0.07, 0.95)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.16)
+        opacity: 0
+        visible: opacity > 0.01
+        property string message: ""
+        property bool showPick: false
+        Behavior on opacity { NumberAnimation { duration: 180 } }
+        function flash(msg, withPick) {
+            message = msg; showPick = !!withPick; opacity = 1; toastTimer.restart()
+        }
+        Timer { id: toastTimer; interval: 4600; onTriggered: localLaunchToast.opacity = 0 }
+        Row {
+            id: toastRow
+            anchors.centerIn: parent
+            spacing: 18
+            Text {
+                text: localLaunchToast.message
+                color: "#e9e9ec"; font.pixelSize: 14
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                visible: localLaunchToast.showPick
+                text: "Select Media Files…"
+                color: "#ffffff"; font.pixelSize: 14; font.underline: true
+                anchors.verticalCenter: parent.verticalCenter
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: { localLaunchToast.opacity = 0; openMediaDialog.open() }
+                }
+            }
+        }
     }
 
     Loader {

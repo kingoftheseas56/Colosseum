@@ -6,6 +6,7 @@
 #include "player/MediaAdmissionProbe.h"
 
 #include <QFileInfo>
+#include <QUrl>
 
 LocalLaunch::Family LocalLaunch::classify(const QString& path)
 {
@@ -96,4 +97,61 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
             path, fi.size(), fi.lastModified().toMSecsSinceEpoch());
     }
     return r;
+}
+
+namespace {
+QString toLocalPath(const QString& s)
+{
+    return s.startsWith(QLatin1String("file:")) ? QUrl(s).toLocalFile() : s;
+}
+
+// The taskbar tile / reader title show a cleaned name, not a raw filename
+// (Preflight §8). Strip the extension, turn separators into spaces, collapse.
+QString cleanFileTitle(const QString& path)
+{
+    QString t = QFileInfo(path).completeBaseName();
+    t.replace(QLatin1Char('_'), QLatin1Char(' '));
+    t.replace(QLatin1Char('.'), QLatin1Char(' '));
+    t = t.simplified();
+    return t.isEmpty() ? QFileInfo(path).fileName() : t;
+}
+} // namespace
+
+QVariantMap LocalLaunch::routeInfo(const QString& pathOrUrl) const
+{
+    const QString path = toLocalPath(pathOrUrl);
+    const Route r = route(path);
+    QVariantMap m;
+    m[QStringLiteral("path")]     = path;
+    m[QStringLiteral("family")]   = familyName(r.family);
+    m[QStringLiteral("accepted")] = r.accepted;
+    m[QStringLiteral("reject")]   = rejectName(r.reject);
+    m[QStringLiteral("vaultId")]  = r.vaultId;
+    m[QStringLiteral("detail")]   = r.detail;
+    m[QStringLiteral("title")]    = cleanFileTitle(path);
+    return m;
+}
+
+QVariantMap LocalLaunch::open(const QStringList& pathsOrUrls)
+{
+    if (pathsOrUrls.isEmpty()) {
+        QVariantMap m;
+        m[QStringLiteral("path")]     = QString();
+        m[QStringLiteral("family")]   = familyName(Family::Unknown);
+        m[QStringLiteral("accepted")] = false;
+        m[QStringLiteral("reject")]   = rejectName(Reject::NotFound);
+        m[QStringLiteral("vaultId")]  = QString();
+        m[QStringLiteral("detail")]   = QStringLiteral("no file");
+        m[QStringLiteral("title")]    = QString();
+        m[QStringLiteral("ignored")]  = 0;
+        return m;
+    }
+    QVariantMap m = routeInfo(pathsOrUrls.first());
+    m[QStringLiteral("ignored")] = pathsOrUrls.size() - 1;
+    return m;
+}
+
+bool LocalLaunch::isDir(const QString& pathOrUrl) const
+{
+    return QFileInfo(toLocalPath(pathOrUrl)).isDir();
 }
