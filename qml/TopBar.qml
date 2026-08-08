@@ -36,6 +36,24 @@ Item {
 
     Theme { id: theme }
 
+    // ---- live wall clock: the bar owns its own time, so the home page AND every
+    //      world / reader / player page that reuses this chrome show the real minute
+    //      instead of the build-day placeholder above. Ticks each second so the minute
+    //      rolls over promptly; identical string sets are no-op notifies. ----
+    function refreshClock() {
+        const now = new Date()
+        const h = now.getHours()
+        const m = now.getMinutes()
+        let h12 = h % 12; if (h12 === 0) h12 = 12
+        bar.clock = h12 + ":" + (m < 10 ? "0" + m : m)
+        bar.ampm = h < 12 ? "AM" : "PM"
+        bar.date = Qt.formatDate(now, "dddd, MMMM d")
+    }
+    Timer {
+        interval: 1000; running: true; repeat: true; triggeredOnStart: true
+        onTriggered: bar.refreshClock()
+    }
+
     // ---- inline: a system icon button (Image renders the local SVG reliably; tint via opacity) ----
     component SysIcon: Item {
         id: sysRoot
