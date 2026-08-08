@@ -8,6 +8,8 @@
 
 **Tech Stack:** C++17, Qt 6.11.1 Core/Network/QML/Quick/Concurrent, OpenSSL Ed25519 through `OpenSSL::Crypto`, QML/Qt Quick Test, CMake/Ninja/MSVC 2022, NSIS MUI2, Python 3 standard library, GitHub Releases REST API.
 
+**Planning protocol:** Prepared and self-reviewed with the Brotherhood runtime's `writing-plans` skill at `../runtime/codex/skills/writing-plans/SKILL.md`. Brotherhood Rule 28 governs execution: work directly on `master`; a worktree requires Hemanth's explicit approval.
+
 ## Global Constraints
 
 - Work directly on `master`; do not create a branch, worktree, second build tree, or separate installed instance without Hemanth's explicit approval.
@@ -607,7 +609,7 @@ for `updateUnseen`. Add `openUpdatePage()`/`closeUpdatePage()` in `Main.qml`; op
 full page closes Downloads, Extensions, Settings, and Update before activating exactly one. Opening
 Update calls `Updates.markSeen()`.
 
-- [ ] **Step 4: Run the focused and existing taskbar gates**
+- [ ] **Step 4: Verify GREEN with the focused and existing taskbar gates**
 
 Run:
 
@@ -824,7 +826,7 @@ happened on the Update page.
 missing clean `BUILD_DIR`, missing runtime sentinels, and installer filename drift. It must print the
 installer path, byte size, and SHA-256 as machine-readable final lines for Task 10.
 
-- [ ] **Step 5: Run matrix and real package smoke**
+- [ ] **Step 5: Verify GREEN with the matrix and real package smoke**
 
 Run:
 
