@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.16)
 # C = the vendored third_party/miniz/miniz.c (gunzip for the Jikan Accept-Encoding workaround).
 project(colosseum VERSION 1.1.0 LANGUAGES C CXX RC)
 
+option(COLOSSEUM_UPDATE_TESTING
+    "Use the test-only update public key for isolated fixture builds"
+    OFF)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -71,10 +75,28 @@ else()
     endif()
 endif()
 
+add_library(colosseum_update_crypto INTERFACE)
+if(TARGET OpenSSL::Crypto)
+    target_link_libraries(colosseum_update_crypto INTERFACE OpenSSL::Crypto)
+elseif(OPENSSL_MSVC_ROOT AND EXISTS "${OPENSSL_MSVC_ROOT}/include" AND
+       EXISTS "${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib")
+    target_include_directories(colosseum_update_crypto INTERFACE "${OPENSSL_MSVC_ROOT}/include")
+    target_link_libraries(colosseum_update_crypto INTERFACE
+        "${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib" ws2_32 crypt32)
+else()
+    message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
+endif()
+
 add_executable(colosseum
     main.cpp
     update/UpdateVersion.cpp
     update/UpdateVersion.h
+    update/UpdateManifest.cpp
+    update/UpdateManifest.h
+    update/UpdateTrust.cpp
+    update/UpdateTrust.h
+    update/UpdatePublicKey.h
+    update/UpdateTestPublicKey.h
     app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
     ClipboardHelper.h
@@ -295,7 +317,11 @@ add_executable(colosseum
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
-target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
+if(COLOSSEUM_UPDATE_TESTING)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
+endif()
+target_link_libraries(colosseum PRIVATE colosseum_update_crypto
+    Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent)
 
 
@@ -306,6 +332,21 @@ add_executable(update_version_harness
 )
 target_include_directories(update_version_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(update_version_harness PRIVATE Qt6::Core)
+
+add_executable(update_manifest_trust_harness
+    ../tests/update_manifest_trust_harness.cpp
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
+    update/UpdateManifest.cpp
+    update/UpdateManifest.h
+    update/UpdateTrust.cpp
+    update/UpdateTrust.h
+    update/UpdatePublicKey.h
+    update/UpdateTestPublicKey.h
+)
+target_include_directories(update_manifest_trust_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(update_manifest_trust_harness PRIVATE COLOSSEUM_UPDATE_TESTING=1)
+target_link_libraries(update_manifest_trust_harness PRIVATE Qt6::Core colosseum_update_crypto)
 
 
 add_executable(search_history_store_harness
