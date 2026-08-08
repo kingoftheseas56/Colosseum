@@ -365,6 +365,18 @@ target_include_directories(update_release_client_harness PRIVATE ${CMAKE_CURRENT
 target_compile_definitions(update_release_client_harness PRIVATE COLOSSEUM_UPDATE_TESTING=1)
 target_link_libraries(update_release_client_harness PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
 
+add_executable(update_download_harness
+    ../tests/update_download_harness.cpp
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
+    update/UpdateCache.cpp
+    update/UpdateCache.h
+    update/UpdateDownload.cpp
+    update/UpdateDownload.h
+)
+target_include_directories(update_download_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(update_download_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
+
 
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp
