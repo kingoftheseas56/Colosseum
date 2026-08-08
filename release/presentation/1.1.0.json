@@ -1,0 +1,15 @@
+{
+  "eyebrow": "A NEW CHAPTER IS READY",
+  "title": "Colosseum 1.1",
+  "summary": "The house can now tell you when a new release is ready, show what changed, and carry the verified update into place.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.0",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "COLOSSEUM",
+      "title": "The house now keeps itself current.",
+      "body": "A quiet taskbar signal leads to the new Update page, where each verified release downloads with progress and remains as the latest chapter afterward."
+    }
+  ],
+  "artwork": []
+}

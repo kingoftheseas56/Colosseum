@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kingoftheseas56/Colosseum/update-manifest-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "version", "tag", "eyebrow", "title", "summary", "installer", "minimumUpdaterVersion", "notesUrl", "highlights", "artwork"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {"pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "tag": {"pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "eyebrow": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "title": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "installer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["asset", "size", "sha256"],
+      "properties": {
+        "asset": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "size": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}
+      }
+    },
+    "minimumUpdaterVersion": {"pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "notesUrl": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/kingoftheseas56/Colosseum/releases/tag/v"},
+    "highlights": {"type": "array", "maxItems": 8},
+    "artwork": {"type": "array", "maxItems": 16}
+  }
+}
