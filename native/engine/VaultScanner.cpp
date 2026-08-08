@@ -111,22 +111,77 @@ void VaultScanner::applyResult(const RawResult& result)
 
     m_scanning = false;
 
-    if (result.cancelled) {
-        emit scanFinished(result.root, result.sliceModel, true);
-    } else {
-        m_identity->reconcile(result.facts);
-        QList<VaultIndex::FileRow> rows = result.rows;
-        for (VaultIndex::FileRow& row : rows)
-            row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
-        m_index->publish(rows);
-        emit scanFinished(result.root, result.sliceModel, false);
-        emit indexPublished(result.root, m_index->itemCount());
-    }
+    // applyResult only DELIVERS the candidate census for the confirmation card
+    // (Slice 11). Publication is a separate, confirm-triggered step (publishConfirmed
+    // → applyPublish) that aggregates ALL confirmed roots — so a single root's census
+    // never reaches VaultIndex::publish() alone, where the whole-index replace would
+    // wipe the other roots.
+    emit scanFinished(result.root, result.sliceModel, result.cancelled);
 
     if (!m_pending.isEmpty()) {
         const auto next = m_pending.takeFirst();
         scanRoot(next.first, next.second);
     }
+}
+
+void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generation)
+{
+    if (generation != m_generation)
+        return; // a newer scan/publish superseded this aggregate
+
+    m_scanning = false;
+
+    // A cancelled census in the set aborts the WHOLE publish — no partial truth; the
+    // previous index generation stands (VaultIndex::publish is atomic regardless).
+    for (const RawResult& r : results) {
+        if (r.cancelled)
+            return;
+    }
+
+    // Aggregate every confirmed root's facts + rows, reconcile identity ONCE, assign
+    // ids, then publish the UNION in a single transactional replace.
+    QList<VaultIdentity::FileFacts> allFacts;
+    QList<VaultIndex::FileRow> allRows;
+    for (const RawResult& r : results) {
+        allFacts.append(r.facts);
+        allRows.append(r.rows);
+    }
+    m_identity->reconcile(allFacts);
+    for (VaultIndex::FileRow& row : allRows)
+        row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
+
+    // Emit indexPublished ONLY on a successful publish — a failed/rolled-back publish
+    // must NOT tell the shelves "new truth landed"; the previous generation is intact.
+    if (m_index->publish(allRows))
+        emit indexPublished(QString(), m_index->itemCount());
+}
+
+void VaultScanner::publishConfirmed(const QStringList& confirmedRoots,
+                                    const QStringList& scanIgnore)
+{
+    // Supersede any in-flight scan/publish, then census EVERY confirmed root fresh
+    // off-thread: the index is a rebuildable product, so a confirm rebuilds the whole
+    // Vault from all confirmed roots and publishes their union atomically (decision 4 +
+    // Preflight §3: preserve multi-root atomicity, never a per-root replace).
+    m_scanning = true;
+    const quint64 gen = nextGeneration();
+    m_cancel = std::make_shared<VaultKit::CancellationToken>();
+    auto cancel = m_cancel;
+
+    auto* watcher = new QFutureWatcher<QList<RawResult>>(this);
+    connect(watcher, &QFutureWatcher<QList<RawResult>>::finished, this,
+            [this, watcher, gen]() {
+                const QList<RawResult> results = watcher->result();
+                watcher->deleteLater();
+                applyPublish(results, gen);
+            });
+    watcher->setFuture(QtConcurrent::run(
+        [confirmedRoots, scanIgnore, gen, cancel]() {
+            QList<RawResult> out;
+            for (const QString& root : confirmedRoots)
+                out.append(buildScan(root, scanIgnore, gen, cancel));
+            return out;
+        }));
 }
 
 void VaultScanner::scanRoot(const QString& root, const QStringList& scanIgnore)

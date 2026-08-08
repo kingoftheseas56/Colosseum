@@ -39,6 +39,14 @@ public:
     Q_INVOKABLE void scanRoot(const QString& root, const QStringList& scanIgnore = {});
     Q_INVOKABLE void cancel();
 
+    // Publication (Slice 11): a confirm re-censuses EVERY confirmed root off-thread
+    // and publishes their UNION in one atomic VaultIndex::publish — never a single
+    // root's rows alone, which the whole-index replace would use to wipe sibling
+    // roots. scanRoot/applyResult only DELIVER a candidate census for the card;
+    // publication is this separate, confirm-triggered step.
+    Q_INVOKABLE void publishConfirmed(const QStringList& confirmedRoots,
+                                      const QStringList& scanIgnore = {});
+
     // ── Testable seams (also the internal scan lifecycle) ──
     struct RawResult {
         QString root;
@@ -52,9 +60,15 @@ public:
     // thread. Honors the cancellation token at every group + file.
     static RawResult buildScan(QString root, QStringList scanIgnore, quint64 generation,
                                std::shared_ptr<VaultKit::CancellationToken> cancel);
-    // Commit a census result: dropped if its generation is stale; otherwise
-    // reconciles identity, fills ids, and publishes to the index. GUI thread.
+    // Deliver a candidate census: dropped if its generation is stale; otherwise
+    // emits scanFinished with the confirmation-card model. Does NOT publish — a
+    // single root's census must never reach VaultIndex::publish() alone. GUI thread.
     void applyResult(const RawResult& result);
+    // Aggregate publish: reconcile identity across EVERY result, assign ids, and
+    // publish their union in one transaction. Dropped on a stale generation or if
+    // any result is cancelled (no partial publish). Emits indexPublished ONLY on a
+    // successful publish. GUI thread; the sync seam the Qt Test drives directly.
+    void applyPublish(const QList<RawResult>& results, quint64 generation);
     // Begin a new scan generation (supersedes any in-flight result).
     quint64 nextGeneration() { return ++m_generation; }
     quint64 currentGeneration() const { return m_generation; }
