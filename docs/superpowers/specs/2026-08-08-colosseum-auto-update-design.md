@@ -2,11 +2,11 @@
 
 **Date:** 2026-08-08
 
-**Status:** Approved product direction; implementation not started
+**Status:** Secure updater foundation implemented on master; living-gallery visual completion approved
 
 **Target:** First updater-enabled stable release, then every later stable GitHub Release
 
-**Visual direction:** Approved browser concept, captured as the user-visible contract in section 2
+**Visual direction:** Approved living release gallery, captured as the user-visible contract in section 2
 
 ## 1. Objective
 
@@ -24,18 +24,19 @@ published release, and releases without a valid signed update manifest must neve
 
 The Colosseum taskbar gains a permanent Update icon. It opens the Update page in every state.
 
-When a newer release is available, the icon gains the approved quiet gold notification treatment:
-a small gold badge plus a restrained pulse. Availability must remain legible when animation is
-disabled, so the badge and accessible label carry the meaning independently of motion. The pulse
-stops after the user opens the Update page; the gold badge remains until that release is installed
-or superseded.
+When a newer release is available, the icon gains the approved monochrome notification treatment:
+a small silver-white badge plus a restrained pulse. Availability must remain legible when animation
+is disabled, so the badge and accessible label carry the meaning independently of motion. The pulse
+stops after the user opens the Update page; the badge remains until that release is installed or
+superseded. No notification meaning may depend on gold, another accent colour, or motion alone.
 
 The taskbar must never signal a release that Colosseum cannot verify or install.
 
 ### 2.2 Update page
 
-The approved visual concept is canonical: a full Colosseum page, not a native dialog or external
-updater window. It has two simultaneous purposes:
+The approved visual concept is canonical: a full Colosseum page, not a native dialog, dashboard,
+card wall, or external updater window. It is a **living release gallery** with two simultaneous
+purposes:
 
 1. carry the current update from discovery through download, verification, and restart; and
 2. remain the permanent illustrated chronicle of the latest installed release after the update.
@@ -44,22 +45,46 @@ The page renders these states:
 
 | State | Primary message | Primary action |
 |---|---|---|
-| Checking | Checking the house for something new | None |
-| Up to date | You're up to date | Check again |
-| Available | A new chapter is ready | Download update |
-| Downloading | Preparing your next visit | Cancel |
-| Paused/interrupted | Download paused | Resume |
+| Checking | Checking for updates | None |
+| Up to date | Everything is up to date | Check for updates |
+| Available | Colosseum [version] is ready | Download update |
+| Downloading | Updating to [version] | Pause download |
+| Paused/interrupted | Update paused | Resume download |
 | Verifying | Verifying the update | None |
-| Ready | Ready when you are | Restart and update |
+| Ready | Ready to enter [version] | Restart and update |
 | Installing | Colosseum is updating | None; the app exits promptly |
 | Recoverable error | The update could not finish | Retry |
 | Verification failure | This update could not be verified | Check again; never execute |
 
-The release presentation remains visible throughout Downloading, Verifying, Ready, and Up to
-date. It uses the approved editorial treatment: release eyebrow, version title, concise summary,
-stylized feature cards, and optional infographics or artwork. Progress displays percentage,
-downloaded/total size, and a smoothed time estimate. It must not promise an exact time when the
-estimate is unstable.
+The release presentation remains visible throughout Available, Downloading, Paused, Verifying,
+Ready, and Up to date. The screenshot is the stage: one verified real Colosseum screenshot fills
+the page behind a deliberate monochrome wash and directional black gradients. Large Fraunces
+chapter typography crosses the image; Inter carries only compact metadata and controls. There are
+no cards, floating glass panels, marketing subtitle under the page title, coloured accents, emoji,
+or decorative infographics competing with the real application imagery.
+
+Each release is an ordered gallery of one to eight chapters. A chapter contains a short section
+name, a display title, one concise body line or paragraph, and optional verified artwork. Numbered
+chapter controls (`01`, `02`, ...) select a chapter; **Next chapter** advances and wraps. The active
+chapter is unambiguous without relying on colour. Missing artwork falls back to the local captured
+motion background without collapsing the typography or controls.
+
+The bottom status rail is persistent and stateful. In Up to date it carries **Everything is up to
+date** at left and **Check for updates** at right. During download it carries the state at left,
+the exact downloaded/total bytes plus percentage and a thin progress track in the centre, and
+**Pause download** at right. Verifying, Ready, errors, and manual-update states reuse the same rail
+rather than inserting a new panel. A smoothed time estimate may appear only when stable; the page
+must not promise an exact time when it is not.
+
+Colosseum 1.0 is the canonical post-update/reference composition because it is the first stable
+release: `Reader`, `Discover`, `Biblio`, `Theatre`, and `The house` are the five reference chapters,
+using real Colosseum captures. The same local QML template must render a future `Updating to 1.1`
+state from signed release data; the 1.0 reference is not permission to special-case the renderer to
+one version.
+
+Chapter changes use a restrained image crossfade and no automatic carousel. Reduced-motion mode
+removes the crossfade and taskbar pulse while preserving chapter controls, badge, progress text,
+and every state label. The page must remain usable at 1280x720 and the normal desktop display size.
 
 The page also shows the installed version, latest checked version, last successful check time,
 and a low-emphasis link to the full GitHub release notes.
@@ -241,13 +266,13 @@ draft. If a published release lacks a valid signed manifest or exact installer a
 clients ignore it and keep the last valid chronicle.
 
 The manifest presentation model supports a small, intentional vocabulary rather than arbitrary
-layout:
+layout. In the living gallery, each accepted highlight becomes an ordered chapter:
 
 - release eyebrow, title, summary, and full-notes URL;
-- feature card: world/section, title, body, optional artwork;
-- statistic card: label, value, context;
-- before/after card: two short captions and two optional images; and
-- milestone card: title, body, optional numeric accent.
+- feature chapter: world/section, title, body, optional artwork;
+- statistic chapter: label, value, context, optional artwork;
+- before/after chapter: two short captions and up to two images; and
+- milestone chapter: title, body, optional number, optional artwork.
 
 This is sufficient for stylized text and infographics while keeping the renderer consistent with
 Colosseum.
@@ -340,7 +365,13 @@ verification are mandatory independently.
 
 This design is delivered when:
 
-- the taskbar notification and Update page match the approved Colosseum visual direction;
+- the permanent taskbar icon uses the approved monochrome badge/pulse and remains meaningful with
+  reduced motion;
+- the Update page matches the approved living release gallery: real screenshot stage, monochrome
+  treatment, Fraunces chapter typography, numbered chapter navigation, and no card/dashboard UI;
+- Up to date keeps the latest chronicle plus **Everything is up to date** and **Check for updates**;
+- Downloading keeps the gallery visible plus target version, byte counts, percentage, progress,
+  and **Pause download** in the persistent bottom rail;
 - a published stable GitHub Release becomes visible without blocking startup;
 - the user explicitly starts the resumable download and explicitly starts installation;
 - all executable and presentation assets are authenticated before use;

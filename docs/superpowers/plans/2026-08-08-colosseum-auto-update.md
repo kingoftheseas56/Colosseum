@@ -1,6 +1,12 @@
 # Colosseum Auto-Update Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Delivery record:** Tasks 1-11 landed on `master` through commit `7c1d404`. The secure updater,
+> installer, publisher, first QML page, and Lanista coverage are existing foundation, not work to
+> repeat. The approved living-gallery visual completion is planned separately in
+> `docs/superpowers/plans/2026-08-08-colosseum-living-update-gallery.md`.
+
+> **For agentic workers:** Historical plan only. Do not re-execute it. Use
+> `brotherhood-executing-plans` on the living-gallery completion plan named above.
 
 **Goal:** Ship a native Colosseum Update page that discovers signed stable GitHub Releases, notifies through the Colosseum taskbar, downloads and verifies the installer with resume support, safely restarts into a rollback-capable NSIS update, and preserves the latest release chronicle afterward.
 
