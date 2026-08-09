@@ -129,7 +129,8 @@ QStringList walkFiles(const QString& dirPath, const QStringList& nameFilters,
 // ── Group by first-level subdirectory + loose capture ─────────────────
 QMap<QString, QStringList> groupByFirstLevelSubdir(
     const QStringList& rootFolders, const QStringList& nameFilters,
-    const CancellationToken* cancel, const QStringList& needles)
+    const CancellationToken* cancel, const QStringList& needles,
+    const std::function<void(int, int, const QString&)>& onProgress)
 {
     QMap<QString, QStringList> result;
 
@@ -139,13 +140,20 @@ QMap<QString, QStringList> groupByFirstLevelSubdir(
 
         // 1. Each immediate subdirectory becomes a group.
         const QStringList subdirs = listImmediateSubdirs(root, needles);
-        for (const auto& subdir : subdirs) {
+        for (int i = 0; i < subdirs.size(); ++i) {
             if (cancel && cancel->isCancelled())
                 return result;
+            const QString& subdir = subdirs.at(i);
+            // Live pill signal: (done, total, folder) as each first-level subtree begins
+            // its walk — the walk is the slow part, so report before it, not after.
+            if (onProgress)
+                onProgress(i, subdirs.size(), QFileInfo(subdir).fileName());
             QStringList files = walkFiles(subdir, nameFilters, cancel, needles);
             if (!files.isEmpty())
                 result[subdir] = files;
         }
+        if (onProgress && !subdirs.isEmpty())
+            onProgress(subdirs.size(), subdirs.size(), QString());
 
         // 2. Loose files directly in the root → "<root>::LOOSE" (spec §5).
         QDir rootDir(root);
@@ -284,18 +292,17 @@ QString cleanMediaFolderTitle(const QString& rawName)
     static const QRegularExpression trimChars(QStringLiteral("^[\\s\\-._]+|[\\s\\-._]+$"));
     cleaned.replace(trimChars, QString());
 
-    if (!seasonNumbers.isEmpty()) {
-        const QString lower = cleaned.toLower();
-        QStringList missing;
-        for (int n : seasonNumbers) {
-            const QString label = QStringLiteral("Season %1").arg(n);
-            if (!lower.contains(label.toLower()))
-                missing.append(label);
-        }
-        if (!cleaned.isEmpty() && !missing.isEmpty())
-            cleaned += ' ' + missing.join(' ');
-        else if (cleaned.isEmpty())
-            cleaned = missing.join(' ');
+    // Re-append a season label ONLY for a SINGLE-season folder, so a lone "Season 1"
+    // folder keeps its identity after the noise strip removed the token. A folder that
+    // NAMES MULTIPLE seasons is a show root spanning them (e.g. "The Wire S01 S05") —
+    // the bare show name is the right title; re-appending every number produced the
+    // "The Wire Season 1 Season 5" doubling artifact (Slice 11 Thread C).
+    if (seasonNumbers.size() == 1) {
+        const QString label = QStringLiteral("Season %1").arg(seasonNumbers.first());
+        if (cleaned.isEmpty())
+            cleaned = label;
+        else if (!cleaned.toLower().contains(label.toLower()))
+            cleaned += ' ' + label;
     }
 
     cleaned.replace(multiSpace, QStringLiteral(" "));
@@ -343,6 +350,14 @@ QString kindName(MediaKind kind)
     case MediaKind::Unknown: break;
     }
     return QStringLiteral("unknown");
+}
+
+MediaKind kindFromName(const QString& name)
+{
+    if (name == QStringLiteral("comic")) return MediaKind::Comic;
+    if (name == QStringLiteral("book"))  return MediaKind::Book;
+    if (name == QStringLiteral("video")) return MediaKind::Video;
+    return MediaKind::Unknown;
 }
 
 MediaKind kindForFile(const QString& path)

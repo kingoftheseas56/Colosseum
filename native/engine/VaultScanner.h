@@ -13,10 +13,12 @@
 // the Qt Test. scanRoot()/cancel() are the thin async wrapper.
 
 #include <QList>
+#include <QMap>
 #include <QObject>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <functional>
 #include <memory>
 
 #include "VaultIdentity.h" // FileFacts
@@ -45,7 +47,8 @@ public:
     // roots. scanRoot/applyResult only DELIVER a candidate census for the card;
     // publication is this separate, confirm-triggered step.
     Q_INVOKABLE void publishConfirmed(const QStringList& confirmedRoots,
-                                      const QStringList& scanIgnore = {});
+                                      const QStringList& scanIgnore = {},
+                                      const QMap<QString, QString>& kindOverrides = {});
 
     // ── Testable seams (also the internal scan lifecycle) ──
     struct RawResult {
@@ -57,9 +60,13 @@ public:
         QList<VaultIdentity::FileFacts> facts;   // for identity reconcile
     };
     // Pure, synchronous census — no DB, no identity, no threads. Safe on a pool
-    // thread. Honors the cancellation token at every group + file.
+    // thread. Honors the cancellation token at every group + file. kindOverrides
+    // ({normSubtreePath → kind}) reshelve a slice to the user's chip choice; onProgress
+    // (if set) fires per first-level subtree so the pill counts live.
     static RawResult buildScan(QString root, QStringList scanIgnore, quint64 generation,
-                               std::shared_ptr<VaultKit::CancellationToken> cancel);
+                               std::shared_ptr<VaultKit::CancellationToken> cancel,
+                               const QMap<QString, QString>& kindOverrides = {},
+                               const std::function<void(int, int, const QString&)>& onProgress = {});
     // Deliver a candidate census: dropped if its generation is stale; otherwise
     // emits scanFinished with the confirmation-card model. Does NOT publish — a
     // single root's census must never reach VaultIndex::publish() alone. GUI thread.

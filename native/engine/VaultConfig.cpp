@@ -141,6 +141,13 @@ QString VaultConfig::kindFor(const QString& subtreePath) const
         .value(norm(subtreePath)).toString();
 }
 
+QVariantMap VaultConfig::kindOverrides() const
+{
+    // Keys are already normalized (setKind stores norm(subtreePath)); the census
+    // normalizes its subtree the same way before lookup.
+    return m_doc.value(QStringLiteral("kinds")).toObject().toVariantMap();
+}
+
 QStringList VaultConfig::scanIgnore() const
 {
     QStringList out;

@@ -25,6 +25,7 @@
 #include <QMap>
 #include <QList>
 #include <atomic>
+#include <functional>
 
 namespace VaultKit {
 
@@ -67,11 +68,14 @@ QStringList walkFiles(const QString& dirPath, const QStringList& nameFilters,
 
 // Group discovered files by first-level subdirectory of each root. Key =
 // absolute series/show folder path; loose files directly in a root land under
-// the sentinel key "<root>::LOOSE".
+// the sentinel key "<root>::LOOSE". onProgress (if set) fires once per
+// first-level subdir as its walk begins — (done, total, subdirLeafName) — so a
+// caller can drive a live "N of M" scan pill during the slow walk.
 QMap<QString, QStringList> groupByFirstLevelSubdir(
     const QStringList& rootFolders, const QStringList& nameFilters,
     const CancellationToken* cancel = nullptr,
-    const QStringList& needles = {});
+    const QStringList& needles = {},
+    const std::function<void(int, int, const QString&)>& onProgress = {});
 
 // Clean a media folder name for display (underscores/dots → space, bracket
 // noise + quality/release markers stripped, trailing group/year removed,
@@ -82,6 +86,7 @@ QString cleanMediaFolderTitle(const QString& rawName);
 // ── Media kinds + census classifier ───────────────────────────────────
 enum class MediaKind { Unknown, Comic, Book, Video };
 QString kindName(MediaKind kind);           // "comic" / "book" / "video" / "unknown"
+MediaKind kindFromName(const QString& name); // inverse of kindName; Unknown for anything else
 
 const QStringList& comicFilters();          // *.cbz *.cbr
 const QStringList& bookFilters();           // *.epub *.pdf *.mobi *.fb2 *.azw3 *.djvu *.txt

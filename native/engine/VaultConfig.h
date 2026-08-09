@@ -16,6 +16,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <QVariantMap>
 
 class VaultConfig : public QObject
 {
@@ -40,6 +41,9 @@ public:
     // ── Per-subtree kind overrides (card chip reassignments) ──
     Q_INVOKABLE void setKind(const QString& subtreePath, const QString& kind);
     Q_INVOKABLE QString kindFor(const QString& subtreePath) const; // "" if none
+    // All overrides as {normSubtreePath → kind} — snapshot once on the GUI thread and
+    // hand to the off-thread census so a confirm shelves by the user's chip choices.
+    Q_INVOKABLE QVariantMap kindOverrides() const;
 
     // ── scanIgnore needles ──
     Q_INVOKABLE QStringList scanIgnore() const;

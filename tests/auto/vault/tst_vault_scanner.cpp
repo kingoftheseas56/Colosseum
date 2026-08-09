@@ -11,6 +11,8 @@
 
 #include "engine/VaultScanner.h"
 
+#include <QDir>
+#include <QMap>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QVariantMap>
@@ -38,9 +40,35 @@ private:
         return QStringLiteral(VAULT_FIXTURES_DIR) + QStringLiteral("/real");
     }
     static constexpr int kRealItems = 1; // tiny-book.epub
+    // A mixed LEAF (Akira: 2 comic + 1 book leftover) for the chip-reassignment tests.
+    static QString mixedLeafRoot()
+    {
+        return QStringLiteral(VAULT_FIXTURES_DIR) + QStringLiteral("/mixed-leaf");
+    }
+    // Mirror VaultConfig::norm so a test override keys the same way buildScan looks it up.
+    static QString normForTest(const QString& p)
+    {
+        QString n = QDir::cleanPath(p);
+#ifdef Q_OS_WIN
+        n = n.toLower();
+#endif
+        return n;
+    }
+    static QString subtreeEndingWith(const QVariantList& slices, const QString& suffix)
+    {
+        for (const QVariant& v : slices) {
+            const QString s = v.toMap().value(QStringLiteral("subtreePath")).toString();
+            if (s.endsWith(suffix))
+                return s;
+        }
+        return QString();
+    }
 
 private slots:
     void build_scan_produces_expected_census();
+    void build_scan_enriches_slice_model();
+    void override_reassigns_mixed_leaf_to_present_kind();
+    void override_relabels_folder_to_absent_kind();
     void build_scan_precancelled_is_cancelled();
     void apply_result_delivers_candidate_without_publishing();
     void apply_result_cancelled_delivers_cancelled_flag();
@@ -75,6 +103,81 @@ void tst_vault_scanner::build_scan_produces_expected_census()
     }
     QVERIFY(sawBerserk);
     QVERIFY(sawSeasonedVideo);
+}
+
+void tst_vault_scanner::build_scan_enriches_slice_model()
+{
+    // Thread B: every card slice carries the enrichment fields, and a season-nested
+    // show reports its distinct 2nd-level subgroups as the "· N series" count.
+    const auto r = VaultScanner::buildScan(mixedRoot(), {}, 1, {});
+    QCOMPARE(r.sliceModel.size(), kExpectedSlices);
+    for (const QVariant& v : r.sliceModel) {
+        const QVariantMap m = v.toMap();
+        QVERIFY(m.contains(QStringLiteral("seriesCount")));
+        QVERIFY(m.contains(QStringLiteral("sample")));
+        QVERIFY(m.contains(QStringLiteral("sizeBytes")));
+    }
+    bool sawSopranos = false;
+    for (const QVariant& v : r.sliceModel) {
+        const QVariantMap m = v.toMap();
+        if (m.value(QStringLiteral("subtreePath")).toString().endsWith(QStringLiteral("The Sopranos"))) {
+            sawSopranos = true;
+            QCOMPARE(m.value(QStringLiteral("seriesCount")).toInt(), 2); // Season 1 + Season 2
+            QVERIFY(!m.value(QStringLiteral("sample")).toString().isEmpty());
+        }
+    }
+    QVERIFY(sawSopranos);
+}
+
+void tst_vault_scanner::override_reassigns_mixed_leaf_to_present_kind()
+{
+    // Thread A, primary case: the mixed leaf Akira (2 comic + 1 book) reassigned to books
+    // → the book shelves, the two comics fall to the leftover line.
+    const auto plain = VaultScanner::buildScan(mixedLeafRoot(), {}, 1, {});
+    QCOMPARE(plain.sliceModel.size(), 1);
+    QCOMPARE(plain.sliceModel.first().toMap().value(QStringLiteral("kind")).toString(),
+             QStringLiteral("comic"));
+    const QString subtree = subtreeEndingWith(plain.sliceModel, QStringLiteral("Akira"));
+    QVERIFY(!subtree.isEmpty());
+
+    QMap<QString, QString> ov;
+    ov.insert(normForTest(subtree), QStringLiteral("book"));
+    const auto r = VaultScanner::buildScan(mixedLeafRoot(), {}, 1, {}, ov);
+
+    QCOMPARE(r.sliceModel.size(), 1);
+    const QVariantMap sm = r.sliceModel.first().toMap();
+    QCOMPARE(sm.value(QStringLiteral("kind")).toString(), QStringLiteral("book"));
+    QCOMPARE(sm.value(QStringLiteral("count")).toInt(), 1);          // the one book shelves
+    QCOMPARE(sm.value(QStringLiteral("leftoverCount")).toInt(), 2);  // the two comics leftover
+    QCOMPARE(r.rows.size(), 1);
+    QCOMPARE(r.rows.first().kind, QStringLiteral("book"));
+    QVERIFY(r.rows.first().realName.endsWith(QStringLiteral(".txt")));
+}
+
+void tst_vault_scanner::override_relabels_folder_to_absent_kind()
+{
+    // Thread A, relabel case: Berserk (3 comics, no books) declared "book" → all three
+    // shelve re-labelled as book. Proven end-to-end through the aggregate publish: the
+    // item total is unchanged, only the shelf moves.
+    const auto plain = VaultScanner::buildScan(mixedRoot(), {}, 1, {});
+    const QString berserk = subtreeEndingWith(plain.sliceModel, QStringLiteral("Berserk"));
+    QVERIFY(!berserk.isEmpty());
+
+    QMap<QString, QString> ov;
+    ov.insert(normForTest(berserk), QStringLiteral("book"));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultScanner sc(&idx, &ident);
+
+    const quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(mixedRoot(), {}, g, {}, ov)}, g);
+
+    QCOMPARE(idx.itemCount(), kExpectedItems);                    // nothing lost — reshelved
+    QCOMPARE(idx.itemCountForKind(QStringLiteral("book")), 2 + 3); // Dune 2 + Berserk 3
+    QCOMPARE(idx.itemCountForKind(QStringLiteral("comic")), 1);   // only the loose comic left
 }
 
 void tst_vault_scanner::build_scan_precancelled_is_cancelled()

@@ -3,6 +3,7 @@
 #include "VaultScanner.h"
 #include "VaultConfig.h"
 
+#include <QMap>
 #include <QUrl>
 
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
@@ -134,8 +135,22 @@ void VaultLibrary::confirmRoot(const QString& root, const QVariantMap& kindOverr
         if (m.value(QStringLiteral("confirmed")).toBool())
             confirmed.append(m.value(QStringLiteral("path")).toString());
     }
+
+    // Snapshot every chip override on the GUI thread and hand it to the off-thread census
+    // so the re-shelve honors the user's choices (Thread A). Keys are already normalized.
+    QMap<QString, QString> overrides;
+    const QVariantMap ov = m_config->kindOverrides();
+    for (auto it = ov.constBegin(); it != ov.constEnd(); ++it)
+        overrides.insert(it.key(), it.value().toString());
+
+    // Clear the pill's scan counts so the brief shelving pass shows "Scanning …", not the
+    // last census's stale "N of M".
+    m_scanDone = 0;
+    m_scanTotal = 0;
+    emit scanProgressChanged();
+
     setScanning(true); // shelving
-    m_scanner->publishConfirmed(confirmed, m_config->scanIgnore());
+    m_scanner->publishConfirmed(confirmed, m_config->scanIgnore(), overrides);
 }
 
 void VaultLibrary::dismissCard()

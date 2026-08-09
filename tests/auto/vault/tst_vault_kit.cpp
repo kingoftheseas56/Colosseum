@@ -164,6 +164,10 @@ void tst_vault_kit::title_cleaner_data()
     QTest::newRow("quality_stripped")    << "One.Piece.1080p"                  << "One Piece";
     QTest::newRow("season_preserved")    << "Attack on Titan Season 3"         << "Attack on Titan Season 3";
     QTest::newRow("stray_num_scrubbed")  << "The Sopranos -6 Season 1 1080p"   << "The Sopranos Season 1";
+    // A multi-season folder is a show root spanning seasons — collapse to the bare show
+    // name, never the doubled "Season 1 Season 5" artifact (Slice 11 Thread C).
+    QTest::newRow("multi_season_short")  << "The Wire S01 S05"                 << "The Wire";
+    QTest::newRow("multi_season_worded") << "The Wire Season 1 Season 5"       << "The Wire";
     QTest::newRow("too_short_keeps_raw") << "A"                                << "A";
 }
 
