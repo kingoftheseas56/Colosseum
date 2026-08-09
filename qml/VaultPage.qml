@@ -53,6 +53,21 @@ Item {
         return root.seriesFor("comic").concat(root.seriesFor("book")).concat(root.seriesFor("video"))
     }
 
+    // ---- Slice 13: the folder detail overlay. Vault-local — the shelves stay instantiated
+    //      underneath (hidden), so their scroll position survives open → Back for free. A row
+    //      snapshot is seeded on open (not re-queried while a background scan runs). ----
+    property bool folderDetailOpen: false
+    property var folderDetailFacts: ({})
+    property var folderDetailRows: []
+    function openFolder(tile) {
+        if (!tile) return
+        root.folderDetailFacts = tile
+        root.folderDetailRows = (typeof VaultLibrary !== "undefined")
+            ? VaultLibrary.items(tile.kind, tile.key) : []
+        root.folderDetailOpen = true
+    }
+    function closeFolder() { root.folderDetailOpen = false }
+
     // Shared shelf tile: a real comic cover when the row carries one (image://comiccover), else the
     // honest kind-icon on a gradient (book/video art is a later slice). Reused by every shelf + Folders.
     Component {
@@ -112,6 +127,12 @@ Item {
                     elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
                     style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.9)
                 }
+                MouseArea {   // open the folder detail (Slice 13)
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.openFolder(modelData)
+                }
             }
             Text {
                 text: (modelData.count || 0) + ((modelData.count === 1) ? " item" : " items")
@@ -146,6 +167,9 @@ Item {
 
     Flickable {
         id: page
+        // Kept instantiated while the folder detail is open (only hidden), so contentY survives.
+        visible: !root.folderDetailOpen
+        enabled: !root.folderDetailOpen
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight + 150
@@ -447,7 +471,7 @@ Item {
                                  ? (VaultLibrary.scanProgressChanged, VaultLibrary.scanTotal) : 0
         property string rootPath: (typeof VaultLibrary !== "undefined")
                                   ? (VaultLibrary.scanProgressChanged, VaultLibrary.scanningRoot) : ""
-        visible: scanning
+        visible: scanning && !root.folderDetailOpen
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 44
@@ -524,7 +548,7 @@ Item {
     //      as-committed (no tabPrefix yet — the shared file carries another lane's WIP), so its pills
     //      aren't Lanista-addressable until that lands; tab logic is covered by tst_vault_home + eyes. ----
     WorldTabBar {
-        visible: root.populated
+        visible: root.populated && !root.folderDetailOpen
         backdrop: root.backdrop
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
@@ -536,11 +560,13 @@ Item {
     }
 
     // ---- top chrome: minimize · fullscreen · power (same vocabulary as Settings/Downloads) ----
+    // z above the folder overlay so the window controls stay usable inside the detail view.
     Item {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 24
         anchors.rightMargin: theme.margin
+        z: 60
         width: chromeRow.implicitWidth
         height: 30
         Row {
@@ -559,6 +585,7 @@ Item {
     }
     BackAction {
         variant: "capsule"; tip: "Back"
+        visible: !root.folderDetailOpen   // the folder detail owns Back while it is up
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.topMargin: 21
@@ -572,10 +599,36 @@ Item {
         objectName: "vaultCard"
         anchors.fill: parent
         z: 30
-        visible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
+        visible: ((typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false) && !root.folderDetailOpen
         model: (typeof VaultLibrary !== "undefined") ? (VaultLibrary.candidateChanged, VaultLibrary.candidate) : []
         rootPath: (typeof VaultLibrary !== "undefined") ? VaultLibrary.candidateRoot : ""
         onShelveRequested: (ov) => { if (typeof VaultLibrary !== "undefined") VaultLibrary.confirmRoot(rootPath, ov) }
         onDismissRequested: { if (typeof VaultLibrary !== "undefined") VaultLibrary.dismissCard() }
+    }
+
+    // ── Slice 13: the folder detail overlay (z above the shelves + card, below the window chrome).
+    //    The shelves stay instantiated (hidden) underneath so Back returns to the same scroll spot. ──
+    Loader {
+        id: folderLayer
+        anchors.fill: parent
+        z: 40
+        active: root.folderDetailOpen
+        source: "VaultFolderView.qml"
+        onLoaded: {
+            item.backdrop = root.backdrop
+            item.title = root.folderDetailFacts.title || ""
+            item.kind = root.folderDetailFacts.kind || "comic"
+            item.coverUrl = root.folderDetailFacts.coverUrl || ""
+            item.rootPath = root.folderDetailFacts.subtreePath || ""
+            item.model = root.folderDetailRows
+        }
+    }
+    Connections {
+        target: folderLayer.item
+        function onBackRequested() { root.closeFolder() }
+        function onRevealRequested(path) {
+            if (typeof VaultLibrary !== "undefined") VaultLibrary.revealInExplorer(path)
+        }
+        // onOpenRequested: opening media in the reader/player is wired in Slice 14.
     }
 }

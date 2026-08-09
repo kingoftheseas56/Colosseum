@@ -8,6 +8,7 @@
 #include "engine/VaultIndex.h"
 #include "engine/VaultKit.h" // CancellationToken
 
+#include <QSet>
 #include <QTemporaryDir>
 #include <QVariantMap>
 #include <QtTest>
@@ -44,6 +45,7 @@ private slots:
     void incremental_upsert_lands_without_republish();
     void groups_expose_representative_cover();
     void enrichment_round_trip_via_rows_for_kind_and_upsert_many();
+    void files_in_subtree_groups_loose_then_subfolders_no_invented_entries();
     void natural_sort_key_is_numeric_and_case_insensitive();
 };
 
@@ -220,6 +222,57 @@ void tst_vault_index::enrichment_round_trip_via_rows_for_kind_and_upsert_many()
     QCOMPARE(idx.itemCount(), 2); // replaced in place — no duplicate rows
     QCOMPARE(idx.groupsForKind(QStringLiteral("comic")).first().toMap()
                  .value(QStringLiteral("coverEntry")).toString(), QStringLiteral("cover.jpg"));
+}
+
+void tst_vault_index::files_in_subtree_groups_loose_then_subfolders_no_invented_entries()
+{
+    // Slice 13 folder-view contract: filesInSubtree returns loose files first (empty subfolder),
+    // then named subfolders in case-insensitive lexical order, natural order within each group —
+    // and EXACTLY the on-disk files (no invented entries: set of paths matches).
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    // Deliberately published out of order; the query must order them.
+    QVERIFY(idx.publish({
+        mk(QStringLiteral("vault:e10"), QStringLiteral("D:/lib/Show"), QStringLiteral("Show"),
+           QStringLiteral("comic"), QStringLiteral("Extra 10.cbz"), QStringLiteral("Extras")),
+        mk(QStringLiteral("vault:l10"), QStringLiteral("D:/lib/Show"), QStringLiteral("Show"),
+           QStringLiteral("comic"), QStringLiteral("Loose 10.cbz")),
+        mk(QStringLiteral("vault:s2"), QStringLiteral("D:/lib/Show"), QStringLiteral("Show"),
+           QStringLiteral("comic"), QStringLiteral("Ep 2.cbz"), QStringLiteral("Season 01")),
+        mk(QStringLiteral("vault:l2"), QStringLiteral("D:/lib/Show"), QStringLiteral("Show"),
+           QStringLiteral("comic"), QStringLiteral("Loose 2.cbz")),
+        mk(QStringLiteral("vault:e2"), QStringLiteral("D:/lib/Show"), QStringLiteral("Show"),
+           QStringLiteral("comic"), QStringLiteral("Extra 2.cbz"), QStringLiteral("Extras")),
+        mk(QStringLiteral("vault:s10"), QStringLiteral("D:/lib/Show"), QStringLiteral("Show"),
+           QStringLiteral("comic"), QStringLiteral("Ep 10.cbz"), QStringLiteral("Season 01")),
+    }));
+
+    const QVariantList files = idx.filesInSubtree(QStringLiteral("D:/lib/Show"));
+    QCOMPARE(files.size(), 6);
+    auto sf = [&](int i) { return files.at(i).toMap().value(QStringLiteral("subfolder")).toString(); };
+    auto rn = [&](int i) { return files.at(i).toMap().value(QStringLiteral("realName")).toString(); };
+
+    // loose first (empty subfolder), natural within
+    QCOMPARE(sf(0), QString());                    QCOMPARE(rn(0), QStringLiteral("Loose 2.cbz"));
+    QCOMPARE(sf(1), QString());                    QCOMPARE(rn(1), QStringLiteral("Loose 10.cbz"));
+    // then subfolders in case-insensitive lexical order: Extras before Season 01
+    QCOMPARE(sf(2), QStringLiteral("Extras"));     QCOMPARE(rn(2), QStringLiteral("Extra 2.cbz"));
+    QCOMPARE(sf(3), QStringLiteral("Extras"));     QCOMPARE(rn(3), QStringLiteral("Extra 10.cbz"));
+    QCOMPARE(sf(4), QStringLiteral("Season 01"));  QCOMPARE(rn(4), QStringLiteral("Ep 2.cbz"));
+    QCOMPARE(sf(5), QStringLiteral("Season 01"));  QCOMPARE(rn(5), QStringLiteral("Ep 10.cbz"));
+
+    // no invented entries: the exact set of paths comes back (a count alone would miss a dup+drop)
+    QSet<QString> got;
+    for (const QVariant& v : files)
+        got.insert(v.toMap().value(QStringLiteral("path")).toString());
+    const QSet<QString> want = {
+        QStringLiteral("D:/lib/Show/Loose 2.cbz"), QStringLiteral("D:/lib/Show/Loose 10.cbz"),
+        QStringLiteral("D:/lib/Show/Extra 2.cbz"), QStringLiteral("D:/lib/Show/Extra 10.cbz"),
+        QStringLiteral("D:/lib/Show/Ep 2.cbz"), QStringLiteral("D:/lib/Show/Ep 10.cbz")};
+    QCOMPARE(got, want);
 }
 
 void tst_vault_index::natural_sort_key_is_numeric_and_case_insensitive()

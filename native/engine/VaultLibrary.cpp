@@ -5,7 +5,9 @@
 #include "ComicCoverId.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QMap>
+#include <QProcess>
 #include <QUrl>
 
 // Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots().
@@ -109,7 +111,44 @@ QVariantList VaultLibrary::series(const QString& kind) const
 QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) const
 {
     Q_UNUSED(kind);
-    return m_index ? m_index->filesInSubtree(seriesKey) : QVariantList{};
+    if (!m_index)
+        return {};
+    // Decorate each row with a ready-to-bind per-file cover URL (comics carry a CBZ cover entry
+    // after enrichment) so the folder view never re-derives the native id in QML. Books/video and
+    // un-enriched comics get "" → the row falls back to its kind icon.
+    QVariantList rows = m_index->filesInSubtree(seriesKey);
+    for (QVariant& v : rows) {
+        QVariantMap m = v.toMap();
+        const QString coverRef = m.value(QStringLiteral("coverRef")).toString();
+        const QString path = m.value(QStringLiteral("path")).toString();
+        m.insert(QStringLiteral("coverUrl"),
+                 (!coverRef.isEmpty() && !path.isEmpty()
+                  && m.value(QStringLiteral("kind")).toString() == QStringLiteral("comic"))
+                     ? QStringLiteral("image://comiccover/") + Colosseum::buildComicCoverId(path, coverRef)
+                     : QString());
+        v = m;
+    }
+    return rows;
+}
+
+bool VaultLibrary::revealInExplorer(const QString& path) const
+{
+#ifdef Q_OS_WIN
+    const QFileInfo fi(path);
+    if (path.trimmed().isEmpty() || !fi.exists())
+        return false;
+    const QString native = QDir::toNativeSeparators(fi.absoluteFilePath());
+    // A folder opens to its contents; a file is revealed selected in its parent. Args go as a
+    // QStringList — QProcess quotes for CommandLineToArgvW, so spaces/parens/unicode are safe with
+    // NO manual quoting or shell.
+    if (fi.isDir())
+        return QProcess::startDetached(QStringLiteral("explorer.exe"), QStringList{native});
+    return QProcess::startDetached(QStringLiteral("explorer.exe"),
+                                   QStringList{QStringLiteral("/select,"), native});
+#else
+    Q_UNUSED(path);
+    return false;
+#endif
 }
 
 void VaultLibrary::setScanning(bool scanning)

@@ -76,6 +76,9 @@ public:
     Q_INVOKABLE void dismissCard();
     // Cancel an in-flight census.
     Q_INVOKABLE void cancelScan();
+    // Reveal a Vault folder (or file) in the OS file manager. A directory opens; a file is
+    // selected in its parent. Windows-only for now; returns false if the path is gone.
+    Q_INVOKABLE bool revealInExplorer(const QString& path) const;
 
 signals:
     void changed();
