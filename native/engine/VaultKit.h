@@ -89,7 +89,7 @@ QString kindName(MediaKind kind);           // "comic" / "book" / "video" / "unk
 MediaKind kindFromName(const QString& name); // inverse of kindName; Unknown for anything else
 
 const QStringList& comicFilters();          // *.cbz *.cbr
-const QStringList& bookFilters();           // *.epub *.pdf *.mobi *.fb2 *.azw3 *.djvu *.txt
+const QStringList& bookFilters();           // *.epub *.pdf *.mobi *.fb2 *.azw3 *.djvu (NOT .txt — release junk)
 const QStringList& videoFilters();          // mp4 mkv avi webm mov wmv flv m4v ts mpg mpeg ogv
 QStringList allMediaFilters();              // the union, for a single-pass walk
 MediaKind kindForFile(const QString& path); // by extension

@@ -65,7 +65,9 @@ void tst_vault_kit::kind_for_file_data()
     QTest::newRow("cbz_is_comic")   << "X/Berserk v01.cbz"        << "comic";
     QTest::newRow("cbr_is_comic")   << "X/Akira.cbr"              << "comic";
     QTest::newRow("epub_is_book")   << "X/Dune.epub"              << "book";
-    QTest::newRow("txt_is_book")    << "X/notes.txt"              << "book";
+    // Regression guard: a loose .txt is release junk, NOT a book — counting it as one shelved
+    // movie folders (video + junk .txt) under Books via the tie-break. (2026-08-09)
+    QTest::newRow("txt_is_not_book") << "X/YIFYStatus.com.txt"    << "unknown";
     QTest::newRow("mkv_is_video")   << "X/S01E01.mkv"             << "video";
     QTest::newRow("mp4_is_video")   << "X/clip.mp4"               << "video";
     QTest::newRow("jpg_is_unknown") << "X/cover.jpg"              << "unknown";
@@ -81,8 +83,9 @@ void tst_vault_kit::kind_for_file()
 
 void tst_vault_kit::classify_mixed_leaf_flags_and_leftovers()
 {
+    // A real book (.epub) as the non-dominant leftover — .txt is no longer a book format.
     const QStringList files = {
-        "leaf/Akira 01.cbz", "leaf/Akira 02.cbz", "leaf/notes.txt"
+        "leaf/Akira 01.cbz", "leaf/Akira 02.cbz", "leaf/notes.epub"
     };
     const LeafClassification c = classifyLeaf(files);
     QCOMPARE(kindName(c.dominant), QStringLiteral("comic"));
@@ -90,7 +93,7 @@ void tst_vault_kit::classify_mixed_leaf_flags_and_leftovers()
     QCOMPARE(c.counts.value(MediaKind::Comic), 2);
     QCOMPARE(c.counts.value(MediaKind::Book), 1);
     QCOMPARE(c.leftovers.size(), 1);
-    QVERIFY(c.leftovers.first().endsWith(QStringLiteral("notes.txt")));
+    QVERIFY(c.leftovers.first().endsWith(QStringLiteral("notes.epub")));
 }
 
 void tst_vault_kit::census_mixed_root_yields_kind_pure_slices()
@@ -143,7 +146,7 @@ void tst_vault_kit::census_mixed_leaf_flagged_with_leftover()
     QCOMPARE(akira.count, 2);
     QVERIFY(akira.mixed);
     QCOMPARE(akira.leftovers.size(), 1);
-    QVERIFY(akira.leftovers.first().endsWith(QStringLiteral("notes.txt")));
+    QVERIFY(akira.leftovers.first().endsWith(QStringLiteral("notes.epub")));
 }
 
 void tst_vault_kit::census_survives_accent_filename()

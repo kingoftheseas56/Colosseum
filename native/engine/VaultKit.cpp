@@ -316,7 +316,12 @@ QString cleanMediaFolderTitle(const QString& rawName)
 
 // ── Media kinds + classifier ──────────────────────────────────────────
 static const QSet<QString> kComicExts  = { "cbz", "cbr" };
-static const QSet<QString> kBookExts   = { "epub", "pdf", "mobi", "fb2", "azw3", "djvu", "txt" };
+// NB: .txt is deliberately NOT a book format. In a media library a loose .txt is release junk
+// (YIFY status files, readmes, notes), not an ebook — and counting it as a book let a single junk
+// .txt tie with the real media and, via the Comic>Book>Video tie-break, shelve whole movie folders
+// under Books (e.g. a Spider-Man .mp4 + YIFYStatus.com.txt filed as a book). Nobody packages books
+// as .txt; treat it as ignorable like .srt/.jpg. (2026-08-09)
+static const QSet<QString> kBookExts   = { "epub", "pdf", "mobi", "fb2", "azw3", "djvu" };
 static const QSet<QString> kVideoExts  = { "mp4", "mkv", "avi", "webm", "mov", "wmv",
                                            "flv", "m4v", "ts", "mpg", "mpeg", "ogv" };
 
