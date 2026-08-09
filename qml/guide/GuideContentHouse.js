@@ -23,6 +23,9 @@ function lessons() {
     function dl(over) {
         return Object.assign({ section: "downloads" }, draft, over);
     }
+    function src(over) {
+        return Object.assign({ section: "sources" }, draft, over);
+    }
     var production = [
         vault({
             id: "vault.open-media", sourceIds: ["VLT-01", "VLT-02", "VLT-03"], order: 10,
@@ -99,13 +102,12 @@ function lessons() {
         // DLD-10/11/12/14 and general DLD-15 state the ABSENCE honestly; DLD-15 keeps only the
         // narrow Tankoban ambiguous-comic-archive chooser.
         //
-        // ARRAY-ORDER CONSTRAINT: the contract gate stringifies the WHOLE cohort and applies
-        // cross-record regexes (VLT "Clear" .. delete .. file/progress/continue). So records
-        // containing destructive wording sit LAST in this array (actions, remove-local), no
-        // "file"/"progress"/"continue" token may appear after the first "deleted" token, and
-        // record ids/related refs must not smuggle "delete" earlier than that point (that is
-        // why the delete-local record is id "downloads.remove-local"). Display order is the
-        // `order` field, so array position is free. Do not "sort" this array.
+        // ARRAY-ORDER CONSTRAINT (2026-08-09, superseded): the contract gate used to stringify the
+        // whole cohort and apply cross-record regexes (VLT "Clear" .. delete .. file/progress/
+        // continue), which forced destructive-wording records to the tail of this array and kept
+        // record ids free of "delete"/"control"/"seeding" tokens. Commit 6b33e41 scoped the gate
+        // per-lesson, so that constraint no longer exists — the array order below is simply kept
+        // as-is; display order is the `order` field either way.
         dl({
             id: "downloads.overview", sourceIds: ["DLD-01"], order: 10,
             title: "Where can I see my downloads?",
@@ -221,7 +223,7 @@ function lessons() {
             related: ["downloads.status", "downloads.remove-local"],
             blocks: [
                 { kind: "paragraph", text: "Pause and Resume appear where the job supports them; eligible grouped Theatre work uses Pause season and Resume season. Retry appears only on rows the backend marks retryable; some failed rows instead offer Open Tankoban or Open Biblio." },
-                { kind: "paragraph", text: "Cancel asks first. The confirmation title is Cancel download? for a single job or Cancel season? for a group, and the body states Partial files will be deleted. — for a single job the warning names the partial copy instead. Choosing Cancel download proceeds; Go back aborts." },
+                { kind: "paragraph", text: "Cancel asks first. The confirmation title is Cancel download? for a single job or Cancel season? for a group, and the body states Partial files will be deleted. or The partial file will be deleted. Choosing Cancel download proceeds; Go back aborts." },
                 { kind: "note", text: "Pause holds the job in place; Cancel removes the active work and its partial data, per the confirmation. A remembered failure may instead offer Dismiss, which clears the failure row — not a settled copy." }
             ]
         }),
@@ -239,6 +241,124 @@ function lessons() {
                 { kind: "paragraph", text: "The settled row offers Delete local copy and asks for confirmation first, stating the downloaded media will be removed from this device. Audiobooks use their own confirmation wording." },
                 { kind: "paragraph", text: "If the media has disappeared outside the app, the row may instead offer Dismiss missing entry, which clears the stale row rather than deleting anything present." },
                 { kind: "note", text: "Once confirmed, the downloaded bytes are gone; they return only by downloading again. A missing row does not mean Colosseum removed the media." }
+            ]
+        }),
+        // EXT-01..EXT-10 distilled from Batch 6 (Extensions & sources; packet frozen at a149e94f,
+        // ancestor of the pinned base 6b33e41). Draft, except EXT-02 and EXT-09 which stay
+        // "uncertain": EXT-02 carries a live product/repository conflict (locked rule says no
+        // source is assumed enabled; current seed code enables house wells) and must state it as
+        // unresolved; EXT-09's visible Settings label does not open a working surface. "Do not
+        // claim" is law: worlds are not identical, not every install is an acquisition source,
+        // reinstall is not a first-line fix, paste does not install before preview, no adult
+        // reveal setting, no house settings sheet, disable/remove are not destructive to config
+        // or media, and top rank never guarantees the best result.
+        src({
+            id: "sources.extensions-overview", sourceIds: ["EXT-01", "EXT-10"], order: 10,
+            title: "What is an extension, and where does it apply?",
+            outcome: "Know that extensions add capabilities to the existing worlds without becoming new worlds.",
+            evidence: ["qml/ExtensionsPage.qml", "qml/ExtensionsSources.qml", "native/engine/ExtensionsStore.cpp"],
+            openQuestions: ["At least one source-consuming flow per world, with a relevant well enabled and disabled, not yet exercised"],
+            contexts: ["sources-overview"],
+            searchTerms: ["extension", "sources", "installed", "catalogue", "theatre", "tankoban", "biblio"],
+            related: ["sources.manage", "sources.install", "sources.order"],
+            blocks: [
+                { kind: "paragraph", text: "An extension supplies capabilities — catalogues, acquisition or playback sources, subtitles, or other roles — to one or more of the existing worlds. An extension is not a new world." },
+                { kind: "paragraph", text: "The Extensions utility groups installed rows by job: catalogue rows fill shelves, source and well rows fetch playable or downloadable material, and other roles sit separately. World membership comes from the extension's manifest, so one extension can serve more than one world." },
+                { kind: "steps", items: ["Open Extensions from the expanded taskbar.", "Use Sources to see capability rows across the worlds.", "Use Installed · and choose Theatre, Tankoban, or Biblio to see what applies in that world."] },
+                { kind: "note", text: "Applied to multiple worlds does not mean identical in each world: roles, content types, and consuming surfaces differ by world. Installed also does not mean enabled everywhere." }
+            ]
+        }),
+        src({
+            id: "sources.first-run", sourceIds: ["EXT-02"], order: 20,
+            title: "Why might I have no sources enabled yet?",
+            outcome: "Know that the first-run source state is not yet resolved by the product.",
+            status: "uncertain",
+            evidence: ["native/engine/ExtensionsStore.cpp", "qml/ExtensionsPage.qml"],
+            openQuestions: ["A fresh-profile runtime check must decide whether seeded house wells start enabled, then product must reconcile that with the locked no-assumed-source rule"],
+            contexts: ["sources-first-run"],
+            searchTerms: ["first run", "fresh install", "sources enabled", "default sources"],
+            related: ["sources.extensions-overview", "sources.manage"],
+            blocks: [
+                { kind: "paragraph", text: "The product rule says acquisition sources are optional and none should be assumed active on first use. Current code, however, seeds house defaults when the extension index is empty, and those seed entries are created enabled." },
+                { kind: "note", text: "The two descriptions disagree, and the conflict is not yet resolved. Neither fresh installs-with-sources nor fresh installs-without-sources should be treated as the confirmed state until a clean-profile run settles it." }
+            ]
+        }),
+        src({
+            id: "sources.install", sourceIds: ["EXT-03", "EXT-04"], order: 30,
+            title: "How do I install an extension?",
+            outcome: "Install a listed extension from the store, or add one by manifest link after previewing what it offers.",
+            evidence: ["qml/ExtensionsPage.qml", "native/engine/ExtensionsStore.cpp"],
+            openQuestions: ["Store install success and failure, valid and malformed link previews, and duplicate installs not yet exercised"],
+            contexts: ["sources-install"],
+            searchTerms: ["install extension", "browse everything", "install from a link", "manifest", "read it first"],
+            related: ["sources.extensions-overview", "sources.manage"],
+            blocks: [
+                { kind: "paragraph", text: "Browse everything lists extensions with Install, Installing…, and Installed states, and marks built-in rows as Built-in. Choose Install on the intended extension." },
+                { kind: "steps", items: ["Open Browse everything.", "Search if useful.", "Choose Install on the intended extension.", "Wait for Installing… to resolve."] },
+                { kind: "paragraph", text: "Install from a link › opens a sheet that reads the manifest first. The button reads Read it first until the preview succeeds, then Install <name>; Cancel closes the sheet." },
+                { kind: "steps", items: ["Choose Install from a link ›.", "Paste the extension address.", "Choose Read it first.", "Review the returned name, resources, and host.", "Choose Install <name> only for the intended extension."] },
+                { kind: "note", text: "A pasted address is not installed before the preview. An arbitrary webpage address is not automatically a valid manifest, and installing never guarantees useful results." }
+            ]
+        }),
+        src({
+            id: "sources.manage", sourceIds: ["EXT-05", "EXT-06"], order: 40,
+            title: "How do I turn an extension off or remove it?",
+            outcome: "Temporarily stop a removable extension, or remove it deliberately with its multi-world impact made visible.",
+            evidence: ["qml/ExtensionsPage.qml", "native/engine/ExtensionsStore.cpp"],
+            openQuestions: ["Disable and re-enable per world, second-press multi-world removal, and reinstall-after-remove not yet exercised"],
+            contexts: ["sources-manage"],
+            searchTerms: ["disable extension", "enable extension", "remove extension", "locked", "installed"],
+            related: ["sources.extensions-overview", "sources.install"],
+            blocks: [
+                { kind: "paragraph", text: "Non-core installed rows carry an on/off switch: switching it off leaves the extension installed but idle. Core catalogue rows are Locked, with no toggle and no remove action. Non-core rows expose Remove." },
+                { kind: "steps", items: ["Switch a non-core row off to disable it without removing it.", "Choose Remove to remove a non-core extension.", "If a multi-world warning appears, read the named worlds, and choose Remove again only if removal is still intended."] },
+                { kind: "note", text: "Removal is extension-wide, not per world: the warning reads <name> feeds <world> and <world>. Removing it takes it out of both — press Remove again to confirm." },
+                { kind: "note", text: "Disabling keeps configuration and downloads in place, and removing an extension does not touch downloaded media." }
+            ]
+        }),
+        src({
+            id: "sources.order", sourceIds: ["EXT-07"], order: 50,
+            title: "Why does source order matter?",
+            outcome: "Change the order in which a world's sources are asked, knowing the top is asked first.",
+            evidence: ["qml/ExtensionsPage.qml"],
+            openQuestions: ["Reorder persistence after restart, and the observable ask-order effect in each world, not yet exercised"],
+            contexts: ["sources-order"],
+            searchTerms: ["source order", "reorder", "sources asked first", "top first", "rank"],
+            related: ["sources.extensions-overview", "sources.manage"],
+            blocks: [
+                { kind: "paragraph", text: "The page states: Order matters: when you press play, sources are asked in this order, top first. Reorderable source and well rows show a world-relative numeric rank plus ▲ and ▼; catalogue rows are not ranked." },
+                { kind: "steps", items: ["Open Installed ·.", "Choose the relevant world.", "Use ▲ or ▼ to move one source.", "Confirm its rank changed."] },
+                { kind: "note", text: "The rank is computed among the wells relevant to the selected world, so a shared source can hold a different position in another world without becoming a second install. Being asked first does not mean a source will succeed or return the best result." }
+            ]
+        }),
+        src({
+            id: "sources.configure-external", sourceIds: ["EXT-08"], order: 60,
+            title: "How do I configure an extension that has its own settings page?",
+            outcome: "Open the extension-owned configuration page when the manifest marks an external extension configurable.",
+            evidence: ["qml/ExtensionsPage.qml", "native/engine/ExtensionsStore.cpp"],
+            openQuestions: ["One valid configurable external extension and the return-to-app behavior not yet exercised"],
+            contexts: ["sources-configure"],
+            searchTerms: ["configure extension", "configure", "external settings", "open extension page"],
+            related: ["sources.install", "sources.settings-builtin"],
+            blocks: [
+                { kind: "paragraph", text: "A configurable external extension shows Configure ↗. Choosing it leaves Colosseum and opens the extension's own configuration page, derived from its manifest address." },
+                { kind: "steps", items: ["Find the configurable external extension.", "Choose Configure ↗.", "Complete any configuration on the extension's page.", "Return to Colosseum and recheck the row."] },
+                { kind: "note", text: "This is extension-owned configuration, not a Colosseum settings surface, and not every installed extension offers it." }
+            ]
+        }),
+        src({
+            id: "sources.settings-builtin", sourceIds: ["EXT-09"], order: 70,
+            title: "How do I change settings for a built-in source?",
+            outcome: "Know that the built-in source settings surface has not landed yet.",
+            status: "uncertain",
+            evidence: ["qml/ExtensionsPage.qml"],
+            openQuestions: ["Re-audit immediately when the indexer settings sheet lands; capture exact options only from that build"],
+            contexts: ["sources-settings"],
+            searchTerms: ["built-in settings", "source settings", "settings", "indexer"],
+            related: ["sources.configure-external", "sources.manage"],
+            blocks: [
+                { kind: "paragraph", text: "A configurable house or built-in source row can show the label Settings, but choosing it does not open a configuration surface. The current notice ends with settings arrive with the indexer sheet." },
+                { kind: "note", text: "No in-app settings sheet exists at this commit. Do not expect indexers, languages, quality filters, or other options to be changeable in-app yet; the label is not the same route as Configure ↗." }
             ]
         })
     ];
