@@ -112,6 +112,29 @@ private slots:
         QVERIFY2(findById(store.installed(), wellId).value(QStringLiteral("enabled")).toBool(),
                  "setEnabled(well, true) was not honored");
     }
+
+    // Existing profile (Preflight #6 hardening): a user's explicit enable of a seeded-disabled well
+    // SURVIVES store reconstruction — the new fresh-install default never rewrites a persisted choice
+    // (no defaults-version bump, and an existing profile is not re-seeded).
+    void enabled_choice_survives_store_reconstruction()
+    {
+        QString wellId;
+        {
+            ExtensionsStore store(nullptr);            // fresh profile (init() wiped the index)
+            for (const QVariant& v : store.installed()) {
+                const QVariantMap e = v.toMap();
+                if (isRemovableWell(e) && !e.value(QStringLiteral("enabled")).toBool()) {
+                    wellId = e.value(QStringLiteral("id")).toString();
+                    break;
+                }
+            }
+            QVERIFY(!wellId.isEmpty());
+            store.setEnabled(wellId, true);            // persists the choice to installed.json
+        }
+        ExtensionsStore reopened(nullptr);             // reconstruct WITHOUT wiping — an existing profile
+        QVERIFY2(findById(reopened.installed(), wellId).value(QStringLiteral("enabled")).toBool(),
+                 "a persisted enable choice was reset on store reconstruction");
+    }
 };
 
 QTEST_GUILESS_MAIN(tst_extensions_first_run)
