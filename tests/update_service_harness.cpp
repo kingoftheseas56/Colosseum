@@ -345,5 +345,134 @@ int main()
                 && rejectedSeed.latestVersion().isEmpty(),
             "mutated seed signature never reaches visible state");
 
+    // ── Installed chronicle (Slice 3): at rest, the gallery renders the
+    // installed release's chapters from the bundled signed seed. The offered-
+    // release selector flips to a newer release on Available and back on
+    // withdrawal. offeredReleaseChanged is discrete: fires only on the
+    // installed↔newer flip, never on state-only transitions. ───────────────
+    {
+        const QString chronicleDir = QStringLiteral(COLOSSEUM_UPDATE_FIXTURES_DIR)
+            + QStringLiteral("/installed-chronicle");
+        const QString manifestPath = QDir(chronicleDir).filePath(QStringLiteral("manifest.json"));
+        const QString signaturePath = QDir(chronicleDir).filePath(QStringLiteral("manifest.sig"));
+        const QString artworkRoot = QDir(chronicleDir).filePath(QStringLiteral("artwork"));
+
+        // (g) Seed-absence negative control: no chronicle hooks → empty at rest.
+        {
+            QTemporaryDir noChronicleRoot;
+            require(noChronicleRoot.isValid(), "no-chronicle temp root");
+            UpdateServiceHooks emptyHooks;
+            emptyHooks.nowMs = [&clock] { return clock; };
+            UpdateService noChronicle(version("1.1.0"), noChronicleRoot.path(), emptyHooks);
+            require(noChronicle.state() == UpdateService::Idle, "no-chronicle starts idle");
+            require(noChronicle.highlights().isEmpty(),
+                    "no installed chronicle seed -> empty highlights at rest");
+            require(noChronicle.release().isEmpty(),
+                    "no installed chronicle seed -> empty release at rest");
+        }
+
+        // (a)(b) At rest, the installed chronicle's chapters render.
+        // (c)(d)(f) Flip on Available, return on withdrawal, discrete signal.
+        {
+            QTemporaryDir flipRoot;
+            require(flipRoot.isValid(), "flip-test temp root");
+            UpdateServiceHooks chronicleHooks;
+            chronicleHooks.nowMs = [&clock] { return clock; };
+            chronicleHooks.installedChronicleManifestPath = manifestPath;
+            chronicleHooks.installedChronicleSignaturePath = signaturePath;
+            chronicleHooks.installedChronicleArtworkRoot = artworkRoot;
+            chronicleHooks.checkLatest =
+                [&pending](const QString&, UpdateReleaseClient::Callback done) { done(pending); };
+            int offeredChanges = 0;
+            UpdateService service(version("1.1.0"), flipRoot.path(), chronicleHooks);
+            QObject::connect(&service, &UpdateService::offeredReleaseChanged,
+                             [&offeredChanges] { ++offeredChanges; });
+
+            // (a)(b) At rest: five chapters, version 1.1.0, first chapter Reader.
+            require(service.state() == UpdateService::Idle, "at-rest starts idle");
+            require(service.highlights().size() == 5,
+                    "installed chronicle exposes five chapters at rest");
+            require(service.release().value(QStringLiteral("version")).toString()
+                        == QStringLiteral("1.1.0"),
+                    "installed chronicle version matches installed release");
+            require(service.highlights().at(0).toMap().value(QStringLiteral("title")).toString()
+                        == QStringLiteral("Reader"),
+                    "installed chronicle first chapter is Reader");
+            require(offeredChanges == 0,
+                    "offeredReleaseChanged does not fire at construction (no flip)");
+
+            // (c) On Available, the offered release flips to the newer one.
+            // manifestFor produces a minimal manifest (zero highlights); the
+            // contract is the selector flip, proven by version + the discrete
+            // signal, not by highlight count.
+            pending = validResult(manifestFor("1.2.0"));
+            service.checkNow();
+            require(service.state() == UpdateService::Available,
+                    "newer release becomes available");
+            require(service.release().value(QStringLiteral("version")).toString()
+                        == QStringLiteral("1.2.0"),
+                    "on Available, release version is the newer release");
+            require(service.highlights().size() != 5,
+                    "on Available, highlights no longer reflect the installed chronicle");
+            require(offeredChanges == 1,
+                    "offeredReleaseChanged fires exactly once on installed->newer flip");
+
+            // (d) On withdrawal (older release -> UpToDate), the offered release
+            // returns to the installed chronicle.
+            pending = validResult(manifestFor("1.0.9"));
+            service.checkNow();
+            require(service.state() == UpdateService::UpToDate,
+                    "older release returns to up to date");
+            require(service.highlights().size() == 5,
+                    "on withdrawal, highlights returns to installed chronicle");
+            require(service.release().value(QStringLiteral("version")).toString()
+                        == QStringLiteral("1.1.0"),
+                    "on withdrawal, release version returns to installed");
+            require(offeredChanges == 2,
+                    "offeredReleaseChanged fires exactly once on newer->installed flip");
+
+            // (f) Negative: a state-only transition (another older release,
+            // stays UpToDate) must NOT fire offeredReleaseChanged.
+            const int beforeStateOnly = offeredChanges;
+            pending = validResult(manifestFor("1.0.8"));
+            service.checkNow();
+            require(service.state() == UpdateService::UpToDate,
+                    "another older release stays up to date");
+            require(offeredChanges == beforeStateOnly,
+                    "offeredReleaseChanged does NOT fire on a state-only transition");
+        }
+
+        // (e) Corrupted bundle -> empty fallback (honest degradation).
+        {
+            QTemporaryDir corruptRoot;
+            require(corruptRoot.isValid(), "corrupt-bundle temp root");
+            const QString corruptDir = QDir(corruptRoot.path()).filePath(QStringLiteral("ic"));
+            QDir().mkpath(corruptDir);
+            QFile::copy(manifestPath, QDir(corruptDir).filePath(QStringLiteral("manifest.json")));
+            QFile sigOriginal(signaturePath);
+            require(sigOriginal.open(QIODevice::ReadOnly), "fixture sig opens for corrupt copy");
+            QByteArray sigBytes = sigOriginal.readAll();
+            sigOriginal.close();
+            sigBytes[0] = sigBytes.at(0) == '0' ? '1' : '0';
+            QFile sigOut(QDir(corruptDir).filePath(QStringLiteral("manifest.sig")));
+            require(sigOut.open(QIODevice::WriteOnly | QIODevice::Truncate), "corrupt sig opens");
+            sigOut.write(sigBytes);
+            sigOut.close();
+            UpdateServiceHooks corruptHooks;
+            corruptHooks.nowMs = [&clock] { return clock; };
+            corruptHooks.installedChronicleManifestPath =
+                QDir(corruptDir).filePath(QStringLiteral("manifest.json"));
+            corruptHooks.installedChronicleSignaturePath =
+                QDir(corruptDir).filePath(QStringLiteral("manifest.sig"));
+            corruptHooks.installedChronicleArtworkRoot = artworkRoot;
+            UpdateService corrupt(version("1.1.0"), corruptRoot.path(), corruptHooks);
+            require(corrupt.state() == UpdateService::Idle, "corrupt bundle starts idle");
+            require(corrupt.highlights().isEmpty(),
+                    "corrupted installed chronicle -> empty highlights (honest degradation)");
+            require(corrupt.release().isEmpty(),
+                    "corrupted installed chronicle -> empty release (no unverified artwork)");
+        }
+    }
+
     std::cout << "UPDATE_SERVICE_OK\n";
 }

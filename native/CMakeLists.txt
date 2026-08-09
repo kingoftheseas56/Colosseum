@@ -97,6 +97,8 @@ add_executable(colosseum
     update/UpdateTrust.h
     update/UpdatePublicKey.h
     update/UpdateTestPublicKey.h
+    update/InstalledChronicle.cpp
+    update/InstalledChronicle.h
     update/UpdateCache.cpp
     update/UpdateCache.h
     update/UpdateDownload.cpp
@@ -423,6 +425,8 @@ add_executable(update_service_harness
     update/UpdateTrust.h
     update/UpdatePublicKey.h
     update/UpdateTestPublicKey.h
+    update/InstalledChronicle.cpp
+    update/InstalledChronicle.h
     update/UpdateReleaseClient.cpp
     update/UpdateReleaseClient.h
     update/UpdateCache.cpp

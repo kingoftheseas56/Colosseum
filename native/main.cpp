@@ -8,6 +8,9 @@
 #include <QIcon>
 #include <QImageReader>
 #include <QHostInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkDiskCache>
 #include <QNetworkProxy>
@@ -688,6 +691,58 @@ int main(int argc, char *argv[]) {
     const auto installedVersion = Colosseum::Update::Version::parseCanonical(installedVersionText);
     if (!installedVersion)
         return -1;
+    // Bundled installed-chronicle seed: extract the signed manifest + signature +
+    // artwork from the qrc to a cache subdir so the runtime highlightMap SHA256
+    // check works on real files (qrc bytes cannot be memory-mapped/hashed by
+    // QFile). Extracted once per launch; the loader re-verifies the signature
+    // before use, so a stale or tampered extraction is rejected.
+    {
+        const QString chronicleCacheDir =
+            QDir(updateCache->rootPath()).filePath(QStringLiteral("installed-chronicle"));
+        const QString artworkCacheDir = QDir(chronicleCacheDir).filePath(QStringLiteral("artwork"));
+        QDir().mkpath(artworkCacheDir);
+        const auto extract = [&chronicleCacheDir, &artworkCacheDir](const QString& qrcPath,
+                                                                    const QString& destName,
+                                                                    const QString& destDir) {
+            QFile src(QStringLiteral(":/installed-chronicle/") + qrcPath);
+            if (!src.exists())
+                return false;
+            const QString dest = QDir(destDir).filePath(destName);
+            // Skip if already extracted with identical bytes (idempotent across launches).
+            if (QFile::exists(dest)) {
+                QFile existing(dest);
+                if (existing.open(QIODevice::ReadOnly) && src.open(QIODevice::ReadOnly)
+                    && existing.readAll() == src.readAll())
+                    return true;
+            }
+            if (!src.open(QIODevice::ReadOnly))
+                return false;
+            QFile out(dest);
+            if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+                return false;
+            return out.write(src.readAll()) == src.size();
+        };
+        if (extract(QStringLiteral("manifest.json"), QStringLiteral("manifest.json"), chronicleCacheDir)
+            && extract(QStringLiteral("manifest.sig"), QStringLiteral("manifest.sig"), chronicleCacheDir)) {
+            // Extract each artwork asset. The manifest lists them; we extract by
+            // scanning the qrc artwork prefix (the manifest is already on disk).
+            updateHooks.installedChronicleManifestPath =
+                QDir(chronicleCacheDir).filePath(QStringLiteral("manifest.json"));
+            updateHooks.installedChronicleSignaturePath =
+                QDir(chronicleCacheDir).filePath(QStringLiteral("manifest.sig"));
+            updateHooks.installedChronicleArtworkRoot = artworkCacheDir;
+            // Extract artwork assets named in the manifest.
+            QFile manifestFile(updateHooks.installedChronicleManifestPath);
+            if (manifestFile.open(QIODevice::ReadOnly)) {
+                const auto doc = QJsonDocument::fromJson(manifestFile.readAll());
+                const auto artwork = doc.object().value(QStringLiteral("artwork")).toArray();
+                for (const auto& value : artwork)
+                    extract(QStringLiteral("artwork/") + value.toObject().value(QStringLiteral("asset")).toString(),
+                            value.toObject().value(QStringLiteral("asset")).toString(),
+                            artworkCacheDir);
+            }
+        }
+    }
     auto *updates = new Colosseum::Update::UpdateService(
         *installedVersion, updateCache->rootPath(), std::move(updateHooks), &app);
 #ifdef COLOSSEUM_UPDATE_TESTING

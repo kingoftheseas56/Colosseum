@@ -126,8 +126,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/main.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `46d01209ae28ca949c0b3a1ae80348be59f2a7a0`
-- Current blob: `46d01209ae28ca949c0b3a1ae80348be59f2a7a0`
+- Accepted blob: `880f8fca9b68ddac149b2809882c70f5848bac59`
+- Current blob: `880f8fca9b68ddac149b2809882c70f5848bac59`
 - Source: [`native/main.cpp`](../../native/main.cpp)
 
 ```text
@@ -169,8 +169,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/Main.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `ee9c87942ca590881ec8ea5e624808ca77688cd2`
-- Current blob: `ee9c87942ca590881ec8ea5e624808ca77688cd2`
+- Accepted blob: `143a114ea240ba77788f417207b5d5a54f350bdc`
+- Current blob: `143a114ea240ba77788f417207b5d5a54f350bdc`
 - Source: [`qml/Main.qml`](../../qml/Main.qml)
 
 ```text
@@ -185,8 +185,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/Taskbar.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `9e4699e296da85fdec28fa38604f1b5cd20fe577`
-- Current blob: `9e4699e296da85fdec28fa38604f1b5cd20fe577`
+- Accepted blob: `6ecfa8212549db51d626dcb98797206d790f36f7`
+- Current blob: `6ecfa8212549db51d626dcb98797206d790f36f7`
 - Source: [`qml/Taskbar.qml`](../../qml/Taskbar.qml)
 
 ```text

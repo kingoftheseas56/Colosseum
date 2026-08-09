@@ -16,12 +16,19 @@ Item {
     property int currentIndex: 0
     property bool reducedMotion: false
     property int taskbarSafeBottomLane: 96
+    // Bumped by UpdatePage on each offered-release identity flip
+    // (installed chronicle <-> newer release). Drives the crossfade re-arm +
+    // chapter-index reset, including the same-chapter-count swap (5<->5) that
+    // onChapterCountChanged cannot detect. The selector owns the flip signal;
+    // the gallery owns the visual response to it.
+    property int offeredReleaseToken: 0
     readonly property int automationLogicalWidth: Math.round(width)
     readonly property int automationLogicalHeight: Math.round(height)
     readonly property real automationDevicePixelRatio: Screen.devicePixelRatio
     readonly property real automationStageOpacity: monochromeStage.opacity
     readonly property bool automationStageSettled: automationStageOpacity >= 0.99
     property bool automationVisualReady: false
+    property int automationPresentedFrames: 0
     readonly property bool visualContentReady: stageImage.status === Image.Ready
                                                && automationStageSettled
                                                && chapterTitle.visible && chapterTitle.text.length > 0
@@ -87,13 +94,41 @@ Item {
         if (currentIndex >= chapterCount)
             currentIndex = Math.max(0, chapterCount - 1)
     }
-    onVisibleChanged: if (!visible) automationVisualReady = false
-    onCurrentIndexChanged: automationVisualReady = false
-    onVisualContentReadyChanged: if (!visualContentReady) automationVisualReady = false
+    // The offered-release identity flipped. Reset the chapter cursor to the
+    // first chapter of the newly-offered chronicle and re-arm the stage
+    // crossfade (armVisualReadiness resets automationVisualReady + frame count,
+    // which retriggers the opacity Behavior's fade-in on the new artwork).
+    // This is the same-count-swap path (5<->5) that onChapterCountChanged
+    // cannot see — the count is unchanged but the content is entirely different.
+    // Guard against the initial binding assignment (0 -> 0 / undefined -> 0)
+    // so construction-time visual readiness is not disarmed.
+    onOfferedReleaseTokenChanged: {
+        if (root.offeredReleaseToken === 0)
+            return
+        if (currentIndex !== 0)
+            currentIndex = 0
+        root.armVisualReadiness()
+    }
+    function armVisualReadiness() {
+        automationPresentedFrames = 0
+        automationVisualReady = false
+    }
+    onVisibleChanged: root.armVisualReadiness()
+    onCurrentIndexChanged: root.armVisualReadiness()
+    onVisualContentReadyChanged: root.armVisualReadiness()
 
-    FrameAnimation {
-        running: root.visible && root.visualContentReady && !root.automationVisualReady
-        onTriggered: root.automationVisualReady = true
+    // A scenegraph tick only tells us that Qt is animating. Lanista's whole-window grab needs
+    // two completed swaps after the content predicate is true, so an older/partial buffer cannot
+    // be mistaken for the settled chronicle.
+    Connections {
+        target: root.Window.window
+        function onFrameSwapped() {
+            if (!root.visible || !root.visualContentReady || root.automationVisualReady)
+                return
+            root.automationPresentedFrames += 1
+            if (root.automationPresentedFrames >= 2)
+                root.automationVisualReady = true
+        }
     }
 
     Theme { id: theme }

@@ -105,7 +105,15 @@ UpdateService::UpdateService(Version installedVersion, QString cacheRoot,
       m_cache(m_cacheRoot),
       m_hooks(std::move(hooks))
 {
+    loadInstalledChronicle();
     loadPersisted();
+    // Both loaders are best-effort: on a fresh cache (no persisted state, no
+    // Lanista seed) neither calls rebuildPresentation(), so the initial gallery
+    // would stay empty even when an installed chronicle loaded. Reconcile here
+    // so construction always leaves the presentation coherent with whatever
+    // chronicle (installed and/or offered) actually loaded. rebuildPresentation
+    // is idempotent and cheap when nothing changed.
+    rebuildPresentation();
 }
 
 double UpdateService::progress() const
@@ -327,29 +335,90 @@ bool UpdateService::applyManifest(const Manifest& manifest, const QByteArray& ma
 
 void UpdateService::rebuildPresentation()
 {
+    // Offered-release selector: choose the manifest the gallery renders.
+    // When a verified newer release is offered, render its chapters; otherwise
+    // render the installed chronicle's (the bundled signed seed). The selector
+    // is the single authority — the renderer never branches on version identity.
+    const bool offerNewer = newerReleaseOffered();
+    const Manifest* active = nullptr;
+    QString artworkRoot;
+    if (offerNewer) {
+        active = &m_manifest;
+        artworkRoot = QDir(m_cacheRoot).filePath(QStringLiteral("artwork"));
+    } else if (m_installedChronicle) {
+        active = &m_installedChronicle->manifest;
+        artworkRoot = m_installedChronicle->artworkRoot;
+    }
+
     m_release.clear();
     m_highlights.clear();
-    if (!m_hasChronicle)
-        return;
+    if (active) {
+        m_release.insert(QStringLiteral("version"), active->version.canonical());
+        m_release.insert(QStringLiteral("tag"), active->tag);
+        m_release.insert(QStringLiteral("eyebrow"), active->eyebrow);
+        m_release.insert(QStringLiteral("title"), active->title);
+        m_release.insert(QStringLiteral("summary"), active->summary);
+        m_release.insert(QStringLiteral("notesUrl"), active->notesUrl);
+        m_release.insert(QStringLiteral("installerAsset"), active->installerAsset);
+        m_release.insert(QStringLiteral("installerSize"), active->installerSize);
+        m_release.insert(QStringLiteral("minimumUpdaterVersion"),
+                         active->minimumUpdaterVersion.canonical());
 
-    m_release.insert(QStringLiteral("version"), m_manifest.version.canonical());
-    m_release.insert(QStringLiteral("tag"), m_manifest.tag);
-    m_release.insert(QStringLiteral("eyebrow"), m_manifest.eyebrow);
-    m_release.insert(QStringLiteral("title"), m_manifest.title);
-    m_release.insert(QStringLiteral("summary"), m_manifest.summary);
-    m_release.insert(QStringLiteral("notesUrl"), m_manifest.notesUrl);
-    m_release.insert(QStringLiteral("installerAsset"), m_manifest.installerAsset);
-    m_release.insert(QStringLiteral("installerSize"), m_manifest.installerSize);
-    m_release.insert(QStringLiteral("minimumUpdaterVersion"),
-                     m_manifest.minimumUpdaterVersion.canonical());
+        QHash<QString, QByteArray> artworkDigests;
+        for (const Artwork& artwork : active->artwork)
+            artworkDigests.insert(artwork.assetName, artwork.sha256);
+        for (const Highlight& highlight : active->highlights)
+            m_highlights.append(highlightMap(highlight, artworkRoot, artworkDigests));
+    }
 
-    const QString artworkRoot = QDir(m_cacheRoot).filePath(QStringLiteral("artwork"));
-    QHash<QString, QByteArray> artworkDigests;
-    for (const Artwork& artwork : m_manifest.artwork)
-        artworkDigests.insert(artwork.assetName, artwork.sha256);
-    for (const Highlight& highlight : m_manifest.highlights)
-        m_highlights.append(highlightMap(highlight, artworkRoot, artworkDigests));
+    // The offered-release identity changed signal is discrete: it fires only
+    // when offerNewer differs from the last-emitted state, never on every
+    // changed(). This is the reliable trigger for the gallery's chronicle-swap
+    // crossfade + chapter-index reset, including the same-chapter-count path
+    // (5↔5) that onChapterCountChanged cannot detect.
+    if (offerNewer != m_offeredIsNewer) {
+        m_offeredIsNewer = offerNewer;
+        emit offeredReleaseChanged();
+    }
     emitChanged();
+}
+
+bool UpdateService::newerReleaseOffered() const
+{
+    // A newer release is "offered" only when a verified chronicle is active AND
+    // the current state is one where the user is being shown that newer release
+    // (Available, mid-download, verifying, or ready to restart). At rest
+    // (Idle/Checking/UpToDate), or on failure (VerificationFailure/
+    // ManualUpdateRequired), the offered release reverts to the installed one.
+    if (!m_hasChronicle || !m_updateAvailable)
+        return false;
+    switch (m_state) {
+    case Available:
+    case Downloading:
+    case Paused:
+    case Verifying:
+    case Ready:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void UpdateService::loadInstalledChronicle()
+{
+    if (m_hooks.installedChronicleManifestPath.isEmpty()
+        || m_hooks.installedChronicleSignaturePath.isEmpty())
+        return;
+    QString error;
+    auto loaded = InstalledChronicle::load(m_hooks.installedChronicleManifestPath,
+                                           m_hooks.installedChronicleSignaturePath,
+                                           m_hooks.installedChronicleArtworkRoot,
+                                           m_installedVersion, &error);
+    if (loaded)
+        m_installedChronicle = std::move(loaded);
+    // On failure (bad signature, corrupt manifest, version mismatch) we leave
+    // m_installedChronicle empty — the gallery degrades honestly to the
+    // empty-list fallback at rest. No unverified chronicle is ever exposed.
 }
 
 void UpdateService::fetchMissingArtwork()

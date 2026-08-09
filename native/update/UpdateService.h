@@ -1,5 +1,6 @@
 #pragma once
 
+#include "update/InstalledChronicle.h"
 #include "update/UpdateReleaseClient.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateVersion.h"
@@ -34,6 +35,16 @@ struct UpdateServiceHooks final {
     Clock nowMs;
     InstallLauncher installLauncher;
     FetchArtwork fetchArtwork;
+
+    // Installed-chronicle seed paths. Production main.cpp points these at the
+    // bundled qrc-extracted manifest + signature + artwork dir so the gallery
+    // renders the installed release's chapters at rest. Empty = no installed
+    // chronicle (gallery falls back to the empty-list fallback at rest). The
+    // harness sets these to the test fixture or leaves them empty to exercise
+    // the no-chronicle path.
+    QString installedChronicleManifestPath;
+    QString installedChronicleSignaturePath;
+    QString installedChronicleArtworkRoot;
 };
 
 class UpdateService final : public QObject {
@@ -93,6 +104,12 @@ public:
 
 signals:
     void changed();
+    // Fires ONLY when the offered-release identity flips between the installed
+    // chronicle and a verified newer release (or back). Never fires on
+    // state-only transitions (Idle→Checking, progress ticks, etc.). Drives the
+    // gallery's chronicle-swap crossfade + chapter-index reset — including the
+    // same-chapter-count path (5↔5) that onChapterCountChanged does not cover.
+    void offeredReleaseChanged();
 
 private:
     void loadPersisted();
@@ -114,6 +131,14 @@ private:
     static QString stateName(State state);
     static State stateFromName(const QString& name);
 
+    // Offered-release selector: true when a verified newer release is active
+    // (Available/Downloading/Paused/Verifying/Ready with a chronicle), false at
+    // rest (Idle/Checking/UpToDate/VerificationFailure/ManualUpdateRequired, or
+    // no chronicle at all). When true, rebuildPresentation() renders the newer
+    // release's chapters; when false, it renders the installed chronicle's.
+    bool newerReleaseOffered() const;
+    void loadInstalledChronicle();
+
     Version m_installedVersion;
     QString m_cacheRoot;
     UpdateCache m_cache;
@@ -124,6 +149,7 @@ private:
     bool m_hasChronicle = false;
     bool m_updateAvailable = false;
     bool m_unseenUpdate = false;
+    bool m_offeredIsNewer = false;  // tracks the last-emitted offeredReleaseChanged state
     QString m_latestVersion;
     QString m_seenVersion;
     QString m_failedVersion;
@@ -138,6 +164,10 @@ private:
     QByteArray m_verifiedSignatureBytes;
     QVariantMap m_release;
     QVariantList m_highlights;
+    // Installed chronicle — the bundled signed seed loaded at construction.
+    // Empty when no bundle is configured or it failed trust verification
+    // (honest degradation: gallery renders the empty-list fallback at rest).
+    std::optional<LoadedChronicle> m_installedChronicle;
 };
 
 } // namespace Colosseum::Update

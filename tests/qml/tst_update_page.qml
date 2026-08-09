@@ -28,15 +28,16 @@ TestCase {
                                  summary: "A long editorial release summary that should wrap cleanly.",
                                  version: "1.2.0" })
         property var highlights: [
-            { kind: "feature", section: "READER", title: "Reader", body: "Read without losing the room.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "DISCOVER", title: "Discover", body: "Find the next world in one quiet sweep.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "BIBLIO", title: "Biblio", body: "Keep every volume close at hand.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "THEATRE", title: "Theatre", body: "Return to the exact frame you left.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "THE HOUSE", title: "The house", body: "One home for everything you follow.", artwork: [] },
+            { kind: "feature", section: "READER", title: "Reader", body: "A reader built for the page.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-reader.png")] },
+            { kind: "feature", section: "DISCOVER", title: "Discover", body: "Discover comes to Tankoban.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-tankoban-discover.png")] },
+            { kind: "feature", section: "BIBLIO", title: "Biblio", body: "Reader2 grew up.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-biblio.png")] },
+            { kind: "feature", section: "THEATRE", title: "Theatre", body: "Theatre goes deeper.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-theatre.png")] },
+            { kind: "feature", section: "THE HOUSE", title: "The house", body: "One collection. One vault.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-house.png")] },
             { kind: "unknown", section: "NOPE", title: "Hidden", body: "Never render", artwork: [] }
         ]
         property int checks: 0
@@ -45,6 +46,7 @@ TestCase {
         property int seen: 0
         property int restarts: 0
         signal changed()
+        signal offeredReleaseChanged()
         function checkNow() { checks++ }
         function download() { downloads++ }
         function cancelDownload() { cancels++ }
@@ -59,6 +61,7 @@ TestCase {
 
     function syncTaskbar() {
         taskbar.updatePresentation = page.taskbarPresentation
+        taskbar.reducedMotion = page.reducedMotion
     }
 
     function waitForPrimaryAction(label) {
@@ -105,15 +108,16 @@ TestCase {
                                  summary: "A long editorial release summary that should wrap cleanly.",
                                  version: "1.2.0" })
         fakeUpdates.highlights = [
-            { kind: "feature", section: "READER", title: "Reader", body: "Read without losing the room.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "DISCOVER", title: "Discover", body: "Find the next world in one quiet sweep.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "BIBLIO", title: "Biblio", body: "Keep every volume close at hand.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "THEATRE", title: "Theatre", body: "Return to the exact frame you left.",
-              artwork: [Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")] },
-            { kind: "feature", section: "THE HOUSE", title: "The house", body: "One home for everything you follow.", artwork: [] },
+            { kind: "feature", section: "READER", title: "Reader", body: "A reader built for the page.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-reader.png")] },
+            { kind: "feature", section: "DISCOVER", title: "Discover", body: "Discover comes to Tankoban.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-tankoban-discover.png")] },
+            { kind: "feature", section: "BIBLIO", title: "Biblio", body: "Reader2 grew up.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-biblio.png")] },
+            { kind: "feature", section: "THEATRE", title: "Theatre", body: "Theatre goes deeper.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-theatre.png")] },
+            { kind: "feature", section: "THE HOUSE", title: "The house", body: "One collection. One vault.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-house.png")] },
             { kind: "unknown", section: "NOPE", title: "Hidden", body: "Never render", artwork: [] }
         ]
         page = pageComponent.createObject(testWindow, { updates: fakeUpdates, width: 1280, height: 720 })
@@ -282,17 +286,42 @@ TestCase {
     function test_gallery_chapter_contract_and_accessible_names() {
         var gallery = findChild(page, "colosseumUpdateGallery")
         verify(gallery !== null)
-        tryVerify(function() { return gallery.automationVisualReady }, 1000,
+        tryVerify(function() { return gallery.automationVisualReady }, 2000,
                   "chapter assertions begin only after the settled stage is visually ready")
+        verify(gallery.automationPresentedFrames >= 2,
+               "visual readiness must follow two completed window frame swaps")
         compare(gallery.chapterCount, 5)
         compare(gallery.currentIndex, 0)
         compare(findChild(page, "colosseumUpdateVersionTitle").text, "1.2.0")
         compare(findChild(page, "colosseumUpdateChapterTitle").text, "Reader")
-        compare(findChild(page, "colosseumUpdateChapterBody").text, "Read without losing the room.")
+        compare(findChild(page, "colosseumUpdateChapterBody").text, "A reader built for the page.")
         compare(findChild(page, "colosseumUpdateChapterCount").text, "01 / 05")
         compare(findChild(page, "colosseumUpdateChapterLabel").text, "READER")
         compare(findChild(page, "colosseumUpdateChapter_01").Accessible.name, "Chapter 1: Reader")
         compare(findChild(page, "colosseumUpdateChapter_05").Accessible.name, "Chapter 5: The house")
+    }
+
+    function test_reference_chapters_keep_real_artwork_order_and_copy() {
+        var gallery = findChild(page, "colosseumUpdateGallery")
+        var expectedBodies = [
+            "A reader built for the page.",
+            "Discover comes to Tankoban.",
+            "Reader2 grew up.",
+            "Theatre goes deeper.",
+            "One collection. One vault."
+        ]
+        var expectedArtwork = [
+            Qt.resolvedUrl("../../release/presentation/artwork/colosseum-reader.png"),
+            Qt.resolvedUrl("../../release/presentation/artwork/colosseum-tankoban-discover.png"),
+            Qt.resolvedUrl("../../release/presentation/artwork/colosseum-biblio.png"),
+            Qt.resolvedUrl("../../release/presentation/artwork/colosseum-theatre.png"),
+            Qt.resolvedUrl("../../release/presentation/artwork/colosseum-house.png")
+        ]
+        for (var i = 0; i < expectedBodies.length; i++) {
+            gallery.selectChapter(i)
+            compare(findChild(page, "colosseumUpdateChapterBody").text, expectedBodies[i])
+            compare(gallery.selectedArtwork, expectedArtwork[i])
+        }
     }
 
     function test_gallery_visual_readiness_requires_settled_stage_effect() {
@@ -302,13 +331,16 @@ TestCase {
                "the named gallery automation surface must expose rendered stage opacity")
         verify(typeof gallery.automationStageSettled === "boolean",
                "the named gallery automation surface must expose whether the stage has settled")
+        verify(typeof gallery.automationPresentedFrames === "number",
+               "the named gallery automation surface must expose completed frame swaps")
         if (!gallery.automationStageSettled)
             verify(!gallery.automationVisualReady,
                    "visual readiness must remain false while the rendered stage is below its settled opacity")
         tryVerify(function() {
             return gallery.automationStageSettled && gallery.automationVisualReady
-        }, 1000, "visual readiness must turn true only after the existing stage effect settles")
+        }, 2000, "visual readiness must turn true only after the existing stage effect settles and two frame swaps complete")
         verify(gallery.automationStageOpacity >= 0.99)
+        verify(gallery.automationPresentedFrames >= 2)
     }
 
     function test_update_chrome_has_non_overlapping_navigation_lane() {
@@ -387,8 +419,128 @@ TestCase {
         var gallery = findChild(page, "colosseumUpdateGallery")
         page.reducedMotion = true
         compare(gallery.imageCrossfadeEnabled, false)
-        mouseClick(findChild(page, "colosseumUpdateChapter_05"))
+        fakeUpdates.highlights = [{ kind: "feature", section: "MISSING", title: "Missing art",
+                                    body: "Text remains visible without the optional screenshot.", artwork: [] }]
+        wait(0)
         verify(findChild(page, "colosseumUpdateGalleryFallbackArt").visible)
+    }
+
+    function test_at_rest_shows_installed_chronicle() {
+        // At rest (Idle), the gallery renders the installed chronicle's
+        // chapters. With no fake update offered yet the offered-release token
+        // is 0 and the gallery shows the installed version's five chapters.
+        // Save the mock's default offered-release fields so this case does not
+        // leak its at-rest state into later tests (init() resets only a subset).
+        var savedState = fakeUpdates.state
+        var savedInstalled = fakeUpdates.installedVersion
+        var savedLatest = fakeUpdates.latestVersion
+        var savedAvailable = fakeUpdates.updateAvailable
+        var savedRelease = fakeUpdates.release
+        var savedHighlights = fakeUpdates.highlights
+        fakeUpdates.state = 0
+        fakeUpdates.installedVersion = "1.1.0"
+        fakeUpdates.latestVersion = ""
+        fakeUpdates.updateAvailable = false
+        fakeUpdates.release = ({ eyebrow: "THE INSTALLED CHAPTER", title: "Colosseum 1.1",
+                                 summary: "The release you are running.",
+                                 version: "1.1.0" })
+        var installedHighlights = [
+            { kind: "feature", section: "READER", title: "Reader",
+              body: "The reader as it ships today.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-reader.png")] },
+            { kind: "feature", section: "DISCOVER", title: "Discover",
+              body: "Discover as it ships today.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-tankoban-discover.png")] },
+            { kind: "feature", section: "BIBLIO", title: "Biblio",
+              body: "Biblio as it ships today.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-biblio.png")] },
+            { kind: "feature", section: "THEATRE", title: "Theatre",
+              body: "Theatre as it ships today.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-theatre.png")] },
+            { kind: "feature", section: "THE HOUSE", title: "The house",
+              body: "The house as it ships today.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-house.png")] }
+        ]
+        fakeUpdates.highlights = installedHighlights
+        wait(0)
+        var gallery = findChild(page, "colosseumUpdateGallery")
+        compare(gallery.chapterCount, 5)
+        compare(gallery.currentIndex, 0)
+        compare(findChild(page, "colosseumUpdateVersionTitle").text, "1.1.0")
+        compare(findChild(page, "colosseumUpdateChapterTitle").text, "Reader")
+        compare(findChild(page, "colosseumUpdateChapterBody").text,
+                "The reader as it ships today.")
+        compare(findChild(page, "colosseumUpdateChapter_01").Accessible.name,
+                "Chapter 1: Reader")
+        compare(page.offeredReleaseToken, 0)
+        // Restore the mock so later tests see their expected default state.
+        fakeUpdates.state = savedState
+        fakeUpdates.installedVersion = savedInstalled
+        fakeUpdates.latestVersion = savedLatest
+        fakeUpdates.updateAvailable = savedAvailable
+        fakeUpdates.release = savedRelease
+        fakeUpdates.highlights = savedHighlights
+    }
+
+    function test_same_count_swap_crossfades_and_resets() {
+        // The same-chapter-count swap (5<->5) is the path onChapterCountChanged
+        // cannot detect. offeredReleaseChanged bumps the token; the gallery
+        // resets currentIndex to 0 and re-arms the stage crossfade. We advance
+        // the cursor first to prove the reset, then swap to a different
+        // five-chapter chronicle and assert the cursor came back to 0 and the
+        // first chapter's copy reflects the newly-offered release.
+        var gallery = findChild(page, "colosseumUpdateGallery")
+        tryVerify(function() { return gallery.automationVisualReady }, 2000,
+                  "gallery must be visually ready before the swap probe")
+        compare(gallery.currentIndex, 0)
+        compare(findChild(page, "colosseumUpdateChapterTitle").text, "Reader")
+
+        // Advance the cursor away from 0 so the reset is observable.
+        gallery.selectChapter(2)
+        compare(gallery.currentIndex, 2)
+        compare(findChild(page, "colosseumUpdateChapterTitle").text, "Biblio")
+
+        // Swap to a different five-chapter chronicle (the newer release) with
+        // the same count. Simulate the offered-release flip: change the content
+        // and fire offeredReleaseChanged, which UpdatePage translates into a
+        // token bump.
+        var tokenBefore = page.offeredReleaseToken
+        fakeUpdates.release = ({ eyebrow: "A NEW CHAPTER", title: "Colosseum 1.2",
+                                 summary: "A newer release is offered.",
+                                 version: "1.2.0" })
+        fakeUpdates.highlights = [
+            { kind: "feature", section: "READER", title: "Reader 1.2",
+              body: "The reader grew in 1.2.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-reader.png")] },
+            { kind: "feature", section: "DISCOVER", title: "Discover 1.2",
+              body: "Discover grew in 1.2.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-tankoban-discover.png")] },
+            { kind: "feature", section: "BIBLIO", title: "Biblio 1.2",
+              body: "Biblio grew in 1.2.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-biblio.png")] },
+            { kind: "feature", section: "THEATRE", title: "Theatre 1.2",
+              body: "Theatre grew in 1.2.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-theatre.png")] },
+            { kind: "feature", section: "THE HOUSE", title: "The house 1.2",
+              body: "The house grew in 1.2.",
+              artwork: [Qt.resolvedUrl("../../release/presentation/artwork/colosseum-house.png")] }
+        ]
+        fakeUpdates.offeredReleaseChanged()
+        wait(0)
+
+        // The token bumped (UpdatePage Connections handler ran).
+        compare(page.offeredReleaseToken, tokenBefore + 1)
+        // Chapter count is unchanged (5<->5) — the count-based signal would
+        // not have fired. The cursor reset to 0 via the token handler.
+        compare(gallery.chapterCount, 5)
+        compare(gallery.currentIndex, 0)
+        // The first chapter now reflects the newly-offered release.
+        compare(findChild(page, "colosseumUpdateVersionTitle").text, "1.2.0")
+        compare(findChild(page, "colosseumUpdateChapterTitle").text, "Reader 1.2")
+        compare(findChild(page, "colosseumUpdateChapterBody").text,
+                "The reader grew in 1.2.")
+        compare(findChild(page, "colosseumUpdateChapter_01").Accessible.name,
+                "Chapter 1: Reader 1.2")
     }
 
     function test_keyboard_escape_and_reduced_motion() {

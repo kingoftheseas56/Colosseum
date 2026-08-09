@@ -51,6 +51,15 @@ Item {
         }
         return result
     }
+    // Bumped on each offered-release identity flip (installed chronicle <->
+    // newer release). The gallery watches this token to reset its chapter
+    // cursor and re-arm the stage crossfade on the same-chapter-count swap
+    // (5<->5) that a chapter-count change cannot signal.
+    property int offeredReleaseToken: 0
+    Connections {
+        target: root.updates
+        function onOfferedReleaseChanged() { root.offeredReleaseToken++ }
+    }
 
     function stateName(value) {
         switch (Number(value)) {
@@ -155,6 +164,7 @@ Item {
         chapters: root.highlightModel
         reducedMotion: root.reducedMotion
         taskbarSafeBottomLane: 96
+        offeredReleaseToken: root.offeredReleaseToken
     }
 
     BackAction {
