@@ -60,8 +60,9 @@ function normalized(value) {
 }
 
 function containsAllWords(text, words) {
+    var tokens = " " + text + " ";
     for (var index = 0; index < words.length; index++) {
-        if (text.indexOf(words[index]) < 0) return false;
+        if (tokens.indexOf(" " + words[index] + " ") < 0) return false;
     }
     return words.length > 0;
 }

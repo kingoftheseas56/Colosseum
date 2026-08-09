@@ -49,7 +49,25 @@ const tiesSecond = lesson({
     id: "tie-second", sourceIds: ["FND-06"], section: "start", title: "Archive basics",
     outcome: "Learn the archive.", order: 70, contexts: ["home"], searchTerms: []
 });
+const titleWord = lesson({
+    id: "title-word", sourceIds: ["FND-07"], section: "start", title: "Open guide safely",
+    outcome: "Follow the route.", order: 80, contexts: ["home"], searchTerms: []
+});
+const titlePrefix = lesson({
+    id: "title-prefix", sourceIds: ["FND-08"], section: "start", title: "Guidebook orientation",
+    outcome: "Follow the route.", order: 90, contexts: ["home"], searchTerms: []
+});
+const titleExact = lesson({
+    id: "title-exact", sourceIds: ["FND-09"], section: "start", title: "Guide",
+    outcome: "Follow the route.", order: 100, contexts: ["home"], searchTerms: []
+});
+const bodyOnly = lesson({
+    id: "body-only", sourceIds: ["FND-10"], section: "start", title: "Recovery checklist",
+    outcome: "Store the kit.", order: 110, contexts: ["home"], searchTerms: [],
+    blocks: [{ type: "paragraph", body: "Keep the lantern lit." }]
+});
 const lessons = [published, draft, contextPeer, punctuationTitle, related, tiesFirst, tiesSecond];
+const rankingLessons = [titleWord, titlePrefix, titleExact];
 
 // Break caught: omitting any lifecycle check lets malformed or unverified lessons enter a catalog.
 check(mod.validateLesson(published).length === 0, "valid lesson passes lifecycle validation");
@@ -88,6 +106,12 @@ check(mod.search(lessons, "safe-start downloads", "home")[0].id === "safe-start"
 check(mod.search(lessons, "first run", "home")[0].id === "safe-start", "search matches normalized search terms");
 check(ids(mod.search(lessons, "archive basics", "home").slice(0, 2)) === "tie-first,tie-second",
     "equal scores preserve catalog order");
+check(ids(mod.search(rankingLessons, "guide", "home")) === "title-exact,title-prefix,title-word",
+    "search ranks exact title, title prefix, then complete title-word matches");
+check(ids(mod.search([bodyOnly], "lantern", "home")) === "body-only",
+    "search returns a lesson matched only by body content");
+check(mod.search([punctuationTitle], "art", "home").length === 0,
+    "search does not treat a substring inside a title word as a title-word match");
 check(mod.search(lessons, "", "home").length === 0, "empty search query returns no results");
 check(mod.search(null, "help", "home").length === 0, "search tolerates an absent catalog");
 
