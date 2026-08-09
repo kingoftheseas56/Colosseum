@@ -26,6 +26,9 @@ function lessons() {
     function src(over) {
         return Object.assign({ section: "sources" }, draft, over);
     }
+    function per(over) {
+        return Object.assign({ section: "personalization" }, draft, over);
+    }
     var production = [
         vault({
             id: "vault.open-media", sourceIds: ["VLT-01", "VLT-02", "VLT-03"], order: 10,
@@ -359,6 +362,163 @@ function lessons() {
             blocks: [
                 { kind: "paragraph", text: "A configurable house or built-in source row can show the label Settings, but choosing it does not open a configuration surface. The current notice ends with settings arrive with the indexer sheet." },
                 { kind: "note", text: "No in-app settings sheet exists at this commit. Do not expect indexers, languages, quality filters, or other options to be changeable in-app yet; the label is not the same route as Configure ↗." }
+            ]
+        }),
+        // PER-01..PER-16 distilled from Batch 7 (Personalization, persistence, privacy, and
+        // updates; packet frozen at commit c175c193, ancestor of the pinned base e42a5ed).
+        // Draft, except PER-12/13/14 which stay "uncertain": PER-12 (privacy) — local stores and
+        // network-capable clients are proven but a complete telemetry/data policy is NOT;
+        // PER-13 (reset) — no global reset control exists and internal stores are not a user
+        // reset contract; PER-14 (accessibility) — no dedicated global accessibility surface
+        // exists and the internal reducedMotion input is not a user-facing setting. Batch-7
+        // "Do not claim" is law: no nothing-leaves/no-telemetry/all-local claims, no
+        // %APPDATA%/QSettings surgery, no global accessibility suite, no Explicit-Content
+        // violence/horror/parental claims, no always-global wallpaper, no offline online-search,
+        // no sessions-survive-restart, no cloud sync, and Continue/Library/local-copy removals
+        // never delete each other's state.
+        per({
+            id: "personalization.wallpapers", sourceIds: ["PER-01", "PER-02"], order: 10,
+            title: "How do I change a wallpaper, and can each world use a different one?",
+            outcome: "Choose a built-in or searched wallpaper and apply it everywhere or only to the current world.",
+            evidence: ["qml/TopBar.qml", "qml/WallpaperSearch.qml", "qml/Main.qml"],
+            openQuestions: ["Persistence after restart for all four scopes, built-in animated/native apply, and online success/no-result/error, not yet exercised at runtime"],
+            contexts: ["wallpapers"],
+            searchTerms: ["wallpaper", "change wallpaper", "for all worlds", "per world", "animated", "native"],
+            related: ["personalization.persisted-state"],
+            blocks: [
+                { kind: "paragraph", text: "A wallpaper picker opens from the wallpaper icon in the top bar of Home, Tankoban, Biblio, or Theatre. It offers built-in choices — Colosseum Animated and Colosseum Native — plus online search when a network connection is available." },
+                { kind: "steps", items: ["Open the wallpaper picker from the top bar.", "Choose a built-in tile, or search and choose a result.", "Preview the selected wallpaper.", "Choose For All Worlds to apply the same pick to Home, Tankoban, Biblio, and Theatre, or For <target world> to change only that world.", "Close the picker and confirm the intended scope changed."] },
+                { kind: "paragraph", text: "Separate picks are stored for Home, Tankoban, Biblio, and Theatre. For All Worlds writes the same choice to all four scopes; the one-world choice changes only that scope." },
+                { kind: "note", text: "Wallpaper personalization is separate from the app-wide Settings page. A searched wallpaper depends on the online search result; the built-in animated and native choices do not." }
+            ]
+        }),
+        per({
+            id: "personalization.explicit-content", sourceIds: ["PER-03", "PER-04"], order: 20,
+            title: "How do I show or hide sexually explicit titles, and what does that setting filter?",
+            outcome: "Change the current Explicit Content preference and understand its deliberately narrow scope.",
+            evidence: ["qml/SettingsPage.qml", "qml/ContentPreferences.qml", "qml/ExplicitContentPolicy.js"],
+            openQuestions: ["Clean-profile default, persistence after restart, and representative filtering in Theatre, Tankoban, and Biblio, not yet exercised at runtime"],
+            contexts: ["content-preferences"],
+            searchTerms: ["explicit content", "content settings", "mature", "settings", "sexually explicit"],
+            related: ["personalization.persisted-state"],
+            blocks: [
+                { kind: "paragraph", text: "The app-wide Settings page has one content preference section, CONTENT, with a single switch: Explicit Content. It reads and writes the shell's one content-preferences store." },
+                { kind: "paragraph", text: "The setting's own copy reads: \"Show sexually explicit titles across Theatre, Tankoban, and Biblio. Violence, horror, mature themes, and standard age ratings are not filtered.\"" },
+                { kind: "steps", items: ["Open Settings.", "Find Explicit Content under CONTENT.", "Turn the switch on to allow sexually explicit titles through the current content policy, or off to hide them where that policy applies.", "Return to the relevant world and observe its catalogue or search treatment."] },
+                { kind: "note", text: "The preference is global across the three worlds rather than world-specific, and it is not a parental control or an account system. Toggling it never changes already-downloaded files." }
+            ]
+        }),
+        per({
+            id: "personalization.persisted-state", sourceIds: ["PER-05", "PER-06", "PER-07"], order: 30,
+            title: "What does Colosseum remember after I close the app?",
+            outcome: "Know which common user states come back after a restart and which belong only to the current run.",
+            evidence: ["native/ProgressStore.h", "native/CollectionStore.h", "native/SearchHistoryStore.h", "native/SessionStore.h", "qml/Main.qml", "qml/ContentPreferences.qml"],
+            openQuestions: ["Each durable state across a full restart in the target packaged build, not merely a QML reload, not yet exercised"],
+            contexts: ["persistence"],
+            searchTerms: ["remember", "restart", "close app", "continue", "library", "recent", "session", "persist"],
+            related: ["personalization.remove-content", "vault.recent-files", "downloads.remove-local"],
+            blocks: [
+                { kind: "paragraph", text: "Several common states are durable and reappear after a restart: Continue progress, the Library collection, recent searches, wallpaper picks, the Explicit Content preference, Open Recent shortcuts, and downloaded files until their owning delete flow removes them." },
+                { kind: "paragraph", text: "Open media-session tiles in the taskbar live in the current run's session store. They are not rebuilt as taskbar sessions after a restart; Continue is the restart-safe way to resume persisted progress." },
+                { kind: "bullets", items: ["Continue — persisted reading or viewing progress", "Library — deliberately saved titles", "Open Recent — remembered local-file paths", "Downloads — local copies that stay until deleted", "Wallpaper picks and the Explicit Content preference — persisted preferences"] },
+                { kind: "note", text: "An open session, a Continue entry, a Library save, an Open Recent shortcut, and a downloaded local copy are five different states. Persistence here means storage on this device; it is not a synchronization service." }
+            ]
+        }),
+        per({
+            id: "personalization.remove-content", sourceIds: ["PER-08", "PER-09", "PER-10"], order: 40,
+            title: "How do I remove something from Continue, Library, or this device?",
+            outcome: "Choose the correct removal action without treating progress, collection membership, and local-file ownership as the same state.",
+            evidence: ["qml/ContinueTile.qml", "qml/LibraryButton.qml", "qml/DownloadsPage.qml", "native/ProgressStore.h", "native/CollectionStore.h"],
+            openQuestions: ["Each action while the same title simultaneously has Continue, Library, and downloaded state, then a restart, not yet exercised at runtime"],
+            contexts: ["cleanup"],
+            searchTerms: ["remove", "remove from continue", "in library", "local copy", "forget progress", "unsave"],
+            related: ["personalization.persisted-state", "downloads.remove-local", "vault.recent-files"],
+            blocks: [
+                { kind: "paragraph", text: "Three separate actions exist: Remove from Continue forgets a title's progress; using In Library again removes the title from your saved collection; Delete local copy removes the downloaded media from this device. They are not one shared delete operation." },
+                { kind: "steps", items: ["To forget progress: choose Remove from Continue on the Continue tile.", "To stop saving a title: choose In Library again to remove its Library membership.", "To remove downloaded bytes: open Downloads, choose Delete local copy, and confirm the destructive file-deletion message only if that is intended."] },
+                { kind: "paragraph", text: "Removing a title from Continue never touches downloaded files. Taking a title out of Library leaves its progress and any downloaded copy in place. Deleting a local copy removes the media on this device; Library membership and Continue progress remain." },
+                { kind: "note", text: "Open Recent Clear is a fourth, shortcut-only action and is separate from all three." }
+            ]
+        }),
+        per({
+            id: "personalization.support-evidence", sourceIds: ["PER-11"], order: 50,
+            title: "What information should I include when reporting a problem?",
+            outcome: "Collect precise evidence for a reproducible support report before turning to destructive recovery.",
+            evidence: ["native/engine/AppLog.cpp", "native/engine/AppLog.h", "native/main.cpp"],
+            openQuestions: ["Exact packaged Windows log path and representative log contents not yet reviewed in the target build"],
+            contexts: ["support"],
+            searchTerms: ["report a problem", "support", "log", "error report", "what to include"],
+            related: ["personalization.privacy", "personalization.reset"],
+            blocks: [
+                { kind: "paragraph", text: "Colosseum installs an always-on rolling application log during startup, written to a logs folder under the application-data location as colosseum.log. It rotates at roughly 5 MB and keeps numbered prior files." },
+                { kind: "bullets", items: ["screen or world", "content or title", "source or extension when relevant", "the exact action you took", "the exact visible error text", "whether it happens every time", "the approximate time", "a relevant recent portion of colosseum.log when deeper evidence is needed"] },
+                { kind: "steps", items: ["Reproduce the problem once if it is safe to do so.", "Record the exact screen, content, and action.", "Copy the exact visible error text.", "Note whether it happens every time.", "If deeper evidence is needed, collect only the relevant recent portion of colosseum.log.", "Keep the time of the failure so the log lines can be matched."] },
+                { kind: "note", text: "There is no automatic support-submission workflow and no dedicated Report problem button established. The log is support evidence, not a reset mechanism: collecting it is not a recovery step, and a relevant log tail is not a reason to send every application file." }
+            ]
+        }),
+        per({
+            id: "personalization.privacy", sourceIds: ["PER-12"], order: 60,
+            title: "What information leaves my computer?",
+            outcome: "Know what the current evidence does and does not establish about local storage and network behavior.",
+            status: "uncertain",
+            evidence: ["native/ProgressStore.h", "native/CollectionStore.h", "native/SearchHistoryStore.h", "qml/ContentPreferences.qml", "native/engine/AppLog.cpp", "native/update/UpdateReleaseClient.cpp", "native/update/UpdateService.cpp", "qml/WallpaperApi.js"],
+            openQuestions: ["A complete network trace and product-approved privacy statements remain blocking; no complete outbound-data inventory exists yet"],
+            contexts: ["privacy"],
+            searchTerms: ["privacy", "data", "network", "telemetry", "what leaves", "personal data"],
+            related: ["personalization.persisted-state", "personalization.support-evidence"],
+            blocks: [
+                { kind: "paragraph", text: "This article cannot yet give a complete answer. The current evidence proves two separate categories but not a complete privacy or data policy." },
+                { kind: "paragraph", text: "Known local persistence includes Continue progress, the Library collection, recent searches, wallpaper picks, the Explicit Content preference, Open Recent shortcuts, and a local rolling log. Known network-capable behavior includes catalogue, search, and discovery providers, extension registry and manifest handling, source and acquisition queries, online subtitle and wallpaper services when invoked, and updater release checks and downloads." },
+                { kind: "note", text: "Those facts are not enough to list every outbound field, rule out analytics or telemetry, state a retention policy, or describe how every extension and provider handles data. The full privacy picture is unresolved until a technical network audit and a product-approved statement exist." },
+                { kind: "note", text: "Before that evidence lands, treat the app's actual offline-capable local content paths as the only offline behavior you rely on, and avoid enabling online features you do not want to invoke." }
+            ]
+        }),
+        per({
+            id: "personalization.reset", sourceIds: ["PER-13"], order: 70,
+            title: "How do I reset all Colosseum settings and history?",
+            outcome: "Know that no supported global reset exists today, and use only the scoped controls the app offers.",
+            status: "uncertain",
+            evidence: ["qml/SettingsPage.qml", "native/ProgressStore.h", "native/CollectionStore.h", "native/SearchHistoryStore.h"],
+            openQuestions: ["Re-audit whenever a reset or recovery UI lands; scope must state each include/exclude decision explicitly"],
+            contexts: ["reset"],
+            searchTerms: ["reset", "reset all", "clear all data", "factory reset", "start fresh"],
+            related: ["personalization.remove-content", "personalization.support-evidence"],
+            blocks: [
+                { kind: "paragraph", text: "Current Settings exposes the Explicit Content preference only, and no global reset, Reset all, Clear all data, or Factory reset action exists. Colosseum state is spread across several durable stores and downloaded media, and none of them has a supported wipe-it-all control." },
+                { kind: "steps", items: ["To forget progress: use Remove from Continue.", "To stop saving a title: use In Library again.", "To clear remembered local-file shortcuts: use Open Recent Clear.", "To free storage: use Delete local copy with confirmation.", "To change a preference: toggle it back."] },
+                { kind: "note", text: "Internal settings keys and application-data directories are implementation details, not a user reset contract. They are not a supported way to start fresh; do not delete them to simulate a reset." }
+            ]
+        }),
+        per({
+            id: "personalization.accessibility", sourceIds: ["PER-14"], order: 80,
+            title: "Which accessibility settings does Colosseum provide?",
+            outcome: "Know that no dedicated global accessibility settings surface exists yet, and route comfort needs to the owning reader or player controls.",
+            status: "uncertain",
+            evidence: ["qml/SettingsPage.qml", "qml/UpdatePage.qml"],
+            openQuestions: ["Re-audit whenever a global accessibility preferences surface lands; separately verify keyboard focus and assistive-technology behavior before any compliance claim"],
+            contexts: ["accessibility"],
+            searchTerms: ["accessibility", "reduced motion", "font size", "contrast", "assistive technology"],
+            related: ["personalization.comfort-controls"],
+            blocks: [
+                { kind: "paragraph", text: "The app-wide Settings page currently contains the CONTENT preference only; no dedicated Accessibility section exists there." },
+                { kind: "paragraph", text: "Reader and player surfaces offer real aids — comic layout, zoom, and page navigation; book typography, theme, and layout; audio-track selection; subtitle selection and timing. These are feature controls in their owning surfaces, not a proven global accessibility preferences area." },
+                { kind: "note", text: "The update surface accepts an internal reduced-motion input, but no user-facing control changes it. Treat that input as internal plumbing, not a product preference." },
+                { kind: "note", text: "Until a dedicated accessibility surface lands, route comfort and comprehension needs through the owning reader or player controls. No assistive-technology certification is established." }
+            ]
+        }),
+        per({
+            id: "personalization.comfort-controls", sourceIds: ["PER-15", "PER-16"], order: 90,
+            title: "Which existing controls can make reading or video easier to follow?",
+            outcome: "Find reversible reader and player controls that may improve comfort or comprehension.",
+            evidence: ["qml/comicreader/ComicReaderShell.qml", "qml/reader2/AppearancePanel.qml", "qml/PlayerPage.qml", "qml/SubtitleMenu.qml", "qml/AudioMenu.qml"],
+            openQuestions: ["Each owning feature remains behind its batch runtime gate; no runtime exercise was performed in this pass"],
+            contexts: ["comfort"],
+            searchTerms: ["comfort", "larger text", "subtitle timing", "sync", "zoom", "reading direction", "audio track", "subtitles off"],
+            related: ["personalization.accessibility"],
+            blocks: [
+                { kind: "paragraph", text: "Inside the comic reader, book reader, and Theatre player, several reversible controls can help: comic page layout, reading direction, zoom, and page navigation; book typography, theme, layout, and keyboard navigation; video audio-track selection, subtitle selection with an Off state, and subtitle timing steps of -0.1 and +0.1 seconds beside a SYNC label." },
+                { kind: "steps", items: ["Open the relevant reader or player.", "Choose the control that addresses the concrete issue: text or layout comfort, page navigation, audio track, subtitle track, or subtitle timing.", "Adjust it; every change here is reversible.", "Return to the previous value if the change does not help."] },
+                { kind: "note", text: "These are feature controls owned by the comic reader, book reader, and Theatre player — not a single global comfort preset and not a certified accessibility suite. One setting does not apply to every media type." }
             ]
         })
     ];
