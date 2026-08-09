@@ -1,0 +1,9 @@
+# Downloads page aggregation + audiobook delivery.
+# Owner download engines remain in their world manifests - do not duplicate them here.
+# Regenerate with scripts/code_encyclopedia.py (see the guide).
+native/engine/LocalDownloads.cpp
+native/engine/LocalDownloads.h
+native/engine/AudiobookDownloader.cpp
+native/engine/AudiobookDownloader.h
+native/engine/DownloadFileOps.h
+qml/DownloadsPage.qml

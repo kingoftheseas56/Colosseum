@@ -1,0 +1,14 @@
+# Extensions roster — Stremio-protocol add-on registry, meaning layer, and callers.
+# Shell-owned composition files (native/main.cpp, qml/Main.qml, qml/BrowserDrawer.qml)
+# are real extension integration boundaries but stay owned by shell.paths.
+# Regenerate with scripts/code_encyclopedia.py (see the guide).
+native/engine/ExtensionsStore.cpp
+native/engine/ExtensionsStore.h
+qml/AddonClient.js
+qml/AddonLogo.qml
+qml/AddonLogos.js
+qml/DiscoverApi.js
+qml/ExtensionsCatalog.js
+qml/ExtensionsPage.qml
+qml/ExtensionsSources.qml
+qml/UniverseExtApi.js

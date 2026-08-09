@@ -39,8 +39,6 @@ mocks/
 archive/
 # Brother planning machinery: plans, specs, handoffs, ideas, mock HTML.
 docs/superpowers/
-# Generated code encyclopedia: embeds verbatim C++ + internal commentary.
-docs/encyclopedia/
 
 # --- Generated catalogue bulk (runtime uses resources/comics_db.json, not this) ---
 qml/comics_db.gen.js

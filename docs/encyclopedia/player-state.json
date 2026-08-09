@@ -1,0 +1,110 @@
+{
+  "entries": {
+    "native/player/caststore.cpp": {
+      "accepted_blob": "06a0960be2050e2a1c27195542ed2607ad254cf9",
+      "accepted_comment": null
+    },
+    "native/player/caststore.h": {
+      "accepted_blob": "abe42c639579029dfd57f2176489d2e5757970bc",
+      "accepted_comment": null
+    },
+    "native/player/downloadstore.cpp": {
+      "accepted_blob": "8285294f03c6c068d2fd04b088990b1e6816b19f",
+      "accepted_comment": null
+    },
+    "native/player/downloadstore.h": {
+      "accepted_blob": "651c8f0debb5b93d9b3f96c420d34a91799b5d99",
+      "accepted_comment": "// DownloadStore — the Theatre lane's video download engine.\n// v2 (2026-07-04): bounded job QUEUE with lazy per-job stream resolution — TB2's\n// proven gap-episode flow at Harbor's simplicity. A job's durable payload is the\n// episode's stream id (tt…:s:e), which never expires: resolution to a concrete\n// URL happens only when the job is promoted (needResolve → feedUrl handshake with\n// the QML resolver), so retry is always honest. Cap = MAX_ACTIVE_VIDEO.\n// Finished files land in the persisted library index (videos/index.json);\n// the in-flight queue survives restarts via videos/queue.json."
+    },
+    "native/player/livestore.cpp": {
+      "accepted_blob": "6c7e3fc14aa3892efb5032829d269233a0d22361",
+      "accepted_comment": null
+    },
+    "native/player/livestore.h": {
+      "accepted_blob": "0780e44750f711a4c88223162dbfca18acab6e3d",
+      "accepted_comment": null
+    },
+    "native/player/mpvitem.cpp": {
+      "accepted_blob": "6de769d9c1e7b34808f84259ed9ad72cbf888b63",
+      "accepted_comment": "// MpvItem implementation — lifted 1:1 from KDE mpvqt's video-player example."
+    },
+    "native/player/mpvitem.h": {
+      "accepted_blob": "ec3d61bc7c0d2abc80d8a2f8cde995fbc0a52ff1",
+      "accepted_comment": "// MpvItem — the playable mpv surface, a QQuickItem subclass of MpvQt's MpvAbstractItem.\n// Lifted 1:1 from KDE mpvqt's video-player example (proven to play real video on our\n// Qt 6.11 / MinGW), with one change: QML_ELEMENT is removed. Colosseum loads its QML\n// live from disk (no qt_add_qml_module), so the type is registered by hand in main.cpp\n//   qmlRegisterType<MpvItem>(\"Colosseum.Player\", 1, 0, \"MpvItem\");\n// and reached from QML with `import Colosseum.Player`."
+    },
+    "native/player/mpvproperties.h": {
+      "accepted_blob": "400e2ce738cc41fcab25d28cbf2c58acb36c034f",
+      "accepted_comment": "// mpv property-name constants, lifted from KDE's mpvqt video-player example.\n// Plain C++ helper (no Q_OBJECT / QML macros) — Colosseum only touches these from\n// MpvItem.cpp, never from QML, so it needs no moc and no qml registration."
+    },
+    "native/player/powerstore.cpp": {
+      "accepted_blob": "f9d44db5119a95ca0fed489266247ee1b8be2e5d",
+      "accepted_comment": null
+    },
+    "native/player/powerstore.h": {
+      "accepted_blob": "d35d72125d8a642e4d71b308f73b00a75bcd5515",
+      "accepted_comment": null
+    },
+    "native/player/roomstore.cpp": {
+      "accepted_blob": "ff172eda08cd25b36dd5c89985d2c34dbf724acd",
+      "accepted_comment": null
+    },
+    "native/player/roomstore.h": {
+      "accepted_blob": "6c5f1f95120707b29e5ff5487fffa2eb2b620308",
+      "accepted_comment": null
+    },
+    "native/player/seekthumbnailer.cpp": {
+      "accepted_blob": "0e79d889613e769f7578ea7eae92696522517d84",
+      "accepted_comment": null
+    },
+    "native/player/seekthumbnailer.h": {
+      "accepted_blob": "635103fa5163ef6fedbcc7b13006e065e2d3ab3a",
+      "accepted_comment": "// Seek-bar hover thumbnails (F9): one short-lived ffmpeg per hovered 5s bucket,\n// latest-wins, LRU-cached as data: URLs. QML paints the tooltip; this owns the\n// process transport and cache (QML-paints/C++-decides doctrine)."
+    },
+    "native/player/streamserver.cpp": {
+      "accepted_blob": "061b8abbc5275a8cba8ce5ec19fb1d6d6aa29f01",
+      "accepted_comment": null
+    },
+    "native/player/streamserver.h": {
+      "accepted_blob": "3ad759afedc30be111b16e5732f5671703aa80a4",
+      "accepted_comment": "// StreamServer — turns a torrent (infoHash + fileIdx) into a localhost HTTP URL mpv can play.\n//\n// It does NOT reimplement torrent streaming: it runs Tankoban 2's proven Stremio\n// stream-server (`stremio-runtime.exe server.js`) as a child process, the same way TB2\n// itself does. The runtime binds http://127.0.0.1:<port>/<infoHash>/<fileIdx> and we\n// surface that URL to QML.\n//\n// Lifecycle: lazy — the 88 MB runtime is only spawned on the FIRST play() call, so a\n// session that never watches anything never pays for it. Killed on app exit.\n//\n// QML contract (exposed as the context property `Stream`):\n//   Stream.play(infoHash, fileIdx)      -> eventually emits streamReady(url, infoHash, fileIdx)\n//   Stream.ready                         -> bool, true once the runtime's port is known\n//   onStreamReady(url, infoHash, idx)    -> hand `url` to MpvItem.loadFile(url)\n//   onStreamError(message)               -> show the message; playback won't start"
+    },
+    "native/player/windowmodestore.cpp": {
+      "accepted_blob": "9d08bf633f40e1263371d5dfbc6206b752c84000",
+      "accepted_comment": null
+    },
+    "native/player/windowmodestore.h": {
+      "accepted_blob": "f4336ec7be0cd0ba7823ad2a858ea2d47c849c80",
+      "accepted_comment": null
+    },
+    "native/player/windowstatepolicy.cpp": {
+      "accepted_blob": "65eedff6d58975e651dc76335093717ea3edf48e",
+      "accepted_comment": null
+    },
+    "native/player/windowstatepolicy.h": {
+      "accepted_blob": "f5e8fe345a17094574953066a33633464e00705c",
+      "accepted_comment": null
+    },
+    "qml/PlayerHotkeys.js": {
+      "accepted_blob": "5129ce0402582f010260bdcbeed76a631fbaf3db",
+      "accepted_comment": "// Pure player hotkey registry (Feature 7). Centralizes shortcut metadata, string/event lookup,\n// conflict detection, and grouping for the shortcuts sheet. No QML `Qt` global is used: key\n// events are matched by numeric Qt::Key codes (stable ABI) so this library is fully testable\n// headless with synthetic events. PlayerPage owns the ACTUAL behavior; this only resolves ids."
+    },
+    "qml/PlayerLoadingScreen.qml": {
+      "accepted_blob": "e1a8d737932e7770bcba6e361136fcb0978bce0d",
+      "accepted_comment": "// Stremio-style per-show startup loader. Reference = Stremio's Player (stremio-web): a FULL-BLEED\n// backdrop shown CLEARLY (not blurred; only subtle top/bottom gradients) with the show's CINEMETA\n// LOGO — the stylized title art — centered as the hero. Text is only a fallback when no logo loads.\n// Beneath: the episode line, a status line, and a thin INDETERMINATE bar. Colosseum exposes no\n// trustworthy torrent readiness figure, so the bar only sweeps — it NEVER shows a fabricated number.\n//\n// Owned/fed by PlayerPage: `active` gates everything; PlayerPage flips it off on the truthful\n// first-frame advance (or when the resume-choice prompt takes over). Art decode runs ONLY while\n// active. Harbor shows the same logo with no backdrop; we keep Stremio's backdrop."
+    },
+    "qml/PlayerPage.qml": {
+      "accepted_blob": "08cfed30337207622cdad833cb416306d84b2e81",
+      "accepted_comment": "// PlayerPage - Harbor/TB3-style fullscreen player chrome on top of Colosseum's mpvqt MpvItem.\n// Streaming remains behind the Stream.play -> streamReady seam; this file only owns player UI."
+    },
+    "qml/PlayerTrackPrefs.js": {
+      "accepted_blob": "c41ed4445e0757e3b294382de5ac26efb78d76ea",
+      "accepted_comment": null
+    },
+    "qml/TheatreApi.js": {
+      "accepted_blob": "b6dd1594103ba608ad04f2d0a56928b9cb4fd40f",
+      "accepted_comment": "// TheatreApi.js - tiny live catalog adapter for the Colosseum QML prototype.\n// Cinemeta is the identity source for movies, series, and anime-shaped series rows.\n// Extensions (spec Phase 3): installed catalog extensions add THEIR shelves to the\n// tab pages after the house rows, and answer meta asks the house sources can't.\n// A .pragma library can't see context properties, so Main.qml pushes the installed\n// list in via setExtensions() at boot and on every registry change."
+    }
+  },
+  "integrity": "sha256:a78c5d6d7a7b70ebf1394758db8147915768956d8ab760fd3d732bd168d2f96e",
+  "schema": 1
+}

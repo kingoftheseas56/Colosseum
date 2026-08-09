@@ -1,0 +1,18 @@
+# Baked/offline metadata catalogues (IMDb + MAL).
+# Python database builders (theatre_brain/build_imdb_db.py, anime_brain/build_mal_db.py)
+# are documented by catalogs.md but are not manifest-eligible (.py is not harvested).
+# Shell/player/tankoban-owned composition consumers remain cross-references.
+# ComicsCatalog stays owned by comics.paths.
+# Regenerate with scripts/code_encyclopedia.py (see the guide).
+native/engine/ImdbCatalog.cpp
+native/engine/ImdbCatalog.h
+native/engine/MalCatalog.cpp
+native/engine/MalCatalog.h
+qml/GenreApi.js
+qml/GenrePage.qml
+qml/TankobanDiscoverApi.js
+qml/TheatreCatalogPage.qml
+qml/TheatreCatalogRules.js
+qml/TheatreGenreApi.js
+qml/TheatreGenrePage.qml
+qml/TheatreSeeAllPage.qml

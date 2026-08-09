@@ -1,0 +1,30 @@
+{
+  "entries": {
+    "native/engine/AudiobookDownloader.cpp": {
+      "accepted_blob": "fabb27a938d133fc52ce403376c031e6bc43849f",
+      "accepted_comment": null
+    },
+    "native/engine/AudiobookDownloader.h": {
+      "accepted_blob": "eadaaca5797b2a6bb713b7d523b51b353cebb3c2",
+      "accepted_comment": "// AudiobookDownloader.h\n//\n// The audiobook half of the download-fed backbone. An audiobook is a torrent of\n// N audio files (a single .m4b, or a set of .mp3 chapters). This ports\n// BookDownloader's proven HTTP-stream-to-disk machinery but sources bytes from\n// the Stremio engine's localhost HTTP instead of LibGen, and keys everything by\n// `pairKey` (the title+author pairing identity) so a book page can flip to \"Listen\".\n//\n// Transport (proven live 2026-07-12 — see docs plan Task 0):\n//   1. m_stream->prefetch(infoHash, 0) starts/adopts the Stremio engine AND\n//      registers the torrent, then emits fetchReady(url, infoHash, 0). The url\n//      (http://127.0.0.1:<port>/<infoHash>/0) gives us the engine base.\n//   2. POST <base>/<infoHash>/create → JSON { files:[{path,name,length,offset}] }.\n//      fileIdx = the index into that files[] array. Filter to audio extensions,\n//      natural-sort, and each file streams from <base>/<infoHash>/<fileIdx>\n//      COMPLETE (plain GET, no Range → whole file; proven, no buffer cap).\n//   3. Stream each file to <appdata>/audiobooks/<pairKeyHash>/<NN - name>.<ext>\n//      via chunked readyRead → .part → atomic rename (BookDownloader lineage).\n//\n// On-disk: <appdata>/audiobooks/<pairKeyHash>/ + <appdata>/audiobooks/index.json.\n//\n// Threading: pure QNetworkAccessManager + QObject lambdas on the main thread."
+    },
+    "native/engine/DownloadFileOps.h": {
+      "accepted_blob": "a800c26171645a39b8a6b09195159893c9dd961f",
+      "accepted_comment": null
+    },
+    "native/engine/LocalDownloads.cpp": {
+      "accepted_blob": "73df1093a1137d760ee03db8681b61d565520c4f",
+      "accepted_comment": null
+    },
+    "native/engine/LocalDownloads.h": {
+      "accepted_blob": "9d5e7e62773c2d22d7f9920aa83ca055f77b0e1c",
+      "accepted_comment": "// LocalDownloads — the unified read-model behind the Downloads page.\n// Normalizes all five download backbones (MangaDownloader, BookDownloader,\n// ComicDownloader, player DownloadStore, and MangaTankobanService's volume\n// lane) into one world → series → item shape so QML only renders. It owns NO\n// files and NO network: every action routes to the owning backend. Progress\n// (resume) is deliberately NOT consulted here — downloads answer \"what exists\n// locally\", not \"where do I resume\".\n// Design: chatgpt_requests/20260629-171426-…-plan-review/response.md (ratified),\n// layout ratified 2026-07-04 (agents/colosseum-downloads-mock.html).\n// 2026-07-16: Tankoban volume mode composed in — the page predated volume mode\n// and silently omitted every volume it ingested (Hemanth eyes-on)."
+    },
+    "qml/DownloadsPage.qml": {
+      "accepted_blob": "fdc2ff94352996e25018d12212895c85d0a020bf",
+      "accepted_comment": "// DownloadsPage — everything the house holds locally, in one full page.\n// Ratified design: agents/colosseum-downloads-mock.html (2026-07-04, \"go with it\").\n// Structure IS the information: \"Now arriving\" (live jobs, cross-world) answers a\n// different question than the vault shelves (settled files, world → series → item),\n// so they are separate surfaces in that order. Data = LocalDownloads (read-model);\n// every action routes back to the owning backend. No sample data — empty lanes\n// say so honestly and route to their world."
+    }
+  },
+  "integrity": "sha256:83b865a64272b9c27857949e14832acfab3c2c4d4b49cbbe34b9c085e610a129",
+  "schema": 1
+}

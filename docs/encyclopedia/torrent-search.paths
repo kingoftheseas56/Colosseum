@@ -1,0 +1,18 @@
+# Generic federated torrent search/indexer layer.
+# Media-specific rank/download/ingest files stay in their existing guides
+# (Book* -> biblio.paths, Comic* -> comics.paths, Manga* -> tankoban.paths).
+# native/torrent/engine is a separate sibling boundary (libtorrent session).
+# Regenerate with scripts/code_encyclopedia.py (see the guide).
+native/torrent/ExtTorrentsIndexer.cpp
+native/torrent/ExtTorrentsIndexer.h
+native/torrent/KnabenIndexer.cpp
+native/torrent/KnabenIndexer.h
+native/torrent/PirateBayIndexer.cpp
+native/torrent/PirateBayIndexer.h
+native/torrent/TankorentSearchService.cpp
+native/torrent/TankorentSearchService.h
+native/torrent/TorrentIndexer.cpp
+native/torrent/TorrentIndexer.h
+native/torrent/TorrentResult.h
+native/torrent/TorrentsCsvIndexer.cpp
+native/torrent/TorrentsCsvIndexer.h
