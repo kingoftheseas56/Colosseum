@@ -14,6 +14,7 @@
 // dismissCard, cancelScan.
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
@@ -61,6 +62,10 @@ public:
     // ── commands (C++ owns the multi-step sequences) ──
     // Add a folder as an UNCONFIRMED root and census it off-thread; scanFinished raises the card.
     Q_INVOKABLE void addFolder(const QString& pathOrUrl);
+    // Called when the Vault opens: if a root was added but never confirmed (a picked-then-
+    // abandoned folder, or a crash mid-ceremony), resume its founding card — but only ONCE
+    // per app run, so dismissing it and reopening the Vault the same session does not nag.
+    Q_INVOKABLE void offerUnconfirmedRoots();
     // Confirm the candidate root: persist the card's chip reassignments (subtreePath → kind),
     // mark the root confirmed, then re-census + publish the UNION of ALL confirmed roots.
     Q_INVOKABLE void confirmRoot(const QString& root, const QVariantMap& kindOverrides);
@@ -77,6 +82,9 @@ signals:
 
 private:
     void setScanning(bool scanning);
+    // Kick off an off-thread census of an already-added root and clear any stale candidate
+    // (shared by addFolder and offerUnconfirmedRoots).
+    void beginCensus(const QString& path);
 
     VaultIndex* m_index = nullptr;
     VaultScanner* m_scanner = nullptr;
@@ -88,4 +96,5 @@ private:
     int m_scanTotal = 0;
     QVariantList m_candidate;
     QString m_candidateRoot;
+    QSet<QString> m_offeredThisRun; // normalized roots whose card we already raised this launch
 };

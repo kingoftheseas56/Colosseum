@@ -3,8 +3,19 @@
 #include "VaultScanner.h"
 #include "VaultConfig.h"
 
+#include <QDir>
 #include <QMap>
 #include <QUrl>
+
+// Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots().
+static QString normPath(const QString& p)
+{
+    QString n = QDir::cleanPath(p);
+#ifdef Q_OS_WIN
+    n = n.toLower();
+#endif
+    return n;
+}
 
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
                            QObject* parent)
@@ -101,6 +112,13 @@ void VaultLibrary::addFolder(const QString& pathOrUrl)
     // Add the folder as an UNCONFIRMED root (user intent), then census it off-thread. The
     // candidate card rises on scanFinished; nothing is published until the user confirms.
     m_config->addRoot(path);
+    m_offeredThisRun.insert(normPath(path)); // an explicit add is this run's offer for it
+    beginCensus(path);
+}
+
+void VaultLibrary::beginCensus(const QString& path)
+{
+    // Clear any stale candidate, reset the pill, and kick the off-thread census.
     m_candidate.clear();
     m_candidateRoot.clear();
     emit candidateChanged();
@@ -111,6 +129,27 @@ void VaultLibrary::addFolder(const QString& pathOrUrl)
     emit scanProgressChanged();
     setScanning(true);
     m_scanner->scanRoot(path, m_config->scanIgnore());
+}
+
+void VaultLibrary::offerUnconfirmedRoots()
+{
+    if (!m_scanner || !m_config)
+        return;
+    // Never interrupt an in-flight scan or a card already up.
+    if (m_scanning || cardVisible())
+        return;
+    const QVariantList roots = m_config->roots();
+    for (const QVariant& r : roots) {
+        const QVariantMap m = r.toMap();
+        if (m.value(QStringLiteral("confirmed")).toBool())
+            continue;
+        const QString path = m.value(QStringLiteral("path")).toString(); // already normalized
+        if (path.isEmpty() || m_offeredThisRun.contains(path))
+            continue;
+        m_offeredThisRun.insert(path);
+        beginCensus(path);
+        return; // one founding card at a time
+    }
 }
 
 void VaultLibrary::confirmRoot(const QString& root, const QVariantMap& kindOverrides)

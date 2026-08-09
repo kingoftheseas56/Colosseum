@@ -32,6 +32,10 @@ Item {
     readonly property string vaultState: scanning ? "scanning" : (itemCount > 0 ? "populated" : "empty")
     readonly property bool cardVisible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
 
+    // On open (the vaultLayer Loader recreates this page each time), resume the founding card
+    // for a folder added-but-never-confirmed. C++ dedups to once per app run (Slice 11 Thread D).
+    Component.onCompleted: if (typeof VaultLibrary !== "undefined") VaultLibrary.offerUnconfirmedRoots()
+
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }
     Rectangle { anchors.fill: parent; color: "#000000" }
