@@ -362,6 +362,45 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 300)
 
+# ── Installed chronicle (installed-release chronicle plan, Slice 2, 2026-08-09)
+# InstalledChronicle loads + verifies the bundled signed manifest that seeds the
+# Update gallery with the installed release's chapters at rest. Pure QtCore +
+# the existing UpdateTrust Ed25519 path; GUILESS. The test fixture under
+# tests/lanista_fixtures/installed-chronicle/ is signed with the test private
+# key (counterpart to kUpdateTestPublicKey, selected under COLOSSEUM_UPDATE_TESTING).
+# Same deploy pattern as tst_window_state_policy: land beside the app's Qt DLLs
+# and stage Qt6Test.dll, or the exe dies 0xc0000135 before main().
+add_executable(tst_installed_chronicle
+    auto/update/tst_installed_chronicle.cpp
+    "${COLOSSEUM_NATIVE_DIR}/update/InstalledChronicle.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/update/InstalledChronicle.h"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdateManifest.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdateManifest.h"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdateVersion.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdateVersion.h"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdateTrust.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdateTrust.h"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdatePublicKey.h"
+    "${COLOSSEUM_NATIVE_DIR}/update/UpdateTestPublicKey.h")
+target_include_directories(tst_installed_chronicle PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_installed_chronicle PRIVATE
+    COLOSSEUM_UPDATE_TESTING=1
+    INSTALLED_CHRONICLE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/lanista_fixtures/installed-chronicle")
+target_link_libraries(tst_installed_chronicle
+    PRIVATE Qt6::Core Qt6::Test colosseum_update_crypto)
+set_target_properties(tst_installed_chronicle PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_installed_chronicle POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.installed_chronicle
+         COMMAND tst_installed_chronicle)
+set_tests_properties(colosseum.qttest.installed_chronicle PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Red canary — the permanent negative control ──────────────────────────────
 # Proves ctest actually surfaces a failing command as red (WILL_FAIL inverts
 # it, so the suite stays green while the detection path is exercised on every
