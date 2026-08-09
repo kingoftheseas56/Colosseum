@@ -1,7 +1,7 @@
 {
   "entries": {
     "native/engine/ExtensionsStore.cpp": {
-      "accepted_blob": "8cc97ae06cb4947a47b1d7f25d2eb73f5e1d3729",
+      "accepted_blob": "efebc3e4acb07ce3fdefcbba413cee60a0bab93a",
       "accepted_comment": "// ExtensionsStore.cpp — see ExtensionsStore.h for the contract."
     },
     "native/engine/ExtensionsStore.h": {
@@ -41,6 +41,6 @@
       "accepted_comment": "// UniverseExtApi.js — load, validate and cache a universe extension's payload.\n//\n// The payload contract is the universes-as-extensions design §5.2. Its end state is a\n// served universe.json over HTTPS (§5.5); until that server exists the same document is\n// bundled at assets/universes/<file>.json. Same shape, same loader, same validation — so\n// the move to HTTPS changes the URL below and nothing else.\n//\n// VALIDATION IS A GATE, NOT A FORMALITY. A video tile that reaches Theatre without a type\n// opens a series as a movie and dies (§5.4). An invalid entry is DROPPED and the rest of\n// the payload still renders; a section left empty by that is removed entirely, because an\n// empty row is a lie about what the universe holds."
     }
   },
-  "integrity": "sha256:8067dfb7372bd6239b04aa56e0656ad9f412fab27966306e878d29b4469dcec3",
+  "integrity": "sha256:3a66313bf8f37cb3453b687e3e46b4e9e83dd3246e94563727ac794789906693",
   "schema": 1
 }

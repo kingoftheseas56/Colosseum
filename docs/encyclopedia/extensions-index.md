@@ -14,8 +14,8 @@
 ## `native/engine/ExtensionsStore.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `8cc97ae06cb4947a47b1d7f25d2eb73f5e1d3729`
-- Current blob: `8cc97ae06cb4947a47b1d7f25d2eb73f5e1d3729`
+- Accepted blob: `efebc3e4acb07ce3fdefcbba413cee60a0bab93a`
+- Current blob: `efebc3e4acb07ce3fdefcbba413cee60a0bab93a`
 - Source: [`native/engine/ExtensionsStore.cpp`](../../native/engine/ExtensionsStore.cpp)
 
 ```text

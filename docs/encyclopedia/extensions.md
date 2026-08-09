@@ -47,6 +47,13 @@ That interpretation belongs to `ExtensionsCatalog.js`:
 - a non-core `stream` row is a **well** — it is asked for a playable/downloadable answer;
 - array order is global storage order, while the visible rank is relative to one world's filtered wells.
 
+**First-run consent (2026-08-09).** A well is *seeded* installed but **disabled** — a fresh profile enables no
+removable acquisition/playback source until the user turns it on (the locked Stremio model; fixes the
+NoTorrent/Torrentio-on-by-default violation). Core catalogues and non-`stream` capabilities (subtitles,
+universes) seed enabled. The seed derives this from the manifest's `resources` + `core`, never a name; an
+existing profile keeps its own enabled choices (`add` preserves them, no defaults-version bump). See
+`ExtensionsStore.cpp` `entry()` and `tests/auto/extensions/tst_extensions_first_run.cpp`.
+
 `AddonClient.js` is the generic Stremio-protocol caller. It receives the current installed roster from the shell,
 matches manifests against a requested resource/type/id, then asks only the enabled extensions that claim they can
 answer.

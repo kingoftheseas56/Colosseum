@@ -162,6 +162,31 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Extensions first-run consent (Living Guide Task 11, 2026-08-09) ──────────
+# The fresh-profile acquisition-source consent contract: core catalogues seeded
+# enabled, every removable acquisition/playback well (non-core + `stream`) seeded
+# INSTALLED but DISABLED until the user enables it; non-fetching capabilities stay
+# enabled. Derivation is by manifest resources + core, never string-matching.
+# Compiles ExtensionsStore.cpp; isolated AppData via test mode + a wiped index.
+add_executable(tst_extensions_first_run
+    auto/extensions/tst_extensions_first_run.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h")
+target_include_directories(tst_extensions_first_run PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_extensions_first_run PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_extensions_first_run PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_extensions_first_run POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.extensions_first_run
+         COMMAND tst_extensions_first_run)
+set_tests_properties(colosseum.extensions_first_run PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault index (execution plan Slice 3, 2026-08-08) ─────────────────────────
 # VaultIndex — the rebuildable SQLite scan product: transactional full-replace
 # publish (a cancelled/errored publish rolls back, previous contents intact),

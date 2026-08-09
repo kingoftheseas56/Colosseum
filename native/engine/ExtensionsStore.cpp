@@ -114,7 +114,15 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         e.insert(QStringLiteral("id"), QString::fromLatin1(id));
         e.insert(QStringLiteral("transportUrl"), QString::fromLatin1(url));
         e.insert(QStringLiteral("installedAt"), now);
-        e.insert(QStringLiteral("enabled"), true);
+        // First-run source consent (locked product rule, the Stremio model): a removable acquisition/
+        // playback WELL — a non-core extension that provides `stream` sources — is seeded INSTALLED but
+        // DISABLED until the user turns it on. Core catalogues and non-fetching capabilities
+        // (catalog/meta/subtitles/universe) stay enabled. Derived from the manifest's resources + core,
+        // never from string-matching a name. `add` preserves an existing profile's own enabled choice;
+        // this default reaches only rows a profile does not already carry.
+        const bool removableWell = !core
+            && manifest.value(QStringLiteral("resources")).toStringList().contains(QStringLiteral("stream"));
+        e.insert(QStringLiteral("enabled"), !removableWell);
         e.insert(QStringLiteral("core"), core);
         e.insert(QStringLiteral("manifest"), manifest);
         return e;
