@@ -136,11 +136,11 @@ Item {
                                text: card.totalShelves === 1 ? "shelf" : "shelves"; color: theme.inkDim
                                font.family: theme.ui; font.pixelSize: 13 }
                     }
-                    Text {
+                    Row {
+                        spacing: 6
                         visible: card.totalBytes > 0
-                        anchors.bottom: parent.bottom; anchors.bottomMargin: 3
-                        text: card.humanSize(card.totalBytes); color: theme.ink
-                        font.family: theme.display; font.pixelSize: 22
+                        Text { text: card.humanSize(card.totalBytes); color: theme.ink
+                               font.family: theme.display; font.pixelSize: 22 }
                     }
                 }
 
@@ -152,6 +152,10 @@ Item {
                         required property var modelData
                         required property int index
                         objectName: "vaultCardRow_" + index
+                        // Lift the row whose kind picker is open ABOVE the rows below it, so the
+                        // downward-opening picker draws over them instead of being occluded (a child's
+                        // own z only orders it within this row, not against sibling rows).
+                        z: card.openChipRow === index ? 5 : 0
                         // Lanista/tests read the row's live (possibly reassigned) kind here.
                         property string kind: card.kindOf(modelData, index)
 
@@ -175,8 +179,10 @@ Item {
                                 spacing: 3
                                 Text {
                                     Layout.fillWidth: true
-                                    elide: Text.ElideMiddle
-                                    text: modelData.subtreePath || ""
+                                    elide: Text.ElideRight
+                                    // the clean folder title, not the full absolute path (declutter — the
+                                    // card header already shows the root; per-row paths overloaded the rows)
+                                    text: modelData.groupTitle || card.leafName(modelData.subtreePath)
                                     color: theme.inkDimmer
                                     font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 0.3
                                 }
@@ -195,14 +201,6 @@ Item {
                                     }
                                     color: theme.ink
                                     font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    visible: !!modelData.sample
-                                    wrapMode: Text.WordWrap
-                                    text: modelData.sample || ""
-                                    color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 12
                                 }
                             }
 
