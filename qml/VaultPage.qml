@@ -284,4 +284,17 @@ Item {
         anchors.leftMargin: theme.margin - 10
         onTriggered: root.backRequested()
     }
+
+    // ── the founding-ceremony confirmation card: a modal over the Vault once a census yields a
+    //    candidate. Seedable component; VaultPage wires it to the VaultLibrary façade. ──
+    VaultConfirmCard {
+        objectName: "vaultCard"
+        anchors.fill: parent
+        z: 30
+        visible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
+        model: (typeof VaultLibrary !== "undefined") ? (VaultLibrary.candidateChanged, VaultLibrary.candidate) : []
+        rootPath: (typeof VaultLibrary !== "undefined") ? VaultLibrary.candidateRoot : ""
+        onShelveRequested: (ov) => { if (typeof VaultLibrary !== "undefined") VaultLibrary.confirmRoot(rootPath, ov) }
+        onDismissRequested: { if (typeof VaultLibrary !== "undefined") VaultLibrary.dismissCard() }
+    }
 }
