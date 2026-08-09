@@ -17,13 +17,21 @@ TestCase {
     Component { id: pageComponent; Guide.GuidePage {} }
     Component { id: catalogComponent; Guide.GuideCatalog {} }
     property var page: null
+    SignalSpy { id: closeSpy; signalName: "closeRequested" }
+    SignalSpy { id: wallpaperSpy; signalName: "wallpaperChoiceRequested" }
 
     function init() {
         page = pageComponent.createObject(testWindow, { width: testWindow.width, height: testWindow.height })
         verify(page !== null)
+        closeSpy.target = page
+        wallpaperSpy.target = page
     }
 
     function cleanup() {
+        closeSpy.clear()
+        closeSpy.target = null
+        wallpaperSpy.clear()
+        wallpaperSpy.target = null
         if (page) page.destroy()
         page = null
     }
@@ -65,9 +73,22 @@ TestCase {
         compare(page.searchResults.length, 0)
         verify(page.noResultFallbackSection.length > 0)
         compare(page.noResultFixSection, "fix")
-        page.openNoResultFallback()
+        tryCompare(page, "presentationOpacity", 1)
+        var nearest = findChild(page, "guideNoResultNearestAction")
+        verify(nearest !== null)
+        tryVerify(function() { return nearest.visible && nearest.width > 0 && nearest.height > 0 })
+        mouseClick(nearest)
         compare(page.currentView, "section")
         compare(page.currentSection, page.noResultFallbackSection)
+
+        findChild(page, "guideSearch").text = "no such local guide answer"
+        tryCompare(page, "presentationOpacity", 1)
+        var fix = findChild(page, "guideNoResultFixAction")
+        verify(fix !== null)
+        tryVerify(function() { return fix.visible && fix.width > 0 && fix.height > 0 })
+        mouseClick(fix)
+        compare(page.currentView, "section")
+        compare(page.currentSection, "fix")
     }
 
     // Break caught: unknown origin internals leak into a fabricated context strip.
@@ -124,6 +145,20 @@ TestCase {
         articlePage.destroy()
     }
 
+    // Break caught: an image without usable alt text still creates a visual candidate.
+    function test_article_omits_image_visual_when_alt_text_is_missing() {
+        var fixture = invalidImageCatalog()
+        var articlePage = pageComponent.createObject(testWindow, {
+            width: testWindow.width, height: testWindow.height, catalog: fixture, initialLessonId: "fixture.invalid-image"
+        })
+        verify(articlePage !== null)
+        tryCompare(articlePage, "currentView", "article")
+        var article = findChild(articlePage, "guideArticle")
+        verify(article.visibleText.indexOf("Verified fallback instructions") >= 0)
+        compare(findChild(article, "guideArticleImageVisual"), null)
+        articlePage.destroy()
+    }
+
     // Break caught: a recognized origin loses the return bridge to the exact calling surface.
     function test_context_strip_and_return_action_preserve_origin_label() {
         page.originLabel = "Manga reader"
@@ -139,31 +174,42 @@ TestCase {
         compare(returns, 1)
     }
 
-    // Break caught: keyboard users cannot enter the Guide or see where focus is.
+    // Break caught: keyboard users cannot reach a Guide control through the real tab order.
     function test_keyboard_focus_is_available_and_visible() {
         var search = findChild(page, "guideSearch")
         verify(search.activeFocusOnTab)
         testWindow.requestActivate()
-        search.forceActiveFocus()
-        tryVerify(function() { return search.activeFocus })
+        for (var index = 0; index < 12 && !search.activeFocus; ++index) {
+            keyClick(Qt.Key_Tab)
+            wait(0)
+        }
+        verify(search.activeFocus, "Tab must reach the local Guide search field")
         verify(search.focusVisible)
+        keyClick(Qt.Key_Backtab)
+        wait(0)
+        verify(!search.activeFocus, "Backtab must leave the focused Guide search field")
+        verify(hasActiveFocus(page), "Backtab keeps focus inside a meaningful Guide control")
     }
 
-    // Break caught: reduced-motion preference leaves a delayed visual transition in the Guide.
+    // Break caught: reduced motion is a disconnected preference rather than an immediate visual state.
     function test_reduced_motion_makes_selection_immediate() {
-        page.reducedMotion = true
+        page.reducedMotion = false
         page.openSection("biblio")
-        compare(page.currentSection, "biblio")
-        compare(page.selectionTransitionDuration, 0)
+        verify(page.presentationOpacity < 1, "normal navigation starts a visible transition")
+        tryCompare(page, "presentationOpacity", 1)
+        page.reducedMotion = true
+        page.openSection("theatre")
+        compare(page.currentSection, "theatre")
+        compare(page.presentationOpacity, 1)
+        compare(page.presentationTransitionRunning, false)
     }
 
     // Break caught: Escape escapes the caller rather than closing the Guide utility first.
     function test_escape_emits_close_requested() {
-        var closes = 0
-        page.closeRequested.connect(function() { closes++ })
         page.forceActiveFocus()
-        page.requestClose()
-        compare(closes, 1)
+        testWindow.requestActivate()
+        keyClick(Qt.Key_Escape)
+        compare(closeSpy.count, 1)
     }
 
     // Break caught: the narrow page leaves an always-on index consuming the reading width.
@@ -190,6 +236,36 @@ TestCase {
         compare(journey.currentStep, 0)
     }
 
+    // Break caught: the harmless wallpaper lesson cannot hand off to the later shell choice surface.
+    function test_first_journey_wallpaper_action_requests_a_choice_without_completing_the_step() {
+        var journey = findChild(page, "guideFirstJourney")
+        var journeyRequests = 0
+        var pageRequests = 0
+        journey.wallpaperChoiceRequested.connect(function() { journeyRequests++ })
+        page.wallpaperChoiceRequested.connect(function() { pageRequests++ })
+        journey.currentStep = 2
+        testWindow.requestActivate()
+        var chooseWallpaper = findChild(journey, "guideJourneyWallpaperAction")
+        verify(chooseWallpaper !== null)
+        tryVerify(function() { return chooseWallpaper.visible && chooseWallpaper.width > 0 && chooseWallpaper.height > 0 })
+        var actionPosition = chooseWallpaper.mapToItem(page, 0, 0)
+        verify(actionPosition.y >= 0 && actionPosition.y + chooseWallpaper.height <= page.height,
+               "the visible wallpaper action must be inside the Guide viewport")
+        page.forceActiveFocus()
+        for (var index = 0; index < 16 && !chooseWallpaper.activeFocus; ++index) {
+            keyClick(Qt.Key_Tab)
+            wait(0)
+        }
+        verify(chooseWallpaper.activeFocus, "Tab must reach the visible wallpaper action")
+        keyClick(Qt.Key_Space)
+        compare(journeyRequests, 1)
+        compare(pageRequests, 1)
+        compare(wallpaperSpy.count, 1)
+        compare(journey.currentStep, 2)
+        journey.skipCurrent()
+        compare(journey.currentStep, 3)
+    }
+
     function fixtureCatalog() {
         return Qt.createQmlObject('import QtQuick 2.15; QtObject {\n'
             + 'property var allLessons: [{ id: "fixture.blocks", section: "start", title: "Block fixture", '
@@ -204,6 +280,30 @@ TestCase {
             + 'function search(query, context) { return query === "blocks" ? allLessons : []; }\n'
             + 'function section(id) { return id === "start" ? allLessons : []; }\n'
             + '}', testWindow, "fixtureCatalog")
+    }
+
+    function invalidImageCatalog() {
+        return Qt.createQmlObject('import QtQuick 2.15; QtObject {\n'
+            + 'property var allLessons: [{ id: "fixture.invalid-image", section: "start", title: "Invalid image fixture", '
+            + 'outcome: "A local image fallback fixture.", status: "published", order: 1, worlds: [], evidence: [], '
+            + 'verifiedCommit: "fixture", verifiedDate: "2026-08-09", contexts: ["home"], searchTerms: ["invalid image"], '
+            + 'blocks: [{kind:"paragraph", text:"Verified fallback instructions"}, '
+            + '{kind:"image", path:"local-asset.png", alt:"", text:"Verified fallback instructions"}], related: [] }];\n'
+            + 'property var publishedLessons: allLessons;\n'
+            + 'function find(id) { return id === "fixture.invalid-image" ? allLessons[0] : null; }\n'
+            + 'function search(query, context) { return []; }\n'
+            + 'function section(id) { return id === "start" ? allLessons : []; }\n'
+            + '}', testWindow, "invalidImageCatalog")
+    }
+
+    function hasActiveFocus(root) {
+        if (!root) return false
+        if (root.activeFocus) return true
+        var kids = root.children || []
+        for (var index = 0; index < kids.length; ++index) {
+            if (hasActiveFocus(kids[index])) return true
+        }
+        return false
     }
 
     function findChild(root, objectName) {

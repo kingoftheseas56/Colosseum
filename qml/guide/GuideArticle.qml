@@ -19,6 +19,18 @@ Item {
         return String(block.text || block.alt || "")
     }
 
+    function canRenderImage(block) {
+        var path = String(block && block.path || "").trim()
+        var alt = String(block && block.alt || "").trim()
+        var lowerPath = path.toLowerCase()
+        return path.length > 0 && alt.length > 0
+                && lowerPath.indexOf("://") < 0
+                && lowerPath.indexOf("http:") !== 0
+                && lowerPath.indexOf("https:") !== 0
+                && lowerPath.indexOf("ftp:") !== 0
+                && lowerPath.indexOf("data:") !== 0
+    }
+
     function refresh() {
         var kinds = []
         var text = []
@@ -29,6 +41,8 @@ Item {
                 console.warn("GuideArticle unknown block kind for lesson " + (lesson ? lesson.id : "<missing>"))
                 continue
             }
+            if (block.kind === "image" && !canRenderImage(block))
+                console.warn("GuideArticle unusable image block for lesson " + (lesson ? lesson.id : "<missing>"))
             kinds.push(block.kind)
             text.push(blockText(block))
         }
@@ -69,7 +83,7 @@ Item {
                         if (!block) return emptyBlock
                         if (block.kind === "paragraph" || block.kind === "note") return textBlock
                         if (block.kind === "steps" || block.kind === "bullets") return listBlock
-                        if (block.kind === "image") return imageBlock
+                        if (block.kind === "image") return root.canRenderImage(block) ? imageBlock : imageFallbackBlock
                         return emptyBlock
                     }
                 }
@@ -90,10 +104,13 @@ Item {
                     Column {
                         width: parent.width
                         spacing: 6
-                        readonly property bool localAsset: String(block.path || "").length > 0 && String(block.path).indexOf("://") < 0
-                        Image { visible: parent.localAsset && status === Image.Ready; source: parent.localAsset ? Qt.resolvedUrl(block.path) : ""; width: Math.min(implicitWidth, parent.width); fillMode: Image.PreserveAspectFit }
+                        Image { objectName: "guideArticleImageVisual"; visible: status === Image.Ready; source: Qt.resolvedUrl(block.path); width: Math.min(implicitWidth, parent.width); fillMode: Image.PreserveAspectFit }
                         Text { text: String(block.alt || ""); color: "#c8c8c8"; width: parent.width; wrapMode: Text.WordWrap; font.pixelSize: 14 }
                     }
+                }
+                Component {
+                    id: imageFallbackBlock
+                    Text { text: root.blockText(block); color: "#c8c8c8"; width: parent.width; wrapMode: Text.WordWrap; font.pixelSize: 14 }
                 }
             }
         }

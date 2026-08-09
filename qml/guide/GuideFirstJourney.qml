@@ -22,6 +22,7 @@ Rectangle {
     ]
     property int currentStep: 0
     readonly property bool complete: currentStep >= steps.length
+    signal wallpaperChoiceRequested()
 
     function advance() {
         if (currentStep < steps.length - 1) currentStep++
@@ -71,6 +72,13 @@ Rectangle {
             spacing: 10
             Basic.Button { text: root.complete ? "Replay" : "Continue"; activeFocusOnTab: true; onClicked: root.complete ? root.replay() : root.completeCurrent() }
             Basic.Button { text: "Skip"; visible: !root.complete; activeFocusOnTab: true; onClicked: root.skipCurrent() }
+            Basic.Button {
+                objectName: "guideJourneyWallpaperAction"
+                text: "Choose a wallpaper"
+                visible: !root.complete && root.currentStep === 2
+                activeFocusOnTab: true
+                onClicked: root.wallpaperChoiceRequested()
+            }
         }
     }
 }

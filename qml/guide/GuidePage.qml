@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import QtQuick.Controls 2.15
 import QtQuick.Controls.Basic 2.15 as Basic
 
 FocusScope {
@@ -13,6 +14,7 @@ FocusScope {
     property string originContext: ""
     property string originSummary: ""
     property bool reducedMotion: false
+    property real presentationOpacity: 1
     property string currentView: "home"
     property string currentSection: "start"
     property var currentLesson: null
@@ -22,34 +24,46 @@ FocusScope {
     property string noResultFallbackSection: "start"
     property string noResultFixSection: "fix"
     readonly property var visibleLessons: catalog && catalog.publishedLessons ? catalog.publishedLessons : []
-    readonly property int selectionTransitionDuration: reducedMotion ? 0 : 140
+    readonly property bool presentationTransitionRunning: presentationTransition.running
     readonly property bool hasKnownOrigin: originLabel.length > 0 && knownContexts.indexOf(originContext) >= 0
     readonly property var knownContexts: ["home", "tankoban", "biblio", "theatre", "house", "downloads", "personalization", "fix"]
 
     signal closeRequested()
     signal returnRequested()
+    signal wallpaperChoiceRequested()
 
     GuideCatalog { id: defaultCatalog }
     GuideProgress { id: defaultProgress }
 
     function lessonForId(id) { return catalog && catalog.find ? catalog.find(id) : null }
 
+    function setCurrentView(nextView) {
+        currentView = nextView
+        presentationTransition.stop()
+        if (reducedMotion) {
+            presentationOpacity = 1
+            return
+        }
+        presentationOpacity = 0
+        presentationTransition.start()
+    }
+
     function openLesson(id) {
         var lesson = lessonForId(id)
         if (!lesson) {
             currentLesson = null
-            currentView = "home"
+            setCurrentView("home")
             return
         }
         currentLesson = lesson
         currentSection = lesson.section
-        currentView = "article"
+        setCurrentView("article")
     }
 
     function openSection(section) {
         currentLesson = null
         currentSection = section === "home" ? "start" : section
-        currentView = section === "home" ? "home" : "section"
+        setCurrentView(section === "home" ? "home" : "section")
         _clearingSearch = true
         searchField.text = ""
         _clearingSearch = false
@@ -59,11 +73,11 @@ FocusScope {
         searchQuery = String(query || "")
         searchResults = catalog && catalog.search ? catalog.search(searchQuery, originContext) : []
         if (!searchQuery.length) {
-            currentView = "home"
+            setCurrentView("home")
             return
         }
         noResultFallbackSection = knownContexts.indexOf(originContext) >= 0 && originContext !== "home" ? originContext : "start"
-        currentView = "search"
+        setCurrentView("search")
     }
 
     function activateSearchResult(index) {
@@ -87,6 +101,20 @@ FocusScope {
     }
 
     Keys.onEscapePressed: requestClose()
+
+    Shortcut {
+        sequence: "Escape"
+        context: Qt.ApplicationShortcut
+        onActivated: root.requestClose()
+    }
+
+    NumberAnimation {
+        id: presentationTransition
+        target: root
+        property: "presentationOpacity"
+        to: 1
+        duration: 140
+    }
 
     Rectangle { anchors.fill: parent; color: "#0b0b0b" }
 
@@ -124,6 +152,7 @@ FocusScope {
 
         Column {
             id: content
+            opacity: root.presentationOpacity
             width: Math.min(scroll.width - 48, 820)
             x: Math.max(24, (scroll.width - width) / 2)
             y: 28
@@ -136,6 +165,7 @@ FocusScope {
                 onAccepted: root.search(text)
             }
             GuideHome {
+                id: guideHome
                 width: parent.width
                 visible: root.currentView === "home"
                 height: visible ? implicitHeight : 0
@@ -152,8 +182,8 @@ FocusScope {
                 Row {
                     visible: root.currentView === "search" && root.searchResults.length === 0
                     spacing: 10
-                    Basic.Button { text: "Open " + root.noResultFallbackSection; activeFocusOnTab: true; onClicked: root.openNoResultFallback() }
-                    Basic.Button { text: "Fix a problem"; activeFocusOnTab: true; onClicked: root.openSection("fix") }
+                    Basic.Button { objectName: "guideNoResultNearestAction"; text: "Open " + root.noResultFallbackSection; activeFocusOnTab: true; onClicked: root.openNoResultFallback() }
+                    Basic.Button { objectName: "guideNoResultFixAction"; text: "Fix a problem"; activeFocusOnTab: true; onClicked: root.openSection("fix") }
                 }
                 Repeater {
                     model: root.currentView === "search" ? root.searchResults : (root.catalog && root.catalog.section ? root.catalog.section(root.currentSection) : [])
@@ -178,6 +208,11 @@ FocusScope {
                 onRelatedRequested: root.openLesson(lessonId)
             }
         }
+    }
+
+    Connections {
+        target: guideHome
+        function onWallpaperChoiceRequested() { root.wallpaperChoiceRequested() }
     }
 
     GuideContextStrip {

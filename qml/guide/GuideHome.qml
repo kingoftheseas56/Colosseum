@@ -9,6 +9,7 @@ Item {
     readonly property var popularLabels: ["Continue where I left off", "Open media from this device",
                                          "Choose and enable a source", "Something is not working"]
     signal popularPathRequested(string label)
+    signal wallpaperChoiceRequested()
 
     implicitHeight: content.implicitHeight
 
@@ -17,7 +18,7 @@ Item {
         width: parent.width
         spacing: 20
         Text { text: root.title; color: "#f5f5f5"; font.pixelSize: 34; font.weight: Font.DemiBold }
-        GuideFirstJourney { width: parent.width; progress: root.progress }
+        GuideFirstJourney { id: firstJourney; width: parent.width; progress: root.progress }
         Column {
             width: parent.width
             spacing: 6
@@ -35,5 +36,10 @@ Item {
                 }
             }
         }
+    }
+
+    Connections {
+        target: firstJourney
+        function onWallpaperChoiceRequested() { root.wallpaperChoiceRequested() }
     }
 }
