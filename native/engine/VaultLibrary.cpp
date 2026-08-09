@@ -2,6 +2,7 @@
 #include "VaultIndex.h"
 #include "VaultScanner.h"
 #include "VaultConfig.h"
+#include "ComicCoverId.h"
 
 #include <QDir>
 #include <QMap>
@@ -62,6 +63,18 @@ int VaultLibrary::itemCount() const
     return m_index ? m_index->itemCount() : 0;
 }
 
+int VaultLibrary::rootCount() const
+{
+    if (!m_config)
+        return 0;
+    int n = 0;
+    const QVariantList roots = m_config->roots();
+    for (const QVariant& r : roots)
+        if (r.toMap().value(QStringLiteral("confirmed")).toBool())
+            ++n;
+    return n;
+}
+
 QVariantList VaultLibrary::series(const QString& kind) const
 {
     if (!m_index)
@@ -79,6 +92,15 @@ QVariantList VaultLibrary::series(const QString& kind) const
         s.insert(QStringLiteral("kind"), m.value(QStringLiteral("kind")));
         s.insert(QStringLiteral("count"), m.value(QStringLiteral("count")));
         s.insert(QStringLiteral("subtreePath"), m.value(QStringLiteral("subtreePath")));
+        // A ready-to-bind cover URL for the tile: image://comiccover/<id> when the group has
+        // an enriched comic cover, else empty (the tile falls back to its gradient + icon).
+        const QString coverPath = m.value(QStringLiteral("coverPath")).toString();
+        const QString coverEntry = m.value(QStringLiteral("coverEntry")).toString();
+        s.insert(QStringLiteral("coverUrl"),
+                 (!coverPath.isEmpty() && !coverEntry.isEmpty())
+                     ? QStringLiteral("image://comiccover/")
+                           + Colosseum::buildComicCoverId(coverPath, coverEntry)
+                     : QString());
         out.append(s);
     }
     return out;

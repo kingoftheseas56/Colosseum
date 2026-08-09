@@ -42,6 +42,8 @@ private slots:
     void folder_listing_is_natural_order();
     void publish_is_atomic_when_cancelled();
     void incremental_upsert_lands_without_republish();
+    void groups_expose_representative_cover();
+    void enrichment_round_trip_via_rows_for_kind_and_upsert_many();
     void natural_sort_key_is_numeric_and_case_insensitive();
 };
 
@@ -155,6 +157,69 @@ void tst_vault_index::incremental_upsert_lands_without_republish()
                           QStringLiteral("c.cbz"))));
     QCOMPARE(idx.itemCount(), 3);
     QCOMPARE(idx.itemCountForKind(QStringLiteral("comic")), 3);
+}
+
+void tst_vault_index::groups_expose_representative_cover()
+{
+    // Slice 12: groupsForKind returns a representative cover (lowest sortKey with a coverRef)
+    // for the shelf tile — comics carry one after enrichment; books/video come back empty.
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    VaultIndex::FileRow a = mk(QStringLiteral("vault:a"), QStringLiteral("D:/lib/Berserk"),
+                              QStringLiteral("Berserk"), QStringLiteral("comic"),
+                              QStringLiteral("Berserk v1.cbz"));
+    a.coverRef = QStringLiteral("cover.jpg"); // the enriched cover entry
+    const VaultIndex::FileRow b = mk(QStringLiteral("vault:b"), QStringLiteral("D:/lib/Berserk"),
+                                     QStringLiteral("Berserk"), QStringLiteral("comic"),
+                                     QStringLiteral("Berserk v2.cbz")); // no cover
+    const VaultIndex::FileRow d = mk(QStringLiteral("vault:d"), QStringLiteral("D:/lib/Dune"),
+                                     QStringLiteral("Dune"), QStringLiteral("book"),
+                                     QStringLiteral("Dune.epub"));
+    QVERIFY(idx.publish({a, b, d}));
+
+    const QVariantList comics = idx.groupsForKind(QStringLiteral("comic"));
+    QCOMPARE(comics.size(), 1);
+    const QVariantMap g = comics.first().toMap();
+    QCOMPARE(g.value(QStringLiteral("coverEntry")).toString(), QStringLiteral("cover.jpg"));
+    QCOMPARE(g.value(QStringLiteral("coverPath")).toString(),
+             QStringLiteral("D:/lib/Berserk/Berserk v1.cbz"));
+
+    const QVariantList books = idx.groupsForKind(QStringLiteral("book"));
+    QCOMPARE(books.size(), 1);
+    QVERIFY(books.first().toMap().value(QStringLiteral("coverEntry")).toString().isEmpty());
+}
+
+void tst_vault_index::enrichment_round_trip_via_rows_for_kind_and_upsert_many()
+{
+    // Slice 12: the enrichment pass reads full rows (rowsForKind), fills covers off-thread,
+    // and writes them back in one batch (upsertMany) — no dupes, cover then surfaces.
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    // Published as a census does — no covers yet.
+    QVERIFY(idx.publish({
+        mk(QStringLiteral("vault:a"), QStringLiteral("D:/lib/Berserk"),
+           QStringLiteral("Berserk"), QStringLiteral("comic"), QStringLiteral("Berserk v1.cbz")),
+        mk(QStringLiteral("vault:b"), QStringLiteral("D:/lib/Berserk"),
+           QStringLiteral("Berserk"), QStringLiteral("comic"), QStringLiteral("Berserk v2.cbz")),
+    }));
+    QVERIFY(idx.groupsForKind(QStringLiteral("comic")).first().toMap()
+                .value(QStringLiteral("coverEntry")).toString().isEmpty());
+
+    QList<VaultIndex::FileRow> comics = idx.rowsForKind(QStringLiteral("comic"));
+    QCOMPARE(comics.size(), 2);
+    QCOMPARE(comics.at(0).realName, QStringLiteral("Berserk v1.cbz")); // natural order
+    comics[0].coverRef = QStringLiteral("cover.jpg");
+    QVERIFY(idx.upsertMany(comics));
+
+    QCOMPARE(idx.itemCount(), 2); // replaced in place — no duplicate rows
+    QCOMPARE(idx.groupsForKind(QStringLiteral("comic")).first().toMap()
+                 .value(QStringLiteral("coverEntry")).toString(), QStringLiteral("cover.jpg"));
 }
 
 void tst_vault_index::natural_sort_key_is_numeric_and_case_insensitive()

@@ -153,6 +153,66 @@ bool VaultIndex::upsert(const FileRow& row)
     return true;
 }
 
+bool VaultIndex::upsertMany(const QList<FileRow>& rows)
+{
+    if (!m_db.isOpen())
+        return false;
+    if (rows.isEmpty())
+        return true;
+    if (!m_db.transaction())
+        return false;
+    for (const FileRow& row : rows) {
+        if (!insertRow(row)) {
+            m_db.rollback();
+            return false;
+        }
+    }
+    if (!m_db.commit()) {
+        m_db.rollback();
+        return false;
+    }
+    emit changed(); // one repaint for the whole batch
+    return true;
+}
+
+QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
+{
+    QList<FileRow> out;
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral(
+        "SELECT id, rootPath, subtreePath, groupKey, groupTitle, kind, path,"
+        "       displayTitle, realName, subfolder, sortKey, size, mtimeMs,"
+        "       pages, durationSec, author, format, progressed, coverRef"
+        " FROM files WHERE kind = ? ORDER BY subtreePath, sortKey"));
+    q.addBindValue(kind);
+    if (q.exec()) {
+        while (q.next()) {
+            FileRow r;
+            r.id = q.value(0).toString();
+            r.rootPath = q.value(1).toString();
+            r.subtreePath = q.value(2).toString();
+            r.groupKey = q.value(3).toString();
+            r.groupTitle = q.value(4).toString();
+            r.kind = q.value(5).toString();
+            r.path = q.value(6).toString();
+            r.displayTitle = q.value(7).toString();
+            r.realName = q.value(8).toString();
+            r.subfolder = q.value(9).toString();
+            r.sortKey = q.value(10).toString();
+            r.size = q.value(11).toLongLong();
+            r.mtimeMs = q.value(12).toLongLong();
+            r.pages = q.value(13).toInt();
+            r.durationSec = q.value(14).toDouble();
+            r.author = q.value(15).toString();
+            r.format = q.value(16).toString();
+            r.progressed = q.value(17).toInt() != 0;
+            r.coverRef = q.value(18).toString();
+            out.append(r);
+        }
+    }
+    return out;
+}
+
 int VaultIndex::itemCount() const
 {
     QSqlQuery q(m_db);
@@ -185,8 +245,15 @@ QVariantList VaultIndex::groupsForKind(const QString& kind) const
 {
     QVariantList out;
     QSqlQuery q(m_db);
+    // A representative cover for the shelf tile: the first enriched file (lowest sortKey
+    // with a coverRef) in the group — comics carry a CBZ cover entry; books/video have none
+    // yet (their art is a later slice), so coverPath/coverEntry come back empty for them.
     q.prepare(QStringLiteral(
-        "SELECT groupKey, subtreePath, groupTitle, kind, COUNT(*) AS n"
+        "SELECT groupKey, subtreePath, groupTitle, kind, COUNT(*) AS n,"
+        " (SELECT f2.path FROM files f2 WHERE f2.groupKey = files.groupKey"
+        "   AND f2.coverRef <> '' ORDER BY f2.sortKey LIMIT 1) AS coverPath,"
+        " (SELECT f2.coverRef FROM files f2 WHERE f2.groupKey = files.groupKey"
+        "   AND f2.coverRef <> '' ORDER BY f2.sortKey LIMIT 1) AS coverEntry"
         " FROM files WHERE kind = ? GROUP BY groupKey"
         " ORDER BY groupTitle COLLATE NOCASE"));
     q.addBindValue(kind);
@@ -198,6 +265,8 @@ QVariantList VaultIndex::groupsForKind(const QString& kind) const
             m[QStringLiteral("groupTitle")] = q.value(2).toString();
             m[QStringLiteral("kind")] = q.value(3).toString();
             m[QStringLiteral("count")] = q.value(4).toInt();
+            m[QStringLiteral("coverPath")] = q.value(5).toString();
+            m[QStringLiteral("coverEntry")] = q.value(6).toString();
             out.append(m);
         }
     }

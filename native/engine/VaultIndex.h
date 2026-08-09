@@ -67,6 +67,13 @@ public:
 
     // Incremental single-file arrival (no full republish).
     bool upsert(const FileRow& row);
+    // Batch upsert in ONE transaction, emitting changed() ONCE — enrichment writes many
+    // rows back without N read-model repaints. Rolls back on any row error.
+    bool upsertMany(const QList<FileRow>& rows);
+
+    // Full rows for a kind, in natural order — the enrichment pass reads these on the GUI
+    // thread, does its file I/O off-thread, then upsertMany()s the enriched rows back.
+    QList<FileRow> rowsForKind(const QString& kind) const;
 
     // ── Queries the UI needs ──
     Q_INVOKABLE int itemCount() const;

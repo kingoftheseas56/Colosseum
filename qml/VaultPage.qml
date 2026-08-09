@@ -32,6 +32,94 @@ Item {
     readonly property string vaultState: scanning ? "scanning" : (itemCount > 0 ? "populated" : "empty")
     readonly property bool cardVisible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
 
+    // ---- Slice 12 dress: the in-world tab bar (All · Comics · Books · Video · Folders) ----
+    property string currentTab: "all"
+    readonly property var tabModel: [
+        { key: "all", label: "All" }, { key: "comic", label: "Comics" },
+        { key: "book", label: "Books" }, { key: "video", label: "Video" },
+        { key: "folders", label: "Folders" }
+    ]
+    function seriesFor(kind) {
+        return (typeof VaultLibrary !== "undefined") ? (VaultLibrary.revision, VaultLibrary.series(kind)) : []
+    }
+    // Kinds whose shelf shows under the current tab; Folders is a flat all-kinds gallery instead.
+    function shelfKinds() {
+        if (root.currentTab === "comic" || root.currentTab === "book" || root.currentTab === "video")
+            return [root.currentTab]
+        if (root.currentTab === "folders") return []
+        return ["comic", "book", "video"]
+    }
+    function allSeries() {
+        return root.seriesFor("comic").concat(root.seriesFor("book")).concat(root.seriesFor("video"))
+    }
+
+    // Shared shelf tile: a real comic cover when the row carries one (image://comiccover), else the
+    // honest kind-icon on a gradient (book/video art is a later slice). Reused by every shelf + Folders.
+    Component {
+        id: vaultTileComp
+        Column {
+            required property var modelData
+            spacing: 8
+            Rectangle {
+                id: coverBox
+                width: 150; height: 208; radius: 12; clip: true
+                border.width: 1; border.color: theme.edge
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(0.16, 0.14, 0.20, 1) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.060, 0.090, 1) }
+                }
+                Image { // real cover art (comics after enrichment) — filling the whole tile
+                    anchors.fill: parent
+                    visible: !!modelData.coverUrl
+                    source: modelData.coverUrl || ""
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true; cache: true
+                }
+                Image { // honest kind icon when there is no cover yet (book/video, un-enriched comics)
+                    anchors.centerIn: parent; width: 34; height: 34; opacity: 0.4
+                    visible: !modelData.coverUrl
+                    source: modelData.kind === "book" ? "../assets/icons/book-library.svg"
+                          : modelData.kind === "video" ? "../assets/icons/projector-theatre.svg"
+                          : "../assets/icons/comic-book.svg"
+                    fillMode: Image.PreserveAspectFit
+                }
+                // kind badge, top-left
+                Rectangle {
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 8
+                    radius: 99; height: 20; width: badgeT.implicitWidth + 16
+                    color: Qt.rgba(0, 0, 0, 0.62); border.width: 1; border.color: theme.edge
+                    Text {
+                        id: badgeT; anchors.centerIn: parent
+                        text: modelData.kind === "comic" ? "COMIC" : modelData.kind === "book" ? "BOOK" : "VIDEO"
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
+                    }
+                }
+                // scrim so the overlaid title reads over any art
+                Rectangle {
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    height: 76
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.82) }
+                    }
+                }
+                // title, overlaid at the foot of the cover
+                Text {
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.leftMargin: 9; anchors.rightMargin: 9; anchors.bottomMargin: 9
+                    text: modelData.title || ""
+                    color: "#f2f2f0"; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                    elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
+                    style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.9)
+                }
+            }
+            Text {
+                text: (modelData.count || 0) + ((modelData.count === 1) ? " item" : " items")
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
+            }
+        }
+    }
+
     // On open (the vaultLayer Loader recreates this page each time), resume the founding card
     // for a folder added-but-never-confirmed. C++ dedups to once per app run (Slice 11 Thread D).
     Component.onCompleted: if (typeof VaultLibrary !== "undefined") VaultLibrary.offerUnconfirmedRoots()
@@ -72,90 +160,181 @@ Item {
             topPadding: 14
             spacing: 0
 
-            // ---- header ----
-            Text { text: "ON THIS MACHINE"; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
-            Text { text: "Vault"; color: theme.ink; topPadding: 8
-                   font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
-            Item { width: 1; height: 20 }
-            Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
+            // ---- header (empty/scanning states only — populated leads with the marquee panel) ----
+            Column {
+                visible: !root.populated
+                width: col.width
+                spacing: 0
+                Text { text: "ON THIS MACHINE"; color: theme.inkDimmer
+                       font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
+                Text { text: "Vault"; color: theme.ink; topPadding: 8
+                       font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
+                Item { width: 1; height: 20 }
+                Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
+            }
 
-            // ---- populated: the shelves — one section per kind, undressed (Slice 12 dresses them
-            //      with real covers + the WorldTabBar). Each section reads VaultLibrary.series(kind). ----
-            Item { visible: root.populated; width: 1; height: 34 }
+            // ---- populated: the world-treatment marquee (mock C) — a gradient hero panel with the
+            //      eyebrow, identity, honest counts, and the founding CTA, entered via the taskbar
+            //      door + ‹ Back above. This is the world dress fused onto the sub-app door. ----
+            Item { visible: root.populated; width: 1; height: 6 }
+            Rectangle {
+                id: marquee
+                objectName: "vaultMarquee"
+                visible: root.populated
+                width: col.width
+                height: root.populated ? marqueeCol.implicitHeight + 84 : 0
+                radius: 18
+                border.width: 1; border.color: theme.edge
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(0.094, 0.106, 0.133, 1) }
+                    GradientStop { position: 0.6; color: Qt.rgba(0.063, 0.075, 0.102, 1) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.047, 0.055, 0.075, 1) }
+                }
+                // Lanista/plan marquee contract.
+                property int itemCount: root.itemCount
+                property int folderCount: (typeof VaultLibrary !== "undefined")
+                                          ? (VaultLibrary.revision, VaultLibrary.rootCount()) : 0
+                property int kindCount: (root.seriesFor("comic").length > 0 ? 1 : 0)
+                                      + (root.seriesFor("book").length > 0 ? 1 : 0)
+                                      + (root.seriesFor("video").length > 0 ? 1 : 0)
+
+                // Soft gold warmth in the top-right (approximates the mock's radial glow).
+                Rectangle {
+                    anchors.right: parent.right; anchors.top: parent.top
+                    width: parent.width * 0.62; height: parent.height * 0.9
+                    radius: 18
+                    opacity: 0.12
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 1.0; color: theme.gold }
+                    }
+                }
+
+                Column {
+                    id: marqueeCol
+                    x: 44; y: 42
+                    width: parent.width - 88
+                    spacing: 0
+
+                    Text { text: "ON THIS MACHINE"; color: theme.gold
+                           font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3.5; font.weight: Font.DemiBold }
+                    Text { topPadding: 10; text: "Vault"; color: theme.ink
+                           font.family: theme.display; font.pixelSize: 52; font.letterSpacing: -0.5 }
+
+                    Row {
+                        topPadding: 24
+                        spacing: 40
+                        Column { spacing: 2
+                            Text { text: marquee.itemCount; color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
+                            Text { text: "ITEMS"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
+                        }
+                        Column { spacing: 2
+                            Text { text: marquee.folderCount; color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
+                            Text { text: marquee.folderCount === 1 ? "FOLDER" : "FOLDERS"; color: theme.inkDimmer
+                                   font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
+                        }
+                        Column { spacing: 2
+                            Text { text: marquee.kindCount; color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
+                            Text { text: marquee.kindCount === 1 ? "KIND" : "KINDS"; color: theme.inkDimmer
+                                   font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
+                        }
+                    }
+
+                    // Founding CTA — Add folder (gold), with the live scan pill beside it while scanning.
+                    Row {
+                        topPadding: 26
+                        spacing: 14
+                        Rectangle {
+                            objectName: "vaultMarqueeAddFolder"
+                            width: addMarqueeT.implicitWidth + 48; height: 46; radius: 12
+                            color: addMarqueeMa.containsMouse ? Qt.rgba(0.98, 0.82, 0.36, 1) : theme.gold
+                            Text { id: addMarqueeT; anchors.centerIn: parent; text: "Add folder"
+                                   color: "#151310"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                            MouseArea { id: addMarqueeMa; anchors.fill: parent; hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor; onClicked: root.addFolderRequested() }
+                        }
+                    }
+                }
+            }
+
+            Item { visible: root.populated; width: 1; height: 30 }
+
+            // Per-kind shelves — shown for the All tab or the matching kind tab.
             Repeater {
-                model: root.populated ? ["comic", "book", "video"] : []
+                model: root.populated ? root.shelfKinds() : []
                 delegate: Column {
                     id: kindSection
                     required property string modelData
                     property string shelfSuffix: modelData === "comic" ? "comics"
                                                : modelData === "book" ? "books" : "video"
-                    property var seriesList: (typeof VaultLibrary !== "undefined")
-                        ? (VaultLibrary.revision, VaultLibrary.series(modelData)) : []
+                    property var seriesList: root.seriesFor(modelData)
                     visible: seriesList.length > 0
                     width: col.width
                     spacing: 14
                     bottomPadding: 30
 
-                    Text {
-                        text: kindSection.modelData === "comic" ? "Comics"
-                            : kindSection.modelData === "book" ? "Books" : "Video"
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 24
+                    Item {
+                        width: col.width
+                        height: hdrTitle.implicitHeight
+                        Text {
+                            id: hdrTitle
+                            anchors.left: parent.left; anchors.bottom: parent.bottom
+                            text: kindSection.modelData === "comic" ? "Comics"
+                                : kindSection.modelData === "book" ? "Books" : "Video"
+                            color: theme.ink; font.family: theme.display; font.pixelSize: 28
+                        }
+                        Text {
+                            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                            text: kindSection.seriesList.length
+                                  + (kindSection.modelData === "video" ? " titles" : " series")
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                        }
                     }
                     Flow {
                         objectName: "vaultShelf_" + kindSection.shelfSuffix
                         property int rowCount: kindSection.seriesList.length // Lanista contract
                         width: col.width
                         spacing: 16
-                        Repeater {
-                            model: kindSection.seriesList
-                            delegate: Rectangle {
-                                required property var modelData
-                                width: 156; height: 214; radius: 12
-                                color: Qt.rgba(0.094, 0.110, 0.145, 0.94)
-                                border.width: 1; border.color: theme.edge
-                                Column {
-                                    anchors.fill: parent; anchors.margins: 12; spacing: 8
-                                    Rectangle { // cover placeholder — real covers arrive with the Slice 12 dress
-                                        width: parent.width; height: 128; radius: 8
-                                        color: Qt.rgba(1, 1, 1, 0.05)
-                                        Image {
-                                            anchors.centerIn: parent; width: 30; height: 30; opacity: 0.4
-                                            source: kindSection.modelData === "book" ? "../assets/icons/book-library.svg"
-                                                  : kindSection.modelData === "video" ? "../assets/icons/projector-theatre.svg"
-                                                  : "../assets/icons/comic-book.svg"
-                                            fillMode: Image.PreserveAspectFit
-                                        }
-                                    }
-                                    Text {
-                                        width: parent.width
-                                        text: modelData.title || ""
-                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
-                                        elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
-                                    }
-                                    Text {
-                                        text: (modelData.count || 0) + ((modelData.count === 1) ? " item" : " items")
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
-                                    }
-                                }
-                            }
-                        }
+                        Repeater { model: kindSection.seriesList; delegate: vaultTileComp }
                     }
                 }
             }
 
-            // a small Add-folder affordance once the Vault has content (the big drop surface is the empty state).
-            Rectangle {
-                visible: root.populated
-                width: addMoreT.implicitWidth + 34; height: 38; radius: 10
-                color: addMoreMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
-                border.width: 1; border.color: theme.edge
-                Text { id: addMoreT; anchors.centerIn: parent; text: "Add folder"
-                       color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
-                MouseArea { id: addMoreMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: root.addFolderRequested() }
+            // Folders tab — every series across kinds as one gallery.
+            Column {
+                id: foldersSection
+                visible: root.populated && root.currentTab === "folders"
+                width: col.width
+                spacing: 14
+                bottomPadding: 30
+                property var allList: (root.populated && root.currentTab === "folders") ? root.allSeries() : []
+                Item {
+                    width: col.width
+                    height: foldersTitle.implicitHeight
+                    Text {
+                        id: foldersTitle
+                        anchors.left: parent.left; anchors.bottom: parent.bottom
+                        text: "Folders"; color: theme.ink; font.family: theme.display; font.pixelSize: 28
+                    }
+                    Text {
+                        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                        text: foldersSection.allList.length + " folders"
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    }
+                }
+                Flow {
+                    objectName: "vaultShelf_folders"
+                    property int rowCount: foldersSection.allList.length
+                    width: col.width
+                    spacing: 16
+                    Repeater { model: foldersSection.allList; delegate: vaultTileComp }
+                }
             }
-            Item { visible: root.populated; width: 1; height: 40 }
+
+            // Bottom clearance so the last shelf clears the fixed in-world tab bar. (Add folder now
+            // lives in the marquee CTA.)
+            Item { visible: root.populated; width: 1; height: 84 }
 
             // ---- empty state: the dashed Add-folder drop surface (shown until the Vault has content) ----
             Item { visible: !root.populated; width: 1; height: 44 }
@@ -339,6 +518,21 @@ Item {
                 }
             }
         }
+    }
+
+    // ---- in-world tab bar (Slice 12): All · Comics · Books · Video · Folders. Uses WorldTabBar
+    //      as-committed (no tabPrefix yet — the shared file carries another lane's WIP), so its pills
+    //      aren't Lanista-addressable until that lands; tab logic is covered by tst_vault_home + eyes. ----
+    WorldTabBar {
+        visible: root.populated
+        backdrop: root.backdrop
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 30
+        width: Math.min(560, parent.width - 80)
+        tabModel: root.tabModel
+        currentTab: root.currentTab
+        onTabRequested: (t) => root.currentTab = t
     }
 
     // ---- top chrome: minimize · fullscreen · power (same vocabulary as Settings/Downloads) ----

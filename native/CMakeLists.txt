@@ -183,6 +183,8 @@ add_executable(colosseum
     engine/VaultScanner.h
     engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
     engine/VaultLibrary.h
+    engine/VaultEnricher.cpp       # cover/duration enrichment — app-wired for comic covers (Slice 12)
+    engine/VaultEnricher.h
     player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)
     player/MediaAdmissionProbe.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──

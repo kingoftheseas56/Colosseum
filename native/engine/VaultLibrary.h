@@ -54,6 +54,9 @@ public:
     QString candidateRoot() const { return m_candidateRoot; }
     bool cardVisible() const { return !m_candidate.isEmpty(); }
 
+    // Confirmed-root count for the marquee "· N folders" (revision-driven: a confirm publishes).
+    Q_INVOKABLE int rootCount() const;
+
     // series(kind): normalization of VaultIndex::groupsForKind → { key, title, kind, count,
     // subtreePath }. items(kind, seriesKey): VaultIndex::filesInSubtree, facts preserved.
     Q_INVOKABLE QVariantList series(const QString& kind) const;

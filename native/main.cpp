@@ -71,12 +71,15 @@
 #include "engine/VaultIdentity.h"
 #include "engine/VaultScanner.h"
 #include "engine/VaultLibrary.h"
+#include "engine/VaultEnricher.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
 #include "net/BiblioImageDiag.h"
 #include <QNetworkProxyFactory>
 #include <QSet>
+#include <QtConcurrent>
+#include <QFutureWatcher>
 #include <algorithm>
 #include "anime/AnimeOrderService.h"
 #include "reader2/Reader2Bridge.h"
@@ -1003,6 +1006,54 @@ int main(int argc, char *argv[]) {
     auto *vaultScanner = new VaultScanner(vaultIndex, vaultIdentity, &app);
     auto *vaultLibrary = new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
+
+    // Vault cover enrichment (execution plan Slice 12): after a publish, read each comic's
+    // CBZ cover ENTRY off the GUI thread (pure file I/O — VaultEnricher::readComicFacts, no
+    // SQLite), then write the enriched rows back in ONE batch on the GUI thread so the shelf
+    // tiles paint real covers via the already-registered image://comiccover provider. Video
+    // durations + book covers stay deferred (their art is a later slice) — enriching video
+    // here would run ffprobe on the GUI thread. A generation guard drops a stale enrichment
+    // whose publish was superseded, so it can never resurrect a row a newer publish dropped.
+    auto vaultEnrichGen = std::make_shared<quint64>(0);
+    auto runVaultCoverEnrichment = [vaultIndex, vaultEnrichGen]() {
+        // Only comics still missing a cover — so a re-publish or a re-launch of an already
+        // enriched library does no redundant CBZ reads (this returns nothing after the first pass).
+        QList<VaultIndex::FileRow> todo;
+        for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("comic")))
+            if (r.coverRef.isEmpty())
+                todo.append(r);
+        if (todo.isEmpty())
+            return;
+        const quint64 gen = ++(*vaultEnrichGen);
+        auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>();
+        QObject::connect(
+            watcher, &QFutureWatcher<QList<VaultIndex::FileRow>>::finished, vaultIndex,
+            [vaultIndex, watcher, vaultEnrichGen, gen]() {
+                const QList<VaultIndex::FileRow> enriched = watcher->result();
+                watcher->deleteLater();
+                if (gen != *vaultEnrichGen)
+                    return; // a newer publish superseded this enrichment
+                vaultIndex->upsertMany(enriched);
+            });
+        watcher->setFuture(QtConcurrent::run([todo]() {
+            QList<VaultIndex::FileRow> out;
+            out.reserve(todo.size());
+            for (VaultIndex::FileRow r : todo) {
+                const VaultEnricher::ComicFacts cf = VaultEnricher::readComicFacts(r.path);
+                if (cf.ok) {
+                    r.pages = cf.pages;
+                    r.coverRef = cf.coverEntry;
+                }
+                out.append(r);
+            }
+            return out;
+        }));
+    };
+    QObject::connect(vaultScanner, &VaultScanner::indexPublished, vaultLibrary,
+                     [runVaultCoverEnrichment]() { runVaultCoverEnrichment(); });
+    // Enrich an already-indexed library once at boot too, so covers appear on a relaunch
+    // without re-adding the folder (a fresh index published this run enriches via the signal).
+    runVaultCoverEnrichment();
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.
