@@ -6,6 +6,7 @@
 // Settings/Downloads (back · minimize · fullscreen · power) so it reads as one of the house's pages.
 import QtQuick
 import QtQuick.Controls
+import "VaultApi.js" as VaultApi
 
 Item {
     id: root
@@ -16,6 +17,10 @@ Item {
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
+    // Slice 14: a folder-view row / preview door asked to open a file. Carries only the path —
+    // LocalLaunch (C++) re-derives family + vault id + title, so routing/identity has one owner
+    // (the same path the picker, drag-drop, and Open Recent funnel through win.openLocalMedia).
+    signal openMediaRequested(string path)
 
     Theme { id: theme }
 
@@ -53,20 +58,40 @@ Item {
         return root.seriesFor("comic").concat(root.seriesFor("book")).concat(root.seriesFor("video"))
     }
 
+    // ---- Slice 14: the Vault Continue rail — the app's own local reads/watches, resumable. Live
+    //      from Progress.recent filtered to vault: ids (catalogue recents keep their own rails, §9).
+    //      Re-derives on Progress.revision (a lifecycle write), never the silent 5s video tick. ----
+    readonly property var continueItems: (root.populated && typeof Progress !== "undefined")
+        ? VaultApi.continueRail(Progress, (Progress.revision, 18))
+        : []
+
     // ---- Slice 13: the folder detail overlay. Vault-local — the shelves stay instantiated
     //      underneath (hidden), so their scroll position survives open → Back for free. A row
     //      snapshot is seeded on open (not re-queried while a background scan runs). ----
     property bool folderDetailOpen: false
     property var folderDetailFacts: ({})
-    property var folderDetailRows: []
+    // The static index snapshot (files as they sit on disk); seeded on open, NOT re-queried while a
+    // background scan runs — the S13 snapshot discipline. The live read-state join happens below.
+    property var folderDetailBaseRows: []
+    // Rows the folder view actually renders: the index snapshot joined against live Progress so the
+    // read tick, gold hairline, and last-read sort reflect real reads. Re-joins on Progress.revision
+    // — a lifecycle write (open/close/minimize) — so a comic read then Back updates the tick; it does
+    // NOT re-join on the silent 5s video tick (recordSilent bumps no revision), so the join can never
+    // reintroduce the Continue-repaint stutter cascade (Preflight's reactivity hazard).
+    readonly property var folderDetailRows: (root.folderDetailOpen && typeof Progress !== "undefined")
+        ? VaultApi.joinRows(Progress, (Progress.revision, root.folderDetailBaseRows))
+        : root.folderDetailBaseRows
     function openFolder(tile) {
         if (!tile) return
         root.folderDetailFacts = tile
-        root.folderDetailRows = (typeof VaultLibrary !== "undefined")
+        root.folderDetailBaseRows = (typeof VaultLibrary !== "undefined")
             ? VaultLibrary.items(tile.kind, tile.key) : []
         root.folderDetailOpen = true
     }
     function closeFolder() { root.folderDetailOpen = false }
+    // Push the re-joined rows into the live folder view when Progress changes under it (e.g. after a
+    // read while the folder view sits occluded beneath the reader). onLoaded seeds the first model.
+    onFolderDetailRowsChanged: if (folderLayer.item) folderLayer.item.model = root.folderDetailRows
 
     // Shared shelf tile: a real comic cover when the row carries one (image://comiccover), else the
     // honest kind-icon on a gradient (book/video art is a later slice). Reused by every shelf + Folders.
@@ -136,6 +161,82 @@ Item {
             }
             Text {
                 text: (modelData.count || 0) + ((modelData.count === 1) ? " item" : " items")
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
+            }
+        }
+    }
+
+    // A Vault Continue tile: cover (or honest kind-icon on a gradient), title, a gold resume
+    // hairline, and a click that reopens through the shared LocalLaunch path (openMediaRequested).
+    // Shape from VaultApi.continueRail: { id, kind, path, title, cover, progressFraction }.
+    Component {
+        id: vaultContinueTileComp
+        Column {
+            required property var modelData
+            spacing: 8
+            Rectangle {
+                width: 150; height: 208; radius: 12; clip: true
+                border.width: 1; border.color: theme.edge
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(0.16, 0.14, 0.20, 1) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.060, 0.090, 1) }
+                }
+                Image {
+                    anchors.fill: parent
+                    visible: !!modelData.cover
+                    source: modelData.cover || ""
+                    fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
+                }
+                Image {
+                    anchors.centerIn: parent; width: 34; height: 34; opacity: 0.4
+                    visible: !modelData.cover
+                    source: modelData.kind === "book" ? "../assets/icons/book-library.svg"
+                          : modelData.kind === "video" ? "../assets/icons/projector-theatre.svg"
+                          : "../assets/icons/comic-book.svg"
+                    fillMode: Image.PreserveAspectFit
+                }
+                Rectangle {   // kind badge, top-left
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 8
+                    radius: 99; height: 20; width: contBadgeT.implicitWidth + 16
+                    color: Qt.rgba(0, 0, 0, 0.62); border.width: 1; border.color: theme.edge
+                    Text {
+                        id: contBadgeT; anchors.centerIn: parent
+                        text: modelData.kind === "comic" ? "COMIC" : modelData.kind === "book" ? "BOOK" : "VIDEO"
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
+                    }
+                }
+                Rectangle {   // scrim behind the title
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    height: 76
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.82) }
+                    }
+                }
+                Text {
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.leftMargin: 9; anchors.rightMargin: 9; anchors.bottomMargin: 12
+                    text: modelData.title || ""
+                    color: "#f2f2f0"; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                    elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
+                    style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.9)
+                }
+                Rectangle {   // gold resume hairline — the real read/watch position
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    height: 3; color: Qt.rgba(1, 1, 1, 0.14)
+                    Rectangle {
+                        anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                        width: parent.width * Math.max(0, Math.min(1, modelData.progressFraction || 0))
+                        color: theme.gold
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: if (modelData.path) root.openMediaRequested(modelData.path)
+                }
+            }
+            Text {
+                text: modelData.kind === "comic" ? "Comic" : modelData.kind === "book" ? "Book" : "Video"
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
             }
         }
@@ -283,6 +384,37 @@ Item {
             }
 
             Item { visible: root.populated; width: 1; height: 30 }
+
+            // ---- Vault Continue rail: local reads/watches in progress, resumable in one click.
+            //      On the All (home) tab only, above the shelves (marquee → Continue → shelves). ----
+            Column {
+                id: continueSection
+                visible: root.populated && root.currentTab === "all" && root.continueItems.length > 0
+                width: col.width
+                spacing: 14
+                bottomPadding: 30
+                Item {
+                    width: col.width
+                    height: continueHdr.implicitHeight
+                    Text {
+                        id: continueHdr
+                        anchors.left: parent.left; anchors.bottom: parent.bottom
+                        text: "Continue"; color: theme.ink; font.family: theme.display; font.pixelSize: 28
+                    }
+                }
+                ListView {
+                    objectName: "vaultShelf_continue"
+                    property int rowCount: root.continueItems.length   // Lanista contract
+                    width: col.width
+                    height: 250
+                    orientation: ListView.Horizontal
+                    spacing: 16
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: (root.populated && root.currentTab === "all") ? root.continueItems : []
+                    delegate: vaultContinueTileComp
+                }
+            }
 
             // Per-kind shelves — shown for the All tab or the matching kind tab.
             Repeater {
@@ -629,6 +761,19 @@ Item {
         function onRevealRequested(path) {
             if (typeof VaultLibrary !== "undefined") VaultLibrary.revealInExplorer(path)
         }
-        // onOpenRequested: opening media in the reader/player is wired in Slice 14.
+        // Slice 14 (open half): a row click opens that file; the preview "Continue" door opens the
+        // first file that already carries progress (the reader resumes itself at the saved page —
+        // the Vault-side read tick / hairline / rail join is the seam-map half, not this one).
+        function onOpenRequested(row) {
+            if (row && row.path) root.openMediaRequested(row.path)
+        }
+        function onContinueRequested() {
+            // Resume the file with the freshest real Progress; fall back to the first row only if
+            // nothing carries progress (defensive — the door reads "Continue" only when some does).
+            var rows = root.folderDetailRows || []
+            var target = VaultApi.resumeTarget(rows)
+            if (!target && rows.length) target = rows[0]
+            if (target && target.path) root.openMediaRequested(target.path)
+        }
     }
 }

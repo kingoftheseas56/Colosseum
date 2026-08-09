@@ -39,6 +39,17 @@ Item {
     property string sortMode: "natural"    // natural | alpha | newest | lastread
     property bool sortOpen: false
 
+    // Preserve the internal scroll across a live model re-join: VaultPage re-joins Progress under an
+    // occluded folder view (read a file → Back), and a naive model swap can collapse contentHeight
+    // mid-rebuild and clamp contentY to 0. A same-folder re-join keeps the row count, so restoring the
+    // captured offset is safe. (Advisor-flagged, Slice 14.)
+    onModelChanged: {
+        var y = listFlick.contentY
+        if (y > 0) Qt.callLater(function () {
+            listFlick.contentY = Math.max(0, Math.min(y, listFlick.contentHeight - listFlick.height))
+        })
+    }
+
     Theme { id: theme }
 
     // ── Lanista/plan contract ──
@@ -98,8 +109,8 @@ Item {
             rows.sort(function (a, b) { return ("" + (a.displayTitle || "")).localeCompare("" + (b.displayTitle || "")) })
         else if (view.sortMode === "newest")
             rows.sort(function (a, b) { return (b.mtimeMs || 0) - (a.mtimeMs || 0) })
-        else if (view.sortMode === "lastread")
-            rows.sort(function (a, b) { return (b.progressed ? 1 : 0) - (a.progressed ? 1 : 0) })
+        else if (view.sortMode === "lastread")   // real last-read time (Slice 14 join); unread sink to the bottom
+            rows.sort(function (a, b) { return (Number(b.lastReadMs) || 0) - (Number(a.lastReadMs) || 0) })
 
         var out = [], fi = 0
         if (view.sortMode === "natural") {
@@ -436,6 +447,18 @@ Item {
             MouseArea {
                 id: rowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: view.openRequested(rowRect.row)
+            }
+
+            // gold progress hairline — the real read position from Progress (the Slice 14 join;
+            // comic page fraction / book fraction / video position). Hidden until a file carries
+            // progress; degrades to nothing on a seeded test model with no progressFraction field.
+            Rectangle {
+                visible: (rowRect.row.progressFraction || 0) > 0
+                anchors.left: parent.left; anchors.bottom: parent.bottom
+                anchors.leftMargin: 1; anchors.bottomMargin: 1
+                height: 2; radius: 1
+                width: (parent.width - 2) * Math.max(0, Math.min(1, rowRect.row.progressFraction || 0))
+                color: theme.gold
             }
         }
     }

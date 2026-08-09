@@ -47,11 +47,19 @@ Item {
         chapters: [ { "id": root.archivePath, "number": 1, "name": root.title } ]
         chapterId: root.archivePath      // store.localPages(chapterId) → the CBZ pages, in order
         chapterLabel: root.title
-        entryKind: "manga"
+        // entryKind IS the Progress namespace for non-western callers (ComicReaderState.progressKind).
+        // The Vault files a loose comic under kind "comic" (VaultKit classifier), so the reader must
+        // persist Progress under the SAME kind — "comic", not "manga" — or the folder-view read tick,
+        // hairline, last-read sort, and the Vault Continue rail (all keyed Progress.get("comic",
+        // vaultId)) go blind. Reading direction is untouched: western=false alone decides RTL
+        // (defaultDirection ignores entryKind), and the "tankoban" volume branches never fire here.
+        // [Slice 14 source-label fix: supersedes Preflight's translate-at-the-boundary approach — the
+        // gate trace proved only comics were mislabeled; books write "book", video writes "video".]
+        entryKind: "comic"
         western: false
         pageStore: vaultStore
         // Real Progress (Slice 9): a Vault comic records + resumes at its saved page, keyed by
-        // seriesId == the content id, so reopening from the recent list lands where it was left.
+        // (progressKind "comic", seriesId == the content id), so reopening lands where it was left.
         progress: (typeof Progress !== "undefined") ? Progress : null
 
         onMinimizeRequested: root.minimizeRequested()

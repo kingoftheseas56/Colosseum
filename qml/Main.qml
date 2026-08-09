@@ -2757,6 +2757,8 @@ Window {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
+            if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
+                item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
