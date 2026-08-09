@@ -159,6 +159,50 @@ TestCase {
         articlePage.destroy()
     }
 
+    // Break caught: absolute, scheme, UNC, or traversal paths escape the local Guide asset boundary.
+    function test_article_rejects_non_relative_image_assets_and_keeps_their_text_fallbacks() {
+        var fixture = unsafeImageCatalog()
+        var articlePage = pageComponent.createObject(testWindow, {
+            width: testWindow.width, height: testWindow.height, catalog: fixture, initialLessonId: "fixture.unsafe-images"
+        })
+        verify(articlePage !== null)
+        tryCompare(articlePage, "currentView", "article")
+        var article = findChild(articlePage, "guideArticle")
+        compare(findChild(article, "guideArticleImageVisual"), null)
+        verify(article.visibleText.indexOf("File fallback") >= 0)
+        verify(article.visibleText.indexOf("Drive fallback") >= 0)
+        verify(article.visibleText.indexOf("UNC fallback") >= 0)
+        verify(article.visibleText.indexOf("Absolute fallback") >= 0)
+        verify(article.visibleText.indexOf("Traversal fallback") >= 0)
+        articlePage.destroy()
+    }
+
+    // Break caught: a missing relative teaching asset shows alt ahead of verified block text.
+    function test_article_uses_verified_text_before_alt_for_a_missing_relative_asset() {
+        var fixture = missingRelativeImageCatalog()
+        var articlePage = pageComponent.createObject(testWindow, {
+            width: testWindow.width, height: testWindow.height, catalog: fixture, initialLessonId: "fixture.missing-relative-image"
+        })
+        verify(articlePage !== null)
+        tryCompare(articlePage, "currentView", "article")
+        var fallback = findChild(findChild(articlePage, "guideArticle"), "guideArticleImageFallbackText")
+        verify(fallback !== null)
+        compare(fallback.text, "Verified text fallback")
+        articlePage.destroy()
+    }
+
+    // Break caught: malformed image data without text leaves an empty block in the article flow.
+    function test_article_omits_malformed_image_without_any_readable_fallback() {
+        var fixture = malformedImageCatalog()
+        var articlePage = pageComponent.createObject(testWindow, {
+            width: testWindow.width, height: testWindow.height, catalog: fixture, initialLessonId: "fixture.empty-image"
+        })
+        verify(articlePage !== null)
+        tryCompare(articlePage, "currentView", "article")
+        compare(findChild(articlePage, "guideArticle").renderedKinds, ["paragraph"])
+        articlePage.destroy()
+    }
+
     // Break caught: a recognized origin loses the return bridge to the exact calling surface.
     function test_context_strip_and_return_action_preserve_origin_label() {
         page.originLabel = "Manga reader"
@@ -294,6 +338,43 @@ TestCase {
             + 'function search(query, context) { return []; }\n'
             + 'function section(id) { return id === "start" ? allLessons : []; }\n'
             + '}', testWindow, "invalidImageCatalog")
+    }
+
+    function unsafeImageCatalog() {
+        return fixtureCatalogFor("fixture.unsafe-images", [
+            {kind: "paragraph", text: "Safe article text"},
+            {kind: "image", path: "file:/C:/outside.png", alt: "File alt", text: "File fallback"},
+            {kind: "image", path: "C:\\outside.png", alt: "Drive alt", text: "Drive fallback"},
+            {kind: "image", path: "\\\\server\\share\\outside.png", alt: "UNC alt", text: "UNC fallback"},
+            {kind: "image", path: "/outside.png", alt: "Absolute alt", text: "Absolute fallback"},
+            {kind: "image", path: "assets/../outside.png", alt: "Traversal alt", text: "Traversal fallback"}
+        ])
+    }
+
+    function missingRelativeImageCatalog() {
+        return fixtureCatalogFor("fixture.missing-relative-image", [
+            {kind: "image", path: "missing-relative-asset.png", alt: "Alt fallback", text: "Verified text fallback"}
+        ])
+    }
+
+    function malformedImageCatalog() {
+        return fixtureCatalogFor("fixture.empty-image", [
+            {kind: "paragraph", text: "Stable paragraph"},
+            {kind: "image", path: "file:/outside.png", alt: "", text: ""}
+        ])
+    }
+
+    function fixtureCatalogFor(id, blocks) {
+        return Qt.createQmlObject('import QtQuick 2.15; QtObject {\n'
+            + 'property var allLessons: [{ id: ' + JSON.stringify(id) + ', section: "start", title: "Image fixture", '
+            + 'outcome: "A local image fixture.", status: "published", order: 1, worlds: [], evidence: [], '
+            + 'verifiedCommit: "fixture", verifiedDate: "2026-08-09", contexts: ["home"], searchTerms: ["image"], '
+            + 'blocks: ' + JSON.stringify(blocks) + ', related: [] }];\n'
+            + 'property var publishedLessons: allLessons;\n'
+            + 'function find(wanted) { return wanted === allLessons[0].id ? allLessons[0] : null; }\n'
+            + 'function search(query, context) { return []; }\n'
+            + 'function section(sectionId) { return sectionId === "start" ? allLessons : []; }\n'
+            + '}', testWindow, "imageFixtureCatalog")
     }
 
     function hasActiveFocus(root) {
