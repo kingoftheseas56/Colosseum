@@ -9,6 +9,10 @@ Item {
     property Item backdrop: null
     property var updates: null
     property bool reducedMotion: false
+    // A shell overlay (the Living Guide) can float above this preserved page. While it does, this page
+    // yields Escape to it: two enabled Escape shortcuts on one window are an ambiguous overload that
+    // fires neither. Bound from Main.qml's updateLayer loader; defaults false for standalone use.
+    property bool guideActive: false
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -203,7 +207,8 @@ Item {
     Shortcut {
         objectName: "colosseumUpdateEscape"
         sequence: "Escape"
+        enabled: !root.guideActive
         onActivated: root.backRequested()
     }
-    Keys.onEscapePressed: root.backRequested()
+    Keys.onEscapePressed: if (!root.guideActive) root.backRequested()
 }

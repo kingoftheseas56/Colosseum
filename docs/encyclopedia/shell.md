@@ -73,8 +73,8 @@ for automation. A dropped FOLDER explains + offers the picker (the folder→Vaul
 |---|---|
 | `native/main.cpp` | the launcher: RHI/WebEngine boot, net layer, ~30 store registrations, env self-tests, LanistaServer |
 | `native/SessionStore.h` | the sessions model (`Sessions`): openOrSwitch/dedup/one-tab-per-show, activeId, savedState; **in-memory only** |
-| `qml/Main.qml` | the dispatcher + door layer: world routing, session switch glue, wallpaper, every surface Loader |
-| `qml/Taskbar.qml` | the auto-hiding switcher bar: app-grouped icon circles from `Sessions.groups()`, switch/close/fan, shell buttons + the Open Media… launch control (`taskbarOpenMedia`) |
+| `qml/Main.qml` | the dispatcher + door layer: world routing, session switch glue, wallpaper, every surface Loader; the **Living Guide shell route** — `guideLayer` (z:59) floats `GuidePage` over the current surface with the taskbar pinned (`openGuidePage`/`closeGuidePage`), a taskbar click routes via `open*Page` while Guide is up, and the shell Escape + UpdatePage yield their Escape (`enabled: !guideLayer.active` / `!guideActive`) so GuidePage's own Escape is the sole owner while Guide floats (two enabled Escape shortcuts on one window fire neither) |
+| `qml/Taskbar.qml` | the auto-hiding switcher bar: app-grouped icon circles from `Sessions.groups()`, switch/close/fan, shell buttons + the Open Media… launch control (`taskbarOpenMedia`) + the **Living Guide door** (`colosseumGuideTaskbarButton` → `guideClicked`, `guideActive` underline) |
 | `native/engine/LocalLaunch.{h,cpp}` | the Vault launch router + QML `open()` orchestration: classify → backend-validate → route a handed-in file, rejecting before any session (Slice 7/8) |
 | `native/engine/VaultPageStore.{h,cpp}` | `ComicReaderShell` injected-store adapter for a local CBZ — same `[{index,archive,entry,group}]` descriptors as the Tankoban volume lane, zero reader edits |
 | `qml/comicreader/VaultComicReader.qml` | standalone comic reader host for a single loose CBZ (no series page): wraps `ComicReaderShell` with the injected Vault store, hosted by `vaultComicLayer` |
