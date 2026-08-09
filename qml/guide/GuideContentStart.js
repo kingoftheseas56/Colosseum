@@ -79,7 +79,7 @@ function lessons() {
             related: ["fnd-taskbar", "fnd-continue-library", "fnd-pip-vs-minimize"],
             blocks: [
                 { kind: "paragraph", text: "An open comic, book, or Theatre player can be minimized into a session - parked in the taskbar, not deleted. The taskbar expands on its own right after a minimize." },
-                { kind: "steps", items: ["Open some media.", "Use its minimize control; it parks in the taskbar and resumes with no reload.", "Click its session circle to restore it.", "If several sessions stack, open the stack and choose the title.", "To end a session, use its close control, or the taskbar's remove target."] },
+                { kind: "steps", items: ["Open some media.", "Use its minimize control; it parks in the taskbar rather than closing.", "Click its session circle to restore it where you left off.", "If several sessions stack, open the stack and choose the title.", "To end a session, use its close control, or the taskbar's remove target."] },
                 { kind: "note", text: "Minimize keeps a session open; Close removes it. Closing the active session returns you to the world behind it. There is no undo for a close - if Continue has the item, resume there." },
                 { kind: "note", text: "Open sessions do not survive an app restart. Minimizing the whole Colosseum window is a separate action from parking a session." }
             ]

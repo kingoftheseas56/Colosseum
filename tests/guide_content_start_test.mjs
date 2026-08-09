@@ -28,7 +28,9 @@ const FORBIDDEN = [
     /Escape.*always.*Back/i,                // original literal
     /Esc(ape)?\s+is\s+(the\s+)?back\b/i,     // no unconditional Escape=Back, even without "always"
     /clear all recent searches/i,           // no unsupported global recent-search clear
-    /install\s+it\s+manually/i              // no unsupported manual-install instruction
+    /install\s+it\s+manually/i,             // no unsupported manual-install instruction
+    /\bno reload\b/i,                        // sessions are torn down + rebuilt from saved state — never promise "no reload"
+    /\b(green|red|blue|gold|golden|yellow|orange|purple)\s+(button|dot|icon|chip|link|pill|underline|highlight|badge|indicator|text|tab)\b/i  // no color-only instruction (monochrome rule)
 ];
 try { assertNoForbidden(lessons, FORBIDDEN); } catch (e) { check(false, "real cohort tripped the gate: " + e.message); }
 
@@ -38,7 +40,9 @@ const BAD_FIXTURES = [
     ["fourth world (unnamed)",     "There is a fourth world for records."],
     ["Escape = Back",              "Escape is the Back key on every screen."],
     ["global recent clear",        "Use clear all recent searches to wipe them."],
-    ["manual-install instruction", "Download the release from GitHub and install it manually."]
+    ["manual-install instruction", "Download the release from GitHub and install it manually."],
+    ["no-reload continuity claim", "Minimizing resumes with no reload."],
+    ["color-only instruction",     "Click the green button to continue."]
 ];
 BAD_FIXTURES.forEach(([concept, text]) => {
     let caught = false;
