@@ -3,12 +3,34 @@
 #include "CbzArchive.h"
 #include "VaultKit.h"      // CancellationToken
 #include "VaultStoreIo.h"
+#include "player/MediaAdmissionProbe.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonObject>
+#include <QMetaObject>
+#include <QPointer>
 #include <QProcess>
+#include <QThread>
+
+namespace {
+// Map the probe's enum to the exact durable verdict string the index/QML contract expects.
+QString admissionVerdictName(MediaAdmissionProbe::Verdict verdict)
+{
+    switch (verdict) {
+    case MediaAdmissionProbe::Verdict::Admitted:
+        return QStringLiteral("Admitted");
+    case MediaAdmissionProbe::Verdict::RejectedNoVideo:
+        return QStringLiteral("RejectedNoVideo");
+    case MediaAdmissionProbe::Verdict::RejectedError:
+        return QStringLiteral("RejectedError");
+    case MediaAdmissionProbe::Verdict::RejectedTimeout:
+        return QStringLiteral("RejectedTimeout");
+    }
+    return QStringLiteral("RejectedError");
+}
+} // namespace
 
 VaultEnricher::VaultEnricher(VaultIndex* index, QString cacheDir, QObject* parent)
     : QObject(parent), m_index(index), m_cacheDir(std::move(cacheDir))
@@ -139,6 +161,11 @@ double VaultEnricher::probeDurationSec(const QString& path)
 void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
                            const VaultKit::CancellationToken* cancel)
 {
+    // Buffer the enriched rows and hand them to the owner thread in ONE batch at the end, instead
+    // of an owner-thread DB write per file from this (possibly worker) thread.
+    QList<VaultIndex::FileRow> enrichedRows;
+    enrichedRows.reserve(rows.size());
+
     int done = 0;
     const int total = rows.size();
     for (const VaultIndex::FileRow& r0 : rows) {
@@ -153,15 +180,45 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
             }
         } else if (row.kind == QLatin1String("video")) {
             row.durationSec = durationForVideo(row.path, row.size, row.mtimeMs);
+            if (row.admissionVerdict.isEmpty()) {
+                // Blocking by contract; MediaAdmissionProbe exposes no cancel token, so cancellation
+                // is honored only BETWEEN files (the loop guard), never mid-probe.
+                const MediaAdmissionProbe::Result admission =
+                    MediaAdmissionProbe::probe(row.path);
+                row.admissionVerdict = admissionVerdictName(admission.verdict);
+                row.admissionDetail = admission.detail;
+            }
         } else if (row.kind == QLatin1String("book")) {
             row.format = QFileInfo(row.path).suffix().toLower();
         }
-        m_index->upsert(row);
+        enrichedRows.push_back(row);
         ++done;
         emit progress(done, total);
         if (done % 20 == 0)
             saveDurationCache();
     }
     saveDurationCache();
-    emit enrichmentFinished();
+    commitRowsOnIndexThread(std::move(enrichedRows));
+}
+
+void VaultEnricher::commitRowsOnIndexThread(QList<VaultIndex::FileRow> rows)
+{
+    QPointer<VaultIndex> index(m_index);
+    QPointer<VaultEnricher> self(this);
+
+    auto commit = [index, self, rows = std::move(rows)]() mutable {
+        if (index && !rows.isEmpty())
+            index->upsertMany(rows);
+        if (self)
+            emit self->enrichmentFinished();
+    };
+
+    if (!m_index || QThread::currentThread() == m_index->thread()) {
+        commit();
+        return;
+    }
+
+    // Never fall back to a worker-thread QSqlDatabase write: hop to the index's thread.
+    if (!QMetaObject::invokeMethod(m_index, std::move(commit), Qt::QueuedConnection))
+        emit enrichmentFinished();
 }

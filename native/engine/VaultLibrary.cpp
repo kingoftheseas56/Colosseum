@@ -108,6 +108,11 @@ QVariantList VaultLibrary::series(const QString& kind) const
     return out;
 }
 
+QVariantMap VaultLibrary::admissionById() const
+{
+    return m_index ? m_index->admissionById() : QVariantMap{};
+}
+
 QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) const
 {
     Q_UNUSED(kind);

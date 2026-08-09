@@ -259,12 +259,18 @@ add_executable(tst_vault_enricher
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.h"
-    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c")
-target_include_directories(tst_vault_enricher PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
+    # vault-admission slice: enrich() now video-admits via the real probe (raw libmpv),
+    # so the enricher test links MediaAdmissionProbe + libmpv, same as the probe/launch harnesses.
+    "${COLOSSEUM_NATIVE_DIR}/player/MediaAdmissionProbe.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/MediaAdmissionProbe.h")
+target_include_directories(tst_vault_enricher PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" ${Libmpv_INCLUDE_DIRS})
 target_compile_definitions(tst_vault_enricher PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/tankoban"
     VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
-target_link_libraries(tst_vault_enricher PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_enricher PRIVATE
+    Qt6::Core Qt6::Sql Qt6::Test ${Libmpv_LIBRARIES})
 set_target_properties(tst_vault_enricher PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_enricher POST_BUILD

@@ -17,7 +17,9 @@
 #include "engine/VaultPageStore.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QString>
+#include <QTemporaryDir>
 #include <QVariantMap>
 
 #include <cstdio>
@@ -31,6 +33,12 @@ void check(bool ok, const char* msg)
         std::fprintf(stderr, "FAIL: %s\n", msg);
         ++g_fails;
     }
+}
+
+bool replaceFile(const QString& source, const QString& target)
+{
+    QFile::remove(target);
+    return QFile::copy(source, target);
 }
 } // namespace
 
@@ -80,6 +88,31 @@ int main(int argc, char** argv)
         check(p0.value(QStringLiteral("entry")).toString() == QStringLiteral("001.png"),
               "page 0 entry is natural-first (001.png)");
         check(p0.value(QStringLiteral("group")).toInt() == 0, "page 0 group == 0");
+    }
+
+    // Self-heal boundary: LocalLaunch freshly re-probes the bytes at a path on every open — it holds
+    // no durable verdict and no VaultIndex writer. Same path, invalid bytes first (reject), then the
+    // bytes are replaced by a valid MP4 (accept). A stale open-time cache would fail the second route.
+    QTemporaryDir selfHealDir;
+    check(selfHealDir.isValid(), "self-heal temporary directory must be valid");
+
+    if (selfHealDir.isValid()) {
+        const QString candidate =
+            selfHealDir.filePath(QStringLiteral("candidate.mp4"));
+
+        check(replaceFile(vx + QStringLiteral("/media/not-a-video.mp4"), candidate),
+              "must stage invalid candidate");
+
+        const auto first = LocalLaunch::route(candidate);
+        check(first.family == Family::Video && !first.accepted,
+              "invalid candidate must be rejected on first open");
+
+        check(replaceFile(vx + QStringLiteral("/media/tiny.mp4"), candidate),
+              "must replace candidate with valid MP4");
+
+        const auto second = LocalLaunch::route(candidate);
+        check(second.family == Family::Video && second.accepted,
+              "second open must freshly re-probe replacement bytes");
     }
 
     if (g_fails == 0) {

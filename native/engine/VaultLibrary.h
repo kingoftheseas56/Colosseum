@@ -62,6 +62,10 @@ public:
     Q_INVOKABLE QVariantList series(const QString& kind) const;
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
 
+    // Read-only { id -> admissionVerdict } projection for the Vault Continue gate. Re-read from QML
+    // through the revision clock (a publish/upsert bumps it); exposes no VaultIndex mutation.
+    Q_INVOKABLE QVariantMap admissionById() const;
+
     // ── commands (C++ owns the multi-step sequences) ──
     // Add a folder as an UNCONFIRMED root and census it off-thread; scanFinished raises the card.
     Q_INVOKABLE void addFolder(const QString& pathOrUrl);

@@ -22,6 +22,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <QVariantMap>
 
 namespace VaultKit { struct CancellationToken; }
 
@@ -53,6 +54,11 @@ public:
         QString format;
         bool progressed = false;
         QString coverRef; // comic: the CBZ entry name for image://comiccover/; else ""
+        // Durable media-admission verdict (vault-admission slice). "" = unprobed; a non-empty
+        // value is EXACTLY one of Admitted / RejectedNoVideo / RejectedError / RejectedTimeout.
+        // Carried across a destructive publish() only when (id,size,mtimeMs) is unchanged.
+        QString admissionVerdict;
+        QString admissionDetail; // human-readable reason; empty whenever the verdict is empty
     };
 
     explicit VaultIndex(const QString& dbPath, QObject* parent = nullptr);
@@ -82,6 +88,11 @@ public:
     Q_INVOKABLE QVariantList groupsForKind(const QString& kind) const; // [{groupKey,subtreePath,groupTitle,kind,count}]
     Q_INVOKABLE QVariantList filesInSubtree(const QString& subtreePath) const; // natural order, grouped by subfolder
 
+    // Narrow read-only projection for QML: { id -> admissionVerdict } over video rows that carry a
+    // non-empty durable verdict. Unprobed and non-video rows are omitted. Read-only by construction —
+    // QML never sees VaultIndex itself; it re-reads this through the VaultLibrary.revision clock.
+    Q_INVOKABLE QVariantMap admissionById() const;
+
     // Numeric-aware sort key: lexicographic order of the key reproduces
     // QCollator numeric order ("vol 2" before "vol 10"). Pure + static.
     static QString naturalSortKey(const QString& s);
@@ -90,7 +101,9 @@ signals:
     void changed();
 
 private:
-    void ensureSchema();
+    // Migrate/verify the Vault-owned schema and stamp PRAGMA user_version. Returns false (and the
+    // caller closes the DB) when the file was created by a newer schema owner — never downgrade.
+    bool ensureSchema();
     bool insertRow(const FileRow& row); // prepared INSERT OR REPLACE
 
     QString m_conn;

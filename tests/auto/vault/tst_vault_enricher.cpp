@@ -12,7 +12,9 @@
 #include "engine/VaultEnricher.h"
 #include "engine/VaultIndex.h"
 
+#include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QVariantMap>
 #include <QtTest>
 
@@ -29,6 +31,10 @@ private:
     {
         return QStringLiteral(VAULT_FIXTURES_DIR) + QStringLiteral("/corrupt/bad.cbz");
     }
+    static QString mediaFixture(const QString& name)
+    {
+        return QStringLiteral(VAULT_FIXTURES_DIR) + QStringLiteral("/media/") + name;
+    }
 
 private slots:
     void pick_cover_entry_prefers_cover_then_first();
@@ -36,6 +42,9 @@ private slots:
     void corrupt_cbz_is_error_not_wedge();
     void duration_cache_hit_miss_and_persist();
     void enrich_writes_comic_facts_to_index();
+    // ── vault-admission slice: probe off the owner thread, commit on it ──
+    void video_admission_is_persisted_after_owner_thread_commit();
+    void rejected_video_verdict_is_not_promoted();
 };
 
 void tst_vault_enricher::pick_cover_entry_prefers_cover_then_first()
@@ -105,6 +114,85 @@ void tst_vault_enricher::enrich_writes_comic_facts_to_index()
     QCOMPARE(files.first().toMap().value(QStringLiteral("pages")).toInt(), 3);
     QCOMPARE(files.first().toMap().value(QStringLiteral("coverRef")).toString(),
              QStringLiteral("001.png"));
+}
+
+void tst_vault_enricher::video_admission_is_persisted_after_owner_thread_commit()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+    VaultEnricher enricher(&idx, tmp.path());
+    QSignalSpy finished(&enricher, &VaultEnricher::enrichmentFinished);
+
+    QThread* changedThread = nullptr;
+    QObject::connect(
+        &idx, &VaultIndex::changed, &idx,
+        [&changedThread]() { changedThread = QThread::currentThread(); },
+        Qt::DirectConnection);
+
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:tiny-video");
+    row.kind = QStringLiteral("video");
+    row.path = mediaFixture(QStringLiteral("tiny.mp4"));
+    row.rootPath = tmp.path();
+    row.subtreePath = tmp.path();
+    row.groupKey = tmp.path();
+    row.groupTitle = QStringLiteral("Tiny");
+    row.realName = QStringLiteral("tiny.mp4");
+    row.size = 1;
+    row.mtimeMs = 1;
+    row.durationSec = 1.0; // keep this test on admission, not ffprobe duration
+
+    QThread worker;
+    QObject gate;
+    gate.moveToThread(&worker);
+    worker.start();
+
+    QMetaObject::invokeMethod(
+        &gate,
+        [&enricher, row]() { enricher.enrich({row}); },
+        Qt::QueuedConnection);
+
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 20000);
+    worker.quit();
+    QVERIFY(worker.wait(5000));
+
+    const auto rows = idx.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.first().admissionVerdict, QStringLiteral("Admitted"));
+    QCOMPARE(changedThread, QThread::currentThread()); // committed on the owner thread, not the worker
+}
+
+void tst_vault_enricher::rejected_video_verdict_is_not_promoted()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+    VaultEnricher enricher(&idx, tmp.path());
+
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:not-video");
+    row.kind = QStringLiteral("video");
+    row.path = mediaFixture(QStringLiteral("not-a-video.mp4"));
+    row.rootPath = tmp.path();
+    row.subtreePath = tmp.path();
+    row.groupKey = tmp.path();
+    row.groupTitle = QStringLiteral("Bad");
+    row.realName = QStringLiteral("not-a-video.mp4");
+    row.size = 1;
+    row.mtimeMs = 1;
+    row.durationSec = 1.0;
+
+    enricher.enrich({row}); // same-thread path commits directly
+
+    const auto rows = idx.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(rows.size(), 1);
+    QVERIFY(!rows.first().admissionVerdict.isEmpty());
+    QVERIFY(rows.first().admissionVerdict != QStringLiteral("Admitted"));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_enricher)
