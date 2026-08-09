@@ -9,6 +9,7 @@ import QtQuick.Controls
 
 Item {
     id: root
+    objectName: "vaultPage"
     property Item backdrop: null
     signal backRequested()
     signal addFolderRequested()
@@ -26,6 +27,10 @@ Item {
     readonly property bool scanning:
         (typeof VaultLibrary !== "undefined") ? VaultLibrary.scanning : false
     readonly property bool scanningEmpty: itemCount === 0 && scanning
+    readonly property bool populated: itemCount > 0 && !scanning
+    // Lanista/plan state contract (vaultPage.vaultState / itemCount / cardVisible).
+    readonly property string vaultState: scanning ? "scanning" : (itemCount > 0 ? "populated" : "empty")
+    readonly property bool cardVisible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
 
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }
@@ -71,11 +76,89 @@ Item {
             Item { width: 1; height: 20 }
             Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
 
-            // ---- empty state: the dashed Add-folder drop surface ----
-            Item { width: 1; height: 44 }
+            // ---- populated: the shelves — one section per kind, undressed (Slice 12 dresses them
+            //      with real covers + the WorldTabBar). Each section reads VaultLibrary.series(kind). ----
+            Item { visible: root.populated; width: 1; height: 34 }
+            Repeater {
+                model: root.populated ? ["comic", "book", "video"] : []
+                delegate: Column {
+                    id: kindSection
+                    required property string modelData
+                    property string shelfSuffix: modelData === "comic" ? "comics"
+                                               : modelData === "book" ? "books" : "video"
+                    property var seriesList: (typeof VaultLibrary !== "undefined")
+                        ? (VaultLibrary.revision, VaultLibrary.series(modelData)) : []
+                    visible: seriesList.length > 0
+                    width: col.width
+                    spacing: 14
+                    bottomPadding: 30
+
+                    Text {
+                        text: kindSection.modelData === "comic" ? "Comics"
+                            : kindSection.modelData === "book" ? "Books" : "Video"
+                        color: theme.ink; font.family: theme.display; font.pixelSize: 24
+                    }
+                    Flow {
+                        objectName: "vaultShelf_" + kindSection.shelfSuffix
+                        property int rowCount: kindSection.seriesList.length // Lanista contract
+                        width: col.width
+                        spacing: 16
+                        Repeater {
+                            model: kindSection.seriesList
+                            delegate: Rectangle {
+                                required property var modelData
+                                width: 156; height: 214; radius: 12
+                                color: Qt.rgba(0.094, 0.110, 0.145, 0.94)
+                                border.width: 1; border.color: theme.edge
+                                Column {
+                                    anchors.fill: parent; anchors.margins: 12; spacing: 8
+                                    Rectangle { // cover placeholder — real covers arrive with the Slice 12 dress
+                                        width: parent.width; height: 128; radius: 8
+                                        color: Qt.rgba(1, 1, 1, 0.05)
+                                        Image {
+                                            anchors.centerIn: parent; width: 30; height: 30; opacity: 0.4
+                                            source: kindSection.modelData === "book" ? "../assets/icons/book-library.svg"
+                                                  : kindSection.modelData === "video" ? "../assets/icons/projector-theatre.svg"
+                                                  : "../assets/icons/comic-book.svg"
+                                            fillMode: Image.PreserveAspectFit
+                                        }
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        text: modelData.title || ""
+                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
+                                    }
+                                    Text {
+                                        text: (modelData.count || 0) + ((modelData.count === 1) ? " item" : " items")
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // a small Add-folder affordance once the Vault has content (the big drop surface is the empty state).
+            Rectangle {
+                visible: root.populated
+                width: addMoreT.implicitWidth + 34; height: 38; radius: 10
+                color: addMoreMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                border.width: 1; border.color: theme.edge
+                Text { id: addMoreT; anchors.centerIn: parent; text: "Add folder"
+                       color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                MouseArea { id: addMoreMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: root.addFolderRequested() }
+            }
+            Item { visible: root.populated; width: 1; height: 40 }
+
+            // ---- empty state: the dashed Add-folder drop surface (shown until the Vault has content) ----
+            Item { visible: !root.populated; width: 1; height: 44 }
 
             Rectangle {
                 id: dropSurface
+                visible: !root.populated
                 objectName: "vaultDropSurface"
                 width: col.width
                 height: 320
