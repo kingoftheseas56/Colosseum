@@ -24,9 +24,18 @@ export function assertNoPublishedUnverified(lessons) {
     });
 }
 
+// Scoped PER LESSON, not across the whole cohort: a forbidden claim lives inside one lesson, so
+// matching each lesson's own serialization avoids phantom trips where unrelated tokens in separate
+// lessons line up under one regex (e.g. "clear" in a Vault lesson + "delete" in a Downloads lesson).
+// This is strictly more permissive than whole-blob matching — it can only drop false positives,
+// never miss a real single-lesson violation. Author patterns to target the actionable CLAIM
+// ("use the Downloaded filter"), not the mere mention ("there is no Downloaded filter").
 export function assertNoForbidden(lessons, patterns) {
-    const text = JSON.stringify(lessons);
-    patterns.forEach(pattern => {
-        if (pattern.test(text)) throw new Error(`forbidden claim ${pattern}`);
+    lessons.forEach(lesson => {
+        const text = JSON.stringify(lesson);
+        patterns.forEach(pattern => {
+            if (pattern.test(text))
+                throw new Error(`forbidden claim ${pattern} in ${lesson.id || "(unknown lesson)"}`);
+        });
     });
 }
