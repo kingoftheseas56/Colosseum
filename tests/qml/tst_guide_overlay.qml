@@ -114,6 +114,22 @@ TestCase {
         compare(closedSpy.count, 1)
     }
 
+    // T5-F1 (Preflight): `active` is read-only — a caller performing the natural QML state write
+    // `overlay.active = false` must NOT dismiss the overlay off-lifecycle (skipping closed() + focus
+    // restore). Only open()/close() move the private state.
+    function test_active_is_readonly_and_cannot_bypass_close() {
+        overlay.open("fixture.overlay", "")
+        verify(overlay.active)
+        compare(closedSpy.count, 0)
+        var threw = false
+        try { overlay.active = false } catch (e) { threw = true }   // rejected: readonly
+        verify(overlay.active)                   // still open — the external write did nothing
+        compare(closedSpy.count, 0)              // no closed() leaked off-lifecycle
+        overlay.close()                          // the ONLY dismissal route still works
+        tryCompare(overlay, "active", false)
+        compare(closedSpy.count, 1)
+    }
+
     // the pure host-state helpers are exposed on the overlay for hosts to wire pause/resume
     function test_playback_helpers_are_exposed() {
         compare(overlay.capturePlayback(true).resumeOnClose, true)

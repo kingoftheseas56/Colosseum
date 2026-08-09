@@ -18,7 +18,9 @@ FocusScope {
     focus: active
 
     property var catalog: undefined       // optional injected catalog (host / tests); undefined → GuidePage default
-    property bool active: false
+    property bool _active: false          // private lifecycle state — ONLY open()/close() mutate it
+    readonly property bool active: _active   // frozen public name, READ-ONLY: a direct external write cannot
+                                             // bypass close() (which is the only route that restores focus + emits closed())
     property string lessonId: ""
     property string originLabel: ""
     property var _returnFocusItem: null
@@ -41,7 +43,7 @@ FocusScope {
         }
         var w = overlay.Window.window
         _returnFocusItem = w ? w.activeFocusItem : null
-        active = true                      // synchronous Loader → GuidePage loads → onLoaded applies the target
+        _active = true                     // synchronous Loader → GuidePage loads → onLoaded applies the target
         _openInFlight = true
         overlay.forceActiveFocus()
         opened()
@@ -50,7 +52,7 @@ FocusScope {
     function close() {
         if (!active)
             return
-        active = false                     // Loader deactivates GuidePage; the HOST beneath is untouched
+        _active = false                    // Loader deactivates GuidePage; the HOST beneath is untouched
         if (_returnFocusItem) { _returnFocusItem.forceActiveFocus(); _returnFocusItem = null }
         if (_openInFlight) { _openInFlight = false; closed() }   // exactly one close per open
     }
