@@ -53,6 +53,21 @@ function resumeTarget(rows) {
 // --- Vault Continue rail (Slice 14) -----------------------------------------------------------
 function isVault(id) { return String(id || "").indexOf("vault:") === 0 }
 
+// Coerce a caller limit to a positive whole number; 0 means "no cap". Guards NaN/negative/Infinity.
+function _positiveLimit(limit) {
+    var n = Number(limit || 0)
+    if (!isFinite(n) || n <= 0) return 0
+    return Math.floor(n)
+}
+
+// A Vault video is admissible to Continue ONLY when its durable verdict is EXACTLY "Admitted".
+// Unprobed (absent from the map), rejected, or non-vault ids never qualify.
+function isAdmittedVault(admissionById, id) {
+    if (!isVault(id) || !admissionById) return false
+    var verdict = admissionById[id]
+    return verdict !== undefined && verdict !== null && String(verdict) === "Admitted"
+}
+
 // The file path to reopen, pulled from the resume payload each reader/player already writes: books
 // carry resume.path, video resume.localPath, and a Vault comic resume.chapterId (== the archive
 // path, because VaultComicReader feeds the shell chapterId = archivePath). LocalLaunch re-derives
@@ -66,18 +81,46 @@ function vaultPathOf(rec) {
 // to the tiles the rail renders and routes. Catalogue recents are excluded — they own their own
 // rails, and §9 keeps the two from double-showing. A row with no resolvable path is dropped
 // (nothing to reopen). Title/cover/fraction come straight off the Progress entry (no index lookup).
-function continueRail(progress, limit) {
+function continueRail(progress, limit, admissionById) {
     if (!progress) return []
-    var all = progress.recent("", limit || 0), out = []
+
+    // Unbounded read FIRST, then cap after filtering. Rejected, unprobed, catalogue, or pathless
+    // rows must not consume the requested output cap (the old filter-after-limit trap).
+    var all = progress.recent("", 0)
+    var cap = _positiveLimit(limit)
+    var out = []
+
     for (var i = 0; i < all.length; i++) {
         var e = all[i]
-        if (!isVault(e.id)) continue
+        if (!isAdmittedVault(admissionById, e.id)) continue
+
         var path = vaultPathOf(e)
         if (!path) continue
+
         out.push({ id: e.id, kind: e.kind, path: path,
                    title: e.title || e.caption || "",
                    cover: e.cover || "",
                    progressFraction: _frac(e.progress) })
+
+        if (cap > 0 && out.length >= cap) break
+    }
+    return out
+}
+
+// §9 catalogue isolation: strip vault: rows from a catalogue recents read BEFORE the hard cap, so a
+// run of local items can never shrink a catalogue rail below its intended length.
+function recentWithoutVault(progress, kind, limit) {
+    if (!progress) return []
+
+    var all = progress.recent(kind || "", 0)
+    var cap = _positiveLimit(limit)
+    var out = []
+
+    for (var i = 0; i < all.length; i++) {
+        var e = all[i]
+        if (isVault(e && e.id)) continue
+        out.push(e)
+        if (cap > 0 && out.length >= cap) break
     }
     return out
 }

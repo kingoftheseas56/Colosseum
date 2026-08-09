@@ -10,6 +10,7 @@ import "AddonClient.js" as AddonClient
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "NextUp.js" as NextUp
 import "LibraryApi.js" as LibraryApi
+import "VaultApi.js" as VaultApi
 
 WorldPage {
     id: theatre
@@ -31,7 +32,8 @@ WorldPage {
     property var featuredRows: Catalog.theatreFeatured
     // Real "Continue Watching" from the Progress store (what you actually started).
     property int progressRevision: Progress.revision
-    property var continueRows: Progress.recent("video", 12)
+    // §9: local (vault:) rows keep to the Vault Continue rail — strip them here before the cap.
+    property var continueRows: VaultApi.recentWithoutVault(Progress, "video", 12)
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
@@ -43,7 +45,7 @@ WorldPage {
     property var contentPreferences: null
 
     onProgressRevisionChanged: {
-        continueRows = Progress.recent("video", 12)
+        continueRows = VaultApi.recentWithoutVault(Progress, "video", 12)
         recomputeNextUp()
     }
 
@@ -56,7 +58,7 @@ WorldPage {
     property var _nextUpPending: ({})   // show root -> true while a fetch is in flight
 
     function recomputeNextUp() {
-        var fin = NextUp.finishedShows(Progress.recent("video", 48)).slice(0, 8)
+        var fin = NextUp.finishedShows(VaultApi.recentWithoutVault(Progress, "video", 48)).slice(0, 8)
         var out = []
         for (var i = 0; i < fin.length; i++) {
             var rec = fin[i]
@@ -151,7 +153,7 @@ WorldPage {
         // Refresh the Library's new-episode + airing stamps for saved series (spec §4.5).
         // Cheap: skips fresh-stamped (<6h) series and does zero network on an empty shelf.
         LibraryApi.refreshStamps(Collection.items("theatre"), TheatreApi.loadMeta,
-            Progress.recent("video", 0),
+            VaultApi.recentWithoutVault(Progress, "video", 0),
             function(id) { return Progress.watchedMark(id) },
             function(id) { Progress.forget("video", id) },
             function(id, on) { Progress.setWatchedMark(id, on) },

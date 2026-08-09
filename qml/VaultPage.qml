@@ -36,6 +36,12 @@ Item {
     // Lanista/plan state contract (vaultPage.vaultState / itemCount / cardVisible).
     readonly property string vaultState: scanning ? "scanning" : (itemCount > 0 ? "populated" : "empty")
     readonly property bool cardVisible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
+    // Read-only { id -> admissionVerdict } for video rows, re-read on the same revision clock. The
+    // Continue rail gates on this so only durably-Admitted local videos ever resume.
+    readonly property var admissionById:
+        (typeof VaultLibrary !== "undefined")
+            ? (VaultLibrary.revision, VaultLibrary.admissionById())
+            : ({})
 
     // ---- Slice 12 dress: the in-world tab bar (All · Comics · Books · Video · Folders) ----
     property string currentTab: "all"
@@ -62,7 +68,7 @@ Item {
     //      from Progress.recent filtered to vault: ids (catalogue recents keep their own rails, §9).
     //      Re-derives on Progress.revision (a lifecycle write), never the silent 5s video tick. ----
     readonly property var continueItems: (root.populated && typeof Progress !== "undefined")
-        ? VaultApi.continueRail(Progress, (Progress.revision, 18))
+        ? VaultApi.continueRail(Progress, (Progress.revision, 18), root.admissionById)
         : []
 
     // ---- Slice 13: the folder detail overlay. Vault-local — the shelves stay instantiated
