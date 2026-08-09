@@ -41,9 +41,66 @@ if ($main -notmatch 'updateAvailable:\s*typeof Updates' -or
 if ($main -notmatch 'function openUpdatePage\(\)[\s\S]*?updateLayer\.active\s*=\s*true') {
     throw 'Main.qml has no openUpdatePage route'
 }
+if ($main -notmatch 'function openUpdatePage\(\)[\s\S]*?taskbar\.open\s*=\s*true[\s\S]*?taskbar\.autoRevealed\s*=\s*false') {
+    throw 'opening Update does not pin an auto-revealed taskbar open for the chronicle'
+}
 if ($main -notmatch 'function openUpdatePage\(\)[\s\S]*?Updates\.markSeen\(\)') {
     throw 'opening Update does not mark the release seen'
 }
 if ($main -notmatch 'id:\s*updateLayer') { throw 'Main.qml has no updateLayer loader' }
+$immersiveBlock = [regex]::Match($main, 'readonly property bool immersiveSurfaceOpen:[^\r\n]*(?:\r?\n\s*\|\|[^\r\n]*)*').Value
+if ($immersiveBlock -match [regex]::Escape('updateLayer.active')) {
+    throw 'UpdatePage still suppresses the ordinary taskbar while the chronicle is open'
+}
+if ($main -notmatch 'visible:\s*!win\.immersiveSurfaceOpen') {
+    throw 'Taskbar is not visible while the non-immersive Update page is active'
+}
+foreach ($contract in @('property var updatePresentation', 'signal updatePrimaryActionRequested',
+                        'objectName: "colosseumUpdateStatusText"',
+                        'objectName: "colosseumUpdateStatusMetadata"',
+                        'objectName: "colosseumUpdateProgressTrack"',
+                        'objectName: "colosseumUpdatePrimaryAction"')) {
+    if ($bar -notmatch [regex]::Escape($contract)) { throw "Taskbar is missing taskbar-owned updater contract: $contract" }
+}
+if ($bar -match 'UpdateStatusRail') { throw 'Taskbar retains the rejected secondary update rail' }
+$page = Get-Content (Join-Path $root 'qml/UpdatePage.qml') -Raw
+if ($page -match 'UpdateStatusRail|colosseumUpdateStatusRail') {
+    throw 'UpdatePage retains the rejected secondary status surface'
+}
+if (Test-Path (Join-Path $root 'qml/update/UpdateStatusRail.qml')) {
+    throw 'rejected UpdateStatusRail.qml component still exists'
+}
+if ($page -notmatch 'taskbarPresentation') {
+    throw 'UpdatePage does not expose the single updater presentation mapping to Taskbar'
+}
+$gallery = Get-Content (Join-Path $root 'qml/update/UpdateLivingGallery.qml') -Raw
+foreach ($contract in @('text: "COLOSSEUM UPDATE"', 'activeFocusOnTab: true',
+                        'Keys.onLeftPressed:', 'Keys.onRightPressed:',
+                        'Keys.onReturnPressed:', 'Keys.onSpacePressed:')) {
+    if ($gallery -notmatch [regex]::Escape($contract)) {
+        throw "Living gallery is missing keyboard/focus contract: $contract"
+    }
+}
+if ($gallery -match 'persistent status rail') {
+    throw 'Living gallery retains stale rejected-status-rail terminology'
+}
+if ($gallery -notmatch 'width:\s*44' -or $gallery -notmatch 'height:\s*44') {
+    throw 'chapter navigator does not expose 44px logical hit targets'
+}
+if ($bar -notmatch 'objectName:\s*"colosseumUpdatePrimaryAction"[\s\S]{0,1800}?Layout\.preferredHeight:\s*44') {
+    throw 'taskbar update primary action does not expose a 44px logical hit target'
+}
+if ($bar -match 'Math\.round\(bar\.updateProgress \* 100\) \+ "%"') {
+    throw 'taskbar still renders a duplicate standalone progress percentage'
+}
+foreach ($contract in @('readonly property real automationStageOpacity',
+                        'readonly property bool automationStageSettled')) {
+    if ($gallery -notmatch [regex]::Escape($contract)) {
+        throw "gallery visual-readiness contract is missing named settled-stage automation: $contract"
+    }
+}
+if ($gallery -notmatch 'readonly property bool visualContentReady:[\s\S]*?automationStageSettled') {
+    throw 'gallery visual-readiness contract does not require the named stage-settled condition'
+}
 
-Write-Host 'test_update_taskbar_p0: PASS (icon, badge, pulse, accessibility, and shell route contract)'
+Write-Host 'test_update_taskbar_p0: PASS (icon, badge, persistent taskbar, safe action surface, and shell route contract)'

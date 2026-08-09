@@ -1,5 +1,10 @@
+param(
+    [ValidateSet("all", "up-to-date")]
+    [string]$Scenario = "all"
+)
+
 # Production update wiring gate.
-# Builds the explicit test-key configuration, replays the two isolated updater
+# Builds the explicit test-key configuration, replays the three isolated updater
 # scenarios, preserves their manifests, and always restores the shipping build.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -13,6 +18,10 @@ $lanista = Join-Path $build "lanista.exe"
 $exe = Join-Path $build "colosseum.exe"
 $sessionLog = Join-Path $root "artifacts/update-lanista-session-paths.txt"
 $previousTesting = $env:COLOSSEUM_UPDATE_TESTING
+$previousInstalledVersion = $env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION
+$previousPresentationState = $env:COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE
+$previousReceivedBytes = $env:COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES
+$previousTotalBytes = $env:COLOSSEUM_UPDATE_TEST_TOTAL_BYTES
 $previousPath = $env:Path
 $env:QTFRAMEWORK_BYPASS_LICENSE_CHECK = "1"
 $env:Path = "$qtPrefix/bin;$env:Path"
@@ -44,16 +53,32 @@ try {
     New-Item -ItemType Directory -Force -Path $sessionDir | Out-Null
     Remove-Item -LiteralPath $sessionLog -Force -ErrorAction SilentlyContinue
     $runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    foreach ($case in @(
+    $cases = @(
         @{ Scenario = "tests/lanista_scenarios/update_available.json"; Tag = "updater-available-$runStamp"; Seed = "tests/lanista_fixtures/update-available" },
+        @{ Scenario = "tests/lanista_scenarios/update_downloading.json"; Tag = "updater-downloading-$runStamp"; Seed = "tests/lanista_fixtures/update-available" },
         @{ Scenario = "tests/lanista_scenarios/update_up_to_date.json"; Tag = "updater-current-$runStamp"; Seed = "tests/lanista_fixtures/update-up-to-date" }
-    )) {
+    )
+    if ($Scenario -eq "up-to-date") {
+        $cases = @($cases | Where-Object { $_.Scenario -eq "tests/lanista_scenarios/update_up_to_date.json" })
+    }
+    foreach ($case in $cases) {
         $scenarioPath = Join-Path $root $case.Scenario
         $seedPath = Join-Path $root $case.Seed
         if ($case.Tag -like "updater-current-*") {
             $env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION = "1.1.1"
+            Remove-Item Env:COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE -ErrorAction SilentlyContinue
+            Remove-Item Env:COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES -ErrorAction SilentlyContinue
+            Remove-Item Env:COLOSSEUM_UPDATE_TEST_TOTAL_BYTES -ErrorAction SilentlyContinue
+        } elseif ($case.Tag -like "updater-downloading-*") {
+            Remove-Item Env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION -ErrorAction SilentlyContinue
+            $env:COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE = "Downloading"
+            $env:COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES = "224395264"
+            $env:COLOSSEUM_UPDATE_TEST_TOTAL_BYTES = "330301440"
         } else {
             Remove-Item Env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION -ErrorAction SilentlyContinue
+            Remove-Item Env:COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE -ErrorAction SilentlyContinue
+            Remove-Item Env:COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES -ErrorAction SilentlyContinue
+            Remove-Item Env:COLOSSEUM_UPDATE_TEST_TOTAL_BYTES -ErrorAction SilentlyContinue
         }
         $output = & $lanista --verbose session run $scenarioPath --exe $exe --tag $case.Tag --drive --seed $seedPath 2>&1 | Tee-Object -Variable runOutput | Out-String
         $code = $LASTEXITCODE
@@ -65,12 +90,19 @@ try {
         }
         Add-Content -LiteralPath $sessionLog -Value ("{0} => {1}" -f $case.Tag, $manifest)
     }
-    Write-Host "test_update_lanista: PASS (isolated Available and UpToDate sessions; paths in $sessionLog)"
+    Write-Host "test_update_lanista: PASS (isolated $Scenario updater session(s); paths in $sessionLog)"
 }
 finally {
     Pop-Location -ErrorAction SilentlyContinue
     $env:COLOSSEUM_UPDATE_TESTING = "OFF"
-    Remove-Item Env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION -ErrorAction SilentlyContinue
+    if ($null -eq $previousInstalledVersion) { Remove-Item Env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION -ErrorAction SilentlyContinue }
+    else { $env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION = $previousInstalledVersion }
+    if ($null -eq $previousPresentationState) { Remove-Item Env:COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE -ErrorAction SilentlyContinue }
+    else { $env:COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE = $previousPresentationState }
+    if ($null -eq $previousReceivedBytes) { Remove-Item Env:COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES -ErrorAction SilentlyContinue }
+    else { $env:COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES = $previousReceivedBytes }
+    if ($null -eq $previousTotalBytes) { Remove-Item Env:COLOSSEUM_UPDATE_TEST_TOTAL_BYTES -ErrorAction SilentlyContinue }
+    else { $env:COLOSSEUM_UPDATE_TEST_TOTAL_BYTES = $previousTotalBytes }
     try {
         Invoke-CMakeChecked @(
             "-S", $native, "-B", $build, "-G", "Ninja",
@@ -78,12 +110,16 @@ finally {
             "-DCMAKE_PREFIX_PATH=$qtPrefix", "-DCOLOSSEUM_UPDATE_TESTING=OFF"
         )
         Invoke-CMakeChecked @("--build", $build, "--target", "colosseum")
+        $shippingCache = Get-Content -LiteralPath (Join-Path $build "CMakeCache.txt") -Raw
+        if ($shippingCache -notmatch '(?m)^COLOSSEUM_UPDATE_TESTING:BOOL=OFF\r?$') {
+            throw "shipping CMake cache is not COLOSSEUM_UPDATE_TESTING=OFF"
+        }
+        Write-Host "test_update_lanista: shipping cache restored COLOSSEUM_UPDATE_TESTING=OFF"
     }
     catch {
         Write-Error "FAILED TO RESTORE SHIPPING BUILD: $_"
         throw
     }
     $env:Path = $previousPath
-    if ($null -eq $previousTesting) { Remove-Item Env:COLOSSEUM_UPDATE_TESTING -ErrorAction SilentlyContinue }
-    else { $env:COLOSSEUM_UPDATE_TESTING = $previousTesting }
+    $env:COLOSSEUM_UPDATE_TESTING = "OFF"
 }

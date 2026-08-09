@@ -809,7 +809,6 @@ Window {
     // comicSeriesLayer was missing here, so the taskbar rode in front of that reader while
     // the other two + book + player suppressed it correctly (Hemanth, 2026-07-16).
     readonly property bool immersiveSurfaceOpen: win.playerOpen
-        || updateLayer.active
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
@@ -1040,7 +1039,8 @@ Window {
         settingsLayer.active = false
         vaultLayer.active = false
         updateLayer.active = true
-        taskbar.open = false
+        taskbar.open = true
+        taskbar.autoRevealed = false
         if (typeof Updates !== "undefined" && Updates.markSeen)
             Updates.markSeen()
     }
@@ -2942,7 +2942,9 @@ Window {
         updateActive: updateLayer.active
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
+        updatePresentation: updateLayer.item ? updateLayer.item.taskbarPresentation : ({})
         onUpdateClicked: updateLayer.active ? win.closeUpdatePage() : win.openUpdatePage()
+        onUpdatePrimaryActionRequested: if (updateLayer.item) updateLayer.item.invokePrimaryAction()
     }
 
     // ── Vault launch entry points (execution plan Slice 8): Open Media…, drag-drop, Ctrl+O ──

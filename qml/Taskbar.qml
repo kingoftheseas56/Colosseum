@@ -6,6 +6,7 @@ import QtQuick.Layouts
 
 Item {
     id: bar
+    objectName: "colosseumTaskbar"
     anchors.fill: parent
 
     property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []
@@ -38,6 +39,20 @@ Item {
     property bool updateActive: false      // the Update page is the front surface
     property bool updateAvailable: false   // a verified newer release exists
     property bool updateUnseen: false      // the user has not opened its chronicle yet
+    property var updatePresentation: ({})  // one projection from UpdatePage; Taskbar paints it
+    readonly property string updateStatusText: String((updatePresentation && updatePresentation.statusText) || "")
+    readonly property string updateMetadataText: String((updatePresentation && updatePresentation.metadataText) || "")
+    readonly property string updateProgressText: String((updatePresentation && updatePresentation.progressText) || "")
+    readonly property real updateProgress: Math.max(0, Math.min(1,
+        Number((updatePresentation && updatePresentation.progress) || 0)))
+    readonly property bool updateProgressVisible: Boolean(updatePresentation && updatePresentation.progressVisible)
+    readonly property bool updateProgressIndeterminate: Boolean(updatePresentation && updatePresentation.progressIndeterminate)
+    readonly property string updatePrimaryLabel: String((updatePresentation && updatePresentation.primaryLabel) || "")
+    readonly property bool updatePrimaryVisible: Boolean(updatePresentation && updatePresentation.primaryVisible)
+    readonly property bool updatePrimaryEnabled: Boolean(updatePresentation && updatePresentation.primaryEnabled)
+    readonly property bool updateProgressAnimated: updateProgressVisible && !updateProgressIndeterminate
+                                               && !(updatePresentation && updatePresentation.reducedMotion)
+    signal updatePrimaryActionRequested()
 
     // A verified release is a taskbar event, not a silent state change.  Reveal the
     // dock once so the update affordance is visible without requiring the user to
@@ -52,13 +67,23 @@ Item {
     property bool autoRevealed: false
     function reveal() {
         open = true
-        autoRevealed = true
-        idleTimer.restart()
+        if (updateActive) {
+            autoRevealed = false
+            idleTimer.stop()
+        } else {
+            autoRevealed = true
+            idleTimer.restart()
+        }
     }
     Timer {
         id: idleTimer
         interval: 15000
         onTriggered: {
+            if (bar.updateActive) {
+                bar.open = true
+                bar.autoRevealed = false
+                return
+            }
             if (dockHover.hovered || fanHover.hovered) { restart(); return }   // still engaged
             if (bar.autoRevealed) { bar.open = false; bar.autoRevealed = false }
         }
@@ -425,11 +450,127 @@ Item {
                 }
             }
 
+            Rectangle {
+                visible: bar.updateActive
+                Layout.preferredWidth: visible ? 1 : 0
+                Layout.preferredHeight: 30
+                Layout.alignment: Qt.AlignVCenter
+                color: Qt.rgba(1, 1, 1, 0.16)
+            }
+
+            Item {
+                id: updateStatus
+                visible: bar.updateActive
+                Layout.fillWidth: visible
+                Layout.minimumWidth: visible ? 300 : 0
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+
+                RowLayout {
+                    anchors.fill: parent
+                    spacing: 16
+
+                    ColumnLayout {
+                        Layout.minimumWidth: 176
+                        Layout.preferredWidth: 230
+                        Layout.maximumWidth: 300
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 2
+
+                        Text {
+                            objectName: "colosseumUpdateStatusText"
+                            Layout.fillWidth: true
+                            text: bar.updateStatusText
+                            color: Qt.rgba(1, 1, 1, 0.94)
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            objectName: "colosseumUpdateStatusMetadata"
+                            Layout.fillWidth: true
+                            visible: text.length > 0
+                            text: bar.updateMetadataText
+                            color: Qt.rgba(1, 1, 1, 0.54)
+                            font.pixelSize: 9
+                            font.letterSpacing: 0.8
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    ColumnLayout {
+                        objectName: "colosseumUpdateProgress"
+                        property string text: bar.updateProgressText
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 120
+                        Layout.alignment: Qt.AlignVCenter
+                        visible: bar.updateProgressVisible
+                        spacing: 5
+
+                        Text {
+                            objectName: "colosseumUpdateProgressText"
+                            Layout.fillWidth: true
+                            text: bar.updateProgressText
+                            color: Qt.rgba(1, 1, 1, 0.78)
+                            font.pixelSize: 10
+                            elide: Text.ElideRight
+                        }
+                        Rectangle {
+                            objectName: "colosseumUpdateProgressTrack"
+                            Layout.fillWidth: true
+                            height: 2
+                            color: Qt.rgba(1, 1, 1, 0.20)
+                            Rectangle {
+                                width: parent.width * (bar.updateProgressIndeterminate ? 0 : bar.updateProgress)
+                                height: parent.height
+                                color: Qt.rgba(1, 1, 1, 0.88)
+                                Behavior on width {
+                                    enabled: bar.updateProgressAnimated
+                                    NumberAnimation { duration: 220; easing.type: Easing.InOutQuad }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        objectName: "colosseumUpdatePrimaryAction"
+                        visible: bar.updatePrimaryVisible
+                        enabled: bar.updatePrimaryEnabled
+                        Layout.preferredWidth: Math.max(138, actionText.implicitWidth + 28)
+                        Layout.preferredHeight: 44
+                        Layout.alignment: Qt.AlignVCenter
+                        radius: 22
+                        color: enabled ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.16)
+                        focus: visible && enabled
+                        activeFocusOnTab: visible && enabled
+                        Accessible.role: Accessible.Button
+                        Accessible.name: bar.updatePrimaryLabel
+                        Text {
+                            id: actionText
+                            anchors.centerIn: parent
+                            text: bar.updatePrimaryLabel
+                            color: parent.enabled ? "#121212" : Qt.rgba(1, 1, 1, 0.58)
+                            font.pixelSize: 10
+                            font.weight: Font.DemiBold
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: parent.enabled
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: bar.updatePrimaryActionRequested()
+                        }
+                        Keys.onReturnPressed: if (enabled) bar.updatePrimaryActionRequested()
+                        Keys.onSpacePressed: if (enabled) bar.updatePrimaryActionRequested()
+                    }
+                }
+            }
+
             Row {
-                Layout.fillWidth: true
+                visible: !bar.updateActive
+                Layout.fillWidth: visible
                 spacing: 10
-                opacity: bar.open ? 1 : 0
-                enabled: bar.open
+                opacity: bar.open && visible ? 1 : 0
+                enabled: bar.open && visible
 
                 Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
