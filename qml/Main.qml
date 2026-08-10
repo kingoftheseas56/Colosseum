@@ -2800,6 +2800,16 @@ Window {
         }
     }
 
+    // Slice 15: the live-shelf watcher defers its upserts while an immersive surface
+    // (player/reader) is open — "no watcher activity during playback beyond the debounce
+    // accumulating" (behavior to preserve). The gate is C++ state (VaultLibrary.immersive);
+    // QML only reports the surface fact. Null-target Binding is a no-op in tests.
+    Binding {
+        target: typeof VaultLibrary !== "undefined" ? VaultLibrary : null
+        property: "immersive"
+        value: win.immersiveSurfaceOpen
+    }
+
     Connections {
         target: typeof Extensions !== "undefined" ? Extensions : null
         function onChanged() {

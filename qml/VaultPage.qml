@@ -250,7 +250,12 @@ Item {
 
     // On open (the vaultLayer Loader recreates this page each time), resume the founding card
     // for a folder added-but-never-confirmed. C++ dedups to once per app run (Slice 11 Thread D).
-    Component.onCompleted: if (typeof VaultLibrary !== "undefined") VaultLibrary.offerUnconfirmedRoots()
+    Component.onCompleted: {
+        if (typeof VaultLibrary !== "undefined") {
+            VaultLibrary.offerUnconfirmedRoots()
+            VaultLibrary.rescanDegradedRoots()   // Slice 15: watcher-failure fallback, silently
+        }
+    }
 
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }

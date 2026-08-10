@@ -81,6 +81,12 @@ public:
     // thread, does its file I/O off-thread, then upsertMany()s the enriched rows back.
     QList<FileRow> rowsForKind(const QString& kind) const;
 
+    // Live-shelf arrival seams (Slice 15): the ids already shelved under a root, and the
+    // dominant kind of a subtree ("" when the subtree has no rows). The watcher uses them to
+    // diff arrivals (exact upsert set) and to detect new-kind arrivals against the law.
+    QSet<QString> fileIdsInRoot(const QString& rootPath) const;
+    QString dominantKindForSubtree(const QString& subtreePath) const;
+
     // ── Queries the UI needs ──
     Q_INVOKABLE int itemCount() const;
     Q_INVOKABLE int itemCountForKind(const QString& kind) const;

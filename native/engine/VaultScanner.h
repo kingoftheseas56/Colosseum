@@ -46,9 +46,16 @@ public:
     // root's rows alone, which the whole-index replace would use to wipe sibling
     // roots. scanRoot/applyResult only DELIVER a candidate census for the card;
     // publication is this separate, confirm-triggered step.
-    Q_INVOKABLE void publishConfirmed(const QStringList& confirmedRoots,
-                                      const QStringList& scanIgnore = {},
-                                      const QMap<QString, QString>& kindOverrides = {});
+    // extraRows (Slice 18): pre-built rows NOT scanned from the filesystem — the
+    // synthetic downloads root's derived rows. Folded into the UNION publish so
+    // they shelf alongside scanned user roots in the same atomic transaction.
+    // NOTE: not Q_INVOKABLE — the QList<FileRow> parameter carries a nested struct
+    // the moc can't resolve, and this method is C++-only (called by VaultLibrary).
+    // No default args for the same reason (the moc parses them and fails on QList<FileRow>={}).
+    void publishConfirmed(const QStringList& confirmedRoots,
+                          const QStringList& scanIgnore,
+                          const QMap<QString, QString>& kindOverrides,
+                          const QList<VaultIndex::FileRow>& extraRows);
 
     // ── Testable seams (also the internal scan lifecycle) ──
     struct RawResult {
@@ -75,10 +82,22 @@ public:
     // publish their union in one transaction. Dropped on a stale generation or if
     // any result is cancelled (no partial publish). Emits indexPublished ONLY on a
     // successful publish. GUI thread; the sync seam the Qt Test drives directly.
-    void applyPublish(const QList<RawResult>& results, quint64 generation);
+    // extraRows (Slice 18): pre-built rows folded into the union; they are NOT
+    // reconciled through identity (their ids are assigned by the caller or left
+    // empty for idForFile assignment here).
+    void applyPublish(const QList<RawResult>& results, quint64 generation,
+                      const QList<VaultIndex::FileRow>& extraRows);
+    // 2-arg overload (pre-Slice-18 callers): no synthetic rows. Inline forward
+    // avoids touching every existing test call site.
+    void applyPublish(const QList<RawResult>& results, quint64 generation)
+    { applyPublish(results, generation, {}); }
     // Begin a new scan generation (supersedes any in-flight result).
     quint64 nextGeneration() { return ++m_generation; }
     quint64 currentGeneration() const { return m_generation; }
+
+    // Path of a file relative to its subtree ("" for a file directly in the subtree) —
+    // shared with VaultWatcher so live-shelf rows match census rows exactly.
+    static QString subfolderOf(const QString& subtree, const QString& filePath);
 
 signals:
     void progress(const QString& root, int done, int total, const QString& currentName);
@@ -86,8 +105,6 @@ signals:
     void indexPublished(const QString& root, int itemCount);
 
 private:
-    static QString subfolderOf(const QString& subtree, const QString& filePath);
-
     VaultIndex* m_index;
     VaultIdentity* m_identity;
     bool m_scanning = false;

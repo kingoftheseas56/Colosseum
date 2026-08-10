@@ -2,6 +2,9 @@
 #include "VaultIndex.h"
 #include "VaultScanner.h"
 #include "VaultConfig.h"
+#include "VaultIdentity.h"
+#include "VaultWatcher.h"
+#include "VaultDownloadsRoot.h"
 #include "ComicCoverId.h"
 
 #include <QDir>
@@ -21,7 +24,7 @@ static QString normPath(const QString& p)
 }
 
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
-                           QObject* parent)
+                           VaultIdentity* identity, QObject* parent)
     : QObject(parent), m_index(index), m_scanner(scanner), m_config(config)
 {
     // revision tracks committed index truth. VaultIndex::changed() fires after a successful
@@ -58,6 +61,14 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
         connect(m_scanner, &VaultScanner::indexPublished, this,
                 [this](const QString&, int) { setScanning(false); });
     }
+
+    // ── live shelves (Slice 15): the watcher owns the per-root QFileSystemWatcher + debounce; ──
+    // VaultLibrary relays landings to the door (arrivalTick/liveArrival) and new-kind arrivals
+    // to the one-slice confirmation card (S11 law). Watch the confirmed roots present at boot.
+    m_watcher = new VaultWatcher(index, identity, config, this);
+    connect(m_watcher, &VaultWatcher::landed, this, &VaultLibrary::onWatcherLanded);
+    connect(m_watcher, &VaultWatcher::newKindArrival, this, &VaultLibrary::onWatcherNewKind);
+    m_watcher->refresh();
 }
 
 int VaultLibrary::itemCount() const
@@ -71,9 +82,17 @@ int VaultLibrary::rootCount() const
         return 0;
     int n = 0;
     const QVariantList roots = m_config->roots();
-    for (const QVariant& r : roots)
-        if (r.toMap().value(QStringLiteral("confirmed")).toBool())
+    for (const QVariant& r : roots) {
+        const QVariantMap m = r.toMap();
+        // A hidden root (the synthetic downloads root the user removed from the
+        // strip) is suppressed — it must not count toward the chip count or
+        // publish. isRootConfirmed already returns false for hidden roots.
+        if (m.value(QStringLiteral("hidden")).toBool())
+            continue;
+        if (m.value(QStringLiteral("confirmed")).toBool() ||
+            m.value(QStringLiteral("synthetic")).toBool())
             ++n;
+    }
     return n;
 }
 
@@ -201,12 +220,22 @@ void VaultLibrary::offerUnconfirmedRoots()
 {
     if (!m_scanner || !m_config)
         return;
+    // Slice 18: the synthetic downloads root is pre-confirmed — if downloads exist
+    // and it isn't in config yet, add it now and publish it alongside any confirmed
+    // user roots. This is the "already present on first Vault open" contract.
+    ensureDownloadsRoot();
+
     // Never interrupt an in-flight scan or a card already up.
     if (m_scanning || cardVisible())
         return;
     const QVariantList roots = m_config->roots();
     for (const QVariant& r : roots) {
         const QVariantMap m = r.toMap();
+        // Skip synthetic roots (pre-confirmed, no card) and hidden roots.
+        if (m.value(QStringLiteral("synthetic")).toBool())
+            continue;
+        if (m.value(QStringLiteral("hidden")).toBool())
+            continue;
         if (m.value(QStringLiteral("confirmed")).toBool())
             continue;
         const QString path = m.value(QStringLiteral("path")).toString(); // already normalized
@@ -232,12 +261,24 @@ void VaultLibrary::confirmRoot(const QString& root, const QVariantMap& kindOverr
     m_candidateRoot.clear();
     emit candidateChanged();
 
+    publishAllConfirmed();
+}
+
+void VaultLibrary::publishAllConfirmed()
+{
+    if (!m_scanner || !m_config)
+        return;
+
     // Publish the UNION of ALL confirmed roots — never one root alone (whole-index replace).
+    // A hidden root (the removed synthetic downloads root) is excluded from the census list.
     QStringList confirmed;
     const QVariantList roots = m_config->roots();
     for (const QVariant& r : roots) {
         const QVariantMap m = r.toMap();
-        if (m.value(QStringLiteral("confirmed")).toBool())
+        if (m.value(QStringLiteral("hidden")).toBool())
+            continue;
+        if (m.value(QStringLiteral("confirmed")).toBool() ||
+            m.value(QStringLiteral("synthetic")).toBool())
             confirmed.append(m.value(QStringLiteral("path")).toString());
     }
 
@@ -248,6 +289,15 @@ void VaultLibrary::confirmRoot(const QString& root, const QVariantMap& kindOverr
     for (auto it = ov.constBegin(); it != ov.constEnd(); ++it)
         overrides.insert(it.key(), it.value().toString());
 
+    // Slice 18: derive the synthetic downloads root's rows when it is present + not
+    // hidden. Folded into the UNION publish so downloads shelf alongside user roots.
+    QList<VaultIndex::FileRow> extraRows;
+    if (m_downloadsRoot && !m_downloadsRootPath.isEmpty() &&
+        m_config->hasRoot(m_downloadsRootPath) &&
+        !m_config->isRootHidden(m_downloadsRootPath)) {
+        extraRows = m_downloadsRoot->rowsForDownloads(m_downloadsRootPath);
+    }
+
     // Clear the pill's scan counts so the brief shelving pass shows "Scanning …", not the
     // last census's stale "N of M".
     m_scanDone = 0;
@@ -255,7 +305,111 @@ void VaultLibrary::confirmRoot(const QString& root, const QVariantMap& kindOverr
     emit scanProgressChanged();
 
     setScanning(true); // shelving
-    m_scanner->publishConfirmed(confirmed, m_config->scanIgnore(), overrides);
+    m_scanner->publishConfirmed(confirmed, m_config->scanIgnore(), overrides, extraRows);
+}
+
+void VaultLibrary::ensureDownloadsRoot()
+{
+    if (!m_config || !m_downloadsRoot || m_downloadsRootPath.isEmpty())
+        return;
+    // Only add the synthetic root if downloads actually exist — a fresh profile
+    // with no downloads shows an empty Vault, not a phantom trusted root.
+    if (!m_downloadsRoot->hasContainerDownloads())
+        return;
+    if (m_config->hasRoot(m_downloadsRootPath))
+        return; // already known (confirmed, or hidden from a prior remove)
+    m_config->addSyntheticRoot(m_downloadsRootPath);
+    // Publish immediately so the downloads root is "already present on first Vault
+    // open if downloads exist" — no card, no confirm step.
+    publishAllConfirmed();
+}
+
+void VaultLibrary::removeDownloadsRoot()
+{
+    if (!m_config || m_downloadsRootPath.isEmpty() || !m_config->hasRoot(m_downloadsRootPath))
+        return;
+    // The chip's remove HIDES the synthetic root — never deletes. The files +
+    // transfer history on the Downloads lane are untouched. A re-publish without
+    // the synthetic rows drops them from the index.
+    m_config->setRootHidden(m_downloadsRootPath, true);
+    publishAllConfirmed();
+}
+
+void VaultLibrary::setDownloadsRoot(VaultDownloadsRoot* root, const QString& path)
+{
+    m_downloadsRoot = root;
+    m_downloadsRootPath = path;
+}
+
+bool VaultLibrary::immersive() const
+{
+    return m_watcher ? m_watcher->immersive() : false;
+}
+
+void VaultLibrary::setImmersive(bool on)
+{
+    if (!m_watcher)
+        return;
+    m_watcher->setImmersive(on);
+    emit immersiveChanged();
+}
+
+void VaultLibrary::onWatcherLanded(int count)
+{
+    if (count <= 0)
+        return;
+    ++m_arrivalTick; // the door's pulse clock — monotone, no counts (spec §3)
+    emit liveArrival();
+}
+
+void VaultLibrary::onWatcherNewKind(const QString& root, const QVariantList& slices)
+{
+    // A landing too — the door pulses for any live-shelf arrival, card or not.
+    ++m_arrivalTick;
+    emit liveArrival();
+
+    // One card at a time (S11 law): a scan in flight or a card already up defers this
+    // arrival's card to the next rescan — never a second card on top.
+    if (m_scanning || cardVisible() || slices.isEmpty())
+        return;
+    m_candidate = slices;
+    m_candidateRoot = root;
+    emit candidateChanged();
+}
+
+void VaultLibrary::rescanDegradedRoots()
+{
+    if (!m_scanner || !m_config || !m_watcher)
+        return;
+    if (m_scanning || cardVisible())
+        return; // never interrupt a live scan or a card already up
+
+    // Re-arm the watches first (a transient failure may already be gone — QFSW limits
+    // lift, a network share reconnects).
+    m_watcher->refresh();
+
+    // A root is rescan-worthy only if it is STILL degraded after the re-arm AND it
+    // actually exists (a genuinely away drive is Slice 16's away-state; publishing an
+    // empty census for it would wipe its rows — the dishonest baseline S16 records).
+    bool anyDegraded = false;
+    const QVariantList roots = m_config->roots();
+    for (const QVariant& r : roots) {
+        const QVariantMap m = r.toMap();
+        if (!m.value(QStringLiteral("confirmed")).toBool())
+            continue;
+        const QString path = m.value(QStringLiteral("path")).toString();
+        if (m_watcher->isRootDegraded(path) && QDir(path).exists()) {
+            anyDegraded = true;
+            break;
+        }
+    }
+    if (!anyDegraded)
+        return;
+
+    // Silent rescan of the UNION (publishAllConfirmed folds every confirmed user root +
+    // the synthetic downloads root's derived rows, Slice 18). No card rises — a confirmed
+    // root's rescan is silent by design; the door shows the quiet gold dot while it runs.
+    publishAllConfirmed();
 }
 
 void VaultLibrary::dismissCard()

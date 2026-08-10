@@ -10,8 +10,11 @@
 // QTemporaryDir index + identity per run.
 
 #include "engine/VaultScanner.h"
+#include "engine/VaultWatcher.h"
+#include "engine/VaultConfig.h"
 
 #include <QDir>
+#include <QFile>
 #include <QMap>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -79,6 +82,11 @@ private slots:
     void scan_root_async_delivers_candidate_only();
     void publish_confirmed_async_populates_index();
     void buffered_rescan_runs_after();
+    // ── Slice 15: the live-shelf watcher (VaultWatcher) ──
+    void watcher_touch_files_upserts_exact_arrival_set();
+    void watcher_new_kind_raises_card_and_lands();
+    void watcher_override_law_raises_card_for_known_kind_arrival();
+    void watcher_degraded_flag_on_failed_watch_and_recovers();
 };
 
 void tst_vault_scanner::build_scan_produces_expected_census()
@@ -151,7 +159,8 @@ void tst_vault_scanner::override_reassigns_mixed_leaf_to_present_kind()
     QCOMPARE(sm.value(QStringLiteral("leftoverCount")).toInt(), 2);  // the two comics leftover
     QCOMPARE(r.rows.size(), 1);
     QCOMPARE(r.rows.first().kind, QStringLiteral("book"));
-    QVERIFY(r.rows.first().realName.endsWith(QStringLiteral(".txt")));
+    // a289133 (2026-08-09) re-fixtured the Akira leftover notes.txt -> notes.epub
+    QVERIFY(r.rows.first().realName.endsWith(QStringLiteral(".epub")));
 }
 
 void tst_vault_scanner::override_relabels_folder_to_absent_kind()
@@ -349,7 +358,8 @@ void tst_vault_scanner::publish_confirmed_async_populates_index()
     VaultScanner sc(&idx, &ident);
 
     QSignalSpy published(&sc, &VaultScanner::indexPublished);
-    sc.publishConfirmed({mixedRoot()});
+    // Slice 18 signature: (confirmedRoots, scanIgnore, kindOverrides, extraRows).
+    sc.publishConfirmed({mixedRoot()}, {}, {}, {});
     QVERIFY(published.wait(10000));
     QCOMPARE(idx.itemCount(), kExpectedItems);
 }
@@ -366,6 +376,167 @@ void tst_vault_scanner::buffered_rescan_runs_after()
     sc.scanRoot(mixedRoot());
     sc.scanRoot(mixedRoot()); // requested during the first — buffers, never dropped
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 2, 10000);
+}
+
+// ── Slice 15: the live-shelf watcher (VaultWatcher) ───────────────────────────────
+// The watcher's debounced handler (processRoot) is driven SYNCHRONOUSLY against a
+// QTemporaryDir root: the plan's "touch files → exact upsert set" rows.
+
+namespace {
+// Write a real file under `dir`; returns its absolute path.
+QString writeMediaFile(const QString& dir, const QString& name)
+{
+    QFile f(dir + QLatin1Char('/') + name);
+    f.open(QIODevice::WriteOnly | QIODevice::Truncate);
+    f.write("stub"); // no archive bytes needed — VaultKit classifies by extension
+    f.close();
+    return f.fileName();
+}
+} // namespace
+
+void tst_vault_scanner::watcher_touch_files_upserts_exact_arrival_set()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    QVERIFY(QDir(root.path()).mkpath(QStringLiteral("Series A")));
+    const QString subtree = root.path() + QStringLiteral("/Series A");
+    writeMediaFile(subtree, QStringLiteral("Vol 1.cbz")); // the pre-existing shelved truth
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    VaultWatcher w(&idx, &ident, &cfg);
+
+    // Publish the pre-state through the census path (identity reconcile → the same ids
+    // the watcher will compute).
+    const quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    QCOMPARE(idx.itemCount(), 1);
+
+    // A BURST of three arrivals (the debounce coalesces the trigger, never the rows):
+    // one upsert per file — the exact arrival set, nothing re-upserted.
+    writeMediaFile(subtree, QStringLiteral("Vol 2.cbz"));
+    writeMediaFile(subtree, QStringLiteral("Vol 3.cbz"));
+    writeMediaFile(subtree, QStringLiteral("Vol 4.cbz"));
+
+    const auto landing = w.processRoot(root.path(), {}, {});
+    QCOMPARE(landing.landedCount, 3);            // one upsert per file in the burst
+    QCOMPARE(idx.itemCount(), 4);                // pre 1 + burst 3
+    QCOMPARE(landing.newKindSlices.size(), 0);   // same-kind arrivals never raise a card
+    const QSet<QString> ids = idx.fileIdsInRoot(root.path());
+    QCOMPARE(ids.size(), 4);                     // the exact set: pre + the three arrivals
+
+    // A second pass sees nothing new — the diff is idempotent.
+    QCOMPARE(w.processRoot(root.path(), {}, {}).landedCount, 0);
+}
+
+void tst_vault_scanner::watcher_new_kind_raises_card_and_lands()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    QVERIFY(QDir(root.path()).mkpath(QStringLiteral("Manga")));
+    const QString subtree = root.path() + QStringLiteral("/Manga");
+    writeMediaFile(subtree, QStringLiteral("Berserk v01.cbz"));
+    writeMediaFile(subtree, QStringLiteral("Berserk v02.cbz")); // the root's law: comic
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    VaultWatcher w(&idx, &ident, &cfg);
+
+    const quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    QCOMPARE(idx.itemCount(), 2);
+
+    // A NEW-KIND arrival (epub in a comic-law subtree): it lands on the BOOK shelf AND
+    // raises the one-slice card (S11 law).
+    writeMediaFile(subtree, QStringLiteral("Berserk v03.epub"));
+    const auto landing = w.processRoot(root.path(), {}, {});
+    QCOMPARE(landing.landedCount, 1);
+    QCOMPARE(idx.itemCountForKind(QStringLiteral("book")), 1); // landed on the right shelf
+    QCOMPARE(landing.newKindSlices.size(), 1);
+    const QVariantMap slice = landing.newKindSlices.first().toMap();
+    QCOMPARE(slice.value(QStringLiteral("kind")).toString(), QStringLiteral("book"));
+    QCOMPARE(slice.value(QStringLiteral("count")).toInt(), 1);
+    QVERIFY(slice.value(QStringLiteral("subtreePath")).toString().endsWith(QStringLiteral("Manga")));
+    QVERIFY(slice.value(QStringLiteral("sample")).toString().contains(QStringLiteral("Berserk v03")));
+
+    // A same-kind arrival after the card is gone raises NO card.
+    writeMediaFile(subtree, QStringLiteral("Berserk v04.cbz"));
+    const auto again = w.processRoot(root.path(), {}, {});
+    QCOMPARE(again.landedCount, 1);
+    QCOMPARE(again.newKindSlices.size(), 0);
+}
+
+void tst_vault_scanner::watcher_override_law_raises_card_for_known_kind_arrival()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    QVERIFY(QDir(root.path()).mkpath(QStringLiteral("Library")));
+    const QString subtree = root.path() + QStringLiteral("/Library");
+    writeMediaFile(subtree, QStringLiteral("Art 01.cbz"));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    VaultWatcher w(&idx, &ident, &cfg);
+
+    const quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    QCOMPARE(idx.itemCount(), 1);
+
+    // The user's chip override re-declares the subtree a BOOK folder — the law is now
+    // book, so a comic arrival is a NEW-KIND arrival even though comics dominated it.
+    QVariantMap ov;
+    ov.insert(normForTest(subtree), QStringLiteral("book"));
+    writeMediaFile(subtree, QStringLiteral("Art 02.cbz"));
+
+    const auto landing = w.processRoot(root.path(), {}, ov);
+    QCOMPARE(landing.landedCount, 1);
+    QCOMPARE(landing.newKindSlices.size(), 1);
+    QCOMPARE(landing.newKindSlices.first().toMap().value(QStringLiteral("kind")).toString(),
+             QStringLiteral("comic"));
+}
+
+void tst_vault_scanner::watcher_degraded_flag_on_failed_watch_and_recovers()
+{
+    QTemporaryDir cfgDir;
+    QVERIFY(cfgDir.isValid());
+    VaultConfig cfg(cfgDir.path());
+
+    // A confirmed root that does not exist: QFileSystemWatcher::addPath fails → degraded.
+    const QString missing = cfgDir.path() + QStringLiteral("/gone");
+    cfg.addRoot(missing);
+    cfg.confirmRoot(missing);
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultWatcher w(&idx, &ident, &cfg);
+
+    w.refresh();
+    QVERIFY(w.isRootDegraded(missing)); // the simulated failure flag is per-root
+
+    // The root appears (drive reconnects): a re-arm clears the flag.
+    QVERIFY(QDir().mkpath(missing));
+    w.refresh();
+    QVERIFY(!w.isRootDegraded(missing));
+
+    // A healthy confirmed root watches cleanly from the start.
+    cfg.addRoot(mixedRoot());
+    cfg.confirmRoot(mixedRoot());
+    w.refresh();
+    QVERIFY(!w.isRootDegraded(mixedRoot()));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_scanner)

@@ -20,7 +20,6 @@ QString VaultScanner::subfolderOf(const QString& subtree, const QString& filePat
         return QString();
     return rel;
 }
-
 VaultScanner::RawResult VaultScanner::buildScan(
     QString root, QStringList scanIgnore, quint64 generation,
     std::shared_ptr<VaultKit::CancellationToken> cancel,
@@ -201,7 +200,8 @@ void VaultScanner::applyResult(const RawResult& result)
     }
 }
 
-void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generation)
+void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generation,
+                                const QList<VaultIndex::FileRow>& extraRows)
 {
     if (generation != m_generation)
         return; // a newer scan/publish superseded this aggregate
@@ -227,6 +227,16 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
     for (VaultIndex::FileRow& row : allRows)
         row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
 
+    // Slice 18: fold the synthetic downloads root's derived rows into the same
+    // UNION. Their ids are assigned here via idForFile (same path as scanned rows),
+    // so a file reachable via BOTH a user root and the downloads root dedupes
+    // automatically — the index's INSERT OR REPLACE on file id keeps ONE row.
+    for (VaultIndex::FileRow row : extraRows) {
+        if (row.id.isEmpty())
+            row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
+        allRows.append(row);
+    }
+
     // Emit indexPublished ONLY on a successful publish — a failed/rolled-back publish
     // must NOT tell the shelves "new truth landed"; the previous generation is intact.
     if (m_index->publish(allRows))
@@ -235,7 +245,8 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
 
 void VaultScanner::publishConfirmed(const QStringList& confirmedRoots,
                                     const QStringList& scanIgnore,
-                                    const QMap<QString, QString>& kindOverrides)
+                                    const QMap<QString, QString>& kindOverrides,
+                                    const QList<VaultIndex::FileRow>& extraRows)
 {
     // Supersede any in-flight scan/publish, then census EVERY confirmed root fresh
     // off-thread: the index is a rebuildable product, so a confirm rebuilds the whole
@@ -248,11 +259,11 @@ void VaultScanner::publishConfirmed(const QStringList& confirmedRoots,
 
     auto* watcher = new QFutureWatcher<QList<RawResult>>(this);
     connect(watcher, &QFutureWatcher<QList<RawResult>>::finished, this,
-            [this, watcher, gen]() {
-                const QList<RawResult> results = watcher->result();
-                watcher->deleteLater();
-                applyPublish(results, gen);
-            });
+        [this, watcher, gen, extraRows]() {
+            const QList<RawResult> results = watcher->result();
+            watcher->deleteLater();
+            applyPublish(results, gen, extraRows);
+        });
     watcher->setFuture(QtConcurrent::run(
         [confirmedRoots, scanIgnore, gen, cancel, kindOverrides]() {
             QList<RawResult> out;

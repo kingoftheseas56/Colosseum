@@ -74,6 +74,7 @@
 #include "engine/VaultIdentity.h"
 #include "engine/VaultScanner.h"
 #include "engine/VaultLibrary.h"
+#include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
@@ -1059,7 +1060,9 @@ int main(int argc, char *argv[]) {
     auto *vaultConfig = new VaultConfig(vaultDir, &app);
     auto *vaultIdentity = new VaultIdentity(vaultDir, &app);
     auto *vaultScanner = new VaultScanner(vaultIndex, vaultIdentity, &app);
-    auto *vaultLibrary = new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, &app);
+    // Slice 15: VaultLibrary OWNS the VaultWatcher (per-root QFileSystemWatcher + debounce);
+    // it needs the identity to build arrival rows identical to the census's.
+    auto *vaultLibrary = new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, vaultIdentity, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
 
     // Vault cover enrichment (execution plan Slice 12): after a publish, read each comic's
@@ -1268,6 +1271,18 @@ int main(int argc, char *argv[]) {
     auto *localDownloads = new LocalDownloads(downloads, books, comics, download,
                                               tankobanVolumes, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalDownloads"), localDownloads);
+
+    // Slice 18 — the synthetic downloads root: derives VaultIndex::FileRows from
+    // Colosseum's own download backbones (videos + CBZ comics + CBZ tankoban
+    // volumes + epub/pdf books) so the Vault shelves them as ONE quiet, pre-
+    // confirmed trusted root. The path is a logical identifier (the rows come
+    // from the backbones, NOT a filesystem scan), pinned under AppData.
+    auto *vaultDownloadsRoot = new VaultDownloadsRoot(download, books, comics,
+                                                      tankobanVolumes, &app);
+    const QString vaultDownloadsRootPath =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/downloads");
+    vaultLibrary->setDownloadsRoot(vaultDownloadsRoot, vaultDownloadsRootPath);
 
     // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.
     // Spec: Brotherhood docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.

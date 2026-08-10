@@ -162,6 +162,37 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault downloads root (execution plan Slice 18, 2026-08-10) ───────────────
+# VaultDownloadsRoot derives the synthetic downloads root's VaultIndex::FileRows
+# from Colosseum's own download backbones (videos + CBZ comics + CBZ tankoban
+# volumes + epub/pdf books). Backbone calls go through QMetaObject::invokeMethod
+# (the same path QML uses), so the test drives the real derivation with QObject
+# fakes. Pure Qt6::Core, GUILESS; QTemporaryDir isolation, no net.
+add_executable(tst_vault_downloads_root
+    auto/vault/tst_vault_downloads_root.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+target_include_directories(tst_vault_downloads_root PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_downloads_root PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_downloads_root PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_downloads_root POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_downloads_root POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_downloads_root
+         COMMAND tst_vault_downloads_root)
+set_tests_properties(colosseum.qttest.vault_downloads_root PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Extensions first-run consent (Living Guide Task 11, 2026-08-09) ──────────
 # The fresh-profile acquisition-source consent contract: core catalogues seeded
 # enabled, every removable acquisition/playback well (non-core + `stream`) seeded
@@ -227,7 +258,13 @@ add_executable(tst_vault_scanner
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
+    # Slice 15: the live-shelf watcher (VaultWatcher) + the user-intent store it reads
+    # (VaultConfig — confirmed roots, scanIgnore, kind-override law).
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h")
 target_include_directories(tst_vault_scanner PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_compile_definitions(tst_vault_scanner PRIVATE
     VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")

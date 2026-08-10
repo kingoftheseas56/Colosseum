@@ -31,12 +31,32 @@ public:
     Q_INVOKABLE bool recoveredFromBackup() const { return m_recovered; }
 
     // ── Roots ──
-    Q_INVOKABLE QVariantList roots() const;            // [{path, confirmed, addedAtMs}]
+    // Each root row: {path, confirmed, addedAtMs, synthetic?, hidden?}. The
+    // `synthetic` and `hidden` fields are optional (absent = false) so a legacy
+    // config.json loads clean. `synthetic` marks the pre-confirmed trusted
+    // downloads root (no card); `hidden` marks a root the user removed from the
+    // strip — a hidden root is suppressed from publish + rootCount, never deleted.
+    Q_INVOKABLE QVariantList roots() const;            // [{path, confirmed, addedAtMs, synthetic?, hidden?}]
     Q_INVOKABLE bool hasRoot(const QString& path) const;
     Q_INVOKABLE bool isRootConfirmed(const QString& path) const;
     Q_INVOKABLE void addRoot(const QString& path, qint64 addedAtMs = 0);
     Q_INVOKABLE void confirmRoot(const QString& path);
+    // For a synthetic root this HIDES it (sets hidden=true); for a user root it
+    // truly deletes. The synthetic root carries real files owned by the Downloads
+    // lane, so removing it from the Vault must not delete those files.
     Q_INVOKABLE void removeRoot(const QString& path);
+
+    // ── Synthetic / hidden-root mechanics (Slice 18 — downloads root) ──
+    // Adds the trusted downloads root pre-confirmed (no card). Idempotent: a
+    // second call with the same path is a no-op.
+    Q_INVOKABLE void addSyntheticRoot(const QString& path, qint64 addedAtMs = 0);
+    Q_INVOKABLE bool isSyntheticRoot(const QString& path) const;
+    Q_INVOKABLE bool isRootHidden(const QString& path) const;
+    Q_INVOKABLE void setRootHidden(const QString& path, bool hidden);
+    // True delete — removes the root row entirely. Never auto-called in
+    // production (the chip remove uses setRootHidden); exposed for tests + a
+    // future "forget this root entirely" affordance.
+    Q_INVOKABLE void removeRootCompletely(const QString& path);
 
     // ── Per-subtree kind overrides (card chip reassignments) ──
     Q_INVOKABLE void setKind(const QString& subtreePath, const QString& kind);

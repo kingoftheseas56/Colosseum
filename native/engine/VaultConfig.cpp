@@ -69,6 +69,9 @@ QVariantList VaultConfig::roots() const
         m[QStringLiteral("confirmed")] = o.value(QStringLiteral("confirmed")).toBool();
         m[QStringLiteral("addedAtMs")] =
             o.value(QStringLiteral("addedAtMs")).toVariant().toLongLong();
+        // Slice 18 synthetic/hidden markers — absent on a legacy config reads as false.
+        m[QStringLiteral("synthetic")] = o.value(QStringLiteral("synthetic")).toBool(false);
+        m[QStringLiteral("hidden")] = o.value(QStringLiteral("hidden")).toBool(false);
         out.append(m);
     }
     return out;
@@ -84,8 +87,15 @@ bool VaultConfig::isRootConfirmed(const QString& path) const
     const int i = rootIndex(norm(path));
     if (i < 0)
         return false;
-    return m_doc.value(QStringLiteral("roots")).toArray().at(i).toObject()
-        .value(QStringLiteral("confirmed")).toBool();
+    const QJsonObject o = m_doc.value(QStringLiteral("roots")).toArray().at(i).toObject();
+    // A hidden root (user removed it from the strip) is not live, regardless of
+    // its trusted/confirmed flag — it must not count toward rootCount or publish.
+    if (o.value(QStringLiteral("hidden")).toBool(false))
+        return false;
+    // A synthetic root is trusted by construction — no founding card to confirm.
+    if (o.value(QStringLiteral("synthetic")).toBool(false))
+        return true;
+    return o.value(QStringLiteral("confirmed")).toBool();
 }
 
 void VaultConfig::addRoot(const QString& path, qint64 addedAtMs)
@@ -117,6 +127,80 @@ void VaultConfig::confirmRoot(const QString& path)
 }
 
 void VaultConfig::removeRoot(const QString& path)
+{
+    const QString n = norm(path);
+    const int i = rootIndex(n);
+    if (i < 0)
+        return;
+    QJsonArray roots = m_doc.value(QStringLiteral("roots")).toArray();
+    const QJsonObject o = roots.at(i).toObject();
+    // A synthetic root owns real files on the Downloads lane — removing it from
+    // the Vault HIDES it (a config flag), never deletes the files or transfer
+    // history. A user root is truly deleted (unchanged legacy behavior).
+    if (o.value(QStringLiteral("synthetic")).toBool(false)) {
+        QJsonObject no = o;
+        no.insert(QStringLiteral("hidden"), true);
+        roots.replace(i, no);
+        m_doc.insert(QStringLiteral("roots"), roots);
+        persist();
+        return;
+    }
+    roots.removeAt(i);
+    m_doc.insert(QStringLiteral("roots"), roots);
+    persist();
+}
+
+void VaultConfig::addSyntheticRoot(const QString& path, qint64 addedAtMs)
+{
+    const QString n = norm(path);
+    if (rootIndex(n) >= 0)
+        return;
+    QJsonArray roots = m_doc.value(QStringLiteral("roots")).toArray();
+    QJsonObject o;
+    o.insert(QStringLiteral("path"), n);
+    o.insert(QStringLiteral("confirmed"), true);   // trusted — no founding card
+    o.insert(QStringLiteral("addedAtMs"), addedAtMs);
+    o.insert(QStringLiteral("synthetic"), true);
+    o.insert(QStringLiteral("hidden"), false);
+    roots.append(o);
+    m_doc.insert(QStringLiteral("roots"), roots);
+    persist();
+}
+
+bool VaultConfig::isSyntheticRoot(const QString& path) const
+{
+    const int i = rootIndex(norm(path));
+    if (i < 0)
+        return false;
+    return m_doc.value(QStringLiteral("roots")).toArray().at(i).toObject()
+        .value(QStringLiteral("synthetic")).toBool(false);
+}
+
+bool VaultConfig::isRootHidden(const QString& path) const
+{
+    const int i = rootIndex(norm(path));
+    if (i < 0)
+        return false;
+    return m_doc.value(QStringLiteral("roots")).toArray().at(i).toObject()
+        .value(QStringLiteral("hidden")).toBool(false);
+}
+
+void VaultConfig::setRootHidden(const QString& path, bool hidden)
+{
+    const int i = rootIndex(norm(path));
+    if (i < 0)
+        return;
+    QJsonArray roots = m_doc.value(QStringLiteral("roots")).toArray();
+    QJsonObject o = roots.at(i).toObject();
+    if (o.value(QStringLiteral("hidden")).toBool(false) == hidden)
+        return;
+    o.insert(QStringLiteral("hidden"), hidden);
+    roots.replace(i, o);
+    m_doc.insert(QStringLiteral("roots"), roots);
+    persist();
+}
+
+void VaultConfig::removeRootCompletely(const QString& path)
 {
     const int i = rootIndex(norm(path));
     if (i < 0)

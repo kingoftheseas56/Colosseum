@@ -38,6 +38,11 @@ private slots:
     void config_fresh_when_both_corrupt();
     void config_normalizes_paths();
 
+    // ── VaultConfig Slice 18 (synthetic + hidden downloads root) ──
+    void config_synthetic_root_is_preconfirmed_and_idempotent();
+    void config_remove_synthetic_root_hides_not_deletes();
+    void config_legacy_json_loads_clean_without_new_fields();
+
     // ── VaultIdentity ──
     void id_is_stable_for_same_triple();
     void id_normalizes_path();
@@ -120,6 +125,103 @@ void tst_vault_stores::config_normalizes_paths()
 #endif
     c.setKind(QStringLiteral("D:\\Manga\\Berserk"), QStringLiteral("comic"));
     QCOMPARE(c.kindFor(QStringLiteral("D:/Manga/Berserk")), QStringLiteral("comic"));
+}
+
+// ── Slice 18: synthetic + hidden downloads root ──
+
+void tst_vault_stores::config_synthetic_root_is_preconfirmed_and_idempotent()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = QStringLiteral("C:/Users/me/AppData/Local/Colosseum/Downloads");
+    {
+        VaultConfig c(tmp.path());
+        QVERIFY(!c.hasRoot(root));
+        c.addSyntheticRoot(root, 42);
+        // Idempotent: a second add is a no-op (no duplicate row, same path).
+        c.addSyntheticRoot(root, 99);
+
+        QVERIFY(c.hasRoot(root));
+        QVERIFY(c.isSyntheticRoot(root));
+        // The synthetic root is trusted — no founding card, no confirmRoot step.
+        QVERIFY(c.isRootConfirmed(root));
+        QVERIFY(!c.isRootHidden(root));
+
+        // The roots() map surfaces the new fields so QML + the library can route
+        // a muted chip + a remove that hides instead of deletes.
+        const QVariantList roots = c.roots();
+        QCOMPARE(roots.size(), 1);
+        const QVariantMap m = roots.at(0).toMap();
+        QCOMPARE(m.value(QStringLiteral("path")).toString(),
+                 QDir::cleanPath(root).toLower());
+        QCOMPARE(m.value(QStringLiteral("synthetic")).toBool(), true);
+        QCOMPARE(m.value(QStringLiteral("hidden")).toBool(), false);
+        QCOMPARE(m.value(QStringLiteral("confirmed")).toBool(), true);
+        QCOMPARE(m.value(QStringLiteral("addedAtMs")).toLongLong(), qint64(42));
+    }
+    // Survives a reload — the synthetic marker + trusted state persist to disk.
+    VaultConfig c2(tmp.path());
+    QVERIFY(c2.hasRoot(root));
+    QVERIFY(c2.isSyntheticRoot(root));
+    QVERIFY(c2.isRootConfirmed(root));
+    QVERIFY(!c2.isRootHidden(root));
+}
+
+void tst_vault_stores::config_remove_synthetic_root_hides_not_deletes()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = QStringLiteral("D:/Media");
+    {
+        VaultConfig c(tmp.path());
+        c.addSyntheticRoot(root);
+        QCOMPARE(c.roots().size(), 1);
+
+        // The chip's remove: a synthetic root HIDES, never deletes. The files +
+        // transfer history on the Downloads lane must survive untouched.
+        c.removeRoot(root);
+        QCOMPARE(c.roots().size(), 1);              // row still present
+        QVERIFY(c.hasRoot(root));                  // path still known
+        QVERIFY(c.isRootHidden(root));             // ...but hidden
+        QVERIFY(!c.isRootConfirmed(root));         // hidden roots don't count as live
+
+        // Restoring is setRootHidden(false) — a true toggle, no re-add needed.
+        c.setRootHidden(root, false);
+        QVERIFY(!c.isRootHidden(root));
+        QVERIFY(c.isRootConfirmed(root));
+        QCOMPARE(c.roots().size(), 1);
+
+        // removeRootCompletely is the one true delete — for tests / a future
+        // "forget this root entirely" affordance. Never the chip remove path.
+        c.removeRootCompletely(root);
+        QCOMPARE(c.roots().size(), 0);
+        QVERIFY(!c.hasRoot(root));
+    }
+}
+
+void tst_vault_stores::config_legacy_json_loads_clean_without_new_fields()
+{
+    // A config.json written before Slice 18 has roots without `synthetic`/`hidden`
+    // fields. Loading it must not throw, and the new accessors must read those
+    // fields as their documented defaults (synthetic=false, hidden=false) so a
+    // legacy user-root behaves exactly as before.
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QByteArray legacy = QByteArrayLiteral(
+        "{ \"version\": 1, \"roots\": ["
+        "  { \"path\": \"d:/legacy\", \"confirmed\": true, \"addedAtMs\": 7 }"
+        "], \"scanIgnore\": [], \"hidden\": [], \"kinds\": {} }");
+    writeRaw(QDir(tmp.path()).filePath(QStringLiteral("config.json")), legacy);
+
+    VaultConfig c(tmp.path());
+    QVERIFY(c.hasRoot(QStringLiteral("D:/Legacy")));
+    QVERIFY(!c.isSyntheticRoot(QStringLiteral("D:/Legacy")));   // default false
+    QVERIFY(!c.isRootHidden(QStringLiteral("D:/Legacy")));       // default false
+    QVERIFY(c.isRootConfirmed(QStringLiteral("D:/Legacy")));     // unchanged
+
+    // And a synthetic root added on top coexists with the legacy user root.
+    c.addSyntheticRoot(QStringLiteral("D:/Downloads"));
+    QCOMPARE(c.roots().size(), 2);
 }
 
 void tst_vault_stores::id_is_stable_for_same_triple()

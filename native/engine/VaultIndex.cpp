@@ -465,6 +465,31 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
     return out;
 }
 
+QSet<QString> VaultIndex::fileIdsInRoot(const QString& rootPath) const
+{
+    QSet<QString> out;
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral("SELECT id FROM files WHERE rootPath = ?"));
+    q.addBindValue(rootPath);
+    if (q.exec()) {
+        while (q.next())
+            out.insert(q.value(0).toString());
+    }
+    return out;
+}
+
+QString VaultIndex::dominantKindForSubtree(const QString& subtreePath) const
+{
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral(
+        "SELECT kind FROM files WHERE subtreePath = ?"
+        " GROUP BY kind ORDER BY COUNT(*) DESC, kind LIMIT 1"));
+    q.addBindValue(subtreePath);
+    if (q.exec() && q.next())
+        return q.value(0).toString();
+    return QString();
+}
+
 QVariantMap VaultIndex::admissionById() const
 {
     QVariantMap out;
