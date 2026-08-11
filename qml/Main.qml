@@ -1435,9 +1435,8 @@ Window {
     // The picker / an OS drag-drop / Ctrl+O all funnel here. LocalLaunch (C++) routes the
     // FIRST file and decides if it can open at all; QML paints the door — the right reader/
     // player as a normal taskbar session, or a categorized "can't open" with NO tile.
-    function openLocalMedia(paths) {
-        if (!paths || !paths.length) return
-        var r = LocalLaunch.open(paths)
+    function dispatchLocalRoute(r) {
+        if (!r) return
         localLaunchState.lastRouteKind = r.family || "unknown"
         localLaunchState.lastRejectCategory = r.accepted ? "" : (r.reject || "unsupported")
         if (!r.accepted) { win.showLocalRejection(r); return }
@@ -1445,6 +1444,17 @@ Window {
         if (r.family === "comic")      win.openVaultComic(r.path, r.vaultId, r.title)
         else if (r.family === "book")  win.openBookSession(r.path, { "id": r.vaultId, "title": r.title })
         else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
+    }
+    function openLocalMedia(paths) {
+        if (!paths || !paths.length) return
+        dispatchLocalRoute(LocalLaunch.open(paths))
+    }
+    function openNextToOpen(index) {
+        if (typeof LocalLaunch === "undefined") return
+        dispatchLocalRoute(LocalLaunch.openNextToOpen(index))
+    }
+    function removeNextToOpen(index) {
+        if (typeof LocalLaunch !== "undefined") LocalLaunch.removeNextToOpen(index)
     }
     // Build the player target for a local video, resuming at the saved spot. A finished movie
     // (>=90%) is dropped from Progress, so its lookup is empty → position 0 → restart from the
@@ -3165,6 +3175,27 @@ Window {
 
         function refresh() { model = (typeof LocalLaunch !== "undefined") ? LocalLaunch.recentItems() : [] }
         function toggle() { open = !open }
+    // Slice 20: explicit multi-file queue. The first selected file is dispatched immediately;
+    // these rows never auto-advance and are not part of Open Recent until opened here.
+    NextToOpenTray {
+        id: nextToOpenTray
+        objectName: "nextToOpenTray"
+        z: 907
+        visible: stagedCount > 0
+        x: parent.width - width - 42
+        y: parent.height - height - 92
+        model: (typeof LocalLaunch !== "undefined") ? LocalLaunch.nextToOpenItems() : []
+        function refresh() {
+            model = (typeof LocalLaunch !== "undefined") ? LocalLaunch.nextToOpenItems() : []
+        }
+        Connections {
+            target: (typeof LocalLaunch !== "undefined") ? LocalLaunch : null
+            function onNextToOpenChanged() { nextToOpenTray.refresh() }
+        }
+        onOpenRequested: (index, entry) => win.openNextToOpen(index)
+        onRemoveRequested: (index, entry) => win.removeNextToOpen(index)
+    }
+
         onOpenChanged: { if (open) refresh(); opacity = open ? 1 : 0 }
         Component.onCompleted: refresh()
         Connections {

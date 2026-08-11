@@ -59,12 +59,17 @@ public:
 
     // ── QML-facing open orchestration (Slice 8 entry points) ──────────────
     // `open` is fed the raw selections from the taskbar picker / an OS drag-drop /
-    // Ctrl+O (file:// urls OR plain paths); it routes the FIRST one — the
-    // Next-to-Open tray is Slice 20, so the rest are honestly ignored — and hands
-    // QML a ready-to-dispatch decision. C++ decides; QML opens the door.
-    //   { path, family, accepted, reject, vaultId, detail, title, ignored }
+    // Ctrl+O (file:// urls OR plain paths); it routes the FIRST one immediately and
+    // stages the rest in the ephemeral Next-to-Open tray. C++ decides; QML opens
+    // the door explicitly. { path, family, accepted, reject, vaultId, detail,
+    // title, ignored, staged }
     Q_INVOKABLE QVariantMap routeInfo(const QString& pathOrUrl) const;
     Q_INVOKABLE QVariantMap open(const QStringList& pathsOrUrls);
+    // Slice 20: temporary, non-persistent, never-auto-advancing Next-to-Open tray.
+    Q_INVOKABLE QVariantList nextToOpenItems() const { return m_nextToOpen; }
+    Q_INVOKABLE int stagedCount() const { return m_nextToOpen.size(); }
+    Q_INVOKABLE QVariantMap openNextToOpen(int index);
+    Q_INVOKABLE void removeNextToOpen(int index);
 
     // A dropped folder is NOT a file to route — the folder→Vault gesture is Slice 10, so
     // until then a folder drop shows an explain + "Select Media Files…" instead of
@@ -80,7 +85,11 @@ public:
 
 signals:
     void recentChanged();
+    void nextToOpenChanged();
 
 private:
+    QVariantMap openSingle(const QString& pathOrUrl);
+
     VaultRecent m_recent;
+    QVariantList m_nextToOpen;
 };

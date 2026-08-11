@@ -144,10 +144,22 @@ QVariantMap LocalLaunch::open(const QStringList& pathsOrUrls)
         m[QStringLiteral("detail")]   = QStringLiteral("no file");
         m[QStringLiteral("title")]    = QString();
         m[QStringLiteral("ignored")]  = 0;
+        m[QStringLiteral("staged")]   = m_nextToOpen.size();
         return m;
     }
-    QVariantMap m = routeInfo(pathsOrUrls.first());
+    QVariantMap m = openSingle(pathsOrUrls.first());
     m[QStringLiteral("ignored")] = pathsOrUrls.size() - 1;
+    for (int i = 1; i < pathsOrUrls.size(); ++i)
+        m_nextToOpen.append(routeInfo(pathsOrUrls.at(i)));
+    if (pathsOrUrls.size() > 1)
+        emit nextToOpenChanged();
+    m[QStringLiteral("staged")] = m_nextToOpen.size();
+    return m;
+}
+
+QVariantMap LocalLaunch::openSingle(const QString& pathOrUrl)
+{
+    QVariantMap m = routeInfo(pathOrUrl);
     // An accepted open is remembered for one-click reopen (Slice 9); a rejection is not.
     if (m.value(QStringLiteral("accepted")).toBool()) {
         m_recent.record(m.value(QStringLiteral("path")).toString(),
@@ -157,6 +169,33 @@ QVariantMap LocalLaunch::open(const QStringList& pathsOrUrls)
         emit recentChanged();
     }
     return m;
+}
+
+QVariantMap LocalLaunch::openNextToOpen(int index)
+{
+    if (index < 0 || index >= m_nextToOpen.size()) {
+        QVariantMap m;
+        m[QStringLiteral("accepted")] = false;
+        m[QStringLiteral("reject")] = rejectName(Reject::NotFound);
+        m[QStringLiteral("detail")] = QStringLiteral("staged item not found");
+        m[QStringLiteral("staged")] = m_nextToOpen.size();
+        return m;
+    }
+    const QString path = m_nextToOpen.at(index).toMap().value(QStringLiteral("path")).toString();
+    m_nextToOpen.removeAt(index);
+    emit nextToOpenChanged();
+    QVariantMap m = openSingle(path); // re-probe: the file may have changed while staged
+    m[QStringLiteral("ignored")] = 0;
+    m[QStringLiteral("staged")] = m_nextToOpen.size();
+    return m;
+}
+
+void LocalLaunch::removeNextToOpen(int index)
+{
+    if (index < 0 || index >= m_nextToOpen.size())
+        return;
+    m_nextToOpen.removeAt(index);
+    emit nextToOpenChanged();
 }
 
 bool LocalLaunch::isDir(const QString& pathOrUrl) const
