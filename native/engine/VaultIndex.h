@@ -52,6 +52,8 @@ public:
         double durationSec = -1;
         QString author;
         QString format;
+        QString synopsis;       // embedded book description, when available
+        QString metadataSource; // "EPUB" for embedded EPUB facts; empty otherwise
         bool progressed = false;
         QString coverRef; // comic: the CBZ entry name for image://comiccover/; else ""
         // A confirmed root can disappear without destroying the user's shelf. `away` keeps the

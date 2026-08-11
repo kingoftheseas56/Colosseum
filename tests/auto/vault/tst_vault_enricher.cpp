@@ -10,8 +10,14 @@
 // Slice 6 (the decodable-MP4 fixture); here only the cache is tested.
 
 #include "engine/VaultEnricher.h"
+#include "engine/ComicCoverId.h"
+#include "engine/VaultBookCoverProvider.h"
 #include "engine/VaultIndex.h"
+#include "third_party/miniz/miniz.h"
 
+#include <QBuffer>
+#include <QFile>
+#include <QImage>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QThread>
@@ -36,10 +42,66 @@ private:
         return QStringLiteral(VAULT_FIXTURES_DIR) + QStringLiteral("/media/") + name;
     }
 
+    static QByteArray coverPng()
+    {
+        QImage image(64, 96, QImage::Format_ARGB32);
+        image.fill(qRgba(180, 40, 80, 255));
+        QBuffer buffer;
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        return buffer.data();
+    }
+
+    static bool writeEpub(const QString& path, bool withCover)
+    {
+        const QByteArray container =
+            "<?xml version=\"1.0\"?><container version=\"1.0\" "
+            "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\"><rootfiles>"
+            "<rootfile full-path=\"OPS/content.opf\" "
+            "media-type=\"application/oebps-package+xml\"/></rootfiles></container>";
+        const QByteArray opf = withCover
+            ? QByteArray(
+                "<?xml version=\"1.0\"?><package xmlns=\"http://www.idpf.org/2007/opf\" "
+                "version=\"3.0\"><metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">"
+                "<dc:title>Embedded Book Title</dc:title><dc:creator>Embedded Author</dc:creator>"
+                "<dc:description>Embedded synopsis from OPF.</dc:description>"
+                "</metadata><manifest><item id=\"cover-image\" href=\"images/cover.png\" "
+                "media-type=\"image/png\" properties=\"cover-image\"/></manifest></package>")
+            : QByteArray(
+                "<?xml version=\"1.0\"?><package xmlns=\"http://www.idpf.org/2007/opf\" "
+                "version=\"3.0\"><metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">"
+                "<dc:title>Coverless Book Title</dc:title><dc:creator>Coverless Author</dc:creator>"
+                "</metadata><manifest/></package>");
+
+        mz_zip_archive zip{};
+        const QByteArray nativePath = QDir::toNativeSeparators(path).toUtf8();
+        if (!mz_zip_writer_init_file(&zip, nativePath.constData(), 0))
+            return false;
+        bool ok = mz_zip_writer_add_mem(&zip, "mimetype", "application/epub+zip", 20,
+                                        MZ_NO_COMPRESSION);
+        ok = ok && mz_zip_writer_add_mem(&zip, "META-INF/container.xml",
+                                          container.constData(), container.size(), MZ_BEST_SPEED);
+        ok = ok && mz_zip_writer_add_mem(&zip, "OPS/content.opf",
+                                          opf.constData(), opf.size(), MZ_BEST_SPEED);
+        const QByteArray image = coverPng();
+        if (withCover)
+            ok = ok && mz_zip_writer_add_mem(&zip, "OPS/images/cover.png",
+                                             image.constData(), image.size(), MZ_NO_COMPRESSION);
+        if (ok)
+            ok = mz_zip_writer_finalize_archive(&zip) != 0;
+        mz_zip_writer_end(&zip);
+        return ok;
+    }
+
 private slots:
     void pick_cover_entry_prefers_cover_then_first();
     void read_comic_facts_from_real_cbz();
     void corrupt_cbz_is_error_not_wedge();
+    void read_book_facts_and_provider();
+    void coverless_epub_is_valid_gradient_fallback();
+    void corrupt_epub_is_error_not_wedge();
+    void non_epub_book_stays_filename_honest();
+    void enrich_writes_epub_metadata_and_republishes_durably();
     void duration_cache_hit_miss_and_persist();
     void enrich_writes_comic_facts_to_index();
     // ── vault-admission slice: probe off the owner thread, commit on it ──
@@ -71,6 +133,134 @@ void tst_vault_enricher::corrupt_cbz_is_error_not_wedge()
     QVERIFY(!f.ok); // honest error state, no crash, no hang
     QCOMPARE(f.pages, 0);
     QVERIFY(!f.errorDetail.isEmpty());
+}
+
+void tst_vault_enricher::read_book_facts_and_provider()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString epub = tmp.filePath(QStringLiteral("embedded.epub"));
+    QVERIFY(writeEpub(epub, true));
+
+    const VaultEnricher::BookFacts facts = VaultEnricher::readBookFacts(epub);
+    QVERIFY(facts.ok);
+    QCOMPARE(facts.title, QStringLiteral("Embedded Book Title"));
+    QCOMPARE(facts.author, QStringLiteral("Embedded Author"));
+    QCOMPARE(facts.synopsis, QStringLiteral("Embedded synopsis from OPF."));
+    QCOMPARE(facts.coverEntry, QStringLiteral("OPS/images/cover.png"));
+
+    Colosseum::VaultBookCoverProvider provider;
+    QSize size;
+    const QImage image = provider.requestImage(
+        Colosseum::buildComicCoverId(epub, facts.coverEntry), &size, QSize(32, 32));
+    QVERIFY(!image.isNull());
+    QCOMPARE(size, image.size());
+    QVERIFY(image.width() <= 32);
+    QVERIFY(image.height() <= 32);
+}
+
+void tst_vault_enricher::coverless_epub_is_valid_gradient_fallback()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString epub = tmp.filePath(QStringLiteral("coverless.epub"));
+    QVERIFY(writeEpub(epub, false));
+
+    const VaultEnricher::BookFacts facts = VaultEnricher::readBookFacts(epub);
+    QVERIFY(facts.ok);
+    QCOMPARE(facts.title, QStringLiteral("Coverless Book Title"));
+    QVERIFY(facts.coverEntry.isEmpty());
+    QVERIFY(facts.errorDetail.isEmpty());
+}
+
+void tst_vault_enricher::corrupt_epub_is_error_not_wedge()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString epub = tmp.filePath(QStringLiteral("corrupt.epub"));
+    QFile file(epub);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QVERIFY(file.write("not a zip") > 0);
+    file.close();
+
+    const VaultEnricher::BookFacts facts = VaultEnricher::readBookFacts(epub);
+    QVERIFY(!facts.ok);
+    QVERIFY(!facts.errorDetail.isEmpty());
+}
+
+void tst_vault_enricher::non_epub_book_stays_filename_honest()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString pdf = tmp.filePath(QStringLiteral("filename-honest.pdf"));
+    QFile file(pdf);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QVERIFY(file.write("not a real pdf") > 0);
+    file.close();
+
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    VaultEnricher enricher(&index, tmp.path());
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:pdf");
+    row.rootPath = tmp.path();
+    row.subtreePath = tmp.path();
+    row.groupKey = tmp.path();
+    row.kind = QStringLiteral("book");
+    row.path = pdf;
+    row.displayTitle = QStringLiteral("filename-honest");
+    row.realName = QStringLiteral("filename-honest.pdf");
+    QVERIFY(index.publish({row}));
+    enricher.enrich({row});
+
+    const auto rows = index.rowsForKind(QStringLiteral("book"));
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.first().displayTitle, QStringLiteral("filename-honest"));
+    QCOMPARE(rows.first().format, QStringLiteral("pdf"));
+    QVERIFY(rows.first().metadataSource.isEmpty());
+    QVERIFY(rows.first().errorState.isEmpty());
+}
+
+void tst_vault_enricher::enrich_writes_epub_metadata_and_republishes_durably()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString epub = tmp.filePath(QStringLiteral("metadata.epub"));
+    QVERIFY(writeEpub(epub, true));
+
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    VaultEnricher enricher(&index, tmp.path());
+    VaultIndex::FileRow source;
+    source.id = QStringLiteral("vault:epub");
+    source.rootPath = tmp.path();
+    source.subtreePath = tmp.path();
+    source.groupKey = tmp.path();
+    source.groupTitle = QStringLiteral("Books");
+    source.kind = QStringLiteral("book");
+    source.path = epub;
+    source.displayTitle = QStringLiteral("metadata");
+    source.realName = QStringLiteral("metadata.epub");
+    source.size = QFileInfo(epub).size();
+    source.mtimeMs = 77;
+    QVERIFY(index.publish({source}));
+
+    enricher.enrich({source});
+    const auto enriched = index.rowsForKind(QStringLiteral("book"));
+    QCOMPARE(enriched.size(), 1);
+    QCOMPARE(enriched.first().displayTitle, QStringLiteral("Embedded Book Title"));
+    QCOMPARE(enriched.first().author, QStringLiteral("Embedded Author"));
+    QCOMPARE(enriched.first().synopsis, QStringLiteral("Embedded synopsis from OPF."));
+    QCOMPARE(enriched.first().coverRef, QStringLiteral("OPS/images/cover.png"));
+    QCOMPARE(enriched.first().metadataSource, QStringLiteral("EPUB"));
+    QCOMPARE(enriched.first().format, QStringLiteral("epub"));
+
+    VaultIndex::FileRow rescan = source; // scanner rows do not carry enrichment facts
+    rescan.format.clear();
+    QVERIFY(index.publish({rescan}));
+    const auto durable = index.rowsForKind(QStringLiteral("book"));
+    QCOMPARE(durable.size(), 1);
+    QCOMPARE(durable.first().displayTitle, QStringLiteral("Embedded Book Title"));
+    QCOMPARE(durable.first().synopsis, QStringLiteral("Embedded synopsis from OPF."));
+    QCOMPARE(durable.first().metadataSource, QStringLiteral("EPUB"));
 }
 
 void tst_vault_enricher::duration_cache_hit_miss_and_persist()

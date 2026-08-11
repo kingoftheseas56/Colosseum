@@ -151,6 +151,8 @@ add_executable(colosseum
     engine/ComicDownloader.h
     engine/ComicCoverProvider.cpp  # image://comiccover/ -- stateless cover decode for archive-shaped rows
     engine/ComicCoverProvider.h
+    engine/VaultBookCoverProvider.cpp # image://vaultbookcover/ -- stateless EPUB cover decode
+    engine/VaultBookCoverProvider.h
     engine/ComicCoverId.cpp        # id build/parse, Core-only (shared with ComicDownloader.cpp)
     engine/ComicCoverId.h
     engine/ComicDlsParse.cpp

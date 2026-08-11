@@ -126,9 +126,11 @@ QVariantList VaultLibrary::series(const QString& kind) const
         // an enriched comic cover, else empty (the tile falls back to its gradient + icon).
         const QString coverPath = m.value(QStringLiteral("coverPath")).toString();
         const QString coverEntry = m.value(QStringLiteral("coverEntry")).toString();
+        const QString provider = kind == QLatin1String("book")
+            ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
         s.insert(QStringLiteral("coverUrl"),
                  (!coverPath.isEmpty() && !coverEntry.isEmpty())
-                     ? QStringLiteral("image://comiccover/")
+                     ? QStringLiteral("image://") + provider + QLatin1Char('/')
                            + Colosseum::buildComicCoverId(coverPath, coverEntry)
                      : QString());
         out.append(s);
@@ -154,10 +156,14 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
         QVariantMap m = v.toMap();
         const QString coverRef = m.value(QStringLiteral("coverRef")).toString();
         const QString path = m.value(QStringLiteral("path")).toString();
+        const QString rowKind = m.value(QStringLiteral("kind")).toString();
+        const QString provider = rowKind == QLatin1String("book")
+            ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
         m.insert(QStringLiteral("coverUrl"),
                  (!coverRef.isEmpty() && !path.isEmpty()
-                  && m.value(QStringLiteral("kind")).toString() == QStringLiteral("comic"))
-                     ? QStringLiteral("image://comiccover/") + Colosseum::buildComicCoverId(path, coverRef)
+                  && (rowKind == QLatin1String("comic") || rowKind == QLatin1String("book")))
+                     ? QStringLiteral("image://") + provider + QLatin1Char('/')
+                           + Colosseum::buildComicCoverId(path, coverRef)
                      : QString());
         v = m;
     }

@@ -6,11 +6,11 @@
 //           on demand by the existing image://comiccover/ provider (no new
 //           decoder, no thumbnail cache — Qt's image cache already memoises);
 //   video:  ffprobe (kill-on-timeout), memoised in a triple-keyed duration cache;
-//   books:  format from the extension.
-// Deferred, gradient-fallback until their own slices: the epub cover ladder +
-// author, video thumbnails, and page dimensions (the Vault UI displays none of
-// the last). Enrichment is per-file and cancellable; the duration cache flushes
-// every 20 files.
+//   books:  format from the extension, plus bounded EPUB OPF metadata/cover
+//           extraction when the file is an EPUB.
+// Non-EPUB books remain filename-honest; video thumbnails and page dimensions
+// stay deferred. Enrichment is per-file and cancellable; the duration cache
+// flushes every 20 files.
 
 #include <QHash>
 #include <QList>
@@ -40,6 +40,17 @@ public:
         QString errorDetail;
     };
     static ComicFacts readComicFacts(const QString& cbzPath);
+
+    // â”€â”€ EPUB book facts (pure/static; miniz + OPF XML) â”€â”€
+    struct BookFacts {
+        bool ok = false; // valid EPUB container/OPF, even when it has no cover
+        QString title;
+        QString author;
+        QString synopsis;
+        QString coverEntry;
+        QString errorDetail;
+    };
+    static BookFacts readBookFacts(const QString& epubPath);
 
     // ── Video duration cache ──
     double durationForVideo(const QString& path, qint64 size, qint64 mtimeMs); // cache-then-probe

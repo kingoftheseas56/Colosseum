@@ -296,8 +296,8 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
 # VaultEnricher — thin fact-filler reusing CbzArchive (comic pages + cover entry
 # for image://comiccover/) and ffprobe (duration cache); writes facts back to the
 # index. Compiles CbzArchive + miniz (its ZIP backend). Qt6::Sql for the index;
-# real CBZ via TANKOBAN_FIXTURES_DIR, corrupt CBZ via VAULT_FIXTURES_DIR. GUILESS
-# (cover DECODE is the existing image://comiccover/ provider's job, not tested here).
+# real CBZ via TANKOBAN_FIXTURES_DIR, EPUB/corrupt fixtures via VAULT_FIXTURES_DIR.
+# The cover providers are exercised without a GUI window.
 add_executable(tst_vault_enricher
     auto/vault/tst_vault_enricher.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultEnricher.cpp"
@@ -306,6 +306,10 @@ add_executable(tst_vault_enricher
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/CbzArchive.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookCoverProvider.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookCoverProvider.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.h"
     "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
     # vault-admission slice: enrich() now video-admits via the real probe (raw libmpv),
     # so the enricher test links MediaAdmissionProbe + libmpv, same as the probe/launch harnesses.
@@ -317,7 +321,7 @@ target_compile_definitions(tst_vault_enricher PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/tankoban"
     VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
 target_link_libraries(tst_vault_enricher PRIVATE
-    Qt6::Core Qt6::Sql Qt6::Test ${Libmpv_LIBRARIES})
+    Qt6::Core Qt6::Sql Qt6::Gui Qt6::Quick Qt6::Test ${Libmpv_LIBRARIES})
 set_target_properties(tst_vault_enricher PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_enricher POST_BUILD

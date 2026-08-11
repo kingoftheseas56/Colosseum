@@ -10,9 +10,9 @@
 #include <QVariantMap>
 
 namespace {
-// Vault schema v2 adds durable away/error state. A DB stamped higher than this was created by a
+// Vault schema v3 adds durable embedded metadata state. A DB stamped higher than this was created by a
 // newer owner and is refused rather than downgraded.
-inline constexpr int kVaultSchemaVersion = 2;
+inline constexpr int kVaultSchemaVersion = 3;
 
 bool execSchemaSql(QSqlDatabase& db, const QString& sql)
 {
@@ -56,6 +56,12 @@ struct DurableFacts
     QString detail;
     QString errorState;
     QString errorDetail;
+    QString displayTitle;
+    QString author;
+    QString format;
+    QString coverRef;
+    QString synopsis;
+    QString metadataSource;
 };
 
 bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
@@ -64,8 +70,10 @@ bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
     QSqlQuery q(db);
     if (!q.exec(QStringLiteral(
             "SELECT id, size, mtimeMs, progressed, admissionVerdict, admissionDetail, "
-            "       errorState, errorDetail FROM files "
-            "WHERE progressed <> 0 OR admissionVerdict <> '' OR errorState <> ''")))
+            "       errorState, errorDetail, displayTitle, author, format, coverRef, "
+            "       synopsis, metadataSource FROM files "
+            "WHERE progressed <> 0 OR admissionVerdict <> '' OR errorState <> '' "
+            "   OR coverRef <> '' OR author <> '' OR synopsis <> '' OR metadataSource <> ''")))
         return false;
 
     while (q.next()) {
@@ -77,6 +85,12 @@ bool loadDurableFacts(QSqlDatabase& db, QHash<QString, DurableFacts>* out)
         a.detail = q.value(5).toString();
         a.errorState = q.value(6).toString();
         a.errorDetail = q.value(7).toString();
+        a.displayTitle = q.value(8).toString();
+        a.author = q.value(9).toString();
+        a.format = q.value(10).toString();
+        a.coverRef = q.value(11).toString();
+        a.synopsis = q.value(12).toString();
+        a.metadataSource = q.value(13).toString();
         out->insert(q.value(0).toString(), a);
     }
     return true;
@@ -126,7 +140,7 @@ bool VaultIndex::ensureSchema()
         return false;
     };
 
-    // Fresh DBs get the v1 admission + v2 resilience columns inline; legacy DBs (below) get them
+    // Fresh DBs get the v1 admission + v2 resilience + v3 metadata columns inline; legacy DBs (below) get them
     // via ALTER. The original column set/order is preserved so existing queries keep working.
     if (!execSchemaSql(m_db, QStringLiteral(
             "CREATE TABLE IF NOT EXISTS files ("
@@ -140,7 +154,9 @@ bool VaultIndex::ensureSchema()
             " errorState TEXT NOT NULL DEFAULT '',"
             " errorDetail TEXT NOT NULL DEFAULT '',"
             " admissionVerdict TEXT NOT NULL DEFAULT '',"
-            " admissionDetail TEXT NOT NULL DEFAULT '')")))
+            " admissionDetail TEXT NOT NULL DEFAULT '',"
+            " synopsis TEXT NOT NULL DEFAULT '',"
+            " metadataSource TEXT NOT NULL DEFAULT '')")))
         return rollback();
 
     bool columnsOk = false;
@@ -175,13 +191,27 @@ bool VaultIndex::ensureSchema()
             "ALTER TABLE files ADD COLUMN errorDetail TEXT NOT NULL DEFAULT ''")))
         return rollback();
 
+    const QSet<QString> afterResilience = tableColumns(m_db, &columnsOk);
+    if (!columnsOk)
+        return rollback();
+    if (!afterResilience.contains(QStringLiteral("synopsis"))
+        && !execSchemaSql(m_db, QStringLiteral(
+            "ALTER TABLE files ADD COLUMN synopsis TEXT NOT NULL DEFAULT ''")))
+        return rollback();
+    if (!afterResilience.contains(QStringLiteral("metadataSource"))
+        && !execSchemaSql(m_db, QStringLiteral(
+            "ALTER TABLE files ADD COLUMN metadataSource TEXT NOT NULL DEFAULT ''")))
+        return rollback();
+
     const QSet<QString> finalColumns = tableColumns(m_db, &columnsOk);
     if (!columnsOk
         || !finalColumns.contains(QStringLiteral("admissionVerdict"))
         || !finalColumns.contains(QStringLiteral("admissionDetail"))
         || !finalColumns.contains(QStringLiteral("away"))
         || !finalColumns.contains(QStringLiteral("errorState"))
-        || !finalColumns.contains(QStringLiteral("errorDetail")))
+        || !finalColumns.contains(QStringLiteral("errorDetail"))
+        || !finalColumns.contains(QStringLiteral("synopsis"))
+        || !finalColumns.contains(QStringLiteral("metadataSource")))
         return rollback();
 
     if (!execSchemaSql(m_db, QStringLiteral(
@@ -234,12 +264,12 @@ bool VaultIndex::insertRow(const FileRow& row)
         "id, rootPath, subtreePath, groupKey, groupTitle, kind, path, "
         "displayTitle, realName, subfolder, sortKey, size, mtimeMs, pages, "
         "durationSec, author, format, progressed, coverRef, away, errorState, errorDetail, "
-        "admissionVerdict, admissionDetail"
+        "admissionVerdict, admissionDetail, synopsis, metadataSource"
         ") VALUES ("
         ":id, :rootPath, :subtreePath, :groupKey, :groupTitle, :kind, :path, "
         ":displayTitle, :realName, :subfolder, :sortKey, :size, :mtimeMs, :pages, "
         ":durationSec, :author, :format, :progressed, :coverRef, :away, :errorState, :errorDetail, "
-        ":admissionVerdict, :admissionDetail)"));
+        ":admissionVerdict, :admissionDetail, :synopsis, :metadataSource)"));
 
     q.bindValue(QStringLiteral(":id"), row.id);
     q.bindValue(QStringLiteral(":rootPath"), row.rootPath);
@@ -259,6 +289,8 @@ bool VaultIndex::insertRow(const FileRow& row)
     q.bindValue(QStringLiteral(":durationSec"), row.durationSec);
     q.bindValue(QStringLiteral(":author"), row.author);
     q.bindValue(QStringLiteral(":format"), row.format);
+    q.bindValue(QStringLiteral(":synopsis"), row.synopsis);
+    q.bindValue(QStringLiteral(":metadataSource"), row.metadataSource);
     q.bindValue(QStringLiteral(":progressed"), row.progressed ? 1 : 0);
     q.bindValue(QStringLiteral(":coverRef"), row.coverRef);
     q.bindValue(QStringLiteral(":away"), row.away ? 1 : 0);
@@ -305,7 +337,8 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
         // Carry prior verdicts/errors only when the caller supplied none AND the identity tuple is
         // byte-for-byte unchanged. A changed size or mtime deliberately drops them so the file is
         // re-probed; explicit fresh facts always win.
-        if (!row.progressed || row.admissionVerdict.isEmpty() || row.errorState.isEmpty()) {
+        if (!row.progressed || row.admissionVerdict.isEmpty() || row.errorState.isEmpty()
+            || row.coverRef.isEmpty() || row.metadataSource.isEmpty()) {
             const auto it = durable.constFind(row.id);
             if (it != durable.constEnd()
                 && it->size == row.size
@@ -321,6 +354,20 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
                     row.errorState = it->errorState;
                     row.errorDetail = it->errorDetail;
                 }
+                if (row.coverRef.isEmpty() && row.metadataSource.isEmpty())
+                    row.coverRef = it->coverRef;
+                if (row.metadataSource.isEmpty() && !it->metadataSource.isEmpty()) {
+                    row.displayTitle = it->displayTitle;
+                    row.author = it->author;
+                    row.format = it->format;
+                    row.coverRef = it->coverRef;
+                    row.synopsis = it->synopsis;
+                    row.metadataSource = it->metadataSource;
+                }
+                if (row.author.isEmpty() && row.metadataSource.isEmpty())
+                    row.author = it->author;
+                if (row.synopsis.isEmpty() && row.metadataSource.isEmpty())
+                    row.synopsis = it->synopsis;
             } else if (row.admissionVerdict.isEmpty()) {
                 row.admissionDetail.clear();
             }
@@ -378,6 +425,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
         "       displayTitle, realName, subfolder, sortKey, size, mtimeMs,"
         "       pages, durationSec, author, format, progressed, coverRef, away,"
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
+        "       , synopsis, metadataSource"
         " FROM files WHERE kind = ? ORDER BY subtreePath, sortKey"));
     q.addBindValue(kind);
     if (q.exec()) {
@@ -407,6 +455,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
             r.errorDetail = q.value(21).toString();
             r.admissionVerdict = q.value(22).toString();
             r.admissionDetail = q.value(23).toString();
+            r.synopsis = q.value(24).toString();
+            r.metadataSource = q.value(25).toString();
             out.append(r);
         }
     }
@@ -422,6 +472,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) cons
         "       displayTitle, realName, subfolder, sortKey, size, mtimeMs,"
         "       pages, durationSec, author, format, progressed, coverRef, away,"
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
+        "       , synopsis, metadataSource"
         " FROM files WHERE rootPath = ? ORDER BY subtreePath, sortKey"));
     q.addBindValue(rootPath);
     if (!q.exec())
@@ -452,6 +503,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) cons
         r.errorDetail = q.value(21).toString();
         r.admissionVerdict = q.value(22).toString();
         r.admissionDetail = q.value(23).toString();
+        r.synopsis = q.value(24).toString();
+        r.metadataSource = q.value(25).toString();
         out.append(r);
     }
     return out;
@@ -546,6 +599,7 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
         "SELECT id, path, displayTitle, realName, subfolder, kind, size, mtimeMs,"
         "       pages, durationSec, author, format, progressed, coverRef, away,"
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
+        "       , synopsis, metadataSource"
         " FROM files WHERE subtreePath = ?"
         " ORDER BY subfolder COLLATE NOCASE, sortKey"));
     q.addBindValue(subtreePath);
@@ -571,6 +625,8 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
             m[QStringLiteral("errorDetail")] = q.value(16).toString();
             m[QStringLiteral("admissionVerdict")] = q.value(17).toString();
             m[QStringLiteral("admissionDetail")] = q.value(18).toString();
+            m[QStringLiteral("synopsis")] = q.value(19).toString();
+            m[QStringLiteral("metadataSource")] = q.value(20).toString();
             out.append(m);
         }
     }

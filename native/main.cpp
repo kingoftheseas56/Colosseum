@@ -91,6 +91,7 @@
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
 #include "engine/ComicCoverProvider.h"
+#include "engine/VaultBookCoverProvider.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
@@ -1035,6 +1036,9 @@ int main(int argc, char *argv[]) {
     // have no loose page file for the library grid to point at. Engine takes
     // ownership via addImageProvider, same as the comicreader provider above.
     engine.addImageProvider(QStringLiteral("comiccover"), new Colosseum::ComicCoverProvider());
+    // image://vaultbookcover/ (Vault Slice 17 foundation): stateless bounded EPUB cover decode.
+    engine.addImageProvider(QStringLiteral("vaultbookcover"),
+                            new Colosseum::VaultBookCoverProvider());
 
     // ── Vault local-media: the launch pillar (execution plan Slice 8) ──────────
     // LocalLaunch routes a handed-in file (taskbar Open Media…, OS drag-drop,
@@ -1089,6 +1093,12 @@ int main(int argc, char *argv[]) {
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
+        for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
+            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+                && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
+                && r.errorState.isEmpty() && r.metadataSource.isEmpty())
+                todo.append(r);
+        }
         if (todo.isEmpty())
             return;
         const quint64 gen = ++(*vaultEnrichGen);
@@ -1141,6 +1151,22 @@ int main(int argc, char *argv[]) {
                     } else {
                         r.errorState = QStringLiteral("rejected");
                         r.errorDetail = admission.detail;
+                    }
+                } else if (r.kind == QLatin1String("book")) {
+                    r.format = QFileInfo(r.path).suffix().toLower();
+                    const VaultEnricher::BookFacts book = VaultEnricher::readBookFacts(r.path);
+                    if (book.ok) {
+                        if (!book.title.isEmpty())
+                            r.displayTitle = book.title;
+                        r.author = book.author;
+                        r.synopsis = book.synopsis;
+                        r.coverRef = book.coverEntry;
+                        r.metadataSource = QStringLiteral("EPUB");
+                        r.errorState.clear();
+                        r.errorDetail.clear();
+                    } else {
+                        r.errorState = QStringLiteral("corrupt");
+                        r.errorDetail = book.errorDetail;
                     }
                 }
                 out.append(r);
