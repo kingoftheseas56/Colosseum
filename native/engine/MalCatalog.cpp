@@ -303,6 +303,70 @@ QVariantList MalCatalog::matchByTitle(const QString& title, int year,
     return out;
 }
 
+QVariantList MalCatalog::search(const QString& text, int limit, const QString& medium) const
+{
+    QVariantList out;
+    if (!m_ok)
+        return out;
+    if (!medium.isEmpty() && !validMedium(medium))
+        return out;
+
+    const QString norm = VaultKit::normalizedTitle(text);
+    if (norm.isEmpty())
+        return out;
+    const QStringList tables = medium.isEmpty()
+        ? QStringList{QStringLiteral("anime"), QStringLiteral("manga")}
+        : QStringList{medium};
+    const int capped = std::clamp(limit, 1, 100);
+    for (const QString& table : tables) {
+        const bool anime = table == QStringLiteral("anime");
+        const QString volumeOrEpisode = anime
+            ? QStringLiteral("r.episodes, 0, 0")
+            : QStringLiteral("0, r.volumes, r.chapters");
+        QSqlQuery q(m_db);
+        q.prepare(QStringLiteral(
+            "SELECT r.mal_id, r.title, r.title_english, r.type, r.score, "
+            "r.year, r.cover, r.synopsis, r.credits, r.tags, %1 "
+            "FROM %2 r WHERE r.norm_title LIKE ? OR r.norm_title_english LIKE ? "
+            "ORDER BY CASE WHEN r.norm_title = ? THEN 0 ELSE 1 END, "
+            "r.year DESC, r.score DESC, r.mal_id ASC LIMIT ?").arg(volumeOrEpisode, table));
+        const QString prefix = norm + QLatin1Char('%');
+        q.addBindValue(prefix);
+        q.addBindValue(prefix);
+        q.addBindValue(norm);
+        q.addBindValue(capped);
+        if (!q.exec())
+            continue;
+        while (q.next()) {
+            QVariantMap m;
+            m.insert(QStringLiteral("mal_id"), q.value(0).toInt());
+            m.insert(QStringLiteral("title"), q.value(1).toString());
+            const QString english = q.value(2).toString();
+            if (!english.isEmpty())
+                m.insert(QStringLiteral("title_english"), english);
+            m.insert(QStringLiteral("type"), q.value(3).toString());
+            if (!q.value(4).isNull())
+                m.insert(QStringLiteral("score"), q.value(4).toDouble());
+            const int resultYear = q.value(5).toInt();
+            if (resultYear > 0)
+                m.insert(QStringLiteral("year"), resultYear);
+            m.insert(QStringLiteral("coverUrl"), q.value(6).toString());
+            m.insert(QStringLiteral("synopsis"), q.value(7).toString());
+            m.insert(QStringLiteral("credits"), namedList(q.value(8).toString()));
+            m.insert(QStringLiteral("genres"), namedList(q.value(9).toString()));
+            m.insert(QStringLiteral("medium"), table);
+            if (anime)
+                m.insert(QStringLiteral("episodes"), q.value(10).toInt());
+            else {
+                m.insert(QStringLiteral("volumes"), q.value(11).toInt());
+                m.insert(QStringLiteral("chapters"), q.value(12).toInt());
+            }
+            out.append(m);
+        }
+    }
+    return out;
+}
+
 QVariantList MalCatalog::discoverFilters(const QString& axis, bool includeExplicit) const
 {
     QVariantList out;

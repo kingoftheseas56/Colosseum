@@ -94,6 +94,8 @@ public:
     // the QML-facing commands and the persistent hide surface.
     void setIdentifier(VaultIdentifier* identifier);
     Q_INVOKABLE bool identifyGroup(const QString& groupKey);
+    Q_INVOKABLE bool identifyGroupWith(const QString& groupKey,
+                                       const QVariantMap& chosenIdentity);
     Q_INVOKABLE bool unidentifyGroup(const QString& groupKey);
     Q_INVOKABLE bool reshelveGroup(const QString& groupKey, const QString& kind);
     Q_INVOKABLE bool hideGroup(const QString& groupKey);

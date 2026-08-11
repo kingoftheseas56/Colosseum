@@ -244,6 +244,11 @@ bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match)
     return m_index->upsertMany(rows);
 }
 
+bool VaultIdentifier::identifyGroupWith(const QString& groupKey, const Match& match)
+{
+    return applyGroup(groupKey, match);
+}
+
 bool VaultIdentifier::unidentifyGroup(const QString& groupKey)
 {
     if (!m_index || groupKey.isEmpty())

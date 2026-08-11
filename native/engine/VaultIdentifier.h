@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantMap>
 
 class ComicsCatalog;
 class ImdbCatalog;
@@ -35,6 +36,9 @@ public:
     // this method is a synchronous, testable pass over the current index snapshot.
     int autoIdentifyExisting();
     bool applyGroup(const QString& groupKey, const Match& match);
+    // Explicit manual selection: bypasses the auto-certainty matcher but retains the
+    // same decorate-only write, preserving every file id and progress field.
+    bool identifyGroupWith(const QString& groupKey, const Match& match);
     bool unidentifyGroup(const QString& groupKey);
     bool reshelveGroup(const QString& groupKey, const QString& kind);
 

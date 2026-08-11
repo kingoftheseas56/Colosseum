@@ -184,6 +184,50 @@ QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
     return out;
 }
 
+QVariantList ImdbCatalog::search(const QString& text, int limit) const
+{
+    QVariantList out;
+    if (!m_ok)
+        return out;
+    const QString norm = VaultKit::normalizedTitle(text);
+    if (norm.isEmpty())
+        return out;
+
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral(
+        "SELECT tt, type, title, year, endYear, runtimeMin, genres, rating, votes, "
+        "episodes, origLang, isAnime FROM title "
+        "WHERE norm_title LIKE ? ORDER BY CASE WHEN norm_title = ? THEN 0 ELSE 1 END, "
+        "year DESC, rating DESC, votes DESC, tt ASC LIMIT ?"));
+    q.addBindValue(norm + QLatin1Char('%'));
+    q.addBindValue(norm);
+    q.addBindValue(std::clamp(limit, 1, 100));
+    if (!q.exec())
+        return out;
+    while (q.next()) {
+        QVariantMap m;
+        m.insert(QStringLiteral("tt"), q.value(0).toString());
+        m.insert(QStringLiteral("type"), q.value(1).toString());
+        m.insert(QStringLiteral("title"), q.value(2).toString());
+        m.insert(QStringLiteral("year"), q.value(3).toInt());
+        m.insert(QStringLiteral("endYear"), q.value(4).toInt());
+        m.insert(QStringLiteral("runtimeMin"), q.value(5).toInt());
+        QVariantList genres;
+        const QJsonArray arr = QJsonDocument::fromJson(q.value(6).toString().toUtf8()).array();
+        for (const auto& v : arr)
+            genres.append(v.toString());
+        m.insert(QStringLiteral("genres"), genres);
+        m.insert(QStringLiteral("rating"), q.value(7).toDouble());
+        m.insert(QStringLiteral("votes"), q.value(8).toInt());
+        m.insert(QStringLiteral("episodes"), q.value(9).toInt());
+        m.insert(QStringLiteral("origLang"), q.value(10).toString());
+        m.insert(QStringLiteral("isAnime"), q.value(11).toInt() != 0);
+        m.insert(QStringLiteral("synopsis"), QString());
+        out.append(m);
+    }
+    return out;
+}
+
 QVariantMap ImdbCatalog::titleFacts(const QStringList& ids) const
 {
     QVariantMap out;

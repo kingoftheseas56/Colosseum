@@ -95,6 +95,20 @@ Item {
         identifyDialog.groupKey = data.key || ""
         identifyDialog.titleText = data.title || ""
         identifyDialog.kind = data.kind || ""
+        identifyDialog.embeddedIdentity = ({})
+        if (identifyDialog.kind === "book" && typeof VaultLibrary !== "undefined") {
+            var bookRows = VaultLibrary.items("book", identifyDialog.groupKey) || []
+            var book = bookRows.length ? bookRows[0] : {}
+            if (book.title || book.displayTitle) {
+                identifyDialog.embeddedIdentity = {
+                    title: book.title || book.displayTitle || data.title,
+                    sourceId: "epub:" + String(book.id || identifyDialog.groupKey),
+                    synopsis: book.synopsis || "",
+                    coverUrl: book.coverUrl || "",
+                    year: Number(book.year || 0)
+                }
+            }
+        }
         identifyDialog.feedback = ""
         identifyDialog.open()
     }
@@ -954,12 +968,12 @@ Item {
         id: identifyDialog
         anchors.centerIn: parent
         z: 80
-        onConfirmRequested: (groupKey) => {
+        onIdentityChosen: (groupKey, identity) => {
             if (typeof VaultLibrary === "undefined") return
-            if (VaultLibrary.identifyGroup(groupKey)) {
+            if (VaultLibrary.identifyGroupWith(groupKey, identity)) {
                 close()
             } else {
-                feedback = "There is no single certain offline match yet. The folder stays filename-honest."
+                feedback = "That identity could not be applied. The folder stays filename-honest."
             }
         }
     }

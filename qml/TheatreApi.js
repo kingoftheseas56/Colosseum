@@ -157,6 +157,27 @@ function cinemetaCatalog(type, genre, done) {
     });
 }
 
+// Explicit manual Identify fallback only. This is intentionally separate from every shelf
+// loader: no automatic identity path calls it. The caller decides when the offline IMDb list
+// missed and may inject requestAdapter in deterministic tests.
+function searchTitle(query, done) {
+    var text = String(query || "").trim();
+    if (!text) { done([]); return; }
+    function searchKind(type, next) {
+        var suffix = ".json?search=" + encodeURIComponent(text);
+        requestJsonWithFallback([
+            CINEMETA_CATALOGS + "/catalog/" + type + "/top" + suffix,
+            CINEMETA + "/catalog/" + type + "/top" + suffix
+        ], function(json) {
+            next(json && json.metas ? json.metas : []);
+        });
+    }
+    searchKind("movie", function(movies) {
+        if (movies.length) { done(movies); return; }
+        searchKind("series", done);
+    });
+}
+
 function jikanQuery(path, params, done) {
     var qs = [];
     params = params || {};

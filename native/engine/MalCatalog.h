@@ -41,6 +41,10 @@ public:
     // medium is "anime", "manga", or empty for both tables; year==0 is unset.
     Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0,
                                           const QString& medium = {}) const;
+    // Cheap manual Identify search over the baked normalized-title columns. Results are
+    // prefix-ranked and remain fully offline; an empty/unknown medium returns no rows.
+    Q_INVOKABLE QVariantList search(const QString& text, int limit = 20,
+                                    const QString& medium = {}) const;
 
     // Tankoban Discover (spec 2026-08-01): paged, allowlisted, fully-bound MANGA
     // discovery over the same baked artifact. `axis` is "genre" | "demographic";

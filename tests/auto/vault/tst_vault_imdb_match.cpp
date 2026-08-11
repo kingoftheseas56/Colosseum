@@ -66,6 +66,7 @@ class VaultImdbMatchTest final : public QObject {
 private slots:
     void initTestCase();
     void normalizedPunctuationMatches();
+    void prefixSearchRanksCandidates();
     void twoCandidatesStayAmbiguous();
     void yearNarrowsAmbiguity();
     void synopsisIsHonestAndFactsArePresent();
@@ -92,6 +93,16 @@ void VaultImdbMatchTest::normalizedPunctuationMatches()
     QCOMPARE(rows.size(), 1);
     QCOMPARE(idAt(rows, 0), QStringLiteral("tt0000003"));
     QCOMPARE(rows.at(0).toMap().value(QStringLiteral("isAnime")).toBool(), true);
+}
+
+void VaultImdbMatchTest::prefixSearchRanksCandidates()
+{
+    ImdbCatalog catalog(m_dbPath);
+    QVERIFY(catalog.ready());
+    const QVariantList rows = catalog.search(QStringLiteral("matrix"), 10);
+    QCOMPARE(rows.size(), 2);
+    QCOMPARE(idAt(rows, 0), QStringLiteral("tt0000002"));
+    QCOMPARE(idAt(rows, 1), QStringLiteral("tt0000001"));
 }
 
 void VaultImdbMatchTest::twoCandidatesStayAmbiguous()

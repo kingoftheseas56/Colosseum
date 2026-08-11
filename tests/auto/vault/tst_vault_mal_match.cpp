@@ -66,6 +66,7 @@ class VaultMalMatchTest final : public QObject {
 private slots:
     void initTestCase();
     void normalizedPunctuationMatches();
+    void prefixSearchRanksCandidates();
     void twoCandidatesStayAmbiguous();
     void yearNarrowsAmbiguity();
     void mediumNarrowsTables();
@@ -94,6 +95,19 @@ void VaultMalMatchTest::normalizedPunctuationMatches()
     QCOMPARE(rows.at(0).toMap().value(QStringLiteral("medium")).toString(),
              QStringLiteral("anime"));
     QCOMPARE(rows.at(0).toMap().value(QStringLiteral("episodes")).toInt(), 26);
+}
+
+void VaultMalMatchTest::prefixSearchRanksCandidates()
+{
+    MalCatalog catalog(m_dbPath);
+    QVERIFY(catalog.ready());
+    const QVariantList rows = catalog.search(QStringLiteral("matrix"), 10,
+                                             QStringLiteral("anime"));
+    QCOMPARE(rows.size(), 2);
+    QCOMPARE(idAt(rows, 0), 2);
+    QCOMPARE(idAt(rows, 1), 1);
+    QCOMPARE(catalog.search(QStringLiteral("cowboy"), 10,
+                            QStringLiteral("manga")).size(), 0);
 }
 
 void VaultMalMatchTest::twoCandidatesStayAmbiguous()

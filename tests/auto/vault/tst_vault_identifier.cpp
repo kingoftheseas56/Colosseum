@@ -80,6 +80,7 @@ private slots:
     void initTestCase();
     void unambiguousMatchAdopts();
     void twoCandidatesStayUnidentified();
+    void manualChosenCandidateWinsAndPreservesProgress();
     void incoherentGroupTitlesAreRefused();
     void coherentSeriesAllowsDifferentDisplayTitles();
     void absentDatabaseNoOpsHonestly();
@@ -137,6 +138,37 @@ void VaultIdentifierTest::twoCandidatesStayUnidentified()
     const VaultIdentifier::Match match = identifier.matchGroup(row.groupKey);
     QVERIFY(!match.adopted);
     QVERIFY(match.source.isEmpty());
+}
+
+void VaultIdentifierTest::manualChosenCandidateWinsAndPreservesProgress()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+    auto row = fixtureRow(QStringLiteral("vault:manual"), QStringLiteral("The Matrix"));
+    row.progressed = true;
+    QVERIFY(index.publish({row}));
+
+    MalCatalog mal(m_ambiguousMalPath);
+    VaultIdentifier identifier(&index, nullptr, &mal, nullptr);
+    VaultIdentifier::Match chosen;
+    chosen.adopted = true;
+    chosen.source = QStringLiteral("MAL");
+    chosen.sourceId = QStringLiteral("mal:2");
+    chosen.title = QStringLiteral("Matrix (2003)");
+    chosen.synopsis = QStringLiteral("chosen B");
+    chosen.world = QStringLiteral("Tankoban");
+    chosen.year = 2003;
+
+    QVERIFY(identifier.identifyGroupWith(row.groupKey, chosen));
+    const auto rows = index.rowsForGroup(row.groupKey);
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.first().identityId, QStringLiteral("mal:2"));
+    QCOMPARE(rows.first().identityTitle, QStringLiteral("Matrix (2003)"));
+    QCOMPARE(rows.first().identitySynopsis, QStringLiteral("chosen B"));
+    QCOMPARE(rows.first().progressed, true);
+    QCOMPARE(rows.first().id, row.id);
 }
 
 void VaultIdentifierTest::incoherentGroupTitlesAreRefused()

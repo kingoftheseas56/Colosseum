@@ -362,6 +362,23 @@ bool VaultLibrary::identifyGroup(const QString& groupKey)
     return match.adopted && m_identifier->applyGroup(groupKey, match);
 }
 
+bool VaultLibrary::identifyGroupWith(const QString& groupKey,
+                                     const QVariantMap& chosenIdentity)
+{
+    if (!m_identifier)
+        return false;
+    VaultIdentifier::Match match;
+    match.adopted = true;
+    match.source = chosenIdentity.value(QStringLiteral("source")).toString();
+    match.sourceId = chosenIdentity.value(QStringLiteral("sourceId")).toString();
+    match.title = chosenIdentity.value(QStringLiteral("title")).toString();
+    match.synopsis = chosenIdentity.value(QStringLiteral("synopsis")).toString();
+    match.coverUrl = chosenIdentity.value(QStringLiteral("coverUrl")).toString();
+    match.world = chosenIdentity.value(QStringLiteral("world")).toString();
+    match.year = chosenIdentity.value(QStringLiteral("year")).toInt();
+    return m_identifier->identifyGroupWith(groupKey, match);
+}
+
 bool VaultLibrary::unidentifyGroup(const QString& groupKey)
 {
     return m_identifier && m_identifier->unidentifyGroup(groupKey);

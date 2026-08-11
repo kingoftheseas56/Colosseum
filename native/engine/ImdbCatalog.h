@@ -27,6 +27,9 @@ public:
     // Offline normalized-title identity lookup. The baked IMDb schema has no
     // plot corpus, so returned synopsis is intentionally empty.
     Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0) const;
+    // Cheap prefix search over the baked normalized title column. Fully offline;
+    // manual Identify may fall through to Cinemeta only when this returns empty.
+    Q_INVOKABLE QVariantList search(const QString& text, int limit = 20) const;
     // batch facts for live-row filtering: {tt: {rating, votes, isAnime}}
     Q_INVOKABLE QVariantMap titleFacts(const QStringList& ids) const;
 
