@@ -1,4 +1,5 @@
 #include "VaultScanner.h"
+#include "VaultBookStateMigrator.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -216,16 +217,44 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
     }
 
     // Aggregate every confirmed root's facts + rows, reconcile identity ONCE, assign
-    // ids, then publish the UNION in a single transactional replace.
+    // ids, then publish the UNION in a single transactional replace. A missing root is
+    // represented by its last indexed rows before reconciliation: it is present-but-away,
+    // not an empty census. That prevents an unrelated available file with the same
+    // size/mtime from borrowing an absent drive's canonical identity.
     QList<VaultIdentity::FileFacts> allFacts;
     QList<VaultIndex::FileRow> allRows;
     for (const RawResult& r : results) {
-        allFacts.append(r.facts);
-        allRows.append(r.rows);
+        if (QDir(r.root).exists()) {
+            allFacts.append(r.facts);
+            allRows.append(r.rows);
+            continue;
+        }
+
+        const QList<VaultIndex::FileRow> oldRows = m_index->rowsForRoot(r.root);
+        for (VaultIndex::FileRow row : oldRows) {
+            row.away = true;
+            allRows.append(row);
+            allFacts.append({row.path, row.size, row.mtimeMs});
+        }
     }
-    m_identity->reconcile(allFacts);
+    const VaultIdentity::ReconcileResult reconciliation = m_identity->reconcile(allFacts);
     for (VaultIndex::FileRow& row : allRows)
         row.id = m_identity->idForFile(row.path, row.size, row.mtimeMs);
+
+    // The Vault identity owns the alias record; the book lane owns the state shape. Use the
+    // existing public BookStores contract only for book rows, so a comic/video rename never
+    // invents a Reader 2 record and no Reader2Bridge/BookStores source edit is needed.
+    for (const QStringList& migration : reconciliation.migrated) {
+        if (migration.size() != 4)
+            continue;
+        const QString& newPath = migration.at(3);
+        for (const VaultIndex::FileRow& row : allRows) {
+            if (row.kind == QLatin1String("book") && row.path == newPath) {
+                VaultBookStateMigrator::migrate(migration.at(2), newPath);
+                break;
+            }
+        }
+    }
 
     // Slice 18: fold the synthetic downloads root's derived rows into the same
     // UNION. Their ids are assigned here via idForFile (same path as scanned rows),

@@ -31,12 +31,16 @@ VaultWatcher::VaultWatcher(VaultIndex* index, VaultIdentity* identity, VaultConf
     m_debounce = new QTimer(this);
     m_debounce->setSingleShot(true);
     m_debounce->setInterval(300); // arrival storms coalesce into one pass; "within seconds"
+    m_probe = new QTimer(this);
+    m_probe->setInterval(1000); // cheap exists probe; a replug must revive without reopening Vault
 
     connect(m_watcher, &QFileSystemWatcher::directoryChanged, this,
             [this](const QString& path) { onDirectoryChanged(path); });
     connect(m_watcher, &QFileSystemWatcher::fileChanged, this,
             [this](const QString& path) { onDirectoryChanged(path); });
     connect(m_debounce, &QTimer::timeout, this, [this] { debounceExpired(); });
+    connect(m_probe, &QTimer::timeout, this, [this] { refresh(); });
+    m_probe->start();
 
     // A confirm (or a root added/removed/re-kind-chip) changes the watch set: reconcile.
     if (m_config) {
@@ -56,6 +60,8 @@ void VaultWatcher::setImmersive(bool on)
 
 void VaultWatcher::refresh()
 {
+    const QSet<QString> previouslyUnavailable = m_unavailable;
+    QMap<QString, QString> configuredRoots; // normalized -> real/config path
     m_watched.clear();
     if (!m_config)
         return;
@@ -67,7 +73,29 @@ void VaultWatcher::refresh()
         const QString path = m.value(QStringLiteral("path")).toString();
         if (path.isEmpty())
             continue;
-        watchRoot(path);
+        const QString norm = normPath(path);
+        configuredRoots.insert(norm, path);
+        if (QDir(path).exists()) {
+            m_unavailable.remove(norm);
+            watchRoot(path);
+        } else {
+            m_unavailable.insert(norm);
+            m_watched.remove(norm);
+            m_degraded.insert(norm); // rescan-on-open still needs to revisit the missing root
+        }
+    }
+
+    // QFileSystemWatcher degradation (limits/network watch failure) is not filesystem absence.
+    // Only the explicit root-exists probe can gray a shelf or announce its revival.
+    QSet<QString> transitions = previouslyUnavailable;
+    transitions.unite(m_unavailable);
+    for (const QString& norm : transitions) {
+        if (!configuredRoots.contains(norm))
+            continue;
+        const bool wasAvailable = !previouslyUnavailable.contains(norm);
+        const bool isAvailable = !m_unavailable.contains(norm);
+        if (wasAvailable != isAvailable)
+            emit rootAvailabilityChanged(configuredRoots.value(norm), isAvailable);
     }
 }
 
@@ -91,9 +119,36 @@ void VaultWatcher::watchRoot(const QString& root)
 
 void VaultWatcher::onDirectoryChanged(const QString& path)
 {
+    QString root = path;
+    if (m_config) {
+        const QString eventNorm = normPath(path);
+        for (const QVariant& r : m_config->roots()) {
+            const QVariantMap m = r.toMap();
+            if (!m.value(QStringLiteral("confirmed")).toBool())
+                continue;
+            const QString candidate = m.value(QStringLiteral("path")).toString();
+            const QString candidateNorm = normPath(candidate);
+            if (eventNorm == candidateNorm || eventNorm.startsWith(candidateNorm + QLatin1Char('/'))) {
+                root = candidate;
+                break;
+            }
+        }
+    }
+
+    if (!QDir(root).exists()) {
+        const QString norm = normPath(root);
+        const bool wasUnavailable = m_unavailable.contains(norm);
+        m_unavailable.insert(norm);
+        m_degraded.insert(norm);
+        m_watched.remove(norm);
+        if (!wasUnavailable)
+            emit rootAvailabilityChanged(root, false);
+        return;
+    }
+
     // A dirty root set keeps the debounce accumulating regardless of the immersive gate —
     // the gate only defers the UPSERT, never the observation (Slice 15 "behavior to preserve").
-    m_dirty.insert(normPath(path));
+    m_dirty.insert(normPath(root));
     m_debounce->start();
 }
 

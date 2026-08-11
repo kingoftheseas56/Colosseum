@@ -76,6 +76,7 @@
 #include "engine/VaultLibrary.h"
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
+#include "player/MediaAdmissionProbe.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
@@ -1077,9 +1078,17 @@ int main(int argc, char *argv[]) {
         // Only comics still missing a cover — so a re-publish or a re-launch of an already
         // enriched library does no redundant CBZ reads (this returns nothing after the first pass).
         QList<VaultIndex::FileRow> todo;
-        for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("comic")))
-            if (r.coverRef.isEmpty())
+        for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("comic"))) {
+            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+                && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
+        }
+        for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
+            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+                && r.errorState != QLatin1String("rejected")
+                && r.admissionVerdict.isEmpty())
+                todo.append(r);
+        }
         if (todo.isEmpty())
             return;
         const quint64 gen = ++(*vaultEnrichGen);
@@ -1097,10 +1106,42 @@ int main(int argc, char *argv[]) {
             QList<VaultIndex::FileRow> out;
             out.reserve(todo.size());
             for (VaultIndex::FileRow r : todo) {
-                const VaultEnricher::ComicFacts cf = VaultEnricher::readComicFacts(r.path);
-                if (cf.ok) {
-                    r.pages = cf.pages;
-                    r.coverRef = cf.coverEntry;
+                if (r.kind == QLatin1String("comic")) {
+                    const VaultEnricher::ComicFacts cf = VaultEnricher::readComicFacts(r.path);
+                    if (cf.ok) {
+                        r.pages = cf.pages;
+                        r.coverRef = cf.coverEntry;
+                        r.errorState.clear();
+                        r.errorDetail.clear();
+                    } else {
+                        r.errorState = QStringLiteral("corrupt");
+                        r.errorDetail = cf.errorDetail;
+                    }
+                } else if (r.kind == QLatin1String("video")) {
+                    const MediaAdmissionProbe::Result admission =
+                        MediaAdmissionProbe::probe(r.path);
+                    switch (admission.verdict) {
+                    case MediaAdmissionProbe::Verdict::Admitted:
+                        r.admissionVerdict = QStringLiteral("Admitted");
+                        break;
+                    case MediaAdmissionProbe::Verdict::RejectedNoVideo:
+                        r.admissionVerdict = QStringLiteral("RejectedNoVideo");
+                        break;
+                    case MediaAdmissionProbe::Verdict::RejectedError:
+                        r.admissionVerdict = QStringLiteral("RejectedError");
+                        break;
+                    case MediaAdmissionProbe::Verdict::RejectedTimeout:
+                        r.admissionVerdict = QStringLiteral("RejectedTimeout");
+                        break;
+                    }
+                    r.admissionDetail = admission.detail;
+                    if (admission.verdict == MediaAdmissionProbe::Verdict::Admitted) {
+                        r.errorState.clear();
+                        r.errorDetail.clear();
+                    } else {
+                        r.errorState = QStringLiteral("rejected");
+                        r.errorDetail = admission.detail;
+                    }
                 }
                 out.append(r);
             }

@@ -8,14 +8,18 @@
 // reconciliation is pure over file facts, no disk churn.
 
 #include "engine/VaultConfig.h"
+#include "engine/VaultBookStateMigrator.h"
 #include "engine/VaultIdentity.h"
 #include "engine/VaultRecent.h"
 #include "engine/VaultStoreIo.h"
+#include "reader/BookStores.h"
 
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QTemporaryDir>
+#include <QStandardPaths>
 #include <QtTest>
 
 class tst_vault_stores : public QObject
@@ -48,7 +52,10 @@ private slots:
     void id_normalizes_path();
     void reconcile_rename_reattaches_progress();
     void reconcile_two_candidate_ambiguity_does_not_migrate();
+    void reconcile_two_old_one_new_ambiguity_does_not_migrate();
     void reconcile_persists_across_reload();
+    void reader2_book_state_migrates_with_identity_alias();
+    void reader2_destination_collision_preserves_existing_state();
 
     // ── VaultRecent (Slice 9) ──
     void recent_records_dedups_caps_and_reloads();
@@ -287,6 +294,29 @@ void tst_vault_stores::reconcile_two_candidate_ambiguity_does_not_migrate()
     QVERIFY(id.resolve(cidB) != idA);
 }
 
+void tst_vault_stores::reconcile_two_old_one_new_ambiguity_does_not_migrate()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIdentity id(tmp.path());
+
+    const QString oldA = QStringLiteral("D:/lib/a.cbz");
+    const QString oldB = QStringLiteral("D:/lib/b.cbz");
+    const QString idA = VaultIdentity::computeId(oldA, 100, 5);
+    const QString idB = VaultIdentity::computeId(oldB, 100, 5);
+    id.reconcile({{oldA, 100, 5}, {oldB, 100, 5}});
+
+    const auto result = id.reconcile({{QStringLiteral("D:/lib/new.cbz"), 100, 5}});
+    QCOMPARE(result.migrated.size(), 0);
+    QVERIFY(result.parked.contains(idA));
+    QVERIFY(result.parked.contains(idB));
+    QCOMPARE(result.fresh.size(), 1);
+    QVERIFY(id.resolve(VaultIdentity::computeId(QStringLiteral("D:/lib/new.cbz"), 100, 5))
+            != idA);
+    QVERIFY(id.resolve(VaultIdentity::computeId(QStringLiteral("D:/lib/new.cbz"), 100, 5))
+            != idB);
+}
+
 void tst_vault_stores::reconcile_persists_across_reload()
 {
     QTemporaryDir tmp;
@@ -303,6 +333,55 @@ void tst_vault_stores::reconcile_persists_across_reload()
         QCOMPARE(id.resolve(cidB), idA); // alias survived the round-trip
         QVERIFY(id.knows(idA));
     }
+}
+
+void tst_vault_stores::reader2_book_state_migrates_with_identity_alias()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    const QString storeDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                              + QStringLiteral("/book_reader");
+    QDir(storeDir).removeRecursively();
+
+    const QString oldPath = QStringLiteral("D:/books/old.epub");
+    const QString newPath = QStringLiteral("D:/books/new.epub");
+    const QString oldKey = BookStores::keyFor(oldPath);
+    const QJsonObject progress{{QStringLiteral("page"), 17}};
+    const QJsonArray bookmarks{QJsonObject{{QStringLiteral("id"), QStringLiteral("bm-1")}}};
+    const QJsonArray annotations{QJsonObject{{QStringLiteral("id"), QStringLiteral("an-1")}}};
+    BookStores::writeStore(QStringLiteral("progress.json"), QJsonObject{{oldKey, progress}});
+    BookStores::writeStore(QStringLiteral("bookmarks.json"), QJsonObject{{oldKey, bookmarks}});
+    BookStores::writeStore(QStringLiteral("annotations.json"), QJsonObject{{oldKey, annotations}});
+
+    QVERIFY(VaultBookStateMigrator::migrate(oldPath, newPath));
+    const QString newKey = BookStores::keyFor(newPath);
+    QCOMPARE(BookStores::get(QStringLiteral("progress.json"), newKey).value(QStringLiteral("page")),
+             QJsonValue(17));
+    QCOMPARE(BookStores::listGet(QStringLiteral("bookmarks.json"), newKey).size(), 1);
+    QCOMPARE(BookStores::listGet(QStringLiteral("annotations.json"), newKey).size(), 1);
+    QVERIFY(!VaultBookStateMigrator::migrate(oldPath, newPath)); // idempotent, collision-safe
+
+    QDir(storeDir).removeRecursively();
+}
+
+void tst_vault_stores::reader2_destination_collision_preserves_existing_state()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    const QString storeDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                              + QStringLiteral("/book_reader");
+    QDir(storeDir).removeRecursively();
+
+    const QString oldPath = QStringLiteral("D:/books/old.epub");
+    const QString newPath = QStringLiteral("D:/books/new.epub");
+    const QString oldKey = BookStores::keyFor(oldPath);
+    const QString newKey = BookStores::keyFor(newPath);
+    BookStores::writeStore(QStringLiteral("progress.json"),
+                           QJsonObject{{oldKey, QJsonObject{{QStringLiteral("page"), 17}}},
+                                       {newKey, QJsonObject{{QStringLiteral("page"), 99}}}});
+    QVERIFY(!VaultBookStateMigrator::migrate(oldPath, newPath));
+    QCOMPARE(BookStores::get(QStringLiteral("progress.json"), newKey)
+                 .value(QStringLiteral("page")),
+             QJsonValue(99));
+    QDir(storeDir).removeRecursively();
 }
 
 void tst_vault_stores::recent_records_dedups_caps_and_reloads()

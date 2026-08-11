@@ -56,10 +56,15 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
                         m_candidateRoot = root;
                     }
                     emit candidateChanged();
+                    maybePublishPendingRevives();
                 });
         // A successful publish ends the shelving state (revision bumps via index.changed()).
         connect(m_scanner, &VaultScanner::indexPublished, this,
-                [this](const QString&, int) { setScanning(false); });
+                [this](const QString&, int) {
+                    setScanning(false);
+                    m_revivalRescanInFlight = false;
+                    m_pendingReviveRoots.clear();
+                });
     }
 
     // ── live shelves (Slice 15): the watcher owns the per-root QFileSystemWatcher + debounce; ──
@@ -68,6 +73,8 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     m_watcher = new VaultWatcher(index, identity, config, this);
     connect(m_watcher, &VaultWatcher::landed, this, &VaultLibrary::onWatcherLanded);
     connect(m_watcher, &VaultWatcher::newKindArrival, this, &VaultLibrary::onWatcherNewKind);
+    connect(m_watcher, &VaultWatcher::rootAvailabilityChanged, this,
+            &VaultLibrary::onRootAvailabilityChanged);
     m_watcher->refresh();
 }
 
@@ -112,6 +119,8 @@ QVariantList VaultLibrary::series(const QString& kind) const
         s.insert(QStringLiteral("title"), m.value(QStringLiteral("groupTitle")));
         s.insert(QStringLiteral("kind"), m.value(QStringLiteral("kind")));
         s.insert(QStringLiteral("count"), m.value(QStringLiteral("count")));
+        s.insert(QStringLiteral("awayCount"), m.value(QStringLiteral("awayCount")));
+        s.insert(QStringLiteral("errorCount"), m.value(QStringLiteral("errorCount")));
         s.insert(QStringLiteral("subtreePath"), m.value(QStringLiteral("subtreePath")));
         // A ready-to-bind cover URL for the tile: image://comiccover/<id> when the group has
         // an enriched comic cover, else empty (the tile falls back to its gradient + icon).
@@ -377,6 +386,32 @@ void VaultLibrary::onWatcherNewKind(const QString& root, const QVariantList& sli
     emit candidateChanged();
 }
 
+void VaultLibrary::onRootAvailabilityChanged(const QString& root, bool available)
+{
+    if (!m_index)
+        return;
+
+    if (!available) {
+        // The root is gone: preserve every row and every progress identity in place.
+        m_index->markRootAway(root, true);
+        return;
+    }
+
+    // A root returned. Keep the old rows away until a successful silent rescan replaces them;
+    // a rename that happened while the drive was absent must flow through VaultIdentity first.
+    m_pendingReviveRoots.insert(normPath(root));
+    maybePublishPendingRevives();
+}
+
+void VaultLibrary::maybePublishPendingRevives()
+{
+    if (m_pendingReviveRoots.isEmpty() || m_scanning || cardVisible()
+        || m_revivalRescanInFlight)
+        return;
+    m_revivalRescanInFlight = true;
+    publishAllConfirmed();
+}
+
 void VaultLibrary::rescanDegradedRoots()
 {
     if (!m_scanner || !m_config || !m_watcher)
@@ -388,22 +423,27 @@ void VaultLibrary::rescanDegradedRoots()
     // lift, a network share reconnects).
     m_watcher->refresh();
 
-    // A root is rescan-worthy only if it is STILL degraded after the re-arm AND it
-    // actually exists (a genuinely away drive is Slice 16's away-state; publishing an
-    // empty census for it would wipe its rows — the dishonest baseline S16 records).
-    bool anyDegraded = false;
+    // Probe every confirmed root. A genuinely away drive is marked in place; a returned drive is
+    // rescanned while its rows remain away so aliases/progress are reconciled. Watcher-only
+    // degradation still gets the existing silent rescan fallback, but only when the root exists.
+    bool anyRescan = false;
     const QVariantList roots = m_config->roots();
     for (const QVariant& r : roots) {
         const QVariantMap m = r.toMap();
         if (!m.value(QStringLiteral("confirmed")).toBool())
             continue;
         const QString path = m.value(QStringLiteral("path")).toString();
-        if (m_watcher->isRootDegraded(path) && QDir(path).exists()) {
-            anyDegraded = true;
-            break;
+        const bool exists = QDir(path).exists();
+        if (!exists) {
+            m_index->markRootAway(path, true);
+            continue;
         }
+        const QList<VaultIndex::FileRow> rows = m_index->rowsForRoot(path);
+        const bool revived = !rows.isEmpty() && rows.first().away;
+        if (revived || m_watcher->isRootDegraded(path))
+            anyRescan = true;
     }
-    if (!anyDegraded)
+    if (!anyRescan)
         return;
 
     // Silent rescan of the UNION (publishAllConfirmed folds every confirmed user root +
@@ -417,6 +457,7 @@ void VaultLibrary::dismissCard()
     m_candidate.clear();
     m_candidateRoot.clear();
     emit candidateChanged();
+    maybePublishPendingRevives();
 }
 
 void VaultLibrary::cancelScan()

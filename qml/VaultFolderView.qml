@@ -375,10 +375,14 @@ Item {
             property string displayTitle: row.displayTitle || ""
             property string realName: row.realName || ""
             property bool progressed: !!row.progressed
+            property bool away: !!row.away
+            property string errorState: row.errorState || ""
+            property string errorDetail: row.errorDetail || row.admissionDetail || ""
 
             height: 76; radius: 12
             color: rowMa.containsMouse ? Qt.rgba(0.11, 0.13, 0.17, 0.98) : Qt.rgba(0.094, 0.110, 0.145, 0.94)
             border.width: 1; border.color: rowRect.progressed ? Qt.rgba(0.78, 0.62, 0.29, 0.5) : theme.edge
+            opacity: rowRect.away ? 0.52 : 1.0
             clip: true
 
             Row {
@@ -430,6 +434,12 @@ Item {
                     }
                     Text {
                         anchors.right: parent.right
+                        text: rowRect.away ? "Unavailable" : rowRect.errorState ? "Needs attention" : ""
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                        visible: text.length > 0
+                    }
+                    Text {
+                        anchors.right: parent.right
                         text: view.humanSize(rowRect.row.size || 0) + "   ·   " + view.dateFor(rowRect.row)
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
                     }
@@ -445,8 +455,23 @@ Item {
             }
 
             MouseArea {
-                id: rowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                id: rowMa; anchors.fill: parent; hoverEnabled: true
+                enabled: !rowRect.away && !rowRect.errorState
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: view.openRequested(rowRect.row)
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                visible: rowRect.away || !!rowRect.errorState
+                color: Qt.rgba(0.04, 0.04, 0.04, rowRect.away ? 0.28 : 0.18)
+                Text {
+                    anchors.left: parent.left; anchors.leftMargin: 76
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: rowRect.away ? "Unavailable" : (rowRect.errorDetail || "Needs attention")
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                    elide: Text.ElideRight; width: parent.width - 180
+                }
             }
 
             // gold progress hairline — the real read position from Progress (the Slice 14 join;

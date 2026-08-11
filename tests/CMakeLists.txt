@@ -144,9 +144,14 @@ add_executable(tst_vault_stores
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultRecent.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultRecent.h")
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultRecent.h"
+    # Slice 16: the Vault-owned alias migration consumes the existing public Reader 2 store API.
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
 target_include_directories(tst_vault_stores PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_vault_stores PRIVATE Qt6::Core Qt6::Test)
 set_target_properties(tst_vault_stores PROPERTIES
@@ -257,6 +262,8 @@ add_executable(tst_vault_scanner
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
     # Slice 15: the live-shelf watcher (VaultWatcher) + the user-intent store it reads
@@ -264,7 +271,10 @@ add_executable(tst_vault_scanner
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h")
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    # Slice 16: the scanner consumes the Vault-owned Reader 2 migration boundary.
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
 target_include_directories(tst_vault_scanner PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_compile_definitions(tst_vault_scanner PRIVATE
     VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")

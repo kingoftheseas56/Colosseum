@@ -37,6 +37,7 @@ public:
         bool ok = false;   // false for a corrupt/unreadable archive (honest error, never a wedge)
         int pages = 0;
         QString coverEntry;
+        QString errorDetail;
     };
     static ComicFacts readComicFacts(const QString& cbzPath);
 

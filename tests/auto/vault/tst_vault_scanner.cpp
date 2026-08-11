@@ -14,6 +14,7 @@
 #include "engine/VaultConfig.h"
 
 #include <QDir>
+#include <QDateTime>
 #include <QFile>
 #include <QMap>
 #include <QSignalSpy>
@@ -22,6 +23,10 @@
 #include <QtTest>
 
 #include <memory>
+
+namespace {
+QString writeMediaFile(const QString& dir, const QString& name);
+}
 
 class tst_vault_scanner : public QObject
 {
@@ -82,6 +87,8 @@ private slots:
     void scan_root_async_delivers_candidate_only();
     void publish_confirmed_async_populates_index();
     void buffered_rescan_runs_after();
+    void publish_missing_root_preserves_rows_and_revives();
+    void scanner_rename_reattaches_same_id_and_progress();
     // ── Slice 15: the live-shelf watcher (VaultWatcher) ──
     void watcher_touch_files_upserts_exact_arrival_set();
     void watcher_new_kind_raises_card_and_lands();
@@ -378,6 +385,83 @@ void tst_vault_scanner::buffered_rescan_runs_after()
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 2, 10000);
 }
 
+void tst_vault_scanner::publish_missing_root_preserves_rows_and_revives()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    QVERIFY(QDir(root.path()).mkpath(QStringLiteral("Series")));
+    writeMediaFile(root.path() + QStringLiteral("/Series"), QStringLiteral("Vol 1.cbz"));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultScanner sc(&idx, &ident);
+
+    quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    QCOMPARE(idx.itemCount(), 1);
+    auto rows = idx.rowsForRoot(root.path());
+    QCOMPARE(rows.size(), 1);
+    rows[0].progressed = true;
+    QVERIFY(idx.upsertMany(rows));
+
+    const QString awayPath = root.path() + QStringLiteral("-away");
+    QVERIFY(QDir().rename(root.path(), awayPath));
+    g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    QCOMPARE(idx.itemCount(), 1); // missing root is preserved, not published as empty
+    auto away = idx.rowsForRoot(root.path());
+    QCOMPARE(away.size(), 1);
+    QVERIFY(away.first().away);
+    QVERIFY(away.first().progressed);
+
+    QVERIFY(QDir().rename(awayPath, root.path()));
+    g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    const auto revived = idx.rowsForRoot(root.path());
+    QCOMPARE(revived.size(), 1);
+    QVERIFY(!revived.first().away);
+    QVERIFY(revived.first().progressed);
+}
+
+void tst_vault_scanner::scanner_rename_reattaches_same_id_and_progress()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    QVERIFY(QDir(root.path()).mkpath(QStringLiteral("Series")));
+    const QString oldPath = writeMediaFile(root.path() + QStringLiteral("/Series"),
+                                           QStringLiteral("old.cbz"));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    auto before = idx.rowsForRoot(root.path());
+    QCOMPARE(before.size(), 1);
+    const QString oldId = before.first().id;
+    before[0].progressed = true;
+    QVERIFY(idx.upsertMany(before));
+
+    const QString newPath = root.path() + QStringLiteral("/Series/new.cbz");
+    const QDateTime oldMtime = QFileInfo(oldPath).lastModified();
+    QVERIFY(QFile::rename(oldPath, newPath));
+    // QFile::rename preserves the file timestamp on the target filesystem. Avoid rewriting it
+    // here: some Windows filesystem providers reject setFileTime even though rename is lossless.
+    QCOMPARE(QFileInfo(newPath).lastModified().toMSecsSinceEpoch(), oldMtime.toMSecsSinceEpoch());
+
+    g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    const auto after = idx.rowsForRoot(root.path());
+    QCOMPARE(after.size(), 1);
+    QCOMPARE(after.first().id, oldId);
+    QCOMPARE(after.first().path, newPath);
+    QVERIFY(after.first().progressed);
+}
+
 // ── Slice 15: the live-shelf watcher (VaultWatcher) ───────────────────────────────
 // The watcher's debounced handler (processRoot) is driven SYNCHRONOUSLY against a
 // QTemporaryDir root: the plan's "touch files → exact upsert set" rows.
@@ -387,8 +471,10 @@ namespace {
 QString writeMediaFile(const QString& dir, const QString& name)
 {
     QFile f(dir + QLatin1Char('/') + name);
-    f.open(QIODevice::WriteOnly | QIODevice::Truncate);
-    f.write("stub"); // no archive bytes needed — VaultKit classifies by extension
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return {};
+    if (f.write("stub") != 4) // no archive bytes needed — VaultKit classifies by extension
+        return {};
     f.close();
     return f.fileName();
 }
@@ -523,14 +609,20 @@ void tst_vault_scanner::watcher_degraded_flag_on_failed_watch_and_recovers()
     VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
     VaultIdentity ident(tmp.path());
     VaultWatcher w(&idx, &ident, &cfg);
+    QSignalSpy availability(&w, &VaultWatcher::rootAvailabilityChanged);
 
     w.refresh();
     QVERIFY(w.isRootDegraded(missing)); // the simulated failure flag is per-root
+    QVERIFY(availability.count() >= 1);
+    QCOMPARE(availability.last().at(0).toString(), normForTest(missing));
+    QCOMPARE(availability.last().at(1).toBool(), false);
 
     // The root appears (drive reconnects): a re-arm clears the flag.
     QVERIFY(QDir().mkpath(missing));
     w.refresh();
     QVERIFY(!w.isRootDegraded(missing));
+    QVERIFY(availability.count() >= 2);
+    QCOMPARE(availability.last().at(1).toBool(), true);
 
     // A healthy confirmed root watches cleanly from the start.
     cfg.addRoot(mixedRoot());

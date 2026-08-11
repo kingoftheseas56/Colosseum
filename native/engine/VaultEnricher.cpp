@@ -63,8 +63,10 @@ VaultEnricher::ComicFacts VaultEnricher::readComicFacts(const QString& cbzPath)
     ComicFacts f;
     QString err;
     const auto entries = MangaTankoban::CbzArchive::imageEntries(cbzPath, &err);
-    if (entries.isEmpty())
+    if (entries.isEmpty()) {
+        f.errorDetail = err.isEmpty() ? QStringLiteral("archive contains no readable pages") : err;
         return f; // ok stays false — corrupt / unreadable / not a comic archive
+    }
     QStringList names;
     names.reserve(entries.size());
     for (const auto& e : entries)
@@ -172,11 +174,24 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
         if (cancel && cancel->isCancelled())
             break;
         VaultIndex::FileRow row = r0;
+        // A drive-away row is a truthful unavailable state, not an extraction failure. The
+        // filesystem check also covers the narrow boot race before the watcher emits away=true.
+        if (row.away || !QFileInfo::exists(row.path)) {
+            enrichedRows.push_back(row);
+            ++done;
+            emit progress(done, total);
+            continue;
+        }
         if (row.kind == QLatin1String("comic")) {
             const ComicFacts cf = readComicFacts(row.path);
             if (cf.ok) {
                 row.pages = cf.pages;
                 row.coverRef = cf.coverEntry;
+                row.errorState.clear();
+                row.errorDetail.clear();
+            } else {
+                row.errorState = QStringLiteral("corrupt");
+                row.errorDetail = cf.errorDetail;
             }
         } else if (row.kind == QLatin1String("video")) {
             row.durationSec = durationForVideo(row.path, row.size, row.mtimeMs);
@@ -187,6 +202,13 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
                     MediaAdmissionProbe::probe(row.path);
                 row.admissionVerdict = admissionVerdictName(admission.verdict);
                 row.admissionDetail = admission.detail;
+                if (row.admissionVerdict != QLatin1String("Admitted")) {
+                    row.errorState = QStringLiteral("rejected");
+                    row.errorDetail = row.admissionDetail;
+                } else if (row.errorState == QLatin1String("rejected")) {
+                    row.errorState.clear();
+                    row.errorDetail.clear();
+                }
             }
         } else if (row.kind == QLatin1String("book")) {
             row.format = QFileInfo(row.path).suffix().toLower();

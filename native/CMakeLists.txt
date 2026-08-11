@@ -191,6 +191,8 @@ add_executable(colosseum
     engine/VaultDownloadsRoot.h
     engine/VaultEnricher.cpp       # cover/duration enrichment — app-wired for comic covers (Slice 12)
     engine/VaultEnricher.h
+    engine/VaultBookStateMigrator.cpp # Reader 2 path-key migration at the Vault identity boundary (Slice 16)
+    engine/VaultBookStateMigrator.h
     player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)
     player/MediaAdmissionProbe.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──

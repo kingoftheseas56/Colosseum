@@ -121,6 +121,7 @@ public:
     // ── watcher → door/card wiring (Slice 15) ──
     void onWatcherLanded(int count);
     void onWatcherNewKind(const QString& root, const QVariantList& slices);
+    void onRootAvailabilityChanged(const QString& root, bool available);
 
 signals:
     void changed();
@@ -145,6 +146,9 @@ private:
     // Slice 18 — add the synthetic downloads root to config (idempotent) when
     // downloads exist and it isn't already present.
     void ensureDownloadsRoot();
+    // A returned root stays away until a successful aggregate publish has replaced its rows with
+    // a fresh census. This prevents stale paths becoming clickable during an active/failed scan.
+    void maybePublishPendingRevives();
 
     VaultIndex* m_index = nullptr;
     VaultScanner* m_scanner = nullptr;
@@ -161,4 +165,6 @@ private:
     QVariantList m_candidate;
     QString m_candidateRoot;
     QSet<QString> m_offeredThisRun; // normalized roots whose card we already raised this launch
+    QSet<QString> m_pendingReviveRoots;
+    bool m_revivalRescanInFlight = false;
 };

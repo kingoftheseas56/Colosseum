@@ -32,7 +32,9 @@ Item {
     readonly property bool scanning:
         (typeof VaultLibrary !== "undefined") ? VaultLibrary.scanning : false
     readonly property bool scanningEmpty: itemCount === 0 && scanning
-    readonly property bool populated: itemCount > 0 && !scanning
+    // Keep existing shelves instantiated during a background rescan. A returned drive remains
+    // visibly unavailable until the successful publish replaces its away rows with fresh facts.
+    readonly property bool populated: itemCount > 0
     // Lanista/plan state contract (vaultPage.vaultState / itemCount / cardVisible).
     readonly property string vaultState: scanning ? "scanning" : (itemCount > 0 ? "populated" : "empty")
     readonly property bool cardVisible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
@@ -102,14 +104,19 @@ Item {
     // Shared shelf tile: a real comic cover when the row carries one (image://comiccover), else the
     // honest kind-icon on a gradient (book/video art is a later slice). Reused by every shelf + Folders.
     Component {
-        id: vaultTileComp
+        id: vaultTileLegacyComp
         Column {
+            id: tile
             required property var modelData
+            objectName: "vaultTile_" + (modelData.key || "")
+            readonly property bool away: Number(modelData.awayCount || 0) > 0
+            readonly property bool hasErrors: Number(modelData.errorCount || 0) > 0
             spacing: 8
             Rectangle {
                 id: coverBox
                 width: 150; height: 208; radius: 12; clip: true
                 border.width: 1; border.color: theme.edge
+                opacity: tile.away ? 0.48 : 1.0
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: Qt.rgba(0.16, 0.14, 0.20, 1) }
                     GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.060, 0.090, 1) }
@@ -128,6 +135,17 @@ Item {
                           : modelData.kind === "video" ? "../assets/icons/projector-theatre.svg"
                           : "../assets/icons/comic-book.svg"
                     fillMode: Image.PreserveAspectFit
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    visible: tile.away || tile.hasErrors
+                    color: Qt.rgba(0.04, 0.04, 0.04, tile.away ? 0.54 : 0.38)
+                    Text {
+                        anchors.centerIn: parent
+                        text: tile.away ? "Unavailable" : "Needs attention"
+                        color: theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                    }
                 }
                 // kind badge, top-left
                 Rectangle {
@@ -162,6 +180,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    enabled: !tile.away
                     onClicked: root.openFolder(modelData)
                 }
             }
@@ -169,6 +188,15 @@ Item {
                 text: (modelData.count || 0) + ((modelData.count === 1) ? " item" : " items")
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
             }
+        }
+    }
+
+    // The extracted tile is the production delegate; the legacy component above remains inert as
+    // a short-lived source reference while the shelf transition is review-gated.
+    Component {
+        id: vaultTileComp
+        VaultTile {
+            onFolderRequested: (data) => root.openFolder(data)
         }
     }
 
@@ -461,6 +489,18 @@ Item {
                     Flow {
                         objectName: "vaultShelf_" + kindSection.shelfSuffix
                         property int rowCount: kindSection.seriesList.length // Lanista contract
+                        property int awayCount: {
+                            var total = 0
+                            for (var i = 0; i < kindSection.seriesList.length; ++i)
+                                total += Number(kindSection.seriesList[i].awayCount || 0)
+                            return total
+                        }
+                        property int errorCount: {
+                            var total = 0
+                            for (var i = 0; i < kindSection.seriesList.length; ++i)
+                                total += Number(kindSection.seriesList[i].errorCount || 0)
+                            return total
+                        }
                         width: col.width
                         spacing: 16
                         Repeater { model: kindSection.seriesList; delegate: vaultTileComp }
@@ -493,6 +533,12 @@ Item {
                 Flow {
                     objectName: "vaultShelf_folders"
                     property int rowCount: foldersSection.allList.length
+                    property int awayCount: {
+                        var total = 0
+                        for (var i = 0; i < foldersSection.allList.length; ++i)
+                            total += Number(foldersSection.allList[i].awayCount || 0)
+                        return total
+                    }
                     width: col.width
                     spacing: 16
                     Repeater { model: foldersSection.allList; delegate: vaultTileComp }

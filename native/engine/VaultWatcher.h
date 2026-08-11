@@ -75,6 +75,9 @@ public:
 signals:
     void landed(int count);                                  // a non-empty upsert batch landed
     void newKindArrival(const QString& root, const QVariantList& slices); // card model, S11 law
+    // Root availability is a state transition, not a destructive scan result. The library keeps
+    // rows in place while false and clears their away flag when true.
+    void rootAvailabilityChanged(const QString& root, bool available);
     void immersiveChanged();
 
 private:
@@ -93,8 +96,10 @@ private:
     VaultConfig* m_config = nullptr;
     QFileSystemWatcher* m_watcher = nullptr; // heap: QFileSystemWatcher needs no Q_OBJECT here
     QTimer* m_debounce = nullptr;
+    QTimer* m_probe = nullptr;       // cheap root-exists probe so a replug revives in-place
     QSet<QString> m_dirty;     // roots with unprocessed changes (normalized)
-    QSet<QString> m_degraded;  // normalized roots whose watch failed
+    QSet<QString> m_degraded;  // normalized roots whose watch failed (not availability)
+    QSet<QString> m_unavailable; // normalized roots whose filesystem root is absent
     QSet<QString> m_watched;   // normalized roots with a live watch
     bool m_immersive = false;
 };

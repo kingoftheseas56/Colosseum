@@ -54,6 +54,12 @@ public:
         QString format;
         bool progressed = false;
         QString coverRef; // comic: the CBZ entry name for image://comiccover/; else ""
+        // A confirmed root can disappear without destroying the user's shelf. `away` keeps the
+        // row in place until the root returns; the existing progress key remains untouched.
+        bool away = false;
+        // Honest per-item failure state. Empty means no extraction/admission error was recorded.
+        QString errorState;
+        QString errorDetail;
         // Durable media-admission verdict (vault-admission slice). "" = unprobed; a non-empty
         // value is EXACTLY one of Admitted / RejectedNoVideo / RejectedError / RejectedTimeout.
         // Carried across a destructive publish() only when (id,size,mtimeMs) is unchanged.
@@ -80,6 +86,10 @@ public:
     // Full rows for a kind, in natural order — the enrichment pass reads these on the GUI
     // thread, does its file I/O off-thread, then upsertMany()s the enriched rows back.
     QList<FileRow> rowsForKind(const QString& kind) const;
+    QList<FileRow> rowsForRoot(const QString& rootPath) const;
+    // Mark all rows under a confirmed root unavailable/available without deleting them.
+    // Returns true only when at least one row changed state.
+    bool markRootAway(const QString& rootPath, bool away);
 
     // Live-shelf arrival seams (Slice 15): the ids already shelved under a root, and the
     // dominant kind of a subtree ("" when the subtree has no rows). The watcher uses them to

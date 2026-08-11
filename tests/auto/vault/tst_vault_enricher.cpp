@@ -70,6 +70,7 @@ void tst_vault_enricher::corrupt_cbz_is_error_not_wedge()
     const auto f = VaultEnricher::readComicFacts(corruptCbz());
     QVERIFY(!f.ok); // honest error state, no crash, no hang
     QCOMPARE(f.pages, 0);
+    QVERIFY(!f.errorDetail.isEmpty());
 }
 
 void tst_vault_enricher::duration_cache_hit_miss_and_persist()
@@ -114,6 +115,7 @@ void tst_vault_enricher::enrich_writes_comic_facts_to_index()
     QCOMPARE(files.first().toMap().value(QStringLiteral("pages")).toInt(), 3);
     QCOMPARE(files.first().toMap().value(QStringLiteral("coverRef")).toString(),
              QStringLiteral("001.png"));
+    QVERIFY(files.first().toMap().value(QStringLiteral("errorState")).toString().isEmpty());
 }
 
 void tst_vault_enricher::video_admission_is_persisted_after_owner_thread_commit()
@@ -193,6 +195,7 @@ void tst_vault_enricher::rejected_video_verdict_is_not_promoted()
     QCOMPARE(rows.size(), 1);
     QVERIFY(!rows.first().admissionVerdict.isEmpty());
     QVERIFY(rows.first().admissionVerdict != QStringLiteral("Admitted"));
+    QCOMPARE(rows.first().errorState, QStringLiteral("rejected"));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_enricher)

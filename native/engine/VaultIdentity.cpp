@@ -165,28 +165,40 @@ VaultIdentity::ReconcileResult VaultIdentity::reconcile(const QList<FileFacts>& 
     }
 
     // Re-attach each missing entry to a UNIQUE fresh file of the same signature.
-    for (const Entry& m : missing) {
-        int matchIdx = -1;
-        int matchCount = 0;
-        for (int i = 0; i < fresh.size(); ++i) {
-            if (fresh.at(i).f.size == m.size && fresh.at(i).f.mtimeMs == m.mtimeMs) {
-                ++matchCount;
-                matchIdx = i;
-            }
-        }
-        if (matchCount == 1) {
-            const Item cand = fresh.takeAt(matchIdx);
-            m_alias.insert(cand.cid, m.id);
-            m_pathAliases.append({m.path, cand.f.path});
-            m_byId[m.id].path = cand.f.path; // move the canonical entry's location
-            result.migrated.append({m.id, cand.cid, m.path, cand.f.path});
+    auto signature = [](qint64 size, qint64 mtimeMs) {
+        return QString::number(size) + QLatin1Char(':') + QString::number(mtimeMs);
+    };
+    QHash<QString, QList<int>> freshBySignature;
+    for (int i = 0; i < fresh.size(); ++i)
+        freshBySignature[signature(fresh.at(i).f.size, fresh.at(i).f.mtimeMs)].append(i);
+
+    QHash<QString, QList<int>> missingBySignature;
+    for (int i = 0; i < missing.size(); ++i)
+        missingBySignature[signature(missing.at(i).size, missing.at(i).mtimeMs)].append(i);
+
+    QSet<int> migratedFresh;
+    for (auto it = missingBySignature.constBegin(); it != missingBySignature.constEnd(); ++it) {
+        const QList<int>& oldIndexes = it.value();
+        const QList<int> newIndexes = freshBySignature.value(it.key());
+        if (oldIndexes.size() == 1 && newIndexes.size() == 1) {
+            const Entry& oldEntry = missing.at(oldIndexes.first());
+            const Item& candidate = fresh.at(newIndexes.first());
+            m_alias.insert(candidate.cid, oldEntry.id);
+            m_pathAliases.append({oldEntry.path, candidate.f.path});
+            m_byId[oldEntry.id].path = candidate.f.path; // move the canonical entry's location
+            result.migrated.append({oldEntry.id, candidate.cid, oldEntry.path, candidate.f.path});
+            migratedFresh.insert(newIndexes.first());
         } else {
-            result.parked.append(m.id); // vanished or ambiguous — never silently merged
+            for (const int oldIndex : oldIndexes)
+                result.parked.append(missing.at(oldIndex).id);
         }
     }
 
     // Register whatever remains fresh.
-    for (const Item& it : fresh) {
+    for (int i = 0; i < fresh.size(); ++i) {
+        if (migratedFresh.contains(i))
+            continue;
+        const Item& it = fresh.at(i);
         Entry e{it.cid, it.f.path, it.f.size, it.f.mtimeMs};
         m_byId.insert(it.cid, e);
         result.fresh.append(it.cid);

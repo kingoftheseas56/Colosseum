@@ -99,6 +99,8 @@ private slots:
     void folder_listing_is_natural_order();
     void publish_is_atomic_when_cancelled();
     void incremental_upsert_lands_without_republish();
+    void root_away_state_keeps_rows_and_progress();
+    void error_state_round_trips_and_groups_surface_it();
     void groups_expose_representative_cover();
     void enrichment_round_trip_via_rows_for_kind_and_upsert_many();
     void files_in_subtree_groups_loose_then_subfolders_no_invented_entries();
@@ -221,6 +223,56 @@ void tst_vault_index::incremental_upsert_lands_without_republish()
                           QStringLiteral("c.cbz"))));
     QCOMPARE(idx.itemCount(), 3);
     QCOMPARE(idx.itemCountForKind(QStringLiteral("comic")), 3);
+}
+
+void tst_vault_index::root_away_state_keeps_rows_and_progress()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    auto row = mk(QStringLiteral("vault:away"), QStringLiteral("D:/lib/Series"),
+                  QStringLiteral("Series"), QStringLiteral("comic"),
+                  QStringLiteral("Vol 1.cbz"));
+    row.progressed = true;
+    QVERIFY(idx.publish({row}));
+
+    QVERIFY(idx.markRootAway(QStringLiteral("D:/lib"), true));
+    const auto away = idx.filesInSubtree(QStringLiteral("D:/lib/Series"));
+    QCOMPARE(away.size(), 1);
+    QCOMPARE(away.first().toMap().value(QStringLiteral("away")).toBool(), true);
+    QCOMPARE(away.first().toMap().value(QStringLiteral("progressed")).toBool(), true);
+    QCOMPARE(idx.itemCount(), 1); // away rows do not vanish
+
+    QVERIFY(idx.markRootAway(QStringLiteral("D:/lib"), false));
+    const auto revived = idx.filesInSubtree(QStringLiteral("D:/lib/Series"));
+    QCOMPARE(revived.first().toMap().value(QStringLiteral("away")).toBool(), false);
+    QCOMPARE(revived.first().toMap().value(QStringLiteral("progressed")).toBool(), true);
+}
+
+void tst_vault_index::error_state_round_trips_and_groups_surface_it()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    auto row = mk(QStringLiteral("vault:bad"), QStringLiteral("D:/lib/Bad"),
+                  QStringLiteral("Bad"), QStringLiteral("comic"),
+                  QStringLiteral("bad.cbz"));
+    row.errorState = QStringLiteral("corrupt");
+    row.errorDetail = QStringLiteral("invalid zip central directory");
+    QVERIFY(idx.publish({row}));
+
+    const auto groups = idx.groupsForKind(QStringLiteral("comic"));
+    QCOMPARE(groups.size(), 1);
+    QCOMPARE(groups.first().toMap().value(QStringLiteral("errorCount")).toInt(), 1);
+    const auto files = idx.filesInSubtree(QStringLiteral("D:/lib/Bad"));
+    QCOMPARE(files.first().toMap().value(QStringLiteral("errorState")).toString(),
+             QStringLiteral("corrupt"));
+    QCOMPARE(files.first().toMap().value(QStringLiteral("errorDetail")).toString(),
+             QStringLiteral("invalid zip central directory"));
 }
 
 void tst_vault_index::groups_expose_representative_cover()
@@ -359,7 +411,7 @@ void tst_vault_index::legacy_schema_migrates_and_stamps_v1()
         QVERIFY(idx.isOpen());
     }
 
-    QCOMPARE(userVersionOf(path), 1);
+    QCOMPARE(userVersionOf(path), 2);
 }
 
 void tst_vault_index::future_schema_fails_closed_without_downgrade()
@@ -367,14 +419,14 @@ void tst_vault_index::future_schema_fails_closed_without_downgrade()
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
     const QString path = tmp.filePath(QStringLiteral("future.sqlite"));
-    QVERIFY(createLegacyVaultDb(path, 2)); // negative control: a newer owner stamped v2
+    QVERIFY(createLegacyVaultDb(path, 3)); // negative control: a newer owner stamped v3
 
     {
         VaultIndex idx(path);
         QVERIFY(!idx.isOpen()); // must refuse to open, never downgrade
     }
 
-    QCOMPARE(userVersionOf(path), 2); // version untouched
+    QCOMPARE(userVersionOf(path), 3); // version untouched
 }
 
 void tst_vault_index::publish_carries_admission_only_for_exact_identity_tuple()
