@@ -782,20 +782,26 @@ Item {
             width: 48
             Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
                 width: 1; color: Qt.rgba(1, 1, 1, 0.08) }
-            Column {
-                anchors.centerIn: parent; spacing: 2
-                Repeater {
-                    model: root.jumpNumbers()
-                    delegate: Text {
-                        required property var modelData
+            ListView {
+                id: jumpList
+                anchors.fill: parent
+                anchors.margins: 2
+                model: root.jumpNumbers()
+                clip: true
+                interactive: contentHeight > height
+                boundsBehavior: Flickable.StopAtBounds
+                delegate: Item {
+                    required property var modelData
+                    width: jumpList.width
+                    height: 44
+                    Text {
+                        anchors.centerIn: parent
                         text: String(modelData)
                         color: root._jumpInView(Number(modelData)) ? theme.gold : theme.inkDimmer
                         font.family: theme.display; font.pixelSize: 12; font.weight: Font.DemiBold
-                        width: 32; horizontalAlignment: Text.AlignHCenter
-                        topPadding: 3; bottomPadding: 3
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: root.jumpToNumber(Number(modelData)) }
                     }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: root.jumpToNumber(Number(modelData)) }
                 }
             }
         }
