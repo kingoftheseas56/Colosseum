@@ -1374,7 +1374,9 @@ target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql)
 add_executable(mal_catalog_rows_harness
     ../tests/mal_catalog_rows_harness.cpp
     engine/MalCatalog.cpp
-    engine/MalCatalog.h)
+    engine/MalCatalog.h
+    engine/VaultKit.cpp
+    engine/VaultKit.h)
 target_include_directories(mal_catalog_rows_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql)
 
@@ -1382,7 +1384,9 @@ target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql)
 add_executable(imdb_catalog_harness
     ../tests/imdb_catalog_harness.cpp
     engine/ImdbCatalog.cpp
-    engine/ImdbCatalog.h)
+    engine/ImdbCatalog.h
+    engine/VaultKit.cpp
+    engine/VaultKit.h)
 target_include_directories(imdb_catalog_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(imdb_catalog_harness PRIVATE Qt6::Core Qt6::Sql)
 
@@ -1390,7 +1394,9 @@ target_link_libraries(imdb_catalog_harness PRIVATE Qt6::Core Qt6::Sql)
 add_executable(mal_catalog_discover_harness
     ../tests/mal_catalog_discover_harness.cpp
     engine/MalCatalog.cpp
-    engine/MalCatalog.h)
+    engine/MalCatalog.h
+    engine/VaultKit.cpp
+    engine/VaultKit.h)
 target_include_directories(mal_catalog_discover_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql)
 
