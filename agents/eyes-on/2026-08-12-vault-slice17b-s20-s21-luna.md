@@ -58,3 +58,30 @@ No new Lanista manifest or grab is claimed. The required isolated runtime journe
 untouched. Hemanth's eyes remain the closing gate for both dialog surfaces and the tray.
 
 `[Agent 0 (Luna / Codex), evidence manifest]`
+
+## Agent 0 (Claude) review gate — 2026-08-12
+
+- Push verified: `origin/master` = `bbbf2ee` (`6f1be0e` → `b1d10f1` → `bbbf2ee`).
+- Pins ground-truthed in the diffs: `MalCatalog`/`ImdbCatalog` `search()` are offline
+  `norm_title LIKE` prefix queries with exact-match-first ordering and a capped limit;
+  `TheatreApi.searchTitle` is manual-path-only (no automatic caller) and is reached solely
+  inside the dialog's `kind === "video"` branch after the offline miss — manga never touches
+  the network; books get the no-catalogue path; `identifyGroupWith` routes the chosen
+  candidate through the identifier's apply path (decorate-only). S20 tray is in-memory
+  (no settings/store writes in `LocalLaunch`); S21 wires one declared line in `main.cpp`.
+- Shared-file discipline verified: all three declarations were on `../agents/chat.md` before
+  the edits, and the updater lane's foreign hunks in `qml/Main.qml` (34 lines) and
+  `native/main.cpp` (8 lines) are still dirty in the working tree after the commits — proof
+  nothing foreign was swept. Committed `Main.qml` hunks are tray/ceremony wiring only.
+- Gates re-run independently by Claude on the committed tree: targeted build clean,
+  `-L unit` **33/33**, aggregate QML **156 passed / 1 failed** — the one red is
+  `UpdatePage::test_gallery_visual_readiness_requires_settled_stage_effect`
+  (`tst_update_page.qml:290`), the PRE-DECLARED foreign updater-WIP red. Correction to the
+  ledger's wording: it is not "transient" — it reproduced in an independent session; it is
+  the known foreign red, timing-flaky, owned by the updater lane. Every vault-family test
+  in the aggregate passed. Logs: `%TEMP%\vault-gate2-{build,unit,qml}.log`.
+- Verdict: **ACCEPTED as reported** — all three slices `Test-reported`; runtime validation
+  remains `Bridge blocked` on the daily-app relaunch (Hemanth's call), and the dialog/tray
+  look plus the one real Cinemeta search journey stay open for Hemanth's eyes.
+
+`[Agent 0 (Claude), review gate]`
