@@ -314,6 +314,16 @@ QString cleanMediaFolderTitle(const QString& rawName)
     return cleaned;
 }
 
+QString normalizedTitle(const QString& rawTitle)
+{
+    QString s = cleanMediaFolderTitle(rawTitle).toLower();
+    s.replace(QRegularExpression(QStringLiteral("['’]s")), QString());
+    s.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")), QStringLiteral(" "));
+    s = s.simplified();
+    s.replace(QRegularExpression(QStringLiteral("^(the|a|an) ")), QString());
+    return s;
+}
+
 // ── Media kinds + classifier ──────────────────────────────────────────
 static const QSet<QString> kComicExts  = { "cbz", "cbr" };
 // NB: .txt is deliberately NOT a book format. In a media library a loose .txt is release junk

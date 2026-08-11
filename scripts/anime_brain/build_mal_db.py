@@ -28,10 +28,25 @@ import csv
 import io
 import json
 import os
+import re
 import sqlite3
 import sys
 import zipfile
 from datetime import datetime, timezone
+
+_POSSESSIVE = re.compile(r"['’]s")
+_NON_ALNUM = re.compile(r"[^a-z0-9]+")
+_WHITESPACE = re.compile(r"\s+")
+_LEADING_ARTICLE = re.compile(r"^(the|a|an) ")
+
+
+def normalized_title(raw):
+    """Match VaultKit::normalizedTitle for catalogue-side title keys."""
+    s = (raw or "").lower()
+    s = _POSSESSIVE.sub("", s)
+    s = _NON_ALNUM.sub(" ", s)
+    s = _WHITESPACE.sub(" ", s).strip()
+    return _LEADING_ARTICLE.sub("", s, count=1)
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_PATH = os.path.join(REPO, "data", "mal_catalog.db")
@@ -164,6 +179,8 @@ def load_rows(fname, medium):
                 "mal_id": int(mal_id),
                 "title": title,
                 "title_english": (row.get("title_english") or "").strip(),
+                "norm_title": normalized_title(title),
+                "norm_title_english": normalized_title(row.get("title_english") or ""),
                 "type": (ANIME_TYPE if medium == "anime" else MANGA_TYPE)
                         .get((row.get("type") or "").strip().lower(),
                              (row.get("type") or "").strip()),
@@ -198,10 +215,12 @@ def bake():
     db = sqlite3.connect(tmp)
     db.executescript("""
         CREATE TABLE anime (mal_id INTEGER PRIMARY KEY, title TEXT, title_english TEXT,
+            norm_title TEXT NOT NULL, norm_title_english TEXT NOT NULL,
             type TEXT, score REAL, scored_by INTEGER, members INTEGER, status TEXT,
             episodes INTEGER, year INTEGER, cover TEXT, synopsis TEXT,
             credits TEXT, tags TEXT);
         CREATE TABLE manga (mal_id INTEGER PRIMARY KEY, title TEXT, title_english TEXT,
+            norm_title TEXT NOT NULL, norm_title_english TEXT NOT NULL,
             type TEXT, score REAL, scored_by INTEGER, members INTEGER, status TEXT,
             volumes INTEGER, chapters INTEGER, year INTEGER, cover TEXT, synopsis TEXT,
             credits TEXT, tags TEXT,
@@ -237,7 +256,8 @@ def bake():
         rows.sort(key=lambda r: r["members"], reverse=True)
         kept = rows[:KEEP_TOP_BY_MEMBERS]
         for r in kept:
-            cols = ["mal_id", "title", "title_english", "type", "score", "scored_by",
+            cols = ["mal_id", "title", "title_english", "norm_title", "norm_title_english",
+                    "type", "score", "scored_by",
                     "members", "status"]
             cols += ["episodes"] if medium == "anime" else ["volumes", "chapters"]
             cols += ["year", "cover", "synopsis", "credits"]
@@ -258,6 +278,10 @@ def bake():
               f"{explicit_kept} explicit")
 
     db.execute("CREATE INDEX idx_tag ON tag (medium, tag, mal_id)")
+    db.execute("CREATE INDEX anime_norm_title_idx ON anime (norm_title)")
+    db.execute("CREATE INDEX anime_norm_title_english_idx ON anime (norm_title_english)")
+    db.execute("CREATE INDEX manga_norm_title_idx ON manga (norm_title)")
+    db.execute("CREATE INDEX manga_norm_title_english_idx ON manga (norm_title_english)")
     # Deep Theatre catalogue (spec 2026-08-01): indexes that back MalCatalog.animeCatalog's
     # members/score/status/type/year paging. (The tag lookup MalCatalog.animeCatalog needs is
     # already served by idx_tag above, so no separate tag index is baked.) Rebuilding the .db

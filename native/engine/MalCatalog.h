@@ -36,6 +36,12 @@ public:
     Q_INVOKABLE QVariantList animeCatalog(const QVariantMap& query,
                                           int offset = 0, int limit = 24) const;
 
+    // Offline exact-title identity lookup. Returns every normalized-exact
+    // candidate so the caller can reject ambiguous matches conservatively.
+    // medium is "anime", "manga", or empty for both tables; year==0 is unset.
+    Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0,
+                                          const QString& medium = {}) const;
+
     // Tankoban Discover (spec 2026-08-01): paged, allowlisted, fully-bound MANGA
     // discovery over the same baked artifact. `axis` is "genre" | "demographic";
     // anything else returns an empty facet list. Each facet is {value, count};

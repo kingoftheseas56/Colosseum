@@ -331,6 +331,30 @@ set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault MAL title identity (Slice 17 foundation) ─────────────────────────
+# Read-only normalized title lookup: punctuation folding, ambiguity retention,
+# year/medium narrowing, and missing-catalogue safety.
+add_executable(tst_vault_mal_match
+    auto/vault/tst_vault_mal_match.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_vault_mal_match PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_mal_match PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_mal_match POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_mal_match
+         COMMAND tst_vault_mal_match)
+set_tests_properties(colosseum.qttest.vault_mal_match PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault admission probe (execution plan Slice 6, 2026-08-08) ───────────────
 # MediaAdmissionProbe drives its OWN headless libmpv handle and admits only on a
 # DECODED FRAME (dwidth>0), never FILE_LOADED. This harness runs it against real

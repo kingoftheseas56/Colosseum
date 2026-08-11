@@ -83,6 +83,13 @@ QMap<QString, QStringList> groupByFirstLevelSubdir(
 // went too far (< 2 chars). Port of TB2 ScannerUtils::cleanMediaFolderTitle.
 QString cleanMediaFolderTitle(const QString& rawName);
 
+// Fold a cleaned title for offline catalogue identity lookups. This is the
+// native counterpart of the catalogue bake norm: lowercase, remove a
+// possessive 's, collapse non-alphanumeric runs, then drop one leading
+// article. The cleaner runs first so release noise in a Vault filename and a
+// plain catalogue title share the same key.
+QString normalizedTitle(const QString& rawTitle);
+
 // ── Media kinds + census classifier ───────────────────────────────────
 enum class MediaKind { Unknown, Comic, Book, Video };
 QString kindName(MediaKind kind);           // "comic" / "book" / "video" / "unknown"
