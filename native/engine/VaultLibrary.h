@@ -25,6 +25,7 @@ class VaultConfig;
 class VaultDownloadsRoot;
 class VaultIdentity;
 class VaultWatcher;
+class VaultIdentifier;
 
 class VaultLibrary : public QObject {
     Q_OBJECT
@@ -87,6 +88,18 @@ public:
     // subtreePath }. items(kind, seriesKey): VaultIndex::filesInSubtree, facts preserved.
     Q_INVOKABLE QVariantList series(const QString& kind) const;
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
+    Q_INVOKABLE QVariantList hiddenSeries() const;
+
+    // Slice 17 identity actions. The index owns the reversible decoration; this façade owns
+    // the QML-facing commands and the persistent hide surface.
+    void setIdentifier(VaultIdentifier* identifier) { m_identifier = identifier; }
+    Q_INVOKABLE bool identifyGroup(const QString& groupKey);
+    Q_INVOKABLE bool unidentifyGroup(const QString& groupKey);
+    Q_INVOKABLE bool reshelveGroup(const QString& groupKey, const QString& kind);
+    Q_INVOKABLE bool hideGroup(const QString& groupKey);
+    Q_INVOKABLE bool restoreGroup(const QString& groupKey);
+    Q_INVOKABLE bool enrichIdentity(const QString& groupKey, const QString& synopsis,
+                                    const QString& coverUrl);
 
     // Read-only { id -> admissionVerdict } projection for the Vault Continue gate. Re-read from QML
     // through the revision clock (a publish/upsert bumps it); exposes no VaultIndex mutation.
@@ -154,6 +167,7 @@ private:
     VaultScanner* m_scanner = nullptr;
     VaultConfig* m_config = nullptr;
     VaultWatcher* m_watcher = nullptr; // owns the per-root QFileSystemWatcher + debounce
+    VaultIdentifier* m_identifier = nullptr; // non-owning; constructed after catalogues in main
     VaultDownloadsRoot* m_downloadsRoot = nullptr;
     QString m_downloadsRootPath;
     int m_revision = 0;

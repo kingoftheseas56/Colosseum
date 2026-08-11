@@ -7,6 +7,7 @@
 import QtQuick
 import QtQuick.Controls
 import "VaultApi.js" as VaultApi
+import "TheatreApi.js" as TheatreApi
 
 Item {
     id: root
@@ -21,6 +22,7 @@ Item {
     // LocalLaunch (C++) re-derives family + vault id + title, so routing/identity has one owner
     // (the same path the picker, drag-drop, and Open Recent funnel through win.openLocalMedia).
     signal openMediaRequested(string path)
+    signal viewWorldRequested(var identity)
 
     Theme { id: theme }
 
@@ -50,7 +52,7 @@ Item {
     readonly property var tabModel: [
         { key: "all", label: "All" }, { key: "comic", label: "Comics" },
         { key: "book", label: "Books" }, { key: "video", label: "Video" },
-        { key: "folders", label: "Folders" }
+        { key: "folders", label: "Folders" }, { key: "hidden", label: "Hidden" }
     ]
     function seriesFor(kind) {
         return (typeof VaultLibrary !== "undefined") ? (VaultLibrary.revision, VaultLibrary.series(kind)) : []
@@ -60,10 +62,51 @@ Item {
         if (root.currentTab === "comic" || root.currentTab === "book" || root.currentTab === "video")
             return [root.currentTab]
         if (root.currentTab === "folders") return []
+        if (root.currentTab === "hidden") return []
         return ["comic", "book", "video"]
     }
     function allSeries() {
         return root.seriesFor("comic").concat(root.seriesFor("book")).concat(root.seriesFor("video"))
+    }
+    function hiddenSeries() {
+        return (typeof VaultLibrary !== "undefined") ? (VaultLibrary.revision, VaultLibrary.hiddenSeries()) : []
+    }
+    function revealTile(data) {
+        if (typeof VaultLibrary !== "undefined" && data && data.subtreePath)
+            VaultLibrary.revealInExplorer(data.subtreePath)
+    }
+    function identifyTile(data) {
+        if (!data) return
+        identifyDialog.groupKey = data.key || ""
+        identifyDialog.titleText = data.title || ""
+        identifyDialog.kind = data.kind || ""
+        identifyDialog.feedback = ""
+        identifyDialog.open()
+    }
+    function requestProgressiveFilmIdentity(tile) {
+        if (!tile || tile.identSource !== "IMDB" || !tile.identityId) return
+        var imdbId = String(tile.identityId).replace(/^imdb:/, "")
+        function applyMeta(meta) {
+            if (!meta) return
+            var synopsis = String(meta.description || meta.overview || meta.plot || "")
+            var poster = TheatreApi.normalizeArtUrl(meta.poster || meta.cover || "")
+            if (typeof VaultLibrary !== "undefined")
+                VaultLibrary.enrichIdentity(tile.key || "", synopsis, poster)
+            var facts = root.folderDetailFacts || ({})
+            facts.synopsis = synopsis
+            facts.synopsisSource = synopsis.length ? "Cinemeta" : (facts.synopsisSource || "IMDB")
+            facts.coverUrl = poster || facts.coverUrl || ""
+            root.folderDetailFacts = facts
+            if (folderLayer.item) {
+                folderLayer.item.synopsis = facts.synopsis || ""
+                folderLayer.item.synopsisSource = facts.synopsisSource || ""
+                if (poster) folderLayer.item.coverUrl = poster
+            }
+        }
+        TheatreApi.loadMeta("movie", imdbId, function(meta) {
+            if (meta) applyMeta(meta)
+            else TheatreApi.loadMeta("series", imdbId, applyMeta)
+        })
     }
 
     // ---- Slice 14: the Vault Continue rail — the app's own local reads/watches, resumable. Live
@@ -95,6 +138,7 @@ Item {
         root.folderDetailBaseRows = (typeof VaultLibrary !== "undefined")
             ? VaultLibrary.items(tile.kind, tile.key) : []
         root.folderDetailOpen = true
+        root.requestProgressiveFilmIdentity(tile)
     }
     function closeFolder() { root.folderDetailOpen = false }
     // Push the re-joined rows into the live folder view when Progress changes under it (e.g. after a
@@ -197,6 +241,21 @@ Item {
         id: vaultTileComp
         VaultTile {
             onFolderRequested: (data) => root.openFolder(data)
+            onOpenRequested: (data) => root.openFolder(data)
+            onRevealRequested: (data) => root.revealTile(data)
+            onIdentifyRequested: (data) => root.identifyTile(data)
+            onUnidentifyRequested: (data) => {
+                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.unidentifyGroup(data.key || "")
+            }
+            onReshelveRequested: (kind, data) => {
+                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.reshelveGroup(data.key || "", kind)
+            }
+            onHideRequested: (data) => {
+                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.hideGroup(data.key || "")
+            }
+            onRestoreRequested: (data) => {
+                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.restoreGroup(data.key || "")
+            }
         }
     }
 
@@ -545,6 +604,42 @@ Item {
                 }
             }
 
+            // Hidden items are a reversible shelf, not a second filesystem state.
+            Column {
+                id: hiddenSection
+                visible: root.populated && root.currentTab === "hidden"
+                width: col.width
+                spacing: 14
+                bottomPadding: 30
+                property var hiddenList: (root.populated && root.currentTab === "hidden") ? root.hiddenSeries() : []
+                Item {
+                    width: col.width
+                    height: hiddenTitle.implicitHeight
+                    Text {
+                        id: hiddenTitle
+                        anchors.left: parent.left; anchors.bottom: parent.bottom
+                        text: "Hidden"; color: theme.ink; font.family: theme.display; font.pixelSize: 28
+                    }
+                    Text {
+                        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                        text: hiddenSection.hiddenList.length + " folders"
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    }
+                }
+                Flow {
+                    objectName: "vaultShelf_hidden"
+                    property int rowCount: hiddenSection.hiddenList.length
+                    width: col.width
+                    spacing: 16
+                    Repeater { model: hiddenSection.hiddenList; delegate: vaultTileComp }
+                }
+                Text {
+                    visible: hiddenSection.hiddenList.length === 0
+                    text: "Nothing is hidden."
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                }
+            }
+
             // Bottom clearance so the last shelf clears the fixed in-world tab bar. (Add folder now
             // lives in the marquee CTA.)
             Item { visible: root.populated; width: 1; height: 84 }
@@ -809,7 +904,13 @@ Item {
             item.kind = root.folderDetailFacts.kind || "comic"
             item.coverUrl = root.folderDetailFacts.coverUrl || ""
             item.rootPath = root.folderDetailFacts.subtreePath || ""
+            item.identityId = root.folderDetailFacts.identityId || ""
+            item.identitySource = root.folderDetailFacts.identSource || ""
+            item.identityWorld = root.folderDetailFacts.identityWorld || ""
+            item.synopsis = root.folderDetailFacts.synopsis || ""
+            item.synopsisSource = root.folderDetailFacts.synopsisSource || ""
             item.model = root.folderDetailRows
+            item.viewWorldRequested.connect(function(identity) { root.viewWorldRequested(identity) })
         }
     }
     Connections {
@@ -831,6 +932,20 @@ Item {
             var target = VaultApi.resumeTarget(rows)
             if (!target && rows.length) target = rows[0]
             if (target && target.path) root.openMediaRequested(target.path)
+        }
+    }
+
+    VaultIdentifyDialog {
+        id: identifyDialog
+        anchors.centerIn: parent
+        z: 80
+        onConfirmRequested: (groupKey) => {
+            if (typeof VaultLibrary === "undefined") return
+            if (VaultLibrary.identifyGroup(groupKey)) {
+                close()
+            } else {
+                feedback = "There is no single certain offline match yet. The folder stays filename-honest."
+            }
         }
     }
 }

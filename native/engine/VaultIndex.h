@@ -54,6 +54,14 @@ public:
         QString format;
         QString synopsis;       // embedded book description, when available
         QString metadataSource; // "EPUB" for embedded EPUB facts; empty otherwise
+        QString identityId;     // adopted catalogue/source id, e.g. mal:123 or imdb:tt...
+        QString identityTitle;  // user-facing title supplied by a certain identity
+        QString identitySource; // MAL / IMDB / COMICS / EPUB
+        QString identitySynopsis;
+        QString identityCoverUrl;
+        QString identityWorld;  // Tankoban / Biblio / Theatre
+        int identityYear = 0;
+        bool identitySuppressed = false; // explicit Un-identify; blocks auto re-adoption
         bool progressed = false;
         QString coverRef; // comic: the CBZ entry name for image://comiccover/; else ""
         // A confirmed root can disappear without destroying the user's shelf. `away` keeps the
@@ -89,6 +97,7 @@ public:
     // thread, does its file I/O off-thread, then upsertMany()s the enriched rows back.
     QList<FileRow> rowsForKind(const QString& kind) const;
     QList<FileRow> rowsForRoot(const QString& rootPath) const;
+    QList<FileRow> rowsForGroup(const QString& groupKey) const;
     // Mark all rows under a confirmed root unavailable/available without deleting them.
     // Returns true only when at least one row changed state.
     bool markRootAway(const QString& rootPath, bool away);

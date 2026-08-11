@@ -17,6 +17,7 @@ TestCase {
     property var view: null
 
     SignalSpy { id: revealSpy; signalName: "revealRequested" }
+    SignalSpy { id: worldSpy; signalName: "viewWorldRequested" }
 
     // Two loose volumes + one Extras file. Natural order = seed order (Vol 2, Vol 10, then Extras).
     readonly property var seed: [
@@ -34,10 +35,12 @@ TestCase {
         })
         verify(view !== null)
         revealSpy.target = view
+        worldSpy.target = view
         wait(40)
     }
     function cleanup() {
         revealSpy.clear(); revealSpy.target = null
+        worldSpy.clear(); worldSpy.target = null
         if (view) view.destroy()
         view = null
     }
@@ -49,6 +52,7 @@ TestCase {
         verify(findChild(view, "vaultFileRow_2") !== null)
         verify(findChild(view, "vaultFolderContinue") !== null)
         verify(findChild(view, "vaultFolderReveal") !== null)
+        verify(!view.worldDoorReady)
     }
 
     function test_row_exposes_clean_title_and_real_filename() {
@@ -80,6 +84,23 @@ TestCase {
         mouseClick(findChild(view, "vaultFolderReveal"))
         compare(revealSpy.count, 1)
         compare(revealSpy.signalArguments[0][0], "D:/Show")
+    }
+
+    function test_identity_enables_world_door_without_changing_file_model() {
+        view.identityId = "mal:3"
+        view.identitySource = "MAL"
+        view.identityWorld = "Tankoban"
+        view.synopsis = "A seeded synopsis."
+        view.synopsisSource = "MAL"
+        wait(30)
+        verify(view.hasSynopsis)
+        var door = findChild(view, "vaultFolderViewWorld")
+        verify(door !== null)
+        verify(view.worldDoorReady)
+        mouseClick(door)
+        compare(worldSpy.count, 1)
+        compare(worldSpy.signalArguments[0][0].identityId, "mal:3")
+        compare(view.fileCount, 3)
     }
 
     function findChild(root, objectName) {

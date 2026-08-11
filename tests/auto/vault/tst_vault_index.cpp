@@ -106,7 +106,7 @@ private slots:
     void files_in_subtree_groups_loose_then_subfolders_no_invented_entries();
     void natural_sort_key_is_numeric_and_case_insensitive();
     // ── vault-admission slice ──
-    void legacy_schema_migrates_and_stamps_v3();
+    void legacy_schema_migrates_and_stamps_v4();
     void future_schema_fails_closed_without_downgrade();
     void publish_carries_admission_only_for_exact_identity_tuple();
     void publish_explicit_new_verdict_wins_over_carried_verdict();
@@ -399,7 +399,7 @@ void tst_vault_index::natural_sort_key_is_numeric_and_case_insensitive()
             < VaultIndex::naturalSortKey(QStringLiteral("banana"))); // case-insensitive
 }
 
-void tst_vault_index::legacy_schema_migrates_and_stamps_v3()
+void tst_vault_index::legacy_schema_migrates_and_stamps_v4()
 {
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
@@ -411,7 +411,7 @@ void tst_vault_index::legacy_schema_migrates_and_stamps_v3()
         QVERIFY(idx.isOpen());
     }
 
-    QCOMPARE(userVersionOf(path), 3);
+    QCOMPARE(userVersionOf(path), 4);
 }
 
 void tst_vault_index::future_schema_fails_closed_without_downgrade()
@@ -419,14 +419,14 @@ void tst_vault_index::future_schema_fails_closed_without_downgrade()
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
     const QString path = tmp.filePath(QStringLiteral("future.sqlite"));
-    QVERIFY(createLegacyVaultDb(path, 4)); // negative control: a newer owner stamped v4
+    QVERIFY(createLegacyVaultDb(path, 5)); // negative control: a newer owner stamped v5
 
     {
         VaultIndex idx(path);
         QVERIFY(!idx.isOpen()); // must refuse to open, never downgrade
     }
 
-    QCOMPARE(userVersionOf(path), 4); // version untouched
+    QCOMPARE(userVersionOf(path), 5); // version untouched
 }
 
 void tst_vault_index::publish_carries_admission_only_for_exact_identity_tuple()

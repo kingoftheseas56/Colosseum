@@ -219,12 +219,13 @@ struct SessionSpec {
 
 static bool copyTree(const QString& srcDir, const QString& dstDir)
 {
+    const QString sourceRoot = QFileInfo(srcDir).absoluteFilePath();
     QDir().mkpath(dstDir);
-    QDirIterator it(srcDir, QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot,
+    QDirIterator it(sourceRoot, QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot,
                     QDirIterator::Subdirectories);
     while (it.hasNext()) {
         it.next();
-        const QString rel = QDir(srcDir).relativeFilePath(it.filePath());
+        const QString rel = QDir(sourceRoot).relativeFilePath(it.filePath());
         const QString dst = dstDir + QLatin1Char('/') + rel;
         if (it.fileInfo().isDir()) {
             if (!QDir().mkpath(dst)) return false;
@@ -291,9 +292,14 @@ static void startSession(Session& s)
     // Optional fixture seed. The tagged AppData root is deterministic on Windows
     // (Roaming/<Org>/<AppName>); computed ONLY for seeding — isolation is still
     // proven from the app's own report after boot.
+    // Lanista has its own application-name leaf (typically .../Roaming/lanista),
+    // while the child sets organization + tagged application name and resolves
+    // .../Roaming/Brotherhood/Colosseum-dltest-<tag>. Seed from the shared parent
+    // so fixtures land in the same disposable root the child actually opens.
+    QDir appDataParent(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
+    appDataParent.cdUp();
     const QString expectedAppData =
-        QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-        + QStringLiteral("/Brotherhood/Colosseum-dltest-") + s.spec.tag;
+        appDataParent.filePath(QStringLiteral("Brotherhood/Colosseum-dltest-") + s.spec.tag);
     if (!s.spec.seedDir.isEmpty()) {
         if (!QDir(s.spec.seedDir).exists()) {
             s.error = QStringLiteral("seed dir not found: ") + s.spec.seedDir;

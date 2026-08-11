@@ -428,6 +428,28 @@ Window {
         topbar.visible = false
         page.visible = false
     }
+    // Vault identity door: reuse the already-owned world entry points. The Vault never edits a
+    // world page or invents a second reader route; it only hands over a certain identity.
+    function openVaultIdentity(identity) {
+        if (!identity || !identity.world || !identity.identityId) return
+        win.closeVaultPage()
+        var source = String(identity.source || "")
+        var sid = String(identity.identityId || "")
+        if (identity.world === "Tankoban") {
+            win.openWorld("Tankoban")
+            if (source === "COMICS")
+                win.openGcdSeries({ gcdId: Number(sid.replace(/^comics:/, "")), title: identity.title || "" })
+            else
+                win.openSeries(identity.title || "")
+        } else if (identity.world === "Theatre") {
+            win.openWorld("Theatre")
+            win.openTheatreSeries({ id: sid.replace(/^imdb:/, ""), type: "movie",
+                                    title: identity.title || "", cover: identity.coverUrl || "" })
+        } else if (identity.world === "Biblio") {
+            win.openWorld("Biblio")
+            win.openBook({ id: sid, title: identity.title || "", synopsis: identity.synopsis || "" })
+        }
+    }
     function closeWorld() {
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
@@ -2794,6 +2816,7 @@ Window {
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
+            item.viewWorldRequested.connect(win.openVaultIdentity)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })

@@ -29,12 +29,20 @@ Item {
     property string kind: "comic"          // comic | book | video
     property string coverUrl: ""           // series cover (image://comiccover/…) or "" → gradient
     property string rootPath: ""           // the series/show folder on disk
+    property string identityId: ""
+    property string identitySource: ""
+    property string identityWorld: ""
+    property string synopsis: ""
+    property string synopsisSource: ""
+    readonly property bool worldDoorReady: identityId.length > 0 && identityWorld.length > 0
+    readonly property bool hasSynopsis: synopsis.length > 0
     property Item backdrop: null
     // ── outputs ──
     signal backRequested()
     signal revealRequested(string path)
     signal openRequested(var row)
     signal continueRequested()
+    signal viewWorldRequested(var identity)
 
     property string sortMode: "natural"    // natural | alpha | newest | lastread
     property bool sortOpen: false
@@ -127,8 +135,8 @@ Item {
         return out
     }
 
-    // swallow clicks; dark ground + the same live wallpaper the other Vault surfaces use
-    MouseArea { anchors.fill: parent }
+    // dark ground + the same live wallpaper the other Vault surfaces use. The ground stays
+    // passive so the named doors below receive real window input events.
     Rectangle { anchors.fill: parent; color: "#000000" }
     Item {
         anchors.fill: parent
@@ -164,7 +172,7 @@ Item {
             spacing: 0
 
             Rectangle {   // art / gradient
-                width: 300; height: 450; radius: 16; clip: true
+                width: 300; height: 220; radius: 16; clip: true
                 border.width: 1; border.color: theme.edge
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: Qt.rgba(0.16, 0.14, 0.20, 1) }
@@ -230,13 +238,27 @@ Item {
                                  : (view.model && view.model.length ? view.openRequested(view.model[0]) : null)
                     }
                 }
-                Rectangle {   // View in <world> — disabled until identification (S17)
+                Rectangle {   // View in <world> — identity-gated (S17)
+                    objectName: "vaultFolderViewWorld"
                     width: pane.width; height: 44; radius: 12
-                    color: "transparent"; border.width: 1; border.color: theme.edge; opacity: 0.5
+                    enabled: true
+                    color: view.worldDoorReady && worldMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                    border.width: 1; border.color: theme.edge; opacity: view.worldDoorReady ? 1.0 : 0.45
                     Text {
                         anchors.centerIn: parent
-                        text: "View in " + (view.kind === "book" ? "Biblio" : view.kind === "video" ? "Theatre" : "Tankoban")
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                        text: "View in " + (view.identityWorld || (view.kind === "book" ? "Biblio" : view.kind === "video" ? "Theatre" : "Tankoban"))
+                        color: view.worldDoorReady ? theme.ink : theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    }
+                    MouseArea {
+                        id: worldMa; anchors.fill: parent; enabled: true; hoverEnabled: true
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: if (view.worldDoorReady) {
+                            view.viewWorldRequested({
+                                identityId: view.identityId, source: view.identitySource,
+                                world: view.identityWorld, title: view.title,
+                                synopsis: view.synopsis
+                            })
+                        }
                     }
                 }
                 Rectangle {   // Reveal in Explorer — live now
@@ -253,6 +275,21 @@ Item {
                         onClicked: view.revealRequested(view.rootPath)
                     }
                 }
+            }
+            Text {
+                objectName: "vaultFolderSynopsis"
+                visible: view.synopsis.length > 0
+                topPadding: 14; width: pane.width; wrapMode: Text.WordWrap
+                text: view.synopsis
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; lineHeight: 1.35
+                maximumLineCount: 4; elide: Text.ElideRight
+            }
+            Text {
+                objectName: "vaultFolderSynopsisSource"
+                visible: view.synopsis.length > 0 && view.synopsisSource.length > 0
+                topPadding: 5; width: pane.width
+                text: "Source: " + view.synopsisSource
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10
             }
         }
 

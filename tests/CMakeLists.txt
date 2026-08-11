@@ -383,6 +383,38 @@ set_tests_properties(colosseum.qttest.vault_imdb_match PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault identity adoption (Slice 17) ──────────────────────────────────────
+# Fixture-backed certainty gate: one candidate adopts, ambiguity and absent catalogues stay
+# filename-honest, identity removal preserves progress/file ids, and reshelving changes kind only.
+add_executable(tst_vault_identifier
+    auto/vault/tst_vault_identifier.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h")
+target_include_directories(tst_vault_identifier PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_identifier PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_identifier POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_identifier
+         COMMAND tst_vault_identifier)
+set_tests_properties(colosseum.qttest.vault_identifier PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault admission probe (execution plan Slice 6, 2026-08-08) ───────────────
 # MediaAdmissionProbe drives its OWN headless libmpv handle and admits only on a
 # DECODED FRAME (dwidth>0), never FILE_LOADED. This harness runs it against real

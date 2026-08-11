@@ -187,6 +187,8 @@ add_executable(colosseum
     engine/VaultScanner.h
     engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
     engine/VaultLibrary.h
+    engine/VaultIdentifier.cpp
+    engine/VaultIdentifier.h
     engine/VaultWatcher.cpp        # live-shelf arrivals: per-root QFileSystemWatcher + debounce + law-checked upsert (Slice 15)
     engine/VaultWatcher.h
     engine/VaultDownloadsRoot.cpp  # synthetic downloads root — derives FileRows from backbones (Slice 18)

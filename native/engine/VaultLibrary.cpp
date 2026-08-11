@@ -6,6 +6,7 @@
 #include "VaultWatcher.h"
 #include "VaultDownloadsRoot.h"
 #include "ComicCoverId.h"
+#include "VaultIdentifier.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -114,9 +115,26 @@ QVariantList VaultLibrary::series(const QString& kind) const
     out.reserve(groups.size());
     for (const QVariant& g : groups) {
         const QVariantMap m = g.toMap();
+        const QString groupKey = m.value(QStringLiteral("groupKey")).toString();
+        const QList<VaultIndex::FileRow> groupRows = m_index->rowsForGroup(groupKey);
+        bool allHidden = !groupRows.isEmpty();
+        if (m_config) {
+            for (const VaultIndex::FileRow& row : groupRows) {
+                if (!m_config->isHidden(row.id)) {
+                    allHidden = false;
+                    break;
+                }
+            }
+        } else {
+            allHidden = false;
+        }
+        if (allHidden)
+            continue;
         QVariantMap s;
-        s.insert(QStringLiteral("key"), m.value(QStringLiteral("groupKey")));
-        s.insert(QStringLiteral("title"), m.value(QStringLiteral("groupTitle")));
+        s.insert(QStringLiteral("key"), groupKey);
+        const QString identityTitle = m.value(QStringLiteral("identityTitle")).toString();
+        s.insert(QStringLiteral("title"), identityTitle.isEmpty()
+                 ? m.value(QStringLiteral("groupTitle")) : identityTitle);
         s.insert(QStringLiteral("kind"), m.value(QStringLiteral("kind")));
         s.insert(QStringLiteral("count"), m.value(QStringLiteral("count")));
         s.insert(QStringLiteral("awayCount"), m.value(QStringLiteral("awayCount")));
@@ -126,13 +144,24 @@ QVariantList VaultLibrary::series(const QString& kind) const
         // an enriched comic cover, else empty (the tile falls back to its gradient + icon).
         const QString coverPath = m.value(QStringLiteral("coverPath")).toString();
         const QString coverEntry = m.value(QStringLiteral("coverEntry")).toString();
+        const QString identityCover = m.value(QStringLiteral("identityCoverUrl")).toString();
         const QString provider = kind == QLatin1String("book")
             ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
-        s.insert(QStringLiteral("coverUrl"),
-                 (!coverPath.isEmpty() && !coverEntry.isEmpty())
+        s.insert(QStringLiteral("coverUrl"), !identityCover.isEmpty() ? identityCover
+                 : (!coverPath.isEmpty() && !coverEntry.isEmpty())
                      ? QStringLiteral("image://") + provider + QLatin1Char('/')
                            + Colosseum::buildComicCoverId(coverPath, coverEntry)
                      : QString());
+        s.insert(QStringLiteral("identityId"), m.value(QStringLiteral("identityId")));
+        s.insert(QStringLiteral("identSource"), m.value(QStringLiteral("identitySource")));
+        const QString identitySynopsis = m.value(QStringLiteral("identitySynopsis")).toString();
+        const QString identitySource = m.value(QStringLiteral("identitySource")).toString();
+        s.insert(QStringLiteral("synopsis"), identitySynopsis);
+        s.insert(QStringLiteral("synopsisSource"),
+                 identitySource == QLatin1String("IMDB") && !identitySynopsis.isEmpty()
+                     ? QStringLiteral("Cinemeta") : identitySource);
+        s.insert(QStringLiteral("identityWorld"), m.value(QStringLiteral("identityWorld")));
+        s.insert(QStringLiteral("identityYear"), m.value(QStringLiteral("identityYear")));
         out.append(s);
     }
     return out;
@@ -165,9 +194,159 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
                      ? QStringLiteral("image://") + provider + QLatin1Char('/')
                            + Colosseum::buildComicCoverId(path, coverRef)
                      : QString());
+        const QString identityCover = m.value(QStringLiteral("identityCoverUrl")).toString();
+        if (!identityCover.isEmpty())
+            m.insert(QStringLiteral("coverUrl"), identityCover);
+        const QString identityTitle = m.value(QStringLiteral("identityTitle")).toString();
+        m.insert(QStringLiteral("title"), identityTitle.isEmpty()
+                 ? m.value(QStringLiteral("displayTitle")) : identityTitle);
+        m.insert(QStringLiteral("identSource"), m.value(QStringLiteral("identitySource")));
+        const QString identitySynopsis = m.value(QStringLiteral("identitySynopsis")).toString();
+        const QString embeddedSynopsis = m.value(QStringLiteral("synopsis")).toString();
+        m.insert(QStringLiteral("synopsis"), identitySynopsis.isEmpty() ? embeddedSynopsis : identitySynopsis);
+        const QString identitySource = m.value(QStringLiteral("identitySource")).toString();
+        m.insert(QStringLiteral("synopsisSource"), identitySynopsis.isEmpty()
+                 ? m.value(QStringLiteral("metadataSource"))
+                 : (identitySource == QLatin1String("IMDB")
+                        ? QStringLiteral("Cinemeta") : identitySource));
+        m.insert(QStringLiteral("identityId"), m.value(QStringLiteral("identityId")));
+        m.insert(QStringLiteral("identityWorld"), m.value(QStringLiteral("identityWorld")));
         v = m;
     }
     return rows;
+}
+
+QVariantList VaultLibrary::hiddenSeries() const
+{
+    QVariantList out;
+    if (!m_index || !m_config)
+        return out;
+    for (const QString& kind : {QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("video")}) {
+        const QVariantList groups = m_index->groupsForKind(kind);
+        for (const QVariant& value : groups) {
+            const QVariantMap group = value.toMap();
+            const QString key = group.value(QStringLiteral("groupKey")).toString();
+            const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(key);
+            if (rows.isEmpty())
+                continue;
+            bool allHidden = true;
+            for (const VaultIndex::FileRow& row : rows) {
+                if (!m_config->isHidden(row.id)) {
+                    allHidden = false;
+                    break;
+                }
+            }
+            if (!allHidden)
+                continue;
+            QVariantMap s;
+            s.insert(QStringLiteral("key"), key);
+            const QString identityTitle = group.value(QStringLiteral("identityTitle")).toString();
+            s.insert(QStringLiteral("title"), identityTitle.isEmpty()
+                     ? group.value(QStringLiteral("groupTitle")) : identityTitle);
+            s.insert(QStringLiteral("kind"), kind);
+            s.insert(QStringLiteral("count"), group.value(QStringLiteral("count")));
+            s.insert(QStringLiteral("awayCount"), group.value(QStringLiteral("awayCount")));
+            s.insert(QStringLiteral("errorCount"), group.value(QStringLiteral("errorCount")));
+            s.insert(QStringLiteral("subtreePath"), group.value(QStringLiteral("subtreePath")));
+            s.insert(QStringLiteral("identityId"), group.value(QStringLiteral("identityId")));
+            s.insert(QStringLiteral("identSource"), group.value(QStringLiteral("identitySource")));
+            const QString identitySynopsis = group.value(QStringLiteral("identitySynopsis")).toString();
+            const QString identitySource = group.value(QStringLiteral("identitySource")).toString();
+            s.insert(QStringLiteral("synopsis"), identitySynopsis);
+            s.insert(QStringLiteral("synopsisSource"),
+                     identitySource == QLatin1String("IMDB") && !identitySynopsis.isEmpty()
+                         ? QStringLiteral("Cinemeta") : identitySource);
+            s.insert(QStringLiteral("identityWorld"), group.value(QStringLiteral("identityWorld")));
+            const QString coverPath = group.value(QStringLiteral("coverPath")).toString();
+            const QString coverEntry = group.value(QStringLiteral("coverEntry")).toString();
+            const QString provider = kind == QLatin1String("book")
+                ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
+            s.insert(QStringLiteral("coverUrl"),
+                     (!coverPath.isEmpty() && !coverEntry.isEmpty())
+                         ? QStringLiteral("image://") + provider + QLatin1Char('/')
+                               + Colosseum::buildComicCoverId(coverPath, coverEntry)
+                         : group.value(QStringLiteral("identityCoverUrl")));
+            s.insert(QStringLiteral("hidden"), true);
+            out.append(s);
+        }
+    }
+    return out;
+}
+
+bool VaultLibrary::identifyGroup(const QString& groupKey)
+{
+    if (!m_identifier)
+        return false;
+    const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey);
+    return match.adopted && m_identifier->applyGroup(groupKey, match);
+}
+
+bool VaultLibrary::unidentifyGroup(const QString& groupKey)
+{
+    return m_identifier && m_identifier->unidentifyGroup(groupKey);
+}
+
+bool VaultLibrary::reshelveGroup(const QString& groupKey, const QString& kind)
+{
+    if (!m_identifier || !m_index)
+        return false;
+    if (!m_identifier->reshelveGroup(groupKey, kind))
+        return false;
+    if (m_config)
+        m_config->setKind(groupKey, kind);
+    return true;
+}
+
+bool VaultLibrary::hideGroup(const QString& groupKey)
+{
+    if (!m_index || !m_config)
+        return false;
+    const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+    if (rows.isEmpty())
+        return false;
+    for (const VaultIndex::FileRow& row : rows)
+        m_config->setHidden(row.id, true);
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
+bool VaultLibrary::restoreGroup(const QString& groupKey)
+{
+    if (!m_index || !m_config)
+        return false;
+    const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+    if (rows.isEmpty())
+        return false;
+    for (const VaultIndex::FileRow& row : rows)
+        m_config->setHidden(row.id, false);
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
+bool VaultLibrary::enrichIdentity(const QString& groupKey, const QString& synopsis,
+                                  const QString& coverUrl)
+{
+    if (!m_index || groupKey.isEmpty())
+        return false;
+    QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+    if (rows.isEmpty())
+        return false;
+    bool changedFacts = false;
+    for (VaultIndex::FileRow& row : rows) {
+        if (row.identitySource != QLatin1String("IMDB") || row.identitySuppressed)
+            continue;
+        if (!synopsis.isEmpty() && row.identitySynopsis != synopsis) {
+            row.identitySynopsis = synopsis;
+            changedFacts = true;
+        }
+        if (!coverUrl.isEmpty() && row.identityCoverUrl != coverUrl) {
+            row.identityCoverUrl = coverUrl;
+            changedFacts = true;
+        }
+    }
+    return changedFacts && m_index->upsertMany(rows);
 }
 
 bool VaultLibrary::revealInExplorer(const QString& path) const

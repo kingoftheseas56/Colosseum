@@ -74,6 +74,7 @@
 #include "engine/VaultIdentity.h"
 #include "engine/VaultScanner.h"
 #include "engine/VaultLibrary.h"
+#include "engine/VaultIdentifier.h"
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "player/MediaAdmissionProbe.h"
@@ -1239,6 +1240,9 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
     auto* imdbCatalog = new ImdbCatalog(QStringLiteral("data/imdb_catalog.db"), &app);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+    auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
+                                                 imdbCatalog, &app);
+    vaultLibrary->setIdentifier(vaultIdentifier);
 
     // BiblioCatalog Discover/Explore keyless daily refresh service (spec
     // 2026-08-01, plan 2026-08-03 Task 4): a writable per-user SQLite cache
