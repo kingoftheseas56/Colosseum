@@ -15,6 +15,7 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import re
 import sqlite3
 import sys
 import urllib.request
@@ -30,6 +31,20 @@ DUMPS = ["title.ratings.tsv.gz", "title.basics.tsv.gz",
 
 VOTE_FLOOR = 1000          # inclusion dial — raise if the artifact runs fat
 KEEP_TYPES = {"movie": "movie", "tvSeries": "series", "tvMiniSeries": "mini"}
+
+_POSSESSIVE = re.compile(r"['’]s")
+_NON_ALNUM = re.compile(r"[^a-z0-9]+")
+_WHITESPACE = re.compile(r"\s+")
+_LEADING_ARTICLE = re.compile(r"^(the|a|an) ")
+
+
+def normalized_title(raw: str) -> str:
+    """Match VaultKit::normalizedTitle for catalogue-side title keys."""
+    s = (raw or "").lower()
+    s = _POSSESSIVE.sub("", s)
+    s = _NON_ALNUM.sub(" ", s)
+    s = _WHITESPACE.sub(" ", s).strip()
+    return _LEADING_ARTICLE.sub("", s, count=1)
 
 # Region -> dominant film language, for the last-resort origin fallback (§3.2).
 # Monoglot-or-near markets where the local-release region is a reliable origin
@@ -280,7 +295,7 @@ def bake() -> int:
     db = sqlite3.connect(tmp)
     db.executescript("""
         CREATE TABLE title (tt TEXT PRIMARY KEY, type TEXT, title TEXT,
-            year INTEGER, endYear INTEGER, runtimeMin INTEGER, genres TEXT,
+            norm_title TEXT NOT NULL, year INTEGER, endYear INTEGER, runtimeMin INTEGER, genres TEXT,
             rating REAL, votes INTEGER, episodes INTEGER,
             origLang TEXT, isAnime INTEGER);
         CREATE TABLE genre (tt TEXT, genre TEXT);
@@ -295,8 +310,9 @@ def bake() -> int:
         anime = 1 if is_anime(tt, anime_tt) else 0
         n_anime += anime
         n_lang += 1 if lang else 0
-        db.execute("INSERT INTO title VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                   (tt, t["type"], t["title"], t["year"], t["endYear"],
+        db.execute("INSERT INTO title VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                   (tt, t["type"], t["title"], normalized_title(t["title"]),
+                    t["year"], t["endYear"],
                     t["runtimeMin"], json.dumps(t["genres"]), t["rating"],
                     t["votes"], t["episodes"], lang, anime))
         db.executemany("INSERT INTO genre VALUES (?,?)",
@@ -306,6 +322,7 @@ def bake() -> int:
         CREATE INDEX title_type_rating ON title (type, rating DESC, votes DESC);
         CREATE INDEX title_type_year ON title (type, year);
         CREATE INDEX title_type_lang ON title (type, origLang);
+        CREATE INDEX title_norm_title ON title (norm_title);
         CREATE INDEX genre_lookup ON genre (genre, tt);
     """)
     db.execute("INSERT INTO meta VALUES ('baked_at', ?)",

@@ -24,6 +24,9 @@ public:
     // endYear,runtimeMin,rating,votes,episodes,origLang,isAnime,genres[]}.
     Q_INVOKABLE QVariantList titleCatalog(const QVariantMap& query,
                                           int offset = 0, int limit = 24) const;
+    // Offline normalized-title identity lookup. The baked IMDb schema has no
+    // plot corpus, so returned synopsis is intentionally empty.
+    Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0) const;
     // batch facts for live-row filtering: {tt: {rating, votes, isAnime}}
     Q_INVOKABLE QVariantMap titleFacts(const QStringList& ids) const;
 
