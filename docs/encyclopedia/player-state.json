@@ -93,7 +93,7 @@
       "accepted_comment": "// Stremio-style per-show startup loader. Reference = Stremio's Player (stremio-web): a FULL-BLEED\n// backdrop shown CLEARLY (not blurred; only subtle top/bottom gradients) with the show's CINEMETA\n// LOGO — the stylized title art — centered as the hero. Text is only a fallback when no logo loads.\n// Beneath: the episode line, a status line, and a thin INDETERMINATE bar. Colosseum exposes no\n// trustworthy torrent readiness figure, so the bar only sweeps — it NEVER shows a fabricated number.\n//\n// Owned/fed by PlayerPage: `active` gates everything; PlayerPage flips it off on the truthful\n// first-frame advance (or when the resume-choice prompt takes over). Art decode runs ONLY while\n// active. Harbor shows the same logo with no backdrop; we keep Stremio's backdrop."
     },
     "qml/PlayerPage.qml": {
-      "accepted_blob": "08cfed30337207622cdad833cb416306d84b2e81",
+      "accepted_blob": "ffa04e60c159c68dd77216c87768f0371a772c61",
       "accepted_comment": "// PlayerPage - Harbor/TB3-style fullscreen player chrome on top of Colosseum's mpvqt MpvItem.\n// Streaming remains behind the Stream.play -> streamReady seam; this file only owns player UI."
     },
     "qml/PlayerTrackPrefs.js": {
@@ -105,6 +105,6 @@
       "accepted_comment": "// TheatreApi.js - tiny live catalog adapter for the Colosseum QML prototype.\n// Cinemeta is the identity source for movies, series, and anime-shaped series rows.\n// Extensions (spec Phase 3): installed catalog extensions add THEIR shelves to the\n// tab pages after the house rows, and answer meta asks the house sources can't.\n// A .pragma library can't see context properties, so Main.qml pushes the installed\n// list in via setExtensions() at boot and on every registry change."
     }
   },
-  "integrity": "sha256:a78c5d6d7a7b70ebf1394758db8147915768956d8ab760fd3d732bd168d2f96e",
+  "integrity": "sha256:83089ea9a10c8914cd0da46d75b669bca02cc6d006f515d27588792b0d383457",
   "schema": 1
 }

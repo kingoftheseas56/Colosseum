@@ -301,8 +301,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/PlayerPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `08cfed30337207622cdad833cb416306d84b2e81`
-- Current blob: `08cfed30337207622cdad833cb416306d84b2e81`
+- Accepted blob: `ffa04e60c159c68dd77216c87768f0371a772c61`
+- Current blob: `ffa04e60c159c68dd77216c87768f0371a772c61`
 - Source: [`qml/PlayerPage.qml`](../../qml/PlayerPage.qml)
 
 ```text

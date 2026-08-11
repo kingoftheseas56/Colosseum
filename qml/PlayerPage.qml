@@ -47,7 +47,7 @@ Item {
         property string preferredAudioLanguages: "eng,jpn"
         property string preferredSubtitleLanguages: "eng"
         property string blockedTrackWords: "commentary"
-        property bool preferEmbeddedSubtitles: false
+        property bool preferEmbeddedSubtitles: true
         property bool subtitleAutoUpgrade: false
         property bool forcedSubsWhenNativeAudio: false
         property bool subtitlesOffByDefault: false
@@ -3041,25 +3041,48 @@ Item {
             root.syncPowerInhibit()
         }
         onFileLoaded: {
-            root.starting = false
+            // fileLoaded means mpv OPENED the file (its track list + duration are now available) —
+            // NOT that playback has started. fileReady is set here because the track/subtitle
+            // automation below needs the track list, but the loading state (starting / statusMsg /
+            // the startup watchdog) retires only when playback genuinely ADVANCES —
+            // finishStartingIfPlaybackAdvanced() via onPositionChanged — EXCEPT when a UI/intent
+            // state below owns this load (the Resume overlay or a wake-restore), where the pause is
+            // deliberate and there is nothing left to wait for. Treating "loaded" as "playing" is
+            // what stranded a buffered stream at 00:00 paused when a prior pause carried over.
             root.errored = false
-            root.statusMsg = ""
-            streamWatchdog.stop()
             root.seekPreview = mpv.position
             root.fileReady = true
+            var startupOwnedByUi = false
             if (root.wakeReconnectPendingSeek > 1) {
-                // Reconnected after a system-wake gap — restore the pre-sleep position.
+                // Reconnected after a system-wake gap — restore the pre-sleep position and honor
+                // whatever pause state carried (a playing stream resumes, a deliberate pause stays).
                 var pos = root.wakeReconnectPendingSeek
                 root.wakeReconnectPendingSeek = -1
                 mpv.seekExact(pos)
+                startupOwnedByUi = true
             } else if (root.pendingSeekSec > 0 && root.prepareResumeChoice()) {
-                // The overlay decides whether to seek or start over.
+                // The Resume overlay is up and owns a deliberate pause.
+                startupOwnedByUi = true
             } else if (root.pendingSeekSec > 0) {     // resume / session-restore precision
                 mpv.seekExact(root.pendingSeekSec)
                 root.pendingSeekSec = -1
             } else if (root.pendingSeekSec === 0) {
                 mpv.seekExact(0)
                 root.pendingSeekSec = -1
+            }
+            if (startupOwnedByUi) {
+                // A UI/intent state owns this load — startup is over even without playback
+                // advancement, so the startup watchdog must not fire on it.
+                root.starting = false
+                root.statusMsg = ""
+                streamWatchdog.stop()
+            } else if (mpv.pause) {
+                // Fresh play that inherited a STALE pause from a prior deliberate pause (a previous
+                // minimize / sleep-timer / manual pause / dismissed resume). mpv keeps its pause
+                // property across `loadfile replace`, so clear it here so the buffered stream
+                // autoplays. Startup still retires on genuine advancement, so a stream that opens
+                // but never plays is caught as a failed start by the watchdog, not silently "ready".
+                mpv.pause = false
             }
             // Feature 6: language-ranked automation runs first; maybeAutoSub is the pickDefault
             // fallback that only acts when automation found no language match (guarded by trackAutoDoneKey).
