@@ -1,6 +1,7 @@
 // MangaReadingRoom - the fixed split surface for a manga series.
 // The rail never scrolls. MangaTankobanLibrary is the only moving surface.
 import QtQuick
+import QtQuick.Controls
 import "MangaVolumes.js" as Vol
 
 Item {
@@ -10,6 +11,7 @@ Item {
     property Item backdrop
     property string seriesId: ""
     property string seriesTitle: ""
+    property string banner: ""
     property string cover: ""
     property string author: ""
     property string status: ""
@@ -45,6 +47,14 @@ Item {
     Theme { id: theme }
 
     Rectangle { anchors.fill: parent; color: "#000000" }
+    Image {
+        anchors.fill: parent
+        source: root.banner.length ? root.banner : root.cover
+        sourceSize: Qt.size(Math.ceil(width * 0.8), Math.ceil(height * 0.8))
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true; cache: true
+        opacity: status === Image.Ready ? 0.18 : 0.0
+    }
     ShaderEffectSource {
         anchors.fill: parent
         sourceItem: root.backdrop
@@ -152,7 +162,9 @@ Item {
                 id: synopsisBox
                 anchors.left: parent.left; anchors.right: parent.right
                 y: railTop.y + railTop.height + 13
-                height: Math.max(rail.synopsisFloor, moreButton.y - y - 4)
+                readonly property real availableHeight: Math.max(rail.synopsisFloor, moreButton.y - y - 4)
+                height: root.synopsisExpanded
+                    ? availableHeight : Math.min(availableHeight, rail.synopsisFloor)
                 clip: true
                 Text {
                     id: synopsisText

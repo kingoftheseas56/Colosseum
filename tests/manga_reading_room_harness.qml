@@ -6,7 +6,7 @@ Item {
     id: harness
     width: 1440
     height: 820
-    visible: false
+    visible: true
 
     component FakeService: QtObject {
         property var volMap: ({})
@@ -107,19 +107,26 @@ Item {
             })
 
             var lib = room.library
-            ck(room.contentHeight <= room.height,
-               "the Reading Room root must not grow beyond the viewport")
+            ck(room.contentHeight === room.height && lib.height < room.height,
+               "the Reading Room must stay fixed-height while the pane owns the shorter body")
             var rejectedBrokenHeight = false
-            try { ck(room.height + 1 <= room.height, "negative fixed-height control") }
+            try { ck(lib.height >= room.height, "negative fixed-height control") }
             catch (negativeHeight) { rejectedBrokenHeight = true }
             ck(rejectedBrokenHeight,
                "the fixed-height assertion must fail when the contract is inverted")
-            ck(lib.renderedCount < 115,
-               "the grid must virtualize the long series, rendered " + lib.renderedCount)
+            ck(lib.renderedCount > 0 && lib.renderedCount < lib.volumeRows.length,
+               "the GridView must virtualize the long series, rendered " + lib.renderedCount)
+            var rejectedFullRender = false
+            try { ck(lib.renderedCount === lib.volumeRows.length, "negative virtualization control") }
+            catch (negativeRender) { rejectedFullRender = true }
+            ck(rejectedFullRender,
+               "the virtualization assertion must fail when every tile is rendered")
             ck(downloads.asked.length < 115,
                "cover fetches must stay inside the viewport, asked " + downloads.asked.length)
-            ck(lib.autoLandNumber === 74,
-               "the grid must auto-land on the continue volume")
+            ck(lib.autoLandNumber === 74 && lib.autoLandIndex === 73,
+               "the grid must auto-land on the continue volume index")
+            ck(lib.activeTab === "volumes",
+               "a qualified series must initially land on Volumes")
 
             ck(lib.stateWordFor(lib.volumeRows[1]) === "On this device",
                "ready volume state must be drawn as On this device")
@@ -139,6 +146,11 @@ Item {
                "downloading state must use the canon word")
             ck(lib.stateWordFor(lib.volumeRows[6]) === "Couldn't finish",
                "failed state must use the canon word")
+            var rejectedWrongState = false
+            try { ck(lib.effectiveState(lib.volumeRows[1]) === "failed", "negative state control") }
+            catch (negativeState) { rejectedWrongState = true }
+            ck(rejectedWrongState,
+               "the tile-state assertion must fail when a ready row is mislabeled")
 
             lib.activeTab = "chapters"
             ck(lib.activeTab === "chapters", "the pane must switch to Chapters")
@@ -146,6 +158,10 @@ Item {
                "qualified series chapters tab must carry the loose tail only")
 
             lib.selecting = true
+            lib.selectNumber("Extra")
+            ck(lib.selectedNumbers.indexOf("Extra") >= 0,
+               "Select mode must preserve named canonical volume tokens")
+            lib.selectNumber("Extra")
             lib.selectNumber(20)
             lib.selectNumber(35)
             lib.downloadSelected()
@@ -153,6 +169,8 @@ Item {
             ck(lastBatch.numbers.length === 2 && lastBatch.numbers[0] === 20
                && lastBatch.numbers[1] === 35,
                "selected batch must contain exactly the selected volume numbers")
+            ck(lastBatch.label === "Download selected",
+               "selected batch must carry the exact action label")
 
             var chapterOnlyComp = Qt.createComponent("../qml/MangaReadingRoom.qml")
             chapterOnlyRoom = chapterOnlyComp.createObject(harness, {
@@ -175,7 +193,7 @@ Item {
         }
     }
 
-    Component.onCompleted: Qt.callLater(runChecks)
+    Timer { interval: 100; running: true; repeat: false; onTriggered: harness.runChecks() }
     Timer { interval: 8000; running: true
         onTriggered: { console.log("MANGA_READING_ROOM_FAIL timeout"); Qt.exit(1) } }
 }

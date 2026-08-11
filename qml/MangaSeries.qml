@@ -206,7 +206,7 @@ Item {
     function _requestBatch(numbers, label) {
         var want = {}
         for (var i = 0; i < numbers.length; i++) want[Number(numbers[i])] = true
-        var ids = [], nums = [], rows = tankLib.volumeRows || []
+        var ids = [], nums = [], rows = readingRoom.library.volumeRows || []
         for (var r = 0; r < rows.length; r++)
             if (want[Number(rows[r].number)] && String(rows[r].state) !== "ready") {
                 ids.push(String(rows[r].id))
@@ -239,7 +239,7 @@ Item {
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
-        tankLib.chooseSource(String(entryId))
+        readingRoom.library.chooseSource(String(entryId))
     }
     // Continue/session resume of a saved tankoban record: open the saved volume through
     // the shared reader. Mode is DERIVED now — a resumable tankoban record implies a
@@ -273,8 +273,8 @@ Item {
         var out = []
         if (page.author.length) out.push({ "k": "Author", "v": page.author })
         if (page.status.length) out.push({ "k": "Status", "v": page.status })
-        if (page.tankobanMode && tankLib.volumeRows.length) {
-            var rows = tankLib.volumeRows, owned = tankLib.ownedCount
+        if (page.tankobanMode && readingRoom.library.volumeRows.length) {
+            var rows = readingRoom.library.volumeRows, owned = readingRoom.library.ownedCount
             out.push({ "k": "Volumes", "v": String(rows.length) })
             out.push({ "k": "On this device", "v": owned
                        ? (owned + (owned === 1 ? " volume" : " volumes")) : "None yet" })
@@ -290,20 +290,20 @@ Item {
     // Nothing here invents a target — if there is no volume at all the button
     // falls back to the chapter list, which is what an unqualified series shows.
     readonly property string readCtaLabel: {
-        if (!tankLib.continueVolumeId.length) return "Read"
-        var rows = tankLib.volumeRows || []
+        if (!readingRoom.library.continueVolumeId.length) return "Read"
+        var rows = readingRoom.library.volumeRows || []
         for (var i = 0; i < rows.length; i++)
-            if (String(rows[i].id) === tankLib.continueVolumeId)
+            if (String(rows[i].id) === readingRoom.library.continueVolumeId)
                 return "Continue Vol. " + rows[i].number
         return "Read"
     }
     function readPrimary() {
         // resume beats everything — it is the only target the user already chose
-        if (tankLib.continueVolumeId.length) { page._openVolume(tankLib.continueVolumeId); return }
-        var rows = tankLib.volumeRows || []
+        if (readingRoom.library.continueVolumeId.length) { page._openVolume(readingRoom.library.continueVolumeId); return }
+        var rows = readingRoom.library.volumeRows || []
         for (var i = 0; i < rows.length; i++)                    // first book on disk
             if (String(rows[i].state) === "ready") { page._openVolume(String(rows[i].id)); return }
-        if (rows.length) { tankLib.chooseSource(String(rows[0].id)); return }   // fetch volume 1
+        if (rows.length) { readingRoom.library.chooseSource(String(rows[0].id)); return }   // fetch volume 1
         var chs = page.visibleChapters                          // unqualified series: first chapter
         if (chs && chs.length) {
             page.openEntryKind = "manga"
@@ -504,10 +504,12 @@ Item {
     }
 
     // ---- the page: one vertical scroll; banner → synopsis → volume shelf → glass chapter table ----
-    Flickable {
-        id: flick
-        visible: false
-        enabled: false
+    Component {
+        id: legacyCorridor
+        Flickable {
+            id: flick
+            visible: false
+            enabled: false
         anchors.fill: parent
         contentWidth: width
         contentHeight: pageCol.height
@@ -957,12 +959,12 @@ Item {
         }
     }
 
-    ScrollGlide { flick: flick }
+        }
+    }
 
-    // The approved Reading Room replaces the old corridor surface. The legacy
-    // Flickable remains inert above only to keep its already-shipped chapter and
-    // reader wiring available while this migration lands; it is not visible or
-    // interactive, and its controller has cover fetching disabled by visibility.
+    // The approved Reading Room replaces the old corridor surface. The old corridor
+    // is retained only as an uninstantiated Component for source-level migration
+    // reference; all live controller paths point at this room's library instance.
     MangaReadingRoom {
         id: readingRoom
         anchors.fill: parent
@@ -973,6 +975,7 @@ Item {
         backdrop: page.backdrop
         seriesId: page.seriesId
         seriesTitle: page.seriesTitle
+        banner: page.banner
         cover: page.cover
         author: page.author
         status: page.status

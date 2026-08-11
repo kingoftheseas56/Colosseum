@@ -54,16 +54,25 @@ Item {
 
     // Reading Room state.
     property string activeTab: root.showVolumes ? "volumes" : "chapters"
+    property bool _tabUserSelected: false
     property bool selecting: false
     property var selectedNumbers: []
     property var detailVolume: null
-    readonly property int renderedCount: root.visibleRows.length
+    readonly property int renderedCount: {
+        var count = 0
+        var children = volumeGrid.contentItem ? volumeGrid.contentItem.children : []
+        for (var i = 0; i < children.length; i++)
+            if (children[i].objectName === "volumeTile") count++
+        return count
+    }
     implicitWidth: 640
     implicitHeight: 480
     readonly property int minimumTileWidth: 126
     readonly property int tileHeight: 210
     readonly property int gridGap: 16
     readonly property int autoLandNumber: root.currentNumber
+    property int _landedIndex: -1
+    readonly property int autoLandIndex: root._landedIndex
 
     signal batchRequested(var numbers, string label)
     signal openVolumeRequested(string volumeId)
@@ -352,15 +361,29 @@ Item {
             root.batchRequested(root.nextBatch.numbers, "Get next 10 missing")
     }
 
+    function selectionToken(number) {
+        var numeric = Number(number)
+        return isFinite(numeric) ? numeric : String(number || "")
+    }
+
     function selectNumber(number) {
-        var n = Number(number)
-        if (!isFinite(n)) return
+        var n = root.selectionToken(number)
+        if (typeof n === "string" && !n.length) return
         var out = root.selectedNumbers.slice()
         var at = out.indexOf(n)
         if (at >= 0) out.splice(at, 1)
         else out.push(n)
-        out.sort(function(a, b) { return a - b })
+        out.sort(function(a, b) {
+            var na = Number(a), nb = Number(b)
+            if (isFinite(na) && isFinite(nb)) return na - nb
+            return String(a).localeCompare(String(b))
+        })
         root.selectedNumbers = out
+    }
+
+    function selectTab(tab) {
+        root._tabUserSelected = true
+        root.activeTab = tab
     }
 
     function clearSelection() {
@@ -422,7 +445,7 @@ Item {
         root.refresh()
         root.refreshResume()
         Qt.callLater(root.requestCovers)
-        Qt.callLater(root._autoLand)
+        root._autoLand()
     }
 
     onSeriesIdChanged: {
@@ -430,18 +453,22 @@ Item {
         root._thumbWanted = ({})
         root._resume = null
         root.selectedNumbers = []
+        root._tabUserSelected = false
+        root._landedIndex = -1
         root.refresh()
         root.refreshResume()
         Qt.callLater(root.requestCovers)
+        root._autoLand()
     }
     onVolumeRowsChanged: {
         if (!root.showVolumes) root.activeTab = "chapters"
-        else if (root.activeTab !== "chapters") root.activeTab = "volumes"
+        else if (!root._tabUserSelected && root.activeTab === "chapters") root.activeTab = "volumes"
         Qt.callLater(root.requestCovers)
-        Qt.callLater(root._autoLand)
+        root._autoLand()
     }
     onChaptersChanged: root.requestCovers()
     onActiveTabChanged: Qt.callLater(root.requestCovers)
+    onContinueVolumeIdChanged: root._autoLand()
 
     function _autoLand() {
         if (!root.showVolumes || !root.continueVolumeId.length) return
@@ -449,6 +476,7 @@ Item {
         for (var i = 0; i < rows.length; i++) {
             if (String(rows[i].id) === root.continueVolumeId) {
                 volumeGrid.positionViewAtIndex(i, GridView.Center)
+                root._landedIndex = i
                 root.requestCovers()
                 return
             }
@@ -510,7 +538,7 @@ Item {
                 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: root.activeTab = "volumes"
+                    onClicked: root.selectTab("volumes")
                 }
             }
 
@@ -533,7 +561,7 @@ Item {
                 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: root.activeTab = "chapters"
+                    onClicked: root.selectTab("chapters")
                 }
             }
         }
@@ -601,6 +629,7 @@ Item {
 
             delegate: Item {
                 id: tile
+                objectName: "volumeTile"
                 required property var modelData
                 width: volumeGrid.cellWidth - root.gridGap
                 height: root.tileHeight + 34
@@ -608,7 +637,7 @@ Item {
                 property string tileState: root.effectiveState(modelData)
                 property real fraction: root.progressFraction(modelData)
                 property bool continuation: root.isContinue(modelData)
-                property bool selected: root.selectedNumbers.indexOf(Number(modelData.number)) >= 0
+                property bool selected: root.selectedNumbers.indexOf(root.selectionToken(modelData.number)) >= 0
 
                 Rectangle {
                     id: coverFrame
@@ -691,7 +720,7 @@ Item {
                     onClicked: function(mouse) {
                         if (mouse.button === Qt.RightButton) {
                             root.detailVolume = tile.modelData
-                            detailPopup.open()
+                            detailMenu.open()
                             return
                         }
                         if (root.selecting) root.selectNumber(tile.modelData.number)
@@ -709,7 +738,7 @@ Item {
             visible: root.activeTab === "chapters"
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            cacheBuffer: height * 2
+            cacheBuffer: Math.max(0, height * 2)
             model: root.chapterRows
             delegate: Item {
                 id: chapterRow
@@ -747,12 +776,8 @@ Item {
                         if (chapterRow.chapterState === "done") {
                             root.openChapterRequested(chapterRow.chapterId, chapterRow.chapterLabel)
                         } else if (chapterRow.chapterState !== "downloading") {
-                            var d = root.downloaderObject
-                            if (d && d.downloadChapter)
-                                d.downloadChapter(chapterRow.chapterId, root.seriesId,
-                                                  root.seriesTitle, chapterRow.chapterLabel)
                             root.chapterDownloadRequested(chapterRow.chapterId, chapterRow.chapterLabel)
-                            chapterRow.refreshState()
+                            chapterRow.chapterState = "downloading"
                         }
                     }
                 }
@@ -825,25 +850,29 @@ Item {
         return String(first) + "–" + String(last)
     }
 
-    Popup {
-        id: detailPopup
-        parent: root
+    Menu {
+        id: detailMenu
         x: Math.max(12, root.width - width - 24)
         y: 78
-        width: Math.min(360, root.width - 24)
-        padding: 18
-        modal: false
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Rectangle { radius: 12; color: Qt.rgba(0.04, 0.04, 0.05, 0.96)
-            border.width: 1; border.color: theme.edge }
-        contentItem: Column {
-            spacing: 8
-            Text { text: root.detailVolume ? ("Vol " + Vol.volumeToken(root.detailVolume)) : ""
-                color: theme.ink; font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold }
-            Text { width: parent.width; text: root.detailVolume && root.detailVolume.synopsis
-                    ? String(root.detailVolume.synopsis) : root.stateWordFor(root.detailVolume || ({}))
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap }
-            Text { text: "Right-click menu"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
+        MenuItem {
+            text: root.detailVolume ? "Vol " + Vol.volumeToken(root.detailVolume) : "Volume"
+            enabled: false
+        }
+        MenuSeparator { }
+        MenuItem {
+            text: root.detailVolume && root.effectiveState(root.detailVolume) === "ready"
+                ? "Open volume" : "Find source"
+            onTriggered: if (root.detailVolume) root.primaryAction(root.detailVolume)
+        }
+        MenuItem {
+            text: "Choose source"
+            enabled: root.detailVolume !== null && !root._inFlight(root.effectiveState(root.detailVolume))
+            onTriggered: if (root.detailVolume) root.chooseSource(String(root.detailVolume.id))
+        }
+        MenuItem {
+            text: "Cancel remaining"
+            visible: root.detailVolume !== null && root._inFlight(root.effectiveState(root.detailVolume))
+            onTriggered: root.cancelRemaining()
         }
     }
 

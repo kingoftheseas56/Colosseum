@@ -29,7 +29,7 @@ import QtQuick
 Item {
     id: harness
     width: 640; height: 480
-    visible: false
+    visible: true
 
     // ── the fake native service ────────────────────────────────────────────
     // Mirrors MangaTankobanService's QML API over plain in-memory maps. modeMap
