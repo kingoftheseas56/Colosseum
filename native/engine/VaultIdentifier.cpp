@@ -66,6 +66,14 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
     if (rows.isEmpty())
         return match;
     const VaultIndex::FileRow& row = rows.constFirst();
+    const QString groupTitle = row.groupTitle.trimmed();
+    for (const VaultIndex::FileRow& candidate : rows) {
+        // Coherence is a group-level contract. A real series keeps one shared
+        // group title while its files may carry different display titles.
+        if (candidate.groupKey != groupKey || candidate.kind != row.kind
+            || candidate.groupTitle.trimmed() != groupTitle)
+            return match;
+    }
     // identitySuppressed records the user's last Un-identify choice so a future
     // rescan stays filename-honest. It must not block this explicit Identify
     // gesture: a deliberate re-identification is allowed to clear that marker.

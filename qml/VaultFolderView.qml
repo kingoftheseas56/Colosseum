@@ -2,7 +2,7 @@
 // agents/colosseum-vault-folder-view-mock.html. Click a shelf tile → this surface: a sticky
 // preview pane (cover/gradient, kind eyebrow, title, disk facts, doors) on the left, and on the
 // right the folder's REAL files exactly as they sit on disk — cleaned titles with the real
-// filename faint beneath, real subfolders as group headers, natural order, a gold progress
+// filename faint beneath, real subfolders as descendable folder rows, natural order, and honest progress
 // hairline. Identification decorates the pane (later slices); it never restructures the list.
 //
 // A SEEDABLE component (like VaultConfirmCard / OpenRecentPanel): it owns no backend. It takes a
@@ -12,9 +12,9 @@
 // it with a seeded model, no app.
 //
 // Row shape (VaultIndex::filesInSubtree): { id, path, displayTitle, realName, subfolder, kind,
-// size, mtimeMs, pages, durationSec, author, format, progressed, coverRef }. progress % and
+// size, mtimeMs, pages, durationSec, author, format, progressed, coverRef }. Progress percentage and
 // last-read time come from Progress (Slice 14), not the index — so the hairline and the last-read
-// sort stay coarse (progressed tick only) until reads are wired.
+// completion come from the live QML join, not the immutable index.
 import QtQuick
 import QtQuick.Controls
 
@@ -46,6 +46,7 @@ Item {
 
     property string sortMode: "natural"    // natural | alpha | newest | lastread
     property bool sortOpen: false
+    property string currentFolder: ""       // one-level local projection over the immutable model
 
     // Preserve the internal scroll across a live model re-join: VaultPage re-joins Progress under an
     // occluded folder view (read a file → Back), and a naive model swap can collapse contentHeight
@@ -65,9 +66,15 @@ Item {
     readonly property int groupCount: {
         var seen = ({}), n = 0
         for (var i = 0; i < fileCount; i++) {
-            var sf = model[i].subfolder || ""
+            var sf = normalizeFolder(model[i].subfolder)
             if (sf.length && !seen[sf]) { seen[sf] = true; n++ }
         }
+        return n
+    }
+    readonly property int visibleFileCount: {
+        var base = normalizeFolder(view.currentFolder), n = 0
+        for (var i = 0; i < fileCount; i++)
+            if (normalizeFolder(model[i].subfolder) === base) n++
         return n
     }
     readonly property int readCount: {
@@ -93,24 +100,60 @@ Item {
              : k === "video" ? "../assets/icons/projector-theatre.svg"
              : "../assets/icons/comic-book.svg"
     }
+    function normalizeFolder(value) {
+        var text = String(value || "").replace(/\\/g, "/")
+        while (text.indexOf("//") >= 0) text = text.replace("//", "/")
+        while (text.length && text[0] === "/") text = text.slice(1)
+        while (text.length && text[text.length - 1] === "/") text = text.slice(0, -1)
+        return text
+    }
+    function parentFolder(value) {
+        var text = normalizeFolder(value), slash = text.lastIndexOf("/")
+        return slash >= 0 ? text.slice(0, slash) : ""
+    }
+    function childFolderFor(subfolder, base) {
+        var sf = normalizeFolder(subfolder), root = normalizeFolder(base)
+        if (!sf || sf === root) return ""
+        var prefix = root ? root + "/" : ""
+        if (prefix && sf.indexOf(prefix) !== 0) return ""
+        var rest = prefix ? sf.slice(prefix.length) : sf
+        var slash = rest.indexOf("/")
+        return slash >= 0 ? rest.slice(0, slash) : rest
+    }
+    function folderLabel(path) {
+        var text = normalizeFolder(path), slash = text.lastIndexOf("/")
+        return slash >= 0 ? text.slice(slash + 1) : text
+    }
+    function descendantCount(path) {
+        var folder = normalizeFolder(path), count = 0, prefix = folder + "/"
+        for (var i = 0; i < fileCount; i++) {
+            var sf = normalizeFolder(model[i].subfolder)
+            if (sf === folder || sf.indexOf(prefix) === 0) count++
+        }
+        return count
+    }
     function metaFor(row) {
-        if (row.kind === "comic") return (row.pages > 0 ? row.pages + " pages" : "")
-        if (row.kind === "video") return (row.durationSec > 0
-            ? Math.floor(row.durationSec / 3600) + "h " + Math.floor((row.durationSec % 3600) / 60) + "m"
-            : (row.format || "").toUpperCase())
-        return (row.format || "").toUpperCase()   // book
+        if (row.kind === "comic") return row.pages > 0 ? row.pages + " pages" : "–"
+        if (row.kind === "video" && row.durationSec > 0)
+            return Math.floor(row.durationSec / 3600) + "h " + Math.floor((row.durationSec % 3600) / 60) + "m"
+        return row.format ? String(row.format).toUpperCase() : "–"
     }
     function dateFor(row) {
-        return row.mtimeMs > 0 ? Qt.formatDate(new Date(row.mtimeMs), "MMM yyyy") : ""
+        return row.mtimeMs > 0 ? Qt.formatDate(new Date(row.mtimeMs), "MM/dd/yyyy") : "–"
+    }
+    function progressLabelFor(row) {
+        if (!row.hasProgress) return "–"
+        if (row.progressFinished) return "✓"
+        var fraction = Number(row.progressFraction)
+        if (isNaN(fraction)) fraction = 0
+        fraction = Math.max(0, Math.min(1, fraction))
+        return Math.round(fraction * 100) + "%"
     }
     function sortLabel(m) {
         return m === "alpha" ? "Alphabetical" : m === "newest" ? "Newest"
              : m === "lastread" ? "Last read" : "Natural order"
     }
 
-    // Build the display list: natural mode groups by real subfolder (loose first, no header, then
-    // SUBFOLDER\ headers); other sorts flatten to a single reordered list. fileIndex numbers only
-    // FILE rows (the vaultFileRow_<n> contract), not the group headers.
     function displayItems() {
         var rows = model ? model.slice() : []
         if (view.sortMode === "alpha")
@@ -120,17 +163,20 @@ Item {
         else if (view.sortMode === "lastread")   // real last-read time (Slice 14 join); unread sink to the bottom
             rows.sort(function (a, b) { return (Number(b.lastReadMs) || 0) - (Number(a.lastReadMs) || 0) })
 
-        var out = [], fi = 0
-        if (view.sortMode === "natural") {
-            var cur = null
-            for (var i = 0; i < rows.length; i++) {
-                var sf = rows[i].subfolder || ""
-                if (sf !== cur) { cur = sf; if (sf.length) out.push({ header: true, label: sf }) }
-                out.push({ header: false, row: rows[i], fileIndex: fi++ })
+        var out = [], fi = 0, base = normalizeFolder(view.currentFolder), seen = ({})
+        if (base.length) out.push({ up: true, path: parentFolder(base) })
+        for (var i = 0; i < rows.length; i++) {
+            var sf = normalizeFolder(rows[i].subfolder)
+            if (sf === base) {
+                out.push({ folder: false, row: rows[i], fileIndex: fi++ })
+                continue
             }
-        } else {
-            for (var j = 0; j < rows.length; j++)
-                out.push({ header: false, row: rows[j], fileIndex: fi++ })
+            var child = childFolderFor(sf, base)
+            if (!child) continue
+            var path = base ? base + "/" + child : child
+            if (seen[path]) continue
+            seen[path] = true
+            out.push({ folder: true, path: path, label: folderLabel(path), descendantCount: descendantCount(path) })
         }
         return out
     }
@@ -164,12 +210,21 @@ Item {
         anchors.bottomMargin: 24
 
         // LEFT — the preview pane (fixed; does not scroll with the list)
-        Column {
-            id: pane
+        Item {
+            id: paneViewport
+            objectName: "vaultFolderPaneViewport"
             width: 320
             anchors.top: parent.top
             anchors.left: parent.left
-            spacing: 0
+            anchors.bottom: parent.bottom
+            clip: true
+
+            Column {
+                id: pane
+                width: parent.width
+                anchors.top: parent.top
+                anchors.left: parent.left
+                spacing: 0
 
             Rectangle {   // art / gradient
                 width: 300; height: 220; radius: 16; clip: true
@@ -278,25 +333,26 @@ Item {
             }
             Text {
                 objectName: "vaultFolderSynopsis"
-                visible: view.synopsis.length > 0
+                visible: view.hasSynopsis
                 topPadding: 14; width: pane.width; wrapMode: Text.WordWrap
                 text: view.synopsis
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; lineHeight: 1.35
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.35
                 maximumLineCount: 4; elide: Text.ElideRight
             }
             Text {
                 objectName: "vaultFolderSynopsisSource"
-                visible: view.synopsis.length > 0 && view.synopsisSource.length > 0
+                visible: view.hasSynopsis && view.synopsisSource.length > 0
                 topPadding: 5; width: pane.width
                 text: "Source: " + view.synopsisSource
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10
+            }
             }
         }
 
         // RIGHT — the file list (the folder's truth), scrollable
         Item {
             anchors.top: parent.top
-            anchors.left: pane.right; anchors.leftMargin: 36
+            anchors.left: paneViewport.right; anchors.leftMargin: 36
             anchors.right: parent.right
             anchors.bottom: parent.bottom
 
@@ -355,9 +411,21 @@ Item {
                 }
             }
 
+            Item {
+                id: tableHeader
+                anchors.top: listHead.bottom; anchors.left: parent.left; anchors.right: parent.right
+                height: 24
+                Text { x: 2; anchors.verticalCenter: parent.verticalCenter; text: "#"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10 }
+                Text { x: 64; anchors.verticalCenter: parent.verticalCenter; text: "TITLE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3 }
+                Text { anchors.right: parent.right; anchors.rightMargin: 350; anchors.verticalCenter: parent.verticalCenter; text: "SIZE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3 }
+                Text { anchors.right: parent.right; anchors.rightMargin: 230; anchors.verticalCenter: parent.verticalCenter; text: view.kind === "comic" ? "PAGES" : "DURATION"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3 }
+                Text { anchors.right: parent.right; anchors.rightMargin: 120; anchors.verticalCenter: parent.verticalCenter; text: "PROGRESS"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3 }
+                Text { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; text: "MODIFIED"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3 }
+            }
+
             Flickable {
                 id: listFlick
-                anchors.top: listHead.bottom; anchors.topMargin: 14
+                anchors.top: tableHeader.bottom; anchors.topMargin: 4
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 contentWidth: width; contentHeight: rowsCol.implicitHeight + 20
                 clip: true; boundsBehavior: Flickable.StopAtBounds
@@ -372,7 +440,7 @@ Item {
                         delegate: Loader {
                             required property var modelData
                             width: rowsCol.width
-                            sourceComponent: modelData.header ? groupHeader : fileRow
+                            sourceComponent: modelData.up ? upRow : modelData.folder ? folderRow : fileRow
                             property var itemData: modelData
                         }
                     }
@@ -383,19 +451,47 @@ Item {
 
     // group header ("SEASON 01\")
     Component {
-        id: groupHeader
-        Item {
-            height: 34
+        id: upRow
+        Rectangle {
+            height: 42; radius: 10
+            property string targetFolder: parent.itemData.path || ""
+            objectName: "vaultFolderUp"
+            color: upMa.containsMouse ? Qt.rgba(0.11, 0.13, 0.17, 0.98) : "transparent"
+            border.width: 1; border.color: theme.edge
+            Text {
+                anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter
+                text: ".."; color: theme.gold; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+            }
+            MouseArea {
+                id: upMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onDoubleClicked: view.currentFolder = parent.targetFolder
+            }
+        }
+    }
+
+    Component {
+        id: folderRow
+        Rectangle {
+            height: 48; radius: 10
+            property string folderPath: parent.itemData.path || ""
+            property int descendantCount: parent.itemData.descendantCount || 0
+            objectName: "vaultFolderRow_" + folderPath.replace(/\//g, "_")
+            color: folderMa.containsMouse ? Qt.rgba(0.11, 0.13, 0.17, 0.98) : Qt.rgba(0.094, 0.110, 0.145, 0.94)
+            border.width: 1; border.color: theme.edge
             property string label: parent.itemData.label
             Text {
-                id: gh
-                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                text: (parent.label + "\\").toUpperCase()
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
+                anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter
+                text: "▸  " + parent.label + " (" + parent.descendantCount + " "
+                      + (view.kind === "video" ? "episodes" : "files") + ")"
+                color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
             }
-            Rectangle {
-                anchors.left: gh.right; anchors.leftMargin: 12; anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter; height: 1; color: theme.edge
+            Text {
+                anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter
+                text: "Double-click to open"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10
+            }
+            MouseArea {
+                id: folderMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onDoubleClicked: view.currentFolder = parent.folderPath
             }
         }
     }
@@ -412,19 +508,27 @@ Item {
             property string displayTitle: row.displayTitle || ""
             property string realName: row.realName || ""
             property bool progressed: !!row.progressed
+            property bool hasProgress: !!row.hasProgress
+            property string progressLabel: view.progressLabelFor(row)
             property bool away: !!row.away
             property string errorState: row.errorState || ""
             property string errorDetail: row.errorDetail || row.admissionDetail || ""
 
             height: 76; radius: 12
             color: rowMa.containsMouse ? Qt.rgba(0.11, 0.13, 0.17, 0.98) : Qt.rgba(0.094, 0.110, 0.145, 0.94)
-            border.width: 1; border.color: rowRect.progressed ? Qt.rgba(0.78, 0.62, 0.29, 0.5) : theme.edge
+            border.width: 1; border.color: rowRect.hasProgress ? Qt.rgba(0.78, 0.62, 0.29, 0.5) : theme.edge
             opacity: rowRect.away ? 0.52 : 1.0
             clip: true
 
             Row {
                 anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 18
-                spacing: 16
+                spacing: 12
+
+                Text {
+                    width: 22; anchors.verticalCenter: parent.verticalCenter
+                    text: rowRect.fileIndex + 1; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                    horizontalAlignment: Text.AlignRight
+                }
 
                 Rectangle {   // thumbnail
                     anchors.verticalCenter: parent.verticalCenter
@@ -463,6 +567,8 @@ Item {
 
                 Column {   // meta: pages/duration/format + size + date
                     id: metaBlock
+                    visible: false
+                    width: 410
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     Text {
@@ -484,10 +590,46 @@ Item {
 
                 Text {   // read tick — truthful only; real progress %/last-read join lands in Slice 14
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: false
                     width: 34; horizontalAlignment: Text.AlignHCenter
                     text: rowRect.progressed ? "✓" : ""
                     color: theme.gold
                     font.family: theme.ui; font.pixelSize: 15
+                }
+
+                Text {
+                    visible: false
+                    width: 82; anchors.verticalCenter: parent.verticalCenter
+                    text: rowRect.progressLabel
+                    color: rowRect.progressLabel === "✓" ? theme.gold : theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 12; horizontalAlignment: Text.AlignCenter
+                }
+            }
+
+            Row {
+                z: 2
+                anchors.right: parent.right; anchors.rightMargin: 18
+                anchors.verticalCenter: parent.verticalCenter
+                width: 410; spacing: 12
+                Text {
+                    width: 82; text: view.humanSize(rowRect.row.size || 0)
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                    horizontalAlignment: Text.AlignRight
+                }
+                Text {
+                    width: 100; text: view.metaFor(rowRect.row)
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                    horizontalAlignment: Text.AlignRight
+                }
+                Text {
+                    width: 82; text: rowRect.progressLabel
+                    color: rowRect.progressLabel === "✓" ? theme.gold : theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 12; horizontalAlignment: Text.AlignCenter
+                }
+                Text {
+                    width: 100; text: view.dateFor(rowRect.row)
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                    horizontalAlignment: Text.AlignRight
                 }
             }
 

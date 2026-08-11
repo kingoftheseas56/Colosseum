@@ -80,6 +80,8 @@ private slots:
     void initTestCase();
     void unambiguousMatchAdopts();
     void twoCandidatesStayUnidentified();
+    void incoherentGroupTitlesAreRefused();
+    void coherentSeriesAllowsDifferentDisplayTitles();
     void absentDatabaseNoOpsHonestly();
     void autoPassIdentifiesOnlyCertainEligibleGroups();
     void unidentifyPreservesProgressAndFileId();
@@ -135,6 +137,52 @@ void VaultIdentifierTest::twoCandidatesStayUnidentified()
     const VaultIdentifier::Match match = identifier.matchGroup(row.groupKey);
     QVERIFY(!match.adopted);
     QVERIFY(match.source.isEmpty());
+}
+
+void VaultIdentifierTest::incoherentGroupTitlesAreRefused()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    auto first = fixtureRow(QStringLiteral("vault:fused-1"), QStringLiteral("Cowboy Bebop"));
+    auto second = fixtureRow(QStringLiteral("vault:fused-2"), QStringLiteral("The Matrix"));
+    second.groupKey = first.groupKey;
+    second.subtreePath = first.subtreePath;
+    second.path = first.subtreePath + QStringLiteral("/The Matrix.mp4");
+    second.displayTitle = QStringLiteral("The Matrix");
+    QVERIFY(index.publish({first, second}));
+
+    MalCatalog mal(m_malPath);
+    QVERIFY(mal.ready());
+    VaultIdentifier identifier(&index, nullptr, &mal, nullptr);
+
+    const VaultIdentifier::Match match = identifier.matchGroup(first.groupKey);
+    QVERIFY(!match.adopted);
+}
+
+void VaultIdentifierTest::coherentSeriesAllowsDifferentDisplayTitles()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    auto first = fixtureRow(QStringLiteral("vault:series-1"), QStringLiteral("Cowboy Bebop"));
+    auto second = fixtureRow(QStringLiteral("vault:series-2"), QStringLiteral("Cowboy Bebop"));
+    auto third = fixtureRow(QStringLiteral("vault:series-3"), QStringLiteral("Cowboy Bebop"));
+    second.displayTitle = QStringLiteral("Vol 2");
+    third.displayTitle = QStringLiteral("Chapter 45-53");
+    QVERIFY(index.publish({first, second, third}));
+
+    MalCatalog mal(m_malPath);
+    QVERIFY(mal.ready());
+    VaultIdentifier identifier(&index, nullptr, &mal, nullptr);
+
+    const VaultIdentifier::Match match = identifier.matchGroup(first.groupKey);
+    QVERIFY(match.adopted);
+    QCOMPARE(match.title, QStringLiteral("Cowboy Bebop"));
 }
 
 void VaultIdentifierTest::absentDatabaseNoOpsHonestly()

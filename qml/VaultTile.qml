@@ -17,12 +17,10 @@ Item {
     readonly property bool away: Number(modelData.awayCount || 0) > 0
     readonly property bool hasErrors: Number(modelData.errorCount || 0) > 0
     readonly property string identSource: String(modelData.identSource || "")
-    readonly property string synopsis: String(modelData.synopsis || "")
-    readonly property string synopsisSource: String(modelData.synopsisSource || identSource)
     property bool menuOpen: false
     objectName: "vaultTile_" + (modelData.key || "")
     width: 150
-    height: 235 + (tile.synopsis.length ? 34 : 0)
+    height: 235
 
     Theme { id: theme }
 
@@ -103,21 +101,6 @@ Item {
         Text {
             text: (tile.modelData.count || 0) + ((tile.modelData.count === 1) ? " item" : " items")
             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
-        }
-        Text {
-            objectName: "vaultTileSynopsis"
-            visible: tile.synopsis.length > 0
-            width: 150
-            text: tile.synopsis
-            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10
-            maximumLineCount: 2; elide: Text.ElideRight; wrapMode: Text.WordWrap
-        }
-        Text {
-            objectName: "vaultTileSynopsisSource"
-            visible: tile.synopsis.length > 0 && tile.synopsisSource.length > 0
-            width: 150
-            text: "Source: " + tile.synopsisSource
-            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 9
         }
     }
 

@@ -50,11 +50,17 @@ TestCase {
         tile = null
     }
 
-    function test_seeded_identity_badge_and_synopsis_are_exposed() {
+    function test_seeded_identity_badge_remains_exposed_without_shelf_synopsis() {
         compare(tile.identSource, "MAL")
         verify(findText(tile, "MAL") !== null)
-        verify(findText(tile, "A seeded synopsis.") !== null)
-        verify(findText(tile, "Source: MAL") !== null)
+        verify(findText(tile, "A seeded synopsis.") === null)
+        verify(findText(tile, "Source: MAL") === null)
+    }
+
+    function test_synopsis_does_not_change_tile_height_or_render_on_shelf() {
+        compare(tile.height, 235)
+        verify(findChild(tile, "vaultTileSynopsis") === null)
+        verify(findChild(tile, "vaultTileSynopsisSource") === null)
     }
 
     function test_menu_renders_all_six_actions_and_emits_them() {

@@ -29,10 +29,11 @@ VaultIndex::FileRow baseRow(const QString& rootPath, const QString& seriesTitle,
                             const QString& displayTitle)
 {
     const QFileInfo fi(filePath);
-    // Group under the series so the Vault shelf renders one tile per series, the
-    // same shape a scanned folder produces. A missing series title falls back to
-    // the cleaned basename so the file still shelves somewhere visible.
-    const QString group = seriesTitle.isEmpty() ? normPath(rootPath) : seriesTitle;
+    // Group episodes under their series, while each standalone download gets
+    // its own filesystem-shaped group. The group key doubles as the subtree
+    // lookup path, so a title or download id would either collide or require
+    // a broader split between grouping and filesystem lookup.
+    const QString group = seriesTitle.isEmpty() ? normPath(filePath) : seriesTitle;
     VaultIndex::FileRow r;
     r.rootPath = rootPath;
     r.subtreePath = group;

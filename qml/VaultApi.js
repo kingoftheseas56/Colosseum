@@ -28,6 +28,8 @@ function joinRow(progress, row) {
     out.progressFraction = has ? _frac(pg.progress) : 0
     out.lastReadMs = has ? (Number(pg.updatedAt) || 0) : 0
     out.hasProgress = has
+    out.progressFinished = has && !!(pg.finished || pg.watched
+                                      || (pg.resume && pg.resume.finished))
     out.progressed = has
     return out
 }

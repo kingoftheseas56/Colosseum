@@ -15,8 +15,10 @@
 #include "engine/VaultIdentity.h" // computeId for the double-count guard
 
 #include <QFileInfo>
+#include <QDir>
 #include <QObject>
 #include <QTemporaryDir>
+#include <QSet>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtTest>
@@ -103,6 +105,15 @@ QVariantMap pageLoose(const QString& fileUrl)
     return m;
 }
 
+QString normalizedPath(const QString& path)
+{
+    QString normalized = QDir::cleanPath(path);
+#ifdef Q_OS_WIN
+    normalized = normalized.toLower();
+#endif
+    return normalized;
+}
+
 } // namespace
 
 class tst_vault_downloads_root : public QObject
@@ -111,6 +122,7 @@ class tst_vault_downloads_root : public QObject
 
 private slots:
     void derives_container_rows_from_all_backbones();
+    void loose_downloaded_movies_each_have_own_group();
     void skips_loose_page_chapters_and_missing_files();
     void null_backbones_are_a_noop();
     void double_count_guard_same_file_two_roots_shelves_once();
@@ -184,6 +196,76 @@ void tst_vault_downloads_root::derives_container_rows_from_all_backbones()
     QCOMPARE(rows.at(3).kind, QStringLiteral("comic")); // tankoban volume CBZ
     QCOMPARE(rows.at(3).path, volPath);
     QCOMPARE(rows.at(3).groupTitle, QStringLiteral("One Piece"));
+}
+
+void tst_vault_downloads_root::loose_downloaded_movies_each_have_own_group()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    const QString jurassic = seedFile(tmp, "Jurassic Park.mp4", QByteArrayLiteral("jurassic"));
+    const QString spiderMan = seedFile(tmp, "Spider-Man.mp4", QByteArrayLiteral("spider-man"));
+    const QString terminator = seedFile(tmp, "Terminator 2.mp4", QByteArrayLiteral("terminator"));
+    const QString episodeOne = seedFile(tmp, "S01E01.mkv", QByteArrayLiteral("episode-1"));
+    const QString episodeTwo = seedFile(tmp, "S01E02.mkv", QByteArrayLiteral("episode-2"));
+    QVERIFY(!jurassic.isEmpty());
+    QVERIFY(!spiderMan.isEmpty());
+    QVERIFY(!terminator.isEmpty());
+    QVERIFY(!episodeOne.isEmpty());
+    QVERIFY(!episodeTwo.isEmpty());
+
+    FakeBackbone bb;
+    bb.setVideos({
+        QVariantMap{
+            {QStringLiteral("title"), QStringLiteral("Jurassic Park")},
+            {QStringLiteral("seriesTitle"), QString()},
+            {QStringLiteral("path"), jurassic},
+            {QStringLiteral("missing"), false} },
+        QVariantMap{
+            {QStringLiteral("title"), QStringLiteral("Spider-Man")},
+            {QStringLiteral("seriesTitle"), QString()},
+            {QStringLiteral("path"), spiderMan},
+            {QStringLiteral("missing"), false} },
+        QVariantMap{
+            {QStringLiteral("title"), QStringLiteral("Terminator 2")},
+            {QStringLiteral("seriesTitle"), QString()},
+            {QStringLiteral("path"), terminator},
+            {QStringLiteral("missing"), false} },
+        QVariantMap{
+            {QStringLiteral("title"), QStringLiteral("Pilot")},
+            {QStringLiteral("seriesTitle"), QStringLiteral("Foundation")},
+            {QStringLiteral("path"), episodeOne},
+            {QStringLiteral("missing"), false} },
+        QVariantMap{
+            {QStringLiteral("title"), QStringLiteral("The Next Stage")},
+            {QStringLiteral("seriesTitle"), QStringLiteral("Foundation")},
+            {QStringLiteral("path"), episodeTwo},
+            {QStringLiteral("missing"), false} }
+    });
+
+    const QString rootPath = QStringLiteral("D:/Downloads");
+    VaultDownloadsRoot root(&bb, nullptr, nullptr, nullptr);
+    const QList<VaultIndex::FileRow> rows = root.rowsForDownloads(rootPath);
+
+    QCOMPARE(rows.size(), 5);
+    QSet<QString> looseGroups;
+    int seriesRows = 0;
+    for (const VaultIndex::FileRow& row : rows) {
+        if (row.groupTitle == QStringLiteral("Foundation")) {
+            ++seriesRows;
+            QCOMPARE(row.groupKey, QStringLiteral("Foundation"));
+            QCOMPARE(row.subtreePath, QStringLiteral("Foundation"));
+            continue;
+        }
+        looseGroups.insert(row.groupKey);
+        QCOMPARE(row.groupKey, normalizedPath(row.path));
+        QCOMPARE(row.subtreePath, normalizedPath(row.path));
+        QVERIFY(row.groupKey != rootPath);
+        QVERIFY(row.id.isEmpty());
+    }
+
+    QCOMPARE(looseGroups.size(), 3);
+    QCOMPARE(seriesRows, 2);
 }
 
 void tst_vault_downloads_root::skips_loose_page_chapters_and_missing_files()
