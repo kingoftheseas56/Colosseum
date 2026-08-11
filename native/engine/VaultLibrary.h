@@ -47,6 +47,7 @@ class VaultLibrary : public QObject {
     // defers watcher upserts while a reader/player is open (driven from Main.qml).
     Q_PROPERTY(int arrivalTick READ arrivalTick NOTIFY liveArrival)
     Q_PROPERTY(bool immersive READ immersive WRITE setImmersive NOTIFY immersiveChanged)
+    Q_PROPERTY(QVariantList identityCeremonies READ identityCeremonies NOTIFY identityCeremoniesChanged)
 
 public:
     explicit VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
@@ -102,6 +103,8 @@ public:
     Q_INVOKABLE bool restoreGroup(const QString& groupKey);
     Q_INVOKABLE bool enrichIdentity(const QString& groupKey, const QString& synopsis,
                                     const QString& coverUrl);
+    Q_INVOKABLE QVariantList identityCeremonies() const;
+    Q_INVOKABLE bool decideIdentityCeremony(const QString& relationship, const QString& choice);
 
     // Read-only { id -> admissionVerdict } projection for the Vault Continue gate. Re-read from QML
     // through the revision clock (a publish/upsert bumps it); exposes no VaultIndex mutation.
@@ -147,6 +150,7 @@ signals:
     // beyond arrivalTick (spec §3: no counts on the door).
     void liveArrival();
     void immersiveChanged();
+    void identityCeremoniesChanged();
 
 private:
     void setScanning(bool scanning);
@@ -170,6 +174,7 @@ private:
     VaultIndex* m_index = nullptr;
     VaultScanner* m_scanner = nullptr;
     VaultConfig* m_config = nullptr;
+    VaultIdentity* m_identity = nullptr; // shared local identity mechanism for launch + Vault
     VaultWatcher* m_watcher = nullptr; // owns the per-root QFileSystemWatcher + debounce
     VaultIdentifier* m_identifier = nullptr; // non-owning; constructed after catalogues in main
     VaultDownloadsRoot* m_downloadsRoot = nullptr;

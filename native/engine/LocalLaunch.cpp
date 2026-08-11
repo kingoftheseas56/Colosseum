@@ -117,7 +117,7 @@ QString cleanFileTitle(const QString& path)
 }
 } // namespace
 
-QVariantMap LocalLaunch::routeInfo(const QString& pathOrUrl) const
+QVariantMap LocalLaunch::routeInfo(const QString& pathOrUrl)
 {
     const QString path = toLocalPath(pathOrUrl);
     const Route r = route(path);
@@ -129,7 +129,25 @@ QVariantMap LocalLaunch::routeInfo(const QString& pathOrUrl) const
     m[QStringLiteral("vaultId")]  = r.vaultId;
     m[QStringLiteral("detail")]   = r.detail;
     m[QStringLiteral("title")]    = cleanFileTitle(path);
+    if (m_identity && r.accepted) {
+        const QFileInfo fi(path);
+        const QVariantMap identity = m_identity->observeFile(
+            path, fi.size(), fi.lastModified().toMSecsSinceEpoch());
+        m[QStringLiteral("vaultId")] = identity.value(QStringLiteral("id"));
+        for (const QString& key : {QStringLiteral("prompt"), QStringLiteral("type"),
+                                   QStringLiteral("relationship"), QStringLiteral("oldId"),
+                                   QStringLiteral("newId"), QStringLiteral("oldPath"),
+                                   QStringLiteral("newPath")}) {
+            if (identity.contains(key))
+                m[key] = identity.value(key);
+        }
+    }
     return m;
+}
+
+bool LocalLaunch::decideIdentityCeremony(const QString& relationship, const QString& choice)
+{
+    return m_identity && m_identity->decideCeremony(relationship, choice);
 }
 
 QVariantMap LocalLaunch::open(const QStringList& pathsOrUrls)

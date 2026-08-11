@@ -27,7 +27,7 @@ static QString normPath(const QString& p)
 
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
                            VaultIdentity* identity, QObject* parent)
-    : QObject(parent), m_index(index), m_scanner(scanner), m_config(config)
+    : QObject(parent), m_index(index), m_scanner(scanner), m_config(config), m_identity(identity)
 {
     // revision tracks committed index truth. VaultIndex::changed() fires after a successful
     // publish()/upsert() only, so a bump always means new published truth to repaint from.
@@ -38,6 +38,10 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
             if (m_identifier)
                 scheduleAutoIdentify();
         });
+    }
+    if (m_identity) {
+        connect(m_identity, &VaultIdentity::changed, this,
+                &VaultLibrary::identityCeremoniesChanged);
     }
     if (m_scanner) {
         // Live census progress → the scan pill.
@@ -80,6 +84,21 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     connect(m_watcher, &VaultWatcher::rootAvailabilityChanged, this,
             &VaultLibrary::onRootAvailabilityChanged);
     m_watcher->refresh();
+}
+
+QVariantList VaultLibrary::identityCeremonies() const
+{
+    return m_identity ? m_identity->pendingCeremonies() : QVariantList();
+}
+
+bool VaultLibrary::decideIdentityCeremony(const QString& relationship, const QString& choice)
+{
+    if (!m_identity)
+        return false;
+    const bool accepted = m_identity->decideCeremony(relationship, choice);
+    if (accepted)
+        emit identityCeremoniesChanged();
+    return accepted;
 }
 
 void VaultLibrary::setIdentifier(VaultIdentifier* identifier)

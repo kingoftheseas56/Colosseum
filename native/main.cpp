@@ -1065,6 +1065,7 @@ int main(int argc, char *argv[]) {
     auto *vaultIndex = new VaultIndex(vaultDir + QStringLiteral("/index-v1.sqlite"), &app);
     auto *vaultConfig = new VaultConfig(vaultDir, &app);
     auto *vaultIdentity = new VaultIdentity(vaultDir, &app);
+    localLaunch->setIdentity(vaultIdentity);
     auto *vaultScanner = new VaultScanner(vaultIndex, vaultIdentity, &app);
     // Slice 15: VaultLibrary OWNS the VaultWatcher (per-root QFileSystemWatcher + debounce);
     // it needs the identity to build arrival rows identical to the census's.

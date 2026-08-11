@@ -21,6 +21,8 @@
 
 #include "VaultRecent.h"
 
+class VaultIdentity;
+
 class LocalLaunch : public QObject
 {
     Q_OBJECT
@@ -63,8 +65,10 @@ public:
     // stages the rest in the ephemeral Next-to-Open tray. C++ decides; QML opens
     // the door explicitly. { path, family, accepted, reject, vaultId, detail,
     // title, ignored, staged }
-    Q_INVOKABLE QVariantMap routeInfo(const QString& pathOrUrl) const;
+    Q_INVOKABLE QVariantMap routeInfo(const QString& pathOrUrl);
     Q_INVOKABLE QVariantMap open(const QStringList& pathsOrUrls);
+    void setIdentity(VaultIdentity* identity) { m_identity = identity; }
+    Q_INVOKABLE bool decideIdentityCeremony(const QString& relationship, const QString& choice);
     // Slice 20: temporary, non-persistent, never-auto-advancing Next-to-Open tray.
     Q_INVOKABLE QVariantList nextToOpenItems() const { return m_nextToOpen; }
     Q_INVOKABLE int stagedCount() const { return m_nextToOpen.size(); }
@@ -92,4 +96,5 @@ private:
 
     VaultRecent m_recent;
     QVariantList m_nextToOpen;
+    VaultIdentity* m_identity = nullptr; // non-owning; shared with VaultLibrary
 };

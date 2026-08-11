@@ -54,6 +54,9 @@ private slots:
     void reconcile_two_candidate_ambiguity_does_not_migrate();
     void reconcile_two_old_one_new_ambiguity_does_not_migrate();
     void reconcile_persists_across_reload();
+    void identity_changed_content_asks_and_remembers_same_media();
+    void identity_changed_content_tolerance_boundary_is_material();
+    void identity_copy_asks_and_remembers_separate_state();
     void reader2_book_state_migrates_with_identity_alias();
     void reader2_destination_collision_preserves_existing_state();
 
@@ -332,6 +335,72 @@ void tst_vault_stores::reconcile_persists_across_reload()
         VaultIdentity id(tmp.path()); // reload from identity.json
         QCOMPARE(id.resolve(cidB), idA); // alias survived the round-trip
         QVERIFY(id.knows(idA));
+    }
+}
+
+void tst_vault_stores::identity_changed_content_asks_and_remembers_same_media()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIdentity id(tmp.path());
+    const QString path = QStringLiteral("D:/lib/known.cbz");
+    const QString oldId = VaultIdentity::computeId(path, 100, 1000);
+    id.reconcile({{path, 100, 1000}});
+
+    const auto changed = id.reconcile({{path, 101, 5000}});
+    QCOMPARE(changed.ceremonies.size(), 1);
+    QCOMPARE(changed.ceremonies.first().at(0), QStringLiteral("changed-content"));
+    const QString relationship = changed.ceremonies.first().at(1);
+    const QString newId = VaultIdentity::computeId(path, 101, 5000);
+    QVERIFY(id.decideCeremony(relationship, QStringLiteral("same-media")));
+    QCOMPARE(id.resolve(newId), oldId);
+
+    // The remembered relationship carries the same media identity through another material
+    // replacement without raising a second prompt.
+    const auto remembered = id.reconcile({{path, 102, 9000}});
+    QCOMPARE(remembered.ceremonies.size(), 0);
+    QCOMPARE(id.resolve(VaultIdentity::computeId(path, 102, 9000)), oldId);
+}
+
+void tst_vault_stores::identity_changed_content_tolerance_boundary_is_material()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIdentity id(tmp.path());
+    const QString path = QStringLiteral("D:/lib/tolerant.cbz");
+    id.reconcile({{path, 100, 1000}});
+
+    const auto within = id.reconcile({{path, 100, 2500}});
+    QCOMPARE(within.ceremonies.size(), 0);
+    const auto beyond = id.reconcile({{path, 100, 4501}});
+    QCOMPARE(beyond.ceremonies.size(), 1);
+    QCOMPARE(beyond.ceremonies.first().at(0), QStringLiteral("changed-content"));
+}
+
+void tst_vault_stores::identity_copy_asks_and_remembers_separate_state()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIdentity id(tmp.path());
+    const QString oldPath = QStringLiteral("D:/lib/original.cbz");
+    const QString copyPath = QStringLiteral("D:/other/copy.cbz");
+    const QString oldId = VaultIdentity::computeId(oldPath, 100, 5);
+    const QString copyId = VaultIdentity::computeId(copyPath, 100, 5);
+    id.reconcile({{oldPath, 100, 5}});
+
+    const auto copy = id.reconcile({{oldPath, 100, 5}, {copyPath, 100, 5}});
+    QCOMPARE(copy.ceremonies.size(), 1);
+    QCOMPARE(copy.ceremonies.first().at(0), QStringLiteral("likely-copy"));
+    const QString relationship = copy.ceremonies.first().at(1);
+    QVERIFY(id.decideCeremony(relationship, QStringLiteral("separate-copy")));
+    QVERIFY(id.resolve(copyId) != oldId);
+
+    const auto remembered = id.reconcile({{oldPath, 100, 5}, {copyPath, 100, 5}});
+    QCOMPARE(remembered.ceremonies.size(), 0);
+    {
+        VaultIdentity reloaded(tmp.path());
+        const auto afterReload = reloaded.reconcile({{oldPath, 100, 5}, {copyPath, 100, 5}});
+        QCOMPARE(afterReload.ceremonies.size(), 0);
     }
 }
 

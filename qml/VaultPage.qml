@@ -46,6 +46,9 @@ Item {
         (typeof VaultLibrary !== "undefined")
             ? (VaultLibrary.revision, VaultLibrary.admissionById())
             : ({})
+    property var identityCeremonies:
+        (typeof VaultLibrary !== "undefined") ? VaultLibrary.identityCeremonies : []
+    property bool identityCeremonyDismissed: false
 
     // ---- Slice 12 dress: the in-world tab bar (All · Comics · Books · Video · Folders) ----
     property string currentTab: "all"
@@ -976,5 +979,26 @@ Item {
                 feedback = "That identity could not be applied. The folder stays filename-honest."
             }
         }
+    }
+
+    // Slice 21: the same identity ceremony surface is used by Vault and the launch door;
+    // VaultLibrary owns the durable relationship decision, not this presentation layer.
+    VaultIdentityCeremonyDialog {
+        id: identityCeremonyDialog
+        anchors.centerIn: parent
+        z: 90
+        visible: root.identityCeremonies.length > 0 && !root.identityCeremonyDismissed
+        ceremony: root.identityCeremonies.length ? root.identityCeremonies[0] : ({})
+        onChoiceMade: (relationship, choice) => {
+            if (typeof VaultLibrary !== "undefined"
+                    && VaultLibrary.decideIdentityCeremony(relationship, choice)) {
+                root.identityCeremonyDismissed = true
+                close()
+            }
+        }
+    }
+    Connections {
+        target: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
+        function onIdentityCeremoniesChanged() { root.identityCeremonyDismissed = false }
     }
 }

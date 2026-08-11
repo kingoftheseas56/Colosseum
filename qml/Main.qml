@@ -36,6 +36,7 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
+    property var pendingIdentityRoute: null
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
     // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
@@ -1437,6 +1438,12 @@ Window {
     // player as a normal taskbar session, or a categorized "can't open" with NO tile.
     function dispatchLocalRoute(r) {
         if (!r) return
+        if (r.prompt && typeof LocalLaunch !== "undefined") {
+            win.pendingIdentityRoute = r
+            identityCeremonyDialog.ceremony = r
+            identityCeremonyDialog.open()
+            return
+        }
         localLaunchState.lastRouteKind = r.family || "unknown"
         localLaunchState.lastRejectCategory = r.accepted ? "" : (r.reject || "unsupported")
         if (!r.accepted) { win.showLocalRejection(r); return }
@@ -1455,6 +1462,14 @@ Window {
     }
     function removeNextToOpen(index) {
         if (typeof LocalLaunch !== "undefined") LocalLaunch.removeNextToOpen(index)
+    }
+    function decidePendingIdentity(choice) {
+        var pending = win.pendingIdentityRoute
+        if (!pending || typeof LocalLaunch === "undefined") return
+        if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
+        win.pendingIdentityRoute = null
+        identityCeremonyDialog.close()
+        dispatchLocalRoute(LocalLaunch.routeInfo(pending.path || ""))
     }
     // Build the player target for a local video, resuming at the saved spot. A finished movie
     // (>=90%) is dropped from Progress, so its lookup is empty → position 0 → restart from the
@@ -3175,6 +3190,17 @@ Window {
 
         function refresh() { model = (typeof LocalLaunch !== "undefined") ? LocalLaunch.recentItems() : [] }
         function toggle() { open = !open }
+
+        onOpenChanged: { if (open) refresh(); opacity = open ? 1 : 0 }
+        Component.onCompleted: refresh()
+        Connections {
+            target: (typeof LocalLaunch !== "undefined") ? LocalLaunch : null
+            function onRecentChanged() { openRecentPanel.refresh() }
+        }
+        onReopenRequested: (entry) => { win.reopenRecent(entry); openRecentPanel.open = false }
+        onClearRequested: if (typeof LocalLaunch !== "undefined") LocalLaunch.clearRecent()
+    }
+
     // Slice 20: explicit multi-file queue. The first selected file is dispatched immediately;
     // these rows never auto-advance and are not part of Open Recent until opened here.
     NextToOpenTray {
@@ -3195,17 +3221,13 @@ Window {
         onOpenRequested: (index, entry) => win.openNextToOpen(index)
         onRemoveRequested: (index, entry) => win.removeNextToOpen(index)
     }
-
-        onOpenChanged: { if (open) refresh(); opacity = open ? 1 : 0 }
-        Component.onCompleted: refresh()
-        Connections {
-            target: (typeof LocalLaunch !== "undefined") ? LocalLaunch : null
-            function onRecentChanged() { openRecentPanel.refresh() }
-        }
-        onReopenRequested: (entry) => { win.reopenRecent(entry); openRecentPanel.open = false }
-        onClearRequested: if (typeof LocalLaunch !== "undefined") LocalLaunch.clearRecent()
+    // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.
+    VaultIdentityCeremonyDialog {
+        id: identityCeremonyDialog
+        anchors.centerIn: parent
+        z: 960
+        onChoiceMade: (relationship, choice) => win.decidePendingIdentity(choice)
     }
-
     // A quiet, no-color status pill for local-open feedback: a categorized rejection, or the
     // folder-drop explain with a "Select Media Files…" action. Grays/white only (house rule).
     Rectangle {

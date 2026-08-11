@@ -19,6 +19,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <QVariantMap>
 
 class VaultIdentity : public QObject
 {
@@ -49,10 +50,20 @@ public:
     struct ReconcileResult {
         // each: [oldId, newComputedId, oldPath, newPath]
         QList<QStringList> migrated;
+        // each: [type, relationship, oldId, newId, oldPath, newPath]
+        // type is changed-content or likely-copy; the caller presents the ceremony.
+        QList<QStringList> ceremonies;
         QStringList fresh;  // newly registered ids
         QStringList parked; // known ids whose file vanished without a unique match
     };
     ReconcileResult reconcile(const QList<FileFacts>& current);
+
+    // Shared launch/Vault observation seam. The returned map always contains `id`; when
+    // `prompt` is true it also carries `type`, `relationship`, `oldId`, `newId`, `oldPath`,
+    // and `newPath`. A remembered choice resolves the candidate immediately.
+    Q_INVOKABLE QVariantMap observeFile(const QString& path, qint64 size, qint64 mtimeMs);
+    Q_INVOKABLE QVariantList pendingCeremonies() const;
+    Q_INVOKABLE bool decideCeremony(const QString& relationship, const QString& choice);
 
     // Path aliases recorded by migrations (the Reader 2 bridge hook).
     Q_INVOKABLE QVariantList pathAliases() const; // [{oldPath, newPath}]
@@ -70,9 +81,16 @@ private:
 
     void load();
     void persist();
+    static bool withinMtimeTolerance(qint64 a, qint64 b);
+    static QString relationshipKey(const QString& type, const QString& oldId,
+                                   const QString& path);
+    QVariantMap ceremonyMap(const QStringList& fields) const;
+    void rememberPending(const QStringList& fields);
 
     QHash<QString, Entry> m_byId;    // canonical id -> current entry
     QHash<QString, QString> m_alias; // computed id -> canonical id
     QList<QStringList> m_pathAliases; // [oldPath, newPath]
+    QHash<QString, QString> m_decisions; // relationship -> same-media/new-media/use-existing-state/separate-copy
+    QHash<QString, QStringList> m_pending; // relationship -> [type, relationship, oldId, newId, oldPath, newPath]
     QString m_dir;
 };
