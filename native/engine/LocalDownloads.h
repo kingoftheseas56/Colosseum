@@ -22,6 +22,7 @@ class BookDownloader;
 class ComicDownloader;
 class DownloadStore;
 class MangaTankobanService;
+class QTimer;
 
 class LocalDownloads : public QObject {
     Q_OBJECT
@@ -33,6 +34,14 @@ public:
                    ComicDownloader *comics, DownloadStore *videos,
                    MangaTankobanService *volumes = nullptr,
                    QObject *parent = nullptr);
+
+    // Focused test seam: a QObject exposing Q_INVOKABLE activeVolumeJobs() and
+    // failed(QString, QString) can drive the same retention path without
+    // constructing the volume network/torrent pipeline. Production callers use
+    // the typed MangaTankobanService overload above.
+    LocalDownloads(MangaDownloader *manga, BookDownloader *books,
+                   ComicDownloader *comics, DownloadStore *videos,
+                   QObject *volumeSource, QObject *parent = nullptr);
 
     int revision() const { return m_revision; }
     QVariantMap totals() const;
@@ -52,7 +61,12 @@ public:
 signals:
     void changed();
 
+private slots:
+    void onTestVolumeFailed(const QString &id, const QString &reason);
+
 private:
+    void initialize();
+    void armRevision();
     void bump();
     QVariantList tankobanItems() const;   // manga chapters + western issues, one lane
     QVariantList biblioItems() const;
@@ -67,6 +81,8 @@ private:
     ComicDownloader *m_comics = nullptr;
     DownloadStore *m_videos = nullptr;
     MangaTankobanService *m_volumes = nullptr;   // Tankoban volume mode
+    QObject *m_volumeSource = nullptr;           // test-only fake volume owner
+    QTimer *m_coalesce = nullptr;
     QHash<QString, QVariantMap> m_failures;
     int m_revision = 0;
 };

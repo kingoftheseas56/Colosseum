@@ -104,6 +104,35 @@ set_tests_properties(colosseum.qttest.http_header_fields PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
+# activeVolumeJobs() plus failed(id, reason), so the test drives the real
+# LocalDownloads retention path without constructing the network/torrent stack.
+add_executable(tst_local_downloads_failure
+    auto/downloads/tst_local_downloads_failure.cpp
+    auto/downloads/local_downloads_test_stubs.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloads.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloads.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MangaDownloader.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BookDownloader.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicDownloader.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MangaTankobanService.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.h")
+target_include_directories(tst_local_downloads_failure PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_local_downloads_failure PRIVATE
+    Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui Qt6::Test)
+set_target_properties(tst_local_downloads_failure PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_local_downloads_failure POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.local_downloads_failure
+         COMMAND tst_local_downloads_failure)
+set_tests_properties(colosseum.qttest.local_downloads_failure PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault kit (execution plan Slice 1, 2026-08-08) ───────────────────────────
 # The Vault's pure-logic kit (VaultKit): census classifier (kind inference,
 # mixed-leaf flag, loose capture, scanIgnore needles), the ported title cleaner,

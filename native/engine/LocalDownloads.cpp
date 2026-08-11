@@ -6,6 +6,7 @@
 #include "MangaTankobanService.h"
 #include "../player/downloadstore.h"
 
+#include <QMetaObject>
 #include <QRegularExpression>
 #include <QTimer>
 
@@ -21,6 +22,34 @@ QString boundedError(const QString &reason) {
                 QStringLiteral(" "));
     return out.simplified().left(240);
 }
+
+QVariantList invokeList(QObject *object, const char *method) {
+    if (!object)
+        return {};
+    QVariantList result;
+    if (!QMetaObject::invokeMethod(object, method, Qt::DirectConnection,
+                                   Q_RETURN_ARG(QVariantList, result))) {
+        return {};
+    }
+    return result;
+}
+
+QString failureTitleFallback(const QString &world, const QString &id) {
+    static const QRegularExpression volumeId(
+        QStringLiteral("^tankoban:[^:]+:volume:([^:]+)$"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = volumeId.match(id);
+    if (match.hasMatch())
+        return QStringLiteral("Vol. ") + match.captured(1);
+
+    // A routing-shaped id is an implementation detail, never a humane title.
+    if (world == QStringLiteral("tankoban")
+            && (id.contains(QStringLiteral("tankoban:"), Qt::CaseInsensitive)
+                || id.contains(QStringLiteral(":volume:"), Qt::CaseInsensitive))) {
+        return QStringLiteral("Tankoban volume");
+    }
+    return id;
+}
 } // namespace
 
 LocalDownloads::LocalDownloads(MangaDownloader *manga, BookDownloader *books,
@@ -28,16 +57,28 @@ LocalDownloads::LocalDownloads(MangaDownloader *manga, BookDownloader *books,
                                MangaTankobanService *volumes, QObject *parent)
     : QObject(parent), m_manga(manga), m_books(books), m_comics(comics), m_videos(videos),
       m_volumes(volumes) {
+    initialize();
+}
+
+LocalDownloads::LocalDownloads(MangaDownloader *manga, BookDownloader *books,
+                               ComicDownloader *comics, DownloadStore *videos,
+                               QObject *volumeSource, QObject *parent)
+    : QObject(parent), m_manga(manga), m_books(books), m_comics(comics), m_videos(videos),
+      m_volumeSource(volumeSource) {
+    initialize();
+}
+
+void LocalDownloads::initialize() {
     // Every backend mutation bumps the revision; progress signals are chatty
     // (per page / per chunk), so bumps coalesce through a 400 ms timer.
-    auto *coalesce = new QTimer(this);
-    coalesce->setSingleShot(true);
-    coalesce->setInterval(400);
-    connect(coalesce, &QTimer::timeout, this, [this]() {
+    m_coalesce = new QTimer(this);
+    m_coalesce->setSingleShot(true);
+    m_coalesce->setInterval(400);
+    connect(m_coalesce, &QTimer::timeout, this, [this]() {
         ++m_revision;
         emit changed();
     });
-    auto arm = [coalesce]() { if (!coalesce->isActive()) coalesce->start(); };
+    auto arm = [this]() { armRevision(); };
 
     if (m_manga) {
         connect(m_manga, &MangaDownloader::progress, this,
@@ -113,9 +154,23 @@ LocalDownloads::LocalDownloads(MangaDownloader *manga, BookDownloader *books,
                 });
         connect(m_volumes, &MangaTankobanService::removed, this,
                 [this, arm](const QString &id) {
-                    clearFailure(QStringLiteral("tankoban"), id); arm();
-                });
+                     clearFailure(QStringLiteral("tankoban"), id); arm();
+                 });
     }
+    if (m_volumeSource) {
+        connect(m_volumeSource, SIGNAL(failed(QString,QString)),
+                this, SLOT(onTestVolumeFailed(QString,QString)));
+    }
+}
+
+void LocalDownloads::armRevision() {
+    if (m_coalesce && !m_coalesce->isActive())
+        m_coalesce->start();
+}
+
+void LocalDownloads::onTestVolumeFailed(const QString &id, const QString &reason) {
+    rememberFailure(QStringLiteral("tankoban"), id, reason);
+    armRevision();
 }
 
 void LocalDownloads::bump() {
@@ -134,9 +189,11 @@ void LocalDownloads::rememberFailure(const QString &world, const QString &id,
     for (const QVariant &value : current) {
         const QVariantMap candidate = value.toMap();
         if (candidate.value(QStringLiteral("world")).toString() == world
-                && candidate.value(QStringLiteral("id")).toString() == id
-                && candidate.value(QStringLiteral("state")).toString()
-                    != QStringLiteral("failed")) {
+                && candidate.value(QStringLiteral("id")).toString() == id) {
+            // MangaTankobanService keeps the failed acquisition in m_acq long
+            // enough for this signal. Its failed-state row is therefore the
+            // authoritative title source; excluding it loses the human label
+            // and falls through to the internal routing id.
             row = candidate;
             break;
         }
@@ -144,7 +201,7 @@ void LocalDownloads::rememberFailure(const QString &world, const QString &id,
     row.insert(QStringLiteral("world"), world);
     row.insert(QStringLiteral("id"), id);
     if (row.value(QStringLiteral("title")).toString().isEmpty())
-        row.insert(QStringLiteral("title"), id);
+        row.insert(QStringLiteral("title"), failureTitleFallback(world, id));
     row.insert(QStringLiteral("state"), QStringLiteral("failed"));
     row.insert(QStringLiteral("error"), boundedError(reason));
     row.insert(QStringLiteral("canPlay"), false);
@@ -358,19 +415,24 @@ QVariantList LocalDownloads::activeJobs() const {
             });
         }
     }
-    if (m_volumes) {
-        const QVariantList jobs = m_volumes->activeVolumeJobs();
+    if (m_volumes || m_volumeSource) {
+        const QVariantList jobs = m_volumes
+            ? m_volumes->activeVolumeJobs()
+            : invokeList(m_volumeSource, "activeVolumeJobs");
         for (const QVariant &v : jobs) {
             QVariantMap j = v.toMap();
             const double done = j.value(QStringLiteral("done")).toDouble();
             const double total = j.value(QStringLiteral("total")).toDouble();
+            const QString title = j.contains(QStringLiteral("title"))
+                ? j.value(QStringLiteral("title")).toString()
+                : QStringLiteral("%1 — %2")
+                    .arg(j.value(QStringLiteral("seriesTitle")).toString(),
+                         j.value(QStringLiteral("label")).toString());
             out.append(QVariantMap{
                 {QStringLiteral("world"), QStringLiteral("tankoban")},
                 {QStringLiteral("id"), j.value(QStringLiteral("id"))},
                 {QStringLiteral("seriesTitle"), j.value(QStringLiteral("seriesTitle"))},
-                {QStringLiteral("title"), QStringLiteral("%1 — %2")
-                    .arg(j.value(QStringLiteral("seriesTitle")).toString(),
-                         j.value(QStringLiteral("label")).toString())},
+                {QStringLiteral("title"), title},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("ratio"), total > 0 ? done / total : 0.0},
                 // received/total (bytes): the Downloads page's group progress bar
