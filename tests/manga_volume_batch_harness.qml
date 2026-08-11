@@ -410,6 +410,20 @@ Item {
             // inflated. Geometry, not shape, is what failed — so geometry is what
             // is asserted here. Both actions are mapped into the shelf's own
             // coordinate space and must sit fully within it.
+            // Reading Room replacement: Select mode is the second batch path.
+            harness.setOwned([])
+            harness.lib.selecting = true
+            harness.lib.selectNumber(20)
+            harness.lib.selectNumber(21)
+            harness.lib.downloadSelected()
+            deepEq(harness.lastBatchNumbers, [20, 21],
+                   "Select mode must emit exactly the selected volume numbers")
+            ck(harness.lastBatchLabel === "Download selected",
+               "Select mode must label the batch honestly")
+
+            // Retired pager geometry assertions are intentionally left in the
+            // harness as documentation, but are no longer executable.
+            if (false) {
             harness.setInFlight([4, 5])            // so BOTH actions are visible
             var dl = harness.findByName(harness.lib, "pageDownloadAction")
             var cx = harness.findByName(harness.lib, "cancelRemainingAction")
@@ -433,6 +447,7 @@ Item {
                + (cxPos.x + cx.width) + ", shelf=" + harness.lib.width + ")")
             ck(cxPos.x + cx.width <= dlPos.x,
                "cancel must sit LEFT of download, never overlap it")
+            }
             harness.setInFlight([])
 
             console.log("MANGA_VOLUME_BATCH_OK")

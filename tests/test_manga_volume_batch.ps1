@@ -53,14 +53,18 @@ $picker  = Read-RepoFile "qml/MangaTankobanSourcesPage.qml"
 $svcHdr  = Read-RepoFile "native/engine/MangaTankobanService.h"
 $svcCpp  = Read-RepoFile "native/engine/MangaTankobanService.cpp"
 
-# The shelf pages, and can ask for a batch.
-Assert-Contains $library 'Vol.pageGroups' "the shelf must page through MangaVolumes.js"
+# The Reading Room is continuous, and can ask for a batch through either path.
+Assert-Contains $library 'model: root.volumeRows' "the grid must consume the full canonical volume model"
 Assert-Contains $library 'Vol.nextBatch'  "the shelf must derive the next batch through MangaVolumes.js"
 Assert-Contains $library 'signal batchRequested' "the shelf must be able to ask for a batch"
 Assert-Contains $library 'unavailableNumbers' "a batch must know what it may not ask for"
-Assert-Contains $library 'function unownedIn' "each page must filter to what it can actually fetch"
+Assert-Contains $library 'function unownedIn' "the batch filter must exclude owned and in-flight volumes"
 Assert-Contains $library 'function cancelRemaining' "acceptance 11 needs a batch-level cancel"
 Assert-Contains $library 'inFlightIds' "cancel remaining must target only unfinished volumes"
+Assert-Contains $library 'property bool selecting' "the pane must expose Select mode"
+Assert-Contains $library 'property var selectedNumbers' "Select mode must retain exact volume numbers"
+Assert-Contains $library 'function downloadSelected' "Select mode must dispatch one exact batch"
+Assert-Contains $library 'Get next 10 missing' "the forward batch action must remain visible"
 
 # The series page turns numbers into ids, re-checks ownership, and opens ONE picker.
 Assert-Contains $series 'onBatchRequested' "the series page must handle a batch request"
@@ -69,20 +73,10 @@ Assert-Contains $series 'function _openSources' "single and batch must share one
 Assert-Contains $series '!== "ready"' "an owned volume must never be re-downloaded"
 Assert-Contains $series 'volumeNumbers' "the picker needs the batch's numbers to filter coverage"
 
-# The batch ACTIONS live on the shelf's own ledger header, in Theatre's
-# "Download season" position (eyes-on 2026-07-31). Anchoring them to the series
-# header's right edge pushed them off the window.
-Assert-Contains $library 'volumeLedgerHeader' "the shelf needs Theatre's ledger header"
-Assert-Contains $library 'pageDownloadAction' "the download action must sit where Download season sits"
-Assert-Contains $library 'cancelRemainingAction' "the Cancel remaining control must be wired"
-Assert-Contains $library 'width: listCol.width - 2 * theme.margin' `
-    "the ledger header must be inset both sides or its right-anchored action clips"
-# The trap that caused the clipping: a MouseArea parented to a positioner is laid
-# out as an item and inflates it. Both actions must be Rectangles, not Rows.
-if ($library -match 'Row\s*\{[^}]*id:\s*(primaryBatch|pageBatchRow)') {
-    Write-Host "FAIL: a batch action must not be a positioner containing a MouseArea"
-    exit 1
-}
+# The two actions live in the pane header/floating selection bar, never in a
+# top-to-bottom series header that can clip at the viewport edge.
+Assert-Contains $library 'readingRoomPaneHeader' "the collection pane needs its own action header"
+Assert-Contains $library 'selected' "the selection bar must show the selected count"
 
 # The picker applies ONE route across EVERY volume, and offers only covering packs.
 Assert-Contains $picker 'batchIds' "the picker must know the batch"

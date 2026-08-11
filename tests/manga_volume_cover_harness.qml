@@ -84,7 +84,7 @@ Item {
     // volume N covers chapters (N-1)*10+1 .. N*10
     function bigVolumes() {
         var out = []
-        for (var i = 1; i <= 12; i++)
+        for (var i = 1; i <= 115; i++)
             out.push({ "id": "b" + i, "seriesId": "BIG", "number": String(i),
                        "title": "Book " + i,
                        "chapterStart": String((i - 1) * 10 + 1),
@@ -94,7 +94,7 @@ Item {
     }
     function bigChapters() {
         var out = []
-        for (var i = 1; i <= 120; i++) out.push({ "id": "bc" + i, "number": i, "name": "" })
+        for (var i = 1; i <= 1150; i++) out.push({ "id": "bc" + i, "number": i, "name": "" })
         return out
     }
 
@@ -192,22 +192,18 @@ Item {
             harness.lib.seriesId = "BIG"
             dl.asked = []
             harness.lib.chapters = harness.bigChapters()
-            ck(harness.lib.volumeRows.length === 12, "the big series has 12 volumes")
-            ck(harness.lib.pagedRows.length === 2, "12 volumes make two pages")
-            ck(dl.asked.length === 10,
-               "only the ten volumes ON SCREEN may be asked for, got " + dl.asked.length)
-            ck(harness.askedFor("bc1") && harness.askedFor("bc91"),
-               "page 1 asks for volumes 1-10 (chapters 1 and 91)")
-            ck(!harness.askedFor("bc101"),
-               "volume 11 is on the NEXT page and must not be asked for yet")
+            ck(harness.lib.volumeRows.length === 115, "the big series has 115 volumes")
+            ck(dl.asked.length > 0 && dl.asked.length < 115,
+               "only the viewport may be asked for, got " + dl.asked.length)
+            ck(harness.askedFor("bc1"),
+               "the initial viewport must ask for the first volume cover")
+            ck(!harness.askedFor("bc1150"),
+               "the last volume must not be requested on initial open")
 
             // 10. turning the page asks for the rest — and only the rest.
-            harness.lib.activePage = 1
-            ck(harness.askedFor("bc101"), "turning the page asks for volume 11")
-            ck(harness.askedFor("bc111"), "turning the page asks for volume 12")
-            ck(dl.asked.length === 12,
-               "the whole series is asked for exactly once across both pages, got "
-               + dl.asked.length)
+            harness.lib.jumpToNumber(101)
+            ck(harness.askedFor("bc1001"), "jumping near volume 101 asks for its cover")
+            ck(dl.asked.length < 115, "jumping must remain bounded, never all volumes")
 
             console.log("MANGA_VOLUME_COVER_OK")
             Qt.exit(0)

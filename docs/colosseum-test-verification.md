@@ -75,6 +75,17 @@ half the compiled harnesses are run by nobody.
 - Lanista's gate: `tests/test_lanista.ps1` (greps + harness selfcheck + two scenarios on
   the `ColosseumLanistaTest` pipe, readiness-polled, never the daily pipe).
 
+## Tankoban Reading Room gate (2026-08-11)
+
+- `tests/test_manga_reading_room.ps1` runs `tests/manga_reading_room_harness.qml` with fake
+  `TankobanVolumes`, `Progress`, and `Downloads` seams. It asserts the fixed-height room,
+  virtualized long-series grid, bounded cover requests, continue auto-land, all canonical
+  tile states, Chapters behavior, Select-mode exact batches, and chapter-only routing.
+- Registered as `colosseum.manga_reading_room` in `tests/CMakeLists.txt`, label `unit`.
+- Existing Tankoban cover/batch scripts were re-pointed from retired numbered paging to
+  continuous viewport fetching and Select mode; their source/progress/ownership assertions
+  remain in place.
+
 ## House assertion idioms (no framework)
 
 - **require idiom:** `require()` prints `FAIL: <msg>`, `exit(1)`; one `*_OK` on success.

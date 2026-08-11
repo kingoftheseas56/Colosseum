@@ -38,12 +38,12 @@ Check "MangaSeries feeds the shelf its chapter list" ($series -match "chapters: 
 #     at a time, the chapter rows' thumbs queued behind them, WeebCentral throttled,
 #     and every failure was cached as an empty string FOREVER - so those volumes and
 #     chapters showed numbered placeholders for the rest of the session.
-Check "the shelf asks only for the page on screen" ($lib -match "rowsOnPage\(root\.activePage\)")
-Check "turning the page fetches that page's covers" ($lib -match "onActivePageChanged: root\.requestCovers\(\)")
+Check "the shelf asks only for the viewport window" ($lib -match "visibleRowsForCovers\(\)")
+Check "scrolling the grid fetches the newly visible covers" ($lib -match "onContentYChanged: root\.requestCovers\(\)")
 # Imperative code must not read the visibleRows BINDING: a change handler runs
 # before dependent bindings re-evaluate, so it would see the page he just left.
 Check "requestCovers resolves the page directly, not via the stale binding" `
-    ($lib -notmatch "var rows = root\.visibleRows")
+    ($lib -notmatch "var rows = root\.visibleRows\b")
 
 $dl = Get-Content (Join-Path $repo "native\engine\MangaDownloader.cpp") -Raw
 Check "a scrape ERROR is not cached as an answer" ($dl -match "cacheable=\*/false")

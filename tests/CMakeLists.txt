@@ -553,6 +553,17 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 300)
 
+# Deterministic Reading Room contract: qml.exe injects fake service, progress,
+# and download seams, so this gate is safe under the unit label and does not
+# require the live app or network.
+add_test(NAME colosseum.manga_reading_room
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_reading_room.ps1")
+set_tests_properties(colosseum.manga_reading_room PROPERTIES
+    LABELS "unit"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Installed chronicle (installed-release chronicle plan, Slice 2, 2026-08-09)
 # InstalledChronicle loads + verifies the bundled signed manifest that seeds the
 # Update gallery with the installed release's chapters at rest. Pure QtCore +

@@ -50,15 +50,13 @@ Assert-Contains $series 'visible: page.tankobanMode' "the volume surface must be
 Assert-Contains $series 'TankobanVolumes.prepareSeries' "dynamic snapshot is not handed off"
 Assert-Contains $series 'MangaTankobanLibrary {' "volume-first surface missing"
 Assert-Contains $series 'MangaTankobanSourcesPage {' "full-screen sources page must be hosted"
-# The shelf PAGES in tens now (design 2026-07-30) — Hemanth's ruling: "like seasons in
-# theatre's tv show view where I see only 10 volumes at a time". So the row Repeater is
-# fed the ACTIVE PAGE, not the whole list. The guarantee is unchanged and still asserted,
-# only its address moved: pageGroups() is exhaustive over root.volumeRows, so every
-# canonical volume still reaches a row — on exactly one page.
-Assert-Contains $library 'model: root.visibleRows' "the shelf must render the active page's rows"
-Assert-Contains $library 'Vol.pageGroups(root.volumeRows' "paging must be exhaustive over every canonical volume"
-Assert-Contains $library 'readonly property var visibleRows: root.rowsOnPage(root.activePage)' `
-    "the visible rows must come from the active page"
+# The Reading Room retires numbered paging. The grid owns the complete canonical
+# model while Qt virtualizes the delegates; this keeps a 105-volume series one
+# fixed-height surface without reviving the old ten-row corridor.
+Assert-Contains $library 'model: root.volumeRows' "the collection grid must consume every canonical volume"
+Assert-Contains $library 'GridView' "the volume collection must be a virtualized grid"
+Assert-Contains $library 'renderedCount' "the grid must expose its active delegate count for the perf harness"
+Assert-Contains $library 'autoLandNumber' "the grid must expose the continue target"
 Assert-Contains $library 'signal sourcesRequested' "library must emit a full-screen sources request"
 # --- the full-screen sources picker (replaces the inline MangaTankobanSourceCard) ---
 Assert-Contains $page 'text: "SOURCES' "sources page gold eyebrow missing"

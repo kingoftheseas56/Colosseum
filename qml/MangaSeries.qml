@@ -76,6 +76,54 @@ Item {
         page.tankobanReaderEntries = []
     }
 
+    // TB-002 legacy re-file guard. A page instance attempts the re-file for a given
+    // seriesId at most once; a fresh page open re-checks and self-heals. Instance-local
+    // is correct — Collection state can change between page opens, so a stale "already
+    // done" across opens would miss a save that landed in between.
+    property string _refiledFor: ""
+    function _refileLegacyCollectionEntryIfNeeded() {
+        var sid = page.seriesId
+        if (!sid || !sid.length) return
+        if (page._refiledFor === sid) return        // one-shot per seriesId on this page
+        page._refiledFor = sid
+
+        if (typeof Collection === "undefined") return
+        var items = Collection.items("tankoban")
+        var legacy = null
+        for (var i = 0; i < items.length; i++) {
+            var e = items[i]
+            if (!e) continue
+            if (e.type !== "manga") continue
+            // A legacy entry for THIS series: its id is the title AND the title matches,
+            // AND it is NOT already the canonical id (id !== seriesId).
+            if (String(e.id) === page.seriesTitle && String(e.id) !== sid) { legacy = e; break }
+        }
+        if (!legacy) return
+
+        // Re-file in add-verify-remove order. An interruption must NEVER leave the user's
+        // save deleted: the canonical entry lands and is confirmed before the legacy one
+        // is touched.
+        var canonicalAddedAt = Number(legacy.addedAt) || 0
+        // If a canonical entry already coexists (both present during the re-file window),
+        // keep the OLDER valid addedAt on it so the save's "date added" position is kept.
+        for (var j = 0; j < items.length; j++) {
+            var ce = items[j]
+            if (!ce) continue
+            if (ce.type === "manga" && String(ce.id) === sid) {
+                var existingAt = Number(ce.addedAt) || 0
+                if (!canonicalAddedAt || (existingAt && existingAt < canonicalAddedAt))
+                    canonicalAddedAt = existingAt
+            }
+        }
+        var canonical = { "id": sid, "type": "manga",
+                          "title": page.seriesTitle, "cover": page.cover,
+                          "payload": ({}), "addedAt": canonicalAddedAt }
+        Collection.add("tankoban", canonical)        // upsert; preserves our non-zero addedAt
+        // Verify the canonical entry landed before removing the legacy one.
+        if (Collection.has("tankoban", sid))
+            Collection.remove("tankoban", String(legacy.id))
+    }
+
     // --- seamless reveal gate ---
     // The page fires AniList (art) alongside the WeebCentral search, and the volume lookup as
     // soon as that search resolves (it is keyed by the WC id). Three sources, each at a
@@ -265,8 +313,27 @@ Item {
         }
     }
 
+    function _openChapter(chapterId, label) {
+        var id = String(chapterId || "")
+        if (!id.length) return
+        page.openEntryKind = "manga"
+        page.openChapterLabel = String(label || "")
+        page.openChapterId = id
+    }
+
+    function _downloadChapter(chapterId, label) {
+        var id = String(chapterId || "")
+        if (!id.length || typeof Downloads === "undefined") return
+        Downloads.downloadChapter(id, page.seriesId, page.seriesTitle, String(label || ""))
+        if (typeof Collection !== "undefined") Collection.add("tankoban", page.collectionEntry())
+    }
+
     function collectionEntry() {
-        return { "id": page.seriesTitle, "type": "manga",
+        // Key by seriesId (TB-002), NOT seriesTitle. A saved manga's Collection id now
+        // matches the id on its own Progress records, so the Library can tell it has been
+        // read. seriesId is empty until the search resolves; LibraryButton already no-ops
+        // on an empty entry.id, so that naturally gates saving until identity is ready.
+        return { "id": page.seriesId, "type": "manga",
                  "title": page.seriesTitle, "cover": page.cover, "payload": ({}) }
     }
 
@@ -308,6 +375,11 @@ Item {
             }
             var r = results[0]
             page.seriesId = r.id; page.seriesUrl = r.url
+            // TB-002: silently re-file a legacy title-keyed Collection save under seriesId.
+            // One-shot per seriesId on this page instance; no-op when there is nothing to
+            // migrate. Preserves the legacy addedAt so the save's Library position is kept,
+            // and only removes the legacy entry after confirming the canonical one landed.
+            page._refileLegacyCollectionEntryIfNeeded()
             // NOTE: deliberately do NOT take WeebCentral's low-res cover for the banner — that was
             // the source of the "low-q art that changes after a while" swap. The banner comes only
             // from AniList (hi-res), set in onArtResult.
@@ -434,6 +506,8 @@ Item {
     // ---- the page: one vertical scroll; banner → synopsis → volume shelf → glass chapter table ----
     Flickable {
         id: flick
+        visible: false
+        enabled: false
         anchors.fill: parent
         contentWidth: width
         contentHeight: pageCol.height
@@ -621,7 +695,8 @@ Item {
             MangaTankobanLibrary {
                 id: tankLib
                 width: parent.width
-                visible: page.tankobanMode
+                visible: false
+                coverFetchingEnabled: false
                 seriesId: page.seriesId
                 // the live chapter list is what a volume cover is derived FROM: the
                 // shelf asks Downloads.fetchThumb for the first page of each volume's
@@ -883,6 +958,42 @@ Item {
     }
 
     ScrollGlide { flick: flick }
+
+    // The approved Reading Room replaces the old corridor surface. The legacy
+    // Flickable remains inert above only to keep its already-shipped chapter and
+    // reader wiring available while this migration lands; it is not visible or
+    // interactive, and its controller has cover fetching disabled by visibility.
+    MangaReadingRoom {
+        id: readingRoom
+        anchors.fill: parent
+        z: 40
+        visible: !page.loading
+        opacity: page.loading ? 0.0 : 1.0
+        Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+        backdrop: page.backdrop
+        seriesId: page.seriesId
+        seriesTitle: page.seriesTitle
+        cover: page.cover
+        author: page.author
+        status: page.status
+        year: page.year
+        synopsis: page.synopsis
+        errorText: page.errorText
+        genres: page.genres
+        score: page.score
+        chapters: page.chaptersModel
+        collectionEntry: page.collectionEntry()
+        onBackRequested: page.backRequested()
+        onMinimizeRequested: page.minimizeRequested()
+        onFullscreenRequested: page.fullscreenRequested()
+        onCloseRequested: page.closeRequested()
+        onPrimaryRequested: page.readPrimary()
+        onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
+        onSourcesRequested: (ctx) => page._openSources(ctx)
+        onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
+        onOpenChapterRequested: (chapterId, label) => page._openChapter(chapterId, label)
+        onChapterDownloadRequested: (chapterId, label) => page._downloadChapter(chapterId, label)
+    }
 
     // ---- clean loading state ----
     // Shown while the page assembles; it fades out as the finished page fades in (see Flickable opacity),
