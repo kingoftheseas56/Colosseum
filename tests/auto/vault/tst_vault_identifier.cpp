@@ -81,6 +81,7 @@ private slots:
     void unambiguousMatchAdopts();
     void twoCandidatesStayUnidentified();
     void absentDatabaseNoOpsHonestly();
+    void autoPassIdentifiesOnlyCertainEligibleGroups();
     void unidentifyPreservesProgressAndFileId();
     void reshelveChangesKindWithoutChangingFileId();
 
@@ -151,6 +152,43 @@ void VaultIdentifierTest::absentDatabaseNoOpsHonestly()
     const VaultIdentifier::Match match = identifier.matchGroup(row.groupKey);
     QVERIFY(!match.adopted);
     QVERIFY(match.title.isEmpty());
+}
+
+void VaultIdentifierTest::autoPassIdentifiesOnlyCertainEligibleGroups()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    auto certain = fixtureRow(QStringLiteral("vault:auto-certain"), QStringLiteral("Cowboy Bebop"));
+    certain.progressed = true;
+    auto ambiguous = fixtureRow(QStringLiteral("vault:auto-ambiguous"), QStringLiteral("The Matrix"));
+    auto suppressed = fixtureRow(QStringLiteral("vault:auto-suppressed"), QStringLiteral("Cowboy Bebop"));
+    suppressed.groupKey += QStringLiteral("/suppressed");
+    suppressed.identitySuppressed = true;
+    auto away = fixtureRow(QStringLiteral("vault:auto-away"), QStringLiteral("Cowboy Bebop"));
+    away.groupKey += QStringLiteral("/away");
+    away.away = true;
+    auto errored = fixtureRow(QStringLiteral("vault:auto-error"), QStringLiteral("Cowboy Bebop"));
+    errored.groupKey += QStringLiteral("/error");
+    errored.errorState = QStringLiteral("corrupt");
+    QVERIFY(index.publish({certain, ambiguous, suppressed, away, errored}));
+
+    MalCatalog mal(m_malPath);
+    QVERIFY(mal.ready());
+    VaultIdentifier identifier(&index, nullptr, &mal, nullptr);
+    QCOMPARE(identifier.autoIdentifyExisting(), 1);
+
+    const auto certainRows = index.rowsForGroup(certain.groupKey);
+    QCOMPARE(certainRows.size(), 1);
+    QCOMPARE(certainRows.first().identitySource, QStringLiteral("MAL"));
+    QCOMPARE(certainRows.first().id, certain.id);
+    QCOMPARE(certainRows.first().progressed, true);
+    QVERIFY(index.rowsForGroup(ambiguous.groupKey).first().identitySource.isEmpty());
+    QVERIFY(index.rowsForGroup(suppressed.groupKey).first().identitySource.isEmpty());
+    QVERIFY(index.rowsForGroup(away.groupKey).first().identitySource.isEmpty());
+    QVERIFY(index.rowsForGroup(errored.groupKey).first().identitySource.isEmpty());
 }
 
 void VaultIdentifierTest::unidentifyPreservesProgressAndFileId()

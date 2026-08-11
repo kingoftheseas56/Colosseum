@@ -92,7 +92,7 @@ public:
 
     // Slice 17 identity actions. The index owns the reversible decoration; this façade owns
     // the QML-facing commands and the persistent hide surface.
-    void setIdentifier(VaultIdentifier* identifier) { m_identifier = identifier; }
+    void setIdentifier(VaultIdentifier* identifier);
     Q_INVOKABLE bool identifyGroup(const QString& groupKey);
     Q_INVOKABLE bool unidentifyGroup(const QString& groupKey);
     Q_INVOKABLE bool reshelveGroup(const QString& groupKey, const QString& kind);
@@ -162,6 +162,8 @@ private:
     // A returned root stays away until a successful aggregate publish has replaced its rows with
     // a fresh census. This prevents stale paths becoming clickable during an active/failed scan.
     void maybePublishPendingRevives();
+    void scheduleAutoIdentify();
+    void runAutoIdentifySlice();
 
     VaultIndex* m_index = nullptr;
     VaultScanner* m_scanner = nullptr;
@@ -181,4 +183,9 @@ private:
     QSet<QString> m_offeredThisRun; // normalized roots whose card we already raised this launch
     QSet<QString> m_pendingReviveRoots;
     bool m_revivalRescanInFlight = false;
+    bool m_autoIdentifyScheduled = false;
+    bool m_autoIdentifyDirty = false;
+    bool m_autoIdentifyKeysReady = false;
+    int m_autoIdentifyCursor = 0;
+    QStringList m_autoIdentifyKeys;
 };

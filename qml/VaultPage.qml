@@ -54,8 +54,23 @@ Item {
         { key: "book", label: "Books" }, { key: "video", label: "Video" },
         { key: "folders", label: "Folders" }, { key: "hidden", label: "Hidden" }
     ]
+    property var autoFilmEnrichmentRequested: ({})
+    function requestAutoFilmEnrichment(list) {
+        if (!list) return list
+        for (var i = 0; i < list.length; i++) {
+            var tile = list[i]
+            if (!tile || tile.identSource !== "IMDB" || !tile.identityId) continue
+            var key = String(tile.key || tile.identityId)
+            if (root.autoFilmEnrichmentRequested[key]) continue
+            root.autoFilmEnrichmentRequested[key] = true
+            root.requestProgressiveFilmIdentity(tile)
+        }
+        return list
+    }
     function seriesFor(kind) {
-        return (typeof VaultLibrary !== "undefined") ? (VaultLibrary.revision, VaultLibrary.series(kind)) : []
+        var list = (typeof VaultLibrary !== "undefined")
+            ? (VaultLibrary.revision, VaultLibrary.series(kind)) : []
+        return kind === "video" ? root.requestAutoFilmEnrichment(list) : list
     }
     // Kinds whose shelf shows under the current tab; Folders is a flat all-kinds gallery instead.
     function shelfKinds() {

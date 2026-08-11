@@ -9,6 +9,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QRegularExpression>
+#include <QStringList>
 
 namespace {
 
@@ -173,6 +174,45 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
     }
 
     return match;
+}
+
+int VaultIdentifier::autoIdentifyExisting()
+{
+    if (!m_index)
+        return 0;
+
+    int adopted = 0;
+    const QStringList kinds = {QStringLiteral("comic"), QStringLiteral("book"),
+                               QStringLiteral("video")};
+    for (const QString& kind : kinds) {
+        const QVariantList groups = m_index->groupsForKind(kind);
+        for (const QVariant& value : groups) {
+            const QString groupKey = value.toMap().value(QStringLiteral("groupKey")).toString();
+            if (groupKey.isEmpty())
+                continue;
+            const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+            if (rows.isEmpty())
+                continue;
+
+            bool eligible = true;
+            for (const VaultIndex::FileRow& row : rows) {
+                // Suppression is a user decision: automatic passes honour it, while the
+                // explicit Identify action deliberately bypasses it and clears the marker.
+                if (!row.identityId.isEmpty() || row.identitySuppressed || row.away
+                    || !row.errorState.isEmpty()) {
+                    eligible = false;
+                    break;
+                }
+            }
+            if (!eligible)
+                continue;
+
+            const Match match = matchGroup(groupKey);
+            if (match.adopted && applyGroup(groupKey, match))
+                ++adopted;
+        }
+    }
+    return adopted;
 }
 
 bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match)

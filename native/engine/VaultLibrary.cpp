@@ -12,6 +12,7 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QProcess>
+#include <QTimer>
 #include <QUrl>
 
 // Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots().
@@ -34,6 +35,8 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
         connect(m_index, &VaultIndex::changed, this, [this]() {
             ++m_revision;
             emit changed();
+            if (m_identifier)
+                scheduleAutoIdentify();
         });
     }
     if (m_scanner) {
@@ -77,6 +80,84 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     connect(m_watcher, &VaultWatcher::rootAvailabilityChanged, this,
             &VaultLibrary::onRootAvailabilityChanged);
     m_watcher->refresh();
+}
+
+void VaultLibrary::setIdentifier(VaultIdentifier* identifier)
+{
+    m_identifier = identifier;
+    scheduleAutoIdentify();
+}
+
+void VaultLibrary::scheduleAutoIdentify()
+{
+    if (!m_identifier) {
+        return;
+    }
+    if (m_autoIdentifyScheduled) {
+        m_autoIdentifyDirty = true;
+        return;
+    }
+    m_autoIdentifyScheduled = true;
+    m_autoIdentifyDirty = false;
+    m_autoIdentifyKeysReady = false;
+    m_autoIdentifyCursor = 0;
+    m_autoIdentifyKeys.clear();
+    QTimer::singleShot(0, this, &VaultLibrary::runAutoIdentifySlice);
+}
+
+void VaultLibrary::runAutoIdentifySlice()
+{
+    if (!m_identifier) {
+        m_autoIdentifyScheduled = false;
+        return;
+    }
+    // The watcher already exposes the immersive gate. Yield rather than competing with a
+    // reader/player, and resume when the local-media surface is available again.
+    if (immersive()) {
+        QTimer::singleShot(250, this, &VaultLibrary::runAutoIdentifySlice);
+        return;
+    }
+    if (!m_autoIdentifyKeysReady) {
+        const QStringList kinds = {QStringLiteral("comic"), QStringLiteral("book"),
+                                   QStringLiteral("video")};
+        for (const QString& kind : kinds) {
+            for (const QVariant& value : m_index->groupsForKind(kind)) {
+                const QString key = value.toMap().value(QStringLiteral("groupKey")).toString();
+                if (!key.isEmpty() && !m_autoIdentifyKeys.contains(key))
+                    m_autoIdentifyKeys.append(key);
+            }
+        }
+        m_autoIdentifyKeysReady = true;
+    }
+    if (m_autoIdentifyCursor >= m_autoIdentifyKeys.size()) {
+        const bool rerun = m_autoIdentifyDirty;
+        m_autoIdentifyScheduled = false;
+        m_autoIdentifyDirty = false;
+        m_autoIdentifyKeysReady = false;
+        m_autoIdentifyKeys.clear();
+        if (rerun)
+            scheduleAutoIdentify();
+        return;
+    }
+
+    const QString groupKey = m_autoIdentifyKeys.at(m_autoIdentifyCursor++);
+    const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+    bool eligible = !rows.isEmpty();
+    for (const VaultIndex::FileRow& row : rows) {
+        if (!row.identityId.isEmpty() || row.identitySuppressed || row.away
+            || !row.errorState.isEmpty()) {
+            eligible = false;
+            break;
+        }
+    }
+    if (eligible) {
+        const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey);
+        if (match.adopted)
+            m_identifier->applyGroup(groupKey, match);
+    }
+    // One group per event-loop turn keeps the pass progressive and lets the immersive gate,
+    // watcher, and normal QML input continue to breathe between identities.
+    QTimer::singleShot(0, this, &VaultLibrary::runAutoIdentifySlice);
 }
 
 int VaultLibrary::itemCount() const

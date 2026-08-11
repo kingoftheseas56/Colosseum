@@ -31,6 +31,9 @@ public:
                              QObject* parent = nullptr);
 
     Match matchGroup(const QString& groupKey) const;
+    // Apply the same certainty gate to every existing group. The caller owns scheduling;
+    // this method is a synchronous, testable pass over the current index snapshot.
+    int autoIdentifyExisting();
     bool applyGroup(const QString& groupKey, const Match& match);
     bool unidentifyGroup(const QString& groupKey);
     bool reshelveGroup(const QString& groupKey, const QString& kind);
