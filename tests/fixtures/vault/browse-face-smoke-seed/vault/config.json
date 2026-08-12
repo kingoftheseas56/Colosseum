@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "roots": [
+    {
+      "path": "c:/users/suprabha/desktop/brotherhood/colosseum/tests/fixtures/vault/browse-face-smoke",
+      "confirmed": true,
+      "addedAtMs": 1
+    }
+  ],
+  "scanIgnore": [],
+  "hidden": [],
+  "kinds": {}
+}

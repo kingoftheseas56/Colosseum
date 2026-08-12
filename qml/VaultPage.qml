@@ -557,6 +557,11 @@ Item {
         }
         if (root.populated) root.initBrowseState()
     }
+    // Leaving Vault (the taskbar door) deactivates vaultLayer's Loader, destroying this whole
+    // page — a plain scroll (ui-scroll / a mouse drag) never runs through pushCrumb/goToCrumb/
+    // selectRoot, so it is never remembered by those calls alone. This is the one place that
+    // catches "the user just scrolled and then left" (design §4.8 session persistence).
+    Component.onDestruction: root.rememberCurrentScroll()
 
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }
