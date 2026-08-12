@@ -1,0 +1,38 @@
+[
+  {
+    "pattern": "Cannot load nvcuda\\.dll",
+    "owner": "W0 baseline (Agent 0, Claude)",
+    "reason": "Harmless CUDA hardware probe seen at every launch on a machine without an NVIDIA driver stack; stderr-only, never reaches colosseum.log because it is a raw third-party write AppLog's Qt message handler never sees. Named as the expected known-noise example in the W0 plan itself.",
+    "date": "2026-08-12"
+  },
+  {
+    "pattern": "QIODevice::read \\(QNetworkReplyHttpImpl\\): device not open",
+    "owner": "W0 baseline (Agent 0, Claude)",
+    "reason": "Qt network-reply-read-after-close warning observed at session teardown in 3 of 4 baseline passes (boot-nowhere, Biblio, Theatre), timestamped in the last second before graceful stop alongside the app's many boot-time IPv4-pin/poster-scoreboard network probes. Non-fatal, teardown-only; no user-visible symptom in any pass.",
+    "date": "2026-08-12"
+  },
+  {
+    "pattern": "QRhiGles2: Failed to make context current",
+    "owner": "W0 baseline (Agent 0, Claude)",
+    "reason": "Qt RHI GL-context-teardown warning at process shutdown (GL context already torn down when a deferred RHI cleanup step runs); appeared twice per pass in all 4 baseline sessions, always in the final second before graceful stop. Known Qt shutdown-ordering artifact, not a rendering defect during the live session.",
+    "date": "2026-08-12"
+  },
+  {
+    "pattern": "items in the process of being created at engine destruction",
+    "owner": "W0 baseline (Agent 0, Claude)",
+    "reason": "QML engine destruction warning for an async-created item that had not finished construction; observed in the Tankoban and Biblio baseline passes at session teardown. Classic Qt QML shutdown race, not a runtime defect - the item in question is never used because the engine is already being torn down.",
+    "date": "2026-08-12"
+  },
+  {
+    "pattern": "qt\\.sql\\.qsqldatabase: QSqlDatabase requires a QCoreApplication",
+    "owner": "W0 baseline (Agent 0, Claude)",
+    "reason": "Qt SQL warning from a database connection being closed after QCoreApplication has already been torn down (static/global destructor ordering); appeared 4-6 times per pass in all 4 baseline sessions, always clustered in the final teardown window. Harmless at process exit; would only matter if seen mid-session.",
+    "date": "2026-08-12"
+  },
+  {
+    "pattern": "^lanista: listening on ",
+    "owner": "W0 wiring (Agent 0, Claude)",
+    "reason": "The bridge's own routine startup announcement (LanistaServer construction), printed at every boot of the real app AND the lanista_harness test fixture. In colosseum.log this is an [I]-level line and never reaches the offending set; in the harness's raw stderr.log (no AppLog, no level marker at all - lanista_harness never links native/engine/AppLog.cpp) it has no level to classify by, so it needs an explicit entry. Anchored to line-start so it only matches the announcement itself, not an unrelated line that happens to mention the phrase.",
+    "date": "2026-08-12"
+  }
+]

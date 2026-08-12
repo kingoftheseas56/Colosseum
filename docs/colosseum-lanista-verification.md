@@ -165,6 +165,83 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   at all; `destination: "local"` in the schema is kept for forward compatibility only, not because
   any current store needs it.
 
+### Warning gate (Slice W0, 2026-08-12) - warnings become verdicts
+
+- **What it is.** `tests/warning_gate.ps1` - a runner-side parser, no app change, no second
+  `qInstallMessageHandler` (`native/engine/AppLog.cpp` already chains). Input: one or more
+  `-LogPath` values (a session's `<AppDataLocation>/logs/colosseum.log` plus the runner's own
+  `stderr.log`). Output: `WARNING_GATE_OK` (exit 0) on a clean session, or `FAIL: <line>` named
+  per offending line (exit 1), or `FAIL: <schema message>` (exit 2) when the allowlist itself is
+  malformed. House sentinel contract, so it composes with every existing `.ps1` runner.
+  ```
+  pwsh tests/warning_gate.ps1 -LogPath <sessionRoot>/logs/colosseum.log,<runDir>/stderr.log
+  ```
+  (a single `-LogPath` value may itself be comma-separated - the script splits defensively
+  because a calling shell can collapse a quoted multi-value argument into one string before
+  PowerShell ever sees it, verified empirically 2026-08-12).
+- **Classification rule.** `colosseum.log` is level-classified and authoritative: a `[W]`/`[C]`/
+  `[F]` line is offending unless an allowlist pattern matches it; `[D]`/`[I]` lines (and
+  multi-line continuations / the session-start banner, which carry no level marker at all) are
+  never offending. `stderr.log` carries NO level marker at all (Qt's un-leveled console mirror
+  plus raw third-party writes AppLog never sees, e.g. `Cannot load nvcuda.dll`), so a stderr.log
+  line is offending unless it is either allowlisted or text-identical (after stripping
+  colosseum.log's timestamp+level prefix) to a line colosseum.log already proved was `[D]`/`[I]`.
+  A run where every given path is missing is refused (exit 2), never silently `WARNING_GATE_OK`.
+- **The allowlist.** `tests/lanista-warning-allowlist.json` - `[{pattern, owner, reason, date}]`.
+  `pattern` is a regex matched against the full line text. An entry missing `pattern`/`owner`/
+  `reason`/`date` is invalid by schema and the WHOLE gate run is refused (exit 2), never silently
+  dropping just that one entry - verified live 2026-08-12 (an entry missing `owner` alone, and
+  separately one missing `reason` alone, both rejected by field name).
+- **Measured baseline (2026-08-12), the handoff's required "current warning baseline."** Four
+  fresh isolated sessions via `lanista session run --tag <t> --ready-ms 60000` (scratch scenario
+  JSON under `artifacts/warning-baseline/2026-08-12/scenarios/`, not `tests/lanista_scenarios/` -
+  ephemeral measurement tooling, not a permanent regression gate): (1) clean boot, no seed, no
+  navigation (`20260812-180124-c3bc95c9`); (2) boot + one click into Tankoban
+  (`20260812-180159-990382a4`); (3) boot + one click into Biblio, with the named
+  `biblioDiscoverPage.loading` real wait (`20260812-180235-5ffd4637`); (4) boot + one click into
+  Theatre - no named settle surface exists for Theatre today, so this pass is click + round-trip
+  read only, not a claimed completion signal (`20260812-180305-2389417b`). Each world pass was its
+  own fresh-boot session (never returning home / clicking a second pill) to avoid the documented
+  DFS name-collision trap between a hidden pre-warmed world's pill and the visible one. Classified
+  distinct lines, ALL known-noise, ZERO legitimate red found in what these four sessions visited:
+
+  | Pattern (see allowlist for full reason) | Where seen |
+  |---|---|
+  | `Cannot load nvcuda.dll` | stderr.log, all 4 passes (named known-noise example in the W0 plan) |
+  | `QIODevice::read (QNetworkReplyHttpImpl): device not open` | colosseum.log `[W]`, boot-nowhere/Biblio/Theatre, teardown-only |
+  | `QRhiGles2: Failed to make context current` | colosseum.log `[W]`, all 4 passes x2, teardown-only |
+  | `...items in the process of being created at engine destruction` | colosseum.log `[W]`, Tankoban/Biblio, teardown-only |
+  | `qt.sql.qsqldatabase: QSqlDatabase requires a QCoreApplication` | colosseum.log `[W]`, all 4 passes x4-6, teardown-only |
+  | `^lanista: listening on ` | harness stderr only (see below) - the bridge's own routine startup line, `[I]` in the real app |
+
+  Every one of these clusters in the final second before graceful session stop (Qt
+  RHI/QML-engine/SQL teardown ordering, or a startup announcement) - none is a mid-session,
+  user-visible symptom. The classification table above is the durable record (the known-noise
+  half is ALSO durable via `tests/lanista-warning-allowlist.json` itself, which carries
+  pattern+owner+reason+date per entry); raw per-session logs are ephemeral evidence under
+  `artifacts/warning-baseline/2026-08-12/` (gitignored, `.gitignore:34`) and are not the
+  deliverable - this table is. **Explicitly NOT claimed:** any statement about the warning
+  behavior of surfaces these four sessions did not visit (Vault, Theatre beyond one click, deep
+  navigation within any world).
+- **Two-sided negative control (mandatory, performed live 2026-08-12).** (a) the Tankoban
+  baseline's real `colosseum.log`+`stderr.log` against an EMPTY allowlist -> `FAIL:` naming every
+  real line (8 distinct offenders). (b) the same log pair against the full classified allowlist ->
+  `WARNING_GATE_OK`. Both outputs preserved under
+  `artifacts/warning-baseline/2026-08-12/negative-control/direction-a-red.log` and
+  `direction-b-green.log`. Schema guard proven separately: an allowlist entry missing `owner`
+  alone, and separately one missing `reason` alone, both rejected (exit 2, entry index + field
+  name named) - preserved as `schema-guard-missing-owner.log` / `schema-guard-missing-reason.log`
+  in the same directory.
+- **Wired caller.** `tests/test_lanista.ps1` is the one caller wired per the plan (opt-in only -
+  no other runner touched). Its `--serve` harness process (`lanista_harness.exe`) has NO AppLog
+  (it never links `native/engine/AppLog.cpp` - see its `native/CMakeLists.txt` target), so only
+  its own `stderr.log` (redirected to `artifacts/test-lanista/harness-stderr.log`) is gated; the
+  harness's routine `lanista: listening on ...` startup line needed its own allowlist entry for
+  exactly this reason (it is `[I]`-level and silent in the real app's colosseum.log, but has no
+  level at all in the harness's raw console capture). Proven both directions live: a clean run is
+  green (`WARNING_GATE_OK`), and removing that one allowlist entry turns the SAME wired run red
+  (`FAIL: ... lanista: listening on ...`) - then restoring the allowlist turns it green again.
+
 ### Named automation surfaces (added 2026-08-06)
 
 - `modePill_<Tankoban|Biblio|Theatre|Vinyl>` (TopBar mode switch — plain Items with child

@@ -73,7 +73,12 @@ half the compiled harnesses are run by nobody.
 - The two real Quick Test files run via the Qt-install `qmltestrunner.exe`
   (`test_comicreader_chrome.ps1`, `test_search_history_p0.ps1`).
 - Lanista's gate: `tests/test_lanista.ps1` (greps + harness selfcheck + two scenarios on
-  the `ColosseumLanistaTest` pipe, readiness-polled, never the daily pipe).
+  the `ColosseumLanistaTest` pipe, readiness-polled, never the daily pipe). As of Slice W0
+  (2026-08-12) this gate also calls `tests/warning_gate.ps1` on its own captured logs after the
+  scenarios run - the first (and, for this slice, only) opt-in caller of the new warning gate.
+  No native/QML change; full detail (command, allowlist location, measured baseline, negative
+  controls) lives in `docs/colosseum-lanista-verification.md` under "Warning gate (Slice W0,
+  2026-08-12)" since it is a runtime/bridge-domain capability, not a compiled test target.
 
 ## Tankoban Reading Room gate (2026-08-11)
 

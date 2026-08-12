@@ -39,8 +39,18 @@ if ($LASTEXITCODE -ne 0 -or $out -notmatch "LANISTA_OK") {
 }
 
 # 3. scenarios against a serving harness (fresh process, no DRIVE env)
+# Slice W0: stdout/stderr are captured to disk so the warning gate (step 4 below) has
+# something to read. lanista_harness has no AppLog (it never links
+# native/engine/AppLog.cpp - see native/CMakeLists.txt's lanista_harness target), so only
+# its console output exists to gate; there is no colosseum.log for this fixture process.
+$harnessLogDir = Join-Path $root "artifacts/test-lanista"
+New-Item -ItemType Directory -Force -Path $harnessLogDir | Out-Null
+$harnessOutLog = Join-Path $harnessLogDir "harness-stdout.log"
+$harnessErrLog = Join-Path $harnessLogDir "harness-stderr.log"
+Remove-Item -LiteralPath $harnessOutLog, $harnessErrLog -ErrorAction SilentlyContinue
 $serve = Start-Process -FilePath (Join-Path $build "lanista_harness.exe") `
-    -ArgumentList "--serve" -PassThru -WindowStyle Hidden
+    -ArgumentList "--serve" -PassThru -WindowStyle Hidden `
+    -RedirectStandardOutput $harnessOutLog -RedirectStandardError $harnessErrLog
 $lanista = Join-Path $build "lanista.exe"
 try {
     Push-Location $root
@@ -58,6 +68,16 @@ try {
         $scOut = & $lanista --pipe ColosseumLanistaTest run $sc 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: scenario $sc"; Write-Host $scOut; exit 1 }
     }
+
+    # 4. Slice W0: the warning gate rides this run's own logs (house sentinel contract -
+    # WARNING_GATE_OK or FAIL: <line>). Opt-in wiring for this ONE caller only; every other
+    # existing runner is untouched (J1's battery work, out of scope here).
+    $gateOut = & (Join-Path $root "tests/warning_gate.ps1") -LogPath $harnessErrLog 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "FAIL: warning gate"; Write-Host $gateOut; exit 1
+    }
+    Write-Host ($gateOut.Trim())
+
     Pop-Location
 } finally {
     Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
