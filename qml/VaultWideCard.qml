@@ -139,15 +139,23 @@ Item {
                     fillMode: Image.PreserveAspectFit
                 }
             }
-            MouseArea {
-                id: cardMa
-                objectName: "vaultBrowseCard_" + card.nodeKey + "_hitArea"
-                anchors.fill: parent
-                enabled: !card.away
-                hoverEnabled: true
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: card.openRequested(card.row)
-            }
+        }
+        // The hit area is a sibling of settledLayer, not nested inside it: settledLayer is
+        // `visible: opacity > 0`, and an invisible item receives no mouse events, so a MouseArea
+        // living inside it would only ever be reachable once the card had already settled. That
+        // silently broke design §4.6's own contract ("a tile mid-resolve remains fully
+        // interactive — openable") — found live driving a real Play click on a resolving Film
+        // card in Slice 5's Lanista replay (its identity never resolves without a live catalogue
+        // lookup, so it would have stayed permanently unclickable). Hover chrome (the scrim +
+        // play glyph above) stays settled-only by design; only the CLICK now works in both faces.
+        MouseArea {
+            id: cardMa
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_hitArea"
+            anchors.fill: parent
+            enabled: !card.away
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: card.openRequested(card.row)
         }
 
         // ── circular corner indicator: away glyph or the uncertainty mark only (no count here). ──

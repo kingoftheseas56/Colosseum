@@ -94,6 +94,23 @@ TestCase {
         c.destroy()
     }
 
+    // ── 1a-bis. a RESOLVING card is still openable (design §4.6: "a tile mid-resolve remains
+    //           fully interactive — openable"). Slice 5's Lanista replay caught this live: the
+    //           hit area used to live inside the settled-only layer (visible: opacity > 0), so
+    //           an invisible item never received clicks and a card whose identity never resolves
+    //           (a real video with no offline catalogue match) was permanently unclickable. ──
+    function test_resolving_card_is_still_clickable() {
+        var c = createPoster(resolvingRow)
+        openSpy.target = c
+        compare(c.faceState, "filename")
+        var hitArea = findChild(c, "vaultBrowseCard_batman-s02_hitArea")
+        verify(hitArea !== null)
+        verify(hitArea.enabled)
+        mouseClick(hitArea)
+        compare(openSpy.count, 1)
+        c.destroy()
+    }
+
     // ── 1b. uncertain shows the gold mark, and ONLY the mark is gold ────────────────────────
     function test_uncertain_shows_gold_mark() {
         var c = createPoster(uncertainRow)
@@ -190,6 +207,24 @@ TestCase {
         // episode nodes never badge a plain item count (design §6.3) — confirms the selector's
         // choice mattered, not just the aspect ratio.
         compare(c.showIndicator, false)
+        c.destroy()
+    }
+
+    // ── 5. the wide card's resolving state is ALSO clickable (same fix, same bug class) ─────
+    function test_resolving_wide_card_is_still_clickable() {
+        var episodeResolvingRow = {
+            "key": "gintama-e7", "nodeType": "episode", "displayTitle": "Gintama",
+            "physicalFact": "", "path": "D:/hemanth's folder/Gintama/Season 1/e7.mkv",
+            "counts": { "items": 0 }, "coverRef": "", "state": "resolving", "away": false
+        }
+        var c = createWide(episodeResolvingRow)
+        openSpy.target = c
+        compare(c.faceState, "filename")
+        var hitArea = findChild(c, "vaultBrowseCard_gintama-e7_hitArea")
+        verify(hitArea !== null)
+        verify(hitArea.enabled)
+        mouseClick(hitArea)
+        compare(openSpy.count, 1)
         c.destroy()
     }
 }
