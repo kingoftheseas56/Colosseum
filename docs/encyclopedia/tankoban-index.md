@@ -606,8 +606,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/MangaSeries.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `f78ed592f82b1e054841b25565581acf4e04b00f`
-- Current blob: `f78ed592f82b1e054841b25565581acf4e04b00f`
+- Accepted blob: `4a94b78320f21001b3884ced00c6ae5524f422dd`
+- Current blob: `4a94b78320f21001b3884ced00c6ae5524f422dd`
 - Source: [`qml/MangaSeries.qml`](../../qml/MangaSeries.qml)
 
 ```text
@@ -629,50 +629,24 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/MangaTankobanLibrary.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `71bee7bfb006ccbfdf6c864b7b815877ae0b245c`
-- Current blob: `71bee7bfb006ccbfdf6c864b7b815877ae0b245c`
+- Accepted blob: `4274c26fa82dd9e851efdbf595e7d0499698f016`
+- Current blob: `4274c26fa82dd9e851efdbf595e7d0499698f016`
 - Source: [`qml/MangaTankobanLibrary.qml`](../../qml/MangaTankobanLibrary.qml)
 
 ```text
-// MangaTankobanLibrary — the volume shelf. A series IS its volumes here: EVERY
-// canonical volume the service knows renders as a row.
+// MangaTankobanLibrary - the reader-derived Tankoban Pages flow.
 //
-// BUILT TO THEATRE'S EPISODE ROW (qml/TheatreSeries.qml ~1502). A tankobon is the
-// same kind of object as an episode — a numbered instalment you own, are part-way
-// through, or have not fetched yet — so the shelf wears Theatre's anatomy exactly:
-// a 70px number rail with a hairline, the artwork, name + meta, an uppercase status,
-// and circular actions on the right. Continue is Theatre's "Next up": taller, gold
-// rail, gold number.
-//
-// The ONE adaptation that is not a copy: Theatre's still is LANDSCAPE (172x96) and
-// a tankobon is portrait, so Theatre is the wrong yardstick for the artwork — the
-// aspect ratios are not comparable, and no size taken from it can be right.
-//
-// The book is the HERO of this surface, not a thumbnail of one: 220x320 in a 356px
-// row (268x390 in 428 on Continue), roughly a real tankobon's 1:1.46. Sized to be
-// looked at, on Hemanth's call — a paged shelf (10 volumes at a time) is coming, so
-// row height is no longer paying for scroll length. A chapter is
-// a fragment and wears a 100x140 thumbnail; a volume is the whole object you are
-// collecting, and it is sized to be looked at. The rail, title and blurb all scale
-// with it so nothing beside the cover reads as a footnote.
-//
-// The signature: OWNERSHIP IS DRAWN AS A SPINE. The rail's hairline thickens into a
-// gold rule and the cover picks up a lit left edge once the volume is on disk, so a
-// shelf you own reads as a run of book spines. It encodes the one thing this product
-// is about — collecting books — rather than decorating the row.
-//
-// Service seam: in the app `service` is the native `TankobanVolumes` context
-// property; the offscreen harness injects a fake exposing the same API. All calls
-// resolve through `serviceObject`, falling back to the context property so the
-// running app needs no wiring. `progress` is the same seam over ProgressStore.
+// Every canonical volume belongs to one virtualized ListView model. The focused
+// volume is centered through the reader's double-pass geometry operation; the
+// surrounding covers shrink monotonically into one consistent recession line.
 ```
 
 <a id="file-qml-mangatankobansourcespage-qml"></a>
 ## `qml/MangaTankobanSourcesPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `44c52345efe3e433ef11ffa80e99932aa8c01851`
-- Current blob: `44c52345efe3e433ef11ffa80e99932aa8c01851`
+- Accepted blob: `afabe31cf40d201091cfc87a49b2f44de4e218d5`
+- Current blob: `afabe31cf40d201091cfc87a49b2f44de4e218d5`
 - Source: [`qml/MangaTankobanSourcesPage.qml`](../../qml/MangaTankobanSourcesPage.qml)
 
 ```text

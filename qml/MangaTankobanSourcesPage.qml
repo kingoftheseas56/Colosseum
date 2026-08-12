@@ -14,6 +14,20 @@ import QtQuick.Controls
 
 Item {
     id: sheet
+    // Automation surface (2026-08-12). This page had NO objectName anywhere, so the entire
+    // acquisition step — the release list, each release, the download button, the
+    // build-from-chapters fallback — was unreachable by the Lanista bridge: an agent could
+    // walk into manga and then had nothing to press, which is why the "download fails" report
+    // could not be reproduced mechanically. Naming the ROOT is the load-bearing part: it puts
+    // `failureText` / `loading` / `complete` / `rows` behind qml-get, so the reason a download
+    // was refused is readable directly instead of being inferred from pixels (whole-window
+    // grabs are blank on this D3D backend — see the Lanista ledger).
+    //
+    // Names are WORLD-NAMESPACED (`tankoban*`) per the binding convention in
+    // docs/colosseum-lanista-verification.md: a bare shared stem resolves DFS-first and can
+    // silently match an occluded item in another world, so a click "lands" green while the
+    // visible page never moves.
+    objectName: "tankobanSourcesSheet"
     anchors.fill: parent
 
     // Injection seam (same as MangaTankobanLibrary): the harness assigns a fake; the
@@ -318,6 +332,9 @@ Item {
             width: parent.width - 80
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
+            // The user-visible "why is this list empty" line. Named so a driver reads the SAME
+            // sentence the reader sees, rather than reconstructing it from state.
+            objectName: "tankobanSourcesEmptyText"
             visible: sheet.rows.length === 0
             text: sheet.loading ? "Searching Nyaa releases…"
                   : (sheet.failureText.length > 0
@@ -329,6 +346,8 @@ Item {
 
         ListView {
             id: list
+            // `count` behind qml-get answers "did the search return anything" without pixels.
+            objectName: "tankobanSourcesList"
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
             anchors.topMargin: 4; anchors.bottomMargin: 8
@@ -341,6 +360,11 @@ Item {
             delegate: Item {
                 id: row
                 required property var modelData
+                required property int index
+                // Index-keyed so a driver can press a specific release ("the first one") without
+                // knowing its hash; the row's own modelData (infoHash, releaseTitle, enabled,
+                // seeders, coverage) is then readable off this same name via qml-get.
+                objectName: "tankobanSourceRow_" + row.index
                 width: ListView.view.width
                 readonly property bool isWeeb: row.modelData && row.modelData.kind === "weebcentral"
                 readonly property bool rowEnabled: row.modelData ? (row.modelData.enabled !== false) : false
@@ -424,6 +448,10 @@ Item {
 
                     Rectangle {
                         id: pickBtn
+                        // THE download button for a Nyaa release. Note the whole row is the
+                        // click target (the MouseArea fills it); this name exists so a driver
+                        // can assert the button is actually drawn and hit it precisely.
+                        objectName: "tankobanSourceDownload_" + row.index
                         anchors.right: parent.right; anchors.rightMargin: 30
                         anchors.verticalCenter: parent.verticalCenter
                         width: 56; height: 56; radius: 28; color: theme.gold
@@ -476,6 +504,9 @@ Item {
                     }
                     Rectangle {
                         id: weebBtn
+                        // The non-torrent route: build this volume from WeebCentral chapters.
+                        // One per sheet (the fallback card is always last and always single).
+                        objectName: "tankobanSourceBuildFromChapters"
                         anchors.right: parent.right; anchors.rightMargin: 30
                         anchors.verticalCenter: parent.verticalCenter
                         width: 56; height: 56; radius: 28
