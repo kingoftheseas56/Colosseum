@@ -170,7 +170,21 @@ exploration, diagnosis, and review-gate walking.
 verdict the `warnings` tool reads). Soft dependencies — ordered after them in this plan.
 **Implementation guidance:** pure Python, `native/tools/lanista-mcp/server.py` (already
 registered in `.mcp.json`; it is NOT compiled — no build-dir contention). Today it has 3 tools
-and **no deadlines anywhere** (ledger-documented flaw). v0 grows it to eight typed tools, every
+and **no deadlines anywhere** (ledger-documented flaw).
+
+> **PROTOCOL RULING — do not deviate (Agent 0, verified 2026-08-12).** `server.py` is 136 lines
+> of hand-rolled JSON-RPC over stdin/stdout with NO SDK, declaring `protocolVersion:
+> "2024-11-05"`. The current spec is **2026-07-28** (final, published 28 July 2026; stateless
+> core; Tasks / Skills-over-MCP / MCP Apps as formal extensions; Roots, Sampling and Logging
+> deprecated on a 12-month offramp). **v0 STAYS on the hand-rolled 2024-11-05 base. Do NOT
+> upgrade the protocol version, do NOT adopt an SDK, do NOT implement Tasks in this slice.**
+> Rationale: all eight tools below are plain `tools/call` and need nothing newer; hosts
+> negotiate down; adding an SDK dependency mid-execution is scope creep against an approved
+> plan. **Tasks are genuinely the right shape for the Night Watch (N0/N1)** — a long build +
+> journey run is exactly the spec's "durable handle you poll" case — and that is where the
+> protocol upgrade gets planned, not here. Noticing the old version is correct; acting on it in
+> this slice is out of scope. If you believe this ruling is wrong, report it and stop; do not
+> modernise unilaterally. v0 grows it to eight typed tools, every
 one shelling the existing `lanista` CLI with an explicit `--timeout` — no naked pipe reads:
 - `session_start(seedName?, tag?, drive?)` — spawns `colosseum.exe` from an explicit exe path
   with a UNIQUE `COLOSSEUM_LANISTA_PIPE` (generated; the daily default name is refused
