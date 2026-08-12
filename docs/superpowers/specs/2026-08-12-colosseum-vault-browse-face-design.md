@@ -89,7 +89,9 @@ others, not by how it looks alone.
 A single folder may simultaneously contain identified films, a series, subfolders, files still
 resolving, files Vault is unsure about, companion files, and non-media files.
 
-- Identified films, series, subfolders, resolving files and uncertain files **all appear as tiles**.
+- Identified films, series, subfolders, resolving files, uncertain files and **local-only** items
+  all appear as tiles. Local-only is a distinct state from uncertain: Vault is *certain* the item is
+  yours and *certain* no catalogue describes it (parent §2.11). It is never marked as a problem.
 - Companion files (subtitles, artwork, `.nfo`, external audio, chapter sidecars) **never appear**;
   they fold into the tile they belong to and are listed on its detail sheet.
 - **Extras** (trailers, deleted scenes, interviews, featurettes) are not companions and are not
@@ -240,10 +242,28 @@ mark. It is not used for ordinary selection or hover.
 - Artwork is the only saturated thing on screen. Chrome stays grayscale so the collection is what
   the eye lands on.
 
-### 6.3 Density
+### 6.3 Card shape and density
 
-The grid is a poster grid, not a list. Tiles are large enough that artwork reads as artwork.
-Chrome around the grid stays minimal — the rail, the breadcrumb, and nothing else competing.
+**Card shape varies by content type.** This is Jellyfin's structure as *rendered* — verified on the
+live demo, not inferred from its stylesheet — and it is adopted:
+
+| Content | Shape |
+|---|---|
+| Film, series, season, folder | 2:3 poster |
+| Episode, loose video clip | 16:9 still |
+
+Going into a series is therefore a **different card**, not the same grid one level deeper. This
+matters most at depth: a season of Gintama is 49 wide cards, not 49 posters.
+
+Card corners are near-square — roughly 5px, not the app's larger panel radii. Artwork fills the card
+edge to edge and **nothing is printed over it**. Title sits centered below the card on one line with
+ellipsis; a second, dimmer centered line beneath carries the physical fact, occupying the slot where
+Jellyfin puts the year. State uses **circular corner indicators**, never rectangular badges.
+
+Hover dims the artwork and reveals a play affordance; it does not merely scale the card.
+
+The grid is dense — cards around 150px wide for posters. Chrome around it stays minimal: the rail,
+the breadcrumb, and nothing else competing.
 
 ---
 
@@ -253,7 +273,8 @@ Read directly from `~/Downloads/jellyfin-web`. Structure adopted, palette not.
 
 | Jellyfin source | What it proves | What Vault adopts | What Vault changes |
 |---|---|---|---|
-| `src/components/cardbuilder/card.scss` | A poster card can carry state without becoming a data row. Hover is `transform: scale(1.07)` over `200ms ease-out` with `will-change: transform`; corners `0.7em`. | The card as the unit of a library, its hover-lift, and its restraint. | Our card carries a physical fact (#7), which Jellyfin's never does. |
+| `src/components/cardbuilder/card.scss`, checked against the **rendered** Movies and Shows libraries | The card is the unit of a library, and its face is pure artwork. In the source, hover carries `transform: scale(1.07)` over `200ms ease-out`; in the rendered library grid the hover that actually fires **dims the art and reveals play plus an action row**. Corners read near-square. | The card as the unit; artwork edge to edge with nothing over it; centered one-line title; a second dim line beneath; circular corner indicators; dim-and-reveal hover. | Our second line carries the physical fact rather than the year, and our indicators report availability and certainty rather than watched state. |
+| The rendered **Shows › Episodes** view | Card shape is not constant — episodes are 16:9 stills while films, shows and seasons are 2:3 posters. | Shape by content type, exactly as observed. | Ours applies the 16:9 form to loose local video clips too, which Jellyfin has no equivalent for. |
 | `src/components/indicators/indicators.scss` | State belongs baked into the card edge, not floating beside it. Progress is `0.28em` tall on `rgba(51,51,51,0.8)`. | State on the card edge as a principle. | Ours marks availability, resolution and uncertainty — not playback progress, which is the canonical worlds' business. |
 | `src/components/mediainfo/` | A compact metadata line reads well beneath a title. | The idea of one restrained fact line. | Ours states physical truth (quality, copies, drive), not runtime and rating. |
 | `src/components/homesections/homesections.scss` | Horizontal rails organise a large library. | **Not adopted.** Rails imply curation Browse does not have; our organisation is the user's own folders. | — |
