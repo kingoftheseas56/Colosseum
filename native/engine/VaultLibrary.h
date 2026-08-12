@@ -96,6 +96,22 @@ public:
     Q_INVOKABLE QVariantList items(const QString& kind, const QString& seriesKey) const;
     Q_INVOKABLE QVariantList hiddenSeries() const;
 
+    // ── Browse projection spine (browse-face execution plan, Slice 1) ──
+    // browseAt(rootOrPath): the collapsed rows for one folder level — VaultKit::planBrowseLevel
+    // for structure (folder-is-one-film, sibling/nested season fold to show, season-presence
+    // facts, the episode/clip leaf grammar), decorated here with what today's index already
+    // knows: away (VaultIndex row state) and a best-effort identified/resolving/localOnly state
+    // for film nodes (a single real file's own group is a reliable lookup; deeper per-episode
+    // state and durable uncertainty are Slices 2/6's business, not this one's). Row shape:
+    // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path}.
+    Q_INVOKABLE QVariantList browseAt(const QString& rootOrPath) const;
+    // rootsDetail(): one row per confirmed/synthetic, non-hidden root — {path, name, available,
+    // itemCount, fileCount} — the rail's data source once Slice 5 wires it.
+    Q_INVOKABLE QVariantList rootsDetail() const;
+    // recentArrivals(limit): the newest-mtime index groups, most-recent first — the carousel's
+    // data source once Slice 5 wires it. Row shape mirrors browseAt's film/show rows.
+    Q_INVOKABLE QVariantList recentArrivals(int limit) const;
+
     // Slice 17 identity actions. The index owns the reversible decoration; this façade owns
     // the QML-facing commands and the persistent hide surface.
     void setIdentifier(VaultIdentifier* identifier);

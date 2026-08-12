@@ -838,6 +838,30 @@ QVariantList VaultIndex::filesInSubtree(const QString& subtreePath) const
     return out;
 }
 
+QVariantList VaultIndex::recentGroups(int limit) const
+{
+    QVariantList out;
+    if (limit <= 0 || !m_db.isOpen())
+        return out;
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral(
+        "SELECT groupKey, subtreePath, groupTitle, kind, MAX(mtimeMs) AS newest"
+        " FROM files GROUP BY groupKey ORDER BY newest DESC LIMIT ?"));
+    q.addBindValue(limit);
+    if (q.exec()) {
+        while (q.next()) {
+            QVariantMap m;
+            m[QStringLiteral("groupKey")] = q.value(0).toString();
+            m[QStringLiteral("subtreePath")] = q.value(1).toString();
+            m[QStringLiteral("groupTitle")] = q.value(2).toString();
+            m[QStringLiteral("kind")] = q.value(3).toString();
+            m[QStringLiteral("mtimeMs")] = q.value(4).toLongLong();
+            out.append(m);
+        }
+    }
+    return out;
+}
+
 QSet<QString> VaultIndex::fileIdsInRoot(const QString& rootPath) const
 {
     QSet<QString> out;

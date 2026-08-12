@@ -105,6 +105,8 @@ private slots:
     void enrichment_round_trip_via_rows_for_kind_and_upsert_many();
     void files_in_subtree_groups_loose_then_subfolders_no_invented_entries();
     void natural_sort_key_is_numeric_and_case_insensitive();
+    // ── browse-face execution plan, Slice 1 ──
+    void recent_groups_orders_newest_mtime_first_across_kinds();
     // ── vault-admission slice ──
     void legacy_schema_migrates_and_stamps_v4();
     void future_schema_fails_closed_without_downgrade();
@@ -397,6 +399,52 @@ void tst_vault_index::natural_sort_key_is_numeric_and_case_insensitive()
             < VaultIndex::naturalSortKey(QStringLiteral("Berserk v10")));
     QVERIFY(VaultIndex::naturalSortKey(QStringLiteral("Apple"))
             < VaultIndex::naturalSortKey(QStringLiteral("banana"))); // case-insensitive
+}
+
+void tst_vault_index::recent_groups_orders_newest_mtime_first_across_kinds()
+{
+    // The Browse face's carousel truth (browse-face execution plan, Slice 1): newest-mtime
+    // GROUPS (not files), across every kind, most-recent first.
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    auto oldest = mk(QStringLiteral("vault:a"), QStringLiteral("D:/lib/Berserk"),
+                     QStringLiteral("Berserk"), QStringLiteral("comic"),
+                     QStringLiteral("Berserk v1.cbz"));
+    oldest.mtimeMs = 1000;
+    auto oldestSibling = mk(QStringLiteral("vault:a2"), QStringLiteral("D:/lib/Berserk"),
+                            QStringLiteral("Berserk"), QStringLiteral("comic"),
+                            QStringLiteral("Berserk v2.cbz"));
+    oldestSibling.mtimeMs = 1500; // same group as `oldest` — MAX(mtimeMs) per group, not per file
+
+    auto newest = mk(QStringLiteral("vault:b"), QStringLiteral("D:/lib/Show"),
+                     QStringLiteral("Show"), QStringLiteral("video"),
+                     QStringLiteral("Show.S01E01.mkv"));
+    newest.mtimeMs = 9000;
+
+    auto middle = mk(QStringLiteral("vault:c"), QStringLiteral("D:/lib/Dune"),
+                     QStringLiteral("Dune"), QStringLiteral("book"), QStringLiteral("Dune.epub"));
+    middle.mtimeMs = 5000;
+
+    QVERIFY(idx.publish({oldest, oldestSibling, newest, middle}));
+
+    const QVariantList recent = idx.recentGroups(2);
+    QCOMPARE(recent.size(), 2);
+    QCOMPARE(recent.at(0).toMap().value(QStringLiteral("groupKey")).toString(),
+             QStringLiteral("D:/lib/Show"));
+    QCOMPARE(recent.at(0).toMap().value(QStringLiteral("mtimeMs")).toLongLong(), 9000LL);
+    QCOMPARE(recent.at(1).toMap().value(QStringLiteral("groupKey")).toString(),
+             QStringLiteral("D:/lib/Dune"));
+
+    // A limit larger than the group count returns every group, still newest-first; the
+    // Berserk group's MAX(mtimeMs) is 1500 (its newer sibling file), not 1000.
+    const QVariantList all = idx.recentGroups(10);
+    QCOMPARE(all.size(), 3);
+    QCOMPARE(all.last().toMap().value(QStringLiteral("groupKey")).toString(),
+             QStringLiteral("D:/lib/Berserk"));
+    QCOMPARE(all.last().toMap().value(QStringLiteral("mtimeMs")).toLongLong(), 1500LL);
 }
 
 void tst_vault_index::legacy_schema_migrates_and_stamps_v4()

@@ -130,11 +130,28 @@ QList<CensusSlice> census(const QString& root,
                           const CancellationToken* cancel = nullptr);
 
 // ── Season / episode grammar ──────────────────────────────────────────
-struct SeasonEpisode { bool matched = false; int season = 0; int episode = 0; };
+struct SeasonEpisode {
+    bool matched = false;
+    int season = 0;
+    int episode = 0;
+    // True when this match came from the absolute-numbering grammar (no season known — the
+    // fansub "- NNN" convention, e.g. Gintama), never from SxxExx.
+    bool absolute = false;
+};
 
 // Filename SxxExx grammar ONLY (no size/extension gate — the caller owns
 // those). Ported from TB2 BulkPackVerifier::matchEpisodeFileForSeason's regex.
 SeasonEpisode parseSeasonEpisode(const QString& fileName);
+
+// Absolute-numbered episode grammar: a spaced "- NNN" token (2-3 digits, so a 4-digit year
+// never false-positives), the fansub convention for shows released without SxxExx — e.g.
+// "[Judas] Gintama - 003 [BD 1080p]....mkv" -> episode 3, season unknown (0). Tried on its
+// own; the caller decides ordering against parseSeasonEpisode.
+SeasonEpisode parseAbsoluteEpisode(const QString& fileName);
+
+// The combined grammar Slice 1 adds: try SxxExx first (an explicit season/episode marking
+// always wins), then absolute numbering. `matched` is false only if neither fires.
+SeasonEpisode parseEpisodeNumber(const QString& fileName);
 
 // True only for a BARE season-shaped segment ("Season N" / "S01".."S999" /
 // "Disc N" / "Volume N" / "Vol N" / "Part N" / "CD N"). A name that merely
@@ -145,5 +162,54 @@ bool isSeasonLikeDirName(const QString& dirName);
 // Climb past season-like parents so multi-season shows collapse to one root
 // (Sopranos/Season 5/ep and Sopranos/Season 6/ep → one "Sopranos" key).
 QString showRootForEpisodePath(const QString& filePath);
+
+// ── Browse-collapse planner (Vault browse-face execution plan, Slice 1) ─────
+// The Browse face's single projection of "what is at this folder level, and what is each
+// thing": folder-true and media-faced (locked design §3 #2/#4/#8). Operates directly on the
+// filesystem (same layer as census()) — VaultLibrary cross-references the result against
+// VaultIndex/VaultConfig for identity/away/coverRef decoration; this function owns only the
+// STRUCTURAL classification.
+enum class BrowseNodeType { Folder, Show, Season, Film, Episode, Clip };
+QString browseNodeTypeName(BrowseNodeType type);
+
+struct BrowseNode {
+    // Stable identity: a real filesystem path for folder/show(nested)/season/film/episode/clip
+    // nodes, or a synthesized "<parentPath>::show::<normalizedBaseTitle>" sentinel (the
+    // "<root>::LOOSE" convention's sibling) for a show collapsed from SEPARATE sibling season
+    // folders that share no single real folder (the Loki shape). Calling planBrowseLevel again
+    // with this key drills one level in.
+    QString key;
+    BrowseNodeType nodeType = BrowseNodeType::Folder;
+    QString displayTitle;
+    // The one physical fact this node's card carries (locked design §4.3/§4.7 precedence — this
+    // slice supplies the season-presence/episode-count facts it can derive structurally; quality
+    // and copy-count facts are later slices' business).
+    QString physicalFact;
+    // The real filesystem path this node represents — a folder for folder/film/show(nested)/
+    // season nodes, a file for episode/clip nodes, or "" for a sibling-collapsed virtual show
+    // (see `key`).
+    QString path;
+    int mediaCount = 0;       // film: 1; folder: media files inside; show: seasons/episodes held
+    int seasonNumber = 0;     // season/episode nodes only; 0 = unset
+    int episodeNumber = 0;    // episode nodes only; 0 = unset
+    QList<int> claimedSeasons; // show nodes: season numbers the folder's OWN NAME claims
+    QList<int> heldSeasons;    // show nodes: season numbers actually present on disk
+    QStringList seasonFolderPaths; // show nodes: constituent season folders, in season order
+};
+
+// Classify the immediate children of `levelPath` into typed browse rows: a folder holding
+// exactly one media file collapses to a film; a folder holding nested bare season-directories
+// collapses to a show with a season-presence fact (claimed-from-name vs held-on-disk); sibling
+// folders whose base title matches (once each one's own trailing season label is stripped)
+// collapse to ONE show spanning them; a folder of loose video files that all parse as episodes
+// (SxxExx or absolute numbering) collapses to a show; a folder of loose video files that do NOT
+// collapses to a plain folder (the Cricket shape — clips, never a show). Extras/Featurettes
+// subfolders and any non-media companion (subtitles, artwork, nfo, junk) are never their own
+// node and are never counted — folding is structural (extension/name filtering), not a
+// post-hoc step. Ordering follows locked design §4.2: folders, then shows, then films,
+// alphabetical within each band; a leaf level (episodes/clips) sorts by natural filename order.
+QList<BrowseNode> planBrowseLevel(const QString& levelPath,
+                                  const QStringList& scanIgnore = {},
+                                  const CancellationToken* cancel = nullptr);
 
 } // namespace VaultKit

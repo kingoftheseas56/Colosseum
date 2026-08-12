@@ -1,9 +1,12 @@
 #include "VaultKit.h"
 
+#include <QCollator>
 #include <QDir>
 #include <QFileInfo>
 #include <QRegularExpression>
 #include <QSet>
+
+#include <algorithm>
 
 namespace VaultKit {
 
@@ -499,6 +502,32 @@ SeasonEpisode parseSeasonEpisode(const QString& fileName)
     return r;
 }
 
+SeasonEpisode parseAbsoluteEpisode(const QString& fileName)
+{
+    SeasonEpisode r;
+    // A spaced "- NNN" token, 2-3 digits: the fansub absolute-numbering convention (e.g.
+    // "Gintama - 003 [...]"). Digits are bounded to 2-3 so a 4-digit year ("- 2021") never
+    // false-positives, and the hyphen must carry surrounding whitespace so a bare release-tag
+    // range like "1-5" or "S01-S05" (no spaces around '-') never matches either.
+    static const QRegularExpression re(QStringLiteral("\\s-\\s(\\d{2,3})(?=\\s|$|\\[|\\()"));
+    const QString base = QFileInfo(fileName).completeBaseName();
+    const auto m = re.match(base);
+    if (!m.hasMatch())
+        return r;
+    r.matched = true;
+    r.absolute = true;
+    r.episode = m.captured(1).toInt();
+    return r;
+}
+
+SeasonEpisode parseEpisodeNumber(const QString& fileName)
+{
+    const SeasonEpisode explicitMatch = parseSeasonEpisode(fileName);
+    if (explicitMatch.matched)
+        return explicitMatch; // an explicit SxxExx marking always wins
+    return parseAbsoluteEpisode(fileName);
+}
+
 bool isSeasonLikeDirName(const QString& dirName)
 {
     static const QRegularExpression re(
@@ -517,6 +546,430 @@ QString showRootForEpisodePath(const QString& filePath)
             break;
     }
     return parent.absolutePath();
+}
+
+// ── Browse-collapse planner (Vault browse-face execution plan, Slice 1) ─────────────────────
+QString browseNodeTypeName(BrowseNodeType type)
+{
+    switch (type) {
+    case BrowseNodeType::Folder:  return QStringLiteral("folder");
+    case BrowseNodeType::Show:    return QStringLiteral("show");
+    case BrowseNodeType::Season:  return QStringLiteral("season");
+    case BrowseNodeType::Film:    return QStringLiteral("film");
+    case BrowseNodeType::Episode: return QStringLiteral("episode");
+    case BrowseNodeType::Clip:    return QStringLiteral("clip");
+    }
+    return QStringLiteral("folder");
+}
+
+static bool isExtrasDirName(const QString& name)
+{
+    const QString n = name.trimmed().toLower();
+    return n == QLatin1String("extras") || n == QLatin1String("featurettes");
+}
+
+// The ordinal from a bare season-like dir name (isSeasonLikeDirName already true), e.g.
+// "Season 4" -> 4, "S04" -> 4, "Disc 2" -> 2. 0 if no digits (shouldn't happen for a name that
+// already passed the guard).
+static int seasonOrdinalFromDirName(const QString& dirName)
+{
+    static const QRegularExpression re(QStringLiteral("(\\d+)"));
+    const auto m = re.match(dirName);
+    return m.hasMatch() ? m.captured(1).toInt() : 0;
+}
+
+// A folder's own name may CLAIM a season span ("Season 1-5"/"S01-S05", the Wire shape) or a
+// single season ("Loki ... Season 1 S01 ...", one Loki sibling). hasClaim=false means the name
+// says nothing about seasons at all.
+struct SeasonClaim { bool hasClaim = false; int from = 0; int to = 0; };
+
+static SeasonClaim seasonClaimFromFolderName(const QString& rawName)
+{
+    SeasonClaim c;
+    // A literal range token beats individual-number extraction, so "Season 1-5" is read as the
+    // SPAN 1..5, not the pair {1,5} — the Wire folder's fact hinges on this.
+    static const QRegularExpression rangeRe(QStringLiteral(
+        "(?i)(?:season\\s*|s)(\\d{1,3})\\s*-\\s*(?:season\\s*|s)?(\\d{1,3})\\b"));
+    const auto rm = rangeRe.match(rawName);
+    if (rm.hasMatch()) {
+        c.hasClaim = true;
+        c.from = rm.captured(1).toInt();
+        c.to = rm.captured(2).toInt();
+        if (c.from > c.to)
+            std::swap(c.from, c.to);
+        return c;
+    }
+    const QList<int> singles = extractSeasonNumbers(rawName); // existing title-cleaner helper
+    if (singles.size() == 1) {
+        c.hasClaim = true;
+        c.from = c.to = singles.first();
+    }
+    return c;
+}
+
+// Strip a trailing " Season N" label the way cleanMediaFolderTitle appends it for a
+// single-season folder, so sibling folders differing only by season number ("Loki Season 1" /
+// "Loki Season 2") fold to the same base title ("Loki") for the sibling-merge pass.
+static QString stripTrailingSeasonLabel(const QString& cleanedTitle)
+{
+    static const QRegularExpression re(QStringLiteral("(?i)\\s+Season\\s+\\d{1,3}$"));
+    QString out = cleanedTitle;
+    out.remove(re);
+    return out.trimmed();
+}
+
+static QStringList videoFilesDirectlyIn(const QString& dirPath, const QStringList& needles)
+{
+    QStringList out;
+    QDir dir(dirPath);
+    const auto files = dir.entryInfoList(videoFilters(), QDir::Files);
+    for (const auto& f : files) {
+        if (pathHitsNeedle(f.absoluteFilePath(), needles))
+            continue;
+        out.append(f.absoluteFilePath());
+    }
+    return out;
+}
+
+// One classified child directory, before the sibling-merge pass decides whether it stands
+// alone or folds into a show alongside its siblings.
+struct ChildClassification {
+    BrowseNode node;
+    // True when this folder's OWN name claims exactly one season AND its content is a complete
+    // run of episode-shaped video files — "one season of a (possibly multi-season) show", the
+    // shape the sibling-fold pass looks for (the Loki shape). A lone one-season folder with no
+    // matching sibling simply stays a show of its own (see planBrowseLevel).
+    bool siblingCandidate = false;
+    int siblingSeasonNumber = 0;
+};
+
+static ChildClassification classifyChildDirectory(const QString& childPath,
+                                                   const QStringList& needles)
+{
+    ChildClassification cc;
+    const QString rawName = QFileInfo(childPath).fileName();
+    cc.node.path = childPath;
+    cc.node.key = childPath;
+
+    // This folder's immediate bare-season subdirectories (extras/featurettes folded out here,
+    // never counted, never a node — the plan's extras-folding requirement).
+    QStringList seasonSubdirs;
+    QDir dir(childPath);
+    const auto subEntries = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const auto& e : subEntries) {
+        if (isIgnoredDir(e.fileName()))
+            continue;
+        if (pathHitsNeedle(e.absoluteFilePath(), needles))
+            continue;
+        if (isExtrasDirName(e.fileName()))
+            continue; // folded: never counted, never a node
+        if (isSeasonLikeDirName(e.fileName()))
+            seasonSubdirs.append(e.absoluteFilePath());
+        // Any other subdirectory (e.g. "Subs") is simply never visited — companion folding is
+        // automatic because nothing ever recurses into it.
+    }
+
+    QDir mdir(childPath);
+    const auto looseMedia = mdir.entryInfoList(allMediaFilters(), QDir::Files);
+    QStringList looseMediaPaths;
+    for (const auto& f : looseMedia) {
+        if (pathHitsNeedle(f.absoluteFilePath(), needles))
+            continue;
+        looseMediaPaths.append(f.absoluteFilePath());
+    }
+
+    if (!seasonSubdirs.isEmpty()) {
+        // Nested-season show (the Wire shape): the folder's own name claims a season span, but
+        // disk holds only some of the seasons it claims.
+        QList<int> held;
+        for (const QString& sp : seasonSubdirs)
+            held.append(seasonOrdinalFromDirName(QFileInfo(sp).fileName()));
+        std::sort(held.begin(), held.end());
+        const SeasonClaim claim = seasonClaimFromFolderName(rawName);
+
+        cc.node.nodeType = BrowseNodeType::Show;
+        cc.node.displayTitle = cleanMediaFolderTitle(rawName);
+        cc.node.heldSeasons = held;
+        if (claim.hasClaim) {
+            for (int s = claim.from; s <= claim.to; ++s)
+                cc.node.claimedSeasons.append(s);
+        } else {
+            cc.node.claimedSeasons = held;
+        }
+        cc.node.seasonFolderPaths = seasonSubdirs;
+        cc.node.mediaCount = held.size();
+        const bool fullyHeld = cc.node.claimedSeasons.size() == held.size();
+        if (fullyHeld) {
+            cc.node.physicalFact = held.size() == 1
+                ? QStringLiteral("1 season") : QStringLiteral("%1 seasons").arg(held.size());
+        } else if (held.size() == 1) {
+            cc.node.physicalFact = QStringLiteral("Season %1 only").arg(held.first());
+        } else {
+            QStringList parts;
+            for (int s : held)
+                parts << QString::number(s);
+            cc.node.physicalFact =
+                QStringLiteral("Seasons %1 only").arg(parts.join(QStringLiteral(", ")));
+        }
+        return cc;
+    }
+
+    if (looseMediaPaths.size() == 1) {
+        // A folder that is one film IS that film (locked design #4) — companions and extras
+        // already never contributed to this count.
+        cc.node.nodeType = BrowseNodeType::Film;
+        cc.node.displayTitle = cleanMediaFolderTitle(rawName);
+        cc.node.mediaCount = 1;
+        return cc; // quality/copy-count facts are Slice 3/enrichment's business, not this one
+    }
+
+    if (looseMediaPaths.size() > 1) {
+        int episodeLike = 0;
+        int videoTotal = 0;
+        for (const QString& p : looseMediaPaths) {
+            if (kindForFile(p) != MediaKind::Video)
+                continue;
+            ++videoTotal;
+            if (parseEpisodeNumber(QFileInfo(p).fileName()).matched)
+                ++episodeLike;
+        }
+        if (videoTotal > 1 && episodeLike == videoTotal) {
+            // Every video file in this folder parses as an episode (SxxExx or absolute
+            // numbering): a show — flat, no season subfolders (the Gintama shape), or one
+            // season of a larger show (the Loki shape, resolved by the sibling-merge pass in
+            // planBrowseLevel, one level up).
+            cc.node.nodeType = BrowseNodeType::Show;
+            cc.node.displayTitle = cleanMediaFolderTitle(rawName);
+            cc.node.mediaCount = videoTotal;
+            cc.node.physicalFact = QStringLiteral("%1 episodes").arg(videoTotal);
+            const SeasonClaim claim = seasonClaimFromFolderName(rawName);
+            if (claim.hasClaim && claim.from == claim.to) {
+                cc.siblingCandidate = true;
+                cc.siblingSeasonNumber = claim.from;
+            }
+            return cc;
+        }
+        // Multiple media files with no discernible show pattern: an honest plain folder (the
+        // Cricket shape) — its clips become tiles only once you drill in, never here.
+        cc.node.nodeType = BrowseNodeType::Folder;
+        cc.node.displayTitle = cleanMediaFolderTitle(rawName);
+        cc.node.mediaCount = looseMediaPaths.size();
+        return cc;
+    }
+
+    // No loose media directly here and no season subdirectories: nothing collapses it, so it
+    // presents honestly as a plain folder (companions-only, or deeper unrelated structure).
+    cc.node.nodeType = BrowseNodeType::Folder;
+    cc.node.displayTitle = cleanMediaFolderTitle(rawName);
+    cc.node.mediaCount = 0;
+    return cc;
+}
+
+QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& scanIgnore,
+                                  const CancellationToken* cancel)
+{
+    QList<BrowseNode> out;
+    const QStringList needles = sanitizeIgnoreNeedles(scanIgnore);
+
+    // ── A virtual show key spanning separate sibling season folders (the Loki shape): recompute
+    // the siblings from the parent and hand back one season row per matching folder. ──
+    static const QString kShowSentinel = QStringLiteral("::show::");
+    const int sentinelPos = levelPath.indexOf(kShowSentinel);
+    if (sentinelPos >= 0) {
+        const QString parentPath = levelPath.left(sentinelPos);
+        const QString slug = levelPath.mid(sentinelPos + kShowSentinel.size());
+        const QStringList siblingDirs = listImmediateSubdirs(parentPath, needles);
+        for (const QString& sib : siblingDirs) {
+            if (cancel && cancel->isCancelled())
+                return out;
+            const QString name = QFileInfo(sib).fileName();
+            if (isExtrasDirName(name) || isSeasonLikeDirName(name))
+                continue;
+            const ChildClassification cc = classifyChildDirectory(sib, needles);
+            if (!cc.siblingCandidate)
+                continue;
+            if (normalizedTitle(stripTrailingSeasonLabel(cc.node.displayTitle)) != slug)
+                continue;
+            BrowseNode season;
+            season.nodeType = BrowseNodeType::Season;
+            season.key = sib;
+            season.path = sib;
+            season.seasonNumber = cc.siblingSeasonNumber;
+            season.displayTitle = QStringLiteral("Season %1").arg(cc.siblingSeasonNumber);
+            season.mediaCount = cc.node.mediaCount;
+            season.physicalFact = cc.node.physicalFact;
+            out.append(season);
+        }
+        std::sort(out.begin(), out.end(), [](const BrowseNode& a, const BrowseNode& b) {
+            return a.seasonNumber < b.seasonNumber;
+        });
+        return out;
+    }
+
+    QDir dir(levelPath);
+    if (!dir.exists())
+        return out;
+
+    // Immediate subdirectories, split into bare-season (a show's own seasons), extras (folded,
+    // never a node), and everything else worth classifying.
+    const QStringList allChildDirs = listImmediateSubdirs(levelPath, needles);
+    QStringList bareSeasonChildren;
+    QStringList qualifyingChildDirs;
+    for (const QString& c : allChildDirs) {
+        const QString name = QFileInfo(c).fileName();
+        if (isExtrasDirName(name))
+            continue;
+        if (isSeasonLikeDirName(name)) {
+            bareSeasonChildren.append(c);
+            continue;
+        }
+        qualifyingChildDirs.append(c);
+    }
+
+    // ── Drilled into a show whose seasons are nested bare-season subfolders (the Wire shape):
+    // hand back season rows for exactly those. (Slice 1 scope: a show folder mixing season
+    // subfolders with unrelated siblings is not one of the five real shapes this slice targets —
+    // recorded here rather than silently mishandled.) ──
+    if (!bareSeasonChildren.isEmpty()) {
+        for (const QString& sp : bareSeasonChildren) {
+            if (cancel && cancel->isCancelled())
+                return out;
+            BrowseNode season;
+            season.nodeType = BrowseNodeType::Season;
+            season.key = sp;
+            season.path = sp;
+            season.seasonNumber = seasonOrdinalFromDirName(QFileInfo(sp).fileName());
+            season.displayTitle = QStringLiteral("Season %1").arg(season.seasonNumber);
+            const QStringList vids = videoFilesDirectlyIn(sp, needles);
+            season.mediaCount = vids.size();
+            season.physicalFact = QStringLiteral("%1 episodes").arg(vids.size());
+            out.append(season);
+        }
+        std::sort(out.begin(), out.end(), [](const BrowseNode& a, const BrowseNode& b) {
+            return a.seasonNumber < b.seasonNumber;
+        });
+        return out;
+    }
+
+    // ── Plain-folder / root browse: classify each qualifying subdirectory, then fold sibling
+    // season-shaped folders sharing a base title into one show (the Loki shape). ──
+    if (!qualifyingChildDirs.isEmpty()) {
+        QList<ChildClassification> classified;
+        classified.reserve(qualifyingChildDirs.size());
+        for (const QString& child : qualifyingChildDirs) {
+            if (cancel && cancel->isCancelled())
+                return out;
+            classified.append(classifyChildDirectory(child, needles));
+        }
+
+        QList<BrowseNode> folders, shows, films;
+        QList<bool> merged;
+        merged.reserve(classified.size());
+        for (int i = 0; i < classified.size(); ++i)
+            merged.append(false);
+
+        for (int i = 0; i < classified.size(); ++i) {
+            if (merged.at(i) || !classified.at(i).siblingCandidate)
+                continue;
+            const QString baseI =
+                normalizedTitle(stripTrailingSeasonLabel(classified.at(i).node.displayTitle));
+            QList<int> group = {i};
+            for (int j = i + 1; j < classified.size(); ++j) {
+                if (merged.at(j) || !classified.at(j).siblingCandidate)
+                    continue;
+                const QString baseJ = normalizedTitle(
+                    stripTrailingSeasonLabel(classified.at(j).node.displayTitle));
+                if (baseJ == baseI)
+                    group.append(j);
+            }
+            if (group.size() < 2)
+                continue; // a lone season-shaped folder stays a show of its own, below
+
+            BrowseNode show;
+            show.nodeType = BrowseNodeType::Show;
+            show.displayTitle = stripTrailingSeasonLabel(classified.at(i).node.displayTitle);
+            QList<int> held;
+            QStringList seasonPaths;
+            for (int idx : group) {
+                merged[idx] = true;
+                held.append(classified.at(idx).siblingSeasonNumber);
+                seasonPaths.append(classified.at(idx).node.path);
+            }
+            std::sort(held.begin(), held.end());
+            const QString slug = normalizedTitle(show.displayTitle);
+            show.key = levelPath + kShowSentinel + slug;
+            show.heldSeasons = held;
+            show.claimedSeasons = held; // no single folder name claims a total across siblings
+            show.seasonFolderPaths = seasonPaths;
+            show.mediaCount = held.size();
+            show.physicalFact = QStringLiteral("%1 seasons").arg(held.size());
+            shows.append(show);
+        }
+        for (int i = 0; i < classified.size(); ++i) {
+            if (merged.at(i))
+                continue;
+            const BrowseNode& n = classified.at(i).node;
+            if (n.nodeType == BrowseNodeType::Show)
+                shows.append(n);
+            else if (n.nodeType == BrowseNodeType::Film)
+                films.append(n);
+            else
+                folders.append(n);
+        }
+
+        QCollator collator;
+        collator.setNumericMode(true);
+        collator.setCaseSensitivity(Qt::CaseInsensitive);
+        auto byTitle = [&collator](const BrowseNode& a, const BrowseNode& b) {
+            return collator.compare(a.displayTitle, b.displayTitle) < 0;
+        };
+        std::sort(folders.begin(), folders.end(), byTitle);
+        std::sort(shows.begin(), shows.end(), byTitle);
+        std::sort(films.begin(), films.end(), byTitle);
+
+        // Locked design §4.2 ordering: subfolders, then series, then films.
+        out += folders;
+        out += shows;
+        out += films;
+        return out;
+    }
+
+    // ── No subdirectories worth a tile: this level is a leaf holding loose video files
+    // directly — episodes if they parse (Gintama's own folder, or any season folder reached a
+    // different way), clips otherwise (Cricket's own folder — "loose clips render wide at
+    // folder level", locked design). ──
+    QDir mdir(levelPath);
+    const auto looseVideos = mdir.entryInfoList(videoFilters(), QDir::Files);
+    for (const auto& f : looseVideos) {
+        if (cancel && cancel->isCancelled())
+            return out;
+        if (pathHitsNeedle(f.absoluteFilePath(), needles))
+            continue;
+        BrowseNode n;
+        n.key = f.absoluteFilePath();
+        n.path = f.absoluteFilePath();
+        n.displayTitle = cleanMediaFolderTitle(f.completeBaseName());
+        const SeasonEpisode se = parseEpisodeNumber(f.fileName());
+        if (se.matched) {
+            n.nodeType = BrowseNodeType::Episode;
+            n.episodeNumber = se.episode;
+            n.seasonNumber = se.season;
+            n.physicalFact = se.absolute
+                ? QStringLiteral("Episode %1").arg(se.episode)
+                : QStringLiteral("S%1E%2")
+                      .arg(se.season, 2, 10, QLatin1Char('0'))
+                      .arg(se.episode, 2, 10, QLatin1Char('0'));
+        } else {
+            n.nodeType = BrowseNodeType::Clip;
+        }
+        out.append(n);
+    }
+    QCollator collator;
+    collator.setNumericMode(true);
+    std::sort(out.begin(), out.end(), [&collator](const BrowseNode& a, const BrowseNode& b) {
+        return collator.compare(a.path, b.path) < 0;
+    });
+    return out;
 }
 
 } // namespace VaultKit

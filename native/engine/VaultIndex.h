@@ -114,6 +114,10 @@ public:
     Q_INVOKABLE QStringList kinds() const;                        // distinct, sorted
     Q_INVOKABLE QVariantList groupsForKind(const QString& kind) const; // [{groupKey,subtreePath,groupTitle,kind,count}]
     Q_INVOKABLE QVariantList filesInSubtree(const QString& subtreePath) const; // natural order, grouped by subfolder
+    // Newest-mtime distinct groups across every kind, most-recent first — the Browse face's
+    // "recently arrived" truth (mtime is v1's arrival signal; a durable addedAt column is the
+    // ownership arc's business). Each row: {groupKey, subtreePath, groupTitle, kind, mtimeMs}.
+    Q_INVOKABLE QVariantList recentGroups(int limit) const;
 
     // Narrow read-only projection for QML: { id -> admissionVerdict } over video rows that carry a
     // non-empty durable verdict. Unprobed and non-video rows are omitted. Read-only by construction —

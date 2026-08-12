@@ -7,6 +7,7 @@
 #include "VaultDownloadsRoot.h"
 #include "ComicCoverId.h"
 #include "VaultIdentifier.h"
+#include "VaultKit.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -369,6 +370,131 @@ QVariantList VaultLibrary::hiddenSeries() const
             s.insert(QStringLiteral("hidden"), true);
             out.append(s);
         }
+    }
+    return out;
+}
+
+QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
+{
+    QVariantList out;
+    const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
+    const QList<VaultKit::BrowseNode> nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore);
+    out.reserve(nodes.size());
+    for (const VaultKit::BrowseNode& n : nodes) {
+        QVariantMap m;
+        m.insert(QStringLiteral("key"), n.key);
+        m.insert(QStringLiteral("nodeType"), VaultKit::browseNodeTypeName(n.nodeType));
+        m.insert(QStringLiteral("displayTitle"), n.displayTitle);
+        m.insert(QStringLiteral("physicalFact"), n.physicalFact);
+        m.insert(QStringLiteral("path"), n.path);
+        m.insert(QStringLiteral("coverRef"), QString()); // local artwork adoption is Slice 3
+        QVariantMap counts;
+        counts.insert(QStringLiteral("items"), n.mediaCount);
+        m.insert(QStringLiteral("counts"), counts);
+
+        // Decoration from today's index: reliable only for a film node, whose path IS a
+        // group's subtreePath (one video file, one group — VaultScanner's own convention).
+        // Deeper per-episode state and durable ambiguity are Slices 2/6's business; this slice
+        // gives every other node an honest "resolving" default rather than inventing one.
+        QString state = QStringLiteral("resolving");
+        bool away = false;
+        if (n.nodeType == VaultKit::BrowseNodeType::Clip) {
+            // The kind classifier's own verdict, not an identity lookup (locked design: local-
+            // only is certain-and-yours, never "not identified yet").
+            state = QStringLiteral("localOnly");
+        } else if (n.nodeType == VaultKit::BrowseNodeType::Film && m_index) {
+            const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
+            if (!rows.isEmpty()) {
+                bool anyAway = false;
+                bool identified = false;
+                for (const VaultIndex::FileRow& row : rows) {
+                    if (row.away)
+                        anyAway = true;
+                    if (!row.identityId.isEmpty() && !row.identitySuppressed)
+                        identified = true;
+                }
+                away = anyAway;
+                state = identified ? QStringLiteral("identified") : QStringLiteral("resolving");
+            }
+        }
+        m.insert(QStringLiteral("state"), state);
+        m.insert(QStringLiteral("away"), away);
+        out.append(m);
+    }
+    return out;
+}
+
+QVariantList VaultLibrary::rootsDetail() const
+{
+    QVariantList out;
+    if (!m_config)
+        return out;
+    const QVariantList roots = m_config->roots();
+    for (const QVariant& r : roots) {
+        const QVariantMap m = r.toMap();
+        if (m.value(QStringLiteral("hidden")).toBool())
+            continue;
+        const bool confirmedOrSynthetic = m.value(QStringLiteral("confirmed")).toBool()
+            || m.value(QStringLiteral("synthetic")).toBool();
+        if (!confirmedOrSynthetic)
+            continue; // an unconfirmed root has no founding card resolved yet — not railed
+        const QString path = m.value(QStringLiteral("path")).toString();
+        QVariantMap row;
+        row.insert(QStringLiteral("path"), path);
+        const QString name = QFileInfo(path).fileName();
+        row.insert(QStringLiteral("name"), name.isEmpty() ? path : name);
+        row.insert(QStringLiteral("available"), QDir(path).exists());
+        row.insert(QStringLiteral("fileCount"), m_index ? m_index->rowsForRoot(path).size() : 0);
+        row.insert(QStringLiteral("itemCount"), browseAt(path).size());
+        out.append(row);
+    }
+    return out;
+}
+
+QVariantList VaultLibrary::recentArrivals(int limit) const
+{
+    QVariantList out;
+    if (!m_index || limit <= 0)
+        return out;
+    const QVariantList groups = m_index->recentGroups(limit * 2); // headroom for all-hidden skips
+    for (const QVariant& gv : groups) {
+        if (out.size() >= limit)
+            break;
+        const QVariantMap g = gv.toMap();
+        const QString groupKey = g.value(QStringLiteral("groupKey")).toString();
+        const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+        if (rows.isEmpty())
+            continue;
+        bool allHidden = true;
+        bool anyAway = false;
+        QString identityTitle;
+        for (const VaultIndex::FileRow& row : rows) {
+            if (!m_config || !m_config->isHidden(row.id))
+                allHidden = false;
+            if (row.away)
+                anyAway = true;
+            if (identityTitle.isEmpty() && !row.identityId.isEmpty() && !row.identitySuppressed)
+                identityTitle = row.identityTitle;
+        }
+        if (allHidden)
+            continue;
+
+        QVariantMap m;
+        m.insert(QStringLiteral("key"), groupKey);
+        m.insert(QStringLiteral("nodeType"),
+                 rows.size() == 1 ? QStringLiteral("film") : QStringLiteral("show"));
+        m.insert(QStringLiteral("displayTitle"), identityTitle.isEmpty()
+                 ? g.value(QStringLiteral("groupTitle")) : identityTitle);
+        // The carousel's fact line is the physical fact ONLY (locked design §4.10) — a count is
+        // the one fact this slice can supply honestly for a multi-file group; quality is later.
+        m.insert(QStringLiteral("physicalFact"), rows.size() == 1
+                 ? QString() : QStringLiteral("%1 items").arg(rows.size()));
+        m.insert(QStringLiteral("path"), g.value(QStringLiteral("subtreePath")));
+        m.insert(QStringLiteral("coverRef"), QString());
+        m.insert(QStringLiteral("state"), !identityTitle.isEmpty()
+                 ? QStringLiteral("identified") : QStringLiteral("resolving"));
+        m.insert(QStringLiteral("away"), anyAway);
+        out.append(m);
     }
     return out;
 }
