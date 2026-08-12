@@ -48,7 +48,7 @@ Twelve decisions, ratified by Hemanth 2026-08-12.
 |---|---|
 | 1 | Jellyfin's structural influence applies to Browse only. Manage stays plain and text-led. |
 | 2 | Tiles are **folder-true and media-faced**: folder structure is honest, tile faces show identified media. |
-| 3 | The Vault door carries the health answer on arrival. |
+| 3 | ~~The Vault door carries the health answer on arrival.~~ **Superseded for Browse 2026-08-12** (§4.10): no health banner; the rail and tiles report state, the full answer stays in Manage's Overview. Browse instead opens with the featured carousel. |
 | 4 | A folder containing one film presents as that film. Companions fold into it. |
 | 5 | Unidentified tiles **resolve in place**, visibly, as identification completes. |
 | 6 | Items on an away drive keep their tiles in position, marked away. |
@@ -76,7 +76,8 @@ others, not by how it looks alone.
 
 | Element | What it is |
 |---|---|
-| **Door** | The arrival moment into Vault. Carries the health statement. |
+| **Featured carousel** | Colosseum's `FeaturedCarousel`, at the head of Browse. Features what recently **arrived** — truth from the disk, not curation. Keeps Vault reading as Colosseum. |
+| **Door** | The taskbar entry into Vault. See §5 note on the health statement. |
 | **Root rail** | Collapsible list of configured storage roots with availability. Collapsed by default; availability survives the collapse. |
 | **Breadcrumb** | Current position in the folder path. |
 | **Grid** | The tiles for the current folder. |
@@ -191,12 +192,33 @@ with Colosseum's existing global shortcuts; the parent's §4.22 and keyboard sec
 
 ---
 
+### 4.10 Featured carousel and the health statement (amended 2026-08-12)
+
+Browse opens with Colosseum's `FeaturedCarousel` (`qml/FeaturedCarousel.qml` + `CarouselSlide.qml`),
+so the surface still reads as Colosseum rather than as a bare grid. It features what recently
+**arrived** — a fact from the user's own disk, not editorial curation.
+
+Two translations from the shipped slide are required:
+
+- The shipped slide carries a **blurb** — a descriptive phrase under the title. That is a tagline,
+  which is banned. In Vault that slot carries the **physical fact** (e.g. `Season 2 · 1080p`) and
+  nothing more. No "added today", no sentence — the kicker already says it arrived.
+- The shipped slide takes per-slide gradient colours. Vault's are neutral: no colour beyond the
+  house tokens.
+
+**The health statement does not appear as a banner.** Decision #3 originally placed a plain-language
+health line at the head of Browse. Ratified removal 2026-08-12: the collapsible rail already carries
+roots and counts, and uncertain tiles carry their own mark, so the collection reports its own state
+without a restating banner. The full plain-language health answer remains Manage's Overview
+(parent §4.2); Browse does not duplicate it. Decision #3 is therefore **superseded for the Browse
+face** — health is surfaced by the rail and the tiles, not by an arrival header.
+
 ## 5. Primary journey
 
-1. Hemanth opens Vault. **The door states health** before he enters — healthy, or a count needing
-   attention, or a drive away.
-2. He enters. The **root rail** shows his drives with availability. The **grid** shows the selected
-   root's top level.
+1. Hemanth opens Vault from the taskbar door. Browse leads with the **featured carousel** —
+   what recently arrived — so it reads as Colosseum, not a bare grid.
+2. Below it, the collapsed **root rail** shows his drives with availability, and the **grid** shows
+   the selected root's top level. Health is read from the rail and the tiles, not from a banner.
 3. On a freshly-added root, most tiles show filenames on plain ground and **resolve in front of him**
    as Vault identifies them.
 4. He drills into a folder. The breadcrumb extends. A folder that is one film **is** that film.
