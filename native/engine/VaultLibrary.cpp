@@ -391,7 +391,13 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         m.insert(QStringLiteral("displayTitle"), n.displayTitle);
         m.insert(QStringLiteral("physicalFact"), n.physicalFact);
         m.insert(QStringLiteral("path"), n.path);
-        m.insert(QStringLiteral("coverRef"), QString()); // local artwork adoption is Slice 3
+        // Local artwork adoption (Slice 3): a Film node's coverRef, decorated below alongside
+        // state/away, is the VaultEnricher-adopted "file://" ref for VIDEO groups only — a
+        // comic/book Film node's coverRef stays "" here on purpose, since that column holds a
+        // bare in-archive entry name for those kinds (comics/books already have their own
+        // image://.../ translation in series()/items(); this field would be meaningless without
+        // it). Every other node type carries no per-episode art in this slice.
+        m.insert(QStringLiteral("coverRef"), QString());
         QVariantMap counts;
         counts.insert(QStringLiteral("items"), n.mediaCount);
         m.insert(QStringLiteral("counts"), counts);
@@ -412,6 +418,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 bool anyAway = false;
                 bool identified = false;
                 bool ambiguous = false;
+                QString coverRef;
                 for (const VaultIndex::FileRow& row : rows) {
                     if (row.away)
                         anyAway = true;
@@ -419,6 +426,9 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                         identified = true;
                     if (row.identityState == QLatin1String("ambiguous"))
                         ambiguous = true;
+                    if (coverRef.isEmpty() && row.kind == QLatin1String("video")
+                        && !row.coverRef.isEmpty())
+                        coverRef = row.coverRef;
                 }
                 away = anyAway;
                 // identified always wins (identify-in-place settles a previously-ambiguous
@@ -427,6 +437,8 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 state = identified ? QStringLiteral("identified")
                       : ambiguous  ? QStringLiteral("uncertain")
                                    : QStringLiteral("resolving");
+                if (!coverRef.isEmpty())
+                    m.insert(QStringLiteral("coverRef"), coverRef);
             }
         }
         m.insert(QStringLiteral("state"), state);

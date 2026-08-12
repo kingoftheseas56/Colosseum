@@ -102,7 +102,11 @@ public:
     // facts, the episode/clip leaf grammar), decorated here with what today's index already
     // knows: away (VaultIndex row state) and a best-effort identified/resolving/localOnly state
     // for film nodes (a single real file's own group is a reliable lookup; deeper per-episode
-    // state and durable uncertainty are Slices 2/6's business, not this one's). Row shape:
+    // state and durable uncertainty are Slices 2/6's business, not this one's). coverRef (Slice
+    // 3): a film node's VaultEnricher-adopted local-artwork "file://" ref for VIDEO groups only
+    // (comic/book Film nodes stay "" — their coverRef column is a bare in-archive entry name,
+    // meaningless without the image://.../ translation series()/items() already do); every
+    // other node type carries no art in this slice. Row shape:
     // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path}.
     Q_INVOKABLE QVariantList browseAt(const QString& rootOrPath) const;
     // rootsDetail(): one row per confirmed/synthetic, non-hidden root — {path, name, available,
