@@ -52,6 +52,21 @@ public:
     };
     static BookFacts readBookFacts(const QString& epubPath);
 
+    // ── Local artwork adoption (browse-face execution plan, Slice 3) ──
+    // Adopt by CONVENTION ONLY: a poster./folder./cover. basename (jpg/jpeg/png,
+    // case-insensitive) sitting directly in a video group's own folder — never
+    // "any image in the folder". A release-site junk image (e.g. the real
+    // "www.YTS.MX.jpg" found in Hemanth's library) is refused by construction: it
+    // simply never matches a conventional basename, no denylist needed. The
+    // candidate is also verified as a genuine, decodable image (QImageReader)
+    // before adoption, so a corrupt/truncated file is refused honestly instead of
+    // handing QML a ref that only fails later (the no-art contract: never a
+    // broken-image glyph). Returns a "file://" ref — namespaced, distinct from the
+    // shipped comic/book "image://comiccover/" and "image://vaultbookcover/"
+    // refs, which carry a bare in-archive entry name instead of a URL — or ""
+    // when no valid conventional art exists. Pure/static; no DB, no network.
+    static QString findLocalArtwork(const QString& folderPath);
+
     // ── Video duration cache ──
     double durationForVideo(const QString& path, qint64 size, qint64 mtimeMs); // cache-then-probe
     double cachedDuration(const QString& path, qint64 size, qint64 mtimeMs) const; // hit, or -1

@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QJsonObject>
 #include <QMetaObject>
 #include <QPointer>
@@ -188,6 +189,36 @@ QString admissionVerdictName(MediaAdmissionProbe::Verdict verdict)
         return QStringLiteral("RejectedTimeout");
     }
     return QStringLiteral("RejectedError");
+}
+
+// ── Local artwork adoption (Slice 3) ──
+// Adoption priority when more than one convention name is present: poster wins, then folder,
+// then cover — the same "most specific first" idea pickCoverEntry already applies to CBZ pages.
+const QStringList& artworkBasenames()
+{
+    static const QStringList names = {
+        QStringLiteral("poster"), QStringLiteral("folder"), QStringLiteral("cover")
+    };
+    return names;
+}
+
+const QStringList& artworkExtensions()
+{
+    static const QStringList exts = {
+        QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("png")
+    };
+    return exts;
+}
+
+// A candidate must actually decode as an image, not merely carry the right name — refuses a
+// corrupt/truncated file instead of handing QML a ref that only fails later. QImageReader::
+// canRead() is a bounded header sniff (no full decode), so a hostile/garbage file returns
+// quickly rather than wedging enrichment.
+bool isReadableImage(const QString& path)
+{
+    QImageReader reader(path);
+    reader.setAutoTransform(false);
+    return reader.canRead() && reader.size().isValid() && !reader.size().isEmpty();
 }
 } // namespace
 
@@ -385,6 +416,30 @@ VaultEnricher::BookFacts VaultEnricher::readBookFacts(const QString& epubPath)
     return f;
 }
 
+// ── Local artwork adoption ──
+QString VaultEnricher::findLocalArtwork(const QString& folderPath)
+{
+    if (folderPath.isEmpty())
+        return QString();
+    QDir dir(folderPath);
+    if (!dir.exists())
+        return QString();
+
+    const QFileInfoList entries = dir.entryInfoList(QDir::Files);
+    for (const QString& base : artworkBasenames()) {
+        for (const QString& ext : artworkExtensions()) {
+            for (const QFileInfo& entry : entries) {
+                if (entry.completeBaseName().compare(base, Qt::CaseInsensitive) != 0
+                    || entry.suffix().compare(ext, Qt::CaseInsensitive) != 0)
+                    continue;
+                if (isReadableImage(entry.absoluteFilePath()))
+                    return QUrl::fromLocalFile(entry.absoluteFilePath()).toString();
+            }
+        }
+    }
+    return QString();
+}
+
 QString VaultEnricher::durationKey(const QString& path, qint64 size, qint64 mtimeMs)
 {
     QString n = QDir::cleanPath(path);
@@ -516,6 +571,16 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
                     row.errorState.clear();
                     row.errorDetail.clear();
                 }
+            }
+            // Local artwork adoption (Slice 3): the group's own folder is subtreePath (a video
+            // group is one file, one folder — VaultScanner's own convention, the same one
+            // browseAt's Film-node decoration already relies on). Convention-only, never
+            // re-adopting once a ref is already recorded (a stale/removed companion is not
+            // this pass's business to clear).
+            if (row.coverRef.isEmpty()) {
+                const QString folder = !row.subtreePath.isEmpty()
+                    ? row.subtreePath : QFileInfo(row.path).absolutePath();
+                row.coverRef = findLocalArtwork(folder);
             }
         } else if (row.kind == QLatin1String("book")) {
             row.format = QFileInfo(row.path).suffix().toLower();

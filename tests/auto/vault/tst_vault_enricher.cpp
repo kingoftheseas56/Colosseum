@@ -8,6 +8,13 @@
 // Deferred (gradient-fallback until their slices): epub cover ladder + author,
 // video thumbnails, page dimensions. The live ffprobe path is exercised at
 // Slice 6 (the decodable-MP4 fixture); here only the cache is tested.
+//
+// Browse-face execution plan Slice 3 (local artwork adoption) added
+// VaultEnricher::findLocalArtwork(): a video group's folder is checked for a
+// conventionally-named companion image (poster./folder./cover., jpg/jpeg/png)
+// and, when found and genuinely decodable, adopted as a namespaced "file://"
+// coverRef. Adoption is allow-list only — the real release-site junk image
+// "www.YTS.MX.jpg" from the Slice 1 Spider-Man fixture is the guard's proof.
 
 #include "engine/VaultEnricher.h"
 #include "engine/ComicCoverId.h"
@@ -21,6 +28,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QUrl>
 #include <QVariantMap>
 #include <QtTest>
 
@@ -42,6 +50,20 @@ private:
         return QStringLiteral(VAULT_FIXTURES_DIR) + QStringLiteral("/media/") + name;
     }
 
+    // The real folder shape from Hemanth's own library (Slice 1 fixture): one film, its
+    // Extras/Featurettes, subs, and the release-site junk image `www.YTS.MX.jpg` that a
+    // junk-name guard must never mistake for cover art.
+    static QString spiderManFolder()
+    {
+        return QStringLiteral(VAULT_FIXTURES_DIR)
+            + QStringLiteral("/browse-film/Spider-Man No Way Home (2021) [1080p] [WEBRip] [5.1] [YTS.MX]");
+    }
+    static QString spiderManVideo()
+    {
+        return spiderManFolder()
+            + QStringLiteral("/Spider-Man.No.Way.Home.2021.1080p.WEBRip.x264-YTS.MX.mp4");
+    }
+
     static QByteArray coverPng()
     {
         QImage image(64, 96, QImage::Format_ARGB32);
@@ -50,6 +72,24 @@ private:
         buffer.open(QIODevice::WriteOnly);
         image.save(&buffer, "PNG");
         return buffer.data();
+    }
+
+    static QByteArray coverJpeg()
+    {
+        QImage image(64, 96, QImage::Format_RGB32);
+        image.fill(qRgb(40, 90, 160));
+        QBuffer buffer;
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "JPG");
+        return buffer.data();
+    }
+
+    static void writeFile(const QString& path, const QByteArray& bytes)
+    {
+        QFile f(path);
+        QVERIFY2(f.open(QIODevice::WriteOnly), qPrintable(path));
+        QVERIFY2(f.write(bytes) == bytes.size(), qPrintable(path));
+        f.close();
     }
 
     static bool writeEpub(const QString& path, bool withCover)
@@ -107,6 +147,14 @@ private slots:
     // ── vault-admission slice: probe off the owner thread, commit on it ──
     void video_admission_is_persisted_after_owner_thread_commit();
     void rejected_video_verdict_is_not_promoted();
+    // ── local artwork adoption slice (browse-face execution plan Slice 3) ──
+    void find_local_artwork_prefers_poster_then_folder_then_cover();
+    void find_local_artwork_accepts_jpg_and_jpeg_variants();
+    void find_local_artwork_refuses_the_real_release_site_junk_image();
+    void find_local_artwork_returns_empty_without_any_artwork();
+    void find_local_artwork_refuses_corrupt_image();
+    void enrich_adopts_local_artwork_for_video_group();
+    void enrich_refuses_the_real_release_site_junk_image_for_video_group();
 };
 
 void tst_vault_enricher::pick_cover_entry_prefers_cover_then_first()
@@ -386,6 +434,150 @@ void tst_vault_enricher::rejected_video_verdict_is_not_promoted()
     QVERIFY(!rows.first().admissionVerdict.isEmpty());
     QVERIFY(rows.first().admissionVerdict != QStringLiteral("Admitted"));
     QCOMPARE(rows.first().errorState, QStringLiteral("rejected"));
+}
+
+// ── local artwork adoption slice (browse-face execution plan Slice 3) ──
+
+void tst_vault_enricher::find_local_artwork_prefers_poster_then_folder_then_cover()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString coverPath = tmp.filePath(QStringLiteral("cover.png"));
+    const QString folderPath = tmp.filePath(QStringLiteral("folder.png"));
+    const QString posterPath = tmp.filePath(QStringLiteral("poster.png"));
+
+    // Only cover.png present -> it is adopted, exact ref value asserted (never merely
+    // "non-empty" — a loose non-empty check is exactly how a prior fixture went silently
+    // vacuous, per Slice 2's finding).
+    writeFile(coverPath, coverPng());
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp.path()),
+             QUrl::fromLocalFile(QFileInfo(coverPath).absoluteFilePath()).toString());
+
+    // folder.png joins -> folder outranks cover.
+    writeFile(folderPath, coverPng());
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp.path()),
+             QUrl::fromLocalFile(QFileInfo(folderPath).absoluteFilePath()).toString());
+
+    // poster.png joins -> poster outranks both.
+    writeFile(posterPath, coverPng());
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp.path()),
+             QUrl::fromLocalFile(QFileInfo(posterPath).absoluteFilePath()).toString());
+}
+
+void tst_vault_enricher::find_local_artwork_accepts_jpg_and_jpeg_variants()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString posterJpg = tmp.filePath(QStringLiteral("poster.jpg"));
+    writeFile(posterJpg, coverJpeg());
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp.path()),
+             QUrl::fromLocalFile(QFileInfo(posterJpg).absoluteFilePath()).toString());
+
+    QTemporaryDir tmp2;
+    QVERIFY(tmp2.isValid());
+    const QString posterJpeg = tmp2.filePath(QStringLiteral("poster.jpeg"));
+    writeFile(posterJpeg, coverJpeg());
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp2.path()),
+             QUrl::fromLocalFile(QFileInfo(posterJpeg).absoluteFilePath()).toString());
+
+    // Case-insensitive basename+extension match (a real download often ships "Poster.JPG").
+    QTemporaryDir tmp3;
+    QVERIFY(tmp3.isValid());
+    const QString posterUpper = tmp3.filePath(QStringLiteral("Poster.JPG"));
+    writeFile(posterUpper, coverJpeg());
+    QCOMPARE(VaultEnricher::findLocalArtwork(tmp3.path()),
+             QUrl::fromLocalFile(QFileInfo(posterUpper).absoluteFilePath()).toString());
+}
+
+void tst_vault_enricher::find_local_artwork_refuses_the_real_release_site_junk_image()
+{
+    // The real fixture shape (Slice 1): the ONLY image in the Spider-Man folder is the
+    // release-site junk "www.YTS.MX.jpg" — not a conventional name, so it must never be
+    // mistaken for cover art. Adoption is by allow-list convention, never "any jpg present".
+    QVERIFY(QFileInfo::exists(spiderManFolder() + QStringLiteral("/www.YTS.MX.jpg")));
+    QVERIFY(VaultEnricher::findLocalArtwork(spiderManFolder()).isEmpty());
+}
+
+void tst_vault_enricher::find_local_artwork_returns_empty_without_any_artwork()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    writeFile(tmp.filePath(QStringLiteral("movie.mp4")), QByteArrayLiteral("not-a-real-video"));
+    QVERIFY(VaultEnricher::findLocalArtwork(tmp.path()).isEmpty());
+}
+
+void tst_vault_enricher::find_local_artwork_refuses_corrupt_image()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    // Conventionally named, but truncated/garbage bytes — must be refused, not adopted, and
+    // must return promptly (QImageReader::canRead() is a bounded header sniff, never a full
+    // decode attempt on hostile input).
+    writeFile(tmp.filePath(QStringLiteral("poster.jpg")), QByteArrayLiteral("not a real image"));
+    QVERIFY(VaultEnricher::findLocalArtwork(tmp.path()).isEmpty());
+}
+
+void tst_vault_enricher::enrich_adopts_local_artwork_for_video_group()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString video = tmp.filePath(QStringLiteral("movie.mp4"));
+    QVERIFY(QFile::copy(mediaFixture(QStringLiteral("tiny.mp4")), video));
+    const QString poster = tmp.filePath(QStringLiteral("poster.png"));
+    writeFile(poster, coverPng());
+
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultEnricher enricher(&idx, tmp.path());
+
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:artwork-video");
+    row.kind = QStringLiteral("video");
+    row.path = video;
+    row.rootPath = tmp.path();
+    row.subtreePath = tmp.path(); // the group's own folder — one file, one group
+    row.groupKey = tmp.path();
+    row.groupTitle = QStringLiteral("Movie");
+    row.realName = QStringLiteral("movie.mp4");
+    row.size = QFileInfo(video).size();
+    row.mtimeMs = 1;
+    QVERIFY(idx.publish({row}));
+
+    enricher.enrich({row});
+
+    const auto rows = idx.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(rows.size(), 1);
+    // Exact value, not merely non-empty: a namespaced file:// ref, distinct from the bare
+    // comic/book in-archive entry names coverRef otherwise carries.
+    QCOMPARE(rows.first().coverRef,
+             QUrl::fromLocalFile(QFileInfo(poster).absoluteFilePath()).toString());
+    QVERIFY(rows.first().coverRef.startsWith(QStringLiteral("file://")));
+}
+
+void tst_vault_enricher::enrich_refuses_the_real_release_site_junk_image_for_video_group()
+{
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:spiderman-video");
+    row.kind = QStringLiteral("video");
+    row.path = spiderManVideo();
+    row.rootPath = QFileInfo(spiderManFolder()).absolutePath();
+    row.subtreePath = spiderManFolder(); // the real group folder holding www.YTS.MX.jpg
+    row.groupKey = spiderManFolder();
+    row.groupTitle = QStringLiteral("Spider-Man No Way Home");
+    row.realName = QFileInfo(spiderManVideo()).fileName();
+    row.size = QFileInfo(spiderManVideo()).size();
+    row.mtimeMs = 1;
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultEnricher enricher(&idx, tmp.path());
+    QVERIFY(idx.publish({row}));
+
+    enricher.enrich({row}); // the stub .mp4 correctly fails admission; coverRef is this test's point
+
+    const auto rows = idx.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(rows.size(), 1);
+    QVERIFY(rows.first().coverRef.isEmpty()); // www.YTS.MX.jpg must never be adopted
 }
 
 QTEST_GUILESS_MAIN(tst_vault_enricher)
