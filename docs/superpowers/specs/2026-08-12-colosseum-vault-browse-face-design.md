@@ -55,7 +55,7 @@ Twelve decisions, ratified by Hemanth 2026-08-12.
 | 7 | A tile face carries artwork, title, and one physical fact — quality, copy count, or away state. |
 | 8 | A series is one show tile; seasons and episodes are reached by drilling in. |
 | 9 | Identification uncertainty is shown on the tile and repairable in place. |
-| 10 | Navigation is a permanent rail of roots, a grid beside it, and a breadcrumb for depth. |
+| 10 | Navigation is a rail of roots, a grid beside it, and a breadcrumb for depth. The rail is **collapsible and collapsed by default** (amended 2026-08-12): collapsed it shows each root as a glyph with its availability dot, expanded it adds names and counts. Expanding never reveals *state* that was hidden — only detail. |
 | 11 | Opening a film gives physical truth — copies, drives, evidence. Play hands off to the player. |
 | 12 | The mock covers the Browse face end to end, including its failure states. |
 
@@ -77,7 +77,7 @@ others, not by how it looks alone.
 | Element | What it is |
 |---|---|
 | **Door** | The arrival moment into Vault. Carries the health statement. |
-| **Root rail** | Persistent list of configured storage roots with availability. |
+| **Root rail** | Collapsible list of configured storage roots with availability. Collapsed by default; availability survives the collapse. |
 | **Breadcrumb** | Current position in the folder path. |
 | **Grid** | The tiles for the current folder. |
 | **Tile** | One physical thing — a film, a series, a folder, or an unresolved file. |
@@ -143,7 +143,7 @@ reports, at the same moment.
 
 | Element | Zero | One | Many | Far too many |
 |---|---|---|---|---|
-| Root rail | Empty-state invitation to add storage | Single entry, no chrome change | Scrolls within the rail | Scrolls; no truncation of names |
+| Root rail | Empty-state invitation to add storage | Single entry, no chrome change | Scrolls within the rail | Scrolls; no truncation of names when expanded |
 | Grid | Empty state specific to *why* it is empty | One tile, grid does not stretch it | Wraps and scrolls | Virtualised; scroll position preserved |
 | Tile title | — | Single line | Two lines maximum, then ellipsis | Full title available on the detail sheet |
 | Breadcrumb | Root only | Root plus one | Full path | Middle segments collapse; first and last always visible |
