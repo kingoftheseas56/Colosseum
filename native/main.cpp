@@ -1355,6 +1355,8 @@ int main(int argc, char *argv[]) {
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/downloads");
     vaultLibrary->setDownloadsRoot(vaultDownloadsRoot, vaultDownloadsRootPath);
+    // Heal stale derived Vault rows once per process after every download backbone is wired.
+    QTimer::singleShot(0, vaultLibrary, [vaultLibrary]() { vaultLibrary->republishAtBoot(); });
 
     // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.
     // Spec: Brotherhood docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.

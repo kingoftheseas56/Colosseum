@@ -123,6 +123,7 @@ class tst_vault_downloads_root : public QObject
 private slots:
     void derives_container_rows_from_all_backbones();
     void loose_downloaded_movies_each_have_own_group();
+    void normalizes_epoch_seconds_to_milliseconds();
     void skips_loose_page_chapters_and_missing_files();
     void null_backbones_are_a_noop();
     void double_count_guard_same_file_two_roots_shelves_once();
@@ -266,6 +267,47 @@ void tst_vault_downloads_root::loose_downloaded_movies_each_have_own_group()
 
     QCOMPARE(looseGroups.size(), 3);
     QCOMPARE(seriesRows, 2);
+}
+
+void tst_vault_downloads_root::normalizes_epoch_seconds_to_milliseconds()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    const QString videoPath = seedFile(tmp, "video.mp4", QByteArrayLiteral("video"));
+    const QString bookPath = seedFile(tmp, "book.epub", QByteArrayLiteral("book"));
+    const QString comicPath = seedFile(tmp, "issue.cbz", QByteArrayLiteral("comic"));
+    QVERIFY(!videoPath.isEmpty());
+    QVERIFY(!bookPath.isEmpty());
+    QVERIFY(!comicPath.isEmpty());
+
+    constexpr qint64 epochSeconds = 1785522503;
+    FakeBackbone bb;
+    bb.setVideos({ QVariantMap{
+        {QStringLiteral("title"), QStringLiteral("Jurassic Park")},
+        {QStringLiteral("path"), videoPath},
+        {QStringLiteral("addedAt"), epochSeconds},
+        {QStringLiteral("missing"), false} } });
+    bb.setBooks({ QVariantMap{
+        {QStringLiteral("title"), QStringLiteral("Dune")},
+        {QStringLiteral("path"), bookPath},
+        {QStringLiteral("addedAt"), epochSeconds},
+        {QStringLiteral("missing"), false} } });
+    bb.setIssues({ QVariantMap{
+        {QStringLiteral("id"), QStringLiteral("issue")},
+        {QStringLiteral("seriesTitle"), QStringLiteral("Berserk")},
+        {QStringLiteral("addedAt"), epochSeconds},
+        {QStringLiteral("missing"), false} } });
+    bb.setIssuePages(QStringLiteral("issue"), { pageWithArchive(comicPath) });
+
+    VaultDownloadsRoot root(&bb, &bb, &bb, nullptr);
+    const QList<VaultIndex::FileRow> rows = root.rowsForDownloads(QStringLiteral("D:/Downloads"));
+
+    QCOMPARE(rows.size(), 3);
+    for (const VaultIndex::FileRow& row : rows) {
+        QCOMPARE(row.mtimeMs, epochSeconds * 1000);
+        QVERIFY(row.mtimeMs > 1000000000000LL);
+    }
 }
 
 void tst_vault_downloads_root::skips_loose_page_chapters_and_missing_files()

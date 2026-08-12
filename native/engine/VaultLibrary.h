@@ -53,6 +53,11 @@ public:
     explicit VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
                           VaultIdentity* identity, QObject* parent = nullptr);
 
+    // One deferred healing publish after all download backbones are wired. The guard is
+    // intentionally here, rather than in QML, so an existing stale index is repaired once
+    // per process without adding a rescan control to the Vault surface.
+    void republishAtBoot();
+
     int revision() const { return m_revision; }
     bool scanning() const { return m_scanning; }
     int itemCount() const;
@@ -190,6 +195,7 @@ private:
     QSet<QString> m_offeredThisRun; // normalized roots whose card we already raised this launch
     QSet<QString> m_pendingReviveRoots;
     bool m_revivalRescanInFlight = false;
+    bool m_bootRepublishDone = false;
     bool m_autoIdentifyScheduled = false;
     bool m_autoIdentifyDirty = false;
     bool m_autoIdentifyKeysReady = false;

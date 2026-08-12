@@ -575,6 +575,29 @@ void VaultLibrary::confirmRoot(const QString& root, const QVariantMap& kindOverr
     publishAllConfirmed();
 }
 
+void VaultLibrary::republishAtBoot()
+{
+    if (m_bootRepublishDone)
+        return;
+    m_bootRepublishDone = true;
+    if (!m_scanner || !m_config)
+        return;
+
+    bool hasPublishableRoot = false;
+    for (const QVariant& r : m_config->roots()) {
+        const QVariantMap m = r.toMap();
+        if (m.value(QStringLiteral("hidden")).toBool())
+            continue;
+        if (m.value(QStringLiteral("confirmed")).toBool()
+            || m.value(QStringLiteral("synthetic")).toBool()) {
+            hasPublishableRoot = true;
+            break;
+        }
+    }
+    if (hasPublishableRoot)
+        publishAllConfirmed();
+}
+
 void VaultLibrary::publishAllConfirmed()
 {
     if (!m_scanner || !m_config)
@@ -616,6 +639,8 @@ void VaultLibrary::publishAllConfirmed()
     emit scanProgressChanged();
 
     setScanning(true); // shelving
+    if (m_watcher)
+        m_watcher->refresh();
     m_scanner->publishConfirmed(confirmed, m_config->scanIgnore(), overrides, extraRows);
 }
 

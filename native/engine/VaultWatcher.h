@@ -78,13 +78,20 @@ signals:
     // Root availability is a state transition, not a destructive scan result. The library keeps
     // rows in place while false and clears their away flag when true.
     void rootAvailabilityChanged(const QString& root, bool available);
+    // Internal reconciliation signal used by deterministic tests and diagnostics. The walk is
+    // off-thread; registration and this signal return to the watcher owner thread.
+    void watchTreeReconciled(const QString& root, int directoryCount, bool complete);
     void immersiveChanged();
 
-private:
+private slots:
     void onDirectoryChanged(const QString& path);
     void debounceExpired();
     void flushPending();
+
+private:
     void watchRoot(const QString& root);
+    void scheduleTreeWatch(const QString& root, bool replayIfInFlight = false);
+    bool addDirectoryWatch(const QString& path);
     static QString normPath(const QString& p);
     // The subtree's law: config chip override → index dominant kind → "" (a brand-new subtree's
     // first file IS its own law, so it can never be a new-kind arrival).
@@ -98,8 +105,11 @@ private:
     QTimer* m_debounce = nullptr;
     QTimer* m_probe = nullptr;       // cheap root-exists probe so a replug revives in-place
     QSet<QString> m_dirty;     // roots with unprocessed changes (normalized)
-    QSet<QString> m_degraded;  // normalized roots whose watch failed (not availability)
+    QSet<QString> m_degraded;  // normalized roots whose watch/tree registration failed
+    QSet<QString> m_treeDegraded; // normalized roots that exceeded the recursive watch budget
     QSet<QString> m_unavailable; // normalized roots whose filesystem root is absent
-    QSet<QString> m_watched;   // normalized roots with a live watch
+    QSet<QString> m_watched;   // normalized roots with a live root watch
+    QSet<QString> m_treeScansInFlight; // normalized roots with an off-thread directory walk
+    QSet<QString> m_treeRescanRequested; // changes observed while a tree walk was in flight
     bool m_immersive = false;
 };

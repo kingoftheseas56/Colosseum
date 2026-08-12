@@ -7,6 +7,18 @@
 #include <QVariantMap>
 
 namespace {
+constexpr qint64 kEpochSecondsCutoff = 1000000000000LL;
+
+qint64 normalizeAddedAtMs(qint64 addedAt)
+{
+    // Download backbones historically persisted epoch seconds while VaultIndex stores
+    // milliseconds. Keep zero as the "use file mtime" sentinel and normalize only the
+    // unmistakably short seconds-scale values.
+    if (addedAt > 0 && addedAt < kEpochSecondsCutoff)
+        return addedAt * 1000;
+    return addedAt;
+}
+
 // Normalize a path the same way VaultConfig::norm does — clean + lowercase on
 // Windows — so the synthetic root's path compares consistently across the
 // library, the config, and the QML chip.
@@ -105,7 +117,7 @@ VaultDownloadsRoot::rowsFromVideos(QObject* videos, const QString& rootPath)
                            QStringLiteral("video"),
                            path,
                            m.value(QStringLiteral("bytes")).toLongLong(),
-                           m.value(QStringLiteral("addedAt")).toLongLong(),
+                           normalizeAddedAtMs(m.value(QStringLiteral("addedAt")).toLongLong()),
                            titleOr(m, QFileInfo(path).completeBaseName())));
     }
     return out;
@@ -141,7 +153,7 @@ VaultDownloadsRoot::rowsFromBooks(QObject* books, const QString& rootPath)
                            QStringLiteral("book"),
                            path,
                            m.value(QStringLiteral("bytes")).toLongLong(),
-                           m.value(QStringLiteral("addedAt")).toLongLong(),
+                           normalizeAddedAtMs(m.value(QStringLiteral("addedAt")).toLongLong()),
                            titleOr(m, QFileInfo(path).completeBaseName())));
     }
     return out;
@@ -177,7 +189,7 @@ VaultDownloadsRoot::rowsFromComics(QObject* comics, const QString& rootPath)
                            QStringLiteral("comic"),
                            archive,
                            m.value(QStringLiteral("bytes")).toLongLong(),
-                           m.value(QStringLiteral("addedAt")).toLongLong(),
+                           normalizeAddedAtMs(m.value(QStringLiteral("addedAt")).toLongLong()),
                            m.value(QStringLiteral("label")).toString()));
     }
     return out;
@@ -209,7 +221,7 @@ VaultDownloadsRoot::rowsFromVolumes(QObject* volumes, const QString& rootPath)
                            QStringLiteral("comic"),
                            archive,
                            m.value(QStringLiteral("bytes")).toLongLong(),
-                           m.value(QStringLiteral("addedAt")).toLongLong(),
+                           normalizeAddedAtMs(m.value(QStringLiteral("addedAt")).toLongLong()),
                            m.value(QStringLiteral("label")).toString()));
     }
     return out;

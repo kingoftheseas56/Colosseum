@@ -7,10 +7,17 @@
 #include "VaultScanner.h"
 
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QFutureWatcher>
 #include <QTimer>
 #include <QVariantMap>
+#include <QtConcurrent>
+
+namespace {
+constexpr int kMaxWatchedDirectoriesPerRoot = 512;
+}
 
 // Mirror VaultConfig::norm so override keys and the degraded/dirty sets match how the config
 // and the census look paths up (cleanPath + lowercase on Windows).
@@ -78,11 +85,29 @@ void VaultWatcher::refresh()
         if (QDir(path).exists()) {
             m_unavailable.remove(norm);
             watchRoot(path);
+            scheduleTreeWatch(path);
         } else {
             m_unavailable.insert(norm);
             m_watched.remove(norm);
             m_degraded.insert(norm); // rescan-on-open still needs to revisit the missing root
         }
+    }
+
+    // A removed root must not leave its old recursive children consuming the global
+    // QFileSystemWatcher budget. Keep only directories belonging to confirmed roots.
+    const QStringList watchedDirectories = m_watcher->directories();
+    for (const QString& watched : watchedDirectories) {
+        const QString watchedNorm = normPath(watched);
+        bool keep = false;
+        for (auto it = configuredRoots.constBegin(); it != configuredRoots.constEnd(); ++it) {
+            if (watchedNorm == it.key()
+                || watchedNorm.startsWith(it.key() + QLatin1Char('/'))) {
+                keep = true;
+                break;
+            }
+        }
+        if (!keep)
+            m_watcher->removePath(watched);
     }
 
     // QFileSystemWatcher degradation (limits/network watch failure) is not filesystem absence.
@@ -109,12 +134,95 @@ void VaultWatcher::watchRoot(const QString& root)
     const QString norm = normPath(root);
     // addPath returns FALSE when the path is ALREADY being watched (and when it does not
     // exist) — so refresh() must be idempotent against QFSW's own list, not just ours.
-    if (m_watcher->directories().contains(root) || m_watcher->addPath(root)) {
+    if (addDirectoryWatch(root)) {
         m_watched.insert(norm);
-        m_degraded.remove(norm);
+        // A successful root watch does not prove that the recursive tree registration
+        // succeeded. Preserve a prior cap/child-registration degradation until the tree
+        // walk reports a complete result.
+        if (!m_treeDegraded.contains(norm))
+            m_degraded.remove(norm);
     } else {
         m_degraded.insert(norm); // QFSW limits, network drives, vanished root — rescan-on-open covers it
     }
+}
+
+bool VaultWatcher::addDirectoryWatch(const QString& path)
+{
+    const QString target = normPath(path);
+    for (const QString& watched : m_watcher->directories()) {
+        if (normPath(watched) == target)
+            return true;
+    }
+    return m_watcher->addPath(path);
+}
+
+void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
+{
+    const QString norm = normPath(root);
+    if (!QDir(root).exists())
+        return;
+    if (m_treeScansInFlight.contains(norm)) {
+        // A directory event during the walk may describe a folder created after the
+        // iterator passed its parent. Replay one fresh walk when this one completes.
+        if (replayIfInFlight)
+            m_treeRescanRequested.insert(norm);
+        return;
+    }
+
+    m_treeScansInFlight.insert(norm);
+    auto* walker = new QFutureWatcher<QStringList>(this);
+    connect(walker, &QFutureWatcher<QStringList>::finished, this,
+            [this, walker, root, norm]() {
+                QStringList directories = walker->result();
+                walker->deleteLater();
+                m_treeScansInFlight.remove(norm);
+
+                if (!m_config || !m_config->isRootConfirmed(root) || !QDir(root).exists())
+                    return;
+
+                const bool capped = !directories.isEmpty() && directories.constLast().isEmpty();
+                if (capped)
+                    directories.removeLast();
+
+                bool registrationFailed = false;
+                for (const QString& directory : directories) {
+                    if (!addDirectoryWatch(directory)) {
+                        registrationFailed = true;
+                        break;
+                    }
+                }
+                const bool complete = !capped && !registrationFailed;
+                if (complete) {
+                    m_treeDegraded.remove(norm);
+                    m_degraded.remove(norm);
+                } else {
+                    m_treeDegraded.insert(norm);
+                    m_degraded.insert(norm);
+                }
+                emit watchTreeReconciled(root, directories.size(), complete);
+
+                const bool replay = m_treeRescanRequested.remove(norm);
+                if (replay)
+                    scheduleTreeWatch(root);
+                if (m_dirty.contains(norm) && !m_immersive)
+                    m_debounce->start();
+            });
+
+    walker->setFuture(QtConcurrent::run([root]() {
+        QStringList directories;
+        directories.append(root);
+        QDirIterator it(root, QDir::Dirs | QDir::NoDotAndDotDot,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            if (directories.size() >= kMaxWatchedDirectoriesPerRoot) {
+                // An empty sentinel carries the cap state without a second result type.
+                directories.append(QString());
+                break;
+            }
+            directories.append(it.next());
+        }
+        return directories;
+    }));
 }
 
 void VaultWatcher::onDirectoryChanged(const QString& path)
@@ -148,6 +256,8 @@ void VaultWatcher::onDirectoryChanged(const QString& path)
 
     // A dirty root set keeps the debounce accumulating regardless of the immersive gate —
     // the gate only defers the UPSERT, never the observation (Slice 15 "behavior to preserve").
+    // Re-walk now so a newly-created subdirectory is registered before a later file arrives.
+    scheduleTreeWatch(root, true);
     m_dirty.insert(normPath(root));
     m_debounce->start();
 }
@@ -170,6 +280,13 @@ void VaultWatcher::flushPending()
     const QSet<QString> dirty = m_dirty;
     m_dirty.clear();
     for (const QString& norm : dirty) {
+        if (m_treeScansInFlight.contains(norm)) {
+            // Do not consume the dirty edge before the new directories are registered.
+            // The completion callback restarts this debounce, so a file created during
+            // the walk is included by the subsequent processRoot census.
+            m_dirty.insert(norm);
+            continue;
+        }
         // Resolve the normalized dirty key back to a real path: the config is the source of
         // truth (a root may have been removed while we were dirty — then nothing to do).
         QString root;

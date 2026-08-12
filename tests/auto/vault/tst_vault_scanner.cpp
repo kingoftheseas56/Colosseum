@@ -18,9 +18,12 @@
 #include <QFile>
 #include <QMap>
 #include <QSignalSpy>
+#include <QSemaphore>
 #include <QTemporaryDir>
+#include <QThreadPool>
 #include <QVariantMap>
 #include <QtTest>
+#include <QtConcurrent>
 
 #include <memory>
 
@@ -91,6 +94,11 @@ private slots:
     void scanner_rename_reattaches_same_id_and_progress();
     // ── Slice 15: the live-shelf watcher (VaultWatcher) ──
     void watcher_touch_files_upserts_exact_arrival_set();
+    void watcher_nested_file_in_existing_subfolder_is_seen();
+    void watcher_new_subfolder_is_watched_before_later_file_arrival();
+    void watcher_create_then_fill_during_tree_walk_is_not_missed();
+    void watcher_refresh_does_not_replay_active_tree_walk();
+    void watcher_directory_cap_marks_root_degraded();
     void watcher_new_kind_raises_card_and_lands();
     void watcher_override_law_raises_card_for_known_kind_arrival();
     void watcher_degraded_flag_on_failed_watch_and_recovers();
@@ -517,6 +525,174 @@ void tst_vault_scanner::watcher_touch_files_upserts_exact_arrival_set()
 
     // A second pass sees nothing new — the diff is idempotent.
     QCOMPARE(w.processRoot(root.path(), {}, {}).landedCount, 0);
+}
+
+void tst_vault_scanner::watcher_nested_file_in_existing_subfolder_is_seen()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString subtree = root.path() + QStringLiteral("/Series");
+    QVERIFY(QDir().mkpath(subtree));
+    writeMediaFile(subtree, QStringLiteral("Episode 01.mp4"));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    cfg.addRoot(root.path());
+    cfg.confirmRoot(root.path());
+    VaultScanner sc(&idx, &ident);
+    const quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    QCOMPARE(idx.itemCount(), 1);
+
+    VaultWatcher w(&idx, &ident, &cfg);
+    QSignalSpy treeReady(&w, &VaultWatcher::watchTreeReconciled);
+    QSignalSpy landed(&w, &VaultWatcher::landed);
+    w.refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() >= 1, 5000);
+
+    writeMediaFile(subtree, QStringLiteral("Episode 02.mp4"));
+    QTRY_VERIFY_WITH_TIMEOUT(landed.count() >= 1, 5000);
+    QCOMPARE(idx.itemCount(), 2);
+}
+
+void tst_vault_scanner::watcher_new_subfolder_is_watched_before_later_file_arrival()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    cfg.addRoot(root.path());
+    cfg.confirmRoot(root.path());
+    VaultWatcher w(&idx, &ident, &cfg);
+    QSignalSpy treeReady(&w, &VaultWatcher::watchTreeReconciled);
+    QSignalSpy landed(&w, &VaultWatcher::landed);
+    w.refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() >= 1, 5000);
+
+    const int initialReconciles = treeReady.count();
+    const QString subtree = root.path() + QStringLiteral("/NewShow");
+    QVERIFY(QDir().mkpath(subtree));
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() > initialReconciles, 5000);
+
+    writeMediaFile(subtree, QStringLiteral("Episode 01.mp4"));
+    QTRY_VERIFY_WITH_TIMEOUT(landed.count() >= 1, 5000);
+    QCOMPARE(idx.itemCount(), 1);
+}
+
+void tst_vault_scanner::watcher_create_then_fill_during_tree_walk_is_not_missed()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    cfg.addRoot(root.path());
+    cfg.confirmRoot(root.path());
+    VaultWatcher w(&idx, &ident, &cfg);
+
+    // Hold the only pool worker so refresh()'s recursive walk is definitely in flight while
+    // the directory is created. The file is added only after the original 300ms debounce has
+    // elapsed; a roots-only watcher loses it unless publication waits for tree registration.
+    QSemaphore workerStarted;
+    QSemaphore releaseWorker;
+    QThreadPool* pool = QThreadPool::globalInstance();
+    const int oldMaxThreadCount = pool->maxThreadCount();
+    pool->setMaxThreadCount(1);
+    QFuture<void> blocker = QtConcurrent::run([&]() {
+        workerStarted.release();
+        releaseWorker.acquire();
+    });
+    QVERIFY(workerStarted.tryAcquire(1, 5000));
+
+    QSignalSpy landed(&w, &VaultWatcher::landed);
+    w.refresh();
+    const QString subtree = root.path() + QStringLiteral("/NewShow");
+    QVERIFY(QDir().mkpath(subtree));
+    // Drive the same directory-change slot the QFileSystemWatcher signal uses, but without
+    // depending on the platform's delivery timing for the root notification.
+    QVERIFY(QMetaObject::invokeMethod(&w, "onDirectoryChanged", Qt::DirectConnection,
+                                      Q_ARG(QString, root.path())));
+    QTest::qWait(350); // let the original debounce expire while the walk remains blocked
+    writeMediaFile(subtree, QStringLiteral("Episode 01.mp4"));
+
+    releaseWorker.release();
+    QTRY_COMPARE_WITH_TIMEOUT(idx.itemCount(), 1, 5000);
+    QVERIFY(landed.count() >= 1);
+
+    blocker.waitForFinished();
+    pool->setMaxThreadCount(oldMaxThreadCount);
+}
+
+void tst_vault_scanner::watcher_refresh_does_not_replay_active_tree_walk()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    cfg.addRoot(root.path());
+    cfg.confirmRoot(root.path());
+    VaultWatcher w(&idx, &ident, &cfg);
+    QSignalSpy reconciled(&w, &VaultWatcher::watchTreeReconciled);
+
+    QSemaphore workerStarted;
+    QSemaphore releaseWorker;
+    QThreadPool* pool = QThreadPool::globalInstance();
+    const int oldMaxThreadCount = pool->maxThreadCount();
+    pool->setMaxThreadCount(1);
+    QFuture<void> blocker = QtConcurrent::run([&]() {
+        workerStarted.release();
+        releaseWorker.acquire();
+    });
+    QVERIFY(workerStarted.tryAcquire(1, 5000));
+
+    w.refresh();
+    w.refresh(); // probe-style reconciliation while the original walk is still active
+    releaseWorker.release();
+    QTRY_COMPARE_WITH_TIMEOUT(reconciled.count(), 1, 5000);
+
+    blocker.waitForFinished();
+    pool->setMaxThreadCount(oldMaxThreadCount);
+}
+
+void tst_vault_scanner::watcher_directory_cap_marks_root_degraded()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    for (int i = 0; i < 513; ++i)
+        QVERIFY(QDir().mkpath(root.path() + QStringLiteral("/Dir%1").arg(i)));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    cfg.addRoot(root.path());
+    cfg.confirmRoot(root.path());
+    VaultWatcher w(&idx, &ident, &cfg);
+    QSignalSpy treeReady(&w, &VaultWatcher::watchTreeReconciled);
+
+    w.refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() >= 1, 5000);
+    QVERIFY(w.isRootDegraded(root.path()));
+
+    // A later refresh must not clear the cap state just because the root itself is watchable;
+    // VaultLibrary needs to observe the preserved degraded flag and run its silent fallback.
+    w.refresh();
+    QVERIFY(w.isRootDegraded(root.path()));
 }
 
 void tst_vault_scanner::watcher_new_kind_raises_card_and_lands()
