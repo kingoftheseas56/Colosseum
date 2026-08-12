@@ -22,10 +22,12 @@ TestCase {
 
     SignalSpy { id: openSpy; signalName: "openRequested" }
     SignalSpy { id: crossfadeSpy; signalName: "faceCrossfaded" }
+    SignalSpy { id: identifySpy; signalName: "identifyRequested" }
 
     function cleanup() {
         openSpy.clear(); openSpy.target = null
         crossfadeSpy.clear(); crossfadeSpy.target = null
+        identifySpy.clear(); identifySpy.target = null
     }
 
     function createPoster(row) {
@@ -151,6 +153,35 @@ TestCase {
         verify(img !== null)
         compare(img.source.toString(), "")     // empty coverRef never attempts a load
         verify(img.status !== Image.Error)
+        c.destroy()
+    }
+
+    // ── 1e. Slice 6 — the uncertain mark has its own automation name and emits
+    //       identifyRequested (identify-in-place's click seam; the Lanista bridge resolves
+    //       targets by objectName only, so an unnamed MouseArea is structurally undrivable) ──
+    function test_uncertain_mark_is_named_and_emits_identify_requested() {
+        var c = createPoster(uncertainRow)
+        identifySpy.target = c
+        var mark = findChild(c, "vaultBrowseCard_justice-league_mark")
+        verify(mark !== null)
+        verify(mark.enabled)
+        mouseClick(mark)
+        compare(identifySpy.count, 1)
+        c.destroy()
+    }
+    function test_wide_uncertain_mark_is_named_and_emits_identify_requested() {
+        var episodeUncertainRow = {
+            "key": "gintama-e9", "nodeType": "episode", "displayTitle": "Gintama",
+            "physicalFact": "", "path": "D:/hemanth's folder/Gintama/Season 1/e9.mkv",
+            "counts": { "items": 0 }, "coverRef": "", "state": "uncertain", "away": false
+        }
+        var c = createWide(episodeUncertainRow)
+        identifySpy.target = c
+        var mark = findChild(c, "vaultBrowseCard_gintama-e9_mark")
+        verify(mark !== null)
+        verify(mark.enabled)
+        mouseClick(mark)
+        compare(identifySpy.count, 1)
         c.destroy()
     }
 

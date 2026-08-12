@@ -208,6 +208,10 @@ Item {
             }
 
             MouseArea {
+                // Slice 6: the uncertain mark's own automation name — the Lanista bridge
+                // resolves targets by objectName only (never a QML id), and this MouseArea
+                // previously had none, making identify-in-place structurally undrivable.
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_mark"
                 anchors.fill: parent
                 enabled: card.indicatorKind === "uncertain"
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
