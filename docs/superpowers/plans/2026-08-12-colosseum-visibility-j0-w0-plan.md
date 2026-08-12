@@ -1,9 +1,11 @@
-# Agent Visibility — J0 + W0 Implementation Plan (gap-riders)
+# Agent Visibility — J0 + W0 + FACADE Implementation Plan (gap-riders)
 
 **Status:** awaiting Hemanth's approval. Execute under `brotherhood-executing-plans`.
 **Program:** `Brotherhood/agents/preflight-handoff-agent-visibility-workstream.md` (`43a5a63`,
-ratified 2026-08-12). This plan covers ONLY its first two approved slices — J0 (fixture zoo /
-journey contract) and W0 (warning gate). F0/L1/F1/L2/J1/N0/N1 are later plans.
+ratified 2026-08-12). This plan covers its first two approved slices — J0 (fixture zoo /
+journey contract) and W0 (warning gate) — **plus one addition Hemanth ordered 2026-08-12: the
+Lanista MCP facade (Slice F), pulled forward from the ledger's Planned section.** Approving this
+plan IS the ruling that reorders it ahead of L1/J1. F0/L1/F1/L2/J1/N0/N1 remain later plans.
 **Sequencing law (ratified):** these slices RIDE BETWEEN Vault Browse slices. See "Serialization"
 below — it is a hard rule, not a preference.
 **Ledgers consulted (fresh, 2026-08-12):** `docs/colosseum-test-verification.md` ·
@@ -40,6 +42,17 @@ below — it is a hard rule, not a preference.
   Slice 5 lands. J0's own session verification uses boot + door + non-Vault surfaces only.
 - **Warning baseline does not exist** (the handoff's "verification required" item). W0's first
   task is to MEASURE it, not assume it.
+- **Parallel-executor protocol (this plan runs beside the Vault Browse execution):** the two
+  workstreams share one repo and one exe. Fences: this plan's executor touches ONLY
+  `tests/lanista-seeds/`, `tests/lanista_scenarios/seed_zoo_smoke.json`,
+  `tests/warning_gate.ps1`, `tests/lanista-warning-allowlist.json`,
+  `native/tools/lanista-mcp/server.py` (Python, uncompiled), `artifacts/`, the two ledger docs
+  (DECLARE on `agents/chat.md` first — the Vault workstream edits them at its Slice 10), and
+  `.mcp.json` (shared — declare). NEVER: `native/**` C++, `qml/**`, `tests/auto/**`,
+  `tests/fixtures/vault/**`, `tests/CMakeLists.txt`. Before ANY session boot:
+  `tasklist | findstr /i "ninja cl.exe link.exe"` must be EMPTY (a running exe locks the binary
+  a concurrent Vault build must relink); sessions are short — boot, assert, stop, never parked.
+  Git: pull-rebase before every commit, commit+push together, explicit pathspec always.
 
 ## Serialization (hard rule for every slice here)
 
@@ -146,6 +159,63 @@ logs.
 **Completion criterion:** Runtime-validated — baseline measured and preserved; gate proves both
 red and green honestly; one real runner wired; ledgers updated. **Explicitly NOT claimed:** any
 statement about the warning behavior of surfaces the baseline session did not visit.
+
+### Slice F: The Lanista MCP facade v0 — interactive hands
+
+**Purpose:** An agent drives a live, isolated Colosseum the way the Claude Code browser pane is
+driven — look, decide, act, look again — through typed MCP tools with real deadlines, instead of
+only firing static scenarios. Scenarios remain the regression gates; the facade is for
+exploration, diagnosis, and review-gate walking.
+**Dependencies:** J0 (seed placement mechanics + something meaty to boot), W0 (the warning log
+verdict the `warnings` tool reads). Soft dependencies — ordered after them in this plan.
+**Implementation guidance:** pure Python, `native/tools/lanista-mcp/server.py` (already
+registered in `.mcp.json`; it is NOT compiled — no build-dir contention). Today it has 3 tools
+and **no deadlines anywhere** (ledger-documented flaw). v0 grows it to eight typed tools, every
+one shelling the existing `lanista` CLI with an explicit `--timeout` — no naked pipe reads:
+- `session_start(seedName?, tag?, drive?)` — spawns `colosseum.exe` from an explicit exe path
+  with a UNIQUE `COLOSSEUM_LANISTA_PIPE` (generated; the daily default name is refused
+  unconditionally), `COLOSSEUM_APPDATA_TAG`, optional `COLOSSEUM_LANISTA_DRIVE=1`; performs J0
+  manifest seed placement (Roaming pre-place); readiness = `ping` until pid match; isolation
+  asserted from the app's own `get-state` markers, killing the session on mismatch (same law as
+  `session run`). One live session at a time in v0; a `session.json` on disk enables crash
+  cleanup.
+- `session_stop()` — graceful-then-kill, logs preserved.
+- `act(action, target, …)` → ui-click / ui-keypress / ui-text-input / ui-scroll.
+- `get(target, props)` → qml-get. `snapshot()` → ui-snapshot. `wait_for(target, prop, value,
+  timeoutMs)` → ui-wait-for. `grab(target)` → PNG path + inline image.
+- `warnings()` → the session's `logs/colosseum.log` + stderr through W0's allowlist verdict.
+The existing 3 tool names keep working. `session run`, the CLI, and the bridge itself are
+untouched — this wraps the ONE automation stack; it does not create a second.
+**Behavior to preserve:** existing adapter consumers; every ledger law (Drive gating, default-
+pipe refusal, isolation asserts, daily app untouchable).
+**Baseline:** read and record today's `server.py` surface (3 tools, no deadlines, no session
+ownership) before editing.
+**Focused tests:**
+  - Qt Test / Qt Quick Test / Existing harnesses: not applicable — no native/QML change; the
+    facade's proof is its live drive below.
+  - Negative control: three, listed under Lanista actions.
+**Test seam status:** not applicable.
+**Lanista actions (gap-scheduled):** the executing agent itself performs one full interactive
+drive through the MCP tools against a seeded isolated session: `session_start` on the J0
+founding seed → `snapshot` returns named items → `act` click `taskbarVaultDoor` → `wait_for`
+`vaultPage.visible == true` → `get` state properties → `grab` → `warnings()` returns a verdict
+→ `session_stop`. **Negative controls:** (a) `session_start` forced onto the default pipe name
+→ refused; (b) `act` against a stopped session → clean deadline error, no hang (the fix the
+ledger demands); (c) isolation-marker mismatch (tag stripped) → session self-kills.
+**Completion signal:** every tool's explicit timeout; the `wait_for` equalities.
+**State / events / probes:** as driven; the drive transcript is the record.
+**Visual evidence:** the `grab` PNG (exhibit).
+**Regression paths:** `lanista session run` on an existing scenario still green (CLI path
+undisturbed); the three legacy MCP tool names still answer.
+**Evidence artifacts:** drive transcript + grabs + `session.json` under
+`artifacts/lanista-sessions/<id>/`; ledger MCP section rewritten (deadline flaw closed) in the
+same commit; `.mcp.json`, if touched, is a SHARED file — declare on `agents/chat.md` first.
+**Bridge status:** available (wraps only AVAILABLE commands; adds no bridge capability).
+**Completion criterion:** Runtime-validated — the interactive drive performed end-to-end by the
+executing agent with all three negative controls shown and both ledgers updated. **Note:** MCP
+tools load from the Colosseum project config — the verifying chat must be opened at the
+Colosseum root (or the server added to the Brotherhood-level MCP config with Hemanth's say-so);
+if neither, the CLI-subprocess equivalent drive is the honest fallback, recorded as such.
 
 ---
 
