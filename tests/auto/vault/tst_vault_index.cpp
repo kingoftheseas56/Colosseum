@@ -108,8 +108,10 @@ private slots:
     // ── browse-face execution plan, Slice 1 ──
     void recent_groups_orders_newest_mtime_first_across_kinds();
     // ── vault-admission slice ──
-    void legacy_schema_migrates_and_stamps_v4();
+    void legacy_schema_migrates_and_stamps_v5();
     void future_schema_fails_closed_without_downgrade();
+    // ── browse-face execution plan, Slice 2 ──
+    void identity_state_round_trips_and_survives_a_republish_that_still_carries_it();
     void publish_carries_admission_only_for_exact_identity_tuple();
     void publish_explicit_new_verdict_wins_over_carried_verdict();
     void admission_projection_is_video_only_and_omits_unprobed_rows();
@@ -447,7 +449,7 @@ void tst_vault_index::recent_groups_orders_newest_mtime_first_across_kinds()
     QCOMPARE(all.last().toMap().value(QStringLiteral("mtimeMs")).toLongLong(), 1500LL);
 }
 
-void tst_vault_index::legacy_schema_migrates_and_stamps_v4()
+void tst_vault_index::legacy_schema_migrates_and_stamps_v5()
 {
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
@@ -459,7 +461,9 @@ void tst_vault_index::legacy_schema_migrates_and_stamps_v4()
         QVERIFY(idx.isOpen());
     }
 
-    QCOMPARE(userVersionOf(path), 4);
+    // v5 adds identityState/identityCandidateCount (browse-face execution plan Slice 2) on top
+    // of the v4 admission/resilience/metadata/identity columns — same monotonic ALTER shape.
+    QCOMPARE(userVersionOf(path), 5);
 }
 
 void tst_vault_index::future_schema_fails_closed_without_downgrade()
@@ -467,14 +471,63 @@ void tst_vault_index::future_schema_fails_closed_without_downgrade()
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
     const QString path = tmp.filePath(QStringLiteral("future.sqlite"));
-    QVERIFY(createLegacyVaultDb(path, 5)); // negative control: a newer owner stamped v5
+    QVERIFY(createLegacyVaultDb(path, 6)); // negative control: a newer owner stamped v6
 
     {
         VaultIndex idx(path);
         QVERIFY(!idx.isOpen()); // must refuse to open, never downgrade
     }
 
-    QCOMPARE(userVersionOf(path), 5); // version untouched
+    QCOMPARE(userVersionOf(path), 6); // version untouched
+}
+
+void tst_vault_index::identity_state_round_trips_and_survives_a_republish_that_still_carries_it()
+{
+    // Slice 2 (browse-face execution plan): identityState/identityCandidateCount are a plain
+    // column pair — VaultIndex does not know WHO set them (VaultIdentifier does). This proves
+    // the schema/insertRow/SELECT wiring round-trips them, and that a second publish() for the
+    // SAME stable (id, size, mtimeMs) tuple keeps the value WHEN THE CALLER SUPPLIES IT AGAIN —
+    // deliberately NOT via publish()'s identity-carry snapshot (that mechanism is a known hazard
+    // owned by a different arc and is not widened here). A real filesystem rescan that does NOT
+    // re-supply identityState resets it to "" (none) until VaultIdentifier's auto-identify pass
+    // (already scheduled on every VaultIndex::changed()) re-derives it — an accepted, reported
+    // gap, not a silent one.
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    auto row = mk(QStringLiteral("vault:ambiguous"), QStringLiteral("D:/lib/The Matrix"),
+                  QStringLiteral("The Matrix"), QStringLiteral("video"),
+                  QStringLiteral("The Matrix.mp4"));
+    row.identityState = QStringLiteral("ambiguous");
+    row.identityCandidateCount = 2;
+    QVERIFY(idx.publish({row}));
+
+    auto rows = idx.rowsForGroup(row.groupKey);
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.first().identityState, QStringLiteral("ambiguous"));
+    QCOMPARE(rows.first().identityCandidateCount, 2);
+    QCOMPARE(idx.filesInSubtree(row.subtreePath).first().toMap()
+                 .value(QStringLiteral("identityState")).toString(),
+             QStringLiteral("ambiguous"));
+
+    // Same stable (id, size, mtimeMs) tuple, republished by a caller that still carries the
+    // ambiguity fact on the row it hands to publish() — survives.
+    QVERIFY(idx.publish({row}));
+    rows = idx.rowsForGroup(row.groupKey);
+    QCOMPARE(rows.first().identityState, QStringLiteral("ambiguous"));
+    QCOMPARE(rows.first().identityCandidateCount, 2);
+
+    // A fresh scan's row (the production shape — VaultScanner never sets identity fields) does
+    // NOT carry it — the honest, reported gap above, proven rather than assumed.
+    auto rescanned = row;
+    rescanned.identityState.clear();
+    rescanned.identityCandidateCount = 0;
+    QVERIFY(idx.publish({rescanned}));
+    rows = idx.rowsForGroup(row.groupKey);
+    QVERIFY(rows.first().identityState.isEmpty());
+    QCOMPARE(rows.first().identityCandidateCount, 0);
 }
 
 void tst_vault_index::publish_carries_admission_only_for_exact_identity_tuple()

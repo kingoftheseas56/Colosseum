@@ -174,6 +174,10 @@ void VaultLibrary::runAutoIdentifySlice()
         const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey);
         if (match.adopted)
             m_identifier->applyGroup(groupKey, match);
+        else if (match.candidateCount > 1)
+            // Ambiguous, not absent: record it durably so a tile can wear "Vault isn't sure"
+            // instead of looking merely unscanned (browse-face execution plan, Slice 2).
+            m_identifier->recordAmbiguous(groupKey, match.candidateCount);
     }
     // One group per event-loop turn keeps the pass progressive and lets the immersive gate,
     // watcher, and normal QML input continue to breathe between identities.
@@ -407,14 +411,22 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             if (!rows.isEmpty()) {
                 bool anyAway = false;
                 bool identified = false;
+                bool ambiguous = false;
                 for (const VaultIndex::FileRow& row : rows) {
                     if (row.away)
                         anyAway = true;
                     if (!row.identityId.isEmpty() && !row.identitySuppressed)
                         identified = true;
+                    if (row.identityState == QLatin1String("ambiguous"))
+                        ambiguous = true;
                 }
                 away = anyAway;
-                state = identified ? QStringLiteral("identified") : QStringLiteral("resolving");
+                // identified always wins (identify-in-place settles a previously-ambiguous
+                // group through the same durable fact); suppressed reads as resolving
+                // (filename-honest, not "unsure" — the user already made a call).
+                state = identified ? QStringLiteral("identified")
+                      : ambiguous  ? QStringLiteral("uncertain")
+                                   : QStringLiteral("resolving");
             }
         }
         m.insert(QStringLiteral("state"), state);
@@ -467,6 +479,7 @@ QVariantList VaultLibrary::recentArrivals(int limit) const
             continue;
         bool allHidden = true;
         bool anyAway = false;
+        bool ambiguous = false;
         QString identityTitle;
         for (const VaultIndex::FileRow& row : rows) {
             if (!m_config || !m_config->isHidden(row.id))
@@ -475,6 +488,8 @@ QVariantList VaultLibrary::recentArrivals(int limit) const
                 anyAway = true;
             if (identityTitle.isEmpty() && !row.identityId.isEmpty() && !row.identitySuppressed)
                 identityTitle = row.identityTitle;
+            if (row.identityState == QLatin1String("ambiguous"))
+                ambiguous = true;
         }
         if (allHidden)
             continue;
@@ -491,8 +506,8 @@ QVariantList VaultLibrary::recentArrivals(int limit) const
                  ? QString() : QStringLiteral("%1 items").arg(rows.size()));
         m.insert(QStringLiteral("path"), g.value(QStringLiteral("subtreePath")));
         m.insert(QStringLiteral("coverRef"), QString());
-        m.insert(QStringLiteral("state"), !identityTitle.isEmpty()
-                 ? QStringLiteral("identified") : QStringLiteral("resolving"));
+        m.insert(QStringLiteral("state"), !identityTitle.isEmpty() ? QStringLiteral("identified")
+                 : ambiguous ? QStringLiteral("uncertain") : QStringLiteral("resolving"));
         m.insert(QStringLiteral("away"), anyAway);
         out.append(m);
     }
@@ -504,7 +519,11 @@ bool VaultLibrary::identifyGroup(const QString& groupKey)
     if (!m_identifier)
         return false;
     const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey);
-    return match.adopted && m_identifier->applyGroup(groupKey, match);
+    if (match.adopted)
+        return m_identifier->applyGroup(groupKey, match);
+    if (match.candidateCount > 1)
+        m_identifier->recordAmbiguous(groupKey, match.candidateCount);
+    return false;
 }
 
 bool VaultLibrary::identifyGroupWith(const QString& groupKey,

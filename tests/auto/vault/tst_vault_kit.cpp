@@ -197,6 +197,19 @@ void tst_vault_kit::title_cleaner_data()
     QTest::newRow("multi_season_short")  << "The Wire S01 S05"                 << "The Wire";
     QTest::newRow("multi_season_worded") << "The Wire Season 1 Season 5"       << "The Wire";
     QTest::newRow("too_short_keeps_raw") << "A"                                << "A";
+    // Real folder from Hemanth's library (bracket-noise ordering bug, browse-face plan Slice 2
+    // addendum): stripNoiseBracketChunks used to run AFTER the blanket '.'->' ' replace, so
+    // "[5.1]" had already become "[5 1]" by the time the noise test ran — a two-token fragment
+    // that fails "pure numeric" and slips through as stray "5 1" / "YTS MX" title noise.
+    // Pre-fix baseline (confirmed live before this fix): "Spider-Man No Way Home 5 1 YTS MX".
+    QTest::newRow("audio_channel_and_site_tag_stripped")
+        << "Spider-Man No Way Home (2021) [1080p] [WEBRip] [5.1] [YTS.MX]"
+        << "Spider-Man No Way Home";
+    // A DDP-prefixed channel tag (no space before the digits) and a different release-site
+    // domain tag — proves the fix is a general pattern, not a one-off string match.
+    QTest::newRow("ddp_audio_tag_and_domain_tag_stripped")
+        << "Movie Name (2019) [2160p] [DDP5.1] [RARBG.to]"
+        << "Movie Name";
 }
 
 void tst_vault_kit::title_cleaner()

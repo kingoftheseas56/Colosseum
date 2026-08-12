@@ -36,11 +36,16 @@ bool buildMalFixture(const QString& path, bool ambiguous)
                 "type TEXT, score REAL, year INTEGER, cover TEXT, synopsis TEXT, "
                 "credits TEXT, tags TEXT, episodes INTEGER)"));
             if (ok) {
+                // norm_title is 'matrix', NOT 'the matrix' — VaultKit::normalizedTitle() strips a
+                // leading "the"/"a"/"an" article (VaultIdentifier's own lookup path), so a fixture
+                // row storing the un-stripped article would silently never match ANY real lookup
+                // title and both rows would look like zero candidates, not two (a pre-existing
+                // vacuous-fixture gap fixed here so the ambiguity path is genuinely exercised).
                 const QString rows = ambiguous
                     ? QStringLiteral(
                         "INSERT INTO anime VALUES "
-                        "(1,'The Matrix','','the matrix','', 'TV',8.0,1999,'cover-1','synopsis-1','[]','[]',1),"
-                        "(2,'The Matrix','','the matrix','', 'TV',7.0,2003,'cover-2','synopsis-2','[]','[]',1)")
+                        "(1,'The Matrix','','matrix','', 'TV',8.0,1999,'cover-1','synopsis-1','[]','[]',1),"
+                        "(2,'The Matrix','','matrix','', 'TV',7.0,2003,'cover-2','synopsis-2','[]','[]',1)")
                     : QStringLiteral(
                         "INSERT INTO anime VALUES "
                         "(3,'Cowboy Bebop','','cowboy bebop','', 'TV',8.8,1998,'cover-3','synopsis-3','[]','[]',26)");
@@ -87,6 +92,8 @@ private slots:
     void autoPassIdentifiesOnlyCertainEligibleGroups();
     void unidentifyPreservesProgressAndFileId();
     void reshelveChangesKindWithoutChangingFileId();
+    // ── browse-face execution plan, Slice 2: durable identityState ──
+    void identityStateRecordsAdoptedAmbiguousNoneAndSuppressed();
 
 private:
     QTemporaryDir m_dir;
@@ -313,6 +320,69 @@ void VaultIdentifierTest::reshelveChangesKindWithoutChangingFileId()
     QCOMPARE(rows.first().id, row.id);
     QCOMPARE(rows.first().kind, QStringLiteral("book"));
     QCOMPARE(rows.first().progressed, true);
+}
+
+void VaultIdentifierTest::identityStateRecordsAdoptedAmbiguousNoneAndSuppressed()
+{
+    // Slice 2: matchGroup()'s candidateCount + VaultIdentifier::recordAmbiguous() make
+    // "Vault isn't sure" a durable, projectable fact instead of it hiding inside "not
+    // identified yet" — one-candidate adopts, two-candidate records ambiguous(2) and stays
+    // unidentified, zero-candidate never writes anything (stays "none"), and Un-identify
+    // records "suppressed". Pre-change baseline: ambiguous groups were indistinguishable from
+    // unscanned ones in every projection — this proves the column now tells them apart.
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    auto adopted = fixtureRow(QStringLiteral("vault:state-adopted"), QStringLiteral("Cowboy Bebop"));
+
+    auto ambiguous = fixtureRow(QStringLiteral("vault:state-ambiguous"), QStringLiteral("The Matrix"));
+    ambiguous.groupKey += QStringLiteral("/ambiguous");
+    ambiguous.subtreePath = ambiguous.groupKey;
+    ambiguous.path = ambiguous.subtreePath + QStringLiteral("/Vol 1.cbz");
+
+    auto none = fixtureRow(QStringLiteral("vault:state-none"),
+                           QStringLiteral("Totally Unknown Franchise XYZ"));
+    none.groupKey += QStringLiteral("/none");
+    none.subtreePath = none.groupKey;
+    none.path = none.subtreePath + QStringLiteral("/Vol 1.cbz");
+
+    QVERIFY(index.publish({adopted, ambiguous, none}));
+
+    // one candidate -> adopted, durably (identityState survives past the reversible Match).
+    MalCatalog mal(m_malPath); // has exactly "Cowboy Bebop"; neither "The Matrix" nor the XYZ title
+    QVERIFY(mal.ready());
+    VaultIdentifier identifier(&index, nullptr, &mal, nullptr);
+    const VaultIdentifier::Match adoptedMatch = identifier.matchGroup(adopted.groupKey);
+    QVERIFY(adoptedMatch.adopted);
+    QVERIFY(identifier.applyGroup(adopted.groupKey, adoptedMatch));
+    QCOMPARE(index.rowsForGroup(adopted.groupKey).first().identityState, QStringLiteral("adopted"));
+
+    // zero candidates -> "none": matchGroup reports it honestly and nothing is ever written.
+    const VaultIdentifier::Match noneMatch = identifier.matchGroup(none.groupKey);
+    QVERIFY(!noneMatch.adopted);
+    QCOMPARE(noneMatch.candidateCount, 0);
+    QVERIFY(!identifier.recordAmbiguous(none.groupKey, noneMatch.candidateCount));
+    QVERIFY(index.rowsForGroup(none.groupKey).first().identityState.isEmpty());
+
+    // two candidates -> ambiguous(2), recorded, NEVER adopted.
+    MalCatalog ambiguousMal(m_ambiguousMalPath);
+    QVERIFY(ambiguousMal.ready());
+    VaultIdentifier ambiguousIdentifier(&index, nullptr, &ambiguousMal, nullptr);
+    const VaultIdentifier::Match ambiguousMatch = ambiguousIdentifier.matchGroup(ambiguous.groupKey);
+    QVERIFY(!ambiguousMatch.adopted);
+    QCOMPARE(ambiguousMatch.candidateCount, 2);
+    QVERIFY(ambiguousIdentifier.recordAmbiguous(ambiguous.groupKey, ambiguousMatch.candidateCount));
+    const VaultIndex::FileRow ambiguousRow = index.rowsForGroup(ambiguous.groupKey).first();
+    QCOMPARE(ambiguousRow.identityState, QStringLiteral("ambiguous"));
+    QCOMPARE(ambiguousRow.identityCandidateCount, 2);
+    QVERIFY(ambiguousRow.identityId.isEmpty()); // still filename-honest, never silently merged
+
+    // suppression round-trip: Un-identify clears identityId but records "suppressed" (never
+    // reverts to "ambiguous"/"none" — the user's explicit choice is itself the durable fact).
+    QVERIFY(identifier.unidentifyGroup(adopted.groupKey));
+    QCOMPARE(index.rowsForGroup(adopted.groupKey).first().identityState, QStringLiteral("suppressed"));
 }
 
 QTEST_MAIN(VaultIdentifierTest)

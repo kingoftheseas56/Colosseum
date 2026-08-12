@@ -62,6 +62,17 @@ public:
         QString identityWorld;  // Tankoban / Biblio / Theatre
         int identityYear = 0;
         bool identitySuppressed = false; // explicit Un-identify; blocks auto re-adoption
+        // Durable identification-attempt outcome (browse-face execution plan, Slice 2):
+        // "" (none) | "ambiguous" | "adopted" | "suppressed". Recorded by VaultIdentifier so a
+        // Browse tile can wear "Vault isn't sure" instead of looking merely unscanned.
+        // identityCandidateCount is meaningful only when identityState == "ambiguous" (the
+        // count of exact catalogue candidates the certainty gate declined to auto-adopt).
+        // NOT carried forward by publish()'s identity-carry snapshot (deliberately — Recon
+        // Gate 9 / the identity-carry hazard is owned by a different arc); a rescan resets it
+        // to "" until VaultIdentifier's auto-identify pass (already scheduled on every index
+        // change) re-derives it.
+        QString identityState;
+        int identityCandidateCount = 0;
         bool progressed = false;
         QString coverRef; // comic: the CBZ entry name for image://comiccover/; else ""
         // A confirmed root can disappear without destroying the user's shelf. `away` keeps the

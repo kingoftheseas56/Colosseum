@@ -27,6 +27,8 @@ void clearIdentity(VaultIndex::FileRow& row)
     row.identityCoverUrl.clear();
     row.identityWorld.clear();
     row.identityYear = 0;
+    row.identityState.clear();
+    row.identityCandidateCount = 0;
 }
 
 struct LookupTitle {
@@ -120,6 +122,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         // One exact candidate across the allowed offline catalogues is the
         // certainty threshold. An ambiguity stays filename-honest.
         const int candidateCount = comics.size() + mal.size();
+        match.candidateCount = candidateCount;
         if (candidateCount != 1)
             return match;
 
@@ -164,6 +167,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         if (!m_imdb || !m_imdb->ready())
             return match;
         const QVariantList hits = m_imdb->matchByTitle(normalizedTitle, lookup.year);
+        match.candidateCount = hits.size();
         if (hits.size() != 1)
             return match;
         const QVariantMap hit = hits.constFirst().toMap();
@@ -240,6 +244,9 @@ bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match)
         row.identityWorld = match.world;
         row.identityYear = match.year;
         row.identitySuppressed = false;
+        // Adoption clears any prior ambiguity — identify-in-place settles the tile.
+        row.identityState = QStringLiteral("adopted");
+        row.identityCandidateCount = 0;
     }
     return m_index->upsertMany(rows);
 }
@@ -259,6 +266,7 @@ bool VaultIdentifier::unidentifyGroup(const QString& groupKey)
     for (VaultIndex::FileRow& row : rows) {
         clearIdentity(row);
         row.identitySuppressed = true;
+        row.identityState = QStringLiteral("suppressed");
         if (row.kind == QLatin1String("book")) {
             row.displayTitle = VaultKit::cleanMediaFolderTitle(row.realName);
             row.author.clear();
@@ -286,4 +294,28 @@ bool VaultIdentifier::reshelveGroup(const QString& groupKey, const QString& kind
         row.identitySuppressed = false;
     }
     return m_index->upsertMany(rows);
+}
+
+bool VaultIdentifier::recordAmbiguous(const QString& groupKey, int candidateCount)
+{
+    if (!m_index || groupKey.isEmpty() || candidateCount <= 1)
+        return false;
+    QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+    if (rows.isEmpty())
+        return false;
+    bool dirty = false;
+    for (VaultIndex::FileRow& row : rows) {
+        // Never overwrite a group that has already resolved either way (adopted, or a user's
+        // explicit Un-identify) — ambiguity recording only applies to a group that has never
+        // resolved, so a later re-check of an already-settled group is a harmless no-op.
+        if (!row.identityId.isEmpty() || row.identitySuppressed)
+            continue;
+        if (row.identityState != QLatin1String("ambiguous")
+            || row.identityCandidateCount != candidateCount) {
+            row.identityState = QStringLiteral("ambiguous");
+            row.identityCandidateCount = candidateCount;
+            dirty = true;
+        }
+    }
+    return dirty && m_index->upsertMany(rows);
 }
