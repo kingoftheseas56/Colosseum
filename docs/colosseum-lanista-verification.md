@@ -308,13 +308,121 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   boot-first: `app_home.json`. **Full corrected 18-scenario inventory:** see "Seed zoo... and the
   corrected scenario inventory" above.
 
-### MCP adapter (`native/tools/lanista-mcp/server.py`, registered in `.mcp.json`)
+### MCP adapter v0 (`native/tools/lanista-mcp/server.py`, registered in `.mcp.json`) — Slice F, 2026-08-12
 
-- Three tools: `lanista_call` (generic cmd+payload passthrough), `lanista_grab` (returns the PNG
-  inline as image content), `lanista_snapshot`.
-- **No deadlines anywhere** — a hung app hangs the adapter's blocking pipe read. Prefer the CLI
-  (`lanista --timeout`) when the app's health is itself in question.
-- Assumes adapter and app share a filesystem; grab PNGs are never cleaned up.
+- **The deadline flaw is closed.** The old adapter opened the named pipe directly and did an
+  UNBOUNDED blocking read (`pipe_call()`) — a hung app hung the adapter forever. v0 NEVER touches
+  the pipe from Python. Every tool call — the 8 new ones AND the 3 legacy ones — shells the
+  existing `lanista` CLI (`native/build-msvc/lanista.exe`) with an explicit `--timeout`, plus a
+  Python-side `subprocess` timeout as a hard backstop beyond the CLI's own deadline. One
+  automation stack, not two: the CLI's hardened QLocalSocket client (connect/write/drain-on-
+  disconnect) is reused, never re-implemented. Stdlib only (plus `ctypes` for one Windows API
+  call, see session_stop below) — no SDK, no new dependency.
+- **Protocol ruling (unchanged, do not revisit without a fresh plan):** still the hand-rolled
+  JSON-RPC `2024-11-05` base, no Tasks, no SDK. All 11 tools are plain `tools/call`.
+- **Eight new typed tools**, plus the original 3 kept working unchanged in name and target:
+  - `session_start(seedName?, tag?, drive?)` — an INTERACTIVE session the adapter itself owns
+    (spawns `colosseum.exe` directly via `subprocess.Popen`, not through `session run`, which is
+    self-contained/disposable). Generates a UNIQUE `ColosseumLanista-<sessionId>` pipe every
+    time — the bare daily default is refused UNCONDITIONALLY, checked BEFORE any process is
+    touched (same law as the CLI's `session run`, and equally unreachable by construction under
+    normal generation — see "Negative controls" below for how this was actually exercised).
+    Resolves J0 seed placement by copying the ENTIRE `tests/lanista-seeds/<seedName>/` tree into
+    the tagged Roaming AppData root (`%APPDATA%/Brotherhood/Colosseum-dltest-<tag>` — org
+    `Brotherhood`, app `Colosseum-dltest-<tag>` under `COLOSSEUM_APPDATA_TAG`, `main.cpp:520-560`),
+    identical in effect to `session run --seed`. Readiness = `ping` until PID match (2s per-call
+    CLI deadline, 60s overall — the ledger's own operational note: the 30s CLI default times out
+    on a loaded box). Isolation asserted from the app's OWN `get-state` report (`appDataRoot` +
+    `cacheRoot` must both carry `Colosseum-dltest-<tag>`), killing the session on mismatch — the
+    same law `session run` enforces. **One live session at a time in v0**, gated two ways: an
+    in-memory dict for the adapter's own process, and a `session.json`-derived pointer file
+    (`artifacts/lanista-sessions/_mcp-active.json`) checked via a live-pid probe (`tasklist`) so a
+    SECOND adapter process — or the same one restarted after a crash — refuses to double-book
+    rather than trusting a stale file.
+  - `session_stop()` — graceful (broadcasts `WM_CLOSE` to the child's top-level windows via
+    `ctypes`/`user32.dll`, the same path Qt's `QProcess::terminate()` takes on Windows; Python's
+    own `Popen.terminate()` calls `TerminateProcess` directly with no grace, so this is done by
+    hand) then kill after an 8s bound. Logs preserved; manifest records which path fired.
+  - `act(action, target, key?, text?, dy?, timeoutMs?)` → `ui-click` / `ui-keypress` /
+    `ui-text-input` / `ui-scroll`, flat k=v CLI payloads.
+  - `get(target, props, timeoutMs?)` → `qml-get`. **`props` is a JSON array — the CLI's plain
+    `k=v` mode structurally cannot build one** (`payloadFromArgs` only types flat scalars).
+    Resolved by writing a one-step scratch scenario and running `lanista --verbose run
+    <scratch>.json`, which prints the step's full reply body to stdout regardless of pass/fail —
+    the documented CLI facility for exactly this ("Blind gates" trap note above). No `expect`
+    clause is set; this is data retrieval, not an assertion. Scratch files land under the live
+    session's own `artifacts/lanista-sessions/<id>/scratch/` (evidence, not cleaned up).
+  - `snapshot(timeoutMs?)` → `ui-snapshot`.
+  - `wait_for(target, prop, value, timeoutMs?)` → `ui-wait-for`. The CLI's OWN client deadline
+    must outlive the server's poll deadline (same floor+slack rule the scenario engine already
+    uses: 10s floor, `timeoutMs + 5s`) — a naive `--timeout` equal to `timeoutMs` would make the
+    CLI give up before a legitimately-long server-side wait finishes.
+  - `grab(target, timeoutMs?)` → `get-state --grab <target>` (the CLI's own dedicated flag —
+    the only way to reach `get-state`'s nested `{"grab":{"target":...}}` payload shape through
+    plain k=v mode). The CLI forces a flat 10s client deadline for any grab regardless of
+    `--timeout` (`main()`: `grabName.isEmpty() ? g_timeout : 10000`); the adapter's own backstop
+    accounts for that floor so a short caller-supplied `timeoutMs` can't make Python kill the
+    subprocess before the CLI's internal wait finishes.
+  - `warnings()` → runs W0's `tests/warning_gate.ps1` (via `powershell.exe -File`, not `pwsh` —
+    not installed on this box; the gate script is written to be ANSI-safe for Windows PowerShell
+    5.1 too, see its own header) against the active-or-last-stopped session's own
+    `<appDataRoot>/logs/colosseum.log` + its `stderr.log`. Does not reimplement W0's parsing —
+    calls the gate script exactly as documented above.
+  - `lanista_call` / `lanista_grab` / `lanista_snapshot` — **unchanged names, unchanged target**
+    (whatever `COLOSSEUM_LANISTA_PIPE` resolves to at call time — daily app or an externally-
+    managed session — exactly as before), reimplemented on the same deadline-safe transport.
+- **Test-only hooks, deliberately NOT in the public `inputSchema`:** `session_start` accepts
+  `_forcePipe` and `_forceIsolationMismatch` (read via `args.get(...)`, never schema-validated —
+  matching this file's existing lightweight-dispatch style). They exist ONLY to exercise two
+  guards that a normal call can never organically reach — the pipe is always a generated
+  `ColosseumLanista-<sessionId>`, never the bare default, and the isolation check always compares
+  against the tag actually launched with — mirroring the CLI's OWN equivalently
+  unreachable-by-construction default-pipe guard (`lanista.cpp` : `if (s.pipe ==
+  "ColosseumLanista")`, dead code under its own id-always-unique generation). Forcing the value is
+  the honest way to negative-test a "this should never happen" guard, the same way a unit test
+  forces an edge case; both negative controls (a) and (c) below used them, exercising the SAME
+  production code path a normal call runs, not a mock.
+- **Ground-truthed live bug, found and fixed in this slice:** the initial drive hit a REAL app
+  crash (`STATUS_ACCESS_VIOLATION`, exit code `3221225477`) partway through a Vault-page session
+  (immediately after three repeated `HouseScrollBar.qml:26: QML Theme: Cannot find member data`
+  warnings — outside this slice's fence to diagnose or fix; flagged for the record, not
+  Slice-F's to touch). The crash exposed an unguarded `proc.kill(); proc.wait(timeout=5)` in three
+  `session_start` failure paths and one in `session_stop`: a slow-to-die child could raise an
+  uncaught `TimeoutExpired`, turning a clean coded tool error into an ugly protocol-level one —
+  precisely the kind of deadline gap this slice exists to close. Fixed with a `_kill_and_wait()`
+  helper that bounds and swallows the wait. Re-verified clean on a fresh healthy session
+  afterward (see verification below) — the crash itself is an app-level fact, independent of the
+  fix, and is not claimed resolved by it.
+- Assumes adapter and app share a filesystem; grab PNGs are never cleaned up (unchanged limit).
+
+**Verification (Slice F, 2026-08-12).** Driven via real JSON-RPC over stdio (`python
+native/tools/lanista-mcp/server.py` as a subprocess, not a host MCP client — neither available
+chat had the `lanista_*` tools loaded, the plan's documented fallback), transcripts under
+`artifacts/lanista-sessions/mcp-drive-20260812/` (gitignored, evidence only):
+- **Main drive** (`transcript.jsonl`, session `20260812-191242-471215e6`, seed
+  `vault-stale-index-v1`): `session_start` → `snapshot` (91 elements) → `act` click
+  `taskbarVaultDoor` → `wait_for` `vaultState.pageOpen == true` (matched) → `get` on `vaultState`
+  + `localLaunchState` (real prop values returned) → `grab` window (real PNG) → `warnings()`
+  (correctly returned `FAIL` — caught a real unsuppressed `HouseScrollBar.qml` warning, proving
+  the gate isn't a rubber stamp) → the app crashed (see above) → `session_stop` correctly recorded
+  the crash exit code without hanging.
+- **Negative control (a)** — `session_start` with the forced default pipe: refused before any
+  process touched, `isError: true`, `DEFAULT_PIPE_REFUSED`.
+- **Negative control (b)** — `act()` against no session (0.00s) and, after a clean `session_stop`
+  in the follow-up run (`transcript2.jsonl`), `act()` against a stopped session (0.00s both
+  times): clean coded `NO_SESSION` error, never a hang.
+- **Negative control (c)** — `session_start` with `_forceIsolationMismatch`: real child spawned,
+  became ready, isolation check deliberately mismatched against the REAL reported roots, killed
+  (7.0s elapsed) — `tasklist` confirmed the named pid was no longer alive afterward.
+- **Regression, legacy 3 tools** — first attempt hit the crash mid-session (all 3 timed out
+  cleanly at their bounded deadlines — correct behavior against a dead pipe, but not proof the
+  tools work against a HEALTHY one); re-run on a fresh session (`transcript2.jsonl`) after the
+  `_kill_and_wait` fix: `lanista_snapshot` (91 elements), `lanista_call ping` (schema/pid/gates),
+  `lanista_grab` (real PNG) all answered correctly.
+- **Regression, CLI path** — `lanista session run tests/lanista_scenarios/vault_launch_smoke.json
+  --drive --ready-ms 60000` (a fresh tag): 7/7, matching the ledger's prior documented result —
+  the scenario runner and the app are fully undisturbed by this slice (pure-Python, zero native
+  changes).
 
 ### Isolation mechanisms that exist
 
@@ -369,8 +477,11 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
    exact + perceptual compare, diff/heatmap, decoded-dimension and sharpness checks.
 6. **Act + Observe transaction** — one call correlating action → semantic completion → events →
    after-state → pixels into a single timeline. No retries, no sleeps inside.
-7. **MCP facade** — typed tools (`lanista_session_start`, `lanista_act`, `lanista_wait`,
-   `lanista_probe`, …) with real deadlines; refuse the daily-app pipe unless explicit.
+7. ~~**MCP facade**~~ — **DELIVERED v0, Slice F, 2026-08-12.** See "MCP adapter v0" under
+   AVAILABLE NOW above: 8 typed tools (`session_start`/`session_stop`/`act`/`get`/`snapshot`/
+   `wait_for`/`grab`/`warnings`) with real deadlines on every call, refusing the daily-app pipe
+   unconditionally. Still v0-scoped: no Tasks, no protocol bump (deferred to the Night Watch),
+   session ownership is in-adapter only (no cross-host handoff).
 8. **WebEngine + media observation** — read-only URL/DOM-readiness/console and
    source/buffering/seek probes behind the proper gates.
 9. **`window-set-state` (Drive-gated)** — minimize/restore/normal via the real QWindow
