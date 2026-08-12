@@ -187,6 +187,8 @@ add_executable(colosseum
     engine/VaultScanner.h
     engine/VaultLibrary.cpp        # thin QML read-model over VaultIndex — the Vault presentation seam (Slice 10)
     engine/VaultLibrary.h
+    engine/VaultBrowseAway.cpp     # browse-projection away propagation + offline fallback (browse-face execution plan Slice 6)
+    engine/VaultBrowseAway.h
     engine/VaultIdentifier.cpp
     engine/VaultIdentifier.h
     engine/VaultWatcher.cpp        # live-shelf arrivals: per-root QFileSystemWatcher + debounce + law-checked upsert (Slice 15)

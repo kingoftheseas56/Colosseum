@@ -8,6 +8,7 @@
 #include "ComicCoverId.h"
 #include "VaultIdentifier.h"
 #include "VaultKit.h"
+#include "VaultBrowseAway.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -381,8 +382,19 @@ QVariantList VaultLibrary::hiddenSeries() const
 QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
 {
     QVariantList out;
+    const QVariantList roots = m_config ? m_config->roots() : QVariantList();
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
     const QList<VaultKit::BrowseNode> nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore);
+    const bool levelRootAway = VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath);
+    if (nodes.isEmpty() && levelRootAway) {
+        // The drive that holds this level is gone: VaultKit::planBrowseLevel cannot walk a
+        // vanished directory (it bails at `QDir::exists()`), so there is nothing here for the
+        // loop below to decorate. Without this fallback the design's own contract ("tiles hold
+        // position, marked away — nothing disappears", §4.7) would be false the moment a level's
+        // OWN root goes away: the grid would read as empty instead of away. Serve the durable
+        // index's memory of this level instead.
+        return VaultBrowseAway::offlineBrowseAt(m_index, roots, rootOrPath);
+    }
     out.reserve(nodes.size());
     for (const VaultKit::BrowseNode& n : nodes) {
         QVariantMap m;
@@ -407,7 +419,11 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         // Deeper per-episode state and durable ambiguity are Slices 2/6's business; this slice
         // gives every other node an honest "resolving" default rather than inventing one.
         QString state = QStringLiteral("resolving");
-        bool away = false;
+        // Slice 6: away is a ROOT-WIDE fact (markRootAway() flips every row under one root in one
+        // statement), so every node this call returns starts from the SAME verdict — whichever
+        // confirmed root owns `rootOrPath`. Only a Film node overrides this with its own group's
+        // precise per-row check below (kept — it is more exact when it has rows to check).
+        bool away = levelRootAway;
         if (n.nodeType == VaultKit::BrowseNodeType::Clip) {
             // The kind classifier's own verdict, not an identity lookup (locked design: local-
             // only is certain-and-yours, never "not identified yet").

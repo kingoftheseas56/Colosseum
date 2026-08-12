@@ -321,6 +321,38 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault browse-away (browse-face execution plan Slice 6, 2026-08-13) ───────
+# VaultBrowseAway — the browse projection's away-propagation seam, pulled out of VaultLibrary
+# specifically so it is testable without constructing the full façade (whose constructor
+# unconditionally builds a VaultWatcher, dragging in the scanner/downloads-root/identifier
+# tree). ownerRootPath/ownerRootAway resolve which confirmed root owns a browse path (including
+# the "::show::" sibling-collapse sentinel) and whether that root's rows are currently marked
+# away; offlineBrowseAt() is the durable-index fallback for a level whose owning root can no
+# longer be walked at all (design §4.7 "nothing disappears"). Qt6::Sql for VaultIndex; GUILESS;
+# QTemporaryDir index + real small fixture trees per run.
+add_executable(tst_vault_browse_away
+    auto/vault/tst_vault_browse_away.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h")
+target_include_directories(tst_vault_browse_away PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_browse_away PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_browse_away PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_browse_away POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_browse_away
+         COMMAND tst_vault_browse_away)
+set_tests_properties(colosseum.qttest.vault_browse_away PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault enricher (execution plan Slice 5, 2026-08-08) ──────────────────────
 # VaultEnricher — thin fact-filler reusing CbzArchive (comic pages + cover entry
 # for image://comiccover/) and ffprobe (duration cache); writes facts back to the

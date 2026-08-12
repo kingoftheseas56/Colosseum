@@ -108,6 +108,11 @@ public:
     // meaningless without the image://.../ translation series()/items() already do); every
     // other node type carries no art in this slice. Row shape:
     // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path}.
+    // Slice 6: away now flows to EVERY node type, not just Film — a whole level's owning root
+    // going away marks every one of its tiles, not just the ones this method already had a
+    // per-row lookup for. When the owning root's directory can no longer be walked at all,
+    // browseAt() falls back to offlineBrowseAt() so the level's tiles hold position (marked
+    // away) instead of the grid reading as empty (design §4.7 "nothing disappears").
     Q_INVOKABLE QVariantList browseAt(const QString& rootOrPath) const;
     // rootsDetail(): one row per confirmed/synthetic, non-hidden root — {path, name, available,
     // itemCount, fileCount} — the rail's data source once Slice 5 wires it.

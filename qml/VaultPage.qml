@@ -122,6 +122,51 @@ Item {
         VaultLibrary.revision // dependency: re-project on every committed publish
         return VaultLibrary.browseAt(root.currentBrowsePath)
     }
+    // ==== Slice 6: living tile states — re-project WITHOUT rebuilding the grid. ====
+    // `browseGridRows` recomputes to a BRAND NEW array every time (a fresh publish, a root
+    // going away, an identify-in-place settling) — binding `GridView.model` straight to it (as
+    // Slice 5 did) would hand the view a different array object on every recompute, which Qt
+    // Quick treats as a wholesale model reset: every delegate destroyed and recreated, scroll
+    // position gone, the crossfade Behavior on VaultPosterCard/VaultWideCard never gets to run
+    // because there is no "before" instance left to animate FROM. `gridModel` is the one stable
+    // thing the GridView binds to; `syncGridModel` below is the only place allowed to touch it.
+    onBrowseGridRowsChanged: root.syncGridModel(root.browseGridRows)
+    // The level `gridModel` currently reflects (a real path, a show-sentinel key, or "hidden:") —
+    // compared against the CURRENT level on every sync so genuine navigation (which legitimately
+    // resets scroll) is told apart from an in-place content update (which must NOT touch scroll:
+    // touching it here would yank a live in-progress scroll back to the remembered position on
+    // every unrelated background repaint, e.g. a resolve tick landing while the user scrolls).
+    property string gridSyncedLevelKey: " __unsynced__"
+    function syncGridModel(rows) {
+        rows = rows || []
+        const levelKey = root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
+        const levelChanged = levelKey !== root.gridSyncedLevelKey
+        root.gridSyncedLevelKey = levelKey
+
+        var structurallySame = !levelChanged && gridModel.count === rows.length
+        if (structurallySame) {
+            for (var i = 0; i < rows.length; ++i) {
+                if (gridModel.get(i).key !== (rows[i].key || "")) { structurallySame = false; break }
+            }
+        }
+        if (structurallySame) {
+            // Same folder, same rows in the same order: update each row's DATA in place.
+            // ListModel.set() rewrites a role's value without destroying the delegate it feeds —
+            // the delegate stays the SAME Item, its `row` property binding re-evaluates to the
+            // new object, and VaultPosterCard/VaultWideCard's own `settledOpacity` Behavior does
+            // the crossfade (design §4.4: "the tile animates... rather than teleporting").
+            for (var k = 0; k < rows.length; ++k)
+                gridModel.set(k, { key: rows[k].key || "", modelData: rows[k] })
+        } else {
+            // A genuine structural change (a different folder, a different row SET, the
+            // hidden-view toggle) — clear + repopulate is correct here: these are not the same
+            // tiles, so there is nothing to preserve identity FOR.
+            gridModel.clear()
+            for (var j = 0; j < rows.length; ++j)
+                gridModel.append({ key: rows[j].key || "", modelData: rows[j] })
+        }
+        if (levelChanged) Qt.callLater(root.restoreGridScroll)
+    }
     readonly property bool browseGridWide: root.browseGridRows.length > 0
         && (root.browseGridRows[0].nodeType === "episode" || root.browseGridRows[0].nodeType === "clip")
     readonly property int posterCellWidth: 170
@@ -820,6 +865,11 @@ Item {
                     }
                 }
 
+                // Slice 6: the grid's one stable model — root.syncGridModel() is the only writer.
+                // See the `browseGridRows`/`syncGridModel` block above for why a plain array
+                // binding (Slice 5's original `model: root.browseGridRows`) can't stay key-stable.
+                ListModel { id: gridModel }
+
                 GridView {
                     id: grid
                     objectName: "vaultBrowseGrid"
@@ -829,10 +879,9 @@ Item {
                     cellWidth: root.browseGridWide ? root.wideCellWidth : root.posterCellWidth
                     cellHeight: root.browseGridWide ? root.wideCellHeight : root.posterCellHeight
                     cacheBuffer: 900   // virtualization headroom at Gintama scale (367 episodes)
-                    model: root.browseGridRows
+                    model: gridModel
                     ScrollBar.vertical: HouseScrollBar { flick: grid }
                     delegate: root.browseGridWide ? wideDelegateComp : posterDelegateComp
-                    onModelChanged: Qt.callLater(root.restoreGridScroll)
 
                     // ---- empty states (design §4.5/§9): distinct copy per cause; Slice 9 restyles ----
                     Text {

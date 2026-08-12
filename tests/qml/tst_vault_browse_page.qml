@@ -27,6 +27,17 @@ TestCase {
     // ---- seeded projection stub: path -> rows (mirrors VaultLibrary.browseAt()'s row shape) ----
     property var levelData: ({})
     function browseAt(path) { return testCase.levelData[path] || [] }
+    // Replace one level's rows and reassign `levelData` itself (not a nested mutation) — QML
+    // only re-evaluates a `var` binding when a PROPERTY it read is REASSIGNED, not when an
+    // object the property currently points at is mutated in place. Mirrors the real bug this
+    // same reasoning avoids in production: browseGridRows must genuinely CHANGE for
+    // onBrowseGridRowsChanged to fire.
+    function reprojectLevel(path, rows) {
+        var updated = {}
+        for (var p in testCase.levelData) updated[p] = testCase.levelData[p]
+        updated[path] = rows
+        testCase.levelData = updated
+    }
 
     property var crumbStack: []
     property string currentBrowsePath: ""
@@ -34,6 +45,32 @@ TestCase {
     readonly property var browseGridRows: testCase.currentBrowsePath ? testCase.browseAt(testCase.currentBrowsePath) : []
     readonly property bool browseGridWide: testCase.browseGridRows.length > 0
         && (testCase.browseGridRows[0].nodeType === "episode" || testCase.browseGridRows[0].nodeType === "clip")
+
+    // ==== Slice 6 mirror of VaultPage.qml's key-stable re-projection — see that file's own
+    //      comment block for the full "why" (a plain array `model:` binding rebuilds the whole
+    //      grid on every recompute; this harness must prove the SAME mechanism the shipped page
+    //      uses, not a simplified stand-in, or a pass here would not be evidence for real. ====
+    onBrowseGridRowsChanged: testCase.syncGridModel(testCase.browseGridRows)
+    property string gridSyncedLevelKey: " __unsynced__"
+    function syncGridModel(rows) {
+        rows = rows || []
+        const levelChanged = testCase.currentBrowsePath !== testCase.gridSyncedLevelKey
+        testCase.gridSyncedLevelKey = testCase.currentBrowsePath
+        var structurallySame = !levelChanged && gridModel.count === rows.length
+        if (structurallySame) {
+            for (var i = 0; i < rows.length; ++i) {
+                if (gridModel.get(i).key !== (rows[i].key || "")) { structurallySame = false; break }
+            }
+        }
+        if (structurallySame) {
+            for (var k = 0; k < rows.length; ++k)
+                gridModel.set(k, { key: rows[k].key || "", modelData: rows[k] })
+        } else {
+            gridModel.clear()
+            for (var j = 0; j < rows.length; ++j)
+                gridModel.append({ key: rows[j].key || "", modelData: rows[j] })
+        }
+    }
 
     function selectRoot(path, name) {
         testCase.crumbStack = [{ key: path, displayTitle: name }]
@@ -102,6 +139,9 @@ TestCase {
         onSegmentClicked: (index) => testCase.goToCrumb(index)
     }
 
+    ListModel { id: gridModel }
+    SignalSpy { id: cardCrossfadeSpy; signalName: "faceCrossfaded" }
+
     GridView {
         id: grid
         objectName: "vaultBrowseGrid"
@@ -111,7 +151,7 @@ TestCase {
         clip: true
         cellWidth: testCase.browseGridWide ? 320 : 170
         cellHeight: testCase.browseGridWide ? 250 : 300
-        model: testCase.browseGridRows
+        model: gridModel
         delegate: testCase.browseGridWide ? wideDelegateComp : posterDelegateComp
     }
 
@@ -122,6 +162,10 @@ TestCase {
         testCase.levelData = ({})
         testCase.rootsSeed = []
         testCase.carouselSlidesSeed = []
+        testCase.gridSyncedLevelKey = " __unsynced__"
+        gridModel.clear()
+        cardCrossfadeSpy.clear()
+        cardCrossfadeSpy.target = null
         rail.expanded = false
         wait(20)
     }
@@ -222,6 +266,90 @@ TestCase {
         compare(crumb.displaySegments[0].title, "hemanth's folder")
         compare(crumb.displaySegments[1].collapsed, true)
         compare(crumb.displaySegments[crumb.displaySegments.length - 1].title, "D")
+    }
+
+    // ── 7. Slice 6 — a same-folder re-projection updates ONE card in place; the grid does NOT
+    //      rebuild (delegate identity stable), matching design §4.4 ("the tile animates to its
+    //      new position rather than teleporting") and the execution plan's own key-stability
+    //      requirement. This is the signature assertion of the slice. ─────────────────────────
+    function test_reproject_same_folder_updates_one_card_without_rebuilding_grid() {
+        testCase.levelData["/root"] = [
+            { key: "/root/Spider-Man", nodeType: "film", displayTitle: "Spider-Man: No Way Home",
+              physicalFact: "resolving", path: "/root/Spider-Man/spiderman.mp4",
+              counts: { items: 1 }, coverRef: "", state: "resolving", away: false },
+            { key: "/root/Loki", nodeType: "show", displayTitle: "Loki", physicalFact: "1080p · 2 seasons",
+              path: "/root/Loki", counts: { items: 2 }, coverRef: "", state: "identified", away: false }
+        ]
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+        compare(grid.count, 2)
+
+        var spiderCardBefore = findChild(grid, "vaultBrowseCard_/root/Spider-Man")
+        var lokiCardBefore = findChild(grid, "vaultBrowseCard_/root/Loki")
+        verify(spiderCardBefore !== null)
+        verify(lokiCardBefore !== null)
+        compare(spiderCardBefore.faceState, "filename")
+
+        cardCrossfadeSpy.clear()
+        cardCrossfadeSpy.target = spiderCardBefore
+
+        // Same key set, same order — only the Spider-Man row's state/title changed (identify
+        // settled it). Loki's row is byte-identical.
+        testCase.reprojectLevel("/root", [
+            { key: "/root/Spider-Man", nodeType: "film", displayTitle: "Spider-Man: No Way Home",
+              physicalFact: "2021 · 1080p", path: "/root/Spider-Man/spiderman.mp4",
+              counts: { items: 1 }, coverRef: "", state: "identified", away: false },
+            { key: "/root/Loki", nodeType: "show", displayTitle: "Loki", physicalFact: "1080p · 2 seasons",
+              path: "/root/Loki", counts: { items: 2 }, coverRef: "", state: "identified", away: false }
+        ])
+        tryCompare(cardCrossfadeSpy, "count", 1, 600)
+        compare(spiderCardBefore.faceState, "settled")
+
+        // The KEY assertion: the grid did not rebuild. Both delegate Items are the SAME object
+        // references as before the re-projection (identity, not just equal content).
+        var spiderCardAfter = findChild(grid, "vaultBrowseCard_/root/Spider-Man")
+        var lokiCardAfter = findChild(grid, "vaultBrowseCard_/root/Loki")
+        verify(spiderCardAfter === spiderCardBefore)
+        verify(lokiCardAfter === lokiCardBefore)
+        compare(grid.count, 2)
+        cardCrossfadeSpy.target = null
+    }
+
+    // ── 8. Slice 6 — a stub away-flip: the card enters away in place (same delegate identity)
+    //      and its open signal goes inert. Mandatory negative control performed and restored
+    //      live during verification (see the slice report), not left flipped in committed code. ──
+    function test_away_flip_enters_away_and_open_signal_goes_inert() {
+        testCase.levelData["/root"] = [
+            { key: "/root/Loki", nodeType: "show", displayTitle: "Loki", physicalFact: "1080p · 2 seasons",
+              path: "/root/Loki", counts: { items: 2 }, coverRef: "", state: "identified", away: false }
+        ]
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+        var cardBefore = findChild(grid, "vaultBrowseCard_/root/Loki")
+        verify(cardBefore !== null)
+        compare(cardBefore.away, false)
+        var hitAreaBefore = findChild(grid, "vaultBrowseCard_/root/Loki_hitArea")
+        verify(hitAreaBefore !== null)
+        verify(hitAreaBefore.enabled)
+
+        testCase.reprojectLevel("/root", [
+            { key: "/root/Loki", nodeType: "show", displayTitle: "Loki", physicalFact: "Drive not connected",
+              path: "/root/Loki", counts: { items: 2 }, coverRef: "", state: "identified", away: true }
+        ])
+        wait(80)
+
+        var cardAfter = findChild(grid, "vaultBrowseCard_/root/Loki")
+        verify(cardAfter === cardBefore)   // same delegate — away is a re-project, not a rebuild
+        compare(cardAfter.away, true)
+        var hitArea = findChild(grid, "vaultBrowseCard_/root/Loki_hitArea")
+        verify(hitArea !== null)
+        // the correct, positive assertion: away structurally disables the hit area (no hover, no
+        // click) — design §4.3/§6.2 ("away = reduced ink + desaturation, no hover").
+        compare(hitArea.enabled, false)
+        testCase.lastOpenedPath = ""
+        mouseClick(hitArea)
+        wait(40)
+        compare(testCase.lastOpenedPath, "")   // the open signal never fired
     }
 
     function findChild(root, wanted) {
