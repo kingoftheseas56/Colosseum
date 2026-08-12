@@ -905,32 +905,42 @@ Item {
 
     // Card right-click context menu — Reveal in Explorer (always, when the row carries a real
     // path) plus the reachable identify/hide affordances the old shelves also exposed.
+    // Slice 6: every MenuItem gets its own automation name — like the uncertain mark, this
+    // menu had none, so the bridge could not drive Un-identify (or any other action here) at
+    // all. One context menu instance for the whole grid (targets root.contextRow), so a
+    // bare action name is enough — no per-key suffix needed.
     Menu {
         id: cardContextMenu
+        objectName: "vaultBrowseContextMenu"
         MenuItem {
+            objectName: "vaultBrowseContextReveal"
             text: "Reveal in Explorer"
             enabled: !!(root.contextRow && root.contextRow.path)
             onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
                              VaultLibrary.revealInExplorer(root.contextRow.path)
         }
         MenuItem {
+            objectName: "vaultBrowseContextIdentify"
             text: "Identify…"
             visible: !root.hiddenViewActive && !!(root.contextRow && root.contextRow.state === "uncertain")
             onTriggered: root.identifyBrowseRow(root.contextRow)
         }
         MenuItem {
+            objectName: "vaultBrowseContextUnidentify"
             text: "Un-identify"
             visible: !root.hiddenViewActive && !!(root.contextRow && root.contextRow.state === "identified")
             onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
                              VaultLibrary.unidentifyGroup(root.contextRow.key || "")
         }
         MenuItem {
+            objectName: "vaultBrowseContextHide"
             text: "Hide"
             visible: !root.hiddenViewActive && !!root.contextRow
             onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
                              VaultLibrary.hideGroup(root.contextRow.key || "")
         }
         MenuItem {
+            objectName: "vaultBrowseContextRestore"
             text: "Restore"
             visible: root.hiddenViewActive && !!root.contextRow
             onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
