@@ -67,3 +67,20 @@ retires. A journey built here should not assume that face is stable. J0's own fo
 (`seed_zoo_smoke.json`) deliberately stays on boot + non-Vault surfaces (`bootSplash`,
 `localLaunchState`) for exactly this reason — it proves the seeded boot is healthy without leaning
 on a face that is about to change out from under it.
+
+## What the founding journey does NOT prove (read before trusting it)
+
+`seed_zoo_smoke.json`'s `expectedOnBoot` assertions are **not seed-sensitive**: `bootSplash.visible
+== false` and `localLaunchState.openCount == 0` hold identically against an empty seed. What the
+journey honestly proves is that the app **boots clean and reaches idle against the original bug's
+real data** — it does not hang, wedge, or crash processing the stale index. It does **not** prove
+the stale rows were re-derived.
+
+This is a limit of the fence, not an oversight. Verified 2026-08-12: every surface that observes
+index CONTENT (`vaultTile_*`, `vaultShelf_*`, `vaultPage`, `vaultFolderRow_*`) is the Vault face
+Browse Slice 5 retires; the two non-face surfaces expose only `pageOpen`/`lastAddedFolder`
+(`vaultState`) and `lastRouteKind`/`lastRejectCategory`/`openCount` (`localLaunchState`). None
+reflect index contents. **A content-level healed-state assertion for this seed is therefore
+deferred to J1, after Browse Slice 5 lands its replacement face** — at which point this seed's
+`expectedOnBoot` should be strengthened to a genuinely seed-sensitive property and this note
+retired. Do not cite `seed_zoo_smoke.json` as evidence that `e08424b`'s heal works.
