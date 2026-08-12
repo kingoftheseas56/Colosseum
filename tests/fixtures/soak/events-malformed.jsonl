@@ -1,0 +1,4 @@
+{"type":"open","at":"2026-08-12T00:00:00.000","subject":"tankoban:Test/Vol 1","durationMs":120}
+{"type":"open","at":"2026-08-12T00:01:00.000","subject":"tankoban:Test/Vol 2","durationMs":180}
+this is not json at all {{{
+{"type":"ready","at":"2026-08-12T00:02:00.000","subject":"local-video:clip.mp4","durationMs":90}
