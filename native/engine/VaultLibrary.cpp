@@ -412,6 +412,20 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             // The kind classifier's own verdict, not an identity lookup (locked design: local-
             // only is certain-and-yours, never "not identified yet").
             state = QStringLiteral("localOnly");
+        } else if (n.nodeType == VaultKit::BrowseNodeType::Folder
+                   || n.nodeType == VaultKit::BrowseNodeType::Show
+                   || n.nodeType == VaultKit::BrowseNodeType::Season
+                   || n.nodeType == VaultKit::BrowseNodeType::Episode) {
+            // Slice 5 fix: a folder/show/season/episode's title is always structurally known
+            // from the filesystem walk + grammar parse itself — there is no per-catalogue
+            // identification pending the way a Film's canonical match is. Slice 1 deliberately
+            // left these at the "resolving" default ("an honest default rather than inventing
+            // one" — its own comment); Slice 5 found this blocks the browse grid's core
+            // interaction: VaultPosterCard/VaultWideCard only mount their open MouseArea in the
+            // "settled" face (faceState flips off "resolving"), so a container/episode node could
+            // never be drilled into or played by a real click. Away/per-episode identity nuance
+            // is Slice 6/8's explicit business, not invented here.
+            state = QStringLiteral("identified");
         } else if (n.nodeType == VaultKit::BrowseNodeType::Film && m_index) {
             const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
             if (!rows.isEmpty()) {
@@ -439,6 +453,12 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                                    : QStringLiteral("resolving");
                 if (!coverRef.isEmpty())
                     m.insert(QStringLiteral("coverRef"), coverRef);
+                // Slice 5 fix: a Film node's `path` was left as n.path — the CONTAINING FOLDER
+                // (BrowseNode::path for a film is set from the child directory, never
+                // overridden) — which broke Play (openMediaRequested expects a FILE).
+                // VaultScanner's "one video file, one group" convention means the group's own
+                // row IS that file, so the browse row must carry the file's real path here.
+                m.insert(QStringLiteral("path"), rows.first().path);
             }
         }
         m.insert(QStringLiteral("state"), state);
@@ -516,7 +536,11 @@ QVariantList VaultLibrary::recentArrivals(int limit) const
         // the one fact this slice can supply honestly for a multi-file group; quality is later.
         m.insert(QStringLiteral("physicalFact"), rows.size() == 1
                  ? QString() : QStringLiteral("%1 items").arg(rows.size()));
-        m.insert(QStringLiteral("path"), g.value(QStringLiteral("subtreePath")));
+        // Slice 5 fix (mirrors the browseAt() Film fix above): a one-file group's carousel
+        // row must carry the file's own path, not its containing folder, so the carousel's
+        // Play affordance opens the right thing via openMediaRequested.
+        m.insert(QStringLiteral("path"), rows.size() == 1
+                 ? rows.first().path : g.value(QStringLiteral("subtreePath")));
         m.insert(QStringLiteral("coverRef"), QString());
         m.insert(QStringLiteral("state"), !identityTitle.isEmpty() ? QStringLiteral("identified")
                  : ambiguous ? QStringLiteral("uncertain") : QStringLiteral("resolving"));

@@ -6,8 +6,10 @@
 // Settings/Downloads (back · minimize · fullscreen · power) so it reads as one of the house's pages.
 import QtQuick
 import QtQuick.Controls
+import QtCore
 import "VaultApi.js" as VaultApi
 import "TheatreApi.js" as TheatreApi
+import "VaultBrowseState.js" as VaultBrowseState
 
 Item {
     id: root
@@ -49,6 +51,185 @@ Item {
     property var identityCeremonies:
         (typeof VaultLibrary !== "undefined") ? VaultLibrary.identityCeremonies : []
     property bool identityCeremonyDismissed: false
+
+    // ==== Slice 5: the assembled Browse face — carousel -> collapsible rail -> breadcrumb ->
+    //      media-faced grid, over VaultLibrary's browse projection spine (Slices 1-4). ====
+
+    // Current folder + rail-expanded survive an app restart (design §4.8); registry-backed,
+    // isolated per COLOSSEUM_APPDATA_TAG the same way every other Colosseum store is (no
+    // explicit `location:` — default backend, keyed by applicationName, exactly the pattern
+    // ContentPreferences.qml already uses). `lastCrumbJson` carries the whole crumb trail (not
+    // just the leaf path) so a restart restores the SAME folder with real breadcrumb titles,
+    // not just its root.
+    Settings {
+        id: browseSettings
+        category: "vaultBrowseV1"
+        property string lastCrumbJson: "[]"
+        property bool railExpanded: false
+    }
+
+    property var crumbStack: []              // [{key, displayTitle}, ...] selected root -> current level
+    property string currentBrowsePath: ""    // the current level's key (folder path / show sentinel)
+    property bool hiddenViewActive: false    // the reversible Hidden shelf, not a folder level
+    property var contextRow: null            // the row a card's right-click context menu targets
+
+    readonly property var displayedCrumbStack: root.hiddenViewActive
+        ? [{ key: "hidden:", displayTitle: "Hidden" }] : root.crumbStack
+
+    readonly property var browseRootsDetail: (root.populated && typeof VaultLibrary !== "undefined")
+        ? (VaultLibrary.revision, VaultLibrary.rootsDetail()) : []
+    readonly property var hiddenSeriesRows: (root.populated && typeof VaultLibrary !== "undefined")
+        ? (VaultLibrary.revision, VaultLibrary.hiddenSeries()) : []
+    readonly property var carouselArrivalRows: (root.populated && typeof VaultLibrary !== "undefined")
+        ? (VaultLibrary.revision, VaultLibrary.recentArrivals(6)) : []
+    // Two deliberate translations from the shipped slide (locked design §4.10): the blurb slot
+    // carries the PHYSICAL FACT only (a descriptive blurb is a tagline, banned), and the
+    // gradient is neutral house-token white-alpha, never a per-slide colour.
+    readonly property var carouselSlides: root.carouselArrivalRows.map(function (r) {
+        return {
+            title: r.displayTitle || "",
+            blurb: r.physicalFact || "",
+            ghost: r.nodeType === "film" ? "FILM" : (r.nodeType === "show" || r.nodeType === "season") ? "TV" : "",
+            c1: Qt.rgba(1, 1, 1, 0.10),
+            c2: Qt.rgba(1, 1, 1, 0.025),
+            art: r.coverRef || "",
+            artKind: "poster",
+            __row: r
+        }
+    })
+
+    // Hidden rows (series()-shaped) translated into the browseAt() row contract so the SAME
+    // Slice-4 cards render them — the Hidden shelf is reachable from the rail (design §0
+    // acceptance), not a second card language.
+    readonly property var hiddenRowsAsBrowse: root.hiddenSeriesRows.map(function (s) {
+        const count = Number(s.count || 0)
+        return {
+            key: s.key, nodeType: "folder",
+            displayTitle: s.title || "",
+            physicalFact: count + (count === 1 ? " item" : " items"),
+            path: s.subtreePath || "",
+            state: "identified",
+            away: Number(s.awayCount || 0) > 0,
+            counts: { items: count },
+            coverRef: s.coverUrl || ""
+        }
+    })
+
+    readonly property var browseGridRows: {
+        if (!root.populated) return []
+        if (root.hiddenViewActive) return root.hiddenRowsAsBrowse
+        if (typeof VaultLibrary === "undefined" || !root.currentBrowsePath) return []
+        VaultLibrary.revision // dependency: re-project on every committed publish
+        return VaultLibrary.browseAt(root.currentBrowsePath)
+    }
+    readonly property bool browseGridWide: root.browseGridRows.length > 0
+        && (root.browseGridRows[0].nodeType === "episode" || root.browseGridRows[0].nodeType === "clip")
+    readonly property int posterCellWidth: 170
+    readonly property int posterCellHeight: 300
+    readonly property int wideCellWidth: 320
+    readonly property int wideCellHeight: 250
+
+    function browseSettings_setLastCrumb() {
+        browseSettings.lastCrumbJson = JSON.stringify(root.crumbStack)
+    }
+    function rememberCurrentScroll() {
+        const key = root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
+        if (key && typeof grid !== "undefined" && grid) VaultBrowseState.rememberScroll(key, grid.contentY)
+    }
+    function restoreGridScroll() {
+        const key = root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
+        if (typeof grid !== "undefined" && grid) grid.contentY = VaultBrowseState.scrollFor(key)
+    }
+    function selectRoot(path, name) {
+        root.rememberCurrentScroll()
+        root.hiddenViewActive = false
+        root.crumbStack = [{ key: path, displayTitle: name }]
+        root.currentBrowsePath = path
+        root.browseSettings_setLastCrumb()
+    }
+    function pushCrumb(key, title) {
+        root.rememberCurrentScroll()
+        root.crumbStack = root.crumbStack.concat([{ key: key, displayTitle: title }])
+        root.currentBrowsePath = key
+        root.browseSettings_setLastCrumb()
+    }
+    function goToCrumb(index) {
+        if (index < 0 || index >= root.crumbStack.length - 1 || root.hiddenViewActive) return
+        root.rememberCurrentScroll()
+        root.crumbStack = root.crumbStack.slice(0, index + 1)
+        root.currentBrowsePath = root.crumbStack[root.crumbStack.length - 1].key
+        root.browseSettings_setLastCrumb()
+    }
+    function ascendBrowse() {
+        if (root.hiddenViewActive) {
+            root.rememberCurrentScroll()
+            root.hiddenViewActive = false
+            root.currentBrowsePath = root.crumbStack.length ? root.crumbStack[root.crumbStack.length - 1].key : ""
+            return
+        }
+        if (root.crumbStack.length > 1) root.goToCrumb(root.crumbStack.length - 2)
+    }
+    function openHidden() {
+        root.rememberCurrentScroll()
+        root.hiddenViewActive = true
+    }
+    function handleBrowseCardOpen(row) {
+        if (!row) return
+        if (root.hiddenViewActive) {
+            if (typeof VaultLibrary !== "undefined") VaultLibrary.restoreGroup(row.key || "")
+            return
+        }
+        if (row.nodeType === "folder" || row.nodeType === "show" || row.nodeType === "season") {
+            root.pushCrumb(row.key, row.displayTitle)
+            return
+        }
+        // film / episode / clip -> Play routes as today (the detail sheet is Slice 7).
+        if (row.path) root.openMediaRequested(row.path)
+    }
+    function identifyBrowseRow(row) {
+        if (!row) return
+        identifyDialog.groupKey = row.key || ""
+        identifyDialog.titleText = row.displayTitle || ""
+        // browseAt() rows don't carry a comic/book/video `kind` (Slice 1's row contract is
+        // kind-agnostic) — the book-specific synopsis/cover pre-fill identifyTile() does for
+        // the old shelves is skipped here; the identify flow itself is unaffected.
+        identifyDialog.kind = ""
+        identifyDialog.embeddedIdentity = ({})
+        identifyDialog.feedback = ""
+        identifyDialog.open()
+    }
+    function openCardContextMenu(row) {
+        root.contextRow = row
+        cardContextMenu.popup()
+    }
+    function initBrowseState() {
+        if (!root.populated || typeof VaultLibrary === "undefined") return
+        const roots = VaultLibrary.rootsDetail()
+        if (!roots.length) return
+        let restored = []
+        try { restored = JSON.parse(browseSettings.lastCrumbJson || "[]") } catch (e) { restored = [] }
+        let rootAvailable = false
+        if (restored && restored.length) {
+            const savedRootPath = restored[0].key
+            for (let i = 0; i < roots.length; ++i) {
+                if (roots[i].path === savedRootPath && roots[i].available) { rootAvailable = true; break }
+            }
+        }
+        if (restored && restored.length && rootAvailable) {
+            root.crumbStack = restored
+            root.currentBrowsePath = restored[restored.length - 1].key
+            return
+        }
+        // Stale or first-run: fall back to the first AVAILABLE root (else the first root at
+        // all) — a full per-ancestor existence walk would need a path-exists C++ probe this
+        // slice does not add (named honestly in the report, not silently assumed).
+        let avail = null
+        for (let i = 0; i < roots.length; ++i) { if (roots[i].available) { avail = roots[i]; break } }
+        if (!avail) avail = roots[0]
+        root.crumbStack = [{ key: avail.path, displayTitle: avail.name }]
+        root.currentBrowsePath = avail.path
+    }
+    onPopulatedChanged: if (root.populated && root.crumbStack.length === 0) root.initBrowseState()
 
     // ---- Slice 12 dress: the in-world tab bar (All · Comics · Books · Video · Folders) ----
     property string currentTab: "all"
@@ -374,6 +555,7 @@ Item {
             VaultLibrary.offerUnconfirmedRoots()
             VaultLibrary.rescanDegradedRoots()   // Slice 15: watcher-failure fallback, silently
         }
+        if (root.populated) root.initBrowseState()
     }
 
     // swallow clicks so nothing behind this page receives them
@@ -398,9 +580,11 @@ Item {
 
     Flickable {
         id: page
-        // Kept instantiated while the folder detail is open (only hidden), so contentY survives.
-        visible: !root.folderDetailOpen
-        enabled: !root.folderDetailOpen
+        // The unpopulated (no-roots) empty state ONLY — the populated Browse face (Slice 5) is
+        // the sibling `browseFace` Item below, which needs its own bounded-height layout for the
+        // grid's virtualization rather than living inside this unbounded outer Flickable.
+        visible: !root.folderDetailOpen && !root.populated
+        enabled: !root.folderDetailOpen && !root.populated
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight + 150
@@ -427,254 +611,6 @@ Item {
                 Item { width: 1; height: 20 }
                 Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
             }
-
-            // ---- populated: the world-treatment marquee (mock C) — a gradient hero panel with the
-            //      eyebrow, identity, honest counts, and the founding CTA, entered via the taskbar
-            //      door + ‹ Back above. This is the world dress fused onto the sub-app door. ----
-            Item { visible: root.populated; width: 1; height: 6 }
-            Rectangle {
-                id: marquee
-                objectName: "vaultMarquee"
-                visible: root.populated
-                width: col.width
-                height: root.populated ? marqueeCol.implicitHeight + 84 : 0
-                radius: 18
-                border.width: 1; border.color: theme.edge
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(0.094, 0.106, 0.133, 1) }
-                    GradientStop { position: 0.6; color: Qt.rgba(0.063, 0.075, 0.102, 1) }
-                    GradientStop { position: 1.0; color: Qt.rgba(0.047, 0.055, 0.075, 1) }
-                }
-                // Lanista/plan marquee contract.
-                property int itemCount: root.itemCount
-                property int folderCount: (typeof VaultLibrary !== "undefined")
-                                          ? (VaultLibrary.revision, VaultLibrary.rootCount()) : 0
-                property int kindCount: (root.seriesFor("comic").length > 0 ? 1 : 0)
-                                      + (root.seriesFor("book").length > 0 ? 1 : 0)
-                                      + (root.seriesFor("video").length > 0 ? 1 : 0)
-
-                // Soft gold warmth in the top-right (approximates the mock's radial glow).
-                Rectangle {
-                    anchors.right: parent.right; anchors.top: parent.top
-                    width: parent.width * 0.62; height: parent.height * 0.9
-                    radius: 18
-                    opacity: 0.12
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: "transparent" }
-                        GradientStop { position: 1.0; color: theme.gold }
-                    }
-                }
-
-                Column {
-                    id: marqueeCol
-                    x: 44; y: 42
-                    width: parent.width - 88
-                    spacing: 0
-
-                    Text { text: "ON THIS MACHINE"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3.5; font.weight: Font.DemiBold }
-                    Text { topPadding: 10; text: "Vault"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 52; font.letterSpacing: -0.5 }
-
-                    Row {
-                        topPadding: 24
-                        spacing: 40
-                        Column { spacing: 2
-                            Text { text: marquee.itemCount; color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
-                            Text { text: "ITEMS"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
-                        }
-                        Column { spacing: 2
-                            Text { text: marquee.folderCount; color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
-                            Text { text: marquee.folderCount === 1 ? "FOLDER" : "FOLDERS"; color: theme.inkDimmer
-                                   font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
-                        }
-                        Column { spacing: 2
-                            Text { text: marquee.kindCount; color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
-                            Text { text: marquee.kindCount === 1 ? "KIND" : "KINDS"; color: theme.inkDimmer
-                                   font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
-                        }
-                    }
-
-                    // Founding CTA — Add folder (gold), with the live scan pill beside it while scanning.
-                    Row {
-                        topPadding: 26
-                        spacing: 14
-                        Rectangle {
-                            objectName: "vaultMarqueeAddFolder"
-                            width: addMarqueeT.implicitWidth + 48; height: 46; radius: 12
-                            color: addMarqueeMa.containsMouse ? Qt.rgba(0.98, 0.82, 0.36, 1) : theme.gold
-                            Text { id: addMarqueeT; anchors.centerIn: parent; text: "Add folder"
-                                   color: "#151310"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
-                            MouseArea { id: addMarqueeMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor; onClicked: root.addFolderRequested() }
-                        }
-                    }
-                }
-            }
-
-            Item { visible: root.populated; width: 1; height: 30 }
-
-            // ---- Vault Continue rail: local reads/watches in progress, resumable in one click.
-            //      On the All (home) tab only, above the shelves (marquee → Continue → shelves). ----
-            Column {
-                id: continueSection
-                visible: root.populated && root.currentTab === "all" && root.continueItems.length > 0
-                width: col.width
-                spacing: 14
-                bottomPadding: 30
-                Item {
-                    width: col.width
-                    height: continueHdr.implicitHeight
-                    Text {
-                        id: continueHdr
-                        anchors.left: parent.left; anchors.bottom: parent.bottom
-                        text: "Continue"; color: theme.ink; font.family: theme.display; font.pixelSize: 28
-                    }
-                }
-                ListView {
-                    objectName: "vaultShelf_continue"
-                    property int rowCount: root.continueItems.length   // Lanista contract
-                    width: col.width
-                    height: 250
-                    orientation: ListView.Horizontal
-                    spacing: 16
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    model: (root.populated && root.currentTab === "all") ? root.continueItems : []
-                    delegate: vaultContinueTileComp
-                }
-            }
-
-            // Per-kind shelves — shown for the All tab or the matching kind tab.
-            Repeater {
-                model: root.populated ? root.shelfKinds() : []
-                delegate: Column {
-                    id: kindSection
-                    required property string modelData
-                    property string shelfSuffix: modelData === "comic" ? "comics"
-                                               : modelData === "book" ? "books" : "video"
-                    property var seriesList: root.seriesFor(modelData)
-                    visible: seriesList.length > 0
-                    width: col.width
-                    spacing: 14
-                    bottomPadding: 30
-
-                    Item {
-                        width: col.width
-                        height: hdrTitle.implicitHeight
-                        Text {
-                            id: hdrTitle
-                            anchors.left: parent.left; anchors.bottom: parent.bottom
-                            text: kindSection.modelData === "comic" ? "Comics"
-                                : kindSection.modelData === "book" ? "Books" : "Video"
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 28
-                        }
-                        Text {
-                            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                            text: kindSection.seriesList.length
-                                  + (kindSection.modelData === "video" ? " titles" : " series")
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                        }
-                    }
-                    Flow {
-                        objectName: "vaultShelf_" + kindSection.shelfSuffix
-                        property int rowCount: kindSection.seriesList.length // Lanista contract
-                        property int awayCount: {
-                            var total = 0
-                            for (var i = 0; i < kindSection.seriesList.length; ++i)
-                                total += Number(kindSection.seriesList[i].awayCount || 0)
-                            return total
-                        }
-                        property int errorCount: {
-                            var total = 0
-                            for (var i = 0; i < kindSection.seriesList.length; ++i)
-                                total += Number(kindSection.seriesList[i].errorCount || 0)
-                            return total
-                        }
-                        width: col.width
-                        spacing: 16
-                        Repeater { model: kindSection.seriesList; delegate: vaultTileComp }
-                    }
-                }
-            }
-
-            // Folders tab — every series across kinds as one gallery.
-            Column {
-                id: foldersSection
-                visible: root.populated && root.currentTab === "folders"
-                width: col.width
-                spacing: 14
-                bottomPadding: 30
-                property var allList: (root.populated && root.currentTab === "folders") ? root.allSeries() : []
-                Item {
-                    width: col.width
-                    height: foldersTitle.implicitHeight
-                    Text {
-                        id: foldersTitle
-                        anchors.left: parent.left; anchors.bottom: parent.bottom
-                        text: "Folders"; color: theme.ink; font.family: theme.display; font.pixelSize: 28
-                    }
-                    Text {
-                        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                        text: foldersSection.allList.length + " folders"
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                    }
-                }
-                Flow {
-                    objectName: "vaultShelf_folders"
-                    property int rowCount: foldersSection.allList.length
-                    property int awayCount: {
-                        var total = 0
-                        for (var i = 0; i < foldersSection.allList.length; ++i)
-                            total += Number(foldersSection.allList[i].awayCount || 0)
-                        return total
-                    }
-                    width: col.width
-                    spacing: 16
-                    Repeater { model: foldersSection.allList; delegate: vaultTileComp }
-                }
-            }
-
-            // Hidden items are a reversible shelf, not a second filesystem state.
-            Column {
-                id: hiddenSection
-                visible: root.populated && root.currentTab === "hidden"
-                width: col.width
-                spacing: 14
-                bottomPadding: 30
-                property var hiddenList: (root.populated && root.currentTab === "hidden") ? root.hiddenSeries() : []
-                Item {
-                    width: col.width
-                    height: hiddenTitle.implicitHeight
-                    Text {
-                        id: hiddenTitle
-                        anchors.left: parent.left; anchors.bottom: parent.bottom
-                        text: "Hidden"; color: theme.ink; font.family: theme.display; font.pixelSize: 28
-                    }
-                    Text {
-                        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                        text: hiddenSection.hiddenList.length + " folders"
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                    }
-                }
-                Flow {
-                    objectName: "vaultShelf_hidden"
-                    property int rowCount: hiddenSection.hiddenList.length
-                    width: col.width
-                    spacing: 16
-                    Repeater { model: hiddenSection.hiddenList; delegate: vaultTileComp }
-                }
-                Text {
-                    visible: hiddenSection.hiddenList.length === 0
-                    text: "Nothing is hidden."
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                }
-            }
-
-            // Bottom clearance so the last shelf clears the fixed in-world tab bar. (Add folder now
-            // lives in the marquee CTA.)
-            Item { visible: root.populated; width: 1; height: 84 }
 
             // ---- empty state: the dashed Add-folder drop surface (shown until the Vault has content) ----
             Item { visible: !root.populated; width: 1; height: 44 }
@@ -775,6 +711,179 @@ Item {
         }
     }
 
+    // ==== Slice 5: the assembled Browse face — carousel, collapsible rail, breadcrumb, grid.
+    //      Bounded-height layout (not the outer page Flickable above): the grid needs its own
+    //      viewport to virtualize (Gintama-scale: 367 episodes is real). ====
+    Item {
+        id: browseFace
+        objectName: "vaultBrowseFace"
+        visible: root.populated && !root.folderDetailOpen
+        enabled: visible
+        anchors.fill: parent
+        focus: root.populated
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Backspace) {
+                root.ascendBrowse()
+                event.accepted = true
+            }
+        }
+
+        FeaturedCarousel {
+            id: browseCarousel
+            objectName: "vaultBrowseCarousel"
+            anchors.top: parent.top; anchors.topMargin: 20
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+            slides: root.carouselSlides
+            kicker: "Just arrived"
+            primaryLabel: "Play"
+            secondaryLabel: "Details"
+            onPrimaryClicked: (idx) => {
+                const s = root.carouselSlides[idx]
+                if (s && s.__row) root.handleBrowseCardOpen(s.__row)
+            }
+            // The detail sheet is Slice 7 (do not build it here) — Details is a deliberate no-op
+            // until then, not a fake action.
+            onSecondaryClicked: (idx) => {}
+        }
+
+        Item {
+            id: browseBody
+            anchors.top: browseCarousel.bottom; anchors.topMargin: 22
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.bottom: parent.bottom; anchors.bottomMargin: 24
+            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+
+            VaultBrowseRail {
+                id: browseRail
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                roots: root.browseRootsDetail
+                expanded: browseSettings.railExpanded
+                selectedRootPath: root.crumbStack.length ? root.crumbStack[0].key : ""
+                hiddenActive: root.hiddenViewActive
+                hiddenCount: root.hiddenSeriesRows.length
+                onRootSelected: (path) => {
+                    let name = path
+                    for (let i = 0; i < root.browseRootsDetail.length; ++i) {
+                        if (root.browseRootsDetail[i].path === path) { name = root.browseRootsDetail[i].name; break }
+                    }
+                    root.selectRoot(path, name)
+                }
+                onHiddenRequested: root.openHidden()
+                onAddRequested: root.addFolderRequested()
+                onToggleRequested: browseSettings.railExpanded = !browseSettings.railExpanded
+            }
+
+            Item {
+                id: mainArea
+                anchors.left: browseRail.right; anchors.leftMargin: 24
+                anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+
+                VaultBrowseCrumb {
+                    id: browseCrumb
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                    stack: root.displayedCrumbStack
+                    onSegmentClicked: (index) => root.goToCrumb(index)
+                }
+
+                Component {
+                    id: posterDelegateComp
+                    VaultPosterCard {
+                        required property var modelData
+                        row: modelData
+                        onOpenRequested: (r) => root.handleBrowseCardOpen(r)
+                        onIdentifyRequested: (r) => root.identifyBrowseRow(r)
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.RightButton
+                            onClicked: (mouse) => { if (mouse.button === Qt.RightButton) root.openCardContextMenu(parent.row) }
+                        }
+                    }
+                }
+                Component {
+                    id: wideDelegateComp
+                    VaultWideCard {
+                        required property var modelData
+                        row: modelData
+                        onOpenRequested: (r) => root.handleBrowseCardOpen(r)
+                        onIdentifyRequested: (r) => root.identifyBrowseRow(r)
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.RightButton
+                            onClicked: (mouse) => { if (mouse.button === Qt.RightButton) root.openCardContextMenu(parent.row) }
+                        }
+                    }
+                }
+
+                GridView {
+                    id: grid
+                    objectName: "vaultBrowseGrid"
+                    anchors.top: browseCrumb.bottom; anchors.topMargin: 16
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    clip: true
+                    cellWidth: root.browseGridWide ? root.wideCellWidth : root.posterCellWidth
+                    cellHeight: root.browseGridWide ? root.wideCellHeight : root.posterCellHeight
+                    cacheBuffer: 900   // virtualization headroom at Gintama scale (367 episodes)
+                    model: root.browseGridRows
+                    ScrollBar.vertical: HouseScrollBar { flick: grid }
+                    delegate: root.browseGridWide ? wideDelegateComp : posterDelegateComp
+                    onModelChanged: Qt.callLater(root.restoreGridScroll)
+
+                    // ---- empty states (design §4.5/§9): distinct copy per cause; Slice 9 restyles ----
+                    Text {
+                        visible: grid.count === 0 && !root.hiddenViewActive
+                        anchors.centerIn: parent
+                        text: "This folder is empty."
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 14
+                    }
+                    Text {
+                        visible: grid.count === 0 && root.hiddenViewActive
+                        anchors.centerIn: parent
+                        text: "Nothing is hidden."
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 14
+                    }
+                }
+            }
+        }
+    }
+
+    // Card right-click context menu — Reveal in Explorer (always, when the row carries a real
+    // path) plus the reachable identify/hide affordances the old shelves also exposed.
+    Menu {
+        id: cardContextMenu
+        MenuItem {
+            text: "Reveal in Explorer"
+            enabled: !!(root.contextRow && root.contextRow.path)
+            onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
+                             VaultLibrary.revealInExplorer(root.contextRow.path)
+        }
+        MenuItem {
+            text: "Identify…"
+            visible: !root.hiddenViewActive && !!(root.contextRow && root.contextRow.state === "uncertain")
+            onTriggered: root.identifyBrowseRow(root.contextRow)
+        }
+        MenuItem {
+            text: "Un-identify"
+            visible: !root.hiddenViewActive && !!(root.contextRow && root.contextRow.state === "identified")
+            onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
+                             VaultLibrary.unidentifyGroup(root.contextRow.key || "")
+        }
+        MenuItem {
+            text: "Hide"
+            visible: !root.hiddenViewActive && !!root.contextRow
+            onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
+                             VaultLibrary.hideGroup(root.contextRow.key || "")
+        }
+        MenuItem {
+            text: "Restore"
+            visible: root.hiddenViewActive && !!root.contextRow
+            onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
+                             VaultLibrary.restoreGroup(root.contextRow.key || "")
+        }
+    }
+
     // ---- scan pill (Slice 11): a folder census is running; cancelable. Shows the folder name;
     //      the live "N of M" count fills in once the scanner emits per-file progress. ----
     Rectangle {
@@ -860,20 +969,10 @@ Item {
         }
     }
 
-    // ---- in-world tab bar (Slice 12): All · Comics · Books · Video · Folders. Uses WorldTabBar
-    //      as-committed (no tabPrefix yet — the shared file carries another lane's WIP), so its pills
-    //      aren't Lanista-addressable until that lands; tab logic is covered by tst_vault_home + eyes. ----
-    WorldTabBar {
-        visible: root.populated && !root.folderDetailOpen
-        backdrop: root.backdrop
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 30
-        width: Math.min(560, parent.width - 80)
-        tabModel: root.tabModel
-        currentTab: root.currentTab
-        onTabRequested: (t) => root.currentTab = t
-    }
+    // The in-world tab bar (All · Comics · Books · Video · Folders · Hidden) is retired from the
+    // populated face by Slice 5 — the rail + breadcrumb + grid replace it. `WorldTabBar` itself
+    // is untouched (other pages still use it); `currentTab`/`tabModel` stay declared above
+    // (dead but harmless) since `seriesFor`/`shelfKinds`/`allSeries` are also unused-but-kept.
 
     // ---- top chrome: minimize · fullscreen · power (same vocabulary as Settings/Downloads) ----
     // z above the folder overlay so the window controls stay usable inside the detail view.
