@@ -174,6 +174,40 @@ Item {
     // long_strip for the same reason it zeroes scrollFrac.
     property int    presentedPage: 0            // 1-based; 0 = nothing shown yet in this entry
     property real   presentedPageFraction: 0    // 0..1 down THAT page (Long Strip only)
+
+    // ================= journey observability (visibility phase 2, slice J1-Manga-Seam) =================
+    // Read-only, bound directly to the state above — an isolated journey's ONLY way to know the reader
+    // is genuinely ready, instead of inferring it from navigation or a wait. Nothing here is written by
+    // anything but the reader's own real behavior; there is no timer, no route shadow, no test-only
+    // object standing in for any of it.
+    readonly property string readerSourceId: curChapterId
+    readonly property int    readerPageCount: pageCount
+    readonly property int    readerPageIndex: Math.max(0, currentPage - 1)   // 0-based, mirrors the
+        // established pageIndex convention (ComicReaderSingleSurface.qml:118 readerPageIndex ==
+        // currentPage - 1) rather than inventing a second index vocabulary.
+
+    // "the current page is render-ready" — the one term that needed real investigation. All three
+    // surfaces raise presented(page, frac) ONLY once they have genuinely put something on screen for a
+    // position (Single/Double gate it on the mounted Image(s)' own `status === Image.Ready`, or an
+    // explicit terminal error card — ComicReaderSingleSurface.qml:242-244, ComicReaderDoubleSurface.qml
+    // :211-236; Strip reports its settled scroll position — ComicReaderStripSurface.qml:621-643), and
+    // _onPresented (below) is the single place that ever receives that report — never load().
+    //
+    // presentedPage alone is NOT enough: load() also seeds `presentedPage = currentPage` synchronously
+    // as the entry's opening progress-anchor (see load(), "THE ENTRY'S OPENING ANCHOR") so the eager
+    // entry-open record has the right page BEFORE any surface has painted anything — so presentedPage
+    // reads non-zero at the instant a book opens, not at the instant it is actually shown. Comparing it
+    // to currentPage alone would make readerReady true one tick after load(), which is not render
+    // readiness. _pageRenderConfirmed exists ONLY to close that gap: load() clears it for every new
+    // entry, and only _onPresented's real, surface-driven call ever sets it — the seed assignment in
+    // load() never does.
+    property bool _pageRenderConfirmed: false
+    readonly property bool readerReady: readerSourceId.length > 0
+                                         && readerPageCount > 0
+                                         && _pageRenderConfirmed
+                                         && presentedPage === currentPage
+                                         && presentedPage > 0
+
     property bool   chromeVisible: true         // HUD visibility (Task 11)
     // night veil — a LIVE reading-comfort dim over the page (settings surface 02). The settings
     // sheet writes this level; the veil overlay below binds its opacity to it. Not load()-derived
@@ -368,6 +402,9 @@ Item {
     // _suspendRecord true and silently disable all future recording.
     function load() {
         _suspendRecord = true
+        // A new entry has shown nothing yet — only a genuine _onPresented() call (never this
+        // function) may set this back true. See readerReady's comment above for why this exists.
+        _pageRenderConfirmed = false
         // NOBODY OPENS A BOOK TO A MOVING PAGE. autoScrollRunning is session-only, so it is never
         // read back from a record — but a CROSSING lands here too, with the previous volume's
         // motion still live, and inheriting it would drop the reader into the next chapter already
@@ -973,6 +1010,9 @@ Item {
         if (max <= 0) return
         presentedPage = Math.max(1, Math.min(max, Math.round(page)))
         presentedPageFraction = Math.max(0, Math.min(1, Number(pageFraction) || 0))
+        // A REAL surface report landed (never load()'s eager seed) — readerReady may now consider
+        // this entry's current page render-ready, gated further by presentedPage === currentPage.
+        _pageRenderConfirmed = true
         // Hold the strip's anchor so a layout excursion can bring the reader back to the same panel
         // area, not merely the same page. Only the strip writes it: it is the only layout where a
         // fraction means anything, and a paged surface's honest 0 would wipe a real one.

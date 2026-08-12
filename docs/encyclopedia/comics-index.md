@@ -8,7 +8,7 @@
 - Total files: **91**
 - Documented: **70**
 - Undocumented: **21**
-- Drifted: **0**
+- Drifted: **1**
 
 <a id="file-native-comicreader-comicreadercore-cpp"></a>
 ## `native/comicreader/ComicReaderCore.cpp`
@@ -1490,10 +1490,11 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-comicseries-qml"></a>
 ## `qml/ComicSeries.qml`
 
-- Status: **CURRENT**
+- Status: **DRIFTED**
 - Accepted blob: `a32ef6524204801d5b3c474fb5ac2f775b344f38`
-- Current blob: `a32ef6524204801d5b3c474fb5ac2f775b344f38`
+- Current blob: `7edd7f35f01fab8a984f7737c3b2a91438284d4c`
 - Source: [`qml/ComicSeries.qml`](../../qml/ComicSeries.qml)
+- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // ComicSeries — the western-comics series page (Tankoban mode). A GetComics tag IS
@@ -2123,8 +2124,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/comicreader/ComicReaderShell.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `3ee8fdec38da9b9a3181bd1fd046f0b13064cd02`
-- Current blob: `3ee8fdec38da9b9a3181bd1fd046f0b13064cd02`
+- Accepted blob: `82eb8baad8176416639670d1a01dbde742e2b5ec`
+- Current blob: `82eb8baad8176416639670d1a01dbde742e2b5ec`
 - Source: [`qml/comicreader/ComicReaderShell.qml`](../../qml/comicreader/ComicReaderShell.qml)
 
 ```text
