@@ -134,6 +134,37 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 - Interactive `session start`/`stop` (a session outliving one command) does NOT exist —
   deferred to the MCP-facade arc. All per-card/dynamic logic must live inside a runner verb.
 
+### Seed zoo (`tests/lanista-seeds/`) and the corrected scenario inventory (Slice J0, 2026-08-12)
+
+- **Scenario inventory correction.** The "Existing scenarios" line below (Scenario runner section)
+  names only `self_smoke.json`, `self_visual.json`, `app_home.json` — that list predates the Vault
+  and Biblio slices. As of 2026-08-12 there are **18** scenario JSONs under
+  `tests/lanista_scenarios/`: `app_home`, `biblio_covers_pilot`, `biblio_library_empty`,
+  `seed_zoo_smoke` (this slice), `self_smoke`, `self_visual`, 6 × `update_*` (`available`,
+  `downloading`, `idle`, `idle_chapter_nav`, `idle_corrupt_sig`, `up_to_date`), and `vault_door`,
+  `vault_identify`, `vault_launch_baseline`, `vault_launch_smoke`, `vault_open_recent`,
+  `vault_shelves`. Maintain this count in the same commit as any scenario add/remove — it drifts
+  fast.
+- **`tests/lanista-seeds/`** is the versioned fixture zoo: one folder per real-bug seed, each
+  carrying a `seed.json` manifest (`{name, version, provenance, placement, expectedOnBoot}` — see
+  `tests/lanista-seeds/README.md` for the full journey contract). A seed is admitted only when a
+  real bug's diagnosis produces one — never invented complexity. Founding seed:
+  `vault-stale-index-v1/` (promoted copy of `tests/lanista-slice17-seed/`, which stays in place
+  untouched — nothing here re-points its referencing scenarios), provenance the stale-index
+  boot-re-derivation bug (dossier `Brotherhood/agents/handoff-vault-boot-rederivation-luna.md`),
+  healed by the boot-time republish in `e08424b`. Verified with
+  `tests/lanista_scenarios/seed_zoo_smoke.json`: isolated session `20260812-162422-89de070e`, 6/6
+  green; negative control (corrupted `expectedOnBoot` value) red in `20260812-162637-47e09b0a`,
+  restored green in `20260812-163348-17af5173`.
+- **Placement mechanism.** `seed.json`'s `placement` array names, for schema completeness, which of
+  a seed's subfolders are Roaming- vs Local-rooted — but as of `4ebec25` (2026-08-11, see the Vault
+  Open Recent correction above) `session run --seed <dir>` already copies the ENTIRE seed tree
+  directly into the tagged AppDataLocation (Roaming) root the app itself resolves. Every store this
+  app persists lives under AppDataLocation (`vault/`, downloads, settings, `logs/` via AppLog) —
+  none under GenericDataLocation — so in practice every seed to date needs no manual placement step
+  at all; `destination: "local"` in the schema is kept for forward compatibility only, not because
+  any current store needs it.
+
 ### Named automation surfaces (added 2026-08-06)
 
 - `modePill_<Tankoban|Biblio|Theatre|Vinyl>` (TopBar mode switch — plain Items with child
@@ -163,12 +194,18 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   shortcuts). Scenario `tests/lanista_scenarios/vault_open_recent.json` proves the panel renders a
   seeded recent list and a row click reopens the file into the vault comic reader (`comicReaderShell`
   `pageCount == 3`, `seriesId` matches `^vault:`), `localLaunchState.openCount == 1` — 13/13 in an
-  isolated session (2026-08-09). **⚠ `--seed` limitation (tooling, not this slice):** `session run
-  --seed` copies into `GenericDataLocation` (`AppData/Local`), so **AppDataLocation stores (Roaming)
-  — including VaultRecent's `open-recent.json` — are NOT reached**; until the seeder also targets
-  AppDataLocation, the recent list must be pre-placed at
-  `<Roaming>/Brotherhood/Colosseum-dltest-<tag>/vault/open-recent.json` (the 13/13 run used this).
-  Also pass `--seed` an ABSOLUTE dir (a relative one nests under its own path). Reading progress is
+  isolated session (2026-08-09). **⚠ `--seed` limitation — FIXED 2026-08-11 (Vault Slice 17,
+  `4ebec25`):** at the time of that 13/13 run, `session run --seed` copied into
+  `GenericDataLocation` (`AppData/Local`), so AppDataLocation stores (Roaming) — including
+  VaultRecent's `open-recent.json` — were not reached, and the recent list had to be pre-placed by
+  hand at `<Roaming>/Brotherhood/Colosseum-dltest-<tag>/vault/open-recent.json`. Commit `4ebec25`
+  repointed the copy target to the same AppDataLocation-derived root the app itself resolves
+  (`QStandardPaths::AppDataLocation` + parent dir + `Brotherhood/Colosseum-dltest-<tag>`), so
+  **`--seed <dir>` now reaches Roaming stores directly — manual pre-placement is no longer
+  required** for content under a seed's `vault/` (or `logs/`) subfolder. Re-verified empirically
+  2026-08-12 (Slice J0): `vault_open_recent.json` replayed 13/13 using only `--seed <dir containing
+  vault/open-recent.json>`, no manual copy step (session `20260812-164458-d6b4d550`). Also pass
+  `--seed` an ABSOLUTE dir (a relative one nests under its own path). Reading progress is
   registry-backed QSettings — not seedable at all — so reopen-resume-at-page and
   completed-video-restart are human-witnessed.
 
@@ -190,8 +227,9 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   prove a cover is sharp, correctly sourced, or large enough.**
 - Every failing step auto-grabs (`grab_on_fail`, default whole window) and prints the evidence
   path.
-- Existing scenarios: `self_smoke.json`, `self_visual.json` (harness-fixture-bound),
-  `app_home.json` (real app, boot-first, not in the CI gate).
+- Existing scenarios (harness-fixture-bound): `self_smoke.json`, `self_visual.json`; real-app,
+  boot-first: `app_home.json`. **Full corrected 18-scenario inventory:** see "Seed zoo... and the
+  corrected scenario inventory" above.
 
 ### MCP adapter (`native/tools/lanista-mcp/server.py`, registered in `.mcp.json`)
 

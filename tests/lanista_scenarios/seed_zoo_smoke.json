@@ -1,0 +1,24 @@
+{
+  "name": "seed-zoo-smoke",
+  "comment": "Slice J0: the seed-zoo verification (J0-V). Boots an isolated session with a versioned real-bug seed pre-placed (see tests/lanista-seeds/<seed>/seed.json for provenance + placement), waits bootSplash.visible == false FIRST (clicks land 'green' on the occluded tree while the splash owns the screen), then asserts the seed manifest's expectedOnBoot properties. For the founding seed (vault-stale-index-v1): the boot republish that heals stale/mismatched index rows landed in e08424b, so a clean idle boot against this real-bug data proves THE FIX holds — the app does not hang or wedge processing the stale index at boot. Deliberately does NOT assert Vault shelf-face content (tile identity, group counts): the Vault Browse workstream's Slice 5 retires that face, so this journey stays on boot + non-Vault surfaces only (per the J0 plan's cross-workstream fence). Run with --seed <absolute path to the seed folder> --tag <explicit tag>; the seed's vault/ folder is placed by --seed itself (targets the tagged Roaming AppData root directly as of commit 4ebec25 — see tests/lanista-seeds/README.md).",
+  "steps": [
+    { "cmd": "ping", "label": "the session answers, drive gated on",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "one visible window, isolated data root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" } ] },
+    { "cmd": "log-mark", "label": "mark: boot phase begins",
+      "payload": { "label": "seed-zoo-smoke-boot-begin" } },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen (seed loaded without hang)",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "log-mark", "label": "mark: boot phase complete, asserting expectedOnBoot",
+      "payload": { "label": "seed-zoo-smoke-boot-complete" } },
+    { "cmd": "qml-get", "label": "expectedOnBoot: the launch-state surface is idle (non-Vault, app initialized cleanly)",
+      "payload": { "object": "localLaunchState", "props": ["openCount"],
+                   "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "props.openCount", "op": "==", "value": "0" },
+                  { "path": "grabPath", "op": "exists" } ] }
+  ]
+}
