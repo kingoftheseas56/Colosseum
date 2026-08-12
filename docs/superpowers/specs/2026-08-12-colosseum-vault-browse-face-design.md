@@ -1,6 +1,6 @@
 # Colosseum Vault — Browse Face Design
 
-**Status:** locked brainstorm, awaiting Hemanth's review of this specification.
+**Status:** LOCKED — Hemanth approved spec + mock 2026-08-12 (mock at `Brotherhood/agents/colosseum-vault-browse-face-mock.html`, eyes-on with three amendment rounds folded in).
 **Workflow:** `brotherhood-frontend-design` (Phase 1).
 **Parent:** `2026-08-12-colosseum-vault-complete-locked-design.md` (`a0c735e`).
 **Reference:** Jellyfin — `jellyfin-web` @ `~/Downloads/jellyfin-web`, read directly.
