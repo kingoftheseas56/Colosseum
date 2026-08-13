@@ -453,6 +453,91 @@ test ledger's "Lanista structural dump" entry.
   boot-first: `app_home.json`. **Full corrected 18-scenario inventory:** see "Seed zoo... and the
   corrected scenario inventory" above.
 
+### Runner-owned layout verdicts — Slice L2 (2026-08-13)
+
+`layout_verdict` is a **runner-local scenario step** (`native/tools/lanista.cpp`) — there is no
+new server command; it composes the existing Read-gated `dump-ui` (see "Structural dump —
+L1-Bridge" above) into a deterministic red/green geometry verdict, turning "this control is cut
+off / sitting on top of its peer" into a machine-checkable fact instead of a screenshot judgment
+call. The pure evaluator lives in header-only `native/tools/LanistaLayoutVerdict.h` (namespace
+`lanista`) — no `native/CMakeLists.txt` edit, no bridge/server change; `LanistaServer.cpp`,
+`LanistaServer.h`, and `tests/lanista_harness_scene.qml` are all untouched by this slice.
+
+- **Step shape:** `{"label": "...", "layout_verdict": {"checkpoint": "<path.json>", "out":
+  "<optional evidence path>"}}`. The checkpoint file names an optional `root` (scopes the
+  dump-ui walk; default the whole window) and a `rules` array, each `{"kind":
+  "actionableNonzero"|"contained"|"noPeerOverlap", "name": "...", ...kind-specific fields}`.
+- **Three rule kinds, nothing else:** `actionableNonzero` (target nonzero width/height AND
+  visible AND enabled); `contained` (target rect within a named viewport rect, tolerance in
+  **logical** px — inclusive at the boundary); `noPeerOverlap` (an **explicit** `peers` array,
+  2+ names — pairwise positive-area intersection only; a shared edge, zero-area, is never
+  overlap). `noPeerOverlap` is provably never a global sweep: its only input is the checkpoint's
+  own `peers` array — an item genuinely overlapping an unnamed peer is invisible to the rule by
+  construction (proven live and at the Qt Test layer, see below).
+- **The single-generation guarantee.** The runner pages through `dump-ui`'s own `continuation`
+  contract (as many bounded replies as the checkpoint's named items need) into one
+  `LayoutSnapshot`, but every page after the first must report the **same** `generation` the
+  first page pinned — a page that doesn't is rejected outright (its rows never enter the
+  snapshot) and the whole checkpoint fails a named `oneGenerationIsRequired` rule rather than
+  evaluating on a partial, mismatched-moment merge. A moving delegate between two independent
+  `dump-ui` calls can never manufacture a verdict.
+- **The synthetic `$rootWindow` viewport.** `dump-ui`'s reply already carries a `rootWindow`
+  field (the window's own width/height) with no objectName to address it by — `LayoutSnapshot`
+  exposes it under the reserved name `$rootWindow` (a QML objectName can never contain `$`, so
+  it can never collide with a real item) so a checkpoint's `contained` rule can use the whole
+  window as a viewport without a fabricated production object.
+- **Real bug found and fixed live driving the assembled app (2026-08-13):** Colosseum
+  pre-warms other worlds' pages in the background, and `TopBar.qml` ("ONE source for the top
+  bar across the home AND every world page") is reused verbatim by each — so the SAME
+  `modePill_*` objectName exists more than once in the full tree: once on the real, visible home
+  page (depth 5), and again inside each hidden pre-warmed world's own TopBar instance (depth 8,
+  `visible:false`) — the same name-collision shape this ledger already documents for
+  `ui-click`/`ui-query` ("Name collisions resolve DFS-FIRST — including into HIDDEN worlds").
+  `LayoutSnapshot`'s first cut used last-write-wins name indexing, so a `dump-ui` walk that paged
+  far enough to reach a pre-warmed world's hidden duplicate silently overwrote the real row's
+  geometry — reproduced twice against a fresh isolated `app_home` session (all four
+  `modePill_*` rows read `not visible`), root-caused by paging the full tree by hand and finding
+  the duplicate rows at cursor ~1765, fixed by making `LayoutSnapshot` keep the FIRST occurrence
+  per name across merged pages (matching the bridge's own DFS-first law), then reproduced green
+  twice more. Locked in as the Qt Test's 11th case, `duplicate_names_resolve_dfs_first`, beyond
+  the plan's 10 named cases.
+- **Checkpoint definitions:** `tests/lanista_layout/harness.json` (against the real, unedited
+  `tests/lanista_harness_scene.qml`) and `tests/lanista_layout/app_home.json` (against the real
+  assembled app's home screen, the four `modePill_*` pills) — both **Runtime-validated** in
+  isolated sessions 2026-08-13 (harness: served `lanista_harness.exe`, `ColosseumLanistaTest`
+  pipe; app_home: `lanista.exe session run`, tagged `Colosseum-dltest-<tag>` root, never the
+  daily pipe). Full transcripts and verdict JSON under `artifacts/visibility-phase2/l2/`.
+- **Negative controls (mandatory, performed live 2026-08-13), both against REAL, unedited
+  harness geometry — no QML edit, since `tests/lanista_harness_scene.qml` sits outside this
+  slice's fence:** (a) **containment** — `clippedBox`'s real right edge is exactly 80 logical px
+  past the real window's right edge; a checkpoint identical to `harness.json` except
+  `toleranceLogicalPx: 79` (one logical px short of the true overflow — the boundary-exact
+  equivalent of moving the real box one logical pixel further out) turns **exactly** the
+  `contained` rule red, the two `actionableNonzero` rules and `noPeerOverlap` unchanged green;
+  restored green by reverting to `toleranceLogicalPx: 80`. (b) **overlap** — `row6` (a
+  `longList` delegate) and `clipHost` (a clip-chain fixture) were *discovered*, not
+  constructed, to genuinely overlap in the current committed scene (authored for unrelated
+  purposes, real intersection 60×40 at (500,400)); a checkpoint identical to `harness.json`
+  except `noPeerOverlap`'s peers are `["row6","clipHost"]` turns **exactly** that rule red,
+  the other three rules unchanged green; the ordinary `harness.json` checkpoint (non-overlapping
+  peers) replayed green again immediately after. Evidence:
+  `artifacts/visibility-phase2/l2/{negative-containment,negative-overlap}.json` plus their own
+  checkpoint files.
+- **Baseline (2026-08-13):** `artifacts/visibility-phase2/l2/baseline-rects.json` — real
+  captured rects proving the PRE-L2 runner (plain `cmd`+`expect` steps only) cannot reject the
+  gap: `clipHostChild` reads `clippedByWindow:false` while its real `clipChain` shows it is
+  entirely outside its own `clip:true` ancestor's bounds (a false-green an `expect` on
+  `clippedByWindow` alone would miss); `zeroSizeItem` reads `visible:true, enabled:true,
+  clippedByWindow:false` while its rect is 0×0 (no existing field names this failure at all);
+  and `expect`'s one-dot-path-vs-one-constant shape structurally cannot express a two-item
+  overlap assertion regardless of geometry.
+- **Qt Test:** `colosseum.qttest.layout_verdict` (`tests/auto/lanista/tst_layout_verdict.cpp`,
+  header-only under test — compiles just the test TU, same deploy pattern as
+  `tst_http_header_fields.cpp`). 11/11 green (the plan's 10 named cases +
+  `duplicate_names_resolve_dfs_first`); two negative controls performed live against the
+  production evaluator (restored, reverified green) — see the test ledger's own entry for the
+  exact mutations and which named cases flipped.
+
 ### MCP adapter v0 (`native/tools/lanista-mcp/server.py`, registered in `.mcp.json`) — Slice F, 2026-08-12
 
 - **The deadline flaw is closed.** The old adapter opened the named pipe directly and did an
