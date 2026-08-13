@@ -324,12 +324,12 @@ bridge should own).
 - Isolation: every driving slice uses an isolated session (`--tag`, proven via `get-state`), never live
   data. ✓
 
-## Execution routing (Rule 30)
+## Execution routing
 
 - Slices 1–3 (C++ engine + build + own-tool verification) → **Claude** (subagent or main), the caller's
   live build/test tools are needed. Slice 1's ffmpeg-shell and Slice 2's cache I/O are mechanical
-  enough to hand a delegate, but the resolver/projection rewire (Slice 3) is integration-critical and
-  stays Claude.
+  enough to hand off if desired, but the resolver/projection rewire (Slice 3) is integration-critical
+  and stays Claude.
 - Slices 4–5 (QML + Lanista + eyes-on) → **Claude** with the bridge; Slice 5's verdict is Hemanth's.
 - Agent 0 reviews every slice at the gate (own negative control, committed-artifact rebuild) before
   it is `Runtime-validated`.
