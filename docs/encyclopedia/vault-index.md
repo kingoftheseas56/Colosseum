@@ -396,8 +396,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultLibrary.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `5d9c2b64feb0f9df49c6fe7520bd04a770426264`
-- Current blob: `5d9c2b64feb0f9df49c6fe7520bd04a770426264`
+- Accepted blob: `67fd7b6bd77132ed7573153cd0e5efb0dbdef85e`
+- Current blob: `67fd7b6bd77132ed7573153cd0e5efb0dbdef85e`
 - Source: [`native/engine/VaultLibrary.cpp`](../../native/engine/VaultLibrary.cpp)
 
 ```text

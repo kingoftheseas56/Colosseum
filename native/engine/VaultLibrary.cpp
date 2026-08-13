@@ -405,12 +405,13 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         m.insert(QStringLiteral("displayTitle"), n.displayTitle);
         m.insert(QStringLiteral("physicalFact"), n.physicalFact);
         m.insert(QStringLiteral("path"), n.path);
-        // Local artwork adoption (Slice 3): a Film node's coverRef, decorated below alongside
-        // state/away, is the VaultEnricher-adopted "file://" ref for VIDEO groups only — a
-        // comic/book Film node's coverRef stays "" here on purpose, since that column holds a
-        // bare in-archive entry name for those kinds (comics/books already have their own
-        // image://.../ translation in series()/items(); this field would be meaningless without
-        // it). Every other node type carries no per-episode art in this slice.
+        // A Film node's coverRef is a ready-to-bind cover URL for the tile — VaultPosterCard /
+        // VaultWideCard bind it as `source: coverRef` directly. VIDEO groups carry the
+        // VaultEnricher-adopted "file://" local-artwork ref (Slice 3); comic/book groups carry the
+        // image://comiccover|vaultbookcover/<id> translation of their in-archive cover entry, built
+        // in the Film branch below (mirrors series()/items()) so the covers already extracted from
+        // the archive actually paint the browse grid instead of being silently dropped. Default
+        // empty here; every other node type carries no per-tile art yet.
         m.insert(QStringLiteral("coverRef"), QString());
         QVariantMap counts;
         counts.insert(QStringLiteral("items"), n.mediaCount);
@@ -458,9 +459,27 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                         identified = true;
                     if (row.identityState == QLatin1String("ambiguous"))
                         ambiguous = true;
-                    if (coverRef.isEmpty() && row.kind == QLatin1String("video")
-                        && !row.coverRef.isEmpty())
-                        coverRef = row.coverRef;
+                    // First covered row wins the group tile. Prefer a canonical/identity cover if
+                    // the enricher matched one; else the kind's own local artwork. Mirrors
+                    // items()/series() so the browse grid and the folder view agree on a group's
+                    // cover. (Video identity covers are the not-yet-built Cinemeta path — this
+                    // branch is a no-op for them today, and pre-wired for when it lands.)
+                    if (coverRef.isEmpty()) {
+                        if (!row.identityCoverUrl.isEmpty()) {
+                            coverRef = row.identityCoverUrl;
+                        } else if (row.kind == QLatin1String("video")
+                                   && !row.coverRef.isEmpty()) {
+                            coverRef = row.coverRef;
+                        } else if ((row.kind == QLatin1String("comic")
+                                    || row.kind == QLatin1String("book"))
+                                   && !row.coverRef.isEmpty()) {
+                            const QString provider = row.kind == QLatin1String("book")
+                                ? QStringLiteral("vaultbookcover")
+                                : QStringLiteral("comiccover");
+                            coverRef = QStringLiteral("image://") + provider + QLatin1Char('/')
+                                     + Colosseum::buildComicCoverId(row.path, row.coverRef);
+                        }
+                    }
                 }
                 away = anyAway;
                 // identified always wins (identify-in-place settles a previously-ambiguous

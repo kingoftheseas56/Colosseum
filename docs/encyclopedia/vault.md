@@ -63,6 +63,10 @@ VaultPage.qml (taskbar door → vaultPage)
 **whole read surface** QML paints from — see §3's VaultKit/VaultLibrary rows below for the
 projection spine itself (`VaultKit::planBrowseLevel` does the pure filesystem-structural
 classification; `VaultLibrary` decorates it with index facts: identity state, away, coverRef).
+A row's `coverRef` is a ready-to-bind tile image — a video group's adopted local `file://` artwork,
+or a comic/book group's `image://comiccover|vaultbookcover/<id>` built in `browseAt()`'s Film branch
+(mirrors `items()`/`series()`); a matched `identityCoverUrl` wins when present, and missing art falls
+back to the typographic treatment (§4.7), never a broken frame.
 
 **Identify-in-place and launch:**
 
