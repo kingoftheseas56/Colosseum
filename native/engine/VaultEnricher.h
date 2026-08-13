@@ -84,7 +84,6 @@ signals:
     void enrichmentFinished();
 
 private:
-    static QString durationKey(const QString& path, qint64 size, qint64 mtimeMs);
     void loadDurationCache();
     // Commit the enriched batch on the VaultIndex OWNER thread (never a worker-thread QSqlDatabase
     // write), then emit enrichmentFinished(). Same-thread callers commit inline.

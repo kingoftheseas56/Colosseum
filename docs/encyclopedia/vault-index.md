@@ -230,8 +230,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultEnricher.cpp`
 
 - Status: **UNDOCUMENTED**
-- Accepted blob: `4bf8891f918ff3fd183343fb5539a2e044799893`
-- Current blob: `4bf8891f918ff3fd183343fb5539a2e044799893`
+- Accepted blob: `846336c9ddf88885da08a7611e8e2ebcdf8be549`
+- Current blob: `846336c9ddf88885da08a7611e8e2ebcdf8be549`
 - Source: [`native/engine/VaultEnricher.cpp`](../../native/engine/VaultEnricher.cpp)
 
 _No explanatory comment was harvested after the allowed file preamble._
@@ -240,8 +240,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultEnricher.h`
 
 - Status: **CURRENT**
-- Accepted blob: `7712714956684d195d3966c6142c503c3c9c37da`
-- Current blob: `7712714956684d195d3966c6142c503c3c9c37da`
+- Accepted blob: `1c5db2a35ba9a30a0d71ad76fcdef4fd22f6d4d4`
+- Current blob: `1c5db2a35ba9a30a0d71ad76fcdef4fd22f6d4d4`
 - Source: [`native/engine/VaultEnricher.h`](../../native/engine/VaultEnricher.h)
 
 ```text

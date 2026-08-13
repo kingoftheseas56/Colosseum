@@ -508,6 +508,43 @@ set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault browse artwork: persistent frame-grab producer (browse-artwork execution
+#    plan, Slice 1, 2026-08-13) ───────────────────────────────────────────────────
+# VaultThumbnailer — a sibling of the hover-only SeekThumbnailer (native/player/
+# seekthumbnailer.cpp, untouched) that writes a persisted, keyed still to disk instead
+# of piping a data: URL. Needs MpvItem::findFfmpeg() (same ffmpeg locator
+# SeekThumbnailer uses), so this target compiles mpvitem.cpp and links MpvQt/libmpv,
+# same as http_header_channel_harness / tst_journey_play_video above. Real ffmpeg,
+# real fixture MP4 (tests/fixtures/vault/media/tiny.mp4 — the same one
+# vault_admission_probe_harness proves decodes a real frame); QTemporaryDir isolation.
+add_executable(tst_vault_artwork
+    auto/vault/tst_vault_artwork.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultCacheKey.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
+target_include_directories(tst_vault_artwork PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
+target_compile_definitions(tst_vault_artwork PRIVATE
+    VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+target_link_libraries(tst_vault_artwork
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test MpvQt::MpvQt)
+set_target_properties(tst_vault_artwork PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_artwork POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_artwork
+         COMMAND tst_vault_artwork)
+set_tests_properties(colosseum.qttest.vault_artwork PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault MAL title identity (Slice 17 foundation) ─────────────────────────
 # Read-only normalized title lookup: punctuation folding, ambiguity retention,
 # year/medium narrowing, and missing-catalogue safety.

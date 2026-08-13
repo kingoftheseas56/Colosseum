@@ -1,6 +1,7 @@
 #include "VaultEnricher.h"
 
 #include "CbzArchive.h"
+#include "VaultCacheKey.h" // shared (normalizedPath,size,mtimeMs) -> key, also used by VaultThumbnailer
 #include "VaultKit.h"      // CancellationToken
 #include "VaultStoreIo.h"
 #include "third_party/miniz/miniz.h"
@@ -440,16 +441,6 @@ QString VaultEnricher::findLocalArtwork(const QString& folderPath)
     return QString();
 }
 
-QString VaultEnricher::durationKey(const QString& path, qint64 size, qint64 mtimeMs)
-{
-    QString n = QDir::cleanPath(path);
-#ifdef Q_OS_WIN
-    n = n.toLower();
-#endif
-    return n + QStringLiteral("::") + QString::number(size)
-        + QStringLiteral("::") + QString::number(mtimeMs);
-}
-
 void VaultEnricher::loadDurationCache()
 {
     const QJsonObject o = VaultStoreIo::load(m_cacheDir, QStringLiteral("durations.json"));
@@ -467,12 +458,12 @@ void VaultEnricher::saveDurationCache()
 
 double VaultEnricher::cachedDuration(const QString& path, qint64 size, qint64 mtimeMs) const
 {
-    return m_durationCache.value(durationKey(path, size, mtimeMs), -1.0);
+    return m_durationCache.value(VaultCacheKey::make(path, size, mtimeMs), -1.0);
 }
 
 void VaultEnricher::putDuration(const QString& path, qint64 size, qint64 mtimeMs, double sec)
 {
-    m_durationCache.insert(durationKey(path, size, mtimeMs), sec);
+    m_durationCache.insert(VaultCacheKey::make(path, size, mtimeMs), sec);
 }
 
 double VaultEnricher::durationForVideo(const QString& path, qint64 size, qint64 mtimeMs)

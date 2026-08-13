@@ -57,11 +57,11 @@
       "accepted_comment": "// VaultDownloadsRoot — Slice 18. Derives the synthetic downloads root's\n// VaultIndex::FileRows from Colosseum's own download backbones, so the Vault\n// can shelf downloads as ONE quiet, pre-confirmed root alongside user folders.\n//\n// This class is a pure JOIN over the backbones' published read APIs. It reads\n// the download indices + localPages()/localBook() to recover the on-disk paths\n// of CONTAINER downloads (videos, CBZ comics, CBZ tankoban volumes, epub/pdf\n// books). It shelves ONLY container files — the Vault scanner + launch router\n// classify by file extension and cannot open loose .jpg page dirs, so manga\n// chapters stay on the Downloads page exactly as today.\n//\n// Backbone calls go through QMetaObject::invokeMethod (the same path QML uses),\n// which decouples this class from the concrete backbone types and makes it\n// unit-testable with trivial QObject fakes that expose matching Q_INVOKABLE\n// slots. This class EDITS NOTHING on the Downloads lane — the hard constraint\n// from the handoff. It reads; the Downloads page stays the transfer surface."
     },
     "native/engine/VaultEnricher.cpp": {
-      "accepted_blob": "4bf8891f918ff3fd183343fb5539a2e044799893",
+      "accepted_blob": "846336c9ddf88885da08a7611e8e2ebcdf8be549",
       "accepted_comment": null
     },
     "native/engine/VaultEnricher.h": {
-      "accepted_blob": "7712714956684d195d3966c6142c503c3c9c37da",
+      "accepted_blob": "1c5db2a35ba9a30a0d71ad76fcdef4fd22f6d4d4",
       "accepted_comment": "// VaultEnricher — fills rows with honest facts, progressively, after the census\n// (Slice 5). Deliberately THIN: it reuses Colosseum's existing archive + cover\n// facilities instead of re-porting Tankoban 2's ArchiveReader —\n//   comics: CbzArchive lists the pages; the cover ENTRY name it picks is served\n//           on demand by the existing image://comiccover/ provider (no new\n//           decoder, no thumbnail cache — Qt's image cache already memoises);\n//   video:  ffprobe (kill-on-timeout), memoised in a triple-keyed duration cache;\n//   books:  format from the extension, plus bounded EPUB OPF metadata/cover\n//           extraction when the file is an EPUB.\n// Non-EPUB books remain filename-honest; video thumbnails and page dimensions\n// stay deferred. Enrichment is per-file and cancellable; the duration cache\n// flushes every 20 files."
     },
     "native/engine/VaultIdentifier.cpp": {
@@ -201,6 +201,6 @@
       "accepted_comment": "// VaultWideCard — the 16:9 still face for episode/clip rows (Vault Browse face, execution plan\n// Slice 4). Same card language as VaultPosterCard (design §6.3) — artwork edge to edge, centered\n// one-line title with elision, a dimmer physical-fact line beneath, circular corner indicators,\n// near-square corners, hover dims and reveals a play affordance, gold reserved for the\n// uncertainty mark, away is reduced ink + desaturation with no hover/open, resolving crossfades\n// filename → settled face in place — just a different card, per the locked design's rule that\n// drilling into a series is a different card, not the same grid one level deeper (§6.3).\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
     }
   },
-  "integrity": "sha256:1c379b9110bc66bc9851ca785c81ec1e3f8839a480c15f67e4aea386351b67cf",
+  "integrity": "sha256:10ca3150716869c7472d72ec3d29e5b2899b969cb3df9c53e6f619d775a3cec6",
   "schema": 1
 }
