@@ -111,6 +111,7 @@ add_executable(colosseum
     update/UpdateInstallBridge.h
     app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
+    installed_chronicle.qrc  # bundled installed-release chronicle (signed manifest + artwork)
     ClipboardHelper.h
     MangaEngine.h
     ProgressStore.h
@@ -191,6 +192,8 @@ add_executable(colosseum
     engine/VaultBrowseAway.h
     engine/VaultBrowseDetail.cpp   # the detail sheet's ONE projection: copies/companions/extras/evidence (browse-face execution plan Slice 7)
     engine/VaultBrowseDetail.h
+    engine/VaultBrowseEmpty.cpp    # the grid's empty-cause classification: no-roots/empty-folder/all-away (browse-face execution plan Slice 9)
+    engine/VaultBrowseEmpty.h
     engine/VaultIdentifier.cpp
     engine/VaultIdentifier.h
     engine/VaultWatcher.cpp        # live-shelf arrivals: per-root QFileSystemWatcher + debounce + law-checked upsert (Slice 15)

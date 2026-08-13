@@ -10,6 +10,7 @@
 #include "VaultKit.h"
 #include "VaultBrowseAway.h"
 #include "VaultBrowseDetail.h"
+#include "VaultBrowseEmpty.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -571,6 +572,27 @@ QVariantMap VaultLibrary::browseDetail(const QString& key) const
 {
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
     return VaultBrowseDetail::detailFor(m_index, key, scanIgnore);
+}
+
+QString VaultLibrary::browseEmptyCause(const QString& rootOrPath) const
+{
+    const QVariantList roots = m_config ? m_config->roots() : QVariantList();
+    const bool hasAnyRoots = !rootsDetail().isEmpty();
+    const bool levelHasRows = !browseAt(rootOrPath).isEmpty();
+    const bool levelAway = VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath);
+    return VaultBrowseEmpty::causeName(
+        VaultBrowseEmpty::classify(hasAnyRoots, levelHasRows, levelAway));
+}
+
+int VaultLibrary::browseEmptyAwayCount(const QString& rootOrPath) const
+{
+    if (!m_index)
+        return 0;
+    const QVariantList roots = m_config ? m_config->roots() : QVariantList();
+    const QString ownerRoot = VaultBrowseAway::ownerRootPath(roots, rootOrPath);
+    if (ownerRoot.isEmpty())
+        return 0;
+    return m_index->rowsForRoot(ownerRoot).size();
 }
 
 bool VaultLibrary::identifyGroup(const QString& groupKey)

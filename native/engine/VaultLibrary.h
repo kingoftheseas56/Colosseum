@@ -126,6 +126,15 @@ public:
     // key. See VaultBrowseDetail::detailFor for the returned shape; `{found: false}` on a stale
     // key. Never cast, synopsis, or related titles — the locked design's decision #11.
     Q_INVOKABLE QVariantMap browseDetail(const QString& key) const;
+    // Slice 9 — the grid's empty-cause classification (design §4.5's four distinct causes minus
+    // the deferred "filtered", which VaultBrowseEmpty.qml still renders defensively but this
+    // method never returns since no filter control has shipped). "none" when the level actually
+    // has rows. See VaultBrowseEmpty::classify for the pure logic.
+    Q_INVOKABLE QString browseEmptyCause(const QString& rootOrPath) const;
+    // The owning root's total known file count — the "all away" empty state's one physical fact
+    // (design plate 6: "All N items live on a drive that is not connected"). 0 when the path
+    // resolves to no confirmed root or that root has no durable rows at all.
+    Q_INVOKABLE int browseEmptyAwayCount(const QString& rootOrPath) const;
 
     // Slice 17 identity actions. The index owns the reversible decoration; this façade owns
     // the QML-facing commands and the persistent hide surface.

@@ -353,6 +353,31 @@ set_tests_properties(colosseum.qttest.vault_browse_away PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault browse-empty (browse-face execution plan Slice 9, 2026-08-13) ─────
+# VaultBrowseEmpty::classify — the grid's empty-cause enum (no-roots vs empty-folder vs
+# all-away; design §4.5's four distinct causes minus the deferred "filtered"). Pure logic, no
+# VaultIndex/VaultConfig needed — table-driven over the three booleans
+# VaultLibrary::browseEmptyCause() derives from rootsDetail()/browseAt()/
+# VaultBrowseAway::ownerRootAway(). GUILESS, pure Qt6::Core.
+add_executable(tst_vault_browse_empty
+    auto/vault/tst_vault_browse_empty.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.h")
+target_include_directories(tst_vault_browse_empty PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_browse_empty PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_vault_browse_empty PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_browse_empty POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_browse_empty
+         COMMAND tst_vault_browse_empty)
+set_tests_properties(colosseum.qttest.vault_browse_empty PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
 # ── Vault browse-detail (browse-face execution plan Slice 7, 2026-08-13) ─────
 # VaultBrowseDetail — the detail sheet's ONE projection, browseDetail(key): copies you hold
 # (same canonical identity across roots where identity exists, else the single physical group),
