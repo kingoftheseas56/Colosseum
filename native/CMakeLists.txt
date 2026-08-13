@@ -203,6 +203,8 @@ add_executable(colosseum
     engine/VaultEnricher.h
     engine/VaultBookStateMigrator.cpp # Reader 2 path-key migration at the Vault identity boundary (Slice 16)
     engine/VaultBookStateMigrator.h
+    engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
+    engine/VaultForensics.h
     player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)
     player/MediaAdmissionProbe.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──
@@ -1250,12 +1252,58 @@ target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Netw
 # Boots a real QQmlApplicationEngine over tests/lanista_harness_scene.qml,
 # serves LanistaServer on the TEST pipe, and either self-checks (default,
 # sentinel LANISTA_OK) or stays alive under --serve for CLI/scenario tests.
+#
+# F1-Bridge (2026-08-13) additive note: the harness now also builds a REAL VaultLibrary
+# fixture (tests/lanista_harness.cpp) to exercise the "vault-forensics" bridge command
+# end-to-end, so it needs VaultForensics plus the same full VaultLibrary link closure
+# tst_vault_forensics already pays for above (F0 names VaultLibrary itself, not a lower
+# helper module, as the seam a forensic projection composes) — Qt6::Sql/Qt6::Concurrent
+# added to target_link_libraries below for exactly that reason.
 add_executable(lanista_harness
     ../tests/lanista_harness.cpp
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
     devtools/LanistaEventLog.cpp
     devtools/LanistaEventLog.h
+    engine/VaultForensics.cpp
+    engine/VaultForensics.h
+    engine/VaultLibrary.cpp
+    engine/VaultLibrary.h
+    engine/VaultIndex.cpp
+    engine/VaultIndex.h
+    engine/VaultScanner.cpp
+    engine/VaultScanner.h
+    engine/VaultConfig.cpp
+    engine/VaultConfig.h
+    engine/VaultIdentity.cpp
+    engine/VaultIdentity.h
+    engine/VaultWatcher.cpp
+    engine/VaultWatcher.h
+    engine/VaultDownloadsRoot.cpp
+    engine/VaultDownloadsRoot.h
+    engine/VaultIdentifier.cpp
+    engine/VaultIdentifier.h
+    engine/ComicCoverId.cpp
+    engine/ComicCoverId.h
+    engine/VaultKit.cpp
+    engine/VaultKit.h
+    engine/VaultBrowseAway.cpp
+    engine/VaultBrowseAway.h
+    engine/VaultBrowseDetail.cpp
+    engine/VaultBrowseDetail.h
+    engine/VaultBrowseEmpty.cpp
+    engine/VaultBrowseEmpty.h
+    engine/VaultBookStateMigrator.cpp
+    engine/VaultBookStateMigrator.h
+    engine/VaultStoreIo.h
+    engine/ComicsCatalog.cpp
+    engine/ComicsCatalog.h
+    engine/ImdbCatalog.cpp
+    engine/ImdbCatalog.h
+    engine/MalCatalog.cpp
+    engine/MalCatalog.h
+    reader/BookStores.cpp
+    reader/BookStores.h
 )
 target_include_directories(lanista_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # The windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and
@@ -1273,7 +1321,7 @@ target_compile_definitions(lanista_harness PRIVATE
     LANISTA_QT_PLATFORMS_DIR="${_lanista_qtprefix}/plugins/platforms"
     LANISTA_SCENE_DIR="${_lanista_tests_dir}")
 target_link_libraries(lanista_harness PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Sql Qt6::Concurrent)
 
 # ── lanista CLI (tankoctl's sibling) ───────────────────────────────────────
 add_executable(lanista

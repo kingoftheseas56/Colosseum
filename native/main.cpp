@@ -77,6 +77,7 @@
 #include "engine/VaultIdentifier.h"
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
+#include "engine/VaultForensics.h"
 #include "player/MediaAdmissionProbe.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
@@ -1245,6 +1246,13 @@ int main(int argc, char *argv[]) {
                                                  imdbCatalog, &app);
     vaultLibrary->setIdentifier(vaultIdentifier);
 
+    // Agent Visibility Phase 2, Slice F1-Bridge: the live, app-owned Vault forensic
+    // projection (F1-Core). Composes vaultLibrary only (F0's named safe seam,
+    // docs/visibility/vault-forensic-owner-thread.md §10) — no second SQLite
+    // connection, no writer. Parented to &app like every other Vault object (F0 §1),
+    // so it shares vaultLibrary's GUI-thread lifetime; wired into LanistaServer below.
+    auto *vaultForensics = new VaultForensics(vaultLibrary, &app);
+
     // BiblioCatalog Discover/Explore keyless daily refresh service (spec
     // 2026-08-01, plan 2026-08-03 Task 4): a writable per-user SQLite cache
     // (unlike the pipeline-deployed read-only catalogues above), refreshed at
@@ -1521,7 +1529,9 @@ int main(int argc, char *argv[]) {
     // Lanista dev-control bridge — ALWAYS ON for reads/grabs (Hemanth, spec
     // 2026-08-01 §3). Local named pipe only, never a network port. Driving and
     // mutation commands gate on env INSIDE the server, per command.
-    new LanistaServer(&engine, &app);
+    auto *lanistaServer = new LanistaServer(&engine, &app);
+    // F1-Bridge: hand the bridge the live forensic projection constructed above.
+    lanistaServer->setVaultForensics(vaultForensics);
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {
