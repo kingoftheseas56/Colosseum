@@ -317,8 +317,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultIndex.cpp`
 
 - Status: **UNDOCUMENTED**
-- Accepted blob: `44b7218caf228d747fc112fd34a5b8baa4a3080c`
-- Current blob: `44b7218caf228d747fc112fd34a5b8baa4a3080c`
+- Accepted blob: `caf2690c5fac7a5d26311414b9125e566450226d`
+- Current blob: `caf2690c5fac7a5d26311414b9125e566450226d`
 - Source: [`native/engine/VaultIndex.cpp`](../../native/engine/VaultIndex.cpp)
 
 _No explanatory comment was harvested after the allowed file preamble._
@@ -327,8 +327,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultIndex.h`
 
 - Status: **CURRENT**
-- Accepted blob: `590b2e2b0f9bc8edb69fbccecae2214571af424a`
-- Current blob: `590b2e2b0f9bc8edb69fbccecae2214571af424a`
+- Accepted blob: `d4a2a8a58ad6157c1fb9c47937eafff6bd06158b`
+- Current blob: `d4a2a8a58ad6157c1fb9c47937eafff6bd06158b`
 - Source: [`native/engine/VaultIndex.h`](../../native/engine/VaultIndex.h)
 
 ```text
@@ -396,8 +396,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultLibrary.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `5a9bdc876c7c3cd5560f3cd22adc63e15b207c0e`
-- Current blob: `5a9bdc876c7c3cd5560f3cd22adc63e15b207c0e`
+- Accepted blob: `c6c5abfccc300f25ba63a3a3690c15e42db76f2c`
+- Current blob: `c6c5abfccc300f25ba63a3a3690c15e42db76f2c`
 - Source: [`native/engine/VaultLibrary.cpp`](../../native/engine/VaultLibrary.cpp)
 
 ```text
@@ -408,8 +408,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultLibrary.h`
 
 - Status: **CURRENT**
-- Accepted blob: `e6e8fcf96c62007e39032bbd6595c4b9651a8e0a`
-- Current blob: `e6e8fcf96c62007e39032bbd6595c4b9651a8e0a`
+- Accepted blob: `351d93fe70d41496877b52300a6146074dd97336`
+- Current blob: `351d93fe70d41496877b52300a6146074dd97336`
 - Source: [`native/engine/VaultLibrary.h`](../../native/engine/VaultLibrary.h)
 
 ```text

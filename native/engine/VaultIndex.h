@@ -109,6 +109,16 @@ public:
     QList<FileRow> rowsForKind(const QString& kind) const;
     QList<FileRow> rowsForRoot(const QString& rootPath) const;
     QList<FileRow> rowsForGroup(const QString& groupKey) const;
+    // Exact-path lookup (browse-artwork execution plan, Slice 3 part 2): an Episode/Clip browse
+    // node's OWN key/path is the video file itself (VaultKit::planBrowseLevel's loose-video leaf
+    // grammar), never a group's folder-shaped groupKey/subtreePath the way a Film node's is — so
+    // rowsForGroup()/filesInSubtree() cannot answer "what does the index know about THIS one
+    // file" for an episode without first reconstructing groupByFirstLevelSubdir's own grouping
+    // rule (immediate-child-of-root, or the "::LOOSE" sentinel) client-side, which risks a subtly
+    // wrong re-derivation. `path` is stored exactly as VaultScanner/VaultWatcher wrote it (no
+    // normalization at either write or read side, matching every other rowsForX query here) — 0
+    // or 1 rows in practice; returns a list only to match the family's own shape.
+    QList<FileRow> rowsForPath(const QString& path) const;
     // Every non-suppressed row sharing one adopted canonical identity, across every group/root —
     // the detail sheet's "copies you hold" truth when a film has been identified (browse-face
     // execution plan Slice 7). Empty identityId returns no rows (an unidentified group is never

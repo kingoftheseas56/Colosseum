@@ -32,6 +32,40 @@ static QString normPath(const QString& p)
     return n;
 }
 
+// Browse-artwork execution plan, Slice 3 part 2: an Episode or Clip browse node's OWN `path` IS
+// the video file (VaultKit::planBrowseLevel's loose-video leaf grammar) — never a group's
+// folder-shaped groupKey/subtreePath the way a Film node's `n.path` is, so the Film branch's
+// `rowsForGroup(n.path)` lookup cannot answer "what does the index know about this ONE file."
+// VaultIndex::rowsForPath (added for this) closes that gap with an exact-path query, bounded to
+// 0-or-1 rows in practice. Returns the resolver's answer, or "" when there's nothing yet (a miss
+// still kicks that producer's async fetch/grab inside resolve() itself).
+static QString resolveVideoLeafCoverRef(VaultIndex* index, VaultArtworkResolver* resolver,
+                                        const QString& rowKey, const QString& filePath)
+{
+    if (!resolver || !index || filePath.isEmpty())
+        return QString();
+    const QList<VaultIndex::FileRow> rows = index->rowsForPath(filePath);
+    if (rows.isEmpty())
+        return QString(); // not indexed yet (e.g. mid-scan) — honest "no facts", never invented
+    const VaultIndex::FileRow& row = rows.first();
+    VaultArtworkResolver::RowFacts facts;
+    facts.rowKey = rowKey;
+    facts.kind = QStringLiteral("video");
+    facts.path = row.path;
+    // VaultEnricher-adopted "file://" local artwork, if any — the row's own coverRef for a video
+    // kind is already a ready-to-bind local ref (never an in-archive entry name, that's comic/book
+    // only), same convention the Film branch and items()/series() already rely on.
+    facts.localRef = row.coverRef;
+    if (!row.identityId.isEmpty() && !row.identitySuppressed) {
+        facts.identityId = row.identityId;
+        facts.posterUrl = row.identityCoverUrl;
+    }
+    facts.size = row.size;
+    facts.mtimeMs = row.mtimeMs;
+    facts.durationSec = row.durationSec;
+    return resolver->resolve(facts);
+}
+
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
                            VaultIdentity* identity, QString cacheDir, QObject* parent)
     : QObject(parent), m_index(index), m_scanner(scanner), m_config(config), m_identity(identity)
@@ -504,13 +538,23 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             // The kind classifier's own verdict, not an identity lookup (locked design: local-
             // only is certain-and-yours, never "not identified yet").
             state = QStringLiteral("localOnly");
+            // Browse-artwork execution plan, Slice 3 part 2: a Clip is real footage (locked
+            // design gives it a genuine frame from the file, e.g. Hemanth's own Cricket clips —
+            // never a typographic-only face just because it isn't catalogue-identifiable). n.key
+            // == n.path == the file itself for a Clip node (VaultKit's loose-video leaf grammar).
+            const QString resolved = resolveVideoLeafCoverRef(m_index, m_artworkResolver, n.key, n.path);
+            if (!resolved.isEmpty())
+                m.insert(QStringLiteral("coverRef"), resolved);
         } else if (n.nodeType == VaultKit::BrowseNodeType::Episode) {
-            // Episode nodes are UNCHANGED by this slice: no per-file facts are gathered for them
-            // in this method today (that would need an rowsForGroup-style per-episode lookup this
-            // slice does not add — named honestly here rather than silently assumed), so coverRef
-            // stays "" exactly as before. Title is structurally known from the filesystem walk —
-            // see the Folder/Show/Season comment below for why "identified" is still correct.
+            // Slice 5 fix: title is structurally known from the filesystem walk + grammar parse
+            // itself — see the Folder/Show/Season comment below for why "identified" is correct.
             state = QStringLiteral("identified");
+            // Browse-artwork execution plan, Slice 3 part 2: an Episode gets the same real
+            // frame-grab/poster treatment as a Clip (locked design's 16:9 still) — same lookup,
+            // same reasoning, n.key == n.path == the file for an Episode node too.
+            const QString resolved = resolveVideoLeafCoverRef(m_index, m_artworkResolver, n.key, n.path);
+            if (!resolved.isEmpty())
+                m.insert(QStringLiteral("coverRef"), resolved);
         } else if (n.nodeType == VaultKit::BrowseNodeType::Folder
                    || n.nodeType == VaultKit::BrowseNodeType::Show
                    || n.nodeType == VaultKit::BrowseNodeType::Season) {

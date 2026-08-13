@@ -67,13 +67,18 @@ classification; `VaultLibrary` decorates it with index facts: identity state, aw
 A row's `coverRef` is a ready-to-bind tile image, projected through **`VaultArtworkResolver`**'s
 fixed-priority ladder (browse-artwork execution plan, Slices 1-3, 2026-08-13) — `VaultLibrary` owns
 one `VaultThumbnailer` + `VaultPosterFetcher` + `VaultArtworkResolver` (built from the same
-`cacheDir` every other Vault store sits under) and calls `resolve()` per row in `browseAt()` (Film
-AND Folder/Show/Season branches), `items()`, and `series()`: local art the row already carries (a
-video group's adopted `file://` artwork, or a comic/book `image://comiccover|vaultbookcover/<id>`)
-wins outright; failing that, a matched identity's canonical poster (`VaultPosterFetcher`, fetched
-over `QNetworkAccessManager` and cached under `<cacheDir>/posters/`) or, video-only, a cached
-frame-grab (`VaultThumbnailer`, ffmpeg off-thread, cached under `<cacheDir>/thumbs/`); missing art
-falls back to the typographic treatment (§4.7), never a broken frame. **A remote `identityCoverUrl`
+`cacheDir` every other Vault store sits under) and calls `resolve()` per row in `browseAt()` (Film,
+Episode/Clip, AND Folder/Show/Season branches), `items()`, and `series()`: local art the row
+already carries (a video group's adopted `file://` artwork, or a comic/book
+`image://comiccover|vaultbookcover/<id>`) wins outright; failing that, a matched identity's
+canonical poster (`VaultPosterFetcher`, fetched over `QNetworkAccessManager` and cached under
+`<cacheDir>/posters/`) or, video-only, a cached frame-grab (`VaultThumbnailer`, ffmpeg off-thread,
+cached under `<cacheDir>/thumbs/` — the locked design's Episode still / Clip real-footage frame,
+e.g. Hemanth's own Cricket clips). An Episode/Clip node's own `path` IS the video file
+(`VaultKit::planBrowseLevel`'s loose-video leaf grammar), never a group's folder-shaped
+`groupKey`/`subtreePath` the way a Film node's is, so that lookup goes through
+`VaultIndex::rowsForPath()` (exact-path query, added for this) rather than `rowsForGroup()`.
+Missing art falls back to the typographic treatment (§4.7), never a broken frame. **A remote `identityCoverUrl`
 is only ever `resolve()`'s `posterUrl` INPUT — it never lands in `coverRef`/`coverUrl` directly**
 (the pre-Slice-3 behavior, which bound the raw remote URL straight to the tile, is retired). A
 cache miss kicks that producer's async fetch/grab and returns `""`; `VaultArtworkResolver::
@@ -100,7 +105,7 @@ Play (grid card / sheet / Open Recent / Open Media control)
 | File | Role |
 |---|---|
 | `native/engine/VaultKit.{h,cpp}` | the Vault's **pure-logic kit**, no QObject: the census classifier, the SxxExx + absolute-numbering episode grammar, the media-folder title cleaner, and (browse-face plan) **`planBrowseLevel`** — the browse-collapse planner — and `describeFilmFolder` (companions/extras for the detail sheet) |
-| `native/engine/VaultIndex.{h,cpp}` | the rebuildable scan product: SQLite at `<appdata>/vault/index-v1.sqlite`, transactional `publish()` (whole-index replace) + `upsert()`/`upsertMany()` (live arrivals), natural-order sort key, `rowsForIdentity()` (cross-root "same film, N copies" join) |
+| `native/engine/VaultIndex.{h,cpp}` | the rebuildable scan product: SQLite at `<appdata>/vault/index-v1.sqlite`, transactional `publish()` (whole-index replace) + `upsert()`/`upsertMany()` (live arrivals), natural-order sort key, `rowsForIdentity()` (cross-root "same film, N copies" join), `rowsForPath()` (browse-artwork Slice 3 part 2 — exact-path lookup for an Episode/Clip leaf, which has no folder-shaped groupKey to query by) |
 | `native/engine/VaultConfig.{h,cpp}` | user intent: roots (+confirmed/synthetic/hidden flags), per-subtree kind overrides, `scanIgnore` needles — never written by the scanner |
 | `native/engine/VaultIdentity.{h,cpp}` | content-addressed file identity (`vault:`+SHA1 of `path::size::mtimeMs`) so progress survives rename/move; `reconcile()` migrates unambiguous renames, parks ambiguous ones |
 | `native/engine/VaultScanner.{h,cpp}` | the cancellable off-thread census: `buildScan()` (pure, sync) on a pool thread, `applyResult()`/`applyPublish()` (thread-affine identity+index commit) back on the GUI thread |
@@ -278,6 +283,19 @@ tagline, and the gradient stays neutral house tokens instead of a per-slide colo
     (never bumping `m_revision`) that `VaultPage.qml` connects directly to a re-derive-and-
     `syncGridModel()` call — reusing the SAME in-place `ListModel` diff identify-in-place's
     revision-driven path relies on (trap #6), just reached without the collateral recompute.
+15. **An Episode/Clip node's `path`/`key` IS the video file — `rowsForGroup()` (the Film branch's
+    own lookup) silently returns nothing for it.** `VaultScanner::groupByFirstLevelSubdir` groups
+    by the CONFIRMED ROOT'S IMMEDIATE CHILD directory (a whole multi-season show is one group,
+    keyed by the show's own top folder, or the root+`"::LOOSE"` sentinel for files loose directly
+    in a root) — never by an episode's own containing season folder, and never by the episode
+    file's own path. A Film node's `n.path` genuinely equals its group's `subtreePath` (the
+    "folder-is-one-film" convention), but an Episode/Clip node's `n.path` is the FILE itself
+    (`VaultKit::planBrowseLevel`'s loose-video leaf grammar) — reusing `rowsForGroup(n.path)`
+    there would query for a groupKey that no row carries, always returning empty. Reconstructing
+    the true groupKey client-side (walk up to the confirmed root, take the first path segment,
+    handle the `"::LOOSE"` sentinel) would duplicate `groupByFirstLevelSubdir`'s own rule with real
+    risk of a subtly wrong re-derivation — `VaultIndex::rowsForPath()` (exact `path` match) sidesteps
+    that entirely. Bounded cost: 0-or-1 rows, same as any other single-row lookup in this file.
 
 ## 6. How to test it
 

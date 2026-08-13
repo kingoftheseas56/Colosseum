@@ -114,16 +114,18 @@ public:
     // knows: away (VaultIndex row state) and a best-effort identified/resolving/localOnly state
     // for film nodes (a single real file's own group is a reliable lookup; deeper per-episode
     // state and durable uncertainty are Slices 2/6's business, not this one's). coverRef
-    // (browse-artwork execution plan, Slice 3 part 2): every node this method returns — Film AND
-    // Folder/Show/Season containers — is now walked through VaultArtworkResolver::resolve(): local
-    // art the row already carries (a video group's adopted "file://" ref, or the comic/book
-    // image://comiccover|vaultbookcover/<id> translation) wins outright; failing that, a matched
-    // identity's canonical poster (fetched+cached by VaultPosterFetcher) or, video-only, a cached
-    // frame-grab (VaultThumbnailer). A remote `identityCoverUrl` is consulted ONLY as resolve()'s
-    // input — it never lands in coverRef directly. A miss returns "" (typographic fallback) and
-    // kicks that producer's async fetch/grab; VaultArtworkResolver::artResolved(rowKey) then fires
-    // browseArtResolved(rowKey) (see that signal below) so the caller re-projects the same level.
-    // Episode/Clip nodes are UNCHANGED by this slice (still always "") — Row shape:
+    // (browse-artwork execution plan, Slice 3 part 2): EVERY node this method returns — Film,
+    // Episode/Clip leaves (VaultIndex::rowsForPath — their own path IS the video file, never a
+    // group's folder-shaped key the way Film's is), AND Folder/Show/Season containers — is now
+    // walked through VaultArtworkResolver::resolve(): local art the row already carries (a video
+    // group's adopted "file://" ref, or the comic/book image://comiccover|vaultbookcover/<id>
+    // translation) wins outright; failing that, a matched identity's canonical poster
+    // (fetched+cached by VaultPosterFetcher) or, video-only, a cached frame-grab (VaultThumbnailer
+    // — the locked design's Episode still / Clip real-footage frame). A remote `identityCoverUrl`
+    // is consulted ONLY as resolve()'s input — it never lands in coverRef directly. A miss returns
+    // "" (typographic fallback) and kicks that producer's async fetch/grab; VaultArtworkResolver::
+    // artResolved(rowKey) then fires browseArtResolved(rowKey) (see that signal below) so the
+    // caller re-projects the same level. Row shape:
     // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path}.
     // Slice 6: away now flows to EVERY node type, not just Film — a whole level's owning root
     // going away marks every one of its tiles, not just the ones this method already had a

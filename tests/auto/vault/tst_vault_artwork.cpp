@@ -316,14 +316,17 @@ void tst_vault_artwork::ladder_precedence_local_then_poster_then_thumb_then_typo
     QCOMPARE(resolver.resolve(facts), facts.localRef);
 
     // Remove the local ref: the cached poster (rung 3) now wins over the cached
-    // thumb (rung 4).
+    // thumb (rung 4). resolve() wraps the producer's bare cache-hit path with
+    // QUrl::fromLocalFile — a bare "C:/…" string bound straight to a QML Image source
+    // misparses (the drive letter reads as a URI scheme), so this is the one thing a
+    // caller can bind directly, per this class's own contract.
     facts.localRef.clear();
-    QCOMPARE(resolver.resolve(facts), cachedPoster);
+    QCOMPARE(resolver.resolve(facts), QUrl::fromLocalFile(cachedPoster).toString());
 
-    // Remove the identity/poster: the cached thumb (rung 4) wins.
+    // Remove the identity/poster: the cached thumb (rung 4) wins, same fromLocalFile wrap.
     facts.identityId.clear();
     facts.posterUrl.clear();
-    QCOMPARE(resolver.resolve(facts), cachedThumb);
+    QCOMPARE(resolver.resolve(facts), QUrl::fromLocalFile(cachedThumb).toString());
 
     // Remove the video facts too: nothing left to resolve — typographic fallback.
     facts.kind.clear();
@@ -360,10 +363,11 @@ void tst_vault_artwork::async_video_row_kicks_thumb_fetch_and_signals_row_ready(
     QCOMPARE(resolved.count(), 1);
     QCOMPARE(resolved.at(0).at(0).toString(), facts.rowKey);
 
-    // A second resolve for the same row now returns the freshly cached thumb.
+    // A second resolve for the same row now returns the freshly cached thumb, wrapped as a
+    // file:// URL (resolve()'s own contract — never the bare path VaultThumbnailer itself uses).
     const QString second = resolver.resolve(facts);
     QVERIFY(!second.isEmpty());
-    QCOMPARE(second, thumbnailer.cachedThumbPath(tinyMp4(), size, mtimeMs));
+    QCOMPARE(second, QUrl::fromLocalFile(thumbnailer.cachedThumbPath(tinyMp4(), size, mtimeMs)).toString());
 }
 
 void tst_vault_artwork::container_row_without_video_or_cached_poster_resolves_to_typographic()
