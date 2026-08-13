@@ -76,6 +76,14 @@ half the compiled harnesses are run by nobody.
   the `ColosseumLanistaTest` pipe, readiness-polled, never the daily pipe). As of Slice W0
   (2026-08-12) this gate also calls `tests/warning_gate.ps1` on its own captured logs after the
   scenarios run - the first (and, for this slice, only) opt-in caller of the new warning gate.
+  **L1-Bridge (2026-08-13)** added 8 named cases to `tests/lanista_harness.cpp` proving the all-item
+  structural `dump-ui`/`ui-query` (see the Lanista ledger's "Structural dump" section):
+  `structural_fields_are_versioned`, `structural_dump_includes_unnamed_items`, `parent_chain_is_exact`,
+  `clipping_chain_is_exact`, `stale_structural_handle_is_rejected`, `requested_bounds_are_clamped`,
+  `reply_budget_sets_truncated`, `continuation_resumes_without_duplicates`. Each prints `CASE_OK: <name>`
+  before the harness `LANISTA_OK` sentinel; negative control performed (omitting the unnamed fixture row
+  turned exactly `structural_dump_includes_unnamed_items` red, restored). No CMakeLists change - the
+  `lanista_harness` target already existed.
   No native/QML change; full detail (command, allowlist location, measured baseline, negative
   controls) lives in `docs/colosseum-lanista-verification.md` under "Warning gate (Slice W0,
   2026-08-12)" since it is a runtime/bridge-domain capability, not a compiled test target.

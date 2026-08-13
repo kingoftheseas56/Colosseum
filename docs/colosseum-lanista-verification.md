@@ -50,8 +50,8 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `ping` | Read | schema, pid, pipe, gate states, sorted command list | authoritative capability probe — trust this over any doc, including this one |
 | `get-state` | Read | root windows (title, geometry, visible, active) + artifact runDir + **resolved `appDataRoot`/`cacheRoot`** (the isolation-proof seam, added 2026-08-06) | **root windows only** |
 | `qml-get` | Read | read named QML properties off an item (by objectName or handle) | property equality only, values as QVariant→JSON |
-| `ui-query` | Read | one item's scene rect, visible, enabled, opacity, clippedByWindow | clipping measured against the FIRST root window only |
-| `dump-ui` | Read | every item with a non-empty objectName (DFS, depth, scene coords) | unnamed items invisible; no visibility filter |
+| `ui-query` | Read | one item's geometry + the full structural vocabulary (handle, parent handle/name, childCount, z, enabled, opacity, localRect, sceneRect, **clipChain**) — L1-Bridge, 2026-08-13 | legacy fields unchanged; `clippedByWindow` still root-window-only, but `clipChain` now answers real ancestor clipping (see Structural dump below) |
+| `dump-ui` | Read | **every `QQuickItem`, named or not** (unnamed carry `objectName:""`) with the full structural vocabulary + paging — L1-Bridge, 2026-08-13 | legacy flat fields byte-identical; unnamed items now visible; bounded by root/maxDepth/maxItems + reply-byte budget |
 | `ui-snapshot` | Read | actionable elements with opaque handles, centers, sizes | see "UI model truths" below |
 | `ui-click` | Drive | synthesized click at a named item's center | client never supplies pixel coords |
 | `ui-keypress` | Drive | key to the focus item of the main window | first key of sequence only; printable-ASCII text |
@@ -61,6 +61,28 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `invoke-read` | Read | allowlisted C++ method calls | **8 methods**: six `TankobanVolumes` reads + `BiblioImageDiag.rowsForUrl(urlFragment)` / `BiblioImageDiag.recentRows(limitText)` (per-URL image-network rows: status, error, cacheHit, bytes, contentType, timing — newest first; added 2026-08-06). QString args (max 3); returns only list/map/bool |
 | `events-tail` | Read | last N lines of the JSONL event log | see "Event log truths" |
 | `log-mark` | Read | append a correlation mark to the event log | the ONLY event type that exists today |
+
+### Structural dump — L1-Bridge (2026-08-13)
+
+`dump-ui` and `ui-query` now expose an agent enough structure to explain a layout failure, not
+just enumerate named items. Every row keeps its legacy flat fields (`objectName`/`class`/`x`/`y`/
+`width`/`height`/`visible`/`depth`) byte-identical — old clients are unaffected — and gains:
+`handle` (reuses `ui-snapshot`'s `s<gen>h<n>` epoch machinery — one identity scheme, not two),
+`parentHandle`/`parentName`, `childCount`, `z`, `enabled`, `opacity`, `localRect`/`sceneRect`, and
+`clipChain` (the ordered `clip:true` ancestors, nearest first, each with its own handle + scene
+rect). **`clipChain` is the fix for the demonstrated bug** where `clippedByWindow` reports an item
+`visible:true, clippedByWindow:false` while it is scrolled out of its own list's viewport and not
+actually rendered (L1-Discovery, `docs/visibility/lanista-structural-gap.md`) — `clippedByWindow`
+still measures only the root window, but the clip chain now reveals the real ancestor that hides it.
+
+Top-level reply fields: `generation`, `rootWindow`, `truncated`, `bytesUsed`, `continuation.cursor`.
+Request-side `root` / `maxDepth` (ceiling 64) / `maxItems` (ceiling 5000) are clamped, never trusted;
+a ~96 KiB reply budget (deliberately below the 1 MiB wire ceiling, favouring several small pageable
+replies for an agent consumer) truncates and pages via `cursor` + `generation`. Ephemeral handles die
+at the next structural/snapshot generation (stale → `NO_SUCH_ITEM`); `objectName` targeting unchanged;
+first-root-window scope; Read gate only. Runtime-validated in an isolated session 2026-08-13 (a real
+unnamed production row queried by handle matched its `dump-ui` row exactly). Harness cases: see the
+test ledger's "Lanista structural dump" entry.
 
 ### Combined state + capture (grabs)
 
