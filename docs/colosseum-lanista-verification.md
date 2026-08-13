@@ -313,6 +313,53 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   unrelated catalogue id, and one `QMetaObject::invokeMethod: No such method
   QObject::writeSnapshot` warning) — named honestly, confirmed absent from every Slice 7 file,
   not triaged further here (out of this slice's fence).
+- **Vault Browse series drill (Slice 8, added 2026-08-13):** no new automation surfaces — the
+  drill reuses every objectName Slice 5-7 already named (`vaultBrowseCard_<key>`,
+  `vaultBrowseCrumb`, `vaultBrowseGrid`, `vaultBrowseRailRoot_<n>`), because a season/show/folder
+  card and an episode/clip card share the SAME click→pushCrumb path already wired. What's new is
+  the SCALE fixture: `tests/fixtures/vault/browse-face-smoke`'s Gintama folder grew from 3 to 300
+  stub episode files (real disk holds 367) for a genuine virtualization proof at runtime, not
+  just the Qt Quick Test's seeded-model layer. `tests/lanista_scenarios/vault_browse_smoke.json`
+  was extended (same `browse-face-smoke` fixture, same seed) to drill The Wire's show card to
+  its seasons band (grid count 1 — season-presence honesty: the folder claims 5 seasons, disk
+  holds only Season 4 — the physical fact's exact shipped string is `Season 4 only`, capitalized,
+  differing from casual lowercase references elsewhere; asserted as the exact string per the
+  plan's own instruction to compose the expected string, not a substring match), then Season 4's
+  episode wall (grid count 2, first card's `physicalFact` exact `S4:E1 · 1080p BluRay`), then
+  separately the Gintama-scale show — which drills DIRECTLY to its 300-episode wall with NO
+  season band, because the real disk shape has no season subfolders (absolute-numbered, flat) —
+  proven live, not assumed: `tst_vault_kit.cpp`'s own Slice-1 test already documents "no season
+  band — there is no season subfolder to hold one" for this exact fixture shape. Ten realistic
+  `ui-scroll` wheel-notch events (`dy: -800`, not one extreme delta) reveal episode 22 (outside
+  the initial ~1-18 window the grid renders unscrolled); ascending to root and redrilling WITHOUT
+  a fresh scroll finds episode 22 already there, proving grid persistence across drill depth
+  (design §4.8). Item-grabs preserved for the seasons band and both episode walls. Isolated
+  session (tag `s8final`), 70/70 green 2026-08-13 (the extended scenario, replayed from a clean
+  boot — the earlier Slice 5-7 steps replay unchanged as part of the same run). Two live-driving
+  lessons, folded into the scenario rather than left as tribal knowledge: (1) `ui-wait-for` never
+  replies `{matched:false}` — it only ever replies `matched:true` or fails `WAIT_TIMEOUT` — so an
+  attempted "prove X is NOT yet there" step reading `matched == false` is invalid against this
+  bridge (the ledger's own documented absence-assertion gap, UNAVAILABLE section); removed, the
+  Quick Test's delegate-count assertion covers virtualization's negative half instead. (2) one
+  massive single `ui-scroll` (`dy: -16000`) against the 300-row grid occasionally left a residual
+  flick-momentum artifact that fought the grid's own scroll-restore when a level-changing click
+  followed immediately after (an empty-looking grid, auto-grab preserved as evidence in an
+  earlier iteration) — replaced with many small, realistic-magnitude scrolls, which replayed
+  clean across repeated runs. Warning gate: `WARNING_GATE_OK` on the clean run's own session
+  logs (`colosseum.log` + `stderr.log`); a separate `--drive` attempt under
+  `QT_QPA_PLATFORM=offscreen` was tried per a standing-instruction request to stop opening
+  windowed sessions on Hemanth's desktop — **result: offscreen is not viable for this app's
+  Lanista-driven scenarios today**, and the breakage is structural, not limited to item-grab
+  capture (the ledger's existing "Qt/D3D is uncapturable headless" trap): roughly half the
+  property waits/reads return no reply at all (`WAIT_TIMEOUT` or an outright empty response)
+  starting from the FIRST substantive interaction (opening the detail sheet), both under the
+  default RHI and under a forced `QSG_RHI_BACKEND=software` (which additionally ran markedly
+  slower, >120s versus ~30-60s windowed for the same 70 steps, without fixing the breakage).
+  Windowed sessions remain the default for Vault browse-face scenarios until this is
+  investigated further; named here rather than worked around silently. `vault_launch_smoke.json`
+  replayed 7/7 green in a fresh isolated session the same day; `vault_open_recent.json` was not
+  replayed this slice (its seed needs hand-placing per the Slice 7 note above, and Slice 8's own
+  regression list names only `vault_browse_smoke` + the scroll-restore behavior).
 
 ### Scenario runner (`native/tools/lanista.cpp`)
 
