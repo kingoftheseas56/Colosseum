@@ -727,6 +727,20 @@ chat had the `lanista_*` tools loaded, the plan's documented fallback), transcri
   disposable `Colosseum-dltest-<tag>` siblings — both derive from `applicationName` on
   Windows, verified empirically by the pilot's isolation assert (2026-08-06). Does not change
   the pipe name; `session run` sets the pipe itself.
+- **CRITICAL GAP CLOSED (2026-08-14).** Until this fix, the tag above did NOT cover the three
+  registry-backed stores — `ProgressStore` (Continue), `CollectionStore` (Your Collection), and
+  `SearchHistoryStore` (search MRU) all hardcoded `QSettings("Brotherhood", "Colosseum")`, which
+  resolves straight to the Windows registry regardless of `applicationName` — so a tagged
+  session still read AND WROTE the real user's Continue map, Collection shelf, and search
+  history. Proven live: a tagged test journey wrote `manga␟journey-manga-series-v1` into the
+  real registry Continue map. Fixed by having each store divert to a private ini file under the
+  tag's own `AppDataLocation` when `COLOSSEUM_APPDATA_TAG` is set (`ProgressStore.h`,
+  `CollectionStore.h`, `SearchHistoryStore.h`); untagged behavior (the daily app) is unchanged.
+  `colosseum.qttest.store_isolation` (ctest) proves the routing; a live tagged session's empty
+  Continue map is the runtime proof. **Any new QSettings-backed store must never hardcode the
+  org/app pair** — either follow this file's tag-gate pattern or use a plain
+  default-constructed `QSettings()` (resolves through the current `applicationName()`, already
+  tag-safe — the pattern `AudioPairingStore`/`WindowModeStore`/the torrent stores already use).
 - `dev.bat` isolates **nothing**: no pipe override, no data tag, no gates — it shares the daily
   app's data, cache, and default pipe. It is a live-reload convenience, not a test session.
 
