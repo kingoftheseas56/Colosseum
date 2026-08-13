@@ -49,8 +49,33 @@
 #include <QDateTime>
 #include <QThread>
 #include <QCoreApplication>
+#include <QStandardPaths>
+#include <QDir>
 #include <memory>
 #include <algorithm>
+
+namespace {
+// Isolation gate (2026-08-14 fix). ProgressStore/CollectionStore historically hardcoded the
+// QSettings two-arg constructor (org="Brotherhood", app="Colosseum"), which resolves straight
+// to the Windows registry at HKCU\Software\Brotherhood\Colosseum — the REAL user's hive — no
+// matter what QCoreApplication::applicationName() the process was given. That bypassed
+// COLOSSEUM_APPDATA_TAG entirely: a tagged/isolated Lanista test session still read AND wrote
+// the real Continue map (proven: a test journey wrote a manga entry into the real registry).
+// main.cpp's tag already re-roots QStandardPaths::AppDataLocation to a disposable per-tag
+// folder (main.cpp, COLOSSEUM_APPDATA_TAG block, ~line 559) — this just routes the store's
+// persistence there too, as a file, instead of the shared registry. Untagged: returns an
+// empty string, meaning "use the registry" — the daily app is byte-for-byte unaffected.
+// Named per-store (progressStore...) rather than shared: ProgressStore.h and
+// CollectionStore.h are both #included into main.cpp, and two identically-named
+// functions in unnamed namespaces would collide in that one translation unit.
+inline QString progressStoreTaggedIniPath(const QString &storeFileName) {
+    if (!qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG"))
+        return QString();
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dir);
+    return dir + QLatin1Char('/') + storeFileName;
+}
+}
 
 // Background disk writer for the Continue map. Owns the QSettings that persists `continue/
 // entries` and performs ALL JSON serialization + QSettings::sync() on its OWN thread, so the
@@ -108,10 +133,18 @@ class ProgressStore : public QObject {
     Q_PROPERTY(int revision READ revision NOTIFY changed)
 public:
     explicit ProgressStore(QObject *parent = nullptr)
-        : QObject(parent),
-          m_settings(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum")) {
+        : QObject(parent) {
+        // Tagged (isolated Lanista test) sessions divert to a file under the tag's own
+        // AppData root; untagged (the daily app) is unchanged — registry, same keys.
+        const QString tagged = progressStoreTaggedIniPath(QStringLiteral("progress-store.ini"));
+        if (tagged.isEmpty()) {
+            m_settings = std::make_unique<QSettings>(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"));
+            m_writer = new ProgressDiskWriter(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"));
+        } else {
+            m_settings = std::make_unique<QSettings>(tagged, QSettings::IniFormat);
+            m_writer = new ProgressDiskWriter(tagged);
+        }
         load();
-        m_writer = new ProgressDiskWriter(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"));
         setupWriter();
     }
 
@@ -120,7 +153,7 @@ public:
     // real Continue data. Mirrors SearchHistoryStore's path constructor.
     explicit ProgressStore(const QString &iniPath, QObject *parent = nullptr)
         : QObject(parent),
-          m_settings(iniPath, QSettings::IniFormat) {
+          m_settings(std::make_unique<QSettings>(iniPath, QSettings::IniFormat)) {
         load();
         m_writer = new ProgressDiskWriter(iniPath);
         setupWriter();
@@ -241,7 +274,7 @@ public:
             return;
         for (const QString &key : doomed)
             m_map.remove(key);
-        m_settings.remove(QStringLiteral("video/watchedMark/")
+        m_settings->remove(QStringLiteral("video/watchedMark/")
                           + seriesRootId(id));
         scheduleSave();
         bump();
@@ -254,17 +287,17 @@ public:
     Q_INVOKABLE int lastSeason(const QString &seriesId) const {
         if (seriesId.isEmpty())
             return -1;
-        return m_settings.value(QStringLiteral("video/lastSeason/") + seriesId, -1).toInt();
+        return m_settings->value(QStringLiteral("video/lastSeason/") + seriesId, -1).toInt();
     }
 
     Q_INVOKABLE void rememberLastSeason(const QString &seriesId, int season) {
         if (seriesId.isEmpty() || season <= 0)
             return;
         const QString key = QStringLiteral("video/lastSeason/") + seriesId;
-        if (m_settings.value(key, -1).toInt() == season)
+        if (m_settings->value(key, -1).toInt() == season)
             return;
-        m_settings.setValue(key, season);
-        m_settings.sync();
+        m_settings->setValue(key, season);
+        m_settings->sync();
         bump();
     }
 
@@ -275,19 +308,19 @@ public:
     // "remove from Continue" never leaves a ghost mark.
     Q_INVOKABLE int watchedMark(const QString &id) const {
         if (id.isEmpty()) return 0;
-        return m_settings.value(QStringLiteral("video/watchedMark/") + seriesRootId(id), 0).toInt();
+        return m_settings->value(QStringLiteral("video/watchedMark/") + seriesRootId(id), 0).toInt();
     }
     Q_INVOKABLE void setWatchedMark(const QString &id, bool watched) {
         if (id.isEmpty()) return;
-        m_settings.setValue(QStringLiteral("video/watchedMark/") + seriesRootId(id),
+        m_settings->setValue(QStringLiteral("video/watchedMark/") + seriesRootId(id),
                             watched ? 1 : -1);
-        m_settings.sync();
+        m_settings->sync();
         bump();
     }
     Q_INVOKABLE void clearWatchedMark(const QString &id) {
         if (id.isEmpty()) return;
-        m_settings.remove(QStringLiteral("video/watchedMark/") + seriesRootId(id));
-        m_settings.sync();
+        m_settings->remove(QStringLiteral("video/watchedMark/") + seriesRootId(id));
+        m_settings->sync();
         bump();
     }
 
@@ -388,7 +421,7 @@ private:
     void load() {
         m_map.clear();
         const QByteArray blob =
-            m_settings.value(QStringLiteral("continue/entries")).toByteArray();
+            m_settings->value(QStringLiteral("continue/entries")).toByteArray();
         const QJsonDocument doc = QJsonDocument::fromJson(blob);
         if (doc.isObject()) {
             const QJsonObject obj = doc.object();
@@ -400,7 +433,10 @@ private:
     // GUI-thread QSettings: used ONLY for load() at startup and for the infrequent
     // lastSeason / watchedMark keys (rare user actions, never the 5s playback tick). The hot
     // continue/entries path is owned by the background writer's own QSettings instance.
-    QSettings m_settings;
+    // A pointer (not a plain member) because which backing store to build — registry vs. a
+    // tagged isolation file — is a runtime decision made in the constructor body; see
+    // progressStoreTaggedIniPath() above and ProgressStore's default constructor.
+    std::unique_ptr<QSettings> m_settings;
     QHash<QString, QVariant> m_map;   // "kind\x1fid" → entry map
     int m_revision = 0;
     ProgressDiskWriter *m_writer = nullptr;

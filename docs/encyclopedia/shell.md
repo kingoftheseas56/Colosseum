@@ -93,9 +93,13 @@ for automation. A dropped FOLDER explains + offers the picker (the folder→Vaul
   taskbar layout, and any background surface. After a restart, Continue Watching tiles
   (`Progress`) are what re-open movies/comics/books — each tile calls `openMovieSession` etc. and a
   fresh session record is born (Main.qml:1246).
-- **Continue / Collection / SearchHistory — QSettings JSON blobs** under org `Brotherhood`, app
-  `Colosseum` (Roaming/Brotherhood/Colosseum): `continue/entries`, `collection/entries`, per-scope
-  search lists. The org name matters — see Trap 6.
+- **Continue / Collection / SearchHistory — QSettings JSON blobs.** Untagged (the daily app):
+  registry, org `Brotherhood` app `Colosseum` (Roaming/Brotherhood/Colosseum, unchanged since the
+  Trap 7 org-name move): `continue/entries`, `collection/entries`, per-scope search lists. Tagged
+  (`COLOSSEUM_APPDATA_TAG` set): diverted to a FILE — `<tag's AppDataLocation>/progress-store.ini`
+  / `collection-store.ini` / `search-history-store.ini` — never the registry (2026-08-14 isolation
+  fix, see Trap 12; `ProgressStore.h`/`CollectionStore.h`/`SearchHistoryStore.h`). The org name
+  still matters for the untagged path — see Trap 6.
 - **Wallpapers — `wallpapers.ini`** at repo root: `homePick` / `tankobanPick` / `biblioPick` /
   `theatrePick` (Main.qml:54–62, 101–112).
 - **Global prefs — `ContentPreferences`** (QML, app QSettings): showExplicit and friends, pushed
@@ -158,13 +162,30 @@ for automation. A dropped FOLDER explains + offers the picker (the folder→Vaul
     is `Player2Available === true` (Main.qml:833) and `playerLayer.source` picks the page from it
     (Main.qml:2536). Reporting true on an OpenGL boot is what made Player 2 take playback it could
     never render (2026-07-25, main.cpp:1067–1073). See player.md Trap 1 for the full story.
+12. **A hardcoded QSettings(org, app) constructor bypasses `COLOSSEUM_APPDATA_TAG` entirely — it
+    is NOT an AppData-derived path.** `ProgressStore`, `CollectionStore`, and `SearchHistoryStore`
+    all used to construct their `QSettings` with the literal two-arg constructor
+    (`QSettings("Brotherhood", "Colosseum")`), which resolves straight to the Windows registry
+    regardless of `QCoreApplication::applicationName()` — so a tagged/isolated test session still
+    read AND wrote the real user's Continue map, Collection shelf, and search history (proven:
+    a test journey wrote a manga entry into the real registry, 2026-08-14). Fixed by having each
+    store resolve `qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG")` at construction and, when
+    set, build via its own `IniFormat` constructor with a path under
+    `QStandardPaths::writableLocation(AppDataLocation)` (already re-rooted per-tag by Trap 7's
+    mechanism) instead of the registry. Untagged behavior (the daily app) is unchanged. Any FUTURE
+    QSettings-backed store must follow this pattern (or the already-safe pattern used by
+    `AudioPairingStore`/`WindowModeStore`/the torrent stores: a plain default-constructed
+    `QSettings()`, which resolves through the CURRENT `applicationName()` and is tag-safe on its
+    own) — never hardcode the org/app pair.
 
 ## 6. How to test it
 
 - **Unit (ctest):** `ctest -L unit` covers the shell's stores: `colosseum.window_state_policy_harness`,
   `colosseum.search_history_store_harness`, `colosseum.collection_store_harness`, the QtTest
   `colosseum.qttest.window_state_policy`, and the QML suite `colosseum.qml` (tests/qml, incl.
-  `tst_search_history_flow.qml`) (tests/CMakeLists.txt:28–103).
+  `tst_search_history_flow.qml`) (tests/CMakeLists.txt:28–103). `colosseum.qttest.store_isolation`
+  proves Trap 12: under `COLOSSEUM_APPDATA_TAG`, `ProgressStore`/`CollectionStore` writes land in
+  the tagged file and the registry is untouched; untagged, the registry path is unchanged.
 - **Session semantics:** `COLOSSEUM_SESSION_SELFTEST=1` runs SessionStore's own selftest at boot
   (dedup, one-tab-per-show replace, group shape — logs `[session-selftest] PASS/FAIL`,
   main.cpp:1115–1116). `tests/test_one_tab_per_show_p0.ps1` is a shape-only contract gate over it.

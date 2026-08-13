@@ -1,11 +1,11 @@
 {
   "entries": {
     "native/CollectionStore.h": {
-      "accepted_blob": "7c44bce37c1fa1ceab951974a8b657f37d769846",
+      "accepted_blob": "61da5f28f6c051e98febd902ae29fbb96f0d8aee",
       "accepted_comment": "// CollectionStore — the \"Your Collection\" shelf: what the user CHOSE to save via\n// the + Library toggle. NOT Continue: distinct from ProgressStore (auto history) —\n// an entry can exist unstarted and survives finishing. One store, three worlds.\n//\n// QML side (the only contract):\n//   Collection.add(world, { id, type, title, cover, payload })   // upsert; stamps addedAt\n//   Collection.remove(world, id)\n//   Collection.has(world, id)\n//   Collection.items(world)        // newest-first by addedAt\n//   Collection.revision            // bump on every change — name it in a binding to make\n//                                  //   has()/items()-based bindings re-evaluate reactively.\n//\n// `type` must ride on every entry (universe-tile law: a tile without type opens a\n// series as a movie and dies). `payload` is the world-specific reopen snapshot.\n// Persistence mirrors ProgressStore: one JSON blob under \"collection/entries\"."
     },
     "native/SearchHistoryStore.h": {
-      "accepted_blob": "727a8bf03aca45e37a6c65fc1d74c64ef2387037",
+      "accepted_blob": "d82968f6d7be6b7ad58df05b9ec3be546ac82973",
       "accepted_comment": "// SearchHistoryStore -- a tiny, durable MRU list for the three world search surfaces.\n// It owns the disk boundary so QML Loader recreation and provider callbacks cannot decide\n// whether a user search is remembered."
     },
     "native/SessionStore.h": {
@@ -49,6 +49,6 @@
       "accepted_comment": "// WorldTabBar — TheatreTabBar's glass pill bar, generalized to any tab set (parameterized\n// tabModel). Used by the Tankoban world (Manga|Comics); Theatre keeps TheatreTabBar for now\n// and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint."
     }
   },
-  "integrity": "sha256:46378dbdbcdb42ad6def0b7bc480da1c72ffdec8c8b0a95be57340b802e157f9",
+  "integrity": "sha256:72eff183fe929285c4247e3ed2797cedd00503fffe85311ae37728e1a29213a9",
   "schema": 1
 }

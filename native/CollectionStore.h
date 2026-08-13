@@ -16,25 +16,51 @@
 // Persistence mirrors ProgressStore: one JSON blob under "collection/entries".
 
 #include <QDateTime>
+#include <QDir>
 #include <QHash>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QObject>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QString>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
 
 #include <algorithm>
+#include <memory>
+
+namespace {
+// Isolation gate (2026-08-14 fix). See ProgressStore.h's progressStoreTaggedIniPath() for the
+// full writeup: CollectionStore hardcoded the QSettings two-arg registry constructor
+// (org="Brotherhood", app="Colosseum"), so a tagged/isolated Lanista test session read AND
+// wrote the real user's Collection shelf regardless of COLOSSEUM_APPDATA_TAG. Named per-store
+// (collectionStore...) because CollectionStore.h and ProgressStore.h are both #included into
+// main.cpp, and two identically-named functions in unnamed namespaces would collide in that
+// one translation unit. Untagged: returns an empty string, meaning "use the registry" — the
+// daily app is byte-for-byte unaffected.
+inline QString collectionStoreTaggedIniPath(const QString &storeFileName) {
+    if (!qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG"))
+        return QString();
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dir);
+    return dir + QLatin1Char('/') + storeFileName;
+}
+}
 
 class CollectionStore : public QObject {
     Q_OBJECT
     Q_PROPERTY(int revision READ revision NOTIFY changed)
 public:
     explicit CollectionStore(QObject *parent = nullptr)
-        : QObject(parent),
-          m_settings(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum")) {
+        : QObject(parent) {
+        // Tagged (isolated Lanista test) sessions divert to a file under the tag's own
+        // AppData root; untagged (the daily app) is unchanged — registry, same keys.
+        const QString tagged = collectionStoreTaggedIniPath(QStringLiteral("collection-store.ini"));
+        m_settings = tagged.isEmpty()
+            ? std::make_unique<QSettings>(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"))
+            : std::make_unique<QSettings>(tagged, QSettings::IniFormat);
         load();
     }
 
@@ -42,7 +68,7 @@ public:
     // harnesses stay hermetic. Mirrors ProgressStore's path constructor.
     explicit CollectionStore(const QString &iniPath, QObject *parent = nullptr)
         : QObject(parent),
-          m_settings(iniPath, QSettings::IniFormat) {
+          m_settings(std::make_unique<QSettings>(iniPath, QSettings::IniFormat)) {
         load();
     }
 
@@ -97,7 +123,7 @@ private:
 
     void load() {
         m_map.clear();
-        const QByteArray raw = m_settings.value(QStringLiteral("collection/entries")).toByteArray();
+        const QByteArray raw = m_settings->value(QStringLiteral("collection/entries")).toByteArray();
         if (raw.isEmpty())
             return;
         const QJsonDocument doc = QJsonDocument::fromJson(raw);
@@ -109,12 +135,15 @@ private:
         QJsonObject obj;
         for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it)
             obj.insert(it.key(), QJsonObject::fromVariantMap(it.value().toMap()));
-        m_settings.setValue(QStringLiteral("collection/entries"),
+        m_settings->setValue(QStringLiteral("collection/entries"),
                             QJsonDocument(obj).toJson(QJsonDocument::Compact));
-        m_settings.sync();
+        m_settings->sync();
     }
 
-    QSettings m_settings;
+    // A pointer (not a plain member) because which backing store to build — registry vs. a
+    // tagged isolation file — is a runtime decision; see collectionStoreTaggedIniPath() above
+    // and CollectionStore's default constructor.
+    std::unique_ptr<QSettings> m_settings;
     QHash<QString, QVariant> m_map;
     int m_revision = 0;
 };

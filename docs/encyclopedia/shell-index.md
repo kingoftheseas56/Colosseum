@@ -14,8 +14,8 @@
 ## `native/CollectionStore.h`
 
 - Status: **CURRENT**
-- Accepted blob: `7c44bce37c1fa1ceab951974a8b657f37d769846`
-- Current blob: `7c44bce37c1fa1ceab951974a8b657f37d769846`
+- Accepted blob: `61da5f28f6c051e98febd902ae29fbb96f0d8aee`
+- Current blob: `61da5f28f6c051e98febd902ae29fbb96f0d8aee`
 - Source: [`native/CollectionStore.h`](../../native/CollectionStore.h)
 
 ```text
@@ -40,8 +40,8 @@
 ## `native/SearchHistoryStore.h`
 
 - Status: **CURRENT**
-- Accepted blob: `727a8bf03aca45e37a6c65fc1d74c64ef2387037`
-- Current blob: `727a8bf03aca45e37a6c65fc1d74c64ef2387037`
+- Accepted blob: `d82968f6d7be6b7ad58df05b9ec3be546ac82973`
+- Current blob: `d82968f6d7be6b7ad58df05b9ec3be546ac82973`
 - Source: [`native/SearchHistoryStore.h`](../../native/SearchHistoryStore.h)
 
 ```text
@@ -187,7 +187,7 @@ _No explanatory comment was harvested after the allowed file preamble._
 
 - Status: **DRIFTED**
 - Accepted blob: `6ecfa8212549db51d626dcb98797206d790f36f7`
-- Current blob: `7f4eca5a996c420046862a0fb02e05eea6433475`
+- Current blob: `fc45a521edb196134d21591aa3d79077a76760c4`
 - Source: [`qml/Taskbar.qml`](../../qml/Taskbar.qml)
 - Interpretation: the accepted description predates the current blob; read the source before relying on it.
 

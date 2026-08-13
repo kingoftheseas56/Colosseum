@@ -6,10 +6,30 @@
 
 #include <QObject>
 #include <QSettings>
+#include <QStandardPaths>
+#include <QDir>
 #include <QStringList>
 #include <QVariant>
 #include <QDebug>
 #include <memory>
+
+namespace {
+// Isolation gate (2026-08-14 fix). See ProgressStore.h's progressStoreTaggedIniPath() for the
+// full writeup: SearchHistoryStore hardcoded the QSettings two-arg registry constructor
+// (org="Brotherhood", app="Colosseum"), so a tagged/isolated Lanista test session read AND
+// wrote the real user's search history regardless of COLOSSEUM_APPDATA_TAG. Named per-store
+// (searchHistoryStore...) because this header, ProgressStore.h, and CollectionStore.h are all
+// #included into main.cpp, and two identically-named functions in unnamed namespaces would
+// collide in that one translation unit. Untagged: returns an empty string, meaning "use the
+// registry" — the daily app is byte-for-byte unaffected.
+inline QString searchHistoryStoreTaggedIniPath(const QString &storeFileName) {
+    if (!qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG"))
+        return QString();
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dir);
+    return dir + QLatin1Char('/') + storeFileName;
+}
+}
 
 class SearchHistoryStore : public QObject {
     Q_OBJECT
@@ -18,8 +38,13 @@ class SearchHistoryStore : public QObject {
 public:
     explicit SearchHistoryStore(QObject *parent = nullptr)
         : QObject(parent),
-          m_settings(std::make_unique<QSettings>(QStringLiteral("Brotherhood"),
-                                                 QStringLiteral("Colosseum"))) {}
+          m_settings(
+              searchHistoryStoreTaggedIniPath(QStringLiteral("search-history-store.ini")).isEmpty()
+                  ? std::make_unique<QSettings>(QStringLiteral("Brotherhood"),
+                                                QStringLiteral("Colosseum"))
+                  : std::make_unique<QSettings>(
+                        searchHistoryStoreTaggedIniPath(QStringLiteral("search-history-store.ini")),
+                        QSettings::IniFormat)) {}
 
     // The explicit INI constructor is deliberately public for the native persistence harness.
     explicit SearchHistoryStore(const QString &iniPath, QObject *parent = nullptr)
