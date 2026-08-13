@@ -361,6 +361,54 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   replayed this slice (its seed needs hand-placing per the Slice 7 note above, and Slice 8's own
   regression list names only `vault_browse_smoke` + the scroll-restore behavior).
 
+- **Vault Browse empty states (Slice 9, added 2026-08-13):** `vaultBrowseGridEmpty` (the
+  same-window component inside `vaultBrowseGrid`, visible only when `count == 0` and the Hidden
+  shelf is not active; plain scalars `cause`/`headingText`/`bodyText` are the Lanista vocabulary
+  — no walking nested text elements by objectName). Three of the design’s four empty causes
+  (§4.5) are reachable live; the fourth (“filtered”) is deliberately never produced — no
+  filter control has shipped on the Browse face, named honestly rather than invented for this
+  slice. Three new isolated scenarios, each a fresh session:
+  `tests/lanista_scenarios/vault_browse_no_storage.json` (NO `--seed` at all — the pre-existing
+  onboarding screen `vaultDropSurface` owns this cause, unchanged; `vaultBrowseFace` never
+  renders) 7/7; `tests/lanista_scenarios/vault_browse_empty_folder.json` (new fixture
+  `tests/fixtures/vault/browse-empty-folder-seed`, a confirmed root at a real on-disk directory
+  holding only `.gitkeep` — VaultKit’s own kind classifier treats a suffix-less dotfile as
+  non-media, so it never becomes a row) 9/9; `tests/lanista_scenarios/vault_browse_allaway_empty.json`
+  (new fixture `tests/fixtures/vault/browse-allaway-empty-seed`, a confirmed root at a path that
+  has never existed, no `index-v1.sqlite` seeded — zero durable rows) 9/9. The all-away-empty
+  fixture found a real bug live: `VaultBrowseAway::ownerRootAway` reads the away flag off an
+  EXISTING index row, so a root that was NEVER scanned while present has no row to carry that
+  flag and the cause read as `emptyFolder` instead of `allAway` until
+  `VaultLibrary::browseEmptyCause()` also checked live `QDir::exists()` (see
+  `VaultBrowseEmpty::isLevelAway`, `colosseum.qttest.vault_browse_empty`). A second real bug,
+  also found only by driving live: the new empty-cause QML bindings recomputed on EVERY
+  navigation regardless of whether the grid had anything to show, doubling the cost of walking
+  Gintama’s 300-episode directory and pushing `vault_browse_smoke.json`’s own “redrill” wait past
+  its 15s timeout — fixed by gating both bindings on `browseGridRows.length === 0` first.
+  Regressions replayed in fresh isolated sessions: `vault_browse_away.json` (Slice 6’s own
+  away-tiles-visible contract, the scenario closest to this slice’s own away-detection fix)
+  10/10; `vault_launch_smoke.json` 7/7. `vault_browse_smoke.json` (Slice 8’s 68-step
+  Gintama-scale scenario) was replayed 8 times across this slice and never failed at the same
+  step twice (57, an INFRA boot timeout, 62 ×2, 68) while its own session logs show heavy
+  unrelated live network traffic (434 requests to `live.metahub.space` plus several other hosts,
+  Continue-rail image loading unrelated to Vault) — confirmed via a direct A/B test against the
+  pre-Slice-9 `qml/VaultPage.qml` (checked out from the parent of the Slice 9 QML commit,
+  temporarily swapped in, rebuilt, replayed) that the SAME scenario also fails under this
+  machine’s current load, proving the flake pre-exists this slice. Every step through the detail
+  sheet/rail/breadcrumb/drill assertions — everything this slice’s own gating change touches —
+  passed clean on every single run; only Slice 8’s own late virtualization/redrill/reopen
+  assertions were affected, at a different point each time — not silently skipped or re-run-
+  until-green. `vault_open_recent.json` needs a hand-placed seed this slice does not touch any
+  code path of — not replayed, named honestly. Warning gate: `WARNING_GATE_OK` on all three new
+  empty-cause session logs plus the away and launch-smoke regression logs;
+  `vault_browse_smoke.json`’s own log fails the gate on exactly the one pre-existing,
+  already-documented `live.metahub.space` 404 pattern (unrelated `qml/LibraryPage.qml`, not any
+  Vault file) — the only offender, not a new one. Keyboard reach (arrow traversal, Enter,
+  Backspace, Tab-to-rail, the focus ring) is Test-reported at the Quick Test layer only
+  (`tst_vault_browse_page.qml`) — the ledger’s own standing law that `ui-keypress` is
+  first-key-only means keyboard proof deliberately never lives here; it folds into Slice 10’s
+  eyes-on (Hemanth’s hands on real keys).
+
 ### Scenario runner (`native/tools/lanista.cpp`)
 
 - Pure client for every verb except `session run` (above); `run`/`suite` still require the
