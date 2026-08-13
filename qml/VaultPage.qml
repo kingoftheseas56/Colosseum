@@ -73,6 +73,22 @@ Item {
     property bool hiddenViewActive: false    // the reversible Hidden shelf, not a folder level
     property var contextRow: null            // the row a card's right-click context menu targets
 
+    // ==== Slice 7: the detail sheet — opening a Film row answers "what do I physically hold"
+    //      instead of routing straight to Play (design decision #11). Episode/clip rows are
+    //      unaffected: their Play routing is untouched (Slice 8's business, not this one's). ====
+    property bool detailSheetVisible: false
+    property string detailSheetKey: ""
+    property string detailSheetRowState: "" // the grid row's own state at open time (Identify/Un-identify choice)
+    readonly property var detailSheetDetail: (root.detailSheetVisible && root.detailSheetKey
+            && typeof VaultLibrary !== "undefined")
+        ? (VaultLibrary.revision, VaultLibrary.browseDetail(root.detailSheetKey)) : ({})
+    function openDetailSheet(row) {
+        root.detailSheetKey = row.key || ""
+        root.detailSheetRowState = row.state || ""
+        root.detailSheetVisible = true
+    }
+    function closeDetailSheet() { root.detailSheetVisible = false }
+
     readonly property var displayedCrumbStack: root.hiddenViewActive
         ? [{ key: "hidden:", displayTitle: "Hidden" }] : root.crumbStack
 
@@ -228,7 +244,25 @@ Item {
             root.pushCrumb(row.key, row.displayTitle)
             return
         }
-        // film / episode / clip -> Play routes as today (the detail sheet is Slice 7).
+        if (row.nodeType === "film") {
+            // Opening a film answers "what do I physically hold" (design decision #11) — the
+            // detail sheet, not a direct Play. Episode/clip Play routing is untouched.
+            root.openDetailSheet(row)
+            return
+        }
+        // episode / clip -> Play routes as today.
+        if (row.path) root.openMediaRequested(row.path)
+    }
+    // The carousel's own Play affordance — unlike a grid card's click, this is unconditional
+    // "start watching/drilling" (its label says Play, not Open) and stays exactly as Slice 5
+    // wired it. The carousel's "Details" secondary action (a deliberate no-op until this slice)
+    // is what opens the detail sheet for a film slide, below.
+    function handleCarouselPrimary(row) {
+        if (!row) return
+        if (row.nodeType === "folder" || row.nodeType === "show" || row.nodeType === "season") {
+            root.pushCrumb(row.key, row.displayTitle)
+            return
+        }
         if (row.path) root.openMediaRequested(row.path)
     }
     function identifyBrowseRow(row) {
@@ -790,11 +824,15 @@ Item {
             secondaryLabel: "Details"
             onPrimaryClicked: (idx) => {
                 const s = root.carouselSlides[idx]
-                if (s && s.__row) root.handleBrowseCardOpen(s.__row)
+                if (s && s.__row) root.handleCarouselPrimary(s.__row)
             }
-            // The detail sheet is Slice 7 (do not build it here) — Details is a deliberate no-op
-            // until then, not a fake action.
-            onSecondaryClicked: (idx) => {}
+            // Slice 7: Details opens the detail sheet for a film slide (design decision #11).
+            // A show/season slide has no sheet in this slice (series drill is Slice 8's
+            // business) — Details stays a no-op for those, named honestly rather than faked.
+            onSecondaryClicked: (idx) => {
+                const s = root.carouselSlides[idx]
+                if (s && s.__row && s.__row.nodeType === "film") root.openDetailSheet(s.__row)
+            }
         }
 
         Item {
@@ -1083,6 +1121,36 @@ Item {
         rootPath: (typeof VaultLibrary !== "undefined") ? VaultLibrary.candidateRoot : ""
         onShelveRequested: (ov) => { if (typeof VaultLibrary !== "undefined") VaultLibrary.confirmRoot(rootPath, ov) }
         onDismissRequested: { if (typeof VaultLibrary !== "undefined") VaultLibrary.dismissCard() }
+    }
+
+    // ── Slice 7: the detail sheet — a same-window overlay (never a Window/Popup; the Lanista
+    //    bridge cannot see a secondary window). z above the browse face, below the window chrome
+    //    so minimize/fullscreen/close stay reachable while the sheet is up. ──
+    VaultDetailSheet {
+        anchors.fill: parent
+        z: 45
+        visible: root.detailSheetVisible
+        enabled: visible
+        detail: root.detailSheetDetail
+        identityStateOfRow: root.detailSheetRowState
+        onBackRequested: root.closeDetailSheet()
+        onPlayRequested: (path) => {
+            root.closeDetailSheet()
+            if (path) root.openMediaRequested(path)
+        }
+        onRevealRequested: (path) => {
+            if (typeof VaultLibrary !== "undefined" && path) VaultLibrary.revealInExplorer(path)
+        }
+        onIdentifyRequested: (key) => {
+            root.identifyBrowseRow({ key: key, displayTitle: root.detailSheetDetail.displayTitle || "" })
+        }
+        onUnidentifyRequested: (key) => {
+            if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.unidentifyGroup(key)
+        }
+        onHideRequested: (key) => {
+            if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.hideGroup(key)
+            root.closeDetailSheet()
+        }
     }
 
     // ── Slice 13: the folder detail overlay (z above the shelves + card, below the window chrome).

@@ -120,6 +120,12 @@ public:
     // recentArrivals(limit): the newest-mtime index groups, most-recent first — the carousel's
     // data source once Slice 5 wires it. Row shape mirrors browseAt's film/show rows.
     Q_INVOKABLE QVariantList recentArrivals(int limit) const;
+    // browseDetail(key): the detail sheet's ONE projection (Slice 7) — copies you hold (same
+    // canonical identity across roots where identity exists, else the single physical group),
+    // companions, extras, evidence, and a best-quality line. `key` is a Film browse-row's own
+    // key. See VaultBrowseDetail::detailFor for the returned shape; `{found: false}` on a stale
+    // key. Never cast, synopsis, or related titles — the locked design's decision #11.
+    Q_INVOKABLE QVariantMap browseDetail(const QString& key) const;
 
     // Slice 17 identity actions. The index owns the reversible decoration; this façade owns
     // the QML-facing commands and the persistent hide surface.

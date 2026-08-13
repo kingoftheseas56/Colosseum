@@ -9,6 +9,7 @@
 #include "VaultIdentifier.h"
 #include "VaultKit.h"
 #include "VaultBrowseAway.h"
+#include "VaultBrowseDetail.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -564,6 +565,12 @@ QVariantList VaultLibrary::recentArrivals(int limit) const
         out.append(m);
     }
     return out;
+}
+
+QVariantMap VaultLibrary::browseDetail(const QString& key) const
+{
+    const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
+    return VaultBrowseDetail::detailFor(m_index, key, scanIgnore);
 }
 
 bool VaultLibrary::identifyGroup(const QString& groupKey)

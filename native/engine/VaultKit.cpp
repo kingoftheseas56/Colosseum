@@ -998,4 +998,116 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     return out;
 }
 
+// ── Film physical facts (browse-face execution plan, Slice 7) ────────────────────────────────
+static bool isCompanionDirName(const QString& name)
+{
+    const QString n = name.trimmed().toLower();
+    return n == QLatin1String("subs") || n == QLatin1String("subtitles");
+}
+
+static bool isSubtitleExt(const QString& ext)
+{
+    static const QSet<QString> exts = {
+        QStringLiteral("srt"), QStringLiteral("sub"), QStringLiteral("ass"),
+        QStringLiteral("vtt"), QStringLiteral("ssa"), QStringLiteral("idx")
+    };
+    return exts.contains(ext.toLower());
+}
+
+static bool isConventionalCoverBaseName(const QString& baseName)
+{
+    static const QSet<QString> names = {
+        QStringLiteral("poster"), QStringLiteral("folder"), QStringLiteral("cover")
+    };
+    return names.contains(baseName.toLower());
+}
+
+static QString extraTitleFromFileName(const QString& completeBaseName)
+{
+    QString title = completeBaseName;
+    title.replace('.', ' ');
+    title.replace('_', ' ');
+    static const QRegularExpression multiSpace(QStringLiteral("\\s+"));
+    title.replace(multiSpace, QStringLiteral(" "));
+    return title.trimmed();
+}
+
+FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& primaryFilePath,
+                                     const QStringList& scanIgnore)
+{
+    FilmPhysicalFacts facts;
+    const QStringList needles = sanitizeIgnoreNeedles(scanIgnore);
+    QDir dir(folderPath);
+    if (!dir.exists())
+        return facts;
+
+    const QString primaryAbs = QFileInfo(primaryFilePath).absoluteFilePath();
+    const auto entries = dir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const auto& e : entries) {
+        if (pathHitsNeedle(e.absoluteFilePath(), needles))
+            continue;
+
+        if (e.isDir()) {
+            const QString name = e.fileName();
+            if (isIgnoredDir(name))
+                continue;
+            if (isExtrasDirName(name)) {
+                QDir extrasDir(e.absoluteFilePath());
+                const auto vids = extrasDir.entryInfoList(videoFilters(), QDir::Files);
+                for (const auto& v : vids) {
+                    if (pathHitsNeedle(v.absoluteFilePath(), needles))
+                        continue;
+                    facts.extras.append(FilmExtra{
+                        extraTitleFromFileName(v.completeBaseName()), v.absoluteFilePath()});
+                }
+                continue;
+            }
+            if (isCompanionDirName(name)) {
+                QDir companionDir(e.absoluteFilePath());
+                const auto inner = companionDir.entryInfoList(QDir::Files);
+                int count = 0;
+                for (const auto& f : inner) {
+                    if (pathHitsNeedle(f.absoluteFilePath(), needles))
+                        continue;
+                    ++count;
+                }
+                if (count > 0) {
+                    facts.companions.append(QStringLiteral("%1 · %2 file%3")
+                        .arg(name, QString::number(count), count == 1 ? QStringLiteral("")
+                                                                       : QStringLiteral("s")));
+                }
+                continue;
+            }
+            // Any other subdirectory is structural leftover this slice doesn't own (never
+            // folded into the grid either — planBrowseLevel already never visits it); not
+            // counted here as junk, since it isn't a loose FILE beside the film.
+            continue;
+        }
+
+        // A loose file directly in the folder.
+        if (e.absoluteFilePath() == primaryAbs)
+            continue; // the film itself
+        const QString ext = e.suffix();
+        const QString base = e.completeBaseName();
+        if (isSubtitleExt(ext)) {
+            facts.companions.append(QStringLiteral("Subtitle (.%1)").arg(ext.toUpper()));
+        } else if (ext.compare(QStringLiteral("nfo"), Qt::CaseInsensitive) == 0) {
+            facts.companions.append(QStringLiteral("Info file (.nfo)"));
+        } else if (isConventionalCoverBaseName(base)
+                   && (ext.compare(QStringLiteral("jpg"), Qt::CaseInsensitive) == 0
+                       || ext.compare(QStringLiteral("jpeg"), Qt::CaseInsensitive) == 0
+                       || ext.compare(QStringLiteral("png"), Qt::CaseInsensitive) == 0
+                       || ext.compare(QStringLiteral("webp"), Qt::CaseInsensitive) == 0)) {
+            facts.companions.append(QStringLiteral("Cover art"));
+        } else {
+            // Release-scene junk this fixture is built to prove: a status text file, a
+            // tracker-site image that is not a conventional cover name. Never a companion,
+            // never an extra, never surfaced — counted only so a test can prove it was SEEN
+            // and correctly excluded, not merely silently absent.
+            ++facts.ignoredCount;
+        }
+    }
+    return facts;
+}
+
 } // namespace VaultKit

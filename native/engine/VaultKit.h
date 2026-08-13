@@ -212,4 +212,36 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath,
                                   const QStringList& scanIgnore = {},
                                   const CancellationToken* cancel = nullptr);
 
+// ── Film physical facts (Vault browse-face execution plan, Slice 7) ─────────────────────────
+// The detail sheet's structural half: what sits BESIDE a film's one media file in its own
+// folder — companions (fold into the sheet, never the grid) and extras (Extras/Featurettes,
+// folded the same way but listed and playable, distinct from companions). Same layer as
+// planBrowseLevel (filesystem-structural, extension/name driven, no identity/DB knowledge) —
+// VaultBrowseDetail decorates the result with copies/evidence from VaultIndex.
+struct FilmExtra {
+    QString title; // a plain, human-readable name derived from the filename (dots/underscores
+                    // -> spaces) — never a provider title, this slice has no catalogue lookup.
+    QString path;
+};
+struct FilmPhysicalFacts {
+    // Display-ready chip labels — a loose companion FILE recognized by convention (subtitle
+    // extension, .nfo, or a conventional cover name) yields one label; a companion FOLDER
+    // (Subs/Subtitles) yields ONE label for the whole folder ("Subs · N files"), not one per
+    // file inside it.
+    QStringList companions;
+    // Extras/Featurettes folder contents — never a grid tile (locked design §4.2), listed here
+    // and playable from the sheet.
+    QList<FilmExtra> extras;
+    // Files seen but recognized as neither the film itself, a companion, nor an extra (release
+    // scene junk: status text files, tracker-site images that aren't a conventional cover name).
+    // Never surfaced anywhere — this count exists so a test can assert the junk was seen AND
+    // correctly excluded, not merely absent by construction.
+    int ignoredCount = 0;
+};
+// `folderPath` is the film's containing folder; `primaryFilePath` is the film's own media file
+// (excluded from companion classification). Honors the same user `scanIgnore` needle layer
+// every other walk does.
+FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& primaryFilePath,
+                                     const QStringList& scanIgnore = {});
+
 } // namespace VaultKit

@@ -109,6 +109,11 @@ public:
     QList<FileRow> rowsForKind(const QString& kind) const;
     QList<FileRow> rowsForRoot(const QString& rootPath) const;
     QList<FileRow> rowsForGroup(const QString& groupKey) const;
+    // Every non-suppressed row sharing one adopted canonical identity, across every group/root —
+    // the detail sheet's "copies you hold" truth when a film has been identified (browse-face
+    // execution plan Slice 7). Empty identityId returns no rows (an unidentified group is never
+    // matched to anything by this query).
+    QList<FileRow> rowsForIdentity(const QString& identityId) const;
     // Mark all rows under a confirmed root unavailable/available without deleting them.
     // Returns true only when at least one row changed state.
     bool markRootAway(const QString& rootPath, bool away);

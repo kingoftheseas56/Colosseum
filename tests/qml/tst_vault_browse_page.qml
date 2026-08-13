@@ -46,6 +46,23 @@ TestCase {
     readonly property bool browseGridWide: testCase.browseGridRows.length > 0
         && (testCase.browseGridRows[0].nodeType === "episode" || testCase.browseGridRows[0].nodeType === "clip")
 
+    // ---- Slice 7: the detail sheet — seeded browseDetail()-shaped stub, mirroring VaultPage's
+    //      own detailSheetVisible/detailSheetKey/detailSheetDetail wiring so a pass here is real
+    //      evidence for the production seam, not a simplified stand-in. ----
+    property var detailData: ({})
+    function browseDetail(key) { return testCase.detailData[key] || ({ found: false }) }
+    property bool detailSheetVisible: false
+    property string detailSheetKey: ""
+    property string detailSheetRowState: ""
+    readonly property var detailSheetDetail: testCase.detailSheetVisible && testCase.detailSheetKey
+        ? testCase.browseDetail(testCase.detailSheetKey) : ({})
+    function openDetailSheet(row) {
+        testCase.detailSheetKey = row.key || ""
+        testCase.detailSheetRowState = row.state || ""
+        testCase.detailSheetVisible = true
+    }
+    function closeDetailSheet() { testCase.detailSheetVisible = false }
+
     // ==== Slice 6 mirror of VaultPage.qml's key-stable re-projection — see that file's own
     //      comment block for the full "why" (a plain array `model:` binding rebuilds the whole
     //      grid on every recompute; this harness must prove the SAME mechanism the shipped page
@@ -89,6 +106,10 @@ TestCase {
         if (!row) return
         if (row.nodeType === "folder" || row.nodeType === "show" || row.nodeType === "season") {
             testCase.pushCrumb(row.key, row.displayTitle)
+            return
+        }
+        if (row.nodeType === "film") {
+            testCase.openDetailSheet(row)
             return
         }
         testCase.lastOpenedPath = row.path || ""
@@ -155,11 +176,30 @@ TestCase {
         delegate: testCase.browseGridWide ? wideDelegateComp : posterDelegateComp
     }
 
+    Colosseum.VaultDetailSheet {
+        id: sheet
+        objectName: "vaultBrowseSheet"
+        parent: testWindow.contentItem
+        z: 100
+        visible: testCase.detailSheetVisible
+        detail: testCase.detailSheetDetail
+        identityStateOfRow: testCase.detailSheetRowState
+        onBackRequested: testCase.closeDetailSheet()
+        onPlayRequested: (path) => {
+            testCase.closeDetailSheet()
+            testCase.lastOpenedPath = path || ""
+        }
+    }
+
     function init() {
         testCase.crumbStack = []
         testCase.currentBrowsePath = ""
         testCase.lastOpenedPath = ""
         testCase.levelData = ({})
+        testCase.detailData = ({})
+        testCase.detailSheetVisible = false
+        testCase.detailSheetKey = ""
+        testCase.detailSheetRowState = ""
         testCase.rootsSeed = []
         testCase.carouselSlidesSeed = []
         testCase.gridSyncedLevelKey = " __unsynced__"
@@ -350,6 +390,97 @@ TestCase {
         mouseClick(hitArea)
         wait(40)
         compare(testCase.lastOpenedPath, "")   // the open signal never fired
+    }
+
+    // ── 9. Slice 7 — clicking a Film card opens the detail sheet (not a direct Play), and it
+    //      renders the seeded copy rows, companion chips, and evidence text. ─────────────────
+    function test_film_card_click_opens_sheet_with_seeded_detail() {
+        testCase.levelData["/root"] = [
+            { key: "/root/Spider-Man", nodeType: "film", displayTitle: "Spider-Man: No Way Home",
+              physicalFact: "1080p WEBRip", path: "/root/Spider-Man/spiderman.mp4",
+              counts: { items: 1 }, coverRef: "", state: "identified", away: false }
+        ]
+        testCase.detailData["/root/Spider-Man"] = {
+            found: true, key: "/root/Spider-Man", displayTitle: "Spider-Man: No Way Home",
+            year: 2021, identityState: "identified", identityLabel: "identity certain",
+            copiesHeld: 1, bestQualityLine: "1080p WEBRip",
+            copies: [ { path: "/root/Spider-Man/spiderman.mp4", rootPath: "/root",
+                        quality: "1080p WEBRip", sizeBytes: 2254857830, sizeText: "2.1 GB",
+                        where: "hemanth's folder / Spider-Man No Way Home", away: false } ],
+            companions: [ "Subtitle (.SRT)", "Subs · 2 files" ],
+            extras: [ { title: "Spider-Man No Way Home Trailer", path: "/root/Spider-Man/Extras/trailer.mp4" } ],
+            evidence: "Filename parsed to Spider-Man: No Way Home with year 2021. One matching title was found, and nothing here is overriding you.",
+            playPath: "/root/Spider-Man/spiderman.mp4"
+        }
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+        const art = findChild(grid, "vaultBrowseCard_/root/Spider-Man_art")
+        verify(art !== null)
+        mouseClick(art)
+        wait(80)
+
+        compare(testCase.detailSheetVisible, true)
+        tryCompare(sheet, "visible", true, 600)
+        const copyRow = findChild(sheet, "vaultBrowseSheetCopy_0")
+        verify(copyRow !== null)
+        const evidenceText = findChild(sheet, "vaultBrowseSheetEvidence")
+        verify(evidenceText !== null)
+        verify(("" + evidenceText.text).indexOf("Spider-Man") >= 0)
+        verify(findText(sheet, "Subtitle (.SRT)") !== null)
+        verify(findText(sheet, "Subs · 2 files") !== null)
+    }
+
+    // ── 10. Slice 7 — Play emits the CONCRETE file path (never merely non-empty; Slice 5 found
+    //      a real bug where a Film node carried its containing FOLDER instead of the file). ──
+    function test_sheet_play_emits_with_exact_path() {
+        testCase.levelData["/root"] = [
+            { key: "/root/Spider-Man", nodeType: "film", displayTitle: "Spider-Man: No Way Home",
+              physicalFact: "1080p WEBRip", path: "/root/Spider-Man/spiderman.mp4",
+              counts: { items: 1 }, coverRef: "", state: "identified", away: false }
+        ]
+        testCase.detailData["/root/Spider-Man"] = {
+            found: true, key: "/root/Spider-Man", displayTitle: "Spider-Man: No Way Home",
+            copies: [], companions: [], extras: [], evidence: "",
+            playPath: "/root/Spider-Man/spiderman.mp4"
+        }
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+        mouseClick(findChild(grid, "vaultBrowseCard_/root/Spider-Man_art"))
+        wait(80)
+        const playBtn = findChild(sheet, "vaultBrowseSheetPlay")
+        verify(playBtn !== null)
+        testCase.lastOpenedPath = ""
+        mouseClick(playBtn)
+        wait(60)
+        compare(testCase.lastOpenedPath, "/root/Spider-Man/spiderman.mp4")
+        compare(testCase.detailSheetVisible, false)   // Play closes the sheet
+    }
+
+    // ── 11. Slice 7 — Escape dismisses the sheet without opening media. ─────────────────────
+    function test_sheet_escape_dismisses() {
+        testCase.levelData["/root"] = [
+            { key: "/root/Spider-Man", nodeType: "film", displayTitle: "Spider-Man: No Way Home",
+              physicalFact: "1080p WEBRip", path: "/root/Spider-Man/spiderman.mp4",
+              counts: { items: 1 }, coverRef: "", state: "identified", away: false }
+        ]
+        testCase.detailData["/root/Spider-Man"] = {
+            found: true, key: "/root/Spider-Man", displayTitle: "Spider-Man: No Way Home",
+            copies: [], companions: [], extras: [], evidence: "",
+            playPath: "/root/Spider-Man/spiderman.mp4"
+        }
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+        mouseClick(findChild(grid, "vaultBrowseCard_/root/Spider-Man_art"))
+        wait(80)
+        compare(testCase.detailSheetVisible, true)
+        testWindow.requestActivate()
+        sheet.forceActiveFocus()
+        wait(40)
+        verify(sheet.activeFocus)
+        keyClick(Qt.Key_Escape)
+        wait(60)
+        compare(testCase.detailSheetVisible, false)
+        compare(testCase.lastOpenedPath, "")   // dismiss never opens media
     }
 
     function findChild(root, wanted) {
