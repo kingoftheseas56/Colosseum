@@ -1,0 +1,11 @@
+{
+  "checkpoint": "journey_identify (Masterpiece card, uncertain and identified)",
+  "comment": "J1-Identify. Against the rebuilt Vault Browse face (Slice 5-6, landed) driven with the isolated identify-uncertain-v1 fixture (an isolated session, never the daily pipe). The card's own key/objectName was confirmed live via dump-ui before this checkpoint was authored (artifacts/visibility-phase2/j1-identify/discovery/). This single checkpoint is run TWICE by the scenario (once uncertain, once identified) -- the card and grid stay actionable/contained in BOTH states; only the card's own uncertainty-mark child (not targeted here) changes actionability between the two runs, which is exactly the state proof the scenario's ui-wait-for steps already cover. root is deliberately scoped to vaultBrowseFace (the carousel+rail+crumb+grid wrapper, VaultPage.qml's own objectName for it) rather than the whole app window -- ground-truthed live: an unscoped dump-ui (the default when checkpoint.root is empty) missed the grid/card entirely on one real run (paginated up to 50 pages against the WHOLE window's tree, evidently truncated by budget before reaching the Vault subtree at that exact frame) while the identical checkpoint against the identical objects passed cleanly moments later once scoped -- root scoping is the correct, doctrine-consistent fix (L2's own bounded-request law), not a retry-until-green workaround.",
+  "root": "vaultBrowseFace",
+  "rules": [
+    { "kind": "actionableNonzero", "name": "gridActionable", "target": "vaultBrowseGrid" },
+    { "kind": "actionableNonzero", "name": "cardActionable", "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/identify-uncertain-v1/media/Masterpiece" },
+    { "kind": "contained", "name": "gridWithinWindow", "target": "vaultBrowseGrid", "viewport": "$rootWindow", "toleranceLogicalPx": 0 },
+    { "kind": "contained", "name": "cardWithinWindow", "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/identify-uncertain-v1/media/Masterpiece", "viewport": "$rootWindow", "toleranceLogicalPx": 0 }
+  ]
+}
