@@ -170,6 +170,10 @@ TestCase {
         x: 300; y: 400
         width: 700; height: 320
         clip: true
+        // Slice 8: production's own cacheBuffer (VaultPage.qml, Gintama-scale headroom) — the
+        // virtualization test below must prove recycling under the SAME setting that ships, not
+        // a more forgiving one invented for the harness.
+        cacheBuffer: 900
         cellWidth: testCase.browseGridWide ? 320 : 170
         cellHeight: testCase.browseGridWide ? 250 : 300
         model: gridModel
@@ -481,6 +485,66 @@ TestCase {
         wait(60)
         compare(testCase.detailSheetVisible, false)
         compare(testCase.lastOpenedPath, "")   // dismiss never opens media
+    }
+
+    // ── 12. Slice 8 — a show's seasons band renders in NATURAL numeric order (1, 2, ... 10),
+    //      never lexical ("1, 10, 2, ..."). The C++ planner already sorts numerically
+    //      (tst_vault_kit's Loki/Wire cases); this proves the QML layer's own re-projection
+    //      (syncGridModel) never re-sorts or scrambles what it was handed. ─────────────────────
+    function test_season_band_renders_in_natural_numeric_order() {
+        var seasons = []
+        for (var s = 1; s <= 10; ++s) {
+            seasons.push({
+                key: "/root/Show::show::gintama/Season " + s, nodeType: "season",
+                displayTitle: "Season " + s, physicalFact: (s * 3) + " episodes",
+                path: "/root/Show/Season " + s, counts: { items: s * 3 }, coverRef: "",
+                state: "identified", away: false
+            })
+        }
+        testCase.levelData["/root/Show::show::gintama"] = seasons
+        testCase.selectRoot("/root/Show::show::gintama", "Gintama")
+        wait(80)
+        compare(grid.count, 10)
+        // Read the grid's OWN backing model in rendered order — not the seed array — so a
+        // regression that resorts inside syncGridModel would be caught here too.
+        for (var i = 0; i < 10; ++i)
+            compare(gridModel.get(i).modelData.displayTitle, "Season " + (i + 1))
+        // The lexical-risk pair a string sort would get wrong: "Season 10" must render AFTER
+        // "Season 2", not before it.
+        var idx2 = -1, idx10 = -1
+        for (var j = 0; j < 10; ++j) {
+            if (gridModel.get(j).modelData.displayTitle === "Season 2") idx2 = j
+            if (gridModel.get(j).modelData.displayTitle === "Season 10") idx10 = j
+        }
+        verify(idx2 >= 0 && idx10 >= 0)
+        verify(idx2 < idx10)
+    }
+
+    // ── 13. Slice 8 — the virtualization proof: a 300-episode wide-card wall renders WITHOUT
+    //      instantiating all 300 delegates (Gintama scale is real — 367 episodes on the real
+    //      disk). `grid.count` is the full model total; `grid.contentItem.children.length` is
+    //      how many delegate Items actually exist right now — the count comparison IS the
+    //      virtualization assertion, not a nicety. ──────────────────────────────────────────────
+    function test_wide_grid_virtualizes_300_episodes_without_instantiating_all() {
+        var episodes = []
+        for (var e = 1; e <= 300; ++e) {
+            var n = String(e).padStart(3, "0")
+            episodes.push({
+                key: "/root/Gintama/ep" + n, nodeType: "episode",
+                displayTitle: "Gintama - " + n, physicalFact: "Episode " + e + " · 1080p",
+                path: "/root/Gintama/ep" + n + ".mkv", counts: { items: 0 }, coverRef: "",
+                state: "identified", away: false
+            })
+        }
+        testCase.levelData["/root/Gintama"] = episodes
+        testCase.selectRoot("/root/Gintama", "Gintama")
+        wait(120)
+        compare(grid.count, 300)                    // the full model — every real file counted
+        compare(testCase.browseGridWide, true)       // episodes render as 16:9 wide cards
+        var created = grid.contentItem.children.length
+        verify(created > 0)                          // something rendered
+        verify(created < 300)                         // NOT every delegate was instantiated
+        verify(created < 60)                          // genuinely bounded, not "299 vs 300"
     }
 
     function findChild(root, wanted) {
