@@ -26,6 +26,8 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
@@ -53,17 +55,54 @@ void writeStub(const QString& path)
     f.write(QByteArrayLiteral("stub"));
 }
 
+// Mirrors VaultConfig::norm() (private: QDir::cleanPath + toLower on Windows,
+// native/engine/VaultConfig.cpp:15-22) so a hand-built FileRow.rootPath/groupKey exactly matches
+// what VaultConfig::addRoot() stores and rootsDetail() returns. Real production never hits this
+// seam — VaultScanner derives every FileRow's rootPath/groupKey from the SAME config-normalized
+// root that browseAt() starts its walk from — but this fixture hand-builds FileRow entries
+// directly from QTemporaryDir::path(), which is mixed-case on Windows. VaultIndex::rowsForRoot()/
+// rowsForGroup() are exact-string SQL matches with no normalization of their own, so a query built
+// from rootsDetail()'s (lowercased) path silently misses every row stamped with the raw mixed-case
+// path. Lower-casing the root here before it is used for mkpath/writeStub/FileRow construction
+// keeps every derived path self-consistent; Windows file I/O is case-insensitive so the real
+// directories/files land at the identical location either way.
+QString normalizedRootPath(const QString& path)
+{
+    QString n = QDir::cleanPath(path);
+#ifdef Q_OS_WIN
+    n = n.toLower();
+#endif
+    return n;
+}
+
 VaultIndex::FileRow makeFilmRow(const QString& rootPath, const QString& folder,
                                 const QString& file, const QString& id, qint64 mtimeMs)
 {
     VaultIndex::FileRow r;
     r.id = id;
+    // rootPath deliberately stays exactly the caller-supplied (config-style) string, unwalked —
+    // production mirrors this: VaultScanner.cpp:147 sets row.rootPath = root, the same string the
+    // caller reads back from VaultConfig, so VaultIndex::rowsForRoot()'s exact-string match
+    // against rootsDetail()'s path always lines up.
     r.rootPath = rootPath;
-    r.subtreePath = folder;
-    r.groupKey = folder;
+    // subtreePath/groupKey/path, by contrast, must match what VaultKit::planBrowseLevel's REAL
+    // filesystem walk independently reconstructs for the same directory — that's what
+    // VaultLibrary::browseAt() feeds into rowsForGroup(n.path) to decorate a Film node's coverRef.
+    // Qt's QFileInfo::absoluteFilePath() canonicalizes the drive letter on Windows (observed:
+    // always uppercase here, regardless of input casing) — the identical canonicalization
+    // QDir::entryInfoList()'s absoluteFilePath() applies inside VaultKit::listImmediateSubdirs/
+    // groupByFirstLevelSubdir, the same shared walk VaultScanner itself uses in production
+    // (VaultScanner.cpp:36,148-149: row.subtreePath = row.groupKey = subtree, a
+    // groupByFirstLevelSubdir/listImmediateSubdirs output). A hand-built groupKey that skips this
+    // canonicalization (e.g. plain QDir::filePath() concatenation) silently never matches a real
+    // walk's n.path/n.key on this drive-letter byte alone — proven live: rowsForGroup() returned
+    // the fixture's padded coverRef when queried with this canonical form, empty without it.
+    const QString canonicalFolder = QFileInfo(folder).absoluteFilePath();
+    r.subtreePath = canonicalFolder;
+    r.groupKey = canonicalFolder;
     r.groupTitle = QStringLiteral("Movie");
     r.kind = QStringLiteral("video");
-    r.path = file;
+    r.path = QFileInfo(file).absoluteFilePath();
     r.displayTitle = QStringLiteral("Movie");
     r.realName = QStringLiteral("movie.mp4");
     r.size = 4;
@@ -81,7 +120,7 @@ std::unique_ptr<Fixture> buildFlatFixture(int filmCount, bool bigCoverRefs = fal
     auto fx = std::make_unique<Fixture>();
     if (!fx->tmp.isValid())
         return fx;
-    fx->rootPath = QDir(fx->tmp.path()).filePath(QStringLiteral("root"));
+    fx->rootPath = normalizedRootPath(QDir(fx->tmp.path()).filePath(QStringLiteral("root")));
     QDir().mkpath(fx->rootPath);
 
     fx->index = std::make_unique<VaultIndex>(
@@ -119,7 +158,7 @@ std::unique_ptr<Fixture> buildNestedFixture(int childCount, QString* showsPathOu
     auto fx = std::make_unique<Fixture>();
     if (!fx->tmp.isValid())
         return fx;
-    fx->rootPath = QDir(fx->tmp.path()).filePath(QStringLiteral("root"));
+    fx->rootPath = normalizedRootPath(QDir(fx->tmp.path()).filePath(QStringLiteral("root")));
     const QString showsPath = QDir(fx->rootPath).filePath(QStringLiteral("Shows"));
     QDir().mkpath(showsPath);
 
@@ -162,7 +201,8 @@ std::unique_ptr<Fixture> buildMultiRootFixture(int rootCount)
 
     QList<VaultIndex::FileRow> rows;
     for (int i = 0; i < rootCount; ++i) {
-        const QString root = QDir(fx->tmp.path()).filePath(QStringLiteral("root%1").arg(i));
+        const QString root =
+            normalizedRootPath(QDir(fx->tmp.path()).filePath(QStringLiteral("root%1").arg(i)));
         const QString folder = QDir(root).filePath(QStringLiteral("f0"));
         QDir().mkpath(folder);
         const QString file = QDir(folder).filePath(QStringLiteral("movie.mp4"));
@@ -185,7 +225,7 @@ std::unique_ptr<Fixture> buildIdentityFixture(int copyCount, QString* keyOut)
     auto fx = std::make_unique<Fixture>();
     if (!fx->tmp.isValid())
         return fx;
-    fx->rootPath = QDir(fx->tmp.path()).filePath(QStringLiteral("root"));
+    fx->rootPath = normalizedRootPath(QDir(fx->tmp.path()).filePath(QStringLiteral("root")));
     QDir().mkpath(fx->rootPath);
     fx->index = std::make_unique<VaultIndex>(
         QDir(fx->tmp.path()).filePath(QStringLiteral("index.sqlite")));
@@ -390,12 +430,29 @@ void tst_vault_forensics::row_limit_sets_truncated()
                  .value(QStringLiteral("rows")).toList().size(), 5);
     QVERIFY(!full.value(QStringLiteral("truncated")).toBool());
 
-    // NEGATIVE CONTROL (write now, run after the build signal — this slice does not build or
-    // run anything): in VaultForensics::clampLimit (native/engine/VaultForensics.cpp), temporarily
-    // change `qBound(kMinLimit, v, kMaxLimit)` to skip the upper bound (e.g. `return v;` for any
-    // v > 0). Re-request `limit=101` against a 101-row fixture (extend buildFlatFixture's count).
-    // Exactly this test must fail (101 rows would come back instead of the clamped 100, and/or
-    // the row-count assertions above stop holding) — then restore the clamp and confirm green.
+    // Above kMaxLimit (100): a 101-row fixture, limit=101 requested. clampLimit's UPPER bound —
+    // not the fixture's real count — is what stops this at exactly 100. This is the assertion the
+    // negative control below actually exercises: neither the limit=2 nor limit=5 case above can
+    // distinguish "upper bound enforced" from "upper bound absent", since both requested values
+    // are already <= kMaxLimit.
+    auto fxOver = buildFlatFixture(101);
+    QVERIFY(fxOver->library);
+    VaultForensics forensicsOver(fxOver->library.get());
+    const QString overRootPath =
+        fxOver->library->rootsDetail().first().toMap().value(QStringLiteral("path")).toString();
+    const QVariantMap over = forensicsOver.query(QVariantMap{
+        {QStringLiteral("scope"), QStringLiteral("root")}, {QStringLiteral("key"), overRootPath},
+        {QStringLiteral("limit"), 101}});
+    QCOMPARE(over.value(QStringLiteral("browse")).toMap()
+                 .value(QStringLiteral("rows")).toList().size(), 100); // clamped, never 101
+    QVERIFY(over.value(QStringLiteral("truncated")).toBool());
+
+    // NEGATIVE CONTROL (performed live for the F1-Core build gate, 2026-08-13): in
+    // VaultForensics::clampLimit (native/engine/VaultForensics.cpp), temporarily change
+    // `qBound(kMinLimit, v, kMaxLimit)` to skip the upper bound (e.g. `return v;` for any v > 0),
+    // rebuild, rerun. Exactly this case turns red (over's rows.size() becomes 101, not 100) with
+    // every other named case in this file still green; restoring the clamp returns the whole
+    // suite to green.
 }
 
 void tst_vault_forensics::byte_budget_sets_truncated()

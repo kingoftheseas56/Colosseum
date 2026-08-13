@@ -594,6 +594,75 @@ set_tests_properties(colosseum.vault_launch_router_harness PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Vault forensics (Agent Visibility Phase 2, Slice F1-Core) ────────────────
+# VaultForensics — one bounded, read-only projection composing a REAL VaultLibrary (F0's named
+# safe seam, docs/visibility/vault-forensic-owner-thread.md §10 — VaultLibrary, never VaultIndex
+# directly): revision()/itemCount()/rootsDetail()/recentArrivals()/browseAt()/browseDetail() only.
+# No SQLite connection of its own, no write, no mutation, no publish() call. Every fixture
+# constructs the full graph VaultLibrary.cpp's own translation unit needs to link (its
+# unconditional VaultWatcher child, plus VaultIdentifier/VaultDownloadsRoot/VaultBrowseAway/
+# VaultBrowseDetail/VaultBrowseEmpty/VaultKit/ComicCoverId and their own transitive deps down to
+# the three read-only catalogue databases) — the same cost tst_vault_scanner.cpp already pays for
+# a smaller slice of this graph, paid here in full because F0 names VaultLibrary itself, not the
+# lower helper modules, as the seam VaultForensics must compose. Qt6::Concurrent for VaultScanner
+# (linked, never exercised — no scan/publish path is driven by any test here). GUILESS;
+# QTemporaryDir index + small real fixture trees per run, same idiom as tst_vault_index.cpp.
+add_executable(tst_vault_forensics
+    auto/vault/tst_vault_forensics.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseDetail.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseDetail.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
+target_include_directories(tst_vault_forensics PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_forensics PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
+set_target_properties(tst_vault_forensics PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_forensics POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_forensics
+         COMMAND tst_vault_forensics)
+set_tests_properties(colosseum.qttest.vault_forensics PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
