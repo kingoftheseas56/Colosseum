@@ -31,4 +31,15 @@ Cause classify(bool hasAnyRoots, bool levelHasRows, bool levelAway);
 // (VaultBrowseEmpty.qml's `cause` property, the Lanista/Quick-Test string).
 QString causeName(Cause cause);
 
+// The "is this level away" combinator VaultLibrary::browseEmptyCause() actually uses.
+// VaultBrowseAway::ownerRootAway reads the away flag off an EXISTING index row (a root-wide fact
+// VaultIndex::markRootAway() only ever flips on rows that are already there) — a root that was
+// NEVER scanned while present has no row to carry that flag at all, so the row-based check alone
+// always reports "not away" for it even though it plainly is (found live driving the
+// all-away-empty Lanista fixture, Slice 9 — a never-scanned away root read as "emptyFolder", not
+// "allAway", before this combinator existed). `hasOwnerRoot`/`ownerDirectoryExists` mirror the
+// same live QDir::exists() check VaultLibrary::rootsDetail()'s own `available` field already
+// uses, so both signals agree with what the rail shows.
+bool isLevelAway(bool indexSaysAway, bool hasOwnerRoot, bool ownerDirectoryExists);
+
 } // namespace VaultBrowseEmpty

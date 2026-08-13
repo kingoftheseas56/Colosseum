@@ -26,4 +26,9 @@ QString causeName(Cause cause)
     }
 }
 
+bool isLevelAway(bool indexSaysAway, bool hasOwnerRoot, bool ownerDirectoryExists)
+{
+    return indexSaysAway || (hasOwnerRoot && !ownerDirectoryExists);
+}
+
 } // namespace VaultBrowseEmpty

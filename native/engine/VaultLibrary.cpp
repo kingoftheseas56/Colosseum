@@ -579,7 +579,14 @@ QString VaultLibrary::browseEmptyCause(const QString& rootOrPath) const
     const QVariantList roots = m_config ? m_config->roots() : QVariantList();
     const bool hasAnyRoots = !rootsDetail().isEmpty();
     const bool levelHasRows = !browseAt(rootOrPath).isEmpty();
-    const bool levelAway = VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath);
+    // See VaultBrowseEmpty::isLevelAway's own comment for why the index's row-based away flag
+    // alone is not enough. Scoped to THIS method only — VaultBrowseAway::ownerRootAway itself is
+    // untouched so Slice 6's own pinned tests/behavior stay exactly as they are.
+    const QString ownerRoot = VaultBrowseAway::ownerRootPath(roots, rootOrPath);
+    const bool ownerDirExists = ownerRoot.isEmpty() ? true : QDir(ownerRoot).exists();
+    const bool levelAway = VaultBrowseEmpty::isLevelAway(
+        VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath),
+        !ownerRoot.isEmpty(), ownerDirExists);
     return VaultBrowseEmpty::causeName(
         VaultBrowseEmpty::classify(hasAnyRoots, levelHasRows, levelAway));
 }

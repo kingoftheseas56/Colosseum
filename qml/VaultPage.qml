@@ -112,10 +112,18 @@ Item {
     // Slice 9 — the grid's own empty-cause projection (design §4.5's four causes), keyed off
     // the CURRENT level so the component never has to infer anything in QML. Guarded on
     // currentBrowsePath (not yet set for one frame around initBrowseState()) so the component
-    // stays invisible rather than flashing a wrong cause.
-    readonly property string browseEmptyCause: (typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
+    // stays invisible rather than flashing a wrong cause, AND on `browseGridRows` already being
+    // empty — a real bug found live driving the Gintama-scale fixture: without this second
+    // guard, both C++ calls (each re-deriving rootsDetail()/browseAt() from scratch) fired on
+    // EVERY navigation regardless of whether the grid had anything to show, doubling the cost of
+    // walking a 300-episode directory and pushing a "redrill" past vault_browse_smoke.json's own
+    // 15s wait. The overwhelming majority of levels are non-empty, so this guard is the
+    // difference that matters.
+    readonly property string browseEmptyCause: (root.browseGridRows.length === 0
+            && typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
         ? (VaultLibrary.revision, VaultLibrary.browseEmptyCause(root.currentBrowsePath)) : ""
-    readonly property int browseEmptyAwayCount: (typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
+    readonly property int browseEmptyAwayCount: (root.browseGridRows.length === 0
+            && typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
         ? (VaultLibrary.revision, VaultLibrary.browseEmptyAwayCount(root.currentBrowsePath)) : 0
     // Two deliberate translations from the shipped slide (locked design §4.10): the blurb slot
     // carries the PHYSICAL FACT only (a descriptive blurb is a tagline, banned), and the

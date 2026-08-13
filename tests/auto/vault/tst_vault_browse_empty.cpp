@@ -16,6 +16,8 @@ private slots:
     void classifyDistinguishesNoRootsEmptyFolderAndAllAway_data();
     void classifyDistinguishesNoRootsEmptyFolderAndAllAway();
     void causeNameMapsEveryEnumValue();
+    void isLevelAwayCoversTheNeverScannedRootCase_data();
+    void isLevelAwayCoversTheNeverScannedRootCase();
 };
 
 void VaultBrowseEmptyTest::classifyDistinguishesNoRootsEmptyFolderAndAllAway_data()
@@ -70,6 +72,46 @@ void VaultBrowseEmptyTest::causeNameMapsEveryEnumValue()
     QCOMPARE(VaultBrowseEmpty::causeName(VaultBrowseEmpty::Cause::EmptyFolder), QStringLiteral("emptyFolder"));
     QCOMPARE(VaultBrowseEmpty::causeName(VaultBrowseEmpty::Cause::AllAway), QStringLiteral("allAway"));
     QCOMPARE(VaultBrowseEmpty::causeName(VaultBrowseEmpty::Cause::None), QStringLiteral("none"));
+}
+
+void VaultBrowseEmptyTest::isLevelAwayCoversTheNeverScannedRootCase_data()
+{
+    QTest::addColumn<bool>("indexSaysAway");
+    QTest::addColumn<bool>("hasOwnerRoot");
+    QTest::addColumn<bool>("ownerDirectoryExists");
+    QTest::addColumn<bool>("expected");
+
+    // The regression this function exists for: a confirmed root that was NEVER scanned while
+    // present has no index row to carry the away flag (indexSaysAway false structurally, not
+    // because it's actually available) — the live directory-exists check is the only signal.
+    // Ground-truthed live: before this combinator existed, VaultLibrary::browseEmptyCause()
+    // reported "emptyFolder" instead of "allAway" for exactly this fixture shape.
+    QTest::newRow("never-scanned-and-gone -> away")
+        << false << true << false << true;
+    QTest::newRow("never-scanned-but-present -> not away")
+        << false << true << true << false;
+    // A root that WAS scanned (Slice 6's own fixture shape): the index row already carries the
+    // authoritative answer, directory-exists is irrelevant either way.
+    QTest::newRow("scanned-and-index-says-away -> away regardless of live directory")
+        << true << true << true << true;
+    QTest::newRow("scanned-and-index-says-available -> not away")
+        << false << true << true << false;
+    // No owning root at all (a path outside every confirmed root) — never "away", there is
+    // nothing to be away ABOUT; VaultBrowseEmpty::classify's own NoRoots/EmptyFolder split
+    // handles that case, not this one.
+    QTest::newRow("no-owner-root -> never away")
+        << false << false << false << false;
+}
+
+void VaultBrowseEmptyTest::isLevelAwayCoversTheNeverScannedRootCase()
+{
+    QFETCH(bool, indexSaysAway);
+    QFETCH(bool, hasOwnerRoot);
+    QFETCH(bool, ownerDirectoryExists);
+    QFETCH(bool, expected);
+
+    QCOMPARE(VaultBrowseEmpty::isLevelAway(indexSaysAway, hasOwnerRoot, ownerDirectoryExists),
+             expected);
 }
 
 QTEST_MAIN(VaultBrowseEmptyTest)
