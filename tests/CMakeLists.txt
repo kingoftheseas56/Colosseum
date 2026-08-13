@@ -847,12 +847,24 @@ set_tests_properties(colosseum.qttest.journey_play_video PROPERTIES
 # "no-Vault context" shape lanista_harness's own bare QML-scene fixture already exercises.
 # Needs Qt6::Qml/Quick beyond that closure (LanistaServer's own QQmlApplicationEngine/
 # QQuickWindow/QQuickItem surface, which tst_vault_forensics never touches).
+#
+# Ground-truthed live (2026-08-14): a clean build of this closure fails without MpvQt —
+# VaultThumbnailer.cpp calls MpvItem::findFfmpeg() (native/player/mpvitem.cpp), so the real
+# MpvItem TU and MpvQt::MpvQt must both be linked in, same shape as tst_journey_play_video
+# above (mpvitem.cpp + mpvproperties.h + http_header_fields.h, MpvQt::MpvQt). No MpvItem is
+# ever constructed here — findFfmpeg() is a static PATH lookup, never called by any case —
+# but the SYMBOL still has to resolve at link time. Needs MpvQt.dll/libmpv-2.dll deployed
+# beside the exe at runtime (same two DLLs the app target's own deploy step needs).
 add_executable(tst_window_set_state
     auto/lanista/tst_window_set_state.cpp
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.cpp"
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.h"
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.cpp"
@@ -899,7 +911,8 @@ add_executable(tst_window_set_state
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
-target_include_directories(tst_window_set_state PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_include_directories(tst_window_set_state PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
 # House trap (native/CMakeLists.txt's lanista_harness target; tests/window_shell_gui_harness.cpp):
 # the windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and shadows the real
 # Qt install's plugin dir, so bare QT_QPA_PLATFORM=offscreen fail-fasts silently. Bake the real
@@ -911,7 +924,8 @@ get_filename_component(_wss_qtprefix "${_wss_qtbin}" DIRECTORY)
 target_compile_definitions(tst_window_set_state PRIVATE
     WINDOW_SET_STATE_QT_PLATFORMS_DIR="${_wss_qtprefix}/plugins/platforms")
 target_link_libraries(tst_window_set_state PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Sql Qt6::Concurrent Qt6::Test)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Sql Qt6::Concurrent Qt6::Test
+    MpvQt::MpvQt)
 set_target_properties(tst_window_set_state PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_window_set_state POST_BUILD
