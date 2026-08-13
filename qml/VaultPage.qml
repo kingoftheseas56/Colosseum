@@ -41,6 +41,17 @@ Item {
     readonly property bool populated: itemCount > 0
     // Lanista/plan state contract (vaultPage.vaultState / itemCount / cardVisible).
     readonly property string vaultState: scanning ? "scanning" : (itemCount > 0 ? "populated" : "empty")
+    // Slice 9 — the browse FACE's own occupancy fact, distinct from `populated` (which is a
+    // LIBRARY-WIDE item count, not "is there anywhere to browse"). A confirmed root that is
+    // genuinely empty, or away, has itemCount 0 too — under the old `populated` gate the whole
+    // browse face (rail/crumb/grid) stayed hidden and the pre-Vault onboarding screen showed
+    // instead, which is right for "no storage configured" but WRONG for "a real root exists and
+    // is empty/away" (design §4.5's occupancy table wants the grid itself to say why, not the
+    // page to fall back to the add-a-folder invitation). The pre-Vault onboarding screen
+    // (`vaultDropSurface` below) keeps owning the true "no storage at all" case — it already
+    // carries real drag-drop, which the compact plate-6 empty-state treatment does not
+    // replicate and must not regress (design acceptance #12, "not demoted").
+    readonly property bool hasConfirmedStorage: root.browseRootsDetail.length > 0
     readonly property bool cardVisible: (typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false
     // Read-only { id -> admissionVerdict } for video rows, re-read on the same revision clock. The
     // Continue rail gates on this so only durably-Admitted local videos ever resume.
@@ -92,12 +103,20 @@ Item {
     readonly property var displayedCrumbStack: root.hiddenViewActive
         ? [{ key: "hidden:", displayTitle: "Hidden" }] : root.crumbStack
 
-    readonly property var browseRootsDetail: (root.populated && typeof VaultLibrary !== "undefined")
+    readonly property var browseRootsDetail: (typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.rootsDetail()) : []
     readonly property var hiddenSeriesRows: (root.populated && typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.hiddenSeries()) : []
-    readonly property var carouselArrivalRows: (root.populated && typeof VaultLibrary !== "undefined")
+    readonly property var carouselArrivalRows: (root.hasConfirmedStorage && typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.recentArrivals(6)) : []
+    // Slice 9 — the grid's own empty-cause projection (design §4.5's four causes), keyed off
+    // the CURRENT level so the component never has to infer anything in QML. Guarded on
+    // currentBrowsePath (not yet set for one frame around initBrowseState()) so the component
+    // stays invisible rather than flashing a wrong cause.
+    readonly property string browseEmptyCause: (typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
+        ? (VaultLibrary.revision, VaultLibrary.browseEmptyCause(root.currentBrowsePath)) : ""
+    readonly property int browseEmptyAwayCount: (typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
+        ? (VaultLibrary.revision, VaultLibrary.browseEmptyAwayCount(root.currentBrowsePath)) : 0
     // Two deliberate translations from the shipped slide (locked design §4.10): the blurb slot
     // carries the PHYSICAL FACT only (a descriptive blurb is a tagline, banned), and the
     // gradient is neutral house-token white-alpha, never a per-slide colour.
@@ -132,7 +151,13 @@ Item {
     })
 
     readonly property var browseGridRows: {
-        if (!root.populated) return []
+        // Slice 9: gated on hasConfirmedStorage, not populated — a freshly-confirmed root whose
+        // first census hasn't published yet (itemCount still 0) has REAL resolving-state rows
+        // from browseAt()'s own live filesystem walk (design §4.6's signature "resolve in
+        // place" moment); the old `populated` gate silently suppressed that until the very
+        // first publish landed. (Never reachable before this slice anyway, since the whole
+        // browse face was itself gated on `populated` — see that gate's own comment above.)
+        if (!root.hasConfirmedStorage) return []
         if (root.hiddenViewActive) return root.hiddenRowsAsBrowse
         if (typeof VaultLibrary === "undefined" || !root.currentBrowsePath) return []
         VaultLibrary.revision // dependency: re-project on every committed publish
@@ -253,6 +278,17 @@ Item {
         // episode / clip -> Play routes as today.
         if (row.path) root.openMediaRequested(row.path)
     }
+    // Slice 9 — Enter opens whichever card the grid's OWN keyboard traversal currently has
+    // focused (`grid.currentIndex`), through the exact same routing `handleBrowseCardOpen`
+    // already gives a mouse click: drill for folder/show/season, the detail sheet for a film,
+    // Play for episode/clip. `gridModel`/`grid` are declared inside `mainArea` below this
+    // function's own declaration point — same document, forward id reference is valid.
+    function openFocusedGridCard() {
+        if (typeof grid === "undefined" || grid.currentIndex < 0) return
+        if (grid.currentIndex >= gridModel.count) return
+        const rec = gridModel.get(grid.currentIndex)
+        if (rec && rec.modelData) root.handleBrowseCardOpen(rec.modelData)
+    }
     // The carousel's own Play affordance — unlike a grid card's click, this is unconditional
     // "start watching/drilling" (its label says Play, not Open) and stays exactly as Slice 5
     // wired it. The carousel's "Details" secondary action (a deliberate no-op until this slice)
@@ -282,7 +318,7 @@ Item {
         cardContextMenu.popup()
     }
     function initBrowseState() {
-        if (!root.populated || typeof VaultLibrary === "undefined") return
+        if (!root.hasConfirmedStorage || typeof VaultLibrary === "undefined") return
         const roots = VaultLibrary.rootsDetail()
         if (!roots.length) return
         let restored = []
@@ -308,7 +344,7 @@ Item {
         root.crumbStack = [{ key: avail.path, displayTitle: avail.name }]
         root.currentBrowsePath = avail.path
     }
-    onPopulatedChanged: if (root.populated && root.crumbStack.length === 0) root.initBrowseState()
+    onHasConfirmedStorageChanged: if (root.hasConfirmedStorage && root.crumbStack.length === 0) root.initBrowseState()
 
     // ---- Slice 12 dress: the in-world tab bar (All · Comics · Books · Video · Folders) ----
     property string currentTab: "all"
@@ -634,7 +670,7 @@ Item {
             VaultLibrary.offerUnconfirmedRoots()
             VaultLibrary.rescanDegradedRoots()   // Slice 15: watcher-failure fallback, silently
         }
-        if (root.populated) root.initBrowseState()
+        if (root.hasConfirmedStorage) root.initBrowseState()
     }
     // Leaving Vault (the taskbar door) deactivates vaultLayer's Loader, destroying this whole
     // page — a plain scroll (ui-scroll / a mouse drag) never runs through pushCrumb/goToCrumb/
@@ -664,11 +700,13 @@ Item {
 
     Flickable {
         id: page
-        // The unpopulated (no-roots) empty state ONLY — the populated Browse face (Slice 5) is
-        // the sibling `browseFace` Item below, which needs its own bounded-height layout for the
-        // grid's virtualization rather than living inside this unbounded outer Flickable.
-        visible: !root.folderDetailOpen && !root.populated
-        enabled: !root.folderDetailOpen && !root.populated
+        // The true "no storage configured at all" state ONLY (Slice 9: gated on
+        // hasConfirmedStorage, not populated — see that property's own comment) — the Browse
+        // face (Slice 5) is the sibling `browseFace` Item below, which needs its own
+        // bounded-height layout for the grid's virtualization rather than living inside this
+        // unbounded outer Flickable.
+        visible: !root.folderDetailOpen && !root.hasConfirmedStorage
+        enabled: !root.folderDetailOpen && !root.hasConfirmedStorage
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight + 150
@@ -683,9 +721,9 @@ Item {
             topPadding: 14
             spacing: 0
 
-            // ---- header (empty/scanning states only — populated leads with the marquee panel) ----
+            // ---- header (no-storage/scanning states only — the browse face leads with the carousel) ----
             Column {
-                visible: !root.populated
+                visible: !root.hasConfirmedStorage
                 width: col.width
                 spacing: 0
                 Text { text: "ON THIS MACHINE"; color: theme.inkDimmer
@@ -696,12 +734,12 @@ Item {
                 Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
             }
 
-            // ---- empty state: the dashed Add-folder drop surface (shown until the Vault has content) ----
-            Item { visible: !root.populated; width: 1; height: 44 }
+            // ---- empty state: the dashed Add-folder drop surface (shown until any storage is confirmed) ----
+            Item { visible: !root.hasConfirmedStorage; width: 1; height: 44 }
 
             Rectangle {
                 id: dropSurface
-                visible: !root.populated
+                visible: !root.hasConfirmedStorage
                 objectName: "vaultDropSurface"
                 width: col.width
                 height: 320
@@ -801,10 +839,10 @@ Item {
     Item {
         id: browseFace
         objectName: "vaultBrowseFace"
-        visible: root.populated && !root.folderDetailOpen
+        visible: root.hasConfirmedStorage && !root.folderDetailOpen
         enabled: visible
         anchors.fill: parent
-        focus: root.populated
+        focus: root.hasConfirmedStorage
         Keys.onPressed: (event) => {
             if (event.key === Qt.Key_Backspace) {
                 root.ascendBrowse()
@@ -860,6 +898,10 @@ Item {
                 onHiddenRequested: root.openHidden()
                 onAddRequested: root.addFolderRequested()
                 onToggleRequested: browseSettings.railExpanded = !browseSettings.railExpanded
+                // Slice 9 (design §4.9): Tab from the grid reaches the rail; Shift+Tab returns.
+                // `grid` is declared further down in this same file — QML resolves ids
+                // document-wide, so the forward reference is valid.
+                KeyNavigation.backtab: grid
             }
 
             Item {
@@ -921,13 +963,43 @@ Item {
                     ScrollBar.vertical: HouseScrollBar { flick: grid }
                     delegate: root.browseGridWide ? wideDelegateComp : posterDelegateComp
 
-                    // ---- empty states (design §4.5/§9): distinct copy per cause; Slice 9 restyles ----
-                    Text {
+                    // ---- Slice 9: keyboard reach (design §4.9) — arrow keys move within the
+                    // grid (GridView's own built-in key handling, matching model/visual order),
+                    // Enter opens the keyboard-focused card, Backspace ascends (bubbles up to
+                    // browseFace's own Keys.onPressed below — this item deliberately does not
+                    // accept it), Tab reaches the rail (KeyNavigation, browseRail's own
+                    // activeFocusOnTab). A visible focus ring appears ONLY on keyboard focus
+                    // (`grid.activeFocus`) — a mouse hover/click never sets it, since no card's
+                    // MouseArea ever requests focus, keeping the ring and the hover play-glyph
+                    // structurally independent, exactly as the design requires. ----
+                    focus: true
+                    activeFocusOnTab: true
+                    KeyNavigation.tab: browseRail
+                    onActiveFocusChanged: if (grid.activeFocus && grid.currentIndex < 0 && grid.count > 0)
+                                              grid.currentIndex = 0
+                    highlight: Rectangle {
+                        color: "transparent"
+                        radius: 8
+                        border.width: 2
+                        border.color: theme.inkDim
+                        visible: grid.activeFocus
+                    }
+                    Keys.onReturnPressed: (event) => { root.openFocusedGridCard(); event.accepted = true }
+                    Keys.onEnterPressed: (event) => { root.openFocusedGridCard(); event.accepted = true }
+
+                    // ---- empty states (design §4.5/§9): distinct copy per cause, keyed off the
+                    // C++ projection (VaultLibrary::browseEmptyCause) — this QML never infers the
+                    // cause itself. "Nothing is hidden" is a separate, pre-existing state for the
+                    // Hidden shelf's own browsing mode — not one of the design's four causes, so
+                    // it keeps its own plain text rather than borrowing this component. ----
+                    VaultBrowseEmpty {
+                        id: gridEmptyState
+                        objectName: "vaultBrowseGridEmpty"
+                        anchors.fill: parent
                         visible: grid.count === 0 && !root.hiddenViewActive
-                        anchors.centerIn: parent
-                        text: "This folder is empty."
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
+                        cause: root.browseEmptyCause
+                        itemsCount: root.browseEmptyAwayCount
+                        onAddStorageRequested: root.addFolderRequested()
                     }
                     Text {
                         visible: grid.count === 0 && root.hiddenViewActive

@@ -102,6 +102,20 @@ TestCase {
         testCase.crumbStack = testCase.crumbStack.slice(0, index + 1)
         testCase.currentBrowsePath = testCase.crumbStack[testCase.crumbStack.length - 1].key
     }
+    // Slice 9 — Backspace ascends. This harness has no browseFace wrapper (production's
+    // Keys.onPressed lives one level up from the grid); mirroring the OBSERVABLE contract is
+    // what matters, so `grid` itself catches Backspace directly here (see its own Keys.onPressed
+    // below), same effect as production's bubble-to-parent.
+    function ascendBrowse() {
+        if (testCase.crumbStack.length > 1) testCase.goToCrumb(testCase.crumbStack.length - 2)
+    }
+    // Slice 9 — Enter opens whichever card the grid's keyboard traversal currently focuses,
+    // through the SAME routing a mouse click already uses.
+    function openFocusedGridCard() {
+        if (grid.currentIndex < 0 || grid.currentIndex >= gridModel.count) return
+        const rec = gridModel.get(grid.currentIndex)
+        if (rec && rec.modelData) testCase.handleBrowseCardOpen(rec.modelData)
+    }
     function handleBrowseCardOpen(row) {
         if (!row) return
         if (row.nodeType === "folder" || row.nodeType === "show" || row.nodeType === "season") {
@@ -178,6 +192,33 @@ TestCase {
         cellHeight: testCase.browseGridWide ? 250 : 300
         model: gridModel
         delegate: testCase.browseGridWide ? wideDelegateComp : posterDelegateComp
+        // Slice 9 — mirrors VaultPage.qml's own grid wiring exactly: focus ring on keyboard
+        // focus only, Enter opens the focused card, Backspace ascends, Tab reaches the rail.
+        activeFocusOnTab: true
+        KeyNavigation.tab: rail
+        onActiveFocusChanged: if (grid.activeFocus && grid.currentIndex < 0 && grid.count > 0)
+                                  grid.currentIndex = 0
+        highlight: Rectangle {
+            color: "transparent"; radius: 8; border.width: 2; border.color: "#c9c8d0" // theme.inkDim
+            visible: grid.activeFocus
+        }
+        Keys.onReturnPressed: (event) => { testCase.openFocusedGridCard(); event.accepted = true }
+        Keys.onEnterPressed: (event) => { testCase.openFocusedGridCard(); event.accepted = true }
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Backspace) { testCase.ascendBrowse(); event.accepted = true }
+        }
+    }
+
+    // ── Slice 9: the empty-state family, seeded directly (no live grid needed to prove copy) ──
+    property string emptyCauseSeed: ""
+    property int emptyItemsCountSeed: 0
+    Colosseum.VaultBrowseEmpty {
+        id: emptyState
+        objectName: "vaultBrowseGridEmpty"
+        parent: testWindow.contentItem
+        x: 300; y: 400; width: 700; height: 320
+        cause: testCase.emptyCauseSeed
+        itemsCount: testCase.emptyItemsCountSeed
     }
 
     Colosseum.VaultDetailSheet {
@@ -211,6 +252,9 @@ TestCase {
         cardCrossfadeSpy.clear()
         cardCrossfadeSpy.target = null
         rail.expanded = false
+        testCase.emptyCauseSeed = ""
+        testCase.emptyItemsCountSeed = 0
+        grid.currentIndex = -1
         wait(20)
     }
 
@@ -545,6 +589,148 @@ TestCase {
         verify(created > 0)                          // something rendered
         verify(created < 300)                         // NOT every delegate was instantiated
         verify(created < 60)                          // genuinely bounded, not "299 vs 300"
+    }
+
+    // ── 14. Slice 9 — each empty cause renders its OWN copy; four distinct exact strings, and
+    //      the "noRoots" cause is the only one that shows the Add-storage affordance. ──────────
+    function test_empty_states_render_four_distinct_exact_copies() {
+        testCase.emptyCauseSeed = "noRoots"
+        wait(20)
+        compare(findChild(emptyState, "vaultBrowseEmptyHeading").text, "No storage yet")
+        compare(findChild(emptyState, "vaultBrowseEmptyBody").text,
+                "Point Vault at a folder or a drive and it will work out what is there.")
+        verify(findChild(emptyState, "vaultBrowseEmptyAddStorage") !== null)
+        verify(findChild(emptyState, "vaultBrowseEmptyAddStorage").visible)
+
+        testCase.emptyCauseSeed = "emptyFolder"
+        wait(20)
+        compare(findChild(emptyState, "vaultBrowseEmptyHeading").text, "This folder is empty")
+        compare(findChild(emptyState, "vaultBrowseEmptyBody").text,
+                "Nothing here yet. Anything you drop in will appear on its own.")
+        verify(!findChild(emptyState, "vaultBrowseEmptyAddStorage").visible)
+
+        testCase.emptyCauseSeed = "allAway"
+        testCase.emptyItemsCountSeed = 8
+        wait(20)
+        compare(findChild(emptyState, "vaultBrowseEmptyHeading").text, "Everything here is away")
+        compare(findChild(emptyState, "vaultBrowseEmptyBody").text,
+                "All 8 items live on a drive that is not connected. Nothing has been forgotten.")
+
+        testCase.emptyCauseSeed = "filtered"
+        testCase.emptyItemsCountSeed = 8
+        wait(20)
+        compare(findChild(emptyState, "vaultBrowseEmptyHeading").text, "Nothing matches that filter")
+        compare(findChild(emptyState, "vaultBrowseEmptyBody").text,
+                "Clear the filter to see all 8 items again.")
+
+        // the whole point of the design contract (§4.5): no two causes share copy.
+        var headings = ["No storage yet", "This folder is empty", "Everything here is away", "Nothing matches that filter"]
+        var bodies = [
+            "Point Vault at a folder or a drive and it will work out what is there.",
+            "Nothing here yet. Anything you drop in will appear on its own.",
+            "All 8 items live on a drive that is not connected. Nothing has been forgotten.",
+            "Clear the filter to see all 8 items again."
+        ]
+        for (var i = 0; i < headings.length; ++i) {
+            for (var j = i + 1; j < headings.length; ++j) {
+                verify(headings[i] !== headings[j])
+                verify(bodies[i] !== bodies[j])
+            }
+        }
+    }
+
+    // ── 15. Slice 9 — focus ring visible on keyboard focus, absent on hover/click ─────────────
+    function test_focus_ring_visible_on_keyboard_focus_only() {
+        testCase.levelData["/root"] = [
+            { key: "/root/A", nodeType: "clip", displayTitle: "A", physicalFact: "local",
+              path: "/root/A.mkv", counts: { items: 0 }, coverRef: "", state: "localOnly", away: false },
+            { key: "/root/B", nodeType: "clip", displayTitle: "B", physicalFact: "local",
+              path: "/root/B.mkv", counts: { items: 0 }, coverRef: "", state: "localOnly", away: false }
+        ]
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+
+        compare(grid.activeFocus, false)
+        verify(!grid.highlightItem || !grid.highlightItem.visible)
+
+        var firstArt = findChild(grid, "vaultBrowseCard_/root/A_art")
+        verify(firstArt !== null)
+        mouseClick(firstArt)
+        wait(60)
+        compare(grid.activeFocus, false)     // a mouse click never requests keyboard focus
+        verify(!grid.highlightItem || !grid.highlightItem.visible)
+
+        testWindow.requestActivate()
+        grid.forceActiveFocus()
+        wait(60)
+        verify(grid.activeFocus)
+        verify(grid.highlightItem !== null)
+        compare(grid.highlightItem.visible, true)
+    }
+
+    // ── 16. Slice 9 — arrow traversal order matches the visual (model) order ──────────────────
+    function test_arrow_traversal_matches_visual_order() {
+        var rows = []
+        for (var i = 0; i < 9; ++i) {
+            rows.push({ key: "/root/N" + i, nodeType: "clip", displayTitle: "N" + i,
+                physicalFact: "local", path: "/root/N" + i + ".mkv", counts: { items: 0 },
+                coverRef: "", state: "localOnly", away: false })
+        }
+        testCase.levelData["/root"] = rows
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+        compare(grid.count, 9)
+        compare(testCase.browseGridWide, true)   // clip rows -> wide cards, cellWidth 320
+        var columns = Math.floor(grid.width / grid.cellWidth)   // 700/320 -> 2
+        verify(columns >= 2)
+
+        testWindow.requestActivate()
+        grid.forceActiveFocus()
+        grid.currentIndex = 0
+        wait(40)
+        for (var k = 1; k < columns; ++k) {
+            keyClick(Qt.Key_Right)
+            wait(20)
+            compare(grid.currentIndex, k)
+        }
+        var afterRow0 = grid.currentIndex
+        keyClick(Qt.Key_Down)
+        wait(20)
+        compare(grid.currentIndex, afterRow0 + columns)     // one row down == +columns
+        keyClick(Qt.Key_Left)
+        wait(20)
+        compare(grid.currentIndex, afterRow0 + columns - 1)
+        keyClick(Qt.Key_Up)
+        wait(20)
+        compare(grid.currentIndex, afterRow0 - 1)
+    }
+
+    // ── 17. Slice 9 — Enter opens the keyboard-focused card; Backspace ascends ────────────────
+    function test_enter_opens_focused_card_and_backspace_ascends() {
+        testCase.levelData["/root"] = [
+            { key: "/root/A", nodeType: "folder", displayTitle: "A", physicalFact: "2 items",
+              path: "/root/A", counts: { items: 2 }, coverRef: "", state: "identified", away: false },
+            { key: "/root/B", nodeType: "folder", displayTitle: "B", physicalFact: "1 item",
+              path: "/root/B", counts: { items: 1 }, coverRef: "", state: "identified", away: false }
+        ]
+        testCase.levelData["/root/A"] = []
+        testCase.selectRoot("/root", "hemanth's folder")
+        wait(80)
+        compare(crumb.stack.length, 1)
+
+        testWindow.requestActivate()
+        grid.forceActiveFocus()
+        grid.currentIndex = 0
+        wait(40)
+        keyClick(Qt.Key_Return)
+        wait(80)
+        compare(testCase.currentBrowsePath, "/root/A")
+        compare(crumb.stack.length, 2)
+
+        keyClick(Qt.Key_Backspace)
+        wait(80)
+        compare(testCase.currentBrowsePath, "/root")
+        compare(crumb.stack.length, 1)
     }
 
     function findChild(root, wanted) {

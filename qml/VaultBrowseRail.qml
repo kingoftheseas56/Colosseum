@@ -9,6 +9,10 @@ import QtQuick
 Item {
     id: rail
     objectName: "vaultBrowseRail"
+    // Slice 9 (keyboard reach, design §4.9): "the rail is reachable by Tab." A plain Item needs
+    // this explicitly — Qt Quick's automatic Tab-focus chain otherwise skips it, and
+    // VaultPage.qml wires the explicit KeyNavigation.tab/.backtab pairing with the grid.
+    activeFocusOnTab: true
 
     property var roots: []                 // VaultLibrary.rootsDetail() rows: {path,name,available,itemCount,fileCount}
     property bool expanded: false
