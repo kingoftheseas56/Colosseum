@@ -34,6 +34,28 @@ Item {
     readonly property bool playerActive:     root.visible   // player item is the shown surface
     // (root.errored is already a readable bool on this root — no proxy needed.)
 
+    // ── decoded-frame readiness (Agent Visibility Phase 2, Slice J1-Video-Seam) ─────
+    // decodedWidth/decodedHeight mirror mpv's own dwidth/dheight (MpvItem.decodedWidth/
+    // decodedHeight — mpvitem.cpp, the same two properties MediaAdmissionProbe.cpp:59-60
+    // observes on its own headless handle). playerReady is true ONLY when a real frame
+    // has decoded (both dimensions positive) AND the authoritative session is in a
+    // playable state (root.fileReady — set true on mpv's fileLoaded, cleared on endFile
+    // and every error path — and not root.errored). This is deliberately NOT derived
+    // from fileReady/fileLoaded alone: fileReady already goes true at fileLoaded time
+    // (PlayerPage.qml onFileLoaded, below), before any frame has decoded, and identically
+    // for an audio-only source — the exact vacuity MediaAdmissionProbe.cpp closes for the
+    // Vault admission gate, reproduced here for the live player (see baseline.json). No
+    // timer, sleep, route/log-text derivation, or the separate admission-probe object.
+    readonly property int    decodedWidth:    mpv.decodedWidth
+    readonly property int    decodedHeight:   mpv.decodedHeight
+    readonly property bool   playerReady:     root.fileReady && !root.errored
+                                               && mpv.decodedWidth > 0 && mpv.decodedHeight > 0
+    // Stable source identity: the same cross-source id Progress keys resume state on
+    // (root.mediaId — set by openPlayer(), a tt-id/infoHash/local: path, never derived
+    // from a route counter) when known, else mpv's own currentUrl as the fallback.
+    readonly property string sourceIdentity:  root.mediaId.length > 0 ? root.mediaId
+                                                                       : mpv.currentUrl.toString()
+
     Settings {
         id: playerSettings
         location: Qt.resolvedUrl("../player.ini")

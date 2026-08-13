@@ -8,7 +8,7 @@
 - Total files: **26**
 - Documented: **10**
 - Undocumented: **16**
-- Drifted: **0**
+- Drifted: **1**
 
 <a id="file-native-player-caststore-cpp"></a>
 ## `native/player/caststore.cpp`
@@ -83,8 +83,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/player/mpvitem.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `6de769d9c1e7b34808f84259ed9ad72cbf888b63`
-- Current blob: `6de769d9c1e7b34808f84259ed9ad72cbf888b63`
+- Accepted blob: `c84f570052ac97df83e099799ffb72cd29038509`
+- Current blob: `c84f570052ac97df83e099799ffb72cd29038509`
 - Source: [`native/player/mpvitem.cpp`](../../native/player/mpvitem.cpp)
 
 ```text
@@ -95,8 +95,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/player/mpvitem.h`
 
 - Status: **CURRENT**
-- Accepted blob: `ec3d61bc7c0d2abc80d8a2f8cde995fbc0a52ff1`
-- Current blob: `ec3d61bc7c0d2abc80d8a2f8cde995fbc0a52ff1`
+- Accepted blob: `48d772f50ca8abb822fc99e26ac6a65d6a3179fa`
+- Current blob: `48d772f50ca8abb822fc99e26ac6a65d6a3179fa`
 - Source: [`native/player/mpvitem.h`](../../native/player/mpvitem.h)
 
 ```text
@@ -301,8 +301,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/PlayerPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `ffa04e60c159c68dd77216c87768f0371a772c61`
-- Current blob: `ffa04e60c159c68dd77216c87768f0371a772c61`
+- Accepted blob: `88c89abf1a34f4eac1a58b6aa4c38d319039d5f5`
+- Current blob: `88c89abf1a34f4eac1a58b6aa4c38d319039d5f5`
 - Source: [`qml/PlayerPage.qml`](../../qml/PlayerPage.qml)
 
 ```text
@@ -323,10 +323,11 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-theatreapi-js"></a>
 ## `qml/TheatreApi.js`
 
-- Status: **CURRENT**
+- Status: **DRIFTED**
 - Accepted blob: `b6dd1594103ba608ad04f2d0a56928b9cb4fd40f`
-- Current blob: `b6dd1594103ba608ad04f2d0a56928b9cb4fd40f`
+- Current blob: `ede8eb724c1661f97cdd16c6b00a734253c8ef5d`
 - Source: [`qml/TheatreApi.js`](../../qml/TheatreApi.js)
+- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // TheatreApi.js - tiny live catalog adapter for the Colosseum QML prototype.

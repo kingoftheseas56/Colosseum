@@ -40,6 +40,13 @@ MpvItem::MpvItem(QQuickItem *parent)
     observeProperty(QStringLiteral("demuxer-cache-time"), MPV_FORMAT_DOUBLE);
     observeProperty(QStringLiteral("seeking"), MPV_FORMAT_FLAG);
     observeProperty(QStringLiteral("chapter-list"), MPV_FORMAT_NODE);
+    // Decoded-frame truth (J1-Video-Seam): the same two properties
+    // MediaAdmissionProbe.cpp:59-60 observes on its own headless handle, mirrored here
+    // on the live playing instance. Not part of the mpvproperties.h constant set —
+    // ad-hoc string literals are the established pattern for this constructor's later
+    // additions (see demuxer-cache-time/seeking/chapter-list just above).
+    observeProperty(QStringLiteral("dwidth"), MPV_FORMAT_INT64);
+    observeProperty(QStringLiteral("dheight"), MPV_FORMAT_INT64);
 
     setupConnections();
 
@@ -197,6 +204,23 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
         m_coreSeeking = value.toBool();
         Q_EMIT coreSeekingChanged();
 
+    } else if (property == QLatin1String("dwidth")) {
+        // dwidth/dheight arrive as two independent property-change events for the same
+        // decode moment; each is applied and notified as it lands rather than paired,
+        // matching MediaAdmissionProbe.cpp:125-141's own dw/dh bookkeeping.
+        const int next = static_cast<int>(value.toLongLong());
+        if (next != m_decodedWidth) {
+            m_decodedWidth = next;
+            Q_EMIT decodedDimensionsChanged();
+        }
+
+    } else if (property == QLatin1String("dheight")) {
+        const int next = static_cast<int>(value.toLongLong());
+        if (next != m_decodedHeight) {
+            m_decodedHeight = next;
+            Q_EMIT decodedDimensionsChanged();
+        }
+
     } else if (property == QLatin1String("chapter-list")) {
         QVariantList out;
         const QVariantList raw = value.toList();
@@ -305,6 +329,18 @@ void MpvItem::issueLoadFile(const QString &file)
     if (m_currentUrl != url) {
         m_currentUrl = url;
         Q_EMIT currentUrlChanged();
+    }
+
+    // A fresh `loadfile ... replace` starts a brand-new decode every time this runs, even when
+    // the URL is unchanged (a replay). mpv only fires dwidth/dheight property-change events on a
+    // VALUE CHANGE, so a same-size reload would otherwise never re-announce them — leaving the
+    // stale prior dimensions reading "decoded" before the new file has decoded anything. Reset
+    // here, before the command goes out, so decodedWidth/decodedHeight always start at zero for
+    // this load (J1-Video-Seam's "ready_resets_on_unload"-style guarantee, at the native layer).
+    if (m_decodedWidth != 0 || m_decodedHeight != 0) {
+        m_decodedWidth = 0;
+        m_decodedHeight = 0;
+        Q_EMIT decodedDimensionsChanged();
     }
 
     command(QStringList() << QStringLiteral("loadfile")
@@ -738,6 +774,16 @@ QString MpvItem::formattedPosition() const
 QUrl MpvItem::currentUrl() const
 {
     return m_currentUrl;
+}
+
+int MpvItem::decodedWidth() const
+{
+    return m_decodedWidth;   // cached from the observer; mirrors MediaAdmissionProbe's dwidth read
+}
+
+int MpvItem::decodedHeight() const
+{
+    return m_decodedHeight;   // cached from the observer; mirrors MediaAdmissionProbe's dheight read
 }
 
 QVariantList MpvItem::tracksForType(const QString &type) const

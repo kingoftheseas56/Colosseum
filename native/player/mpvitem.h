@@ -101,6 +101,23 @@ public:
     Q_PROPERTY(QUrl currentUrl READ currentUrl NOTIFY currentUrlChanged)
     QUrl currentUrl() const;
 
+    // Decoded-frame truth (Agent Visibility Phase 2, Slice J1-Video-Seam, 2026-08-13):
+    // the SAME two mpv properties MediaAdmissionProbe.cpp:59-60 observes on its own
+    // headless handle ("dwidth"/"dheight"), mirrored here on the LIVE playing instance
+    // so a caller can tell "a route succeeded" / "mpv opened the file" apart from "a
+    // real video frame actually decoded" — the exact vacuity MediaAdmissionProbe closes
+    // for the Vault admission gate (MediaAdmissionProbe.cpp:99-123: FILE_LOADED fires
+    // for audio-only sources too, but dwidth/dheight never go positive for them). Zero
+    // until the first real decoded frame arrives; reset to zero at the start of every
+    // new load so a same-size reload cannot read "ready" from a stale value mpv never
+    // re-announces (dwidth/dheight are change-notified, not re-sent on every load).
+    // Read-only, observability-only: no playback/control path reads these.
+    Q_PROPERTY(int decodedWidth READ decodedWidth NOTIFY decodedDimensionsChanged)
+    int decodedWidth() const;
+
+    Q_PROPERTY(int decodedHeight READ decodedHeight NOTIFY decodedDimensionsChanged)
+    int decodedHeight() const;
+
     Q_PROPERTY(double cacheTime READ cacheTime NOTIFY cacheTimeChanged)
     double cacheTime() const;
 
@@ -162,6 +179,7 @@ Q_SIGNALS:
     void endFile(QString reason);
     void playbackError(QString code, QString message);
     void videoReconfig();
+    void decodedDimensionsChanged();
 
 private:
     void setupConnections();
@@ -205,6 +223,8 @@ private:
     double m_duration{0.0};
     QString m_formattedDuration;
     QUrl m_currentUrl;
+    int m_decodedWidth{0};
+    int m_decodedHeight{0};
     QVariantList m_trackList;
     QVariantList m_chapters;
     double m_cacheTime = 0.0;

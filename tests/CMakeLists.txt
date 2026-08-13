@@ -742,6 +742,39 @@ set_tests_properties(colosseum.http_header_channel_harness PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Journey: play video to decoded-frame readiness (Agent Visibility Phase 2,
+#    Slice J1-Video-Seam, 2026-08-13) ────────────────────────────────────────
+# Drives the REAL production MpvItem over the same real ffmpeg-generated fixtures the Vault
+# admission gate uses (tests/fixtures/vault/media/), proving decodedWidth/decodedHeight report
+# the same dwidth/dheight decode truth MediaAdmissionProbe reads on its own headless handle —
+# never FILE_LOADED alone. Compiles mpvitem.cpp (same as http_header_channel_harness, just above)
+# and links the app's MpvQt/libmpv, whose DLLs already sit in build-msvc/ beside this exe.
+# AUTOMOC (set ON above) processes MpvItem's Q_OBJECT; real Qt Test idiom (per-case reporting).
+add_executable(tst_journey_play_video
+    auto/player/tst_journey_play_video.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
+target_include_directories(tst_journey_play_video PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
+target_compile_definitions(tst_journey_play_video PRIVATE
+    VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+target_link_libraries(tst_journey_play_video
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test MpvQt::MpvQt)
+set_target_properties(tst_journey_play_video PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_journey_play_video POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.journey_play_video
+         COMMAND tst_journey_play_video)
+set_tests_properties(colosseum.qttest.journey_play_video PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Qt Quick Test runner (slice 4) ───────────────────────────────────────────
 # One repo-built runner over tests/qml/tst_*.qml, replacing the Qt-install
 # qmltestrunner.exe path hardcoded in the legacy .ps1 gates. -input points at
