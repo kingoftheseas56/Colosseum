@@ -8,10 +8,18 @@
 // The server registers its selftest-* fixture commands only because this harness
 // sets COLOSSEUM_LANISTA_SELFTEST=1; the daily app never sees them.
 #include "devtools/LanistaServer.h"
+#include "engine/VaultConfig.h"
+#include "engine/VaultForensics.h"
+#include "engine/VaultIdentity.h"
+#include "engine/VaultIndex.h"
+#include "engine/VaultLibrary.h"
+#include "engine/VaultScanner.h"
 
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
@@ -24,11 +32,14 @@
 #include <QQuickWindow>
 #include <QSet>
 #include <QStringList>
+#include <QTemporaryDir>
 #include <QTimer>
+#include <QVariantMap>
 
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 
 static void require(bool cond, const QString& msg)
 {
@@ -123,6 +134,84 @@ static void settle(int ms)
     loop.exec();
 }
 
+// ── F1-Bridge fixture: a REAL VaultLibrary, small enough to build in one harness run ──
+// Mirrors tests/auto/vault/tst_vault_forensics.cpp's buildNestedFixture idiom (F1-Core's own
+// fixture pattern, reused rather than reinvented): one confirmed root -> one "Shows"
+// intermediate folder -> `childCount` sibling film folders (one video file each). childCount is
+// deliberately > VaultForensics::kMaxLimit (100) so vault_forensics_clamps_limit has real rows to
+// clamp, not just an assumption the clamp would bite if there were ever more.
+struct VaultForensicsFixture {
+    QTemporaryDir tmp;
+    QString rootPath;
+    QString showsPath;
+    std::unique_ptr<VaultIndex> index;
+    std::unique_ptr<VaultConfig> config;
+    std::unique_ptr<VaultIdentity> identity;
+    std::unique_ptr<VaultScanner> scanner;
+    std::unique_ptr<VaultLibrary> library;   // destroyed FIRST (reverse declaration order)
+};
+
+static void writeFixtureStub(const QString& path)
+{
+    QFile f(path);
+    require(f.open(QIODevice::WriteOnly | QIODevice::Truncate),
+            QStringLiteral("vault forensics fixture: stub file writes: ") + path);
+    f.write(QByteArrayLiteral("stub"));
+}
+
+static std::unique_ptr<VaultForensicsFixture> buildVaultForensicsFixture(int childCount)
+{
+    auto fx = std::make_unique<VaultForensicsFixture>();
+    require(fx->tmp.isValid(), QStringLiteral("vault forensics fixture: temp dir is valid"));
+
+    // Lower-cased on Windows to match VaultConfig::norm()'s own normalization (private, mirrored
+    // here the same way tst_vault_forensics.cpp's normalizedRootPath() does) -- otherwise
+    // rootsDetail()'s (lowercased) path silently never matches a FileRow.rootPath built from
+    // QTemporaryDir::path()'s mixed-case form.
+    QString root = QDir::cleanPath(QDir(fx->tmp.path()).filePath(QStringLiteral("root")));
+#ifdef Q_OS_WIN
+    root = root.toLower();
+#endif
+    fx->rootPath = root;
+    fx->showsPath = QDir(fx->rootPath).filePath(QStringLiteral("Shows"));
+    QDir().mkpath(fx->showsPath);
+
+    fx->index = std::make_unique<VaultIndex>(
+        QDir(fx->tmp.path()).filePath(QStringLiteral("index.sqlite")));
+    fx->config = std::make_unique<VaultConfig>(fx->tmp.path());
+    fx->identity = std::make_unique<VaultIdentity>(fx->tmp.path());
+    fx->scanner = std::make_unique<VaultScanner>(fx->index.get(), fx->identity.get());
+    fx->config->addRoot(fx->rootPath);
+    fx->config->confirmRoot(fx->rootPath);
+
+    QList<VaultIndex::FileRow> rows;
+    for (int i = 0; i < childCount; ++i) {
+        const QString folder = QDir(fx->showsPath).filePath(QStringLiteral("c%1").arg(i));
+        QDir().mkpath(folder);
+        const QString file = QDir(folder).filePath(QStringLiteral("movie.mp4"));
+        writeFixtureStub(file);
+
+        VaultIndex::FileRow r;
+        r.id = QStringLiteral("vault:child-%1").arg(i);
+        r.rootPath = fx->rootPath;
+        const QString canonicalFolder = QFileInfo(folder).absoluteFilePath();
+        r.subtreePath = canonicalFolder;
+        r.groupKey = canonicalFolder;
+        r.groupTitle = QStringLiteral("Movie");
+        r.kind = QStringLiteral("video");
+        r.path = QFileInfo(file).absoluteFilePath();
+        r.displayTitle = QStringLiteral("Movie");
+        r.realName = QStringLiteral("movie.mp4");
+        r.size = 4;
+        r.mtimeMs = 1000 + i;
+        rows.append(r);
+    }
+    fx->index->publish(rows);
+    fx->library = std::make_unique<VaultLibrary>(fx->index.get(), fx->scanner.get(),
+                                                  fx->config.get(), fx->identity.get());
+    return fx;
+}
+
 int main(int argc, char** argv)
 {
     // FIRST LINE, before the platform plugin loads: offscreen carries no font
@@ -200,6 +289,13 @@ int main(int argc, char** argv)
             QStringLiteral("lanista listens on ") + pipe + QStringLiteral(": ")
                 + (server->listenError().isEmpty() ? QStringLiteral("(no error reported)")
                                                    : server->listenError()));
+
+    // F1-Bridge: a REAL VaultLibrary (105 rows -- 5 over VaultForensics::kMaxLimit) wired into
+    // the server exactly the way main.cpp wires the production one, so "vault-forensics" is
+    // genuinely exercised here rather than left permanently VAULT_FORENSICS_UNAVAILABLE.
+    auto vaultFixture = buildVaultForensicsFixture(105);
+    auto vaultForensics = std::make_unique<VaultForensics>(vaultFixture->library.get());
+    server->setVaultForensics(vaultForensics.get());
 
     if (serve) {
         std::cout << "LANISTA_SERVING " << pipe.toStdString() << "\n" << std::flush;
@@ -1199,6 +1295,87 @@ int main(int argc, char** argv)
         require(ev.value("type").toString() == "reply", "events-tail replies" + why());
         require(QJsonDocument(ev).toJson().contains("harness-mark-1"),
                 "the mark is readable back through events-tail" + why());
+
+        // ── F1-Bridge: vault-forensics ─────────────────────────────────────────
+        // One Read-gated call onto F1-Core (VaultForensics) through the REAL fixture
+        // built above. Both gates are still closed here (nothing since Task 5 opened
+        // them again) — vault_forensics_is_read_gated rides that fact rather than
+        // re-toggling anything.
+        {
+            QJsonObject summary = call(pipe, {{"cmd", "vault-forensics"}, {"seq", 110},
+                {"payload", QJsonObject{{"scope", "summary"}, {"limit", 10}}}});
+            require(summary.value("type").toString() == "reply",
+                    "vault_forensics_is_read_gated: answers with both DRIVE and WRITE closed"
+                        + why());
+            require(summary.value("schema").toString()
+                        == QStringLiteral("colosseum.vault.forensics.v1"),
+                    "vault_forensics_is_read_gated: schema is colosseum.vault.forensics.v1");
+            std::cout << "CASE_OK: vault_forensics_is_read_gated\n";
+
+            // vault_forensics_passes_response_unchanged: the bridge's reply, minus the
+            // wire envelope's own "type"/"seq" (added by every command alike, not
+            // specific to this one), must equal calling VaultForensics::query() directly
+            // field-for-field — proving cmdVaultForensics() truly hands the map through
+            // unchanged rather than re-shaping or dropping anything.
+            const QVariantMap direct = vaultForensics->query(
+                QVariantMap{{QStringLiteral("scope"), QStringLiteral("summary")},
+                            {QStringLiteral("limit"), 10}});
+            QJsonObject bridgeBody = summary;
+            bridgeBody.remove(QStringLiteral("type"));
+            bridgeBody.remove(QStringLiteral("seq"));
+            const QJsonObject directBody = QJsonObject::fromVariantMap(direct);
+            require(bridgeBody == directBody,
+                    "vault_forensics_passes_response_unchanged: bridge reply == "
+                    "VaultForensics::query() verbatim (envelope aside)" + why());
+            std::cout << "CASE_OK: vault_forensics_passes_response_unchanged\n";
+
+            // vault_forensics_rejects_bad_scope: an unknown scope is F1-Core's OWN
+            // diagnostic (its errors[] array) — the bridge never duplicates F1-Core's
+            // scope validation, so the WIRE reply stays type:"reply", never type:"error".
+            QJsonObject bad = call(pipe, {{"cmd", "vault-forensics"}, {"seq", 111},
+                {"payload", QJsonObject{{"scope", "bogus"}}}});
+            require(bad.value("type").toString() == "reply",
+                    "vault_forensics_rejects_bad_scope: still a reply, not a wire-level error"
+                        + why());
+            require(!bad.value("errors").toArray().isEmpty(),
+                    "vault_forensics_rejects_bad_scope: F1-Core's own errors[] carries the "
+                    "rejection" + why());
+            require(QJsonDocument(bad).toJson().contains("unknown scope"),
+                    "vault_forensics_rejects_bad_scope: names the bad scope in the diagnostic");
+            std::cout << "CASE_OK: vault_forensics_rejects_bad_scope\n";
+
+            // vault_forensics_clamps_limit: the fixture holds 105 real rows under
+            // fx->showsPath (5 over VaultForensics::kMaxLimit=100) — request limit=101
+            // and prove the clamp holds THROUGH the bridge: never 101 rows, truncated set.
+            QJsonObject node = call(pipe, {{"cmd", "vault-forensics"}, {"seq", 112},
+                {"payload", QJsonObject{{"scope", "node"},
+                                        {"key", vaultFixture->showsPath}, {"limit", 101}}}});
+            require(node.value("type").toString() == "reply",
+                    "vault_forensics_clamps_limit: replies" + why());
+            const int rowCount = node.value("browse").toObject().value("rows").toArray().size();
+            require(rowCount <= 100,
+                    QStringLiteral("vault_forensics_clamps_limit: never more than 100 rows "
+                                   "through the bridge (got %1)").arg(rowCount));
+            require(node.value("truncated").toBool(),
+                    "vault_forensics_clamps_limit: truncated is set");
+            std::cout << "CASE_OK: vault_forensics_clamps_limit (" << rowCount << " rows)\n";
+
+            // vault_forensics_deadline_is_bounded: F0 found the bridge and VaultLibrary
+            // share one thread today, so queryMarshalled() always degrades to a direct
+            // call here — this proves that degrade path is genuinely FAST and bounded,
+            // wall-clock, rather than merely trusting the code comment that says so.
+            QElapsedTimer clock;
+            clock.start();
+            QJsonObject bounded = call(pipe, {{"cmd", "vault-forensics"}, {"seq", 113},
+                {"payload", QJsonObject{{"scope", "summary"}, {"timeoutMs", 500}}}});
+            const qint64 elapsedMs = clock.elapsed();
+            require(bounded.value("type").toString() == "reply",
+                    "vault_forensics_deadline_is_bounded: replies" + why());
+            require(elapsedMs < 3000,
+                    QStringLiteral("vault_forensics_deadline_is_bounded: bridge call returns "
+                                   "quickly (%1 ms, same-thread degrade path)").arg(elapsedMs));
+            std::cout << "CASE_OK: vault_forensics_deadline_is_bounded (" << elapsedMs << " ms)\n";
+        }
 
         // Close the DRIVE gate again — leave the process as the denial tests found it.
         qunsetenv("COLOSSEUM_LANISTA_DRIVE");

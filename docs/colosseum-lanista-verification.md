@@ -61,6 +61,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `invoke-read` | Read | allowlisted C++ method calls | **8 methods**: six `TankobanVolumes` reads + `BiblioImageDiag.rowsForUrl(urlFragment)` / `BiblioImageDiag.recentRows(limitText)` (per-URL image-network rows: status, error, cacheHit, bytes, contentType, timing — newest first; added 2026-08-06). QString args (max 3); returns only list/map/bool |
 | `events-tail` | Read | last N lines of the JSONL event log | see "Event log truths" |
 | `log-mark` | Read | append a correlation mark to the event log | the ONLY event type that exists today |
+| `vault-forensics` | Read | one bounded, typed read projection of the live Vault (F1-Core `VaultForensics`, composing `VaultLibrary` only) — F1-Bridge, 2026-08-13 | `scope` required (`summary`/`root`/`node`/`identity`); see "Vault forensics" below |
 
 ### Structural dump — L1-Bridge (2026-08-13)
 
@@ -83,6 +84,59 @@ at the next structural/snapshot generation (stale → `NO_SUCH_ITEM`); `objectNa
 first-root-window scope; Read gate only. Runtime-validated in an isolated session 2026-08-13 (a real
 unnamed production row queried by handle matched its `dump-ui` row exactly). Harness cases: see the
 test ledger's "Lanista structural dump" entry.
+
+### Vault forensics — F1-Bridge (2026-08-13)
+
+One Read-gated `vault-forensics` command answers "what does the live Vault actually hold right
+now" without hand SQLite archaeology. It invokes F1-Core's `VaultForensics::queryMarshalled()`
+on the app's GUI/owner thread (F0's named safe seam — `VaultLibrary`, never `VaultIndex`
+directly) and hands the response map back to the wire **UNCHANGED**: the reply body's fields
+are exactly F1-Core's `colosseum.vault.forensics.v1` schema, with only the ordinary wire
+envelope (`type`, `seq`) added on top like every other command. The bridge does not grow a
+generic reflection/write registry — this is one named, typed call onto one named projection.
+
+- **Request payload:** `scope` (required: `summary`/`root`/`node`/`identity`), `key` (string,
+  scope-dependent — a root path for `root`, a browse/group key for `node`/`identity`, unused for
+  `summary`), `limit` (int, F1-Core clamps to 1..100, default 20), `timeoutMs` (bridge-level
+  marshalling deadline for `queryMarshalled()`, clamped server-side to 200..10000, default 2000).
+- **Reply:** F1-Core's own envelope — `schema: "colosseum.vault.forensics.v1"`,
+  `indexSchemaVersion`, `revision`, `ownerThread{name,id}`, `truncated`, `errors[]`, plus the
+  scope's own block (`roots`/`browseCount`/`itemCount`/`recent` for `summary`; `root`/`browse`
+  for `root`; `node`/`browse` for `node`; `identity` for `identity`).
+- **The `candidateCount:-1` sentinel is inherited honestly, never patched over.** F1-Core found
+  the real uncertain-identity candidate count is not reachable through `VaultLibrary`'s public
+  surface — it lives only inside `VaultBrowseDetail::detailFor`'s human evidence sentence, and
+  reaching raw `VaultIndex` rows to recover it would mean touching `VaultIndex` directly, which
+  F0 §10 forbids this seam from doing. Recovering the real count would need a new `VaultLibrary`
+  accessor — a Vault-engine change outside F1's fence. Noted for the record; a future decision.
+- **An unknown `scope` is F1-Core's own diagnostic, never a bridge-level wire error:** the reply
+  stays `type:"reply"` with `errors[]` naming the bad scope (`"unknown scope '<x>' — expected
+  summary|root|node|identity"`) — the bridge does not duplicate F1-Core's scope validation.
+- **No owner bound (`VAULT_FORENSICS_UNAVAILABLE`):** a process that never wired a
+  `VaultForensics*` into `LanistaServer::setVaultForensics()` (e.g. a bare QML-scene harness with
+  no live `VaultLibrary`) answers this coded error rather than dereferencing null. Production
+  (`main.cpp`) always wires one, parented to `&app` alongside every other Vault object.
+- **CLI/facade:** no dedicated CLI verb — the existing generic `lanista vault-forensics
+  scope=summary limit=10 [--pipe P] [--timeout T]` plain-command path (`payloadFromArgs`'s k=v
+  typing) already handles it; nothing added to `native/tools/lanista.cpp`. The facade adds one
+  typed tool, `vault_forensics(scope, key?, limit?, timeoutMs?)` — see "MCP adapter" below.
+- Harness cases (`tests/lanista_harness.cpp`, a real `VaultLibrary` fixture — 105 rows under one
+  browse node, 5 over F1-Core's `kMaxLimit`): `vault_forensics_is_read_gated`,
+  `vault_forensics_passes_response_unchanged` (bridge reply == `VaultForensics::query()` direct
+  call, byte-for-byte, envelope aside), `vault_forensics_rejects_bad_scope`,
+  `vault_forensics_clamps_limit` (never more than 100 rows through the bridge — negative control:
+  temporarily asserting exactly 101 rows reds with "got 100", restored), and
+  `vault_forensics_deadline_is_bounded` (same-thread degrade path returns in well under a
+  second) — all green 2026-08-13, `lanista_harness.exe` self-test, `LANISTA_OK`. **Isolated-
+  session runtime replay against the assembled app (`session_start` → `vault_forensics(scope=
+  "summary")` → `vault_forensics(scope="node", key=<seeded key>)` → `warnings()`) is Bridge
+  blocked as of this slice's landing:** a `colosseum.exe` was live-running from `native/
+  build-msvc` (PID/start-time/cmdline indistinguishable from Hemanth's daily app; per the plan's
+  own standing rule it is never killed to clear a lock) when this slice tried to relink the app
+  target, so the shipped `colosseum.exe` does not yet carry this command. `main.cpp`/
+  `LanistaServer.cpp` compile clean (object-file build proven) and every command/CLI/facade path
+  is exercised against the real `lanista_harness.exe` build above; the assembled-app replay is
+  the one piece still owed once the app target can relink.
 
 ### Combined state + capture (grabs)
 
@@ -549,7 +603,7 @@ call. The pure evaluator lives in header-only `native/tools/LanistaLayoutVerdict
   disconnect) is reused, never re-implemented. Stdlib only (plus `ctypes` for one Windows API
   call, see session_stop below) — no SDK, no new dependency.
 - **Protocol ruling (unchanged, do not revisit without a fresh plan):** still the hand-rolled
-  JSON-RPC `2024-11-05` base, no Tasks, no SDK. All 11 tools are plain `tools/call`.
+  JSON-RPC `2024-11-05` base, no Tasks, no SDK. All 12 tools are plain `tools/call`.
 - **Eight new typed tools**, plus the original 3 kept working unchanged in name and target:
   - `session_start(seedName?, tag?, drive?)` — an INTERACTIVE session the adapter itself owns
     (spawns `colosseum.exe` directly via `subprocess.Popen`, not through `session run`, which is
@@ -601,6 +655,17 @@ call. The pure evaluator lives in header-only `native/tools/LanistaLayoutVerdict
   - `lanista_call` / `lanista_grab` / `lanista_snapshot` — **unchanged names, unchanged target**
     (whatever `COLOSSEUM_LANISTA_PIPE` resolves to at call time — daily app or an externally-
     managed session — exactly as before), reimplemented on the same deadline-safe transport.
+  - `vault_forensics(scope, key?, limit?, timeoutMs?)` — **F1-Bridge, 2026-08-13, the 12th tool,
+    strictly appended after the 11 above** (never inserted between them — `TOOLS`/`TOOL_IMPLS`
+    order proven unchanged). Shells the same `vault-forensics` bridge command on the ACTIVE
+    session's pipe (session ownership preserved, like `act`/`get`/`snapshot`), preserving v0's
+    deadline/backstop pattern: the bridge-level `timeoutMs` clamps to 200..30000 ms, and the
+    CLI's own client deadline is `max(10000, timeoutMs + 5000)` — the same floor+slack rule
+    `wait_for()` already uses, so a hung owner-thread wait can never make Python give up before
+    the bridge's own bounded wait would have returned a coded error. The reply is passed through
+    unchanged at this layer too (proven by `tests/test_lanista_mcp_forensics.py`'s
+    `summary_round_trip`/`node_round_trip`, which monkeypatch `run_lanista` so no subprocess or
+    live app is needed to prove the Python plumbing).
 - **Test-only hooks, deliberately NOT in the public `inputSchema`:** `session_start` accepts
   `_forcePipe` and `_forceIsolationMismatch` (read via `args.get(...)`, never schema-validated —
   matching this file's existing lightweight-dispatch style). They exist ONLY to exercise two

@@ -87,6 +87,19 @@ half the compiled harnesses are run by nobody.
   No native/QML change; full detail (command, allowlist location, measured baseline, negative
   controls) lives in `docs/colosseum-lanista-verification.md` under "Warning gate (Slice W0,
   2026-08-12)" since it is a runtime/bridge-domain capability, not a compiled test target.
+  **F1-Bridge (2026-08-13)** added 5 more named cases to the SAME `tests/lanista_harness.cpp`:
+  `vault_forensics_is_read_gated`, `vault_forensics_passes_response_unchanged`,
+  `vault_forensics_rejects_bad_scope`, `vault_forensics_clamps_limit`,
+  `vault_forensics_deadline_is_bounded` — proving the new `vault-forensics` bridge command against a
+  REAL `VaultLibrary` fixture (105 rows, `native/CMakeLists.txt`'s `lanista_harness` target now also
+  links the full `VaultLibrary` dependency chain and `Qt6::Sql`/`Qt6::Concurrent`, mirroring
+  `tst_vault_forensics`'s own link list). Negative control performed (temporarily asserting exactly
+  101 rows through the bridge turned exactly `vault_forensics_clamps_limit` red — "got 100" — restored).
+  All 13 named `lanista_harness` cases green together, `LANISTA_OK`. Full detail: the Lanista ledger's
+  "Vault forensics — F1-Bridge" section. Companion Python contract tests (no native build/live app
+  needed): `tests/test_lanista_mcp_forensics.py` — `tool_schema_is_exact`, `summary_round_trip`,
+  `node_round_trip`, `deadline_is_bounded`, `legacy_tools_unchanged` (12 cases total incl. supporting
+  checks), run via `python tests/test_lanista_mcp_forensics.py -v`.
 
 ## Tankoban Reading Room gate (2026-08-11)
 

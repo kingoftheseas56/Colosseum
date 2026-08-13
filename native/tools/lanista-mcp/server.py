@@ -17,9 +17,14 @@ unchanged in name and behavior:
       call time — daily app or an externally-managed session), now routed
       through the SAME deadline-safe transport as everything else.
 
+F1-Bridge (Agent Visibility Phase 2, 2026-08-13) adds a 9th typed tool,
+12 total: vault_forensics(scope, key?, limit?, timeoutMs?) — shells the same
+"vault-forensics" bridge command the CLI/facade both use, on the active
+session, preserving v0's deadline/backstop pattern.
+
 PROTOCOL RULING (Agent 0, 2026-08-12, do not deviate): this file stays on
 the hand-rolled JSON-RPC 2024-11-05 base — no SDK, no protocol version bump,
-no Tasks. All eight tools are plain tools/call and need nothing newer; hosts
+no Tasks. All twelve tools are plain tools/call and need nothing newer; hosts
 negotiate down. The Night Watch (N0/N1) is where a protocol upgrade belongs,
 not here.
 
@@ -596,6 +601,53 @@ def tool_grab(args):
             "isError": True}
 
 
+VAULT_FORENSICS_MIN_TIMEOUT_MS = 200
+VAULT_FORENSICS_MAX_TIMEOUT_MS = 30000
+
+
+def tool_vault_forensics(args):
+    """F1-Bridge: one typed call onto F1-Core's bounded Vault projection
+    (VaultForensics) through the active session's "vault-forensics" bridge
+    command. Same transport/session-ownership contract as act/get/snapshot —
+    requires an active session, shells the lanista CLI, never touches the
+    pipe directly. The reply is passed through UNCHANGED (schema
+    colosseum.vault.forensics.v1), matching the bridge's own pass-through
+    contract — this adapter layer does not reshape it either."""
+    guard = _require_active_session()
+    if guard:
+        return guard
+    scope = args.get("scope")
+    if not scope:
+        return _err("vault_forensics(scope, key?, limit?, timeoutMs?) needs scope")
+
+    # Bridge-level deadline (forwarded as the "timeoutMs" payload field the C++ handler
+    # reads for VaultForensics::queryMarshalled) — clamped so neither an unbounded wait
+    # nor a too-small one (starving the owner-thread degrade path) can be requested.
+    timeout_ms = int(args.get("timeoutMs", DEFAULT_CMD_TIMEOUT_MS))
+    timeout_ms = max(VAULT_FORENSICS_MIN_TIMEOUT_MS,
+                      min(VAULT_FORENSICS_MAX_TIMEOUT_MS, timeout_ms))
+
+    kv = [_kv("scope", scope)]
+    if args.get("key") is not None:
+        kv.append(_kv("key", args["key"]))
+    if args.get("limit") is not None:
+        kv.append(_kv("limit", args["limit"]))
+    kv.append(_kv("timeoutMs", timeout_ms))
+
+    # The CLI's OWN client deadline must outlive the bridge's bounded wait — same
+    # floor+slack rule wait_for() already uses (10s floor, requested + 5s), so a hung
+    # owner-thread wait can never make Python give up before the bridge's own bounded
+    # wait would have returned a coded error.
+    cli_timeout_ms = max(10000, timeout_ms + 5000)
+    rc, reply, _out, errtext = run_lanista("vault-forensics", SESSION["pipe"], kv,
+                                            cli_timeout_ms)
+    if reply is None:
+        return _err("vault_forensics() got no parseable reply: {}".format(errtext),
+                     code="INFRA" if rc == 4 else "NO_REPLY")
+    return {"content": [{"type": "text", "text": json.dumps(reply, indent=2)}],
+            "isError": reply.get("type") != "reply"}
+
+
 def tool_warnings(_args):
     if LAST_SESSION is None:
         return _err("no session has been started yet in this adapter process — "
@@ -749,6 +801,26 @@ TOOLS = [
      "description": "List every interactive element on screen right now, "
                     "with handles, positions and states. Legacy tool.",
      "inputSchema": {"type": "object", "properties": {}}},
+    # F1-Bridge (2026-08-13) — strictly additive: appended after the 11 v0 tools above,
+    # which keep their exact names/order/schemas unchanged (legacy_tools_unchanged).
+    {"name": "vault_forensics",
+     "description": "Read a bounded, typed projection of the live Vault (F1-Core, schema "
+                    "colosseum.vault.forensics.v1) through the active session's bridge. "
+                    "scope=summary needs no key; root/node/identity need key (a root path, "
+                    "browse path, or identity/group key). limit clamps every row list to "
+                    "1-100 (default 20). Requires an active session (session_start).",
+     "inputSchema": {"type": "object",
+                     "properties": {
+                         "scope": {"type": "string",
+                                   "enum": ["summary", "root", "node", "identity"]},
+                         "key": {"type": "string",
+                                 "description": "root path (scope=root) or browse/identity key "
+                                                "(scope=node/identity); unused for summary"},
+                         "limit": {"type": "integer",
+                                   "description": "row-list bound, 1-100, default 20"},
+                         "timeoutMs": {"type": "integer",
+                                       "description": "bridge marshalling deadline, default 8000"}},
+                     "required": ["scope"]}},
 ]
 
 TOOL_IMPLS = {
@@ -763,6 +835,7 @@ TOOL_IMPLS = {
     "lanista_call": tool_lanista_call,
     "lanista_snapshot": tool_lanista_snapshot,
     "lanista_grab": tool_lanista_grab,
+    "vault_forensics": tool_vault_forensics,
 }
 
 

@@ -1,6 +1,7 @@
 #include "devtools/LanistaServer.h"
 
 #include "devtools/LanistaEventLog.h"
+#include "engine/VaultForensics.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -259,6 +260,14 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdEventsTail(p)); });
     addRead(QStringLiteral("log-mark"),
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdLogMark(p)); });
+
+    // F1-Bridge (2026-08-13): one Read-gated call onto F1-Core's bounded Vault
+    // projection (VaultForensics, composing VaultLibrary — F0's named safe
+    // seam). Fallible on "no owner bound" (e.g. this harness's bare QML-scene
+    // fixture, which never constructs a VaultLibrary), so it owns the Replier
+    // like the Task 3/9 reads.
+    addRead(QStringLiteral("vault-forensics"),
+            [this](const QJsonObject& p, Replier reply) { cmdVaultForensics(p, std::move(reply)); });
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();
@@ -1364,6 +1373,41 @@ QJsonObject LanistaServer::cmdLogMark(const QJsonObject& p) const
                       {QStringLiteral("label"), label}});
     qInfo("lanista: MARK %s", qUtf8Printable(label));
     return {{QStringLiteral("marked"), label}};
+}
+
+// ── F1-Bridge: vault-forensics ────────────────────────────────────────────
+// Invokes F1-Core (VaultForensics::queryMarshalled) on its owner thread and
+// hands its response map back UNCHANGED — no field renamed, dropped, or
+// added, beyond the wire envelope's own "type"/"seq" that reply() adds to
+// every command alike. The candidateCount:-1 sentinel (F0 §10: not reachable
+// through VaultLibrary's public surface, see VaultForensics.h) is inherited
+// honestly here, never patched over. Does not grow a generic reflection/
+// write registry: this is one named, typed call onto one named projection.
+void LanistaServer::cmdVaultForensics(const QJsonObject& p, Replier reply) const
+{
+    if (!m_vaultForensics) {
+        reply.fail("VAULT_FORENSICS_UNAVAILABLE",
+                   QStringLiteral("no VaultForensics owner bound in this process "
+                                  "(no live VaultLibrary — e.g. a bare QML-scene harness)"));
+        return;
+    }
+
+    QVariantMap request;
+    request.insert(QStringLiteral("scope"), p.value(QStringLiteral("scope")).toVariant());
+    if (p.contains(QStringLiteral("key")))
+        request.insert(QStringLiteral("key"), p.value(QStringLiteral("key")).toVariant());
+    if (p.contains(QStringLiteral("limit")))
+        request.insert(QStringLiteral("limit"), p.value(QStringLiteral("limit")).toVariant());
+
+    // Bridge-level deadline for VaultForensics::queryMarshalled()'s foreign-thread wait.
+    // F0 found no thread hop is needed today (LanistaServer and every Vault object share
+    // the GUI thread), so this degrades to a direct call in production — the clamp exists
+    // for the general-purpose contract, not because production exercises the wait.
+    int deadlineMs = p.value(QStringLiteral("timeoutMs")).toInt(2000);
+    deadlineMs = qBound(200, deadlineMs, 10000);
+
+    const QVariantMap result = m_vaultForensics->queryMarshalled(request, deadlineMs);
+    reply.reply(QJsonObject::fromVariantMap(result));
 }
 
 // ── the combined reply ─────────────────────────────────────────────────────
