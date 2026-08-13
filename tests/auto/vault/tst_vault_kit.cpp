@@ -79,6 +79,7 @@ private slots:
     void browse_collapse_sibling_season_folders_fold_to_one_show();
     void browse_collapse_nested_season_folder_reports_honest_presence();
     void browse_collapse_flat_absolute_numbered_folder_is_a_show();
+    void browse_collapse_season_episode_wall_fact_line_has_season_colon_and_quality();
     void browse_collapse_loose_clips_folder_stays_a_folder();
     void browse_collapse_embedded_season_token_is_not_swallowed();
 };
@@ -459,14 +460,42 @@ void tst_vault_kit::browse_collapse_flat_absolute_numbered_folder_is_a_show()
         QCOMPARE(ep.nodeType, BrowseNodeType::Episode);
         QVERIFY(ep.episodeNumber >= 1 && ep.episodeNumber <= 3);
     }
-    // "- 003" resolves to episode 3 — the exact case the plan names.
+    // "- 003" resolves to episode 3 — the exact case the plan names. Slice 8: the fact line
+    // gains a " · <quality>" suffix parsed from the same filename (the real fixture name
+    // carries "BD 1080p" — no season is known for absolute numbering, so "Episode 3" stays
+    // un-prefixed rather than inventing a season it does not have).
     const BrowseNode e3 = [&]() {
         for (const BrowseNode& ep : episodes)
             if (ep.episodeNumber == 3)
                 return ep;
         return BrowseNode{};
     }();
-    QCOMPARE(e3.physicalFact, QStringLiteral("Episode 3"));
+    QCOMPARE(e3.physicalFact, QStringLiteral("Episode 3 · 1080p"));
+}
+
+void tst_vault_kit::browse_collapse_season_episode_wall_fact_line_has_season_colon_and_quality()
+{
+    // Real shape: The Wire's held Season 4 — explicit SxxExx files carry BOTH a known season
+    // AND a resolution/source tag (execution plan Slice 8's episode fact line: "S<season>:E
+    // <episode> · <quality>", the wide-card grid's one physical fact).
+    const QString root = fixtures() + "/browse-show-nested";
+    const QList<BrowseNode> shows = planBrowseLevel(root);
+    QCOMPARE(shows.size(), 1);
+    const QList<BrowseNode> seasons = planBrowseLevel(shows.first().key);
+    QCOMPARE(seasons.size(), 1);
+    const QList<BrowseNode> episodes = planBrowseLevel(seasons.first().path);
+    QCOMPARE(episodes.size(), 2);
+
+    const BrowseNode e1 = [&]() {
+        for (const BrowseNode& ep : episodes)
+            if (ep.episodeNumber == 1)
+                return ep;
+        return BrowseNode{};
+    }();
+    QCOMPARE(e1.nodeType, BrowseNodeType::Episode);
+    QCOMPARE(e1.seasonNumber, 4);
+    // "The.Wire.S04E01.1080p.BluRay.x264.mkv" — resolution AND source token both present.
+    QCOMPARE(e1.physicalFact, QStringLiteral("S4:E1 · 1080p BluRay"));
 }
 
 void tst_vault_kit::browse_collapse_loose_clips_folder_stays_a_folder()

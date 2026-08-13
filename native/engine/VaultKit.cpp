@@ -554,6 +554,40 @@ SeasonEpisode parseEpisodeNumber(const QString& fileName)
     return parseAbsoluteEpisode(fileName);
 }
 
+QString qualityLineFromFileName(const QString& fileName)
+{
+    static const QRegularExpression resRe(QStringLiteral("(?i)\\b(2160p|1080p|720p|480p)\\b"));
+    static const QRegularExpression srcRe(QStringLiteral(
+        "(?i)\\b(WEBRip|WEB[-.]?DL|BluRay|BDRip|DVDRip|HDTV|Remux)\\b"));
+
+    QStringList parts;
+    const auto resMatch = resRe.match(fileName);
+    if (resMatch.hasMatch())
+        parts << resMatch.captured(1).toLower();
+
+    const auto srcMatch = srcRe.match(fileName);
+    if (srcMatch.hasMatch()) {
+        QString token = srcMatch.captured(1);
+        const QString lower = token.toLower();
+        if (lower.startsWith(QLatin1String("webrip")))
+            token = QStringLiteral("WEBRip");
+        else if (lower.startsWith(QLatin1String("web")))
+            token = QStringLiteral("WEB-DL");
+        else if (lower == QLatin1String("bluray"))
+            token = QStringLiteral("BluRay");
+        else if (lower == QLatin1String("bdrip"))
+            token = QStringLiteral("BDRip");
+        else if (lower == QLatin1String("dvdrip"))
+            token = QStringLiteral("DVDRip");
+        else if (lower == QLatin1String("hdtv"))
+            token = QStringLiteral("HDTV");
+        else if (lower == QLatin1String("remux"))
+            token = QStringLiteral("Remux");
+        parts << token;
+    }
+    return parts.join(QLatin1Char(' '));
+}
+
 bool isSeasonLikeDirName(const QString& dirName)
 {
     static const QRegularExpression re(
@@ -980,11 +1014,17 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
             n.nodeType = BrowseNodeType::Episode;
             n.episodeNumber = se.episode;
             n.seasonNumber = se.season;
-            n.physicalFact = se.absolute
+            // Slice 8 (browse-face execution plan): the episode wall's fact line is
+            // "S<season>:E<episode>" when a season is known (an explicit SxxExx marking) — else
+            // the honest "Episode <n>" (absolute numbering carries no season, e.g. Gintama's
+            // flat "- 003" files) — plus a " · <quality>" suffix parsed from the same filename
+            // when a resolution/source tag is present (the same read the detail sheet's
+            // per-copy quality line already does; never a provider lookup).
+            const QString base = se.absolute
                 ? QStringLiteral("Episode %1").arg(se.episode)
-                : QStringLiteral("S%1E%2")
-                      .arg(se.season, 2, 10, QLatin1Char('0'))
-                      .arg(se.episode, 2, 10, QLatin1Char('0'));
+                : QStringLiteral("S%1:E%2").arg(se.season).arg(se.episode);
+            const QString quality = qualityLineFromFileName(f.fileName());
+            n.physicalFact = quality.isEmpty() ? base : base + QStringLiteral(" · ") + quality;
         } else {
             n.nodeType = BrowseNodeType::Clip;
         }

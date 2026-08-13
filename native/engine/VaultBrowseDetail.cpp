@@ -3,7 +3,6 @@
 #include "VaultKit.h"
 
 #include <QFileInfo>
-#include <QRegularExpression>
 
 namespace {
 
@@ -21,45 +20,6 @@ QString humanSize(qint64 bytes)
     const QString numText = (v >= 10.0) ? QString::number(qRound(v))
                                          : QString::number(v, 'f', 1);
     return numText + QLatin1Char(' ') + QLatin1String(kUnits[i]);
-}
-
-// A best-quality line parsed straight from the filename — resolution + source token, the same
-// release vocabulary VaultKit's title cleaner already recognizes as noise and discards. Here it
-// is the opposite: the ONE thing this slice keeps, because the detail sheet's whole job is the
-// physical facts a title cleaner is built to throw away. No provider lookup, no confidence
-// score — a plain read of the name on disk.
-QString qualityLineFor(const QString& fileName)
-{
-    static const QRegularExpression resRe(QStringLiteral("(?i)\\b(2160p|1080p|720p|480p)\\b"));
-    static const QRegularExpression srcRe(QStringLiteral(
-        "(?i)\\b(WEBRip|WEB[-.]?DL|BluRay|BDRip|DVDRip|HDTV|Remux)\\b"));
-
-    QStringList parts;
-    const auto resMatch = resRe.match(fileName);
-    if (resMatch.hasMatch())
-        parts << resMatch.captured(1).toLower();
-
-    const auto srcMatch = srcRe.match(fileName);
-    if (srcMatch.hasMatch()) {
-        QString token = srcMatch.captured(1);
-        const QString lower = token.toLower();
-        if (lower.startsWith(QLatin1String("webrip")))
-            token = QStringLiteral("WEBRip");
-        else if (lower.startsWith(QLatin1String("web")))
-            token = QStringLiteral("WEB-DL");
-        else if (lower == QLatin1String("bluray"))
-            token = QStringLiteral("BluRay");
-        else if (lower == QLatin1String("bdrip"))
-            token = QStringLiteral("BDRip");
-        else if (lower == QLatin1String("dvdrip"))
-            token = QStringLiteral("DVDRip");
-        else if (lower == QLatin1String("hdtv"))
-            token = QStringLiteral("HDTV");
-        else if (lower == QLatin1String("remux"))
-            token = QStringLiteral("Remux");
-        parts << token;
-    }
-    return parts.join(QLatin1Char(' '));
 }
 
 QString whereTextFor(const VaultIndex::FileRow& row)
@@ -93,7 +53,8 @@ QVariantMap copyEntry(const VaultIndex::FileRow& row)
     QVariantMap m;
     m.insert(QStringLiteral("path"), row.path);
     m.insert(QStringLiteral("rootPath"), row.rootPath);
-    m.insert(QStringLiteral("quality"), qualityLineFor(QFileInfo(row.path).fileName()));
+    m.insert(QStringLiteral("quality"),
+             VaultKit::qualityLineFromFileName(QFileInfo(row.path).fileName()));
     m.insert(QStringLiteral("sizeBytes"), row.size);
     m.insert(QStringLiteral("sizeText"), humanSize(row.size));
     m.insert(QStringLiteral("where"), whereTextFor(row));

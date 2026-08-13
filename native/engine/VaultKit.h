@@ -153,6 +153,14 @@ SeasonEpisode parseAbsoluteEpisode(const QString& fileName);
 // always wins), then absolute numbering. `matched` is false only if neither fires.
 SeasonEpisode parseEpisodeNumber(const QString& fileName);
 
+// A resolution + source-tag quality line parsed straight from a filename — the release
+// vocabulary the title cleaner recognizes as noise and discards; here it is the opposite: the
+// one thing a physical-fact line keeps, because "quality, copy count, or away state" (locked
+// design §4.1, decision #7) is a plain read of the name on disk, never a provider lookup. Empty
+// when neither a resolution nor a source token is present. Shared by the browse-face execution
+// plan's episode fact line (Slice 8) and the detail sheet's per-copy quality line (Slice 7).
+QString qualityLineFromFileName(const QString& fileName);
+
 // True only for a BARE season-shaped segment ("Season N" / "S01".."S999" /
 // "Disc N" / "Volume N" / "Vol N" / "Part N" / "CD N"). A name that merely
 // EMBEDS the token ("Community Season 1 [1080p]") is NOT one — that folder IS
