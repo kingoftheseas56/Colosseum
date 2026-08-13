@@ -25,6 +25,14 @@ Item {
     readonly property string physicalFact: row && row.physicalFact !== undefined ? row.physicalFact : ""
     readonly property bool away: !!(row && row.away)
     readonly property string coverRef: row && row.coverRef !== undefined ? row.coverRef : ""
+    // Browse-artwork execution plan, Slice 3 part 2 — the runtime seam the controller's live
+    // proof reads directly: true once coverRef carries a real local ref (any rung of
+    // VaultArtworkResolver's ladder), false for the default/never-resolved "" (the typographic
+    // face below). Deliberately NOT tied to faceState/settledOpacity — those track state
+    // (resolving vs settled) as a Film/Show/Season/Episode card in ANY settled state (identified,
+    // uncertain, localOnly) can be settled with no art at all; hasArt is coverRef's own honest
+    // fact, nothing more.
+    readonly property bool hasArt: coverRef !== ""
     readonly property string nodeKey: row && row.key !== undefined ? row.key : ""
     readonly property string nodeType: row && row.nodeType !== undefined ? row.nodeType : ""
     readonly property int itemCount: (row && row.counts && row.counts.items !== undefined) ? row.counts.items : 0

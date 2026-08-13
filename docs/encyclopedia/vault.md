@@ -14,10 +14,11 @@
 
 The Vault is Colosseum's **"On this machine"** world: point it at folders/drives you already own,
 and it tells you honestly what is physically there — never pretending to know more than the file
-allows. It never streams and never fetches remote artwork; V1 art is only comic covers, local
-folder-artwork companions, and a typographic fallback. The Vault is entered from the **taskbar
-door**, not the Tankoban/Biblio/Theatre mode bar — it is not a fourth mode (`project_three_modes`
-memory fact).
+allows. It never streams; art is comic/book covers, local folder-artwork companions, a matched
+identity's canonical poster (fetched once and cached locally — never a live remote URL bound to a
+tile, browse-artwork execution plan), a cached video frame-grab, or a typographic fallback. The
+Vault is entered from the **taskbar door**, not the Tankoban/Biblio/Theatre mode bar — it is not a
+fourth mode (`project_three_modes` memory fact).
 
 Two experience halves ship today: **Browse** (this doc's main subject — the folder-true,
 media-faced grid the user actually looks at) and the founding **scan/confirm/identify** machinery
@@ -63,10 +64,22 @@ VaultPage.qml (taskbar door → vaultPage)
 **whole read surface** QML paints from — see §3's VaultKit/VaultLibrary rows below for the
 projection spine itself (`VaultKit::planBrowseLevel` does the pure filesystem-structural
 classification; `VaultLibrary` decorates it with index facts: identity state, away, coverRef).
-A row's `coverRef` is a ready-to-bind tile image — a video group's adopted local `file://` artwork,
-or a comic/book group's `image://comiccover|vaultbookcover/<id>` built in `browseAt()`'s Film branch
-(mirrors `items()`/`series()`); a matched `identityCoverUrl` wins when present, and missing art falls
-back to the typographic treatment (§4.7), never a broken frame.
+A row's `coverRef` is a ready-to-bind tile image, projected through **`VaultArtworkResolver`**'s
+fixed-priority ladder (browse-artwork execution plan, Slices 1-3, 2026-08-13) — `VaultLibrary` owns
+one `VaultThumbnailer` + `VaultPosterFetcher` + `VaultArtworkResolver` (built from the same
+`cacheDir` every other Vault store sits under) and calls `resolve()` per row in `browseAt()` (Film
+AND Folder/Show/Season branches), `items()`, and `series()`: local art the row already carries (a
+video group's adopted `file://` artwork, or a comic/book `image://comiccover|vaultbookcover/<id>`)
+wins outright; failing that, a matched identity's canonical poster (`VaultPosterFetcher`, fetched
+over `QNetworkAccessManager` and cached under `<cacheDir>/posters/`) or, video-only, a cached
+frame-grab (`VaultThumbnailer`, ffmpeg off-thread, cached under `<cacheDir>/thumbs/`); missing art
+falls back to the typographic treatment (§4.7), never a broken frame. **A remote `identityCoverUrl`
+is only ever `resolve()`'s `posterUrl` INPUT — it never lands in `coverRef`/`coverUrl` directly**
+(the pre-Slice-3 behavior, which bound the raw remote URL straight to the tile, is retired). A
+cache miss kicks that producer's async fetch/grab and returns `""`; `VaultArtworkResolver::
+artResolved(rowKey)` then fires `VaultLibrary::browseArtResolved(rowKey)` — a signal deliberately
+NOT tied to `revision`/`changed()` (see trap #13) — which `VaultPage.qml` connects straight to
+`syncGridModel()` so the newly-cached art repaints in place.
 
 **Identify-in-place and launch:**
 
@@ -92,9 +105,13 @@ Play (grid card / sheet / Open Recent / Open Media control)
 | `native/engine/VaultIdentity.{h,cpp}` | content-addressed file identity (`vault:`+SHA1 of `path::size::mtimeMs`) so progress survives rename/move; `reconcile()` migrates unambiguous renames, parks ambiguous ones |
 | `native/engine/VaultScanner.{h,cpp}` | the cancellable off-thread census: `buildScan()` (pure, sync) on a pool thread, `applyResult()`/`applyPublish()` (thread-affine identity+index commit) back on the GUI thread |
 | `native/engine/VaultWatcher.{h,cpp}` | the live-shelf engine: one `QFileSystemWatcher` per confirmed root, debounced `processRoot()`, the immersive gate (no upserts while a reader/player is open) |
-| `native/engine/VaultEnricher.{h,cpp}` | fills honest facts post-census: comic page count + cover entry (via `CbzArchive`), EPUB OPF metadata, ffprobe video duration (cached), and (Slice 3) **local artwork adoption by filename convention only** (`findLocalArtwork`) |
+| `native/engine/VaultEnricher.{h,cpp}` | fills honest facts post-census: comic page count + cover entry (via `CbzArchive`), EPUB OPF metadata, ffprobe video duration (cached), and (Slice 3) **local artwork adoption by filename convention only** (`findLocalArtwork`) — the ONLY producer of a video row's `coverRef`, which `VaultArtworkResolver` then treats as rung 2's local ref |
+| `native/engine/VaultCacheKey.h` | header-only `(normalizedPath, size, mtimeMs) -> QString` key, shared by `VaultEnricher`'s duration cache and `VaultThumbnailer`'s frame-grab cache so the two never drift onto two silently-different derivations |
+| `native/engine/VaultThumbnailer.{h,cpp}` | browse-artwork Slice 1: persistent frame-grab producer — one ffmpeg still per `(path,size,mtimeMs)` key, written to `<cacheDir>/thumbs/`, off-thread `QProcess` (same ffmpeg invocation shape as the player's hover-only `SeekThumbnailer`, untouched) |
+| `native/engine/VaultPosterFetcher.{h,cpp}` | browse-artwork Slice 2: canonical poster fetcher + cache — one download per identity id, written to `<cacheDir>/posters/`, off-thread `QNetworkAccessManager`; never a half-written file on a failed fetch |
+| `native/engine/VaultArtworkResolver.{h,cpp}` | browse-artwork Slice 3: the pure, fixed-priority ladder core — `resolve(RowFacts)` returns the first available LOCAL ref (locked pick → local art the row carries → `VaultPosterFetcher` → `VaultThumbnailer` → typographic ""), kicking whichever producer's fetch/grab is missing; `artResolved(rowKey)` fires once that lands |
 | `native/engine/VaultIdentifier.{h,cpp}` | the certainty gate: `matchGroup()` auto-adopts ONLY on exactly-one catalogue candidate; `recordAmbiguous()` makes "Vault isn't sure" a durable fact instead of looking merely unscanned |
-| `native/engine/VaultLibrary.{h,cpp}` | **the one QML façade** — the read-model (`browseAt`/`browseDetail`/`rootsDetail`/`recentArrivals`/`browseEmptyCause`/`browseEmptyAwayCount`/`series`/`items`) plus every command (`addFolder`, `confirmRoot`, `identifyGroup*`, `hideGroup`, `revealInExplorer`, …); C++ owns every multi-step sequence so QML only paints and fires gestures |
+| `native/engine/VaultLibrary.{h,cpp}` | **the one QML façade** — the read-model (`browseAt`/`browseDetail`/`rootsDetail`/`recentArrivals`/`browseEmptyCause`/`browseEmptyAwayCount`/`series`/`items`) plus every command (`addFolder`, `confirmRoot`, `identifyGroup*`, `hideGroup`, `revealInExplorer`, …); C++ owns every multi-step sequence so QML only paints and fires gestures. Also owns (browse-artwork Slice 3 part 2) the `VaultThumbnailer`/`VaultPosterFetcher`/`VaultArtworkResolver` trio that projects every row's `coverRef`/`coverUrl` |
 | `native/engine/VaultBrowseAway.{h,cpp}` | pulled out of `VaultLibrary` (Slice 6) so a Qt Test drives it without the full façade: which confirmed root owns a browse path, whether it's away, and `offlineBrowseAt()` — the durable-index fallback when a level's own directory can no longer be walked |
 | `native/engine/VaultBrowseDetail.{h,cpp}` | pulled out the same way (Slice 7): `detailFor()` — the detail sheet's ONE projection (copies/companions/extras/evidence), composing `VaultKit::describeFilmFolder` with `VaultIndex::rowsForIdentity` |
 | `native/engine/VaultBrowseEmpty.{h,cpp}` | pulled out the same way (Slice 9): pure classification of which of the four empty causes applies — `noRoots` / `emptyFolder` / `allAway` (`filtered` is named but never produced — no filter control ships) |
@@ -107,8 +124,8 @@ Play (grid card / sheet / Open Recent / Open Media control)
 | `qml/VaultPage.qml` | the host page: read-model bindings, the Browse-face state machine (`crumbStack`/`currentBrowsePath`/`gridModel` sync), empty/away wiring, and (still shipped, pre-Browse) the drop surface + confirm card + folder view assembly |
 | `qml/VaultBrowseRail.qml` | the collapsible root rail (`vaultBrowseRail`) — collapsed-by-default glyph+dot, expands to name+counts; also carries Add-storage and the reversible Hidden shelf |
 | `qml/VaultBrowseCrumb.qml` | the breadcrumb (`vaultBrowseCrumb`) — middle-segment collapse past 4 levels, first/last always visible |
-| `qml/VaultPosterCard.qml` | the 2:3 card (folder/show/season/film) — the full state wardrobe: resolving/identified/uncertain/away/localOnly/no-art |
-| `qml/VaultWideCard.qml` | the 16:9 sibling (episode/clip) — same state contract, different aspect + fact-line grammar |
+| `qml/VaultPosterCard.qml` | the 2:3 card (folder/show/season/film) — the full state wardrobe: resolving/identified/uncertain/away/localOnly/no-art; exposes `hasArt` (browse-artwork Slice 3 part 2 — `coverRef !== ""`) as its own runtime seam |
+| `qml/VaultWideCard.qml` | the 16:9 sibling (episode/clip) — same state contract + `hasArt` seam, different aspect + fact-line grammar |
 | `qml/VaultDetailSheet.qml` | the film detail sheet (`vaultBrowseSheet`) — copies/companions/extras/evidence/Play; same-window overlay (never a `Window`/`Popup`, so the Lanista bridge can see it) |
 | `qml/VaultBrowseEmpty.qml` | the four-cause empty-state family (`vaultBrowseGridEmpty`), copy keyed strictly off the C++-computed cause |
 | `qml/VaultDoor.qml` | the taskbar door itself — idle/scanning/arrival pulse states |
@@ -238,6 +255,29 @@ tagline, and the gradient stays neutral house tokens instead of a per-slide colo
     family + `colosseum.qml` for the Quick Test family) — do not go looking for a
     `test_vault_*.ps1`; none is registered. Runtime proof is Lanista scenario replay under
     `tests/lanista_scenarios/vault_*.json`.
+13. **`VaultThumbnailer`/`VaultPosterFetcher` cache paths are BARE filesystem strings, never
+    `file://` URLs — `VaultArtworkResolver::resolve()` must wrap them, or the tile silently never
+    paints.** `cachedThumbPath()`/`cachedPosterPath()` return `QDir::filePath(...)` results (their
+    own Qt Test, `tst_vault_artwork.cpp`, asserts exactly that bare shape via plain
+    `QFileInfo::exists()`/`QCOMPARE`), but a bare Windows path like `C:/Users/…/vault/posters/
+    <hash>.jpg` handed straight to a QML `Image.source` (a `url`-typed property) gets parsed by
+    `QUrl`'s RFC3986 rules as scheme `"c"` — a drive letter looks exactly like a URI scheme — so
+    the `Image` reports no error but never loads anything. `resolve()` wraps both producers'
+    cache-hit returns with `QUrl::fromLocalFile(...).toString()` (the same house convention
+    `VaultEnricher::findLocalArtwork`, `MangaVolumeIndex`, and `ComicDownloader` already use for
+    this exact crossing) — rung 2's `localRef` needs no such wrap, since it already arrives
+    pre-built as a proper `file://`/`image://` string.
+14. **`VaultArtworkResolver::artResolved(rowKey)` must NOT be routed through `VaultLibrary::
+    revision`/`changed()`.** Nearly every read-only property `VaultPage.qml` exposes
+    (`browseRootsDetail`, `hiddenSeriesRows`, `carouselArrivalRows`, `browseEmptyCause`,
+    `admissionById`, `detailSheetDetail`, …) re-derives on ANY `changed()` emission by reading
+    `VaultLibrary.revision` as an explicit dependency marker. A single frame-grab or poster landing
+    async would force every one of those to redo its own SQL/filesystem work — the exact
+    "doubling the cost" hazard trap #1's own Gintama-scale fixture already surfaced for a
+    different call. `VaultLibrary::browseArtResolved(rowKey)` is a separate, narrow signal
+    (never bumping `m_revision`) that `VaultPage.qml` connects directly to a re-derive-and-
+    `syncGridModel()` call — reusing the SAME in-place `ListModel` diff identify-in-place's
+    revision-driven path relies on (trap #6), just reached without the collateral recompute.
 
 ## 6. How to test it
 
@@ -247,7 +287,9 @@ tagline, and the gradient stays neutral house tokens instead of a per-slide colo
   `vault_index` (publish/upsert/natural order), `vault_scanner` (async census + generation guard),
   `vault_enricher` (comic/EPUB facts + local artwork adoption), `vault_browse_away`,
   `vault_browse_empty`, `vault_browse_detail`, `vault_downloads_root`, `vault_identifier`,
-  `vault_mal_match`, `vault_imdb_match`. Plus two C++ harnesses outside the `qttest` family:
+  `vault_mal_match`, `vault_imdb_match`, `vault_artwork` (`VaultThumbnailer`/`VaultPosterFetcher`/
+  `VaultArtworkResolver` — real ffmpeg + a local `file://` URL for the poster fetch, no live
+  network in the gate). Plus two C++ harnesses outside the `qttest` family:
   `colosseum.vault_admission_probe_harness` (real headless libmpv decode-frame admission) and
   `colosseum.vault_launch_router_harness` (extension→backend routing + `VaultPageStore`).
 - **Quick Test gate:** `ctest --test-dir native/build-msvc -R colosseum.qml --output-on-failure`

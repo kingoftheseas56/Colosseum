@@ -26,6 +26,9 @@ class VaultDownloadsRoot;
 class VaultIdentity;
 class VaultWatcher;
 class VaultIdentifier;
+class VaultThumbnailer;
+class VaultPosterFetcher;
+class VaultArtworkResolver;
 
 class VaultLibrary : public QObject {
     Q_OBJECT
@@ -50,8 +53,16 @@ class VaultLibrary : public QObject {
     Q_PROPERTY(QVariantList identityCeremonies READ identityCeremonies NOTIFY identityCeremoniesChanged)
 
 public:
+    // `cacheDir` (browse-artwork execution plan, Slice 3 part 2) is the SAME VaultStoreIo-managed
+    // dir every other Vault store already gets (main.cpp's `vaultDir`, the same one VaultConfig/
+    // VaultIdentity/VaultIndex are constructed with) — so every Vault cache (config.json,
+    // identity.json, index-v1.sqlite, and now thumbs/ + posters/) lives under one root. VaultLibrary
+    // owns a VaultThumbnailer + VaultPosterFetcher + VaultArtworkResolver (parented to `this`) built
+    // from it; either producer is harmless to construct against an empty/unwritable dir (its own
+    // cache-miss path just never resolves), so `cacheDir` has no separate null/empty contract to
+    // document beyond what VaultThumbnailer/VaultPosterFetcher already promise.
     explicit VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
-                          VaultIdentity* identity, QObject* parent = nullptr);
+                          VaultIdentity* identity, QString cacheDir, QObject* parent = nullptr);
 
     // One deferred healing publish after all download backbones are wired. The guard is
     // intentionally here, rather than in QML, so an existing stale index is repaired once
@@ -102,11 +113,17 @@ public:
     // facts, the episode/clip leaf grammar), decorated here with what today's index already
     // knows: away (VaultIndex row state) and a best-effort identified/resolving/localOnly state
     // for film nodes (a single real file's own group is a reliable lookup; deeper per-episode
-    // state and durable uncertainty are Slices 2/6's business, not this one's). coverRef (Slice
-    // 3): a film node's VaultEnricher-adopted local-artwork "file://" ref for VIDEO groups only
-    // (comic/book Film nodes stay "" — their coverRef column is a bare in-archive entry name,
-    // meaningless without the image://.../ translation series()/items() already do); every
-    // other node type carries no art in this slice. Row shape:
+    // state and durable uncertainty are Slices 2/6's business, not this one's). coverRef
+    // (browse-artwork execution plan, Slice 3 part 2): every node this method returns — Film AND
+    // Folder/Show/Season containers — is now walked through VaultArtworkResolver::resolve(): local
+    // art the row already carries (a video group's adopted "file://" ref, or the comic/book
+    // image://comiccover|vaultbookcover/<id> translation) wins outright; failing that, a matched
+    // identity's canonical poster (fetched+cached by VaultPosterFetcher) or, video-only, a cached
+    // frame-grab (VaultThumbnailer). A remote `identityCoverUrl` is consulted ONLY as resolve()'s
+    // input — it never lands in coverRef directly. A miss returns "" (typographic fallback) and
+    // kicks that producer's async fetch/grab; VaultArtworkResolver::artResolved(rowKey) then fires
+    // browseArtResolved(rowKey) (see that signal below) so the caller re-projects the same level.
+    // Episode/Clip nodes are UNCHANGED by this slice (still always "") — Row shape:
     // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path}.
     // Slice 6: away now flows to EVERY node type, not just Film — a whole level's owning root
     // going away marks every one of its tiles, not just the ones this method already had a
@@ -196,6 +213,18 @@ signals:
     void liveArrival();
     void immersiveChanged();
     void identityCeremoniesChanged();
+    // Browse-artwork execution plan, Slice 3 part 2 — the resolver's re-projection hook. Fires
+    // when VaultArtworkResolver::artResolved(rowKey) lands a NEWLY-cached poster/frame-grab for a
+    // row a prior browseAt()/items()/series() call resolved with only "" (the typographic
+    // fallback). Deliberately NARROW: unlike changed() (revision-gated — every property that reads
+    // VaultLibrary.revision recomputes, `browseGridRows`/`rootsDetail`/`hiddenSeries`/
+    // `admissionById`/`browseDetail`/… alike), this does not bump m_revision or emit changed() — a
+    // single frame-grab landing must not force every OTHER revision-gated projection to redo its
+    // own SQL/filesystem work too (this subsystem's own §4.5 note above already names that exact
+    // doubling hazard for a different call). VaultPage.qml connects this directly to
+    // syncGridModel() (the same in-place ListModel diff identify-in-place already reuses), which is
+    // the SAME re-projection path browseGridRows' own VaultLibrary.revision dependency drives.
+    void browseArtResolved(const QString& rowKey);
 
 private:
     void setScanning(bool scanning);
@@ -223,6 +252,13 @@ private:
     VaultWatcher* m_watcher = nullptr; // owns the per-root QFileSystemWatcher + debounce
     VaultIdentifier* m_identifier = nullptr; // non-owning; constructed after catalogues in main
     VaultDownloadsRoot* m_downloadsRoot = nullptr;
+    // Browse-artwork execution plan, Slice 3 part 2 — owned (parented to `this`), built from the
+    // constructor's `cacheDir`. See VaultThumbnailer/VaultPosterFetcher/VaultArtworkResolver for
+    // what each does; VaultLibrary's own job is only to build RowFacts per row and hand the ladder
+    // resolve()'s answer to browseAt()/items()/series().
+    VaultThumbnailer* m_thumbnailer = nullptr;
+    VaultPosterFetcher* m_posterFetcher = nullptr;
+    VaultArtworkResolver* m_artworkResolver = nullptr;
     QString m_downloadsRootPath;
     int m_revision = 0;
     int m_arrivalTick = 0; // bumped on every live-shelf landing (the door's pulse clock)

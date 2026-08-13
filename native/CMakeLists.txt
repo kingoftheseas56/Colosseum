@@ -201,6 +201,15 @@ add_executable(colosseum
     engine/VaultDownloadsRoot.h
     engine/VaultEnricher.cpp       # cover/duration enrichment — app-wired for comic covers (Slice 12)
     engine/VaultEnricher.h
+    # ── Vault browse artwork (browse-artwork execution plan, Slices 1-3, 2026-08-13): the
+    # resolver ladder VaultLibrary now composes for browseAt()/items()/series() cover projection ──
+    engine/VaultCacheKey.h         # shared (path,size,mtimeMs) cache-key derivation (Slice 1)
+    engine/VaultThumbnailer.cpp    # persistent frame-grab producer, ffmpeg off-thread (Slice 1)
+    engine/VaultThumbnailer.h
+    engine/VaultPosterFetcher.cpp  # canonical poster fetcher + cache, QNetworkAccessManager (Slice 2)
+    engine/VaultPosterFetcher.h
+    engine/VaultArtworkResolver.cpp # the fixed-priority ladder core VaultLibrary calls per row (Slice 3)
+    engine/VaultArtworkResolver.h
     engine/VaultBookStateMigrator.cpp # Reader 2 path-key migration at the Vault identity boundary (Slice 16)
     engine/VaultBookStateMigrator.h
     engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
@@ -1259,6 +1268,10 @@ target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Netw
 # tst_vault_forensics already pays for above (F0 names VaultLibrary itself, not a lower
 # helper module, as the seam a forensic projection composes) — Qt6::Sql/Qt6::Concurrent
 # added to target_link_libraries below for exactly that reason.
+# Browse-artwork execution plan, Slice 3 part 2 (2026-08-13) additive note: VaultLibrary.cpp now
+# constructs VaultThumbnailer/VaultPosterFetcher/VaultArtworkResolver directly, so this harness
+# needs the same three organs it already needs VaultLibrary itself for — Qt6::Network below
+# was already linked (VaultForensics/VaultLibrary's own transitive needs), so no new link lib.
 add_executable(lanista_harness
     ../tests/lanista_harness.cpp
     devtools/LanistaServer.cpp
@@ -1269,6 +1282,13 @@ add_executable(lanista_harness
     engine/VaultForensics.h
     engine/VaultLibrary.cpp
     engine/VaultLibrary.h
+    engine/VaultCacheKey.h
+    engine/VaultThumbnailer.cpp
+    engine/VaultThumbnailer.h
+    engine/VaultPosterFetcher.cpp
+    engine/VaultPosterFetcher.h
+    engine/VaultArtworkResolver.cpp
+    engine/VaultArtworkResolver.h
     engine/VaultIndex.cpp
     engine/VaultIndex.h
     engine/VaultScanner.cpp

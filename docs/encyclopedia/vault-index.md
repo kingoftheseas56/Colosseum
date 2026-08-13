@@ -396,8 +396,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultLibrary.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `67fd7b6bd77132ed7573153cd0e5efb0dbdef85e`
-- Current blob: `67fd7b6bd77132ed7573153cd0e5efb0dbdef85e`
+- Accepted blob: `5a9bdc876c7c3cd5560f3cd22adc63e15b207c0e`
+- Current blob: `5a9bdc876c7c3cd5560f3cd22adc63e15b207c0e`
 - Source: [`native/engine/VaultLibrary.cpp`](../../native/engine/VaultLibrary.cpp)
 
 ```text
@@ -408,8 +408,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultLibrary.h`
 
 - Status: **CURRENT**
-- Accepted blob: `7edf545afe670e43ed26e32f52c11756b02c1c1e`
-- Current blob: `7edf545afe670e43ed26e32f52c11756b02c1c1e`
+- Accepted blob: `e6e8fcf96c62007e39032bbd6595c4b9651a8e0a`
+- Current blob: `e6e8fcf96c62007e39032bbd6595c4b9651a8e0a`
 - Source: [`native/engine/VaultLibrary.h`](../../native/engine/VaultLibrary.h)
 
 ```text
@@ -811,8 +811,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/VaultPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `d1b450dd4ed408192306702b7407f62d43f74ada`
-- Current blob: `d1b450dd4ed408192306702b7407f62d43f74ada`
+- Accepted blob: `a9c7a68b09c1f96dce94534bc4c4f62bf7f2eeaf`
+- Current blob: `a9c7a68b09c1f96dce94534bc4c4f62bf7f2eeaf`
 - Source: [`qml/VaultPage.qml`](../../qml/VaultPage.qml)
 
 ```text
@@ -828,8 +828,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/VaultPosterCard.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `d338e14fd267b8ebe3d9133e23abce01f1c3df24`
-- Current blob: `d338e14fd267b8ebe3d9133e23abce01f1c3df24`
+- Accepted blob: `be78f75ef6c97961ff078cb4be2ceec33403a56a`
+- Current blob: `be78f75ef6c97961ff078cb4be2ceec33403a56a`
 - Source: [`qml/VaultPosterCard.qml`](../../qml/VaultPosterCard.qml)
 
 ```text
@@ -864,8 +864,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/VaultWideCard.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `c802bc0f35004d4cb3fe44b443cfc0332c26f2c6`
-- Current blob: `c802bc0f35004d4cb3fe44b443cfc0332c26f2c6`
+- Accepted blob: `6ca2c52d872fe1ce9004bc02f3454b65174bdce5`
+- Current blob: `6ca2c52d872fe1ce9004bc02f3454b65174bdce5`
 - Source: [`qml/VaultWideCard.qml`](../../qml/VaultWideCard.qml)
 
 ```text

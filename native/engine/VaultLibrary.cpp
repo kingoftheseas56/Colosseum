@@ -11,6 +11,9 @@
 #include "VaultBrowseAway.h"
 #include "VaultBrowseDetail.h"
 #include "VaultBrowseEmpty.h"
+#include "VaultThumbnailer.h"
+#include "VaultPosterFetcher.h"
+#include "VaultArtworkResolver.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -30,9 +33,20 @@ static QString normPath(const QString& p)
 }
 
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
-                           VaultIdentity* identity, QObject* parent)
+                           VaultIdentity* identity, QString cacheDir, QObject* parent)
     : QObject(parent), m_index(index), m_scanner(scanner), m_config(config), m_identity(identity)
 {
+    // Browse-artwork execution plan, Slice 3 part 2 — owned, parented to `this` (same lifetime
+    // discipline as m_watcher below). artResolved(rowKey) re-fires as the narrow
+    // browseArtResolved(rowKey) signal (see its own doc in VaultLibrary.h) rather than touching
+    // m_revision/changed() — a resolved thumbnail must not force every OTHER revision-gated
+    // projection to redo its own work.
+    m_thumbnailer = new VaultThumbnailer(cacheDir, this);
+    m_posterFetcher = new VaultPosterFetcher(cacheDir, this);
+    m_artworkResolver = new VaultArtworkResolver(m_thumbnailer, m_posterFetcher, this);
+    connect(m_artworkResolver, &VaultArtworkResolver::artResolved, this,
+            &VaultLibrary::browseArtResolved);
+
     // revision tracks committed index truth. VaultIndex::changed() fires after a successful
     // publish()/upsert() only, so a bump always means new published truth to repaint from.
     if (m_index) {
@@ -248,18 +262,58 @@ QVariantList VaultLibrary::series(const QString& kind) const
         s.insert(QStringLiteral("awayCount"), m.value(QStringLiteral("awayCount")));
         s.insert(QStringLiteral("errorCount"), m.value(QStringLiteral("errorCount")));
         s.insert(QStringLiteral("subtreePath"), m.value(QStringLiteral("subtreePath")));
-        // A ready-to-bind cover URL for the tile: image://comiccover/<id> when the group has
-        // an enriched comic cover, else empty (the tile falls back to its gradient + icon).
-        const QString coverPath = m.value(QStringLiteral("coverPath")).toString();
-        const QString coverEntry = m.value(QStringLiteral("coverEntry")).toString();
-        const QString identityCover = m.value(QStringLiteral("identityCoverUrl")).toString();
-        const QString provider = kind == QLatin1String("book")
-            ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
-        s.insert(QStringLiteral("coverUrl"), !identityCover.isEmpty() ? identityCover
-                 : (!coverPath.isEmpty() && !coverEntry.isEmpty())
-                     ? QStringLiteral("image://") + provider + QLatin1Char('/')
-                           + Colosseum::buildComicCoverId(coverPath, coverEntry)
-                     : QString());
+        // Cover projection through the resolver ladder (browse-artwork execution plan, Slice 3
+        // part 2) — mirrors browseAt()'s Film-branch decoration exactly: walk the group's OWN
+        // rows (already fetched above for the allHidden check, so no extra query) for a local ref
+        // (video's adopted "file://" art or a comic/book archive cover) plus the winning row's
+        // identity id/poster URL, same "first covered row wins" rule, then hand it to
+        // VaultArtworkResolver instead of ever setting a remote identityCoverUrl straight onto the
+        // tile (that STOPS here — see resolve()'s own rung order for why local now wins over a
+        // remote poster, a deliberate change from this method's old identity-wins override).
+        QString localRef, coverIdentityId, posterUrl, factKind, factPath;
+        qint64 factSize = 0, factMtimeMs = 0;
+        double factDurationSec = -1.0;
+        for (const VaultIndex::FileRow& row : groupRows) {
+            if (coverIdentityId.isEmpty() && !row.identityId.isEmpty() && !row.identitySuppressed) {
+                coverIdentityId = row.identityId;
+                posterUrl = row.identityCoverUrl;
+            }
+            if (localRef.isEmpty()) {
+                if (row.kind == QLatin1String("video") && !row.coverRef.isEmpty()) {
+                    localRef = row.coverRef;
+                } else if ((row.kind == QLatin1String("comic") || row.kind == QLatin1String("book"))
+                           && !row.coverRef.isEmpty()) {
+                    const QString coverProvider = row.kind == QLatin1String("book")
+                        ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
+                    localRef = QStringLiteral("image://") + coverProvider + QLatin1Char('/')
+                             + Colosseum::buildComicCoverId(row.path, row.coverRef);
+                }
+            }
+            if (factPath.isEmpty() && row.kind == QLatin1String("video")) {
+                factKind = row.kind;
+                factPath = row.path;
+                factSize = row.size;
+                factMtimeMs = row.mtimeMs;
+                factDurationSec = row.durationSec;
+            }
+        }
+        if (factKind.isEmpty() && !groupRows.isEmpty())
+            factKind = groupRows.first().kind; // comic/book — the frame-grab rung no-ops for these
+        QString coverUrl = localRef;
+        if (m_artworkResolver) {
+            VaultArtworkResolver::RowFacts facts;
+            facts.rowKey = groupKey;
+            facts.kind = factKind;
+            facts.path = factPath;
+            facts.localRef = localRef;
+            facts.identityId = coverIdentityId;
+            facts.posterUrl = posterUrl;
+            facts.size = factSize;
+            facts.mtimeMs = factMtimeMs;
+            facts.durationSec = factDurationSec;
+            coverUrl = m_artworkResolver->resolve(facts);
+        }
+        s.insert(QStringLiteral("coverUrl"), coverUrl);
         s.insert(QStringLiteral("identityId"), m.value(QStringLiteral("identityId")));
         s.insert(QStringLiteral("identSource"), m.value(QStringLiteral("identitySource")));
         const QString identitySynopsis = m.value(QStringLiteral("identitySynopsis")).toString();
@@ -285,9 +339,12 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
     Q_UNUSED(kind);
     if (!m_index)
         return {};
-    // Decorate each row with a ready-to-bind per-file cover URL (comics carry a CBZ cover entry
-    // after enrichment) so the folder view never re-derives the native id in QML. Books/video and
-    // un-enriched comics get "" → the row falls back to its kind icon.
+    // Decorate each row with a ready-to-bind per-file cover URL, now through the SAME resolver
+    // ladder browseAt()/series() use (browse-artwork execution plan, Slice 3 part 2): the row's
+    // own local ref (a comic/book archive cover, or a video group's adopted "file://" art) wins;
+    // failing that, the resolver's canonical-poster/frame-grab rungs. A remote identityCoverUrl is
+    // only ever the resolver's `posterUrl` INPUT now — it never lands in coverUrl directly (that
+    // override is what this method STOPS doing here, mirroring the browseAt() fix).
     QVariantList rows = m_index->filesInSubtree(seriesKey);
     for (QVariant& v : rows) {
         QVariantMap m = v.toMap();
@@ -296,15 +353,33 @@ QVariantList VaultLibrary::items(const QString& kind, const QString& seriesKey) 
         const QString rowKind = m.value(QStringLiteral("kind")).toString();
         const QString provider = rowKind == QLatin1String("book")
             ? QStringLiteral("vaultbookcover") : QStringLiteral("comiccover");
-        m.insert(QStringLiteral("coverUrl"),
-                 (!coverRef.isEmpty() && !path.isEmpty()
-                  && (rowKind == QLatin1String("comic") || rowKind == QLatin1String("book")))
-                     ? QStringLiteral("image://") + provider + QLatin1Char('/')
-                           + Colosseum::buildComicCoverId(path, coverRef)
-                     : QString());
+        QString localRef =
+            (!coverRef.isEmpty() && !path.isEmpty()
+             && (rowKind == QLatin1String("comic") || rowKind == QLatin1String("book")))
+                ? QStringLiteral("image://") + provider + QLatin1Char('/')
+                      + Colosseum::buildComicCoverId(path, coverRef)
+                : QString();
+        // A video row's coverRef (when VaultEnricher local-artwork adoption has populated it) is
+        // ALREADY a namespaced "file://" ref, ready to use as-is — never re-derived here.
+        if (localRef.isEmpty() && rowKind == QLatin1String("video") && !coverRef.isEmpty())
+            localRef = coverRef;
         const QString identityCover = m.value(QStringLiteral("identityCoverUrl")).toString();
-        if (!identityCover.isEmpty())
-            m.insert(QStringLiteral("coverUrl"), identityCover);
+        const QString identityId = m.value(QStringLiteral("identityId")).toString();
+        QString resolvedCover = localRef;
+        if (m_artworkResolver) {
+            VaultArtworkResolver::RowFacts facts;
+            facts.rowKey = m.value(QStringLiteral("id")).toString();
+            facts.kind = rowKind;
+            facts.path = path;
+            facts.localRef = localRef;
+            facts.identityId = identityId;
+            facts.posterUrl = identityCover;
+            facts.size = m.value(QStringLiteral("size")).toLongLong();
+            facts.mtimeMs = m.value(QStringLiteral("mtimeMs")).toLongLong();
+            facts.durationSec = m.value(QStringLiteral("durationSec")).toDouble();
+            resolvedCover = m_artworkResolver->resolve(facts);
+        }
+        m.insert(QStringLiteral("coverUrl"), resolvedCover);
         const QString identityTitle = m.value(QStringLiteral("identityTitle")).toString();
         m.insert(QStringLiteral("title"), identityTitle.isEmpty()
                  ? m.value(QStringLiteral("displayTitle")) : identityTitle);
@@ -405,13 +480,11 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         m.insert(QStringLiteral("displayTitle"), n.displayTitle);
         m.insert(QStringLiteral("physicalFact"), n.physicalFact);
         m.insert(QStringLiteral("path"), n.path);
-        // A Film node's coverRef is a ready-to-bind cover URL for the tile — VaultPosterCard /
-        // VaultWideCard bind it as `source: coverRef` directly. VIDEO groups carry the
-        // VaultEnricher-adopted "file://" local-artwork ref (Slice 3); comic/book groups carry the
-        // image://comiccover|vaultbookcover/<id> translation of their in-archive cover entry, built
-        // in the Film branch below (mirrors series()/items()) so the covers already extracted from
-        // the archive actually paint the browse grid instead of being silently dropped. Default
-        // empty here; every other node type carries no per-tile art yet.
+        // A row's coverRef is a ready-to-bind cover URL for the tile — VaultPosterCard/
+        // VaultWideCard bind it as `source: coverRef` directly. Every branch below (Film AND
+        // Folder/Show/Season containers) walks VaultArtworkResolver::resolve() to fill this in
+        // (browse-artwork execution plan, Slice 3 part 2) — default empty here is only the
+        // starting point a resolver miss (or an Episode/Clip node, untouched by this slice) keeps.
         m.insert(QStringLiteral("coverRef"), QString());
         QVariantMap counts;
         counts.insert(QStringLiteral("items"), n.mediaCount);
@@ -431,56 +504,96 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             // The kind classifier's own verdict, not an identity lookup (locked design: local-
             // only is certain-and-yours, never "not identified yet").
             state = QStringLiteral("localOnly");
+        } else if (n.nodeType == VaultKit::BrowseNodeType::Episode) {
+            // Episode nodes are UNCHANGED by this slice: no per-file facts are gathered for them
+            // in this method today (that would need an rowsForGroup-style per-episode lookup this
+            // slice does not add — named honestly here rather than silently assumed), so coverRef
+            // stays "" exactly as before. Title is structurally known from the filesystem walk —
+            // see the Folder/Show/Season comment below for why "identified" is still correct.
+            state = QStringLiteral("identified");
         } else if (n.nodeType == VaultKit::BrowseNodeType::Folder
                    || n.nodeType == VaultKit::BrowseNodeType::Show
-                   || n.nodeType == VaultKit::BrowseNodeType::Season
-                   || n.nodeType == VaultKit::BrowseNodeType::Episode) {
-            // Slice 5 fix: a folder/show/season/episode's title is always structurally known
-            // from the filesystem walk + grammar parse itself — there is no per-catalogue
-            // identification pending the way a Film's canonical match is. Slice 1 deliberately
-            // left these at the "resolving" default ("an honest default rather than inventing
-            // one" — its own comment); Slice 5 found this blocks the browse grid's core
-            // interaction: VaultPosterCard/VaultWideCard only mount their open MouseArea in the
-            // "settled" face (faceState flips off "resolving"), so a container/episode node could
-            // never be drilled into or played by a real click. Away/per-episode identity nuance
-            // is Slice 6/8's explicit business, not invented here.
+                   || n.nodeType == VaultKit::BrowseNodeType::Season) {
+            // Slice 5 fix: a folder/show/season's title is always structurally known from the
+            // filesystem walk + grammar parse itself — there is no per-catalogue identification
+            // pending the way a Film's canonical match is. Slice 1 deliberately left these at the
+            // "resolving" default ("an honest default rather than inventing one" — its own
+            // comment); Slice 5 found this blocks the browse grid's core interaction:
+            // VaultPosterCard/VaultWideCard only mount their open MouseArea in the "settled" face
+            // (faceState flips off "resolving"), so a container node could never be drilled into
+            // or played by a real click. Away nuance is Slice 6's explicit business, not invented
+            // here.
             state = QStringLiteral("identified");
+            // Browse-artwork execution plan, Slice 3 part 2: a container carries no local ref and
+            // no identity of its own today (identity lives on Film-level FileRows, never on a
+            // structural Folder/Show/Season grouping) — so every rung this call can supply is
+            // empty and resolve() is an honest no-op ("" back, same as before this slice). Wired
+            // now, exactly like the Film branch's own "pre-wired for when it lands" comment used
+            // to say about video identity covers, so a future container-level identity source
+            // needs no second wiring pass here.
+            if (m_artworkResolver) {
+                VaultArtworkResolver::RowFacts facts;
+                facts.rowKey = n.key;
+                facts.kind = VaultKit::browseNodeTypeName(n.nodeType);
+                facts.path = n.path;
+                const QString resolved = m_artworkResolver->resolve(facts);
+                if (!resolved.isEmpty())
+                    m.insert(QStringLiteral("coverRef"), resolved);
+            }
         } else if (n.nodeType == VaultKit::BrowseNodeType::Film && m_index) {
             const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
             if (!rows.isEmpty()) {
                 bool anyAway = false;
                 bool identified = false;
                 bool ambiguous = false;
-                QString coverRef;
+                // Browse-artwork execution plan, Slice 3 part 2: `localRef` replaces the old
+                // `coverRef` local — it NEVER carries a remote identityCoverUrl now (that STOPS;
+                // a remote poster is only ever resolve()'s `posterUrl` INPUT below, never handed
+                // straight to the tile). `coverIdentityId`/`posterUrl` capture the group's winning
+                // identity the same "first covered row wins" pass already walks; `factPath`/
+                // `factSize`/`factMtimeMs`/`factDurationSec` are the representative VIDEO file's
+                // own facts for the resolver's frame-grab rung (VaultScanner's "one video file,
+                // one group" convention means this is typically the group's only row).
+                QString localRef, coverIdentityId, posterUrl, factKind, factPath;
+                qint64 factSize = 0, factMtimeMs = 0;
+                double factDurationSec = -1.0;
                 for (const VaultIndex::FileRow& row : rows) {
                     if (row.away)
                         anyAway = true;
-                    if (!row.identityId.isEmpty() && !row.identitySuppressed)
+                    if (!row.identityId.isEmpty() && !row.identitySuppressed) {
                         identified = true;
+                        if (coverIdentityId.isEmpty()) {
+                            coverIdentityId = row.identityId;
+                            posterUrl = row.identityCoverUrl;
+                        }
+                    }
                     if (row.identityState == QLatin1String("ambiguous"))
                         ambiguous = true;
-                    // First covered row wins the group tile. Prefer a canonical/identity cover if
-                    // the enricher matched one; else the kind's own local artwork. Mirrors
-                    // items()/series() so the browse grid and the folder view agree on a group's
-                    // cover. (Video identity covers are the not-yet-built Cinemeta path — this
-                    // branch is a no-op for them today, and pre-wired for when it lands.)
-                    if (coverRef.isEmpty()) {
-                        if (!row.identityCoverUrl.isEmpty()) {
-                            coverRef = row.identityCoverUrl;
-                        } else if (row.kind == QLatin1String("video")
-                                   && !row.coverRef.isEmpty()) {
-                            coverRef = row.coverRef;
+                    // First covered row wins the group tile's LOCAL ref. Mirrors items()/series()
+                    // so the browse grid and the folder view agree on a group's cover.
+                    if (localRef.isEmpty()) {
+                        if (row.kind == QLatin1String("video") && !row.coverRef.isEmpty()) {
+                            localRef = row.coverRef;
                         } else if ((row.kind == QLatin1String("comic")
                                     || row.kind == QLatin1String("book"))
                                    && !row.coverRef.isEmpty()) {
                             const QString provider = row.kind == QLatin1String("book")
                                 ? QStringLiteral("vaultbookcover")
                                 : QStringLiteral("comiccover");
-                            coverRef = QStringLiteral("image://") + provider + QLatin1Char('/')
+                            localRef = QStringLiteral("image://") + provider + QLatin1Char('/')
                                      + Colosseum::buildComicCoverId(row.path, row.coverRef);
                         }
                     }
+                    if (factPath.isEmpty() && row.kind == QLatin1String("video")) {
+                        factKind = row.kind;
+                        factPath = row.path;
+                        factSize = row.size;
+                        factMtimeMs = row.mtimeMs;
+                        factDurationSec = row.durationSec;
+                    }
                 }
+                if (factKind.isEmpty())
+                    factKind = rows.first().kind; // comic/book — frame-grab rung no-ops for these
                 away = anyAway;
                 // identified always wins (identify-in-place settles a previously-ambiguous
                 // group through the same durable fact); suppressed reads as resolving
@@ -488,8 +601,23 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 state = identified ? QStringLiteral("identified")
                       : ambiguous  ? QStringLiteral("uncertain")
                                    : QStringLiteral("resolving");
-                if (!coverRef.isEmpty())
-                    m.insert(QStringLiteral("coverRef"), coverRef);
+                if (m_artworkResolver) {
+                    VaultArtworkResolver::RowFacts facts;
+                    facts.rowKey = n.key;
+                    facts.kind = factKind;
+                    facts.path = factPath;
+                    facts.localRef = localRef;
+                    facts.identityId = coverIdentityId;
+                    facts.posterUrl = posterUrl;
+                    facts.size = factSize;
+                    facts.mtimeMs = factMtimeMs;
+                    facts.durationSec = factDurationSec;
+                    const QString resolved = m_artworkResolver->resolve(facts);
+                    if (!resolved.isEmpty())
+                        m.insert(QStringLiteral("coverRef"), resolved);
+                } else if (!localRef.isEmpty()) {
+                    m.insert(QStringLiteral("coverRef"), localRef);
+                }
                 // Slice 5 fix: a Film node's `path` was left as n.path — the CONTAINING FOLDER
                 // (BrowseNode::path for a film is set from the child directory, never
                 // overridden) — which broke Play (openMediaRequested expects a FILE).

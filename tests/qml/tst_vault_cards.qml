@@ -258,4 +258,67 @@ TestCase {
         compare(openSpy.count, 1)
         c.destroy()
     }
+
+    // ── 6. Slice 3 part 2 (browse-artwork execution plan) — the hasArt seam: true only once
+    //       coverRef carries a real local ref (any rung of VaultArtworkResolver's ladder — this
+    //       component only sees the string, never the resolver itself), false for the default/
+    //       never-resolved "". This is the exact runtime property the controller's live proof
+    //       waits on after wiring the resolver into VaultLibrary::browseAt(). A real, decodable
+    //       PNG (assets/addon-logos/nyaa.png — a genuine shipped app asset, not a synthetic test
+    //       file) proves the card genuinely MOUNTS and DECODES the cover Image at that source, not
+    //       just that a non-empty string was stored (tests/fixtures/vault/media/thumb.png, used
+    //       elsewhere in this suite for path-existence-only fixtures, is a text stub — verified by
+    //       running this exact test against it first: it decodes to Image.Error). ──
+    readonly property url realCoverUrl: Qt.resolvedUrl("../../assets/addon-logos/nyaa.png")
+    function test_hasArt_true_when_coverRef_nonempty_and_mounts_cover_image() {
+        var row = {
+            "key": "hasart-poster", "nodeType": "film", "displayTitle": "Has Art",
+            "physicalFact": "2021 · 1080p", "path": "D:/hemanth's folder/Has Art",
+            "counts": { "items": 1 }, "coverRef": realCoverUrl.toString(),
+            "state": "identified", "away": false
+        }
+        var c = createPoster(row)
+        compare(c.hasArt, true)
+        var img = findChild(c, "vaultBrowseCard_hasart-poster_artImage")
+        verify(img !== null)
+        compare(img.source.toString(), realCoverUrl.toString())
+        tryCompare(img, "status", Image.Ready, 2000)   // a genuinely decodable fixture, not a stub path
+        c.destroy()
+    }
+    function test_hasArt_false_when_coverRef_empty_shows_typographic_face() {
+        var c = createPoster(identifiedRow)   // identifiedRow carries coverRef: ""
+        compare(c.hasArt, false)
+        var title = findChild(c, "vaultBrowseCard_spiderman_title")
+        verify(title !== null)
+        compare(title.text, identifiedRow.displayTitle)
+        var img = findChild(c, "vaultBrowseCard_spiderman_artImage")
+        verify(img !== null)
+        compare(img.source.toString(), "")
+        c.destroy()
+    }
+    function test_wide_hasArt_true_when_coverRef_nonempty_and_mounts_cover_image() {
+        var row = {
+            "key": "hasart-wide", "nodeType": "episode", "displayTitle": "Has Art Wide",
+            "physicalFact": "S1:E1", "path": "D:/hemanth's folder/Has Art Wide/e1.mkv",
+            "counts": { "items": 0 }, "coverRef": realCoverUrl.toString(),
+            "state": "identified", "away": false
+        }
+        var c = createWide(row)
+        compare(c.hasArt, true)
+        var img = findChild(c, "vaultBrowseCard_hasart-wide_artImage")
+        verify(img !== null)
+        compare(img.source.toString(), realCoverUrl.toString())
+        tryCompare(img, "status", Image.Ready, 2000)
+        c.destroy()
+    }
+    function test_wide_hasArt_false_when_coverRef_empty() {
+        var episodeRow = {
+            "key": "hasart-wide-empty", "nodeType": "episode", "displayTitle": "No Art Wide",
+            "physicalFact": "", "path": "D:/hemanth's folder/No Art Wide/e1.mkv",
+            "counts": { "items": 0 }, "coverRef": "", "state": "identified", "away": false
+        }
+        var c = createWide(episodeRow)
+        compare(c.hasArt, false)
+        c.destroy()
+    }
 }

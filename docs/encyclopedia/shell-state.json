@@ -21,7 +21,7 @@
       "accepted_comment": "// AppLog.h — the always-on rolling log.\n//\n// WHY THIS EXISTS (2026-08-05): Hemanth hit a Downloads \"Cancel\" that did\n// nothing and said nothing, killed the app, and asked for the log. There was\n// none. Colosseum installed no message handler, and Colosseum.bat — the\n// launcher he actually double-clicks — runs the exe with stderr unredirected,\n// so every qInfo/qWarning in a normal launch was discarded as it was produced.\n// A bug he can reproduce but never evidence is a bug we debug blind, so the\n// log is now unconditional: no dev launcher, no env var, no opt-in.\n//\n// Contract:\n//   - appends to <AppDataLocation>/logs/colosseum.log\n//   - flushes EVERY line — the case this was built for is a hard kill, and a\n//     buffered tail is exactly the part that would be missing\n//   - rotates at 5 MB, keeping colosseum.1..3.log (oldest dropped)\n//   - forwards to the previously-installed handler, so dev.bat's console and\n//     QT_FORCE_STDERR_LOGGING behave exactly as before\n//   - mutex-guarded: Qt logs from the network/decode threads, not just the GUI\n//\n// install() must be called AFTER applicationName/organizationName are set (and\n// after the COLOSSEUM_APPDATA_TAG override), because AppDataLocation resolves\n// from them — a dltest run then writes its own isolated log, never the real one."
     },
     "native/main.cpp": {
-      "accepted_blob": "880f8fca9b68ddac149b2809882c70f5848bac59",
+      "accepted_blob": "b3bc5cb54bebd28ed9e4d5a3cf4ebf7ff86df96e",
       "accepted_comment": "// Colosseum native launcher. Runs the live qml/ tree with an on-disk HTTP cache\n// and the same Metahub IPv4 pin Tankoban-3 uses for instant poster loading."
     },
     "qml/BootSplash.qml": {
@@ -49,6 +49,6 @@
       "accepted_comment": "// WorldTabBar — TheatreTabBar's glass pill bar, generalized to any tab set (parameterized\n// tabModel). Used by the Tankoban world (Manga|Comics); Theatre keeps TheatreTabBar for now\n// and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint."
     }
   },
-  "integrity": "sha256:c564e3756ef755e7e985783fa7e2c97e6e0e96bd58c52cdb516aea14fa89e17a",
+  "integrity": "sha256:46378dbdbcdb42ad6def0b7bc480da1c72ffdec8c8b0a95be57340b802e157f9",
   "schema": 1
 }

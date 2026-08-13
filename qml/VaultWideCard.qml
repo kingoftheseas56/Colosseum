@@ -24,6 +24,9 @@ Item {
     readonly property string physicalFact: row && row.physicalFact !== undefined ? row.physicalFact : ""
     readonly property bool away: !!(row && row.away)
     readonly property string coverRef: row && row.coverRef !== undefined ? row.coverRef : ""
+    // Browse-artwork execution plan, Slice 3 part 2 — same seam as VaultPosterCard's own hasArt
+    // (see its comment): true once coverRef carries a real local ref, false for the default "".
+    readonly property bool hasArt: coverRef !== ""
     readonly property string nodeKey: row && row.key !== undefined ? row.key : ""
     readonly property string nodeType: row && row.nodeType !== undefined ? row.nodeType : ""
     readonly property int itemCount: (row && row.counts && row.counts.items !== undefined) ? row.counts.items : 0

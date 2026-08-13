@@ -97,11 +97,11 @@
       "accepted_comment": "// VaultKit — the Vault's pure-logic kit. Slice 1 of the Vault execution plan\n// (Brotherhood/docs/superpowers/plans/2026-08-08-colosseum-vault-execution-plan.md).\n//\n// Ported from Tankoban 2's src/core/ScannerUtils (the depth-bounded,\n// symlink-loop-safe, cooperatively-cancellable walker; the hard-coded\n// ignore-dir set; first-level grouping with loose-file capture; and the\n// media-folder title cleaner) and EXTENDED with three things the Vault needs\n// that TB2 kept scattered:\n//   (a) the Groundworks user `scanIgnore` needle layer (a case-insensitive\n//       full-path SUBSTRING match — books_library_handlers.py), sanitized and\n//       capped, threaded through every walk;\n//   (b) a census classifier that infers each first-level subtree's media kind\n//       and flags mixed leaves (spec §5, \"one folder one kind\"); and\n//   (c) the season/episode grammar extracted out of TB2's BulkPackVerifier\n//       regex and VideosPage::resolveShowPath season-climb guard, so a bare\n//       `Season 1` folder never masquerades as a show.\n//\n// Pure QtCore only (QDir / QFileInfo / QRegularExpression) — no QObject, no app\n// dependencies — so a Qt Test links it standalone and the production scanners\n// (Slice 4+) #include it the same way. QML paints, C++ decides."
     },
     "native/engine/VaultLibrary.cpp": {
-      "accepted_blob": "67fd7b6bd77132ed7573153cd0e5efb0dbdef85e",
+      "accepted_blob": "5a9bdc876c7c3cd5560f3cd22adc63e15b207c0e",
       "accepted_comment": "// Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots()."
     },
     "native/engine/VaultLibrary.h": {
-      "accepted_blob": "7edf545afe670e43ed26e32f52c11756b02c1c1e",
+      "accepted_blob": "e6e8fcf96c62007e39032bbd6595c4b9651a8e0a",
       "accepted_comment": "// VaultLibrary — the Vault's single QML façade: the Slice-10 read-model plus the Slice-11\n// scan/confirm commands. QML paints from THIS object and fires gestures AT it; C++ owns the\n// scan/publish threading and the multi-step confirm sequence, so QML never sequences\n// addRoot→scan or setKind→confirm→publish itself (QML paints, C++ decides). It wraps\n// VaultIndex (queryable truth), VaultScanner (the cancellable off-thread census + aggregate\n// publish), and VaultConfig (user intent: roots + kind overrides). The read half mirrors\n// LocalDownloads (revision + series + items) so shelves only render normalized results.\n//\n// revision bumps ONLY on committed truth (VaultIndex::changed(), emitted after a successful\n// publish/upsert). scanning/scanningRoot drive the scan pill; candidate drives the confirmation\n// card. Commands: addFolder (add an unconfirmed root + census it), confirmRoot (persist the\n// card's chip reassignments, mark confirmed, publish the UNION of all confirmed roots),\n// dismissCard, cancelScan."
     },
     "native/engine/VaultPageStore.cpp": {
@@ -185,11 +185,11 @@
       "accepted_comment": "// Shared identity ceremony surface for launch sessions and Vault rows. It is seedable so\n// store decisions stay testable without booting the whole shell; the owning facade supplies\n// the ceremony and records the choice in VaultIdentity."
     },
     "qml/VaultPage.qml": {
-      "accepted_blob": "d1b450dd4ed408192306702b7407f62d43f74ada",
+      "accepted_blob": "a9c7a68b09c1f96dce94534bc4c4f62bf7f2eeaf",
       "accepted_comment": "// VaultPage — \"On this machine\": the local-media Vault as a host-owned full page, entered from\n// the taskbar folder door. Slice 10 lands the permanent door + this page's EMPTY state (nothing\n// indexed yet): eyebrow, title, and a dashed Add-folder drop surface. It paints from the\n// VaultLibrary read-model (itemCount/scanning); the shelves that fill a populated Vault, and the\n// folder-scan ingest behind Add folder, land in Slice 11. Same chrome vocabulary as\n// Settings/Downloads (back · minimize · fullscreen · power) so it reads as one of the house's pages."
     },
     "qml/VaultPosterCard.qml": {
-      "accepted_blob": "d338e14fd267b8ebe3d9133e23abce01f1c3df24",
+      "accepted_blob": "be78f75ef6c97961ff078cb4be2ceec33403a56a",
       "accepted_comment": "// VaultPosterCard — the 2:3 poster face for folder/show/season/film rows (Vault Browse face,\n// execution plan Slice 4). Consumes ONE browseAt() row and paints the locked design's card\n// language (design §6.3) exactly: artwork edge to edge with nothing printed over it; a centered\n// one-line title below with elision; a dimmer physical-fact line beneath, in the slot Jellyfin\n// uses for the year; near-square corners (~5px); circular corner indicators, never rectangular\n// badges; hover dims the art and reveals a play affordance; gold reserved for the uncertainty\n// mark only; away reads as reduced ink + desaturation with no hover and no open signal;\n// resolving shows the filename on plain ground and crossfades to the settled face in place.\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
     },
     "qml/VaultTile.qml": {
@@ -197,10 +197,10 @@
       "accepted_comment": "// VaultTile — the shared shelf/folder tile. It keeps unavailable roots in the gallery and paints\n// their state in place instead of letting a missing filesystem path erase the user's shelf."
     },
     "qml/VaultWideCard.qml": {
-      "accepted_blob": "c802bc0f35004d4cb3fe44b443cfc0332c26f2c6",
+      "accepted_blob": "6ca2c52d872fe1ce9004bc02f3454b65174bdce5",
       "accepted_comment": "// VaultWideCard — the 16:9 still face for episode/clip rows (Vault Browse face, execution plan\n// Slice 4). Same card language as VaultPosterCard (design §6.3) — artwork edge to edge, centered\n// one-line title with elision, a dimmer physical-fact line beneath, circular corner indicators,\n// near-square corners, hover dims and reveals a play affordance, gold reserved for the\n// uncertainty mark, away is reduced ink + desaturation with no hover/open, resolving crossfades\n// filename → settled face in place — just a different card, per the locked design's rule that\n// drilling into a series is a different card, not the same grid one level deeper (§6.3).\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
     }
   },
-  "integrity": "sha256:10ca3150716869c7472d72ec3d29e5b2899b969cb3df9c53e6f619d775a3cec6",
+  "integrity": "sha256:3bb79b11436bae9629c54d8e6f6d956276d27a9ab4196e2846ffe5583da19ecb",
   "schema": 1
 }

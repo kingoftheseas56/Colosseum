@@ -216,6 +216,26 @@ Item {
         }
         if (levelChanged) Qt.callLater(root.restoreGridScroll)
     }
+    // Browse-artwork execution plan, Slice 3 part 2 — the resolver's re-projection hook. A poster/
+    // frame-grab landing async (VaultArtworkResolver::artResolved, VaultLibrary.h's own doc on
+    // browseArtResolved) fires this NARROW signal — never VaultLibrary.revision/changed(), which
+    // browseGridRows above depends on for its OWN re-derivation and which every other
+    // revision-gated property in this file (rootsDetail/hiddenSeries/admissionById/browseDetail/…)
+    // ALSO depends on; routing artResolved through revision would force every one of those to
+    // redo its own SQL/filesystem work on every single tile's art landing, exactly the "doubling
+    // the cost" hazard `browseEmptyCause`'s own comment above already names for a different call.
+    // Re-deriving browseAt() and handing it straight to syncGridModel() reuses the SAME in-place
+    // ListModel diff identify-in-place's revision-driven path already relies on (structurallySame
+    // key-set → ListModel.set() updates each row's DATA without destroying the delegate, so the
+    // settledOpacity crossfade still runs) — just reached without touching browseGridRows or any
+    // other revision-gated property.
+    Connections {
+        target: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
+        function onBrowseArtResolved(rowKey) {
+            if (!root.hasConfirmedStorage || root.hiddenViewActive || !root.currentBrowsePath) return
+            root.syncGridModel(VaultLibrary.browseAt(root.currentBrowsePath))
+        }
+    }
     readonly property bool browseGridWide: root.browseGridRows.length > 0
         && (root.browseGridRows[0].nodeType === "episode" || root.browseGridRows[0].nodeType === "clip")
     readonly property int posterCellWidth: 170

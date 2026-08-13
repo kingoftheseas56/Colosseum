@@ -8,7 +8,7 @@
 - Total files: **12**
 - Documented: **11**
 - Undocumented: **1**
-- Drifted: **0**
+- Drifted: **3**
 
 <a id="file-native-collectionstore-h"></a>
 ## `native/CollectionStore.h`
@@ -126,8 +126,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/main.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `880f8fca9b68ddac149b2809882c70f5848bac59`
-- Current blob: `880f8fca9b68ddac149b2809882c70f5848bac59`
+- Accepted blob: `b3bc5cb54bebd28ed9e4d5a3cf4ebf7ff86df96e`
+- Current blob: `b3bc5cb54bebd28ed9e4d5a3cf4ebf7ff86df96e`
 - Source: [`native/main.cpp`](../../native/main.cpp)
 
 ```text
@@ -168,10 +168,11 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-main-qml"></a>
 ## `qml/Main.qml`
 
-- Status: **CURRENT**
+- Status: **DRIFTED**
 - Accepted blob: `143a114ea240ba77788f417207b5d5a54f350bdc`
-- Current blob: `143a114ea240ba77788f417207b5d5a54f350bdc`
+- Current blob: `50fb99b615d194d546d45bdf98a9d3b031946712`
 - Source: [`qml/Main.qml`](../../qml/Main.qml)
+- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // Colosseum — HOME (v1, on the proven spine)
@@ -184,10 +185,11 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-taskbar-qml"></a>
 ## `qml/Taskbar.qml`
 
-- Status: **CURRENT**
+- Status: **DRIFTED**
 - Accepted blob: `6ecfa8212549db51d626dcb98797206d790f36f7`
-- Current blob: `6ecfa8212549db51d626dcb98797206d790f36f7`
+- Current blob: `7f4eca5a996c420046862a0fb02e05eea6433475`
 - Source: [`qml/Taskbar.qml`](../../qml/Taskbar.qml)
+- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // Taskbar.qml - the OS-shell's auto-hiding switcher bar.
@@ -198,10 +200,11 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-topbar-qml"></a>
 ## `qml/TopBar.qml`
 
-- Status: **CURRENT**
+- Status: **DRIFTED**
 - Accepted blob: `7fc81a9848f364a988593dec534aa0c599446a32`
-- Current blob: `7fc81a9848f364a988593dec534aa0c599446a32`
+- Current blob: `c1d135fce516483d02850189ae4a7b073ef32df5`
 - Source: [`qml/TopBar.qml`](../../qml/TopBar.qml)
+- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // TopBar — the shared Colosseum shell chrome: clock/date · library pills · system icons.

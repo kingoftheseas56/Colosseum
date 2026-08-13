@@ -709,12 +709,24 @@ set_tests_properties(colosseum.vault_launch_router_harness PROPERTIES
 # lower helper modules, as the seam VaultForensics must compose. Qt6::Concurrent for VaultScanner
 # (linked, never exercised — no scan/publish path is driven by any test here). GUILESS;
 # QTemporaryDir index + small real fixture trees per run, same idiom as tst_vault_index.cpp.
+# Browse-artwork execution plan, Slice 3 part 2 (2026-08-13) additive note: VaultLibrary.cpp now
+# constructs VaultThumbnailer/VaultPosterFetcher/VaultArtworkResolver directly (same as
+# lanista_harness, native/CMakeLists.txt), so this fixture needs the same three organs — and
+# Qt6::Network below (VaultPosterFetcher's QNetworkAccessManager), which this target did not
+# previously need.
 add_executable(tst_vault_forensics
     auto/vault/tst_vault_forensics.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultCacheKey.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.cpp"
@@ -751,7 +763,8 @@ add_executable(tst_vault_forensics
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
 target_include_directories(tst_vault_forensics PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_forensics PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
+target_link_libraries(tst_vault_forensics PRIVATE
+    Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
 set_target_properties(tst_vault_forensics PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_forensics POST_BUILD

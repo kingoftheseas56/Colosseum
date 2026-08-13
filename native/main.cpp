@@ -1070,7 +1070,12 @@ int main(int argc, char *argv[]) {
     auto *vaultScanner = new VaultScanner(vaultIndex, vaultIdentity, &app);
     // Slice 15: VaultLibrary OWNS the VaultWatcher (per-root QFileSystemWatcher + debounce);
     // it needs the identity to build arrival rows identical to the census's.
-    auto *vaultLibrary = new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, vaultIdentity, &app);
+    // Browse-artwork execution plan, Slice 3 part 2: `vaultDir` is reused as-is — the SAME
+    // VaultStoreIo-managed dir vaultConfig/vaultIdentity/vaultIndex already sit under — so
+    // VaultLibrary's owned VaultThumbnailer/VaultPosterFetcher (thumbs/, posters/ subdirs) land
+    // beside config.json/identity.json/index-v1.sqlite instead of scattering a second cache root.
+    auto *vaultLibrary =
+        new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, vaultIdentity, vaultDir, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
 
     // Vault cover enrichment (execution plan Slice 12): after a publish, read each comic's
