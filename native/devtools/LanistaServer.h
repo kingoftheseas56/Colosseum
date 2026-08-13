@@ -34,6 +34,7 @@
 //   GRAB_TIMEOUT          — grabToImage's callback never fired (see attachGrab)
 #include <QElapsedTimer>
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
 #include <QPointer>
@@ -177,8 +178,13 @@ private:
     // rather than resolving in the lambda and again in the method. dump-ui cannot
     // fail on a target, so it stays a plain body-returning read.
     void cmdQmlGet(const QJsonObject& p, Replier reply) const;
-    QJsonObject cmdDumpUi(const QJsonObject& p) const;
-    void cmdUiQuery(const QJsonObject& p, Replier reply) const;
+    // L1-Bridge (2026-08-13): dump-ui is no longer const-shaped — an explicit
+    // `root` can fail NO_SUCH_ITEM, and the walk now mints structural handles
+    // (mutates m_handles/m_itemHandles/m_snapshotEpoch), so it owns the Replier
+    // like the Task 3 fallible reads. ui-query lost its const for the same
+    // reason: it now mints a handle for its target and clip-chain ancestors too.
+    void cmdDumpUi(const QJsonObject& p, Replier reply);
+    void cmdUiQuery(const QJsonObject& p, Replier reply);
     // Task 4
     QJsonObject cmdUiSnapshot(const QJsonObject& p);
     // Task 5 — the "hands". Each can fail on its target (NO_SUCH_ITEM / NO_WINDOW,
@@ -233,6 +239,28 @@ private:
     // item does.
     QQuickItem* resolveTarget(const QString& ref) const;   // objectName or snapshot handle
 
+    // L1-Bridge (2026-08-13): the SAME identity scheme above, reused rather than
+    // reinvented (L1-Discovery's verdict) so dump-ui's all-item walk and
+    // ui-query's targeted read can mint/reuse "s<gen>h<n>" tokens for items
+    // ui-snapshot never actually visited (it only visits actionable ones).
+    //
+    // mintOrReuseHandle hands back the SAME token for the SAME item within one
+    // generation — so an item's own dump-ui row and its appearance inside a
+    // sibling's clipChain agree — and a brand-new token the first time an item
+    // is seen this generation. beginNewGeneration() is the ONE place that bumps
+    // m_snapshotEpoch and clears every handle map; ui-snapshot and a FRESH
+    // dump-ui both call it, so "handles die at the next snapshot — from ANY
+    // client" now covers structural handles too, unchanged in spirit.
+    QString mintOrReuseHandle(QQuickItem* item);
+    void beginNewGeneration();
+    // The ordered clip:true ancestor chain between `item` and the root window,
+    // nearest ancestor first, each carrying its own minted handle and scene
+    // rect. This is the direct fix for the demonstrated wrong answer
+    // clippedByWindow gives today (L1-Discovery row 4): an item can be
+    // visible:true, clippedByWindow:false, and still not actually be on
+    // screen because an intermediate clip:true ancestor cuts it off first.
+    QJsonArray clipChainFor(QQuickItem* item);
+
     // Per-connection state. `spent` latches once a command line has been taken
     // from this connection: the wire contract is one command per connection, so
     // anything arriving afterwards is dropped rather than buffered or (the
@@ -247,8 +275,15 @@ private:
     QString m_listenError;
     QHash<QString, Command> m_commands;
     QHash<QLocalSocket*, Conn> m_conns;
-    QHash<QString, QPointer<QQuickItem>> m_handles;   // last ui-snapshot, keyed "h<n>"
-    int m_snapshotEpoch = 0;   // bumped per ui-snapshot; embedded in each handle token
+    QHash<QString, QPointer<QQuickItem>> m_handles;   // last snapshot/dump-ui gen, keyed "h<n>"
+    // L1-Bridge: the reverse of m_handles (item -> "h<n>", no "s<gen>" prefix) —
+    // an O(1) "does this item already have a token this generation" check, used
+    // by clip-chain ancestor minting and dump-ui's parent-handle lookups so an
+    // item visited twice (once as a row, once as another row's clip ancestor)
+    // never gets two different handles. Cleared alongside m_handles, always.
+    QHash<QQuickItem*, QString> m_itemHandles;
+    int m_snapshotEpoch = 0;   // bumped per ui-snapshot/fresh dump-ui; embedded in each handle token
+    int m_handleCounter = 0;   // next "<n>" to mint; reset to 0 by beginNewGeneration()
     QString m_runDir;
     bool m_runDirCreated = false;
     // Task 10: the rotating JSONL event stream. log-mark writes a diagnostic

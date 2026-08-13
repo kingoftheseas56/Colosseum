@@ -41,6 +41,18 @@ constexpr int kDefaultIdleTimeoutMs = 10000;  // connected but silent -> hang up
 // giving up on a connection the server still holds. See attachGrab().
 constexpr int kGrabTimeoutMs = 4000;
 
+// L1-Bridge (2026-08-13): dump-ui's own bounds, independent of the wire's 1 MiB
+// line ceiling above. 96 KiB leaves a wide margin under that ceiling — room for
+// JSON framing overhead plus the rest of a combined reply (a grab path, etc.)
+// — and deliberately favors several small, PAGEABLE replies over one huge one:
+// the client is an agent, and a bounded page is easier to reason about than a
+// single multi-hundred-KB blob even when the wire could technically carry it.
+// maxDepth's ceiling matches walkVisual's own hard recursion guard (depth > 64
+// below) — a client cannot ask for more depth than the walker itself allows.
+constexpr qint64 kDumpUiByteBudget = 96 * 1024;
+constexpr int kDumpUiMaxDepthCeiling = 64;
+constexpr int kDumpUiMaxItemsCeiling = 5000;
+
 // Depth-first search over the VISUAL tree (QQuickItem::childItems), which is
 // where Repeater/ListView/GridView delegate items live — they are NOT in the
 // QObject tree, so root->findChild() cannot see them. In Colosseum every
@@ -209,7 +221,7 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     addRead(QStringLiteral("ui-query"),
             [this](const QJsonObject& p, Replier reply) { cmdUiQuery(p, std::move(reply)); });
     addRead(QStringLiteral("dump-ui"),
-            [this](const QJsonObject& p, Replier reply) { reply.reply(cmdDumpUi(p)); });
+            [this](const QJsonObject& p, Replier reply) { cmdDumpUi(p, std::move(reply)); });
     // Task 4: ui-snapshot has no target to fail() on (like dump-ui, which is also
     // const-shaped in that sense), so it answers by returning its own body rather
     // than owning the Replier. (It is non-const because it rebuilds m_handles.)
@@ -579,6 +591,61 @@ QQuickItem* LanistaServer::resolveTarget(const QString& ref) const
     return findItem(ref);
 }
 
+// L1-Bridge (2026-08-13): ONE token-minting primitive, reused by ui-snapshot,
+// dump-ui, and ui-query's structural fields — matching resolveTarget's own
+// "one resolver, two forms" discipline just above. Returns the item's EXISTING
+// token if it already has one this generation (m_itemHandles is the O(1)
+// reverse lookup), or mints the next "s<gen>h<n>" and records it both ways.
+QString LanistaServer::mintOrReuseHandle(QQuickItem* item)
+{
+    const auto it = m_itemHandles.constFind(item);
+    if (it != m_itemHandles.constEnd())
+        return QStringLiteral("s%1%2").arg(m_snapshotEpoch).arg(*it);
+    ++m_handleCounter;
+    const QString key = QStringLiteral("h") + QString::number(m_handleCounter);
+    m_handles.insert(key, QPointer<QQuickItem>(item));
+    m_itemHandles.insert(item, key);
+    return QStringLiteral("s%1%2").arg(m_snapshotEpoch).arg(key);
+}
+
+// The ONE place every handle map is bumped/cleared together. ui-snapshot and a
+// FRESH (non-continuation) dump-ui both call this, so "a new snapshot from ANY
+// client invalidates every prior handle" now covers structural handles too —
+// the same global-invalidation law the ledger already documents, not a second
+// one bolted on beside it.
+void LanistaServer::beginNewGeneration()
+{
+    ++m_snapshotEpoch;
+    m_handles.clear();
+    m_itemHandles.clear();
+    m_handleCounter = 0;
+}
+
+// The clip:true ancestor chain between `item` and the root window, nearest
+// ancestor first. Each entry mints (or reuses) a handle so a client can
+// ui-query the ancestor directly without a second lookup by name. Walking
+// parentItem() here is independent of any dump-ui walk boundary (a `root`
+// scoped deep in the tree still finds its TRUE ancestors, even ones the walk
+// itself never visited) — correctness over convenience.
+QJsonArray LanistaServer::clipChainFor(QQuickItem* item)
+{
+    QJsonArray chain;
+    for (QQuickItem* anc = item->parentItem(); anc; anc = anc->parentItem()) {
+        if (!anc->clip())
+            continue;
+        const QRectF ancScene =
+            anc->mapRectToScene(QRectF(0, 0, anc->width(), anc->height()));
+        chain.append(QJsonObject{
+            {QStringLiteral("handle"), mintOrReuseHandle(anc)},
+            {QStringLiteral("objectName"), anc->objectName()},
+            {QStringLiteral("sceneRect"), QJsonObject{
+                {QStringLiteral("x"), ancScene.x()}, {QStringLiteral("y"), ancScene.y()},
+                {QStringLiteral("width"), ancScene.width()},
+                {QStringLiteral("height"), ancScene.height()}}}});
+    }
+    return chain;
+}
+
 QJsonObject LanistaServer::cmdGetState() const
 {
     // ROOT windows only — see the header note on mainWindow()/findItem().
@@ -639,10 +706,19 @@ void LanistaServer::cmdQmlGet(const QJsonObject& p, Replier reply) const
 // grab here (a PNG would be device pixels; this is pure geometry). clippedByWindow
 // answers the question a screenshot cannot: is this item drawn (partly) outside
 // the window, where a click would miss it?
-void LanistaServer::cmdUiQuery(const QJsonObject& p, Replier reply) const
+//
+// L1-Bridge (2026-08-13): clippedByWindow only ever checks the ROOT window —
+// L1-Discovery proved it demonstrably wrong for an item clipped by an
+// INTERMEDIATE clip:true ancestor (visible:true, clippedByWindow:false, and
+// still not actually on screen). The additive fields below — handle, parent,
+// child count, z, localRect, and above all clipChain — are the same structural
+// vocabulary dump-ui now reports, so a targeted ui-query and a bulk dump-ui row
+// for the SAME item agree byte-for-byte on everything but ordering.
+void LanistaServer::cmdUiQuery(const QJsonObject& p, Replier reply)
 {
     // `object` is a handle-or-name: resolveTarget() accepts an h<N> from the last
-    // ui-snapshot as well as an objectName (name lookups are unchanged).
+    // ui-snapshot/dump-ui generation as well as an objectName (name lookups are
+    // unchanged).
     const QString ref = p.value(QStringLiteral("object")).toString();
     QQuickItem* item = resolveTarget(ref);
     if (!item) {
@@ -660,13 +736,18 @@ void LanistaServer::cmdUiQuery(const QJsonObject& p, Replier reply) const
     // FIRST root QQuickWindow), which is where every Colosseum item lives today.
     // An item in a secondary window would be measured against the wrong bounds; a
     // null mainWindow leaves the flag false.
+    QQuickWindow* w = mainWindow();
     bool clipped = false;
-    if (QQuickWindow* w = mainWindow()) {
+    if (w) {
         clipped = (sceneRect.right() > w->width()) || (sceneRect.bottom() > w->height())
                   || (sceneRect.left() < 0) || (sceneRect.top() < 0);
     }
 
-    reply.reply({
+    QQuickItem* parent = item->parentItem();
+    const QString parentHandle = parent ? mintOrReuseHandle(parent) : QString();
+
+    QJsonObject body{
+        // legacy fields — UNCHANGED shape and values for old clients.
         {QStringLiteral("rect"), QJsonObject{
             {QStringLiteral("x"), sceneRect.x()}, {QStringLiteral("y"), sceneRect.y()},
             {QStringLiteral("width"), sceneRect.width()},
@@ -674,39 +755,192 @@ void LanistaServer::cmdUiQuery(const QJsonObject& p, Replier reply) const
         {QStringLiteral("visible"), item->isVisible()},
         {QStringLiteral("enabled"), item->isEnabled()},
         {QStringLiteral("opacity"), item->opacity()},
-        {QStringLiteral("clippedByWindow"), clipped}});
+        {QStringLiteral("clippedByWindow"), clipped},
+        // additive structural fields (L1-Bridge) — the same vocabulary dump-ui
+        // reports per item, so a client never needs two different shapes.
+        {QStringLiteral("handle"), mintOrReuseHandle(item)},
+        {QStringLiteral("objectName"), item->objectName()},
+        {QStringLiteral("class"), QString::fromLatin1(item->metaObject()->className())},
+        {QStringLiteral("parentHandle"),
+         parent ? QJsonValue(parentHandle) : QJsonValue()},
+        {QStringLiteral("parentName"),
+         parent ? QJsonValue(parent->objectName()) : QJsonValue()},
+        {QStringLiteral("childCount"), item->childItems().size()},
+        {QStringLiteral("z"), item->z()},
+        {QStringLiteral("localRect"), QJsonObject{
+            {QStringLiteral("x"), 0.0}, {QStringLiteral("y"), 0.0},
+            {QStringLiteral("width"), item->width()},
+            {QStringLiteral("height"), item->height()}}},
+        {QStringLiteral("clipChain"), clipChainFor(item)},
+    };
+    if (w)
+        body.insert(QStringLiteral("rootWindow"),
+                    QJsonObject{{QStringLiteral("width"), w->width()},
+                               {QStringLiteral("height"), w->height()}});
+    reply.reply(std::move(body));
 }
 
-// dump-ui: the whole named-object tree in one shot, for an agent orienting on a
-// page it has never seen. Every item with a non-empty objectName, in DFS order,
-// with enough to reason about layout. Consumes the shared walkVisual() collector
-// (see the anon-namespace note) — no second tree walker.
-QJsonObject LanistaServer::cmdDumpUi(const QJsonObject&) const
+// dump-ui: the whole item tree in one shot, for an agent orienting on a page it
+// has never seen. Consumes the shared walkVisual() collector (see the
+// anon-namespace note) — no second tree walker.
+//
+// L1-Bridge (2026-08-13): L1-Discovery measured this command's original
+// named-only filter as the single largest blind spot on the harness fixture
+// (68 of an estimated ≈133 real items visible) — an agent debugging the
+// background fill, a Flickable's own contentItem, a Column wrapper, a
+// Repeater, or a delegate's inner Text had NO WAY TO SEE any of them, because
+// nothing ever asked for an unnamed item. That filter is gone: every
+// QQuickItem is reported now (objectName is "" rather than omitted), each
+// carrying an opaque structural handle (mintOrReuseHandle — the SAME identity
+// scheme ui-snapshot already uses), its parent's handle/name, child count,
+// local + scene rect, z/enabled/opacity, and its clip:true ancestor chain —
+// the direct fix for clippedByWindow's demonstrated wrong answer (row 4: an
+// item scrolled out of its OWN list's viewport reads visible:true,
+// clippedByWindow:false, and is still not actually on screen).
+//
+// Unbounded was safe while the filter kept replies small; an all-item walk is
+// not, so three request-side bounds — `root`, `maxDepth`, `maxItems` — are all
+// optional and all clamped server-side, and a reply byte budget (see
+// kDumpUiByteBudget) stops the walk outright with `truncated:true` and a
+// resumable `continuation.cursor` rather than ever growing toward the wire's
+// 1 MiB line ceiling. A continuation is honored ONLY when the caller echoes
+// back the `generation` the cursor was minted against — anything else starts a
+// brand-new generation, exactly the "handles die at the next snapshot" law the
+// rest of the bridge already lives by (see beginNewGeneration()).
+//
+// Old clients reading only objectName/class/x/y/width/height/visible/depth are
+// unaffected: those fields keep their exact prior shape and values. `count`
+// keeps meaning `items.size()`, not some larger total — a client that never
+// looks at `truncated` simply sees more rows than before, never fewer.
+void LanistaServer::cmdDumpUi(const QJsonObject& p, Replier reply)
 {
+    QQuickWindow* w = mainWindow();
+
+    // `root`: an objectName/handle to start the walk from; default the window's
+    // contentItem(), as today. An EXPLICIT root that fails to resolve is a
+    // NO_SUCH_ITEM error — silently falling back to the whole tree would turn a
+    // caller's typo into a much bigger (and misleading) reply instead of a
+    // clean signal that the name was wrong.
+    QQuickItem* root = nullptr;
+    if (p.contains(QStringLiteral("root"))) {
+        const QString rootRef = p.value(QStringLiteral("root")).toString();
+        root = resolveTarget(rootRef);
+        if (!root) {
+            reply.fail("NO_SUCH_ITEM", rootRef);
+            return;
+        }
+    } else if (w) {
+        root = w->contentItem();
+    }
+
+    // Clamped, never trusted: an absurd client request is silently reduced to
+    // the server's own ceiling rather than honored or refused.
+    const int maxDepth = p.contains(QStringLiteral("maxDepth"))
+        ? qBound(0, p.value(QStringLiteral("maxDepth")).toInt(), kDumpUiMaxDepthCeiling)
+        : kDumpUiMaxDepthCeiling;
+    const int maxItems = p.contains(QStringLiteral("maxItems"))
+        ? qBound(1, p.value(QStringLiteral("maxItems")).toInt(), kDumpUiMaxItemsCeiling)
+        : kDumpUiMaxItemsCeiling;
+
+    // Continuation: `cursor` only resumes the earlier walk when `generation`
+    // matches the CURRENT epoch. A mismatch (or a fresh call with no cursor at
+    // all) starts a brand-new generation — the existing global-invalidation law
+    // ("a new snapshot from ANY client invalidates every prior handle") now
+    // decides continuation validity too, rather than a second rule bolted on.
+    const int requestedGeneration = p.value(QStringLiteral("generation")).toInt(-1);
+    const int requestedCursor =
+        qMax(0, p.value(QStringLiteral("cursor")).toInt(0));
+    const bool continuing = requestedCursor > 0 && requestedGeneration == m_snapshotEpoch;
+    if (!continuing)
+        beginNewGeneration();
+
     QJsonArray items;
-    if (QQuickWindow* w = mainWindow()) {
-        walkVisual(w->contentItem(), 0, [&](QQuickItem* it, int depth) {
-            if (!it->objectName().isEmpty()) {
-                // x/y are SCENE/logical units (the same space as ui-query and
-                // get-state), so an agent consuming both commands sees ONE
-                // coordinate system. width/height are the item's own size; depth
-                // preserves the tree hierarchy the flat array would otherwise lose.
-                const QPointF scenePos = it->mapToScene(QPointF(0, 0));
-                items.append(QJsonObject{
-                    {QStringLiteral("objectName"), it->objectName()},
-                    {QStringLiteral("class"),
-                     QString::fromLatin1(it->metaObject()->className())},
-                    {QStringLiteral("x"), scenePos.x()}, {QStringLiteral("y"), scenePos.y()},
+    qint64 bytesUsed = 0;
+    bool truncated = false;
+    int nextCursor = -1;
+    int walkIndex = 0;
+
+    if (root) {
+        walkVisual(root, 0, [&](QQuickItem* it, int depth) {
+            const int myIndex = walkIndex++;
+            if (myIndex < requestedCursor)
+                return false;    // already delivered by an earlier page
+            if (depth > maxDepth)
+                return false;    // depth-filtered: never added, never counted
+
+            QQuickItem* parent = it->parentItem();
+            const QString handle = mintOrReuseHandle(it);
+            const QString parentHandle = parent ? mintOrReuseHandle(parent) : QString();
+            // x/y are SCENE/logical units (the same space as ui-query and
+            // get-state), so an agent consuming both commands sees ONE
+            // coordinate system.
+            const QRectF sceneRect =
+                it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
+
+            const QJsonObject row{
+                // legacy fields — UNCHANGED shape and values for old clients.
+                {QStringLiteral("objectName"), it->objectName()},
+                {QStringLiteral("class"),
+                 QString::fromLatin1(it->metaObject()->className())},
+                {QStringLiteral("x"), sceneRect.x()}, {QStringLiteral("y"), sceneRect.y()},
+                {QStringLiteral("width"), it->width()},
+                {QStringLiteral("height"), it->height()},
+                {QStringLiteral("visible"), it->isVisible()},
+                {QStringLiteral("depth"), depth},
+                // additive structural fields (L1-Bridge).
+                {QStringLiteral("handle"), handle},
+                {QStringLiteral("parentHandle"),
+                 parent ? QJsonValue(parentHandle) : QJsonValue()},
+                {QStringLiteral("parentName"),
+                 parent ? QJsonValue(parent->objectName()) : QJsonValue()},
+                {QStringLiteral("childCount"), it->childItems().size()},
+                {QStringLiteral("z"), it->z()},
+                {QStringLiteral("enabled"), it->isEnabled()},
+                {QStringLiteral("opacity"), it->opacity()},
+                {QStringLiteral("localRect"), QJsonObject{
+                    {QStringLiteral("x"), 0.0}, {QStringLiteral("y"), 0.0},
                     {QStringLiteral("width"), it->width()},
-                    {QStringLiteral("height"), it->height()},
-                    {QStringLiteral("visible"), it->isVisible()},
-                    {QStringLiteral("depth"), depth}});
+                    {QStringLiteral("height"), it->height()}}},
+                {QStringLiteral("sceneRect"), QJsonObject{
+                    {QStringLiteral("x"), sceneRect.x()}, {QStringLiteral("y"), sceneRect.y()},
+                    {QStringLiteral("width"), sceneRect.width()},
+                    {QStringLiteral("height"), sceneRect.height()}}},
+                {QStringLiteral("clipChain"), clipChainFor(it)},
+            };
+
+            // Priced BEFORE it is added: a row that would push the reply over
+            // budget is never appended, so bytesUsed never itself exceeds the
+            // budget it is supposed to enforce.
+            const qint64 rowBytes =
+                QJsonDocument(row).toJson(QJsonDocument::Compact).size() + 1;
+            if (bytesUsed + rowBytes > kDumpUiByteBudget || items.size() >= maxItems) {
+                truncated = true;
+                nextCursor = myIndex;
+                return true;   // stop the WHOLE walk — budget or count ceiling hit
             }
-            return false;   // collect every named item — never stop early
+            bytesUsed += rowBytes;
+            items.append(row);
+            return false;
         });
     }
-    return {{QStringLiteral("items"), items},
-            {QStringLiteral("count"), items.size()}};
+
+    QJsonObject body{
+        {QStringLiteral("items"), items},
+        {QStringLiteral("count"), items.size()},
+        {QStringLiteral("generation"), m_snapshotEpoch},
+        {QStringLiteral("truncated"), truncated},
+        {QStringLiteral("bytesUsed"), bytesUsed},
+        {QStringLiteral("maxDepthUsed"), maxDepth},
+        {QStringLiteral("maxItemsUsed"), maxItems},
+        {QStringLiteral("continuation"),
+         truncated ? QJsonValue(QJsonObject{{QStringLiteral("cursor"), nextCursor}})
+                   : QJsonValue()},
+    };
+    body.insert(QStringLiteral("rootWindow"),
+                w ? QJsonValue(QJsonObject{{QStringLiteral("width"), w->width()},
+                                           {QStringLiteral("height"), w->height()}})
+                  : QJsonValue());
+    reply.reply(std::move(body));
 }
 
 // ui-snapshot: Playwright's model, QML-native. ONE call returns every element an
@@ -723,10 +957,12 @@ QJsonObject LanistaServer::cmdDumpUi(const QJsonObject&) const
 // resolves to null rather than dangling.
 QJsonObject LanistaServer::cmdUiSnapshot(const QJsonObject&)
 {
-    ++m_snapshotEpoch;
-    m_handles.clear();
+    // L1-Bridge (2026-08-13): beginNewGeneration() replaces the inline
+    // ++m_snapshotEpoch/m_handles.clear() pair below — byte-identical effect,
+    // now shared with dump-ui's fresh (non-continuation) path rather than two
+    // copies of the same two lines.
+    beginNewGeneration();
     QJsonArray elements;
-    int n = 0;
     if (QQuickWindow* w = mainWindow()) {
         walkVisual(w->contentItem(), 0, [&](QQuickItem* it, int) {
             const QString cls = QString::fromLatin1(it->metaObject()->className());
@@ -757,13 +993,10 @@ QJsonObject LanistaServer::cmdUiSnapshot(const QJsonObject&)
                 || it->width() <= 0 || it->height() <= 0)
                 return false;
 
-            // m_handles is keyed by the gen-INDEPENDENT "h<n>"; the epoch lives in
-            // the opaque token the client receives, and resolveTarget() gates on it.
-            ++n;
-            m_handles.insert(QStringLiteral("h") + QString::number(n),
-                             QPointer<QQuickItem>(it));
-            const QString token =
-                QStringLiteral("s%1h%2").arg(m_snapshotEpoch).arg(n);
+            // mintOrReuseHandle assigns the next "s<gen>h<n>" and records it in
+            // BOTH m_handles and m_itemHandles — the same token-minting
+            // primitive dump-ui and ui-query's structural fields now share.
+            const QString token = mintOrReuseHandle(it);
 
             // centerX/centerY are the item CENTER in SCENE / LOGICAL units (via
             // mapToScene), the SAME space get-state, ui-query and dump-ui speak —

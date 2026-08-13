@@ -581,6 +581,374 @@ int main(int argc, char** argv)
                     && uqN.value("code").toString() == "NO_SUCH_ITEM",
                 "ui-query on a missing object is NO_SUCH_ITEM" + why());
 
+        // ── L1-Bridge: dump-ui/ui-query all-item structural dump (2026-08-13) ──
+        // Eight named cases, each proving one piece of the L1-Discovery
+        // contract (docs/visibility/lanista-structural-gap.md). Every call
+        // below is scoped by `root` to a dedicated fixture subtree
+        // (tests/lanista_harness_scene.qml's "L1-Bridge structural fixtures"
+        // block) so a case's own assertions never depend on what any OTHER
+        // fixture or case left behind.
+
+        // structural_fields_are_versioned: the new field vocabulary is present
+        // on every row with the right shape/values, and `generation` is a real
+        // monotonic counter — not a decorative constant.
+        {
+            QJsonObject du1 = call(pipe, {{"cmd", "dump-ui"}, {"seq", 200},
+                {"payload", QJsonObject{{"root", "structuralFixtures"}}}});
+            require(du1.value("type").toString() == "reply",
+                    "structural_fields_are_versioned: dump-ui replies" + why());
+            const int gen1 = du1.value("generation").toInt(-1);
+            require(gen1 > 0,
+                    "structural_fields_are_versioned: generation is a real counter" + why());
+
+            QJsonObject transparentRow, disabledRow, zeroSizeRow;
+            for (const QJsonValue& v : du1.value("items").toArray()) {
+                const QJsonObject o = v.toObject();
+                const QString name = o.value("objectName").toString();
+                if (name == QStringLiteral("transparentItem")) transparentRow = o;
+                if (name == QStringLiteral("disabledItem")) disabledRow = o;
+                if (name == QStringLiteral("zeroSizeItem")) zeroSizeRow = o;
+            }
+            require(!transparentRow.isEmpty(),
+                    "structural_fields_are_versioned: transparentItem row found" + why());
+            require(!disabledRow.isEmpty(),
+                    "structural_fields_are_versioned: disabledItem row found" + why());
+            require(!zeroSizeRow.isEmpty(),
+                    "structural_fields_are_versioned: zeroSizeItem row found" + why());
+
+            // The full new-field vocabulary, checked STRUCTURALLY (key presence
+            // + type), not a substring smoke check.
+            require(transparentRow.contains("handle")
+                        && !transparentRow.value("handle").toString().isEmpty(),
+                    "structural_fields_are_versioned: row carries a non-empty handle");
+            require(transparentRow.contains("parentHandle"),
+                    "structural_fields_are_versioned: row carries parentHandle (key present)");
+            require(transparentRow.contains("parentName"),
+                    "structural_fields_are_versioned: row carries parentName (key present)");
+            require(transparentRow.contains("childCount"),
+                    "structural_fields_are_versioned: row carries childCount");
+            require(transparentRow.contains("z"),
+                    "structural_fields_are_versioned: row carries z");
+            require(transparentRow.value("localRect").toObject().contains("width"),
+                    "structural_fields_are_versioned: row carries localRect{x,y,width,height}");
+            require(transparentRow.value("sceneRect").toObject().contains("width"),
+                    "structural_fields_are_versioned: row carries sceneRect{x,y,width,height}");
+            require(transparentRow.value("clipChain").isArray(),
+                    "structural_fields_are_versioned: row carries a clipChain array");
+
+            // dump-ui's own "no visibility filter" law, now proven on THESE
+            // three deliberately non-default fixtures, not just named ones.
+            require(transparentRow.value("opacity").toDouble() == 0.0,
+                    "structural_fields_are_versioned: transparentItem opacity==0 survives the dump"
+                        + why());
+            require(disabledRow.value("enabled").toBool() == false,
+                    "structural_fields_are_versioned: disabledItem enabled==false survives the dump"
+                        + why());
+            require(zeroSizeRow.value("width").toDouble() == 0.0
+                        && zeroSizeRow.value("height").toDouble() == 0.0,
+                    "structural_fields_are_versioned: zeroSizeItem 0x0 survives the dump" + why());
+
+            // A SECOND fresh call must open a NEW generation — the versioning
+            // half of the contract, not just the shape half.
+            QJsonObject du2 = call(pipe, {{"cmd", "dump-ui"}, {"seq", 201},
+                {"payload", QJsonObject{{"root", "structuralFixtures"}}}});
+            const int gen2 = du2.value("generation").toInt(-1);
+            require(gen2 > gen1,
+                    QStringLiteral("structural_fields_are_versioned: generation is monotonic (%1 -> %2)")
+                        .arg(gen1).arg(gen2) + why());
+            std::cout << "CASE_OK: structural_fields_are_versioned\n";
+        }
+
+        // structural_dump_includes_unnamed_items: THE L1-Discovery gap, closed.
+        // unnamedItemHost has exactly one child, deliberately unnamed — the
+        // negative control removes that one Rectangle from the QML, and this
+        // is the ONE case that must go red.
+        {
+            QJsonObject du = call(pipe, {{"cmd", "dump-ui"}, {"seq", 202},
+                {"payload", QJsonObject{{"root", "unnamedItemHost"}}}});
+            require(du.value("type").toString() == "reply",
+                    "structural_dump_includes_unnamed_items: dump-ui replies" + why());
+            const QJsonArray items = du.value("items").toArray();
+            int unnamedCount = 0;
+            for (const QJsonValue& v : items)
+                if (v.toObject().value("objectName").toString().isEmpty())
+                    ++unnamedCount;
+            require(unnamedCount == 1,
+                    QStringLiteral("structural_dump_includes_unnamed_items: exactly one unnamed "
+                                   "row under unnamedItemHost, got %1").arg(unnamedCount) + why());
+            require(items.size() == 2,
+                    QStringLiteral("structural_dump_includes_unnamed_items: host + unnamed child, "
+                                   "got %1 rows").arg(items.size()) + why());
+            std::cout << "CASE_OK: structural_dump_includes_unnamed_items\n";
+        }
+
+        // parent_chain_is_exact: a NAMED leaf under an UNNAMED middle item under
+        // a NAMED host — the parent-handle chain must resolve exactly, hop by
+        // hop, even across the unnamed middle link.
+        {
+            QJsonObject du = call(pipe, {{"cmd", "dump-ui"}, {"seq", 203},
+                {"payload", QJsonObject{{"root", "parentChainHost"}}}});
+            require(du.value("type").toString() == "reply",
+                    "parent_chain_is_exact: dump-ui replies" + why());
+            const QJsonArray items = du.value("items").toArray();
+            require(items.size() == 3,
+                    QStringLiteral("parent_chain_is_exact: host + unnamed middle + leaf, got %1")
+                        .arg(items.size()) + why());
+
+            QJsonObject hostRow, middleRow, leafRow;
+            for (const QJsonValue& v : items) {
+                const QJsonObject o = v.toObject();
+                const QString name = o.value("objectName").toString();
+                if (name == QStringLiteral("parentChainHost")) hostRow = o;
+                else if (name == QStringLiteral("parentChainLeaf")) leafRow = o;
+                else if (name.isEmpty()) middleRow = o;
+            }
+            require(!hostRow.isEmpty() && !middleRow.isEmpty() && !leafRow.isEmpty(),
+                    "parent_chain_is_exact: all three rows found" + why());
+
+            require(leafRow.value("parentHandle").toString() == middleRow.value("handle").toString(),
+                    "parent_chain_is_exact: leaf's parentHandle is the UNNAMED middle row's own handle"
+                        + why());
+            require(middleRow.value("parentHandle").toString() == hostRow.value("handle").toString(),
+                    "parent_chain_is_exact: the unnamed middle row's parentHandle is the host's handle"
+                        + why());
+            require(hostRow.value("childCount").toInt() == 1,
+                    "parent_chain_is_exact: host childCount==1" + why());
+            require(middleRow.value("childCount").toInt() == 1,
+                    "parent_chain_is_exact: unnamed middle childCount==1" + why());
+            require(leafRow.value("childCount").toInt() == 0,
+                    "parent_chain_is_exact: leaf childCount==0" + why());
+
+            // The host's OWN parent lies OUTSIDE this walk (structuralFixtures)
+            // — parentHandle must still resolve to the TRUE parent, not go null
+            // just because that parent fell outside the requested root.
+            const QString hostParentHandle = hostRow.value("parentHandle").toString();
+            require(!hostParentHandle.isEmpty(),
+                    "parent_chain_is_exact: the walk ROOT still carries its TRUE parent handle"
+                        + why());
+            QJsonObject outside = call(pipe, {{"cmd", "ui-query"}, {"seq", 204},
+                {"payload", QJsonObject{{"object", hostParentHandle}}}});
+            require(outside.value("objectName").toString() == QStringLiteral("structuralFixtures"),
+                    "parent_chain_is_exact: that handle resolves to the REAL out-of-walk parent"
+                        + why());
+            std::cout << "CASE_OK: parent_chain_is_exact\n";
+        }
+
+        // clipping_chain_is_exact: the direct fix for L1-Discovery row 4 —
+        // clippedByWindow says false (both items sit fully inside the window)
+        // while the clip chain names the REAL clip:true ancestor(s) that cut
+        // them off, in nearest-first order.
+        {
+            QJsonObject single = call(pipe, {{"cmd", "ui-query"}, {"seq", 205},
+                {"payload", QJsonObject{{"object", "clipHostChild"}}}});
+            require(single.value("type").toString() == "reply",
+                    "clipping_chain_is_exact: ui-query(clipHostChild) replies" + why());
+            require(single.value("clippedByWindow").toBool() == false,
+                    "clipping_chain_is_exact: clipHostChild is fully inside the window" + why());
+            const QJsonArray chain1 = single.value("clipChain").toArray();
+            require(chain1.size() == 1,
+                    QStringLiteral("clipping_chain_is_exact: exactly one clip ancestor, got %1")
+                        .arg(chain1.size()) + why());
+            const QJsonObject anc1 = chain1.at(0).toObject();
+            require(anc1.value("objectName").toString() == QStringLiteral("clipHost"),
+                    "clipping_chain_is_exact: the ancestor is clipHost" + why());
+            const QJsonObject anc1Rect = anc1.value("sceneRect").toObject();
+            require(anc1Rect.value("x").toDouble() == 500.0
+                        && anc1Rect.value("y").toDouble() == 400.0
+                        && anc1Rect.value("width").toDouble() == 60.0
+                        && anc1Rect.value("height").toDouble() == 40.0,
+                    "clipping_chain_is_exact: clipHost's own scene rect is exact" + why());
+            // The item's own rect falls ENTIRELY outside that ancestor's rect —
+            // the real reason it is not on screen, despite clippedByWindow==false.
+            const QJsonObject itemRect = single.value("rect").toObject();
+            require(itemRect.value("x").toDouble()
+                        >= anc1Rect.value("x").toDouble() + anc1Rect.value("width").toDouble(),
+                    "clipping_chain_is_exact: clipHostChild's rect is fully outside clipHost's rect"
+                        + why());
+
+            QJsonObject nested = call(pipe, {{"cmd", "ui-query"}, {"seq", 206},
+                {"payload", QJsonObject{{"object", "doubleClippedChild"}}}});
+            require(nested.value("clippedByWindow").toBool() == false,
+                    "clipping_chain_is_exact: doubleClippedChild is fully inside the window" + why());
+            const QJsonArray chain2 = nested.value("clipChain").toArray();
+            require(chain2.size() == 2,
+                    QStringLiteral("clipping_chain_is_exact: TWO nested clip ancestors, got %1")
+                        .arg(chain2.size()) + why());
+            require(chain2.at(0).toObject().value("objectName").toString() == QStringLiteral("clipInner"),
+                    "clipping_chain_is_exact: nearest ancestor first (clipInner)" + why());
+            require(chain2.at(1).toObject().value("objectName").toString() == QStringLiteral("clipOuter"),
+                    "clipping_chain_is_exact: then the outer ancestor (clipOuter)" + why());
+
+            // dump-ui reports the SAME chain for the SAME item — one vocabulary,
+            // not two different shapes depending which command is asked.
+            QJsonObject viaDump = call(pipe, {{"cmd", "dump-ui"}, {"seq", 207},
+                {"payload", QJsonObject{{"root", "clipOuter"}}}});
+            QJsonObject dumpLeaf;
+            for (const QJsonValue& v : viaDump.value("items").toArray()) {
+                const QJsonObject o = v.toObject();
+                if (o.value("objectName").toString() == QStringLiteral("doubleClippedChild"))
+                    dumpLeaf = o;
+            }
+            require(!dumpLeaf.isEmpty(),
+                    "clipping_chain_is_exact: dump-ui also reaches doubleClippedChild" + why());
+            const QJsonArray dumpChain = dumpLeaf.value("clipChain").toArray();
+            require(dumpChain.size() == 2
+                        && dumpChain.at(0).toObject().value("objectName").toString()
+                               == QStringLiteral("clipInner")
+                        && dumpChain.at(1).toObject().value("objectName").toString()
+                               == QStringLiteral("clipOuter"),
+                    "clipping_chain_is_exact: dump-ui's clipChain agrees with ui-query's" + why());
+            std::cout << "CASE_OK: clipping_chain_is_exact\n";
+        }
+
+        // stale_structural_handle_is_rejected: a handle minted by dump-ui obeys
+        // the SAME epoch law ui-snapshot's handles already do — a later
+        // snapshot (from ANY command) invalidates it to a clean NO_SUCH_ITEM,
+        // never a silent wrong hit.
+        {
+            QJsonObject du = call(pipe, {{"cmd", "dump-ui"}, {"seq", 208},
+                {"payload", QJsonObject{{"root", "parentChainHost"}}}});
+            QString leafHandle;
+            for (const QJsonValue& v : du.value("items").toArray()) {
+                const QJsonObject o = v.toObject();
+                if (o.value("objectName").toString() == QStringLiteral("parentChainLeaf"))
+                    leafHandle = o.value("handle").toString();
+            }
+            require(!leafHandle.isEmpty(),
+                    "stale_structural_handle_is_rejected: minted a real handle first" + why());
+
+            call(pipe, {{"cmd", "ui-snapshot"}, {"seq", 209}});   // bumps the epoch
+
+            QJsonObject stale = call(pipe, {{"cmd", "ui-query"}, {"seq", 210},
+                {"payload", QJsonObject{{"object", leafHandle}}}});
+            require(stale.value("type").toString() == "error"
+                        && stale.value("code").toString() == "NO_SUCH_ITEM",
+                    "stale_structural_handle_is_rejected: a dump-ui handle from a superseded "
+                    "generation misses cleanly (NO_SUCH_ITEM)" + why());
+            std::cout << "CASE_OK: stale_structural_handle_is_rejected\n";
+        }
+
+        // requested_bounds_are_clamped: an absurd client request is silently
+        // reduced to the server's OWN ceiling, never honored and never
+        // refused; a SANE small request is genuinely enforced, not merely
+        // reported.
+        {
+            QJsonObject absurd = call(pipe, {{"cmd", "dump-ui"}, {"seq", 211},
+                {"payload", QJsonObject{{"root", "overBudgetContainer"},
+                                        {"maxDepth", 999999}, {"maxItems", 999999999}}}});
+            require(absurd.value("type").toString() == "reply",
+                    "requested_bounds_are_clamped: dump-ui replies" + why());
+            require(absurd.value("maxDepthUsed").toInt() == 64,
+                    QStringLiteral("requested_bounds_are_clamped: maxDepth clamped to the server "
+                                   "ceiling (64), got %1").arg(absurd.value("maxDepthUsed").toInt())
+                        + why());
+            require(absurd.value("maxItemsUsed").toInt() == 5000,
+                    QStringLiteral("requested_bounds_are_clamped: maxItems clamped to the server "
+                                   "ceiling (5000), got %1").arg(absurd.value("maxItemsUsed").toInt())
+                        + why());
+
+            QJsonObject small = call(pipe, {{"cmd", "dump-ui"}, {"seq", 212},
+                {"payload", QJsonObject{{"root", "overBudgetContainer"}, {"maxItems", 5}}}});
+            require(small.value("items").toArray().size() == 5,
+                    QStringLiteral("requested_bounds_are_clamped: a sane maxItems=5 is genuinely "
+                                   "enforced, got %1 rows")
+                        .arg(small.value("items").toArray().size()) + why());
+            require(small.value("truncated").toBool() == true,
+                    "requested_bounds_are_clamped: truncated==true once maxItems is hit" + why());
+            std::cout << "CASE_OK: requested_bounds_are_clamped\n";
+        }
+
+        // reply_budget_sets_truncated: the BYTE ceiling alone — independent of
+        // any client-requested maxItems — stops an oversized reply before it
+        // ever nears the wire's 1 MiB line ceiling.
+        {
+            QJsonObject over = call(pipe, {{"cmd", "dump-ui"}, {"seq", 213},
+                {"payload", QJsonObject{{"root", "overBudgetContainer"}}}});
+            require(over.value("type").toString() == "reply",
+                    "reply_budget_sets_truncated: dump-ui replies" + why());
+            require(over.value("truncated").toBool() == true,
+                    "reply_budget_sets_truncated: the byte budget alone truncates this reply"
+                        + why());
+            const int gotItems = over.value("items").toArray().size();
+            require(gotItems > 0 && gotItems < 601,
+                    QStringLiteral("reply_budget_sets_truncated: a partial page, got %1 rows")
+                        .arg(gotItems) + why());
+            require(!over.value("continuation").isNull(),
+                    "reply_budget_sets_truncated: a truncated reply carries continuation metadata"
+                        + why());
+            require(over.value("continuation").toObject().value("cursor").toInt(-1) >= 0,
+                    "reply_budget_sets_truncated: continuation carries a real cursor" + why());
+            std::cout << "CASE_OK: reply_budget_sets_truncated\n";
+        }
+
+        // continuation_resumes_without_duplicates: paging through a truncated
+        // dump-ui reply visits every item EXACTLY once — no repeats, no gaps —
+        // as long as the caller echoes back the generation its cursor was
+        // minted against.
+        {
+            QSet<QString> seenHandles;
+            int totalSeen = 0;
+            int expectedTotal = -1;
+            int cursor = 0, generation = -1;
+            bool truncated = true;
+            int pages = 0;
+            int seq = 220;
+            while (truncated && pages < 10) {
+                QJsonObject payload{{"root", "overBudgetContainer"}};
+                if (pages > 0) {
+                    payload.insert("cursor", cursor);
+                    payload.insert("generation", generation);
+                }
+                QJsonObject page = call(pipe, {{"cmd", "dump-ui"}, {"seq", seq++},
+                    {"payload", payload}});
+                require(page.value("type").toString() == "reply",
+                        QStringLiteral("continuation_resumes_without_duplicates: page %1 replies")
+                            .arg(pages) + why());
+                const QJsonArray items = page.value("items").toArray();
+                require(!items.isEmpty(),
+                        QStringLiteral("continuation_resumes_without_duplicates: page %1 is non-empty")
+                            .arg(pages) + why());
+                for (const QJsonValue& v : items) {
+                    const QString h = v.toObject().value("handle").toString();
+                    require(!seenHandles.contains(h),
+                            QStringLiteral("continuation_resumes_without_duplicates: handle %1 "
+                                           "repeated across pages").arg(h) + why());
+                    seenHandles.insert(h);
+                }
+                if (pages == 0) {
+                    // overBudgetContainer is item index 0 of its own walk — its
+                    // OWN reported childCount is the ground truth for how many
+                    // items this fixture really contains, independent of any
+                    // assumption about where exactly Repeater sits in the tree.
+                    const QJsonObject containerRow = items.first().toObject();
+                    require(containerRow.value("objectName").toString()
+                                == QStringLiteral("overBudgetContainer"),
+                            "continuation_resumes_without_duplicates: page 0's first row is the "
+                            "walk root itself" + why());
+                    expectedTotal = 1 + containerRow.value("childCount").toInt();
+                }
+                totalSeen += items.size();
+                truncated = page.value("truncated").toBool();
+                if (truncated) {
+                    cursor = page.value("continuation").toObject().value("cursor").toInt();
+                    generation = page.value("generation").toInt();
+                }
+                ++pages;
+            }
+            require(!truncated,
+                    "continuation_resumes_without_duplicates: draining terminates (truncated==false)"
+                        + why());
+            require(pages > 1,
+                    QStringLiteral("continuation_resumes_without_duplicates: more than one page was "
+                                   "actually needed (%1)").arg(pages) + why());
+            require(expectedTotal > 0 && totalSeen == expectedTotal,
+                    QStringLiteral("continuation_resumes_without_duplicates: every item visited "
+                                   "exactly once (%1 seen, %2 expected)")
+                        .arg(totalSeen).arg(expectedTotal) + why());
+            std::cout << "CASE_OK: continuation_resumes_without_duplicates ("
+                      << pages << " pages, " << totalSeen << " items)\n";
+        }
+
         // ── Task 4: ui-snapshot — every actionable element, each with a handle ─
         // Playwright's model, QML-native: ONE call returns everything an agent
         // could act on, each carrying an OPAQUE session handle valid only within
