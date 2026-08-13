@@ -1,0 +1,56 @@
+# The Vault — local media (scan/index/identify/browse/launch).
+# VaultForensics.{h,cpp} is Phase 2 Visibility's own file (a different plan, not this
+# subsystem's browse/scan/identify arc) and is not yet committed — deliberately excluded.
+# FeaturedCarousel.qml/CarouselSlide.qml are reused by the Browse face's carousel but are
+# shared house chrome owned by no single world; cross-referenced in vault.md, not manifested.
+# Regenerate with scripts/code_encyclopedia.py (see the guide).
+native/engine/VaultKit.h
+native/engine/VaultKit.cpp
+native/engine/VaultIndex.h
+native/engine/VaultIndex.cpp
+native/engine/VaultConfig.h
+native/engine/VaultConfig.cpp
+native/engine/VaultIdentity.h
+native/engine/VaultIdentity.cpp
+native/engine/VaultScanner.h
+native/engine/VaultScanner.cpp
+native/engine/VaultWatcher.h
+native/engine/VaultWatcher.cpp
+native/engine/VaultEnricher.h
+native/engine/VaultEnricher.cpp
+native/engine/VaultIdentifier.h
+native/engine/VaultIdentifier.cpp
+native/engine/VaultLibrary.h
+native/engine/VaultLibrary.cpp
+native/engine/VaultBrowseAway.h
+native/engine/VaultBrowseAway.cpp
+native/engine/VaultBrowseDetail.h
+native/engine/VaultBrowseDetail.cpp
+native/engine/VaultBrowseEmpty.h
+native/engine/VaultBrowseEmpty.cpp
+native/engine/VaultRecent.h
+native/engine/VaultRecent.cpp
+native/engine/VaultDownloadsRoot.h
+native/engine/VaultDownloadsRoot.cpp
+native/engine/VaultPageStore.h
+native/engine/VaultPageStore.cpp
+native/engine/VaultBookCoverProvider.h
+native/engine/VaultBookCoverProvider.cpp
+native/engine/VaultBookStateMigrator.h
+native/engine/VaultBookStateMigrator.cpp
+native/engine/VaultStoreIo.h
+qml/VaultPage.qml
+qml/VaultDoor.qml
+qml/VaultConfirmCard.qml
+qml/VaultFolderView.qml
+qml/VaultTile.qml
+qml/VaultIdentifyDialog.qml
+qml/VaultIdentityCeremonyDialog.qml
+qml/VaultBrowseRail.qml
+qml/VaultBrowseCrumb.qml
+qml/VaultPosterCard.qml
+qml/VaultWideCard.qml
+qml/VaultDetailSheet.qml
+qml/VaultBrowseEmpty.qml
+qml/VaultApi.js
+qml/VaultBrowseState.js

@@ -1,0 +1,206 @@
+{
+  "entries": {
+    "native/engine/VaultBookCoverProvider.cpp": {
+      "accepted_blob": "936cbc90e98cb039ae02b9a5f6af2079815f2665",
+      "accepted_comment": null
+    },
+    "native/engine/VaultBookCoverProvider.h": {
+      "accepted_blob": "796592b0ecdc0ea29dfcdc787afa0b12d84604a0",
+      "accepted_comment": null
+    },
+    "native/engine/VaultBookStateMigrator.cpp": {
+      "accepted_blob": "bdd2a9c9384f9d619d97404b75a4a61f47a2f3e3",
+      "accepted_comment": null
+    },
+    "native/engine/VaultBookStateMigrator.h": {
+      "accepted_blob": "abe0bbd80b0d214ab43507de716ab3368211f566",
+      "accepted_comment": "// Vault-owned bridge for moving existing Reader 2 path-keyed stores after VaultIdentity reports\n// an unambiguous file rename. Reader 2 owns the store shape; this consumes only BookStores' public\n// API and never edits Reader 2 sources."
+    },
+    "native/engine/VaultBrowseAway.cpp": {
+      "accepted_blob": "b6fa7bba1f3bf31abbbf4f2936ba740e7e28ed0a",
+      "accepted_comment": null
+    },
+    "native/engine/VaultBrowseAway.h": {
+      "accepted_blob": "2bfe435bbea97c773341963341ad9485706e3d22",
+      "accepted_comment": "// VaultBrowseAway — Vault Browse projection spine, Slice 6 (living tile states execution plan):\n// which confirmed root owns a browse path, whether that root is currently away, and the durable-\n// index fallback for a level whose owning root can no longer be walked at all.\n//\n// Pulled out of VaultLibrary into its own seam so this logic is unit-testable against a real\n// VaultIndex + VaultConfig WITHOUT constructing the full VaultLibrary façade — VaultLibrary's\n// constructor unconditionally builds a VaultWatcher (which in turn drags in the scanner/\n// downloads-root/identifier dependency tree), unnecessary weight for logic that only reads\n// VaultIndex rows and VaultConfig's root list. Pure Qt6::Core/Sql, no QObject of its own —\n// same \"pure logic kit\" spirit as VaultKit, one layer up (VaultKit knows nothing of VaultIndex;\n// this does, because away is an INDEX fact, not a filesystem fact)."
+    },
+    "native/engine/VaultBrowseDetail.cpp": {
+      "accepted_blob": "9680023c8762c9af9266f600453fc951f2af17a0",
+      "accepted_comment": null
+    },
+    "native/engine/VaultBrowseDetail.h": {
+      "accepted_blob": "562f287fefd87e98230fe1143114f6275c45f790",
+      "accepted_comment": "// VaultBrowseDetail — the browse-face execution plan's Slice 7: the detail sheet's ONE\n// projection, `browseDetail(key)`. Physical truth only — the locked design's decision #11 and\n// its three explicit refusals of cast/synopsis/related titles (that is Theatre's job). Answers:\n// every copy you hold (same canonical identity across roots where identity exists, else the\n// single physical group), its companions, its extras, and an honest evidence line for why Vault\n// believes the identity it does.\n//\n// Pulled out of VaultLibrary for the same reason VaultBrowseAway was (Slice 6): a lean Qt Test\n// drives this against a real VaultIndex WITHOUT the full VaultLibrary façade (whose constructor\n// unconditionally builds a VaultWatcher and drags in the scanner/downloads-root/identifier\n// tree). Filesystem-structural work (companions/extras) is VaultKit::describeFilmFolder's job;\n// this module composes that with VaultIndex's identity query and the presentation facts (human\n// size, a best-quality line parsed from the filename, the evidence sentence) the sheet needs."
+    },
+    "native/engine/VaultBrowseEmpty.cpp": {
+      "accepted_blob": "621edc2dc4fb5cc3b9951e9c440ff038c56a7f2d",
+      "accepted_comment": null
+    },
+    "native/engine/VaultBrowseEmpty.h": {
+      "accepted_blob": "6d2431874f1e789a3d3d2fb3f019a8feb26baadf",
+      "accepted_comment": "// VaultBrowseEmpty — Vault Browse projection spine, Slice 9 (empty states + keyboard reach\n// execution plan): which of the design's four distinct empty causes (locked design §4.5) applies\n// to a browse level. Pure classification over facts the rest of the projection already computes —\n// whether ANY confirmed/synthetic root exists (VaultLibrary::rootsDetail()), whether the level's\n// OWN browseAt() rows are non-empty, and whether the level's owning root is currently away\n// (VaultBrowseAway::ownerRootAway) — this file infers nothing new about the filesystem or the\n// index; it only NAMES the cause so QML paints instead of guessing (the execution plan's own\n// instruction: \"the projection already knows which cause applies — key the component off the\n// cause, do not infer it in QML\"). Same \"pure logic kit\" spirit as VaultBrowseAway, one layer up\n// (this one composes ON TOP of VaultBrowseAway's away verdict, never reimplements it).\n//\n// The fourth design cause (\"a filter has excluded everything\") is named here for completeness —\n// VaultBrowseEmpty.qml still renders its copy — but classify() below NEVER produces it: no filter\n// control has shipped on the Browse face (deferred to the parent design's later arc; the execution\n// plan is explicit that inventing a live trigger for it here would be exactly the kind of\n// unrequested product surface Slice 9 warns against)."
+    },
+    "native/engine/VaultConfig.cpp": {
+      "accepted_blob": "6ec777e12fd1013b1582ee7dd1f591ff702f978e",
+      "accepted_comment": null
+    },
+    "native/engine/VaultConfig.h": {
+      "accepted_blob": "e59ffa1253d8e5afb075a26b8d5a061da73eb31a",
+      "accepted_comment": "// VaultConfig — the user-intent store (Slice 2). Holds the decisions the user\n// makes about their Vault: which folders are roots (and whether their founding\n// card has been confirmed), per-subtree kind overrides (the card's chip\n// reassignments), the scanIgnore needles, and hidden items. Never written by\n// the scanner — that side owns the rebuildable index (VaultIndex, Slice 3); the\n// config/index separation is the Groundworks contract.\n//\n// File-backed JSON at <vaultDir>/config.json, atomic + last-known-good via\n// VaultStoreIo (recoverable if a write is torn). The constructor takes the vault\n// directory so tests point it at a QTemporaryDir and production passes\n// <appdata>/vault; nothing here touches QStandardPaths directly."
+    },
+    "native/engine/VaultDownloadsRoot.cpp": {
+      "accepted_blob": "5d23cd52cad7f206e3c8b735d9c1252e05c948d1",
+      "accepted_comment": null
+    },
+    "native/engine/VaultDownloadsRoot.h": {
+      "accepted_blob": "e865d9f59e6557e4467e88a54deb2a3abc8b5aac",
+      "accepted_comment": "// VaultDownloadsRoot — Slice 18. Derives the synthetic downloads root's\n// VaultIndex::FileRows from Colosseum's own download backbones, so the Vault\n// can shelf downloads as ONE quiet, pre-confirmed root alongside user folders.\n//\n// This class is a pure JOIN over the backbones' published read APIs. It reads\n// the download indices + localPages()/localBook() to recover the on-disk paths\n// of CONTAINER downloads (videos, CBZ comics, CBZ tankoban volumes, epub/pdf\n// books). It shelves ONLY container files — the Vault scanner + launch router\n// classify by file extension and cannot open loose .jpg page dirs, so manga\n// chapters stay on the Downloads page exactly as today.\n//\n// Backbone calls go through QMetaObject::invokeMethod (the same path QML uses),\n// which decouples this class from the concrete backbone types and makes it\n// unit-testable with trivial QObject fakes that expose matching Q_INVOKABLE\n// slots. This class EDITS NOTHING on the Downloads lane — the hard constraint\n// from the handoff. It reads; the Downloads page stays the transfer surface."
+    },
+    "native/engine/VaultEnricher.cpp": {
+      "accepted_blob": "4bf8891f918ff3fd183343fb5539a2e044799893",
+      "accepted_comment": null
+    },
+    "native/engine/VaultEnricher.h": {
+      "accepted_blob": "7712714956684d195d3966c6142c503c3c9c37da",
+      "accepted_comment": "// VaultEnricher — fills rows with honest facts, progressively, after the census\n// (Slice 5). Deliberately THIN: it reuses Colosseum's existing archive + cover\n// facilities instead of re-porting Tankoban 2's ArchiveReader —\n//   comics: CbzArchive lists the pages; the cover ENTRY name it picks is served\n//           on demand by the existing image://comiccover/ provider (no new\n//           decoder, no thumbnail cache — Qt's image cache already memoises);\n//   video:  ffprobe (kill-on-timeout), memoised in a triple-keyed duration cache;\n//   books:  format from the extension, plus bounded EPUB OPF metadata/cover\n//           extraction when the file is an EPUB.\n// Non-EPUB books remain filename-honest; video thumbnails and page dimensions\n// stay deferred. Enrichment is per-file and cancellable; the duration cache\n// flushes every 20 files."
+    },
+    "native/engine/VaultIdentifier.cpp": {
+      "accepted_blob": "decb2ee167cf0586e84602f910cf7a6a07e0bd6d",
+      "accepted_comment": null
+    },
+    "native/engine/VaultIdentifier.h": {
+      "accepted_blob": "2c82c67f00d9f208c8d504e8c24113c03882c482",
+      "accepted_comment": null
+    },
+    "native/engine/VaultIdentity.cpp": {
+      "accepted_blob": "0ecef460a3c39fab223a46c699da005764e29373",
+      "accepted_comment": null
+    },
+    "native/engine/VaultIdentity.h": {
+      "accepted_blob": "5ef9527925152dae76e2836a33b776034c1278b1",
+      "accepted_comment": "// VaultIdentity — the content-addressed file identity registry (Slice 2). Gives\n// every local file a stable id so its progress survives rename/move/restart\n// (spec §8). The id is `vault:` + SHA-1 of `normalizedPath::size::mtimeMs`\n// (Groundworks contract, decision 2 of the plan), so a plain rename yields a NEW\n// computed id — and reconcile() re-attaches it: a known id whose file has\n// vanished, matched by an UNIQUE fresh file of the same (size, mtimeMs)\n// signature, is aliased to the new file so progress follows. Ambiguous matches\n// (two candidates) are left parked, never silently merged — the \"same content,\n// new location\" ceremony is Slice 21.\n//\n// File-backed JSON at <vaultDir>/identity.json via VaultStoreIo. Progress keys\n// to resolve(computeId(...)); the recorded path aliases are the Reader 2 bridge\n// hook (Slice 16 pairs them with BookStores::keyFor to migrate book state)."
+    },
+    "native/engine/VaultIndex.cpp": {
+      "accepted_blob": "44b7218caf228d747fc112fd34a5b8baa4a3080c",
+      "accepted_comment": null
+    },
+    "native/engine/VaultIndex.h": {
+      "accepted_blob": "590b2e2b0f9bc8edb69fbccecae2214571af424a",
+      "accepted_comment": "// VaultIndex — the rebuildable scan product (Slice 3). The queryable truth the\n// Vault UI paints from: every discovered file with its kind, group (series/show\n// folder), real name, and a numeric-aware sort key, plus the counts and folder\n// listings the shelves and folder view need. It is a PRODUCT of scanning, never\n// user intent — that half is VaultConfig (Slice 2); the config/index separation\n// is the Groundworks contract.\n//\n// SQLite at a caller-given path (<appdata>/vault/index-v1.sqlite in production,\n// a QTemporaryDir file in tests). A full publish() replaces the whole index in\n// ONE transaction, so a crash or a cancelled scan rolls back and leaves the\n// previous contents intact (decision 4) — the atomic-publish discipline of\n// BiblioCatalogStore, reduced to a single transactional replace since the Vault\n// index keeps no history. upsert() lands a single live-shelf arrival (Slice 15)\n// without a full republish.\n//\n// Deploy note (ledger): a Qt SQL harness finds qsqlite.dll only when it runs\n// from build-msvc/ where the app deployed it — the test target lands there."
+    },
+    "native/engine/VaultKit.cpp": {
+      "accepted_blob": "9e6d0a84fa6c5eab4c44469994d9de2446b9bd2b",
+      "accepted_comment": null
+    },
+    "native/engine/VaultKit.h": {
+      "accepted_blob": "ece1672123cbb28cf8bfeb7f14f841104b06c76e",
+      "accepted_comment": "// VaultKit — the Vault's pure-logic kit. Slice 1 of the Vault execution plan\n// (Brotherhood/docs/superpowers/plans/2026-08-08-colosseum-vault-execution-plan.md).\n//\n// Ported from Tankoban 2's src/core/ScannerUtils (the depth-bounded,\n// symlink-loop-safe, cooperatively-cancellable walker; the hard-coded\n// ignore-dir set; first-level grouping with loose-file capture; and the\n// media-folder title cleaner) and EXTENDED with three things the Vault needs\n// that TB2 kept scattered:\n//   (a) the Groundworks user `scanIgnore` needle layer (a case-insensitive\n//       full-path SUBSTRING match — books_library_handlers.py), sanitized and\n//       capped, threaded through every walk;\n//   (b) a census classifier that infers each first-level subtree's media kind\n//       and flags mixed leaves (spec §5, \"one folder one kind\"); and\n//   (c) the season/episode grammar extracted out of TB2's BulkPackVerifier\n//       regex and VideosPage::resolveShowPath season-climb guard, so a bare\n//       `Season 1` folder never masquerades as a show.\n//\n// Pure QtCore only (QDir / QFileInfo / QRegularExpression) — no QObject, no app\n// dependencies — so a Qt Test links it standalone and the production scanners\n// (Slice 4+) #include it the same way. QML paints, C++ decides."
+    },
+    "native/engine/VaultLibrary.cpp": {
+      "accepted_blob": "5d9c2b64feb0f9df49c6fe7520bd04a770426264",
+      "accepted_comment": "// Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots()."
+    },
+    "native/engine/VaultLibrary.h": {
+      "accepted_blob": "7edf545afe670e43ed26e32f52c11756b02c1c1e",
+      "accepted_comment": "// VaultLibrary — the Vault's single QML façade: the Slice-10 read-model plus the Slice-11\n// scan/confirm commands. QML paints from THIS object and fires gestures AT it; C++ owns the\n// scan/publish threading and the multi-step confirm sequence, so QML never sequences\n// addRoot→scan or setKind→confirm→publish itself (QML paints, C++ decides). It wraps\n// VaultIndex (queryable truth), VaultScanner (the cancellable off-thread census + aggregate\n// publish), and VaultConfig (user intent: roots + kind overrides). The read half mirrors\n// LocalDownloads (revision + series + items) so shelves only render normalized results.\n//\n// revision bumps ONLY on committed truth (VaultIndex::changed(), emitted after a successful\n// publish/upsert). scanning/scanningRoot drive the scan pill; candidate drives the confirmation\n// card. Commands: addFolder (add an unconfirmed root + census it), confirmRoot (persist the\n// card's chip reassignments, mark confirmed, publish the UNION of all confirmed roots),\n// dismissCard, cancelScan."
+    },
+    "native/engine/VaultPageStore.cpp": {
+      "accepted_blob": "087067b196b5dba951102f95642944bb0b826b09",
+      "accepted_comment": null
+    },
+    "native/engine/VaultPageStore.h": {
+      "accepted_blob": "9f8b6ba91e27d02b11523f6f81f8a8e83f3207c4",
+      "accepted_comment": "// VaultPageStore — the comic-reader adapter for local archives (Slice 7). It\n// satisfies ComicReaderShell's injected-store contract (`store.localPages(id)`)\n// so a Vault CBZ opens in ComicReader 2 with ZERO reader edits: it returns the\n// SAME \"direct archive descriptors\" shape the Tankoban volume lane\n// (MangaVolumeIndex) returns —\n//     [{index, archive, entry, group}]\n// — which the reader decodes in place, without extraction. The `id` passed in is\n// the archive path."
+    },
+    "native/engine/VaultRecent.cpp": {
+      "accepted_blob": "97fe5a3970cfbce5f7804d1e851fd93abc67da17",
+      "accepted_comment": null
+    },
+    "native/engine/VaultRecent.h": {
+      "accepted_blob": "4aed66fab64dde96c8fac990894f58f65861aff1",
+      "accepted_comment": "// VaultRecent — the Open Media \"recent files\" store (execution plan Slice 9). A small\n// file-backed list of the local files most recently opened, so the Open Media control can\n// offer one-click reopen. Most-recent-first, deduped by normalized path (reopening a file\n// moves it to the front), capped at kMax.\n//\n// It records ONLY shortcuts — path + cleaned title + kind + content id — NEVER reading\n// progress, which lives in its own store. Clearing this wipes the shortcuts and leaves\n// reading progress untouched (spec §2). File-backed JSON at <vaultDir>/open-recent.json,\n// atomic + last-known-good via VaultStoreIo, seedable for tests. Pure Qt Core; the ctor\n// takes the vault directory so a test points it at a QTemporaryDir and production passes\n// <appdata>/vault — nothing here touches QStandardPaths."
+    },
+    "native/engine/VaultScanner.cpp": {
+      "accepted_blob": "44c6b2adad7939ecdd9e0fc5533579589ad8d534",
+      "accepted_comment": null
+    },
+    "native/engine/VaultScanner.h": {
+      "accepted_blob": "0fd2c76c11d5fdf816349f71b6bef88bb4271994",
+      "accepted_comment": "// VaultScanner — the cancellable off-thread census (Slice 4). Turns a root path\n// into a census: kind-pure slices for the confirmation card (Slice 11) and\n// per-file rows for VaultIndex, off the GUI thread so a big drive never freezes\n// the app. The filesystem walk + classify runs on a pool thread (the slow part);\n// the thread-affine work — VaultIdentity reconcile + VaultIndex publish — runs\n// back on the GUI thread. Modelled on ComicDownloader::runPackOrCopyThenPublish:\n// by-value captures into the pool, a generation guard so a stale result from a\n// superseded scan is dropped, and results marshalled back via QFutureWatcher.\n//\n// Testability: buildScan() is a pure static census (synchronous, no threads) and\n// applyResult() is the generation-guarded commit — both are driven directly by\n// the Qt Test. scanRoot()/cancel() are the thin async wrapper."
+    },
+    "native/engine/VaultStoreIo.h": {
+      "accepted_blob": "b7bdbd637a7f9ad4f58425a7c445a656f65e5fd0",
+      "accepted_comment": "// VaultStoreIo — the Vault stores' shared atomic JSON persistence (Slice 2).\n//\n// One place for the \"write can't corrupt what's there\" discipline both Vault\n// stores need (spec §8): every write goes to a temp file, the current good file\n// rotates to `<name>.bak` (last-known-good), then the temp is promoted; every\n// read falls back to `.bak` and then to empty when the primary is unreadable.\n// Header-only inline free functions — no extra translation unit, and the Qt\n// Test exercises the recovery paths directly."
+    },
+    "native/engine/VaultWatcher.cpp": {
+      "accepted_blob": "d4347d05f0f49f379b8b2de8cddbe4d7c75eb869",
+      "accepted_comment": null
+    },
+    "native/engine/VaultWatcher.h": {
+      "accepted_blob": "427c9efa42e5f0a329918795da74608375b6d8fc",
+      "accepted_comment": "// VaultWatcher — the live-shelf arrival engine (execution plan Slice 15). Watches every\n// CONFIRMED Vault root with a QFileSystemWatcher (the only other in-repo use is the dev QML\n// reloader in main.cpp — the reference pattern), debounces arrival storms into one pass, and\n// turns what changed into incremental VaultIndex upserts: a file dropped into a watched root\n// lands on the right shelf within seconds — no card, no action.\n//\n// One debounced pass over a dirty root = processRoot(): enumerate the root under the SAME\n// VaultKit laws the census uses (groupByFirstLevelSubdir + kindForFile + scanIgnore needles),\n// build rows byte-identical to VaultScanner::buildScan's, diff against the ids already in the\n// index (exact upsert set = the arrivals only), upsertMany() the delta (one repaint), and\n// law-check every arrival: a file whose kind disagrees with the subtree's law (a config chip\n// override first, else the index's dominant kind) is a NEW-KIND arrival → a one-slice\n// confirmation card (S11 law) so the user can chip-reshelve it. Watcher failure (QFSW limits,\n// network drives, vanished roots) sets a per-root degraded flag; the Vault rescan-on-open\n// path (VaultLibrary::rescanDegradedRoots) covers those roots silently.\n//\n// Behavior to preserve: while an immersive surface (player/reader) is open, the debounce may\n// keep accumulating but NO upsert/repaint happens — processRoot defers until setImmersive(false)\n// flushes. Row construction must stay in lockstep with buildScan so a later full rescan\n// reproduces the same rows (the index is a rebuildable product).\n//\n// Testability: processRoot() is the synchronous seam — a Qt Test drives it directly with a\n// QTemporaryDir root (touch files → exact upsert set; new-kind → card slices; a nonexistent\n// root → degraded flag via refresh())."
+    },
+    "qml/VaultApi.js": {
+      "accepted_blob": "2aca05797048bb8ce321024e870faaf06a47dea5",
+      "accepted_comment": "// VaultApi — the pure derivation the Vault surfaces share (Slice 14): join the rebuildable index\n// rows against the live Progress store, and (VaultApi.continueRail, added with the rail) derive the\n// Vault Continue list. It owns no backend; Progress is passed in as an argument so this stays a\n// .pragma library with no context capture.\n//\n// THERE IS NO KIND TRANSLATION HERE, DELIBERATELY. The Vault files each item under its canonical\n// kind (comic | book | video), and — after the Slice 14 source-label fix in VaultComicReader — every\n// reader/player persists Progress under that SAME kind (comics \"comic\" not \"manga\"; books \"book\";\n// video \"video\"). So the join is a straight Progress.get(row.kind, row.id). If a future reader\n// regresses to a non-canonical kind, fix the WRITER, not this file: a translation map here would\n// silently leak local items into a catalogue namespace (the hazard Preflight flagged for the\n// translate-at-the-boundary approach this fix supersedes)."
+    },
+    "qml/VaultBrowseCrumb.qml": {
+      "accepted_blob": "d3a1ebd5c0b2629b130862368d3d2164f8c74422",
+      "accepted_comment": "// VaultBrowseCrumb — the Vault Browse face's breadcrumb (locked design §4.5): current path\n// from the selected root down to the current folder/show/season. Middle segments collapse once\n// the path runs \"far too many\" deep; first and last are always visible (design §4.5 occupancy\n// table). A non-last, non-collapsed segment is clickable to ascend directly to that level."
+    },
+    "qml/VaultBrowseEmpty.qml": {
+      "accepted_blob": "981c88c6ae6dd4d89c08fcf5d97c7c6e498d0084",
+      "accepted_comment": "// VaultBrowseEmpty — the Vault Browse face's empty-state family (locked design §4.5, execution\n// plan Slice 9). Four distinct causes, each with its OWN copy — the design's own requirement is\n// that they never share wording, because only one of the four is actually a problem. The CAUSE is\n// a fact the C++ projection computes (VaultLibrary::browseEmptyCause) — this component only\n// paints it, never infers it. Copy verbatim from the approved mock\n// (Brotherhood/agents/colosseum-vault-browse-face-mock.html, plate 6). No taglines.\n//\n// The fourth cause (\"filtered\") renders here for completeness and Quick Test coverage, but no\n// production trigger sets `cause` to it — no filter control has shipped on the Browse face yet\n// (deferred to the parent design's later arc). See VaultPage.qml's wiring comment for the honest\n// account of which causes are actually reachable live."
+    },
+    "qml/VaultBrowseRail.qml": {
+      "accepted_blob": "d190ad59c9c8567e15fb78d110dfe529f83b1a28",
+      "accepted_comment": "// VaultBrowseRail — the Vault Browse face's collapsible root rail (locked design decision #10,\n// execution plan Slice 5). Collapsed by default: each confirmed/synthetic root renders as a\n// glyph with its availability dot; expanding adds names and counts only — it never reveals\n// state that was hidden while collapsed (design §4.1: \"Expanding never reveals state that was\n// hidden — only detail\"). Also carries the two capability affordances the old marquee/tab-bar\n// owned: Add storage (→ existing addFolder) and the reversible Hidden shelf."
+    },
+    "qml/VaultBrowseState.js": {
+      "accepted_blob": "ec4d6e94192255fa968f5d869c95c18bed8ea210",
+      "accepted_comment": "// VaultBrowseState — Vault Browse face session memory (execution plan Slice 5).\n// A `.pragma library` module's top-level state survives across the vaultLayer Loader's\n// repeated destroy/recreate cycles (leaving Vault via the taskbar and returning deactivates\n// then reactivates the Loader, destroying VaultPage.qml's item each time) for as long as the\n// PROCESS lives — exactly the \"within a session\" half of the locked design's persistence\n// contract (§4.8). It deliberately does NOT survive an app restart (module state resets with\n// the process); current folder + rail-expanded ARE required to survive a restart, and those\n// live in VaultPage.qml's own `Settings { category: \"vaultBrowseV1\" }` block (registry-backed,\n// tag-isolated under COLOSSEUM_APPDATA_TAG the same way every other Colosseum store is)."
+    },
+    "qml/VaultConfirmCard.qml": {
+      "accepted_blob": "757f0001bec67cdf4bf4f5b61ae6951b647561d1",
+      "accepted_comment": "// VaultConfirmCard — the founding ceremony's ONE card (Slice 11), built to the locked mock\n// agents/colosseum-vault-confirm-card-mock.html. After a new folder's first census it shows\n// show-your-work sorting: one row per discovered subtree slice (path · what · sample) with a\n// reassignable gold kind chip, the honest leftover line, and consent as one gold button.\n//\n// A SEEDABLE component (like OpenRecentPanel): it owns no backend. It takes the candidate\n// `model` (VaultLibrary.candidate slices) + `rootPath`, and emits shelveRequested(kindOverrides)\n// / dismissRequested — VaultPage wires those to VaultLibrary.confirmRoot / dismissCard. So a Qt\n// Quick Test drives it with a seeded model, no app.\n//\n// Slice model row shape (VaultScanner census): { subtreePath, groupTitle, kind, count, mixed,\n// loose, leftoverCount, [seriesCount], [sample], [sizeBytes] }. The bracketed fields are the\n// scanner-model enrichment that fills the \"· N series\", sample line, and size count to full mock\n// parity; the card renders what is present and stays honest when they are absent."
+    },
+    "qml/VaultDetailSheet.qml": {
+      "accepted_blob": "ee61df2d82448ff381777aeb576393f36e6545ec",
+      "accepted_comment": "// VaultDetailSheet — the Vault Browse face's detail sheet (execution plan Slice 7), built to the\n// locked design's decision #11 and the approved mock's plate 4: opening a film answers \"what do\n// I physically hold\" — every copy with its drive, its companions, its extras, and why Vault\n// believes the identity it does. Deliberately never cast, synopsis, or related titles; the locked\n// design gives that away to Theatre in three separate places.\n//\n// A SAME-WINDOW surface (a plain Item overlay inside VaultPage, the VaultConfirmCard/\n// VaultFolderView convention), never a Window/Popup that would own its own platform window — the\n// Lanista bridge structurally cannot see a secondary window (ledger law). Seedable, like its\n// siblings: it takes `detail` (VaultLibrary.browseDetail()'s returned map) and emits\n// backRequested / playRequested(path) / revealRequested(path) / identifyRequested(key) /\n// unidentifyRequested(key) / hideRequested(key) — VaultPage wires those to VaultLibrary + the\n// existing openMediaRequested path. So a Qt Quick Test drives it with a seeded map, no app."
+    },
+    "qml/VaultDoor.qml": {
+      "accepted_blob": "8da75ae843de0c4b3dbbc3e0cd4f63244db6705a",
+      "accepted_comment": "// VaultDoor.qml — the taskbar's permanent folder door: the always-present \"On this machine\"\n// entry (Slice 10) plus the alive-door state (Slice 15): a quiet gold dot while any scan runs,\n// and a time-boxed \"arrival\" glow the moment a dropped file lands on a live shelf. No counts,\n// no badges (spec §3) — the door only pulses and glows.\n//\n// The state machine lives HERE (QML-side) so the Qt Quick Test can seed scanning/arrivalTick\n// and assert the doorState sequence (idle → scanning → arrival-pulse → idle); the FACTS come\n// from VaultLibrary (scanning + the monotone arrivalTick landing clock) wired by Taskbar.\n// QML paints, C++ decides: C++ only ever bumps arrivalTick / toggles scanning."
+    },
+    "qml/VaultFolderView.qml": {
+      "accepted_blob": "bcd534ee23f3b0a62df8fb3e7ba86c264e77f3a7",
+      "accepted_comment": "// VaultFolderView — the Vault's file-first detail surface (Slice 13), built to the locked mock\n// agents/colosseum-vault-folder-view-mock.html. Click a shelf tile → this surface: a sticky\n// preview pane (cover/gradient, kind eyebrow, title, disk facts, doors) on the left, and on the\n// right the folder's REAL files exactly as they sit on disk — cleaned titles with the real\n// filename faint beneath, real subfolders as descendable folder rows, natural order, and honest progress\n// hairline. Identification decorates the pane (later slices); it never restructures the list.\n//\n// A SEEDABLE component (like VaultConfirmCard / OpenRecentPanel): it owns no backend. It takes a\n// flat `model` of file rows (VaultLibrary.items(kind, seriesKey)) + `facts` for the pane, and emits\n// backRequested / revealRequested(path) / openRequested(row) / continueRequested — VaultPage wires\n// those to navigation, the Reveal invocable, and (Slice 14) LocalLaunch. So a Qt Quick Test drives\n// it with a seeded model, no app.\n//\n// Row shape (VaultIndex::filesInSubtree): { id, path, displayTitle, realName, subfolder, kind,\n// size, mtimeMs, pages, durationSec, author, format, progressed, coverRef }. Progress percentage and\n// last-read time come from Progress (Slice 14), not the index — so the hairline and the last-read\n// completion come from the live QML join, not the immutable index."
+    },
+    "qml/VaultIdentifyDialog.qml": {
+      "accepted_blob": "9a92dd7ec540fbb869f54f355875e1232a73d921",
+      "accepted_comment": "// VaultIdentifyDialog — the small explicit identity gesture. The native VaultIdentifier remains\n// the certainty gate; this surface is deliberately honest when no single offline candidate exists."
+    },
+    "qml/VaultIdentityCeremonyDialog.qml": {
+      "accepted_blob": "9efebf3f3977995607bd7b236f3e31497a236a00",
+      "accepted_comment": "// Shared identity ceremony surface for launch sessions and Vault rows. It is seedable so\n// store decisions stay testable without booting the whole shell; the owning facade supplies\n// the ceremony and records the choice in VaultIdentity."
+    },
+    "qml/VaultPage.qml": {
+      "accepted_blob": "d1b450dd4ed408192306702b7407f62d43f74ada",
+      "accepted_comment": "// VaultPage — \"On this machine\": the local-media Vault as a host-owned full page, entered from\n// the taskbar folder door. Slice 10 lands the permanent door + this page's EMPTY state (nothing\n// indexed yet): eyebrow, title, and a dashed Add-folder drop surface. It paints from the\n// VaultLibrary read-model (itemCount/scanning); the shelves that fill a populated Vault, and the\n// folder-scan ingest behind Add folder, land in Slice 11. Same chrome vocabulary as\n// Settings/Downloads (back · minimize · fullscreen · power) so it reads as one of the house's pages."
+    },
+    "qml/VaultPosterCard.qml": {
+      "accepted_blob": "d338e14fd267b8ebe3d9133e23abce01f1c3df24",
+      "accepted_comment": "// VaultPosterCard — the 2:3 poster face for folder/show/season/film rows (Vault Browse face,\n// execution plan Slice 4). Consumes ONE browseAt() row and paints the locked design's card\n// language (design §6.3) exactly: artwork edge to edge with nothing printed over it; a centered\n// one-line title below with elision; a dimmer physical-fact line beneath, in the slot Jellyfin\n// uses for the year; near-square corners (~5px); circular corner indicators, never rectangular\n// badges; hover dims the art and reveals a play affordance; gold reserved for the uncertainty\n// mark only; away reads as reduced ink + desaturation with no hover and no open signal;\n// resolving shows the filename on plain ground and crossfades to the settled face in place.\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
+    },
+    "qml/VaultTile.qml": {
+      "accepted_blob": "ba50416afb53e2dfcbc14cfdde77bfacd384e6ef",
+      "accepted_comment": "// VaultTile — the shared shelf/folder tile. It keeps unavailable roots in the gallery and paints\n// their state in place instead of letting a missing filesystem path erase the user's shelf."
+    },
+    "qml/VaultWideCard.qml": {
+      "accepted_blob": "c802bc0f35004d4cb3fe44b443cfc0332c26f2c6",
+      "accepted_comment": "// VaultWideCard — the 16:9 still face for episode/clip rows (Vault Browse face, execution plan\n// Slice 4). Same card language as VaultPosterCard (design §6.3) — artwork edge to edge, centered\n// one-line title with elision, a dimmer physical-fact line beneath, circular corner indicators,\n// near-square corners, hover dims and reveals a play affordance, gold reserved for the\n// uncertainty mark, away is reduced ink + desaturation with no hover/open, resolving crossfades\n// filename → settled face in place — just a different card, per the locked design's rule that\n// drilling into a series is a different card, not the same grid one level deeper (§6.3).\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
+    }
+  },
+  "integrity": "sha256:c5657412e58df36ac65bc9b05abb96784820e4064e1af5590eaf3273e1ab20da",
+  "schema": 1
+}
