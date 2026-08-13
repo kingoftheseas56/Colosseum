@@ -909,6 +909,35 @@ set_tests_properties(colosseum.qttest.installed_chronicle PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Store isolation (critical fix, 2026-08-14) ────────────────────────────────
+# Proves ProgressStore/CollectionStore no longer leak a COLOSSEUM_APPDATA_TAG-tagged
+# (isolated Lanista test) session's writes into the real Windows registry key
+# (HKCU\Software\Brotherhood\Colosseum) every real user's Continue/Collection history
+# lives in. Header-only stores (no separate .cpp), so this target just includes the
+# headers directly — CMAKE_AUTOMOC handles their in-header Q_OBJECT classes the same
+# way it already does for tst_vault_stores' VaultConfig.h/VaultIdentity.h. Pure
+# Qt6::Core, GUILESS; QStandardPaths::setTestModeEnabled(true) sandboxes every tagged
+# file this test creates — it never opens the real registry key (see the file's own
+# top-of-file safety-contract comment for why that's true even for the untagged case).
+add_executable(tst_store_isolation
+    auto/store_isolation/tst_store_isolation.cpp
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h")
+target_include_directories(tst_store_isolation PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_store_isolation PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_store_isolation PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_store_isolation POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.store_isolation
+         COMMAND tst_store_isolation)
+set_tests_properties(colosseum.qttest.store_isolation PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Red canary — the permanent negative control ──────────────────────────────
 # Proves ctest actually surfaces a failing command as red (WILL_FAIL inverts
 # it, so the suite stays green while the detection path is exercised on every
