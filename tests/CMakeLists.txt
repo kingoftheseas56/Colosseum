@@ -517,11 +517,19 @@ set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
 # same as http_header_channel_harness / tst_journey_play_video above. Real ffmpeg,
 # real fixture MP4 (tests/fixtures/vault/media/tiny.mp4 — the same one
 # vault_admission_probe_harness proves decodes a real frame); QTemporaryDir isolation.
+#
+# Slice 2, 2026-08-13 adds VaultPosterFetcher (canonical poster fetcher + cache) to the
+# SAME target/binary — a sibling producer, identity-id keyed instead of (path,size,
+# mtime) keyed, transported over QNetworkAccessManager (hence Qt6::Network below)
+# instead of an ffmpeg QProcess. Tests drive a local file:// URL — no live network in
+# the gate.
 add_executable(tst_vault_artwork
     auto/vault/tst_vault_artwork.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultCacheKey.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
@@ -531,7 +539,7 @@ target_include_directories(tst_vault_artwork PRIVATE
 target_compile_definitions(tst_vault_artwork PRIVATE
     VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
 target_link_libraries(tst_vault_artwork
-    PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test MpvQt::MpvQt)
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Quick Qt6::Test MpvQt::MpvQt)
 set_target_properties(tst_vault_artwork PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_artwork POST_BUILD
