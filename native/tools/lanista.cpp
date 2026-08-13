@@ -43,6 +43,7 @@
 #include <iostream>
 
 #include "tools/LanistaHash.h"
+#include "tools/LanistaLayoutVerdict.h"
 
 static QString g_pipe = QStringLiteral("ColosseumLanista");
 static int g_timeout = 5000;
@@ -526,6 +527,116 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing)
                                      .arg(dist).arg(maxDist);
                     res.grabPath = got;
                 }
+            }
+        } else if (step.contains(QStringLiteral("layout_verdict"))) {
+            // layout_verdict: a RUNNER-LOCAL step (L2, 2026-08-13) — no server command exists
+            // for this; it composes the EXISTING `dump-ui` command (as many pages as its own
+            // reply-byte budget demands) into one LayoutSnapshot, then resolves a checkpoint
+            // file's named rules against it via the pure evaluator in LanistaLayoutVerdict.h.
+            // Every page merged into the snapshot must share the FIRST page's `generation` —
+            // dump-ui's own continuation contract already guarantees this when the runner
+            // echoes back cursor+generation, and mergeDumpReply() refuses a page that doesn't
+            // (see the header's "single-generation guarantee" note) — so a moving delegate
+            // between two independent calls can never contribute to one verdict.
+            const QJsonObject lv = step.value(QStringLiteral("layout_verdict")).toObject();
+            const QString checkpointPath = lv.value(QStringLiteral("checkpoint")).toString();
+            bool fatal = false;
+            QJsonObject checkpoint;
+            QFile cf(checkpointPath);
+            if (!cf.open(QIODevice::ReadOnly)) {
+                fatal = true;
+                res.pass = false;
+                res.detail = QStringLiteral("cannot open checkpoint: ") + checkpointPath;
+            } else {
+                QJsonParseError perr{};
+                checkpoint = QJsonDocument::fromJson(cf.readAll(), &perr).object();
+                if (perr.error != QJsonParseError::NoError) {
+                    fatal = true;
+                    res.pass = false;
+                    res.detail = QStringLiteral("malformed checkpoint %1: %2")
+                                     .arg(checkpointPath, perr.errorString());
+                }
+            }
+
+            lanista::LayoutSnapshot snap;
+            if (!fatal) {
+                const QString rootName = checkpoint.value(QStringLiteral("root")).toString();
+                bool truncated = true;
+                int cursor = 0, generation = -1, pages = 0;
+                while (!fatal && truncated && pages < 50) {
+                    QJsonObject payload;
+                    if (!rootName.isEmpty()) payload.insert(QStringLiteral("root"), rootName);
+                    if (pages > 0) {
+                        payload.insert(QStringLiteral("cursor"), cursor);
+                        payload.insert(QStringLiteral("generation"), generation);
+                    }
+                    QJsonObject req{{QStringLiteral("cmd"), QStringLiteral("dump-ui")},
+                                    {QStringLiteral("seq"), ++seq}};
+                    if (!payload.isEmpty()) req.insert(QStringLiteral("payload"), payload);
+                    const QJsonObject reply = call(req, 10000);
+                    if (isInfraError(reply)) {
+                        out.infra = true; infraStop = true; fatal = true;
+                        res.pass = false;
+                        res.detail = reply.value(QStringLiteral("code")).toString()
+                                     + QStringLiteral(": ")
+                                     + reply.value(QStringLiteral("message")).toString();
+                        std::cerr << "INFRA ERROR: " << res.detail.toStdString()
+                                  << " (step " << label.toStdString() << ")\n";
+                        break;
+                    }
+                    if (reply.value(QStringLiteral("type")).toString() != QStringLiteral("reply")) {
+                        fatal = true;
+                        res.pass = false;
+                        res.detail = QStringLiteral("dump-ui failed: ")
+                                     + reply.value(QStringLiteral("code")).toString();
+                        break;
+                    }
+                    if (!snap.mergeDumpReply(reply)) {
+                        fatal = true;
+                        res.pass = false;
+                        res.detail = QStringLiteral("layout_verdict: dump-ui pages disagreed on "
+                                                     "generation — refusing a mismatched-moment verdict");
+                        break;
+                    }
+                    truncated = reply.value(QStringLiteral("truncated")).toBool();
+                    if (truncated) {
+                        cursor = reply.value(QStringLiteral("continuation")).toObject()
+                                     .value(QStringLiteral("cursor")).toInt();
+                        generation = reply.value(QStringLiteral("generation")).toInt();
+                    }
+                    ++pages;
+                }
+            }
+
+            if (!fatal) {
+                const lanista::CheckpointVerdict cv = lanista::evaluateCheckpoint(snap, checkpoint);
+                res.pass = cv.allPass;
+                QStringList details;
+                for (const auto& rv : cv.rules)
+                    details << QStringLiteral("[%1 %2] %3").arg(
+                        rv.kind, rv.pass ? QStringLiteral("PASS") : QStringLiteral("FAIL"), rv.detail);
+                res.detail = details.join(QStringLiteral(" | "));
+
+                const QJsonObject verdictJson = lanista::checkpointVerdictToJson(cv);
+                const QString outPath = lv.value(QStringLiteral("out")).toString();
+                if (!outPath.isEmpty()) {
+                    QDir().mkpath(QFileInfo(outPath).absolutePath());
+                    QFile of(outPath);
+                    if (of.open(QIODevice::WriteOnly))
+                        of.write(QJsonDocument(verdictJson).toJson(QJsonDocument::Indented));
+                }
+                if (g_verbose)
+                    std::cout << "  layout_verdict " << label.toStdString() << ": "
+                              << QJsonDocument(verdictJson).toJson(QJsonDocument::Compact).toStdString()
+                              << "\n";
+            }
+
+            // AUTO-GRAB ON FAILURE, same contract every other step honours (spec §6) — but
+            // never after an infra stop, which already has nothing left to photograph.
+            if (!res.pass && !infraStop) {
+                const QString t = step.value(QStringLiteral("grab_on_fail"))
+                                      .toString(QStringLiteral("window"));
+                res.grabPath = grabTarget(t, ++seq);
             }
         } else {
             QJsonObject req{{QStringLiteral("cmd"), step.value(QStringLiteral("cmd"))},
