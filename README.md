@@ -189,6 +189,10 @@ Then run the live QML loop with `dev.bat`. Player 2 additionally requires
 - **Separate browsing from acquisition, and collection from progress.**
 - **Match conservatively rather than opening the wrong work.**
 - **Show real fallbacks and empty states instead of invented content.**
+- **Credit influence instead of styling it away.** The Vault's Browse card language — poster
+  grid, near-square corners, a centered one-line title with a dim fact line beneath, circular
+  corner indicators, dim-and-reveal hover, 16:9 episode cards — is adapted from Jellyfin's
+  library view as rendered.
 
 ## Repository layout
 
