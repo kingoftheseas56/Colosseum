@@ -285,6 +285,34 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
   `--seed` an ABSOLUTE dir (a relative one nests under its own path). Reading progress is
   registry-backed QSettings — not seedable at all — so reopen-resume-at-page and
   completed-video-restart are human-witnessed.
+- **Vault Browse detail sheet (Slice 7, added 2026-08-13):** `vaultBrowseSheet` (the same-window
+  overlay — never a Window/Popup; property `visible` is exact-value waitable, plus the plain
+  scalars `copiesHeld`/`companionsCount`/`extrasCount`/`identityLabel` the Lanista vocabulary
+  reads instead of walking nested arrays by dot-path), `vaultBrowseSheetCopy_<n>` (one row per
+  copy — `quality`/`where`/`sizeText`/`away`), `vaultBrowseSheetPlay` (routes through the shipped
+  `localLaunchState` seam), `vaultBrowseSheetBack` (dismiss; also reachable by Escape/Backspace
+  at the Quick Test layer only — keyboard is outside the bridge by design, per the ledger's
+  standing law). A Film grid card click opens the sheet instead of routing straight to Play;
+  `tests/lanista_scenarios/vault_browse_smoke.json` was extended (still against the real
+  `browse-face-smoke` fixture — the Spider-Man shape: 1 copy, 2 companions, 2 extras) to open the
+  sheet, `qml-get` its counts and the one copy's filename-parsed quality line against fixture
+  truth, item-grab it, dismiss via Back and prove the grid's node count is untouched, then
+  reopen and drive Play through to `localLaunchState.openCount == 1` /
+  `lastRouteKind == "video"`. Isolated session, 31/31 (2026-08-13). The Spider-Man fixture's
+  primary video file was swapped from an 18-byte text stub to real ffmpeg-generated decodable
+  bytes (the same file `colosseum.qttest.vault_enricher` already uses) specifically so this
+  Play proof is a real admitted launch, not a vacuous reject — `LocalLaunch` sets
+  `lastRouteKind`/`openCount` from extension-based classification alone in the reject path too,
+  but a genuine end-to-end proof needed a file the admission probe actually decodes. Both
+  ordered regressions replayed green in fresh isolated sessions the same day:
+  `vault_launch_smoke.json` 7/7, `vault_open_recent.json` 13/13 (seeded by hand — see its own
+  entry above — with `tests/fixtures/tankoban/tiny-volume.cbz`, no committed seed directory
+  existed for this scenario at the time). Warning gate: `vault_browse_smoke`'s own session is
+  `WARNING_GATE_OK`; the two regression sessions each surfaced one pre-existing, unrelated
+  signal not on the allowlist (a Continue-rail live-network image 404 to `metahub.space` for an
+  unrelated catalogue id, and one `QMetaObject::invokeMethod: No such method
+  QObject::writeSnapshot` warning) — named honestly, confirmed absent from every Slice 7 file,
+  not triaged further here (out of this slice's fence).
 
 ### Scenario runner (`native/tools/lanista.cpp`)
 
