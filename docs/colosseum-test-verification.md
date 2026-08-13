@@ -377,3 +377,36 @@ NOT the Windows shell — no taskbar/lifecycle claims); Lanista proves the assem
 isolated sessions per its own ledger; pixels are exhibits; aesthetic verdicts are
 Hemanth's. A green suite here earns **Test-reported**, never **Runtime-validated**, for a
 user-visible slice.
+
+## Vault Browse face — Slice 10 closing sweep (2026-08-13)
+
+The browse-face execution plan's closing slice ordered one full deterministic sweep — `-L unit`
++ `colosseum.qml` + the "vault `.ps1` gates" — logged in one run, no new test surface (the sweep
+itself is the gate; no negative control applies).
+
+- **`ctest --test-dir native/build-msvc -L unit --output-on-failure`: 36/37.** The one failure,
+  `colosseum.qttest.vault_forensics` (2 of 13 cases: `byte_budget_sets_truncated`,
+  `projection_does_not_mutate_files`), is **not this plan's surface** — it is the Phase 2
+  visibility lane's F1-Core slice (`b0fde45`, landed mid-run by a concurrent workstream building
+  in `native/build-msvc` at the same time; its own commit message states "nothing here has been
+  compiled, linked, or run" at commit time). Reproduced deterministically (ran it alone twice,
+  same two cases red both times) — not flaky, just out of fence. `docs/encyclopedia/vault.md`'s
+  `.paths` already excludes `VaultForensics.*` as belonging to a different plan; this sweep entry
+  records the same boundary at the test-ledger layer. Every OTHER vault target is green,
+  including the two C++ harnesses folded into `-L unit` (`colosseum.vault_admission_probe_harness`,
+  `colosseum.vault_launch_router_harness`).
+- **`ctest --test-dir native/build-msvc -R colosseum.qml`: 196/196** (`-VV` case log), matching
+  the plan's own expectation exactly. `UpdatePage::test_same_count_swap_crossfades_and_resets` —
+  named in the plan as a foreign lane's known intermittent case — passed clean in this run; it did
+  not fire.
+- **"The vault `.ps1` gates" the plan names do not exist as a separate artifact.** Unlike the
+  updater arc (`tests/test_update_lanista.ps1`), no `.ps1` wrapper was ever written for the Vault
+  Browse face — searched `tests/*.ps1` for any file referencing a `vault*` name; none exist. The
+  Vault's deterministic native coverage lives entirely inside `-L unit` (the `qttest.vault_*`
+  targets above plus the two harnesses named above) and `colosseum.qml`; its runtime coverage is
+  the `lanista session run` scenario replay directly, CLI-driven, no `.ps1` in between. Recorded
+  here as a plan inaccuracy, not a gap — nothing named by the plan is missing, the plan just named
+  an artifact shape (`.ps1`) that this arc never needed.
+
+Full logs: `artifacts/slice10-sweep/unit.log`, `artifacts/slice10-sweep/qml_verbose.log` (gitignored
+evidence, not committed).

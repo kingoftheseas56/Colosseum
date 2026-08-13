@@ -560,6 +560,70 @@ chat had the `lanista_*` tools loaded, the plan's documented fallback), transcri
 
 ---
 
+## Vault Browse face — Slice 10 closing replay (2026-08-13)
+
+The plan's closing slice ordered one full scenario-suite replay in fresh isolated sessions:
+`vault_browse_smoke`, the states family, the empty family, `vault_launch_smoke`,
+`vault_open_recent`. All ten scenarios below were run today, each its own isolated tagged
+session, `--drive`, seeded per each scenario's own comment where one is needed.
+
+| Scenario | Result | Notes |
+|---|---|---|
+| `vault_browse_smoke.json` | **65/70** (`--keep-going`) | See "the redrill finding" below — one root cause, five cascaded failures. Everything through the detail sheet, rail collapse/expand, the Wire's honest season-presence fact, the episode wall (both real-file and Gintama-scale), and the first 10-burst scroll/virtualization proof passed clean. |
+| `vault_browse_resolve.json` | 8/9 | One stale assertion, not a defect — see "the stale fixture count" below. Akira settling `resolving → identified` via the real offline catalogue, the canonical title read-through, and the visual-evidence grab all passed. |
+| `vault_browse_uncertain.json` | 13/13 (2nd try; 1st hit one `INFRA TIMEOUT` opening the vault door before any assertion ran, consistent with the load-sensitivity noted below) | Masterpiece settling `uncertain`, the gold mark, identify-in-place through the real dialog, settling `identified` via the same re-project path — all clean. |
+| `vault_browse_away.json` | 10/10 | Both away tiles (single-file and two-file groups) stay present, marked away, per §4.7 "nothing disappears." |
+| `vault_browse_churn.json` | 39/39 | The 303-item fixture, six full scroll-down bursts to true max extent and six back up; Akira/Masterpiece read correctly before AND after the round trip. |
+| `vault_browse_no_storage.json` | 7/7 | |
+| `vault_browse_empty_folder.json` | 9/9 | |
+| `vault_browse_allaway_empty.json` | 9/9 | |
+| `vault_launch_smoke.json` | 7/7 | |
+| `vault_open_recent.json` | 13/13 | No committed seed directory exists for this scenario yet (same situation Slice 7's own ledger entry already recorded) — hand-built a `vault/open-recent.json` seed (two entries: one real 3-page fixture CBZ, one dead path) under `artifacts/slice10-sweep/open-recent-seed/`, gitignored, not a committed fixture. |
+
+**The redrill finding (`vault_browse_smoke.json`, steps 60–61 and its four downstream casualties).**
+Re-drilling into the SAME show a second time — leave it via the rail's root entry, come back,
+click it again — reproduced 4/4 times across independent isolated sessions: `ui-click` dispatches
+correctly (server-resolved coordinates land on the card's own `_hitArea`, confirmed
+`enabled: !card.away` was `false`/not blocking), but `vaultBrowseCrumb.currentPath` and
+`vaultBrowseGrid.count` never leave the root level — confirmed by direct `qml-get` (not just the
+scenario's own `ui-wait-for`) after an 8s settle and again after extending the wait to 45s (3× the
+scenario's own 15s budget); the value never changes. This is the SAME area this ledger already
+named as a pre-existing, load-sensitive flake in the Slice 9 entry below ("`vault_browse_smoke.json`
+... replayed 8 times ... never failed at the same step twice ... heavy unrelated live network
+traffic ... confirmed pre-existing via a direct A/B test") — today it failed at the exact identical
+step all four times rather than varying, which reads as the SAME class of issue under heavier or
+more consistent load today (a concurrent build was running in `native/build-msvc` for part of this
+session; Slice 9's own log showed 434 live requests to `live.metahub.space` alone). What's new here:
+the 45s-timeout diagnostic shows the click had NO effect at all rather than merely a delayed
+repaint — worth a future slice's attention rather than dismissed as "just slow." Not investigated
+further and no code was touched — Slice 10 is verification and documentation only. Evidence:
+`artifacts/lanista-sessions/20260813-154417-62cbc69f/` (the fullest `--keep-going` run) and
+`artifacts/lanista-sessions/20260813-153223-d1719fbc/` (the 45s-timeout diagnostic).
+
+**The stale fixture count (`vault_browse_resolve.json`, step 5).** Asserts
+`vaultBrowseGrid.count == 2` ("Akira, Masterpiece") against
+`tests/fixtures/vault/browse-states-smoke`, which `vault_browse_churn.json`'s own comment already
+documents as extended to 303 items (Akira + Masterpiece + 301 filler groups) for that scenario's
+virtualization proof — a shared-fixture drift between sibling scenarios, not an app defect.
+`vault_browse_uncertain.json` shares the same fixture root but asserts no hardcoded count, so it is
+unaffected. Not fixed here (editing scenario JSON is execution work, out of this slice's fence);
+named for whichever slice next touches these scenarios.
+
+**Warning gate.** Ran `tests/warning_gate.ps1` against all ten sessions' own
+`<appDataRoot>/logs/colosseum.log`. Four came back clean (`WARNING_GATE_OK`:
+`vault_browse_uncertain` 2nd run, `vault_browse_churn`, `vault_browse_empty_folder`,
+`vault_browse_allaway_empty`, `vault_launch_smoke`). The rest fail the gate, but every offending
+line is one of the two categories this ledger's own Slice W0 baseline already catalogued as
+known-noise (the `live.metahub.space` 404 pattern from Continue-rail prewarming, and Qt
+teardown-time `device not open`/SQL-without-QCoreApplication lines) plus the one already-named
+`QMetaObject::invokeMethod: No such method QObject::writeSnapshot` warning from the Slice 7 ledger
+entry below — no new signal class. Named honestly rather than silently allowlisted: the Slice W0
+baseline's own four sessions never visited Vault ("NOT claimed: any statement about the warning
+behavior of surfaces these four sessions did not visit (Vault...)"), so `tests/lanista-warning-
+allowlist.json` has no Vault-scoped entries yet — these sessions are failing an allowlist that was
+never extended to this surface, not failing a check that has seen Vault before and found it clean.
+Extending the allowlist is a Slice W0-owned change, not this slice's to make unasked.
+
 ## Updater runtime coverage (2026-08-08)
 
 The auto-update slice now has two disposable, test-key-only sessions driven by the existing
