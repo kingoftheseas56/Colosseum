@@ -321,4 +321,73 @@ TestCase {
         compare(c.hasArt, false)
         c.destroy()
     }
+
+    // ── 7. Slice 4 (fade-in on art arrival) — a tile's picture fades in rather than popping
+    //       when its artwork resolves. The MultiEffect that paints artImage's pixels (artImage
+    //       itself is `visible: false`, sampled by the effect for uniform away-desaturation) is
+    //       objectName'd "..._cover" so these cases can assert on the actual painted opacity, not
+    //       just infer it from artImage.status. Case: driving the cover Image to Image.Ready via
+    //       a valid, genuinely-decodable source (the same real PNG fixture as the hasArt tests)
+    //       ends with the cover's opacity at 1 — the fade ran to completion. ──
+    function test_cover_fades_to_opacity_1_when_art_becomes_ready() {
+        var row = {
+            "key": "fade-poster", "nodeType": "film", "displayTitle": "Fade Poster",
+            "physicalFact": "2021 · 1080p", "path": "D:/hemanth's folder/Fade Poster",
+            "counts": { "items": 1 }, "coverRef": realCoverUrl.toString(),
+            "state": "identified", "away": false
+        }
+        var c = createPoster(row)
+        var img = findChild(c, "vaultBrowseCard_fade-poster_artImage")
+        var cover = findChild(c, "vaultBrowseCard_fade-poster_cover")
+        verify(img !== null); verify(cover !== null)
+        tryCompare(img, "status", Image.Ready, 2000)
+        tryCompare(cover, "opacity", 1, 600)     // Behavior's 200ms fade has settled
+        c.destroy()
+    }
+    function test_wide_cover_fades_to_opacity_1_when_art_becomes_ready() {
+        var row = {
+            "key": "fade-wide", "nodeType": "episode", "displayTitle": "Fade Wide",
+            "physicalFact": "S1:E1", "path": "D:/hemanth's folder/Fade Wide/e1.mkv",
+            "counts": { "items": 0 }, "coverRef": realCoverUrl.toString(),
+            "state": "identified", "away": false
+        }
+        var c = createWide(row)
+        var img = findChild(c, "vaultBrowseCard_fade-wide_artImage")
+        var cover = findChild(c, "vaultBrowseCard_fade-wide_cover")
+        verify(img !== null); verify(cover !== null)
+        tryCompare(img, "status", Image.Ready, 2000)
+        tryCompare(cover, "opacity", 1, 600)
+        c.destroy()
+    }
+
+    // ── 7b. a card with coverRef === "" never has a source to load, so artImage.status never
+    //        reaches Ready and the cover's opacity must hold at 0 — no fade to 1 with nothing to
+    //        show (the typographic face is the complete pre-art state, not a loading state). ──
+    function test_cover_stays_at_opacity_0_with_no_source() {
+        var c = createPoster(identifiedRow)   // identifiedRow carries coverRef: ""
+        var img = findChild(c, "vaultBrowseCard_spiderman_artImage")
+        var cover = findChild(c, "vaultBrowseCard_spiderman_cover")
+        verify(img !== null); verify(cover !== null)
+        compare(img.source.toString(), "")
+        verify(img.status !== Image.Ready)
+        wait(300)                              // give a wrongly-unguarded binding time to animate
+        compare(cover.opacity, 0)
+        c.destroy()
+    }
+    function test_wide_cover_stays_at_opacity_0_with_no_source() {
+        var episodeRow = {
+            "key": "noart-wide", "nodeType": "episode", "displayTitle": "No Art Wide Fade",
+            "physicalFact": "", "path": "D:/hemanth's folder/No Art Wide Fade/e1.mkv",
+            "counts": { "items": 0 }, "coverRef": "", "state": "identified", "away": false
+        }
+        var c = createWide(episodeRow)
+        var img = findChild(c, "vaultBrowseCard_noart-wide_artImage")
+        var cover = findChild(c, "vaultBrowseCard_noart-wide_cover")
+        verify(img !== null); verify(cover !== null)
+        compare(img.source.toString(), "")
+        verify(img.status !== Image.Ready)
+        wait(300)
+        compare(cover.opacity, 0)
+        c.destroy()
+    }
 }

@@ -189,7 +189,7 @@
       "accepted_comment": "// VaultPage — \"On this machine\": the local-media Vault as a host-owned full page, entered from\n// the taskbar folder door. Slice 10 lands the permanent door + this page's EMPTY state (nothing\n// indexed yet): eyebrow, title, and a dashed Add-folder drop surface. It paints from the\n// VaultLibrary read-model (itemCount/scanning); the shelves that fill a populated Vault, and the\n// folder-scan ingest behind Add folder, land in Slice 11. Same chrome vocabulary as\n// Settings/Downloads (back · minimize · fullscreen · power) so it reads as one of the house's pages."
     },
     "qml/VaultPosterCard.qml": {
-      "accepted_blob": "be78f75ef6c97961ff078cb4be2ceec33403a56a",
+      "accepted_blob": "c210d62ada82e9ddd2680990e0c2be83de34e09e",
       "accepted_comment": "// VaultPosterCard — the 2:3 poster face for folder/show/season/film rows (Vault Browse face,\n// execution plan Slice 4). Consumes ONE browseAt() row and paints the locked design's card\n// language (design §6.3) exactly: artwork edge to edge with nothing printed over it; a centered\n// one-line title below with elision; a dimmer physical-fact line beneath, in the slot Jellyfin\n// uses for the year; near-square corners (~5px); circular corner indicators, never rectangular\n// badges; hover dims the art and reveals a play affordance; gold reserved for the uncertainty\n// mark only; away reads as reduced ink + desaturation with no hover and no open signal;\n// resolving shows the filename on plain ground and crossfades to the settled face in place.\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
     },
     "qml/VaultTile.qml": {
@@ -197,10 +197,10 @@
       "accepted_comment": "// VaultTile — the shared shelf/folder tile. It keeps unavailable roots in the gallery and paints\n// their state in place instead of letting a missing filesystem path erase the user's shelf."
     },
     "qml/VaultWideCard.qml": {
-      "accepted_blob": "6ca2c52d872fe1ce9004bc02f3454b65174bdce5",
+      "accepted_blob": "55142ade24106dbc938716c14447e18a7bcf01b7",
       "accepted_comment": "// VaultWideCard — the 16:9 still face for episode/clip rows (Vault Browse face, execution plan\n// Slice 4). Same card language as VaultPosterCard (design §6.3) — artwork edge to edge, centered\n// one-line title with elision, a dimmer physical-fact line beneath, circular corner indicators,\n// near-square corners, hover dims and reveals a play affordance, gold reserved for the\n// uncertainty mark, away is reduced ink + desaturation with no hover/open, resolving crossfades\n// filename → settled face in place — just a different card, per the locked design's rule that\n// drilling into a series is a different card, not the same grid one level deeper (§6.3).\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
     }
   },
-  "integrity": "sha256:fc654b2034b479f815c16d2dd4a8467ca68a628293866ff58b81f01a0678904a",
+  "integrity": "sha256:75145b7af39c208781ef70a5e142f887d218da0057b3bf3f60bf393825d9bf07",
   "schema": 1
 }

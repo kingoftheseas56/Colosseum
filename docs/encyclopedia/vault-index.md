@@ -828,8 +828,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/VaultPosterCard.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `be78f75ef6c97961ff078cb4be2ceec33403a56a`
-- Current blob: `be78f75ef6c97961ff078cb4be2ceec33403a56a`
+- Accepted blob: `c210d62ada82e9ddd2680990e0c2be83de34e09e`
+- Current blob: `c210d62ada82e9ddd2680990e0c2be83de34e09e`
 - Source: [`qml/VaultPosterCard.qml`](../../qml/VaultPosterCard.qml)
 
 ```text
@@ -864,8 +864,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/VaultWideCard.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `6ca2c52d872fe1ce9004bc02f3454b65174bdce5`
-- Current blob: `6ca2c52d872fe1ce9004bc02f3454b65174bdce5`
+- Accepted blob: `55142ade24106dbc938716c14447e18a7bcf01b7`
+- Current blob: `55142ade24106dbc938716c14447e18a7bcf01b7`
 - Source: [`qml/VaultWideCard.qml`](../../qml/VaultWideCard.qml)
 
 ```text

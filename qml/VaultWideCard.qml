@@ -114,6 +114,12 @@ Item {
                 visible: false   // sampled by the effect below so away can desaturate uniformly
             }
             MultiEffect {
+                // Browse-artwork execution plan, Slice 4 (fade-in on art arrival) — objectName
+                // only; the opacity/Behavior pair below already existed from this card's original
+                // Slice 4 commit and is the fade itself (the visible layer, since artImage above
+                // is `visible: false`). Named so tst_vault_cards.qml can assert on cover opacity
+                // directly instead of inferring it from artImage.status.
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_cover"
                 anchors.fill: parent
                 source: artImage
                 saturation: card.away ? -1.0 : 0.0
