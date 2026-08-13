@@ -835,6 +835,96 @@ set_tests_properties(colosseum.qttest.journey_play_video PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Window-set-state bridge command (Agent Visibility Phase 2, Slice J1-Tray-Bridge,
+#    2026-08-14) ─────────────────────────────────────────────────────────────────────
+# Drives the REAL LanistaServer::dispatch() path — including its central Drive gate — over a
+# real QLocalSocket, exactly like tests/lanista_harness.cpp's own client, against one or two
+# inline QML `Window {}` roots (no scene file needed). Compiles LanistaServer.cpp itself, which
+# needs the full VaultForensics/VaultLibrary link closure (same reasoning + same list as
+# tst_vault_forensics above and native/CMakeLists.txt's lanista_harness target: F0 names
+# VaultLibrary itself, not a lower helper module, as the seam VaultForensics composes) even
+# though no case here ever calls vault-forensics — m_vaultForensics stays nullptr, exactly the
+# "no-Vault context" shape lanista_harness's own bare QML-scene fixture already exercises.
+# Needs Qt6::Qml/Quick beyond that closure (LanistaServer's own QQmlApplicationEngine/
+# QQuickWindow/QQuickItem surface, which tst_vault_forensics never touches).
+add_executable(tst_window_set_state
+    auto/lanista/tst_window_set_state.cpp
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.h"
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultCacheKey.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseDetail.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseDetail.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
+target_include_directories(tst_window_set_state PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+# House trap (native/CMakeLists.txt's lanista_harness target; tests/window_shell_gui_harness.cpp):
+# the windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and shadows the real
+# Qt install's plugin dir, so bare QT_QPA_PLATFORM=offscreen fail-fasts silently. Bake the real
+# platforms path in at configure time; the test applies it only when
+# QT_QPA_PLATFORM_PLUGIN_PATH is unset (same conditional, same reasoning).
+get_target_property(_wss_qmake Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(_wss_qtbin "${_wss_qmake}" DIRECTORY)
+get_filename_component(_wss_qtprefix "${_wss_qtbin}" DIRECTORY)
+target_compile_definitions(tst_window_set_state PRIVATE
+    WINDOW_SET_STATE_QT_PLATFORMS_DIR="${_wss_qtprefix}/plugins/platforms")
+target_link_libraries(tst_window_set_state PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Sql Qt6::Concurrent Qt6::Test)
+set_target_properties(tst_window_set_state PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_window_set_state POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.window_set_state
+         COMMAND tst_window_set_state)
+set_tests_properties(colosseum.qttest.window_set_state PROPERTIES
+    LABELS "unit;windows;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Qt Quick Test runner (slice 4) ───────────────────────────────────────────
 # One repo-built runner over tests/qml/tst_*.qml, replacing the Qt-install
 # qmltestrunner.exe path hardcoded in the legacy .ps1 gates. -input points at

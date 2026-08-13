@@ -215,6 +215,16 @@ private:
     void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
     void cmdUiScroll(const QJsonObject& p, Replier reply) const;
     void cmdUiWaitFor(const QJsonObject& p, Replier reply);
+    // J1-Tray-Bridge (2026-08-14): the one command that can restore a
+    // minimized/hidden root window — QWindow::showNormal()/showMinimized()/
+    // hide(), the REAL product path a titlebar minimize or a taskbar/tray
+    // restore calls in production, never a simulated OS click. First root
+    // window only (mainWindow()), same "first, not necessarily main" law as
+    // every other Task 2/3/5 command. Fallible on a bad `state` value or no
+    // root window, so it owns the Replier like the other Task 5 hands above;
+    // const for the same reason they are — the mutation lands in the QWindow,
+    // not in this server object. Registered Drive-gated, alongside them.
+    void cmdWindowSetState(const QJsonObject& p, Replier reply) const;
     // Task 9 — invoke-read is FALLIBLE (off-allowlist / missing organ / no match),
     // so it owns the Replier and fail()/reply()s itself, exactly like the Task 3
     // fallible reads. It is const: it only READS an organ's invokable, never the

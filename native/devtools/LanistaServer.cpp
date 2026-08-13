@@ -96,6 +96,24 @@ QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
     });
     return found;
 }
+
+// J1-Tray-Bridge (2026-08-14): the ONE place a window's live QWindow::visibility()
+// is turned into the wire vocabulary — used by BOTH get-state (observed) and
+// window-set-state's reply (requested-then-observed), so a client's "minimized"
+// request and a later get-state read can never disagree about what to call the
+// same state.
+QString windowStateName(const QQuickWindow* w)
+{
+    switch (w->visibility()) {
+    case QWindow::Hidden:      return QStringLiteral("hidden");
+    case QWindow::Minimized:   return QStringLiteral("minimized");
+    case QWindow::Maximized:   return QStringLiteral("maximized");
+    case QWindow::FullScreen:  return QStringLiteral("fullscreen");
+    case QWindow::Windowed:    return QStringLiteral("normal");
+    case QWindow::AutomaticVisibility:
+    default:                   return QStringLiteral("unknown");
+    }
+}
 }  // namespace
 
 // ── Replier ────────────────────────────────────────────────────────────────
@@ -243,6 +261,13 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
              [this](const QJsonObject& p, Replier reply) { cmdUiTextInput(p, std::move(reply)); });
     addDrive(QStringLiteral("ui-scroll"),
              [this](const QJsonObject& p, Replier reply) { cmdUiScroll(p, std::move(reply)); });
+    // J1-Tray-Bridge (2026-08-14): restores a minimized/hidden root window — the
+    // bridge's only path onto "the taskbar can't be reached from here" (Lanista
+    // ledger, Planned §9). A fifth "hand", Drive-gated like the four above; the
+    // real QWindow state-transition API only, never an OS-level taskbar click,
+    // FlaUI/pywinauto, or secondary-window enumeration.
+    addDrive(QStringLiteral("window-set-state"),
+             [this](const QJsonObject& p, Replier reply) { cmdWindowSetState(p, std::move(reply)); });
     addRead(QStringLiteral("ui-wait-for"),
             [this](const QJsonObject& p, Replier reply) { cmdUiWaitFor(p, std::move(reply)); });
 
@@ -669,7 +694,12 @@ QJsonObject LanistaServer::cmdGetState() const
             {QStringLiteral("width"), w->width()},
             {QStringLiteral("height"), w->height()},
             {QStringLiteral("visible"), w->isVisible()},
-            {QStringLiteral("active"), w->isActive()}});
+            {QStringLiteral("active"), w->isActive()},
+            // J1-Tray-Bridge (2026-08-14): "normal"/"minimized"/"hidden"/
+            // "maximized"/"fullscreen" — see windowStateName()'s header note.
+            // A tray/minimize journey polls THIS field after window-set-state
+            // rather than trusting the mutating call's own echo.
+            {QStringLiteral("state"), windowStateName(w)}});
     }
     return {{QStringLiteral("windows"), windows},
             // Reported as a path; it is not created until an artifact is written.
@@ -1162,6 +1192,47 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
     QCoreApplication::sendEvent(w, &ev);
     reply.reply({{QStringLiteral("scrolled"), item->objectName()},
                  {QStringLiteral("dy"), dy}});
+}
+
+// J1-Tray-Bridge (2026-08-14): window-set-state — the one command that can
+// restore a minimized/hidden root window. `state` must be exactly "normal",
+// "minimized", or "hidden"; anything else fails BAD_STATE without touching the
+// window at all (no partial mutation on a rejected request). First root window
+// only (mainWindow(), the SAME "first, not necessarily main" scope every other
+// Task 2/3/5 command already uses) — a second root window, if one exists, is
+// never addressed. The three branches below call QWindow's OWN state-transition
+// API directly: showNormal()/showMinimized()/hide() are exactly what a titlebar
+// minimize or a taskbar/tray restore invoke in production. No OS-level click
+// simulation, no FlaUI/pywinauto, no secondary-window enumeration — the real
+// product path is the whole point (ledger: Lanista Planned §9).
+void LanistaServer::cmdWindowSetState(const QJsonObject& p, Replier reply) const
+{
+    const QString state = p.value(QStringLiteral("state")).toString();
+    static const QSet<QString> kValidStates{QStringLiteral("normal"),
+                                             QStringLiteral("minimized"),
+                                             QStringLiteral("hidden")};
+    if (!kValidStates.contains(state)) {
+        reply.fail("BAD_STATE",
+                   QStringLiteral("state must be one of: normal, minimized, hidden (got \"%1\")")
+                       .arg(state));
+        return;
+    }
+    QQuickWindow* w = mainWindow();
+    if (!w) {
+        reply.fail("NO_WINDOW", QStringLiteral("no root window"));
+        return;
+    }
+    if (state == QStringLiteral("normal"))
+        w->showNormal();
+    else if (state == QStringLiteral("minimized"))
+        w->showMinimized();
+    else
+        w->hide();
+
+    reply.reply({{QStringLiteral("objectName"), w->objectName()},
+                 {QStringLiteral("state"), windowStateName(w)},
+                 {QStringLiteral("visible"), w->isVisible()},
+                 {QStringLiteral("active"), w->isActive()}});
 }
 
 // ui-wait-for: the async command. Poll a property every ~50ms via a QTimer(this);
