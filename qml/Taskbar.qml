@@ -278,6 +278,12 @@ Item {
 
             // ---- Downloads: lives beside the Colosseum icon (ratified 2026-07-04) ----
             Item {
+                // Visibility phase 2, Slice J1-Manga: the taskbar dock had no stable name for
+                // this control (ledger 2026-08-13: "Main.qml Automation Surface... TankobanWorld
+                // and WorldPage Have Zero" — the same gap reaches this button). Named so an
+                // isolated journey can reach the Downloads page the same way taskbarOpenMedia
+                // already reaches the Open Media control (vault_launch_smoke.json precedent).
+                objectName: "taskbarDownloads"
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter

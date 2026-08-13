@@ -1111,6 +1111,12 @@ Item {
                                         model: lane.laneList
                                         delegate: Item {
                                             id: card
+                                            // Visibility phase 2, Slice J1-Manga: world-namespaced per the
+                                            // Lanista ledger's DFS-collision rule (a bare "downloadsCard"
+                                            // stem could resolve into a hidden pre-warmed world's own copy
+                                            // of this page) and keyed by the real seriesKey so a seeded
+                                            // fixture's shelf card is addressable without walking the model.
+                                            objectName: "downloadsShelfCard_" + lane.modelData.key + "_" + String(card.modelData.key)
                                             required property var modelData
                                             readonly property bool on: root.openLedgerWorld === lane.modelData.key
                                                                        && root.openLedgerKey === card.modelData.key
@@ -1595,6 +1601,11 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             spacing: 22
             Text {
+                // Visibility phase 2, Slice J1-Manga: the ledger row's own open action had no
+                // stable name (the plan's "open control"). Keyed by the row's real id so a
+                // seeded fixture's row is addressable directly, matching the discoverCard_<id>
+                // per-item naming convention already established for materialized delegates.
+                objectName: "downloadsReadAction_" + String(row.rowData.id)
                 visible: !row.rowData.missing
                 text: row.rowData.world === "theatre" ? "Play" : "Read"
                 color: openMa.containsMouse ? "#ffd968" : theme.gold
