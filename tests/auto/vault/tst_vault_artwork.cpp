@@ -1,4 +1,5 @@
-// tst_vault_artwork — Vault browse-artwork execution plan, Slice 1 + Slice 2 (2026-08-13).
+// tst_vault_artwork — Vault browse-artwork execution plan, Slice 1 + Slice 2 + Slice 3
+// part 1 (2026-08-13).
 //
 // Slice 1 proves VaultThumbnailer, the persistent frame-grab producer: a still is
 // written to its keyed cache file from a genuinely decodable fixture; a second request
@@ -14,7 +15,15 @@
 // nonexistent path yields no file and an honest empty result — no hang. NO LIVE NETWORK
 // in the gate: a small fixture image is written into the test's own QTemporaryDir and
 // its file:// URL stands in for the real https://live.metahub.space poster URL.
+//
+// Slice 3 part 1 proves VaultArtworkResolver, the pure ladder that composes the two
+// producers above: precedence (local ref beats a cached poster beats a cached thumb
+// beats the typographic ""), an async kick that later fires artResolved(rowKey) once
+// the kicked producer lands its file, and a container row (no video, no cached poster)
+// resolving to "" rather than a spurious ref. Real VaultThumbnailer + VaultPosterFetcher
+// against a shared QTemporaryDir cache — same fixtures, same GUILESS discipline.
 
+#include "engine/VaultArtworkResolver.h"
 #include "engine/VaultPosterFetcher.h"
 #include "engine/VaultThumbnailer.h"
 
@@ -66,6 +75,10 @@ private slots:
     void poster_bytes_land_at_id_keyed_cache_path();
     void second_poster_request_for_same_id_is_a_cache_hit();
     void missing_poster_url_yields_no_file_and_no_hang();
+
+    void ladder_precedence_local_then_poster_then_thumb_then_typographic();
+    void async_video_row_kicks_thumb_fetch_and_signals_row_ready();
+    void container_row_without_video_or_cached_poster_resolves_to_typographic();
 };
 
 void tst_vault_artwork::still_is_produced_at_keyed_cache_path()
@@ -250,6 +263,130 @@ void tst_vault_artwork::missing_poster_url_yields_no_file_and_no_hang()
     QCOMPARE(fetcher.cachedPosterPath(identityId), QString());
     QCOMPARE(fetcher.inFlightCount(), 0); // no zombie job left behind
     QCOMPARE(QDir(tmp.filePath(QStringLiteral("posters"))).entryList(QDir::Files).size(), 0);
+}
+
+// ── VaultArtworkResolver (Slice 3 part 1) ───────────────────────────────────────
+
+// Precedence, all four rungs in one row so each step's "beats" claim is measured
+// against the SAME row rather than four separately-seeded ones: rung 2 (local ref)
+// beats rung 3 (cached poster) beats rung 4 (cached thumb) beats rung 5 (typographic).
+// This is also the negative control's target: inverting the rung 3/4 check order
+// makes the second QCOMPARE below (poster-beats-thumb) go red.
+void tst_vault_artwork::ladder_precedence_local_then_poster_then_thumb_then_typographic()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    VaultThumbnailer thumbnailer(tmp.path());
+    VaultPosterFetcher fetcher(tmp.path());
+    VaultArtworkResolver resolver(&thumbnailer, &fetcher);
+
+    // Seed a real cached thumb (genuine ffmpeg grab against tiny.mp4).
+    const qint64 size = QFileInfo(tinyMp4()).size();
+    const qint64 mtimeMs = 1;
+    QSignalSpy thumbReady(&thumbnailer, &VaultThumbnailer::thumbReady);
+    QVERIFY(thumbnailer.requestThumb(tinyMp4(), size, mtimeMs, tinyMp4DurationSec()).isEmpty());
+    QVERIFY2(thumbReady.wait(15000), "seeding a cached thumb requires a real ffmpeg grab to finish");
+    const QString cachedThumb = thumbnailer.cachedThumbPath(tinyMp4(), size, mtimeMs);
+    QVERIFY(!cachedThumb.isEmpty());
+
+    // Seed a cached poster (file:// fixture, no live network).
+    const QString posterUrl = writeFixturePoster(QDir(tmp.path()));
+    QVERIFY2(!posterUrl.isEmpty(), "failed to stage the fixture poster file");
+    const QString identityId = QStringLiteral("imdb:tt0111161");
+    QSignalSpy posterReady(&fetcher, &VaultPosterFetcher::posterReady);
+    QVERIFY(fetcher.requestPoster(identityId, posterUrl).isEmpty());
+    QVERIFY2(posterReady.wait(10000), "seeding a cached poster requires the file:// fetch to finish");
+    const QString cachedPoster = fetcher.cachedPosterPath(identityId);
+    QVERIFY(!cachedPoster.isEmpty());
+
+    VaultArtworkResolver::RowFacts facts;
+    facts.rowKey = QStringLiteral("row-precedence");
+    facts.kind = QStringLiteral("video");
+    facts.path = tinyMp4();
+    facts.size = size;
+    facts.mtimeMs = mtimeMs;
+    facts.durationSec = tinyMp4DurationSec();
+    facts.identityId = identityId;
+    facts.posterUrl = posterUrl;
+    facts.localRef = QStringLiteral("file:///already/adopted/local-poster.jpg");
+
+    // Rung 2 beats rung 3 beats rung 4: the local ref wins even though a cached
+    // poster AND a cached thumb both also exist for this row.
+    QCOMPARE(resolver.resolve(facts), facts.localRef);
+
+    // Remove the local ref: the cached poster (rung 3) now wins over the cached
+    // thumb (rung 4).
+    facts.localRef.clear();
+    QCOMPARE(resolver.resolve(facts), cachedPoster);
+
+    // Remove the identity/poster: the cached thumb (rung 4) wins.
+    facts.identityId.clear();
+    facts.posterUrl.clear();
+    QCOMPARE(resolver.resolve(facts), cachedThumb);
+
+    // Remove the video facts too: nothing left to resolve — typographic fallback.
+    facts.kind.clear();
+    facts.path.clear();
+    QCOMPARE(resolver.resolve(facts), QString());
+}
+
+void tst_vault_artwork::async_video_row_kicks_thumb_fetch_and_signals_row_ready()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    VaultThumbnailer thumbnailer(tmp.path());
+    VaultPosterFetcher fetcher(tmp.path());
+    VaultArtworkResolver resolver(&thumbnailer, &fetcher);
+
+    const qint64 size = QFileInfo(tinyMp4()).size();
+    const qint64 mtimeMs = 2; // distinct key from the precedence test's seeded thumb
+
+    VaultArtworkResolver::RowFacts facts;
+    facts.rowKey = QStringLiteral("row-async");
+    facts.kind = QStringLiteral("video");
+    facts.path = tinyMp4();
+    facts.size = size;
+    facts.mtimeMs = mtimeMs;
+    facts.durationSec = tinyMp4DurationSec();
+
+    QCOMPARE(thumbnailer.cachedThumbPath(tinyMp4(), size, mtimeMs), QString()); // baseline: no cache yet
+
+    QSignalSpy resolved(&resolver, &VaultArtworkResolver::artResolved);
+    QCOMPARE(resolver.resolve(facts), QString()); // no cached art yet: "" now, but a grab was kicked
+
+    QVERIFY2(resolved.wait(15000), "artResolved must fire once the kicked thumb grab completes");
+    QCOMPARE(resolved.count(), 1);
+    QCOMPARE(resolved.at(0).at(0).toString(), facts.rowKey);
+
+    // A second resolve for the same row now returns the freshly cached thumb.
+    const QString second = resolver.resolve(facts);
+    QVERIFY(!second.isEmpty());
+    QCOMPARE(second, thumbnailer.cachedThumbPath(tinyMp4(), size, mtimeMs));
+}
+
+void tst_vault_artwork::container_row_without_video_or_cached_poster_resolves_to_typographic()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    VaultThumbnailer thumbnailer(tmp.path());
+    VaultPosterFetcher fetcher(tmp.path());
+    VaultArtworkResolver resolver(&thumbnailer, &fetcher);
+
+    // A Folder/Show/Season node has no own video and (here) no adopted identity yet
+    // either — never a spurious ref, and never a fetch kicked for a row with nothing
+    // to fetch.
+    VaultArtworkResolver::RowFacts facts;
+    facts.rowKey = QStringLiteral("row-folder");
+    facts.kind = QStringLiteral("folder");
+
+    QSignalSpy resolved(&resolver, &VaultArtworkResolver::artResolved);
+    QCOMPARE(resolver.resolve(facts), QString());
+    QVERIFY2(!resolved.wait(2000), "a container row must never spuriously resolve or kick a fetch");
+    QCOMPARE(thumbnailer.inFlightCount(), 0);
+    QCOMPARE(fetcher.inFlightCount(), 0);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_artwork)

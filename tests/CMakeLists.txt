@@ -530,6 +530,8 @@ add_executable(tst_vault_artwork
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultCacheKey.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
