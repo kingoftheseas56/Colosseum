@@ -588,7 +588,7 @@ QString browseNodeTypeName(BrowseNodeType type)
     return QStringLiteral("folder");
 }
 
-static bool isExtrasDirName(const QString& name)
+bool isExtrasDirName(const QString& name)
 {
     const QString n = name.trimmed().toLower();
     return n == QLatin1String("extras") || n == QLatin1String("featurettes");

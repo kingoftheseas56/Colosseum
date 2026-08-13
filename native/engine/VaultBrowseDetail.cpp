@@ -73,6 +73,21 @@ QString whereTextFor(const VaultIndex::FileRow& row)
     return rootName + QStringLiteral(" / ") + folderName;
 }
 
+// VaultScanner's grouping (groupByFirstLevelSubdir) puts EVERY video nested under a film's
+// folder — including its Extras/Featurettes files — in the SAME group/subtree; the browse
+// projection folds those out at the STRUCTURAL level (planBrowseLevel never visits them), but
+// this module reads the same rows the grid does, so it must apply the identical fold itself, or
+// a trailer sharing the film's adopted identity would miscount as a second "copy" (found live:
+// the Spider-Man fixture's Extras/Trailer.mp4 + Featurettes/Making-of.mp4 both landed in the
+// SAME group as the film and, once identified, in the SAME rowsForIdentity() set).
+bool rowIsExtra(const VaultIndex::FileRow& row)
+{
+    if (row.subfolder.isEmpty())
+        return false;
+    const QString top = row.subfolder.split(QLatin1Char('/')).first();
+    return VaultKit::isExtrasDirName(top);
+}
+
 QVariantMap copyEntry(const VaultIndex::FileRow& row)
 {
     QVariantMap m;
@@ -101,13 +116,23 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     if (groupRows.isEmpty())
         return out; // a stale key (rescanned/removed since the grid rendered it)
 
-    const VaultIndex::FileRow& primary = groupRows.first();
+    // The group's PRIMARY file(s) — never an Extras/Featurettes row (see rowIsExtra above).
+    QList<VaultIndex::FileRow> primaryInGroup;
+    for (const VaultIndex::FileRow& r : groupRows)
+        if (!rowIsExtra(r))
+            primaryInGroup.append(r);
+    const VaultIndex::FileRow& primary =
+        !primaryInGroup.isEmpty() ? primaryInGroup.first() : groupRows.first();
     const bool identified = !primary.identityId.isEmpty() && !primary.identitySuppressed;
 
-    QList<VaultIndex::FileRow> copyRows = identified
+    const QList<VaultIndex::FileRow> rawCopyRows = identified
         ? index->rowsForIdentity(primary.identityId) : groupRows;
+    QList<VaultIndex::FileRow> copyRows;
+    for (const VaultIndex::FileRow& r : rawCopyRows)
+        if (!rowIsExtra(r))
+            copyRows.append(r);
     if (copyRows.isEmpty())
-        copyRows = groupRows; // defensive: an identity query should never come back empty here
+        copyRows = !primaryInGroup.isEmpty() ? primaryInGroup : groupRows; // defensive fallback
 
     out.insert(QStringLiteral("found"), true);
     out.insert(QStringLiteral("key"), key);

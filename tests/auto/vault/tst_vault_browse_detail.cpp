@@ -23,6 +23,7 @@ private slots:
     void extrasAreListedOnTheSheetNeverAsAGridNode();
     void twoRootSameIdentityYieldsTwoCopiesOneSheet();
     void staleKeyReturnsFoundFalse();
+    void groupedExtrasRowsNeverCountAsCopies();
 
 private:
     static VaultIndex::FileRow fileRow(const QString& id, const QString& rootPath,
@@ -186,6 +187,59 @@ void VaultBrowseDetailTest::staleKeyReturnsFoundFalse()
     const QVariantMap detail =
         VaultBrowseDetail::detailFor(&index, QStringLiteral("D:/never-published"));
     QVERIFY(!detail.value(QStringLiteral("found")).toBool());
+}
+
+// Real-shape regression (found live, Lanista replay against the browse-face-smoke fixture):
+// VaultScanner::groupByFirstLevelSubdir groups EVERY video nested under a film's folder —
+// including its Extras/Featurettes files — into the SAME group/subtree (the scanner predates
+// the browse-collapse planner and has no Extras-folding of its own). Once the main file is
+// identified, a naive read of the whole group (or a naive rowsForIdentity() join) would count
+// its own trailer/making-of as second and third "copies". This is the negative-control-adjacent
+// case that proves the fold: 3 rows share one groupKey, only 1 (subfolder == "") is a copy.
+void VaultBrowseDetailTest::groupedExtrasRowsNeverCountAsCopies()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    const QString root = QStringLiteral("D:/hemanth's folder");
+    const QString subtree = root + QStringLiteral("/Spider-Man No Way Home (2021)");
+
+    VaultIndex::FileRow main = fileRow(QStringLiteral("vault:main"), root, subtree,
+        subtree + QStringLiteral("/Spider-Man.No.Way.Home.2021.mp4"),
+        QStringLiteral("Spider-Man No Way Home"));
+    main.identityId = QStringLiteral("imdb:tt10872600");
+    main.identityTitle = QStringLiteral("Spider-Man: No Way Home");
+    main.identityState = QStringLiteral("adopted");
+    // subfolder stays "" — VaultScanner's own convention for a file directly in the subtree.
+
+    VaultIndex::FileRow trailer = fileRow(QStringLiteral("vault:trailer"), root, subtree,
+        subtree + QStringLiteral("/Extras/Trailer.mp4"), QStringLiteral("Spider-Man No Way Home"));
+    trailer.subfolder = QStringLiteral("Extras");
+    // The real bug: VaultIdentifier can adopt the SAME identity for the extra's own row too
+    // (it shares the group's title). Seeded here to prove the fold holds even then.
+    trailer.identityId = main.identityId;
+    trailer.identityTitle = main.identityTitle;
+    trailer.identityState = QStringLiteral("adopted");
+
+    VaultIndex::FileRow featurette = fileRow(QStringLiteral("vault:making-of"), root, subtree,
+        subtree + QStringLiteral("/Featurettes/Making Of.mp4"),
+        QStringLiteral("Spider-Man No Way Home"));
+    featurette.subfolder = QStringLiteral("Featurettes");
+    featurette.identityId = main.identityId;
+    featurette.identityTitle = main.identityTitle;
+    featurette.identityState = QStringLiteral("adopted");
+
+    QVERIFY(index.publish({main, trailer, featurette}));
+
+    const QVariantMap detail = VaultBrowseDetail::detailFor(&index, subtree);
+    QVERIFY(detail.value(QStringLiteral("found")).toBool());
+    QCOMPARE(detail.value(QStringLiteral("copiesHeld")).toInt(), 1);
+    const QVariantList copies = detail.value(QStringLiteral("copies")).toList();
+    QCOMPARE(copies.size(), 1);
+    QCOMPARE(copies.first().toMap().value(QStringLiteral("path")).toString(), main.path);
+    QCOMPARE(detail.value(QStringLiteral("playPath")).toString(), main.path);
 }
 
 QTEST_MAIN(VaultBrowseDetailTest)

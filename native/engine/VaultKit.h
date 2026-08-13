@@ -172,6 +172,14 @@ QString showRootForEpisodePath(const QString& filePath);
 enum class BrowseNodeType { Folder, Show, Season, Film, Episode, Clip };
 QString browseNodeTypeName(BrowseNodeType type);
 
+// True for a folded-extras subdirectory name ("Extras"/"Featurettes") — the same convention
+// planBrowseLevel folds out of the grid. Exposed (not file-local) because VaultBrowseDetail
+// (Slice 7) needs the identical test to separate a group's PRIMARY file from its extras: the
+// scanner's own grouping (VaultScanner::groupByFirstLevelSubdir) puts every video nested under
+// a film's folder — including its Extras/Featurettes files — in the SAME group/subtree, so a
+// naive "all rows in this group are copies" reading would miscount a trailer as a second copy.
+bool isExtrasDirName(const QString& name);
+
 struct BrowseNode {
     // Stable identity: a real filesystem path for folder/show(nested)/season/film/episode/clip
     // nodes, or a synthesized "<parentPath>::show::<normalizedBaseTitle>" sentinel (the
