@@ -48,7 +48,20 @@ QQuickWindow* loadWindowRoot(QQmlApplicationEngine& engine, const QString& objec
         "import QtQuick\nimport QtQuick.Window\nWindow {\n    objectName: \"")
         + objectName.toUtf8() + QByteArrayLiteral("\"\n    visible: true\n"
         "    width: 200\n    height: 200\n}\n");
-    engine.loadData(qml, QUrl(QStringLiteral("inline:///windowSetStateRoot%1.qml").arg(++counter)));
+    const int before = engine.rootObjects().size();
+    QObject::connect(&engine, &QQmlApplicationEngine::warnings, &engine,
+                      [](const QList<QQmlError>& warnings) {
+                          for (const QQmlError& e : warnings)
+                              qWarning() << "QML warning:" << e.toString();
+                      });
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &engine,
+                      [](const QUrl& url) { qWarning() << "QML objectCreationFailed:" << url; });
+    ++counter;
+    engine.loadData(qml, QUrl());
+    for (int i = 0; i < 10 && engine.rootObjects().size() == before; ++i)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (engine.rootObjects().size() == before)
+        qWarning() << "loadWindowRoot: no new root object after loadData(); qml=" << qml;
     return qobject_cast<QQuickWindow*>(engine.rootObjects().isEmpty()
                                             ? nullptr : engine.rootObjects().last());
 }
@@ -280,6 +293,12 @@ int main(int argc, char** argv)
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM_PLUGIN_PATH"))
         qputenv("QT_QPA_PLATFORM_PLUGIN_PATH", WINDOW_SET_STATE_QT_PLATFORMS_DIR);
 #endif
+    // NEVER the default pipe name: LanistaServer::pipeName() falls back to
+    // "ColosseumLanista" — the SAME pipe the daily app's always-on bridge binds
+    // (LanistaServer.h's own header note) — when COLOSSEUM_LANISTA_PIPE is unset.
+    // This MUST be set before the first LanistaServer is constructed, in every
+    // test case, or this TU would contend for the daily app's own pipe name.
+    qputenv("COLOSSEUM_LANISTA_PIPE", kPipe);
     QGuiApplication app(argc, argv);
     tst_window_set_state tc;
     return QTest::qExec(&tc, argc, argv);
