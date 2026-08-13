@@ -48,7 +48,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | Command | Gate | What it does | Honest limits |
 |---|---|---|---|
 | `ping` | Read | schema, pid, pipe, gate states, sorted command list | authoritative capability probe — trust this over any doc, including this one |
-| `get-state` | Read | root windows (title, geometry, visible, active) + artifact runDir + **resolved `appDataRoot`/`cacheRoot`** (the isolation-proof seam, added 2026-08-06) | **root windows only** |
+| `get-state` | Read | root windows (title, geometry, visible, active, **`state`** — added J1-Tray-Bridge, 2026-08-14) + artifact runDir + **resolved `appDataRoot`/`cacheRoot`** (the isolation-proof seam, added 2026-08-06) | **root windows only** |
 | `qml-get` | Read | read named QML properties off an item (by objectName or handle) | property equality only, values as QVariant→JSON |
 | `ui-query` | Read | one item's geometry + the full structural vocabulary (handle, parent handle/name, childCount, z, enabled, opacity, localRect, sceneRect, **clipChain**) — L1-Bridge, 2026-08-13 | legacy fields unchanged; `clippedByWindow` still root-window-only, but `clipChain` now answers real ancestor clipping (see Structural dump below) |
 | `dump-ui` | Read | **every `QQuickItem`, named or not** (unnamed carry `objectName:""`) with the full structural vocabulary + paging — L1-Bridge, 2026-08-13 | legacy flat fields byte-identical; unnamed items now visible; bounded by root/maxDepth/maxItems + reply-byte budget |
@@ -57,6 +57,7 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `ui-keypress` | Drive | key to the focus item of the main window | first key of sequence only; printable-ASCII text |
 | `ui-text-input` | Drive | forceActiveFocus + per-char KeyPress | no KeyRelease pairs |
 | `ui-scroll` | Drive | wheel event, `dy` (default −120) | no scroll phases |
+| `window-set-state` | Drive | restore/minimize/hide the first root window via real `QWindow::showNormal()`/`showMinimized()`/`hide()` — J1-Tray-Bridge, 2026-08-14 | `state` required, exactly `normal`/`minimized`/`hidden`; **first root window only**; see "Window state" below |
 | `ui-wait-for` | Read | poll one property until **equal** to a value | 50 ms poll, default 3 s timeout, strict equality ONLY — no operators, no compound predicates |
 | `invoke-read` | Read | allowlisted C++ method calls | **8 methods**: six `TankobanVolumes` reads + `BiblioImageDiag.rowsForUrl(urlFragment)` / `BiblioImageDiag.recentRows(limitText)` (per-URL image-network rows: status, error, cacheHit, bytes, contentType, timing — newest first; added 2026-08-06). QString args (max 3); returns only list/map/bool |
 | `events-tail` | Read | last N lines of the JSONL event log | see "Event log truths" |
@@ -137,6 +138,63 @@ generic reflection/write registry — this is one named, typed call onto one nam
   `LanistaServer.cpp` compile clean (object-file build proven) and every command/CLI/facade path
   is exercised against the real `lanista_harness.exe` build above; the assembled-app replay is
   the one piece still owed once the app target can relink.
+
+### Window state (tray/minimize) — J1-Tray-Bridge (2026-08-14)
+
+One Drive-gated `window-set-state` command closes the gap the test ledger's slice-7
+three-layer regression named: the bridge could not reach the Windows taskbar, so nothing
+could restore a minimized/hidden session. `window-set-state` does not reach the taskbar
+either — it calls the first root `QWindow`'s own state-transition API directly
+(`showNormal()`/`showMinimized()`/`hide()`), the exact same calls a titlebar minimize or a
+taskbar/tray restore trigger in production. No FlaUI/pywinauto, no tray-icon clicker, no
+secondary-window enumeration, no OS-picker framework — in-process only, same law as every
+other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`).
+
+- **Request payload:** `state` (required, exactly `"normal"` / `"minimized"` / `"hidden"`;
+  anything else fails `BAD_STATE` **before touching the window at all** — no partial
+  mutation on a refused request, proven by a live case that reads the window's
+  `visibility()` back byte-identical after the refusal).
+- **Reply:** `objectName`, `state` (the observed post-call name — see below), `visible`,
+  `active` — the same vocabulary `get-state` now also carries per window.
+- **`get-state`'s new `state` field** is derived from the identical `QWindow::visibility()`
+  switch both call sites share (`windowStateName()`), so a `window-set-state` reply and a
+  later `get-state` read can never disagree about what to call the same observed state:
+  `"normal"` (Windowed), `"minimized"`, `"hidden"`, `"maximized"`, `"fullscreen"`, or
+  `"unknown"` (`AutomaticVisibility`, before a window has ever been shown).
+- **First root window only.** A second root window (if one exists) is never addressed —
+  proven live by a fixture with two root `Window`s: only the first's visibility changes.
+- **Ground-truthed live nuance (isolated runtime session, 2026-08-14): a `state=normal`
+  request does not always observe back as `"normal"`.** After minimize → normal, the
+  assembled app's own root window reported `get-state`'s `state` as `"fullscreen"`, not
+  `"normal"` — Colosseum's default window chrome (`WindowModeStore`/`WindowStatePolicy`,
+  `tests/window_shell_gui_harness.cpp`'s own "clean settings → fullscreen base" contract)
+  re-asserts its own borderless-fullscreen presentation once the window becomes visible
+  again; `showNormal()` still ran (the window is genuinely un-minimized, on-screen, and
+  responsive), but the app's OWN chrome logic then decides the actual resting `Visibility`.
+  A second normal call later in the same session (after hidden, not minimized) DID observe
+  `"normal"` — the two paths are not symmetric. **A consumer must not assert `state==
+  "normal"` after requesting it; assert `state != "minimized" && state != "hidden"`
+  instead**, exactly the shape J1-Tray's own journey needs to use. This is an app-chrome
+  fact, not a bridge defect — `window-set-state` itself is not touched by it.
+- **CLI/facade:** no dedicated CLI verb needed — the existing generic
+  `lanista window-set-state state=minimized [--pipe P] [--timeout T]` plain-command path
+  (`payloadFromArgs`'s k=v typing, already string-typed for a non-numeric/non-bool value)
+  handles it unchanged; nothing added to `native/tools/lanista.cpp`.
+- Qt Test cases (`tests/auto/lanista/tst_window_set_state.cpp`, registered
+  `colosseum.qttest.window_set_state`, own inline `Window{}` QML fixtures — no bridge
+  scene file needed): `read_gate_refuses_window_set_state`, `drive_gate_accepts_normal`,
+  `drive_gate_accepts_minimized`, `drive_gate_accepts_hidden`, `bad_state_is_rejected`,
+  `only_first_root_is_addressed` — all green 2026-08-14. Negative control performed both
+  directions live (reclassify as Read-gated → exactly the gate-refusal case reds, all 5
+  others stay green → restore → reconfirmed green).
+- **Isolated-session runtime replay against the assembled app** (unique pipe, tagged
+  AppData, windowed — offscreen cannot prove real taskbar-adjacent window-manager
+  transitions): minimized → `get-state` confirms `state:"minimized"` → normal → `get-state`
+  confirms visible/non-minimized (`"fullscreen"`, see nuance above) → hidden → `get-state`
+  confirms `visible:false, state:"hidden"` → normal → `get-state` confirms
+  `state:"normal", visible:true`. PID of the daily app (`22956`) verified running,
+  untouched, before and after. Evidence under
+  `artifacts/visibility-phase2/j1-tray-bridge/` (gitignored).
 
 ### Combined state + capture (grabs)
 
@@ -857,14 +915,16 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
    session ownership is in-adapter only (no cross-host handoff).
 8. **WebEngine + media observation** — read-only URL/DOM-readiness/console and
    source/buffering/seek probes behind the proper gates.
-9. **`window-set-state` (Drive-gated)** — minimize/restore/normal via the real QWindow
-   path, demanded by the three-layer minimize/restore regression (test ledger, slice 7):
-   the bridge cannot reach the Windows taskbar, so restoring a minimized session is
-   impossible today and that slice's runtime layer is Bridge blocked on exactly this.
-   **Named alternative shape (tooling map, 2026-08-06):** an outside-the-process
-   FlaUI/winapp prototype — it acts where in-process code can't (real taskbar, real
-   focus) and verifies what Windows shows the user. Decide in-process vs. outside when
-   the demand's customer arrives; see `docs/colosseum-verification-tooling-map.md`.
+9. ~~**`window-set-state` (Drive-gated)**~~ — **DELIVERED, Slice J1-Tray-Bridge, 2026-08-14.**
+   See "Window state (tray/minimize)" under AVAILABLE NOW above: minimize/restore/hide via
+   the real `QWindow` state-transition API, first root window only. Closes the demand from
+   the three-layer minimize/restore regression (test ledger, slice 7) at the bridge layer —
+   in-process restore is now possible. **Still true, and deliberately unchanged:** this does
+   NOT reach the real Windows taskbar/tray icon or verify what Windows itself shows the
+   user — that remains the named alternative shape (an outside-the-process FlaUI/winapp
+   prototype, `docs/colosseum-verification-tooling-map.md`) or human-witnessed observation,
+   exactly as the next slice (J1-Tray, the assembled-app minimize-to-tray-and-back journey)
+   is scoped to use.
 
 ## UNAVAILABLE (nothing designed will change this soon — plan around it)
 
