@@ -640,6 +640,22 @@ TestCase {
     }
 
     // ── 15. Slice 9 — focus ring visible on keyboard focus, absent on hover/click ─────────────
+    //
+    // TRAP (caught by review, closing-gate slice): a GridView does not instantiate
+    // `highlightItem` until something is current (`currentIndex >= 0`). `init()` leaves
+    // `grid.currentIndex` at -1, and neither populating the grid nor a plain mouse click ever
+    // touches it (production sets currentIndex only from `onActiveFocusChanged`, on keyboard
+    // focus). So at the two points this test used to check, `grid.highlightItem` was null —
+    // `verify(!grid.highlightItem || !grid.highlightItem.visible)` short-circuited on the first
+    // clause and passed WITHOUT EVER READING `.visible`. Proven vacuous by mutation: setting the
+    // highlight's `visible: true` in production (breaking design §4.9's keyboard-only contract
+    // outright) still left all 196 cases green.
+    //
+    // Fix: give the GridView a current item WITHOUT granting keyboard focus (`currentIndex = 0`
+    // directly — GridView creates `highlightItem` off `currentIndex`, independent of
+    // `activeFocus`), so `highlightItem` genuinely EXISTS at the point its `visible` property is
+    // read. Every check below asserts existence first, then the property — a null can never
+    // stand in for "not visible" again.
     function test_focus_ring_visible_on_keyboard_focus_only() {
         testCase.levelData["/root"] = [
             { key: "/root/A", nodeType: "clip", displayTitle: "A", physicalFact: "local",
@@ -650,15 +666,20 @@ TestCase {
         testCase.selectRoot("/root", "hemanth's folder")
         wait(80)
 
+        // Force a current item to exist (without focus) so `highlightItem` is real, not null.
+        grid.currentIndex = 0
+        wait(40)
         compare(grid.activeFocus, false)
-        verify(!grid.highlightItem || !grid.highlightItem.visible)
+        verify(grid.highlightItem !== null)
+        compare(grid.highlightItem.visible, false)
 
         var firstArt = findChild(grid, "vaultBrowseCard_/root/A_art")
         verify(firstArt !== null)
         mouseClick(firstArt)
         wait(60)
         compare(grid.activeFocus, false)     // a mouse click never requests keyboard focus
-        verify(!grid.highlightItem || !grid.highlightItem.visible)
+        verify(grid.highlightItem !== null)
+        compare(grid.highlightItem.visible, false)
 
         testWindow.requestActivate()
         grid.forceActiveFocus()
