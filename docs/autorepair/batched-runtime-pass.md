@@ -101,3 +101,36 @@ outstanding until N0 lands.
 - **A candidate enhancement, not v0:** an outer repair↔verify retry loop (a Verifier REJECT currently
   maps to ESCALATE in the orchestrator, handing it to Hemanth rather than auto-retrying repair with the
   verifier's reasons). Decide at/after the founding e2e whether the retry composition earns its place.
+
+## Adversarial audit (2026-08-14) — hardening applied + open limits
+
+Two Sonnet adversaries (containment-escape, fraud-promotion) probed the v0 code. **Code fixes applied**
+(each with a regression test): guard-hook git-egress patterns hardened against `git.exe`/path/flags;
+Bash path-escape check extended to relative `..`/`cd`/`VAR=`/`--flag=` forms; `WebFetch`/`WebSearch`
+denied; forbidden-paths widened to `**/.gitattributes`, `**/.gitignore`, `**/.claude/**` (a nested
+`.gitattributes` could otherwise hide a repair's own diff from the PR reviewer — the design's backstop);
+the three fail-OPEN Verify gates (`reproduce`/`warning`/`unitTests`) given the bool-not-int guard so
+they fail closed; orchestrator resume validators (`_is_valid_verdict_file`/`_is_valid_repair_file`)
+strengthened to require the full shape + internal consistency (a thin/tampered `{"decision":"APPROVE"}`
+is no longer trusted on resume); `validate_patch_shape` now requires a non-empty production change;
+self-protection extended to cover `scripts/autorepair/**`.
+
+**Open items the batched runtime pass MUST handle (architectural, not quick fixes):**
+- **ctest bug-tests are inert as a repair proof.** A repair patch cannot register a NEW ctest target
+  (`tests/CMakeLists.txt` is forbidden-modify), so an added `tst_foo.cpp` creates no `ctest -R tst_foo`
+  target — `ctest -R <stem>` would match pre-existing tests or nothing. **Live bug tests (G6/A4) must
+  therefore be `lanista session run <scenario>` where the scenario is a file the patch ADDED under
+  `tests/lanista_scenarios/`**, not ctest — or the test-registration policy is reconsidered. Resolve
+  before the live repair stage.
+- **`main_drift_check` is blind to `.git/` internals and gitignored paths** (working-tree porcelain +
+  untracked only). Dormant today (no live stage calls it yet). When wiring the live drift check, also
+  snapshot `.git/HEAD`+refs+hooks and consider `--ignored`, or rely on containment-first (the guard hook
+  keeps the agent's cwd in the sandbox so it never targets MAIN's `.git/` in the first place).
+- **The A5 drive-by-fix gate checks aim, not substance** (cited-file ∩ patch-touched paths; a cosmetic
+  edit to the cited file satisfies it). The plan concedes this is the model Verifier's job, backstopped
+  by `reproduceNowGreen` (independently-authored ground truth). Consider making the GLM refutation a
+  veto (not `advisory`) if higher assurance is wanted before autonomy level C.
+- **Dossier completeness is presence-only** (a `"TBD"` section passes) — acceptable, since the dossier
+  IS the text Hemanth reads before approving.
+- **guard.py stays an honest heuristic for an ERRING agent** (ruling 7's stated threat model), not an
+  adversarial one; the human PR gate + the sandbox containment + drift tripwire are the real backstops.
