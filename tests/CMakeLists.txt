@@ -714,8 +714,20 @@ set_tests_properties(colosseum.vault_launch_router_harness PROPERTIES
 # lanista_harness, native/CMakeLists.txt), so this fixture needs the same three organs — and
 # Qt6::Network below (VaultPosterFetcher's QNetworkAccessManager), which this target did not
 # previously need.
+#
+# Ground-truthed live (2026-08-14): a clean build of this closure fails without MpvQt —
+# VaultThumbnailer.cpp calls MpvItem::findFfmpeg() (native/player/mpvitem.cpp), so the real
+# MpvItem TU and MpvQt::MpvQt must both be linked in, same shape as tst_window_set_state's
+# identical fix (aa8630e) and lanista_harness's identical fix (1778f71) for the same
+# VaultThumbnailer/MpvQt dependency — mpvitem.cpp + mpvproperties.h + http_header_fields.h,
+# MpvQt::MpvQt. No MpvItem is ever constructed by any case here — findFfmpeg() is a static PATH
+# lookup nothing in this suite calls — but the SYMBOL still has to resolve at link time.
 add_executable(tst_vault_forensics
     auto/vault/tst_vault_forensics.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.cpp"
@@ -762,9 +774,10 @@ add_executable(tst_vault_forensics
     "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
     "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
-target_include_directories(tst_vault_forensics PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_include_directories(tst_vault_forensics PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
 target_link_libraries(tst_vault_forensics PRIVATE
-    Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
+    Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test MpvQt::MpvQt)
 set_target_properties(tst_vault_forensics PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_forensics POST_BUILD
