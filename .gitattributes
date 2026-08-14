@@ -1,2 +1,7 @@
 agents/dataset-probes/*.json.gz filter=lfs diff=lfs merge=lfs -text
 tools/biblio_series.db filter=lfs diff=lfs merge=lfs -text
+
+# Signed update fixtures must stay byte-identical across clones - Ed25519 verifies the
+# exact bytes; core.autocrlf=true otherwise rewrites LF->CRLF on checkout and breaks it.
+tests/lanista_fixtures/**/manifest.json -text
+tests/lanista_fixtures/**/manifest.sig  -text
