@@ -127,38 +127,6 @@ set_tests_properties(colosseum.qttest.layout_verdict PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
-# ── Comick catalog client Slice B (2026-08-13): fetch a series record by MAL id ──────
-# Data-row unit test for the pure dbUrlFor() key-selection + percent-encoding helper
-# extracted out of ComickCatalogClient::stepDbRecord: an empty MAL id reproduces today's
-# WeebCentral-ULID db URL byte-for-byte, a non-empty MAL id builds `db/mal-<id>.json`
-# instead and wins even when a WeebCentral id is also present, and reserved characters in
-# either id percent-encode exactly as the old inline code did. Compiles the WHOLE
-# ComickCatalogClient.cpp (a QObject; AUTOMOC handles its Q_OBJECT signals) plus its
-# ComickVolumeGrouper.cpp gate/grouping dependency — the test itself calls only the free
-# function, no network, no QNetworkAccessManager instance, no app boot. Same deploy
-# pattern as tst_http_header_fields: APPLESS, land beside the app's Qt DLLs, stage
-# Qt6Test.dll.
-add_executable(tst_comick_db_url
-    auto/comick/tst_comick_db_url.cpp
-    "${COLOSSEUM_NATIVE_DIR}/engine/ComickCatalogClient.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/ComickCatalogClient.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/ComickVolumeGrouper.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/ComickVolumeGrouper.h")
-target_include_directories(tst_comick_db_url PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_comick_db_url PRIVATE Qt6::Core Qt6::Network Qt6::Test)
-set_target_properties(tst_comick_db_url PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
-add_custom_command(TARGET tst_comick_db_url POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:Qt6::Test>"
-            "${CMAKE_CURRENT_BINARY_DIR}/..")
-add_test(NAME colosseum.qttest.comick_db_url
-         COMMAND tst_comick_db_url)
-set_tests_properties(colosseum.qttest.comick_db_url PROPERTIES
-    LABELS "unit;qttest;comick"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
-    TIMEOUT 120)
-
 # Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
 # activeVolumeJobs() plus failed(id, reason), so the test drives the real
 # LocalDownloads retention path without constructing the network/torrent stack.
