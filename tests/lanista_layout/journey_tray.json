@@ -1,0 +1,11 @@
+{
+  "checkpoint": "journey_tray",
+  "comment": "Visibility Phase 2, Slice J1-Tray. Run against the isolated Biblio Library page (biblioTabBar's WorldTabBar pills, qml/WorldTabBar.qml, objectName '<tabPrefix>_<key>' with tabPrefix 'biblioTab') AFTER window-set-state restores the root from minimized/hidden back to visible. Proves the page is not just present in state (currentTab == 'library') but genuinely actionable, contained, and non-overlapping post-restore -- the same real geometry proof every other J1 journey uses via L2. '$rootWindow' is the synthetic whole-window viewport LayoutSnapshot builds from dump-ui's own rootWindow field.",
+  "rules": [
+    { "kind": "actionableNonzero", "name": "libraryTabActionable", "target": "biblioTab_library" },
+    { "kind": "actionableNonzero", "name": "discoverTabActionable", "target": "biblioTab_discover" },
+    { "kind": "actionableNonzero", "name": "exploreTabActionable", "target": "biblioTab_explore" },
+    { "kind": "contained", "name": "libraryTabWithinWindow", "target": "biblioTab_library", "viewport": "$rootWindow", "toleranceLogicalPx": 0 },
+    { "kind": "noPeerOverlap", "name": "biblioTabPillsDoNotOverlap", "peers": ["biblioTab_discover", "biblioTab_explore", "biblioTab_library"] }
+  ]
+}
