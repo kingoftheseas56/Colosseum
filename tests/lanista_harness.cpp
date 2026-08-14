@@ -207,8 +207,14 @@ static std::unique_ptr<VaultForensicsFixture> buildVaultForensicsFixture(int chi
         rows.append(r);
     }
     fx->index->publish(rows);
+    // cacheDir (browse-artwork execution plan, Slice 3 part 2): mirrors main.cpp's own choice
+    // of reusing the SAME dir vaultConfig/vaultIdentity/vaultIndex already sit under (vaultDir)
+    // rather than a second cache root. fx->tmp is this fixture's own QTemporaryDir, already used
+    // exclusively for index.sqlite/config/identity above -- reusing its path here is isolated
+    // (unique per fixture run, auto-cleaned on destruction) and needs no extra mkpath.
     fx->library = std::make_unique<VaultLibrary>(fx->index.get(), fx->scanner.get(),
-                                                  fx->config.get(), fx->identity.get());
+                                                  fx->config.get(), fx->identity.get(),
+                                                  fx->tmp.path());
     return fx;
 }
 

@@ -1272,12 +1272,23 @@ target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Netw
 # constructs VaultThumbnailer/VaultPosterFetcher/VaultArtworkResolver directly, so this harness
 # needs the same three organs it already needs VaultLibrary itself for — Qt6::Network below
 # was already linked (VaultForensics/VaultLibrary's own transitive needs), so no new link lib.
+#
+# Ground-truthed live (2026-08-14): a clean build of this closure fails without MpvQt —
+# VaultThumbnailer.cpp calls MpvItem::findFfmpeg() (native/player/mpvitem.cpp), so the real
+# MpvItem TU and MpvQt::MpvQt must both be linked in, same shape as tst_window_set_state
+# (tests/CMakeLists.txt) — mpvitem.cpp + mpvproperties.h + http_header_fields.h, MpvQt::MpvQt.
+# No MpvItem is ever constructed by any case here — findFfmpeg() is a static PATH lookup
+# nothing in this harness calls — but the SYMBOL still has to resolve at link time.
 add_executable(lanista_harness
     ../tests/lanista_harness.cpp
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
     devtools/LanistaEventLog.cpp
     devtools/LanistaEventLog.h
+    player/mpvitem.cpp
+    player/mpvitem.h
+    player/mpvproperties.h
+    player/http_header_fields.h
     engine/VaultForensics.cpp
     engine/VaultForensics.h
     engine/VaultLibrary.cpp
@@ -1325,7 +1336,8 @@ add_executable(lanista_harness
     reader/BookStores.cpp
     reader/BookStores.h
 )
-target_include_directories(lanista_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(lanista_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/player)
 # The windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and
 # shadows the Qt install's plugin dir, so an offscreen run cannot find qoffscreen
 # (documented trap: tests/window_shell_gui_harness.cpp). Bake the real platforms
@@ -1341,7 +1353,7 @@ target_compile_definitions(lanista_harness PRIVATE
     LANISTA_QT_PLATFORMS_DIR="${_lanista_qtprefix}/plugins/platforms"
     LANISTA_SCENE_DIR="${_lanista_tests_dir}")
 target_link_libraries(lanista_harness PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Sql Qt6::Concurrent)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Sql Qt6::Concurrent MpvQt::MpvQt)
 
 # ── lanista CLI (tankoctl's sibling) ───────────────────────────────────────
 add_executable(lanista
