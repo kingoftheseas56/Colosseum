@@ -232,8 +232,14 @@ def _bug_test_gate(gate_results: dict[str, Any]) -> dict[str, Any]:
 
 
 def _reproduce_gate(gate_results: dict[str, Any]) -> dict[str, Any]:
+    """F2 hardening (Guardian Loop audit, MEDIUM-HIGH): `exit_code == 0` alone is not
+    fail-closed - Python's `False == 0` is True, so a malformed `reproduceExitCode: false`
+    would otherwise PASS. Guarded with the same isinstance(x, int) and not
+    isinstance(x, bool) check _inventory_gate() already uses - a bool or any non-int here
+    fails this gate CLOSED, never open."""
     exit_code = gate_results.get("reproduceExitCode")
-    if exit_code == 0:
+    is_real_int = isinstance(exit_code, int) and not isinstance(exit_code, bool)
+    if is_real_int and exit_code == 0:
         return {"pass": True, "detail": "the original failing reproduce.ps1 now exits 0"}
     return {
         "pass": False,
@@ -242,13 +248,18 @@ def _reproduce_gate(gate_results: dict[str, Any]) -> dict[str, Any]:
 
 
 def _unit_tests_gate(gate_results: dict[str, Any]) -> dict[str, Any]:
+    """F2 hardening (Guardian Loop audit, MEDIUM-HIGH): `failed == 0` alone is not
+    fail-closed for the same reason as _reproduce_gate() above - `failed: false` would
+    otherwise silently satisfy it. Guarded identically: `failed` must be a real int (not
+    a bool) equal to 0."""
     unit = gate_results.get("unitTests")
     if not isinstance(unit, dict):
         return {"pass": False, "detail": f"no unitTests evidence supplied: {unit!r}"}
     failed = unit.get("failed")
     failed_names = unit.get("failedNames") or []
     total = unit.get("total", "?")
-    if failed == 0 and not failed_names:
+    failed_is_real_int = isinstance(failed, int) and not isinstance(failed, bool)
+    if failed_is_real_int and failed == 0 and not failed_names:
         return {"pass": True, "detail": f"ctest -L unit: {total}/{total} pass"}
     return {
         "pass": False,
@@ -257,10 +268,16 @@ def _unit_tests_gate(gate_results: dict[str, Any]) -> dict[str, Any]:
 
 
 def _warning_gate(gate_results: dict[str, Any]) -> dict[str, Any]:
+    """F2 hardening (Guardian Loop audit, MEDIUM-HIGH): `exitCode == 0` alone is not
+    fail-closed for the same reason as _reproduce_gate()/_unit_tests_gate() above -
+    `exitCode: false` would otherwise silently satisfy it. Guarded identically:
+    `exitCode` must be a real int (not a bool) equal to 0."""
     warnings = gate_results.get("warningGate")
     if not isinstance(warnings, dict):
         return {"pass": False, "detail": f"no warningGate evidence supplied: {warnings!r}"}
-    if warnings.get("verdict") == "WARNING_GATE_OK" and warnings.get("exitCode") == 0:
+    exit_code = warnings.get("exitCode")
+    exit_code_is_real_zero = isinstance(exit_code, int) and not isinstance(exit_code, bool) and exit_code == 0
+    if warnings.get("verdict") == "WARNING_GATE_OK" and exit_code_is_real_zero:
         return {"pass": True, "detail": "warning gate clean (WARNING_GATE_OK, exit 0)"}
     return {
         "pass": False,

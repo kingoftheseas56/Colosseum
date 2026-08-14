@@ -168,6 +168,26 @@ class PatchShapeTests(unittest.TestCase):
         with self.assertRaises(RepairContractError):
             validate_patch_shape({"testAdds": []}, max_patch_lines=400, patch_line_count=1)
 
+    def test_empty_production_rejects(self):
+        """F3 hardening (Guardian Loop audit, LOW, cheap): a repair that adds only a
+        test and changes no production code proves nothing was actually fixed - a real
+        repair must change production code, not only add tests."""
+        classification = _classification(production=[])
+        with self.assertRaises(RepairContractError) as ctx:
+            validate_patch_shape(classification, max_patch_lines=400, patch_line_count=10)
+        message = str(ctx.exception)
+        self.assertIn("F3", message)
+        self.assertIn("production", message.lower())
+
+    def test_nonempty_production_accepts(self):
+        """Negative control, direction 2: the same shape restored to a non-empty
+        production list accepts (paired with test_empty_production_rejects above)."""
+        with self.assertRaises(RepairContractError):
+            validate_patch_shape(_classification(production=[]), max_patch_lines=400, patch_line_count=10)
+        self.assertIsNone(
+            validate_patch_shape(_classification(), max_patch_lines=400, patch_line_count=42)
+        )
+
 
 # ══════════════════════════════════════════════════════════════════════════
 # validate_bugtest_command() - A4, template-constrained

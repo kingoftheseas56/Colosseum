@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -397,6 +398,131 @@ class GuardHookDecideTests(unittest.TestCase):
             sandbox_root=self.sandbox,
         )
         self.assertTrue(result["allow"])
+
+    # ── C1 hardening (Guardian Loop audit, CRITICAL): git.exe/path/flag bypass ──────
+    # The old `\bgit\s+fetch\b`-style patterns required the subcommand IMMEDIATELY
+    # after "git " - `git.exe fetch`, `git -C . fetch`, `git --no-pager push`, and a
+    # path-quoted git.exe all bypassed it outright. These prove the bypass is closed.
+
+    def test_git_exe_fetch_is_denied(self):
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": "git.exe fetch origin"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_git_dash_c_flag_before_fetch_is_denied(self):
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": "git -C . fetch"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_git_no_pager_flag_before_push_is_denied(self):
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": "git --no-pager push"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_path_quoted_git_exe_fetch_is_denied(self):
+        result = guard_mod.decide(
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": r'"C:\Program Files\Git\bin\git.exe" fetch origin'},
+            },
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_git_clone_is_denied(self):
+        """`clone` was never named by the old egress pattern set at all - added by C1."""
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": "git clone https://example.com/repo.git"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_git_exe_gc_is_denied(self):
+        """A1's git-hygiene rule gets the same C1 hardening as the egress verbs."""
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": "git.exe gc --aggressive"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_ordinary_git_status_is_still_allowed(self):
+        """Negative control, direction 2: an innocuous git invocation with no denied
+        subcommand anywhere in the segment must still be allowed - proving C1's
+        co-occurrence check does not over-deny every git call."""
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": "git status"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertTrue(result["allow"], result["reason"])
+
+    # ── C2 hardening (Guardian Loop audit, CRITICAL): relative/cd/VAR=/--flag= escapes ──
+
+    def test_cd_dotdot_escape_is_denied(self):
+        original_cwd = Path.cwd()
+        os.chdir(self.sandbox)
+        try:
+            result = guard_mod.decide(
+                {
+                    "tool_name": "Bash",
+                    "tool_input": {"command": r"cd ..\..\..\Users\x && type id_rsa"},
+                },
+                sandbox_root=self.sandbox,
+            )
+        finally:
+            os.chdir(original_cwd)
+        self.assertFalse(result["allow"])
+
+    def test_flag_equals_absolute_path_is_denied(self):
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": r"somecmd --output=C:\Windows\x"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_set_var_equals_absolute_path_is_denied(self):
+        result = guard_mod.decide(
+            {"tool_name": "Bash", "tool_input": {"command": r"set X=C:\Users\x\secret"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_in_sandbox_relative_read_with_cwd_pinned_is_still_allowed(self):
+        """Negative control, direction 2: a genuine in-sandbox relative read (cwd pinned
+        inside the sandbox, exactly as a real headless session's cwd is) must still be
+        allowed - proving C2's new checks do not over-deny an ordinary relative path."""
+        (self.sandbox / "notes.txt").write_text("hi\n", encoding="utf-8")
+        original_cwd = Path.cwd()
+        os.chdir(self.sandbox)
+        try:
+            result = guard_mod.decide(
+                {"tool_name": "Bash", "tool_input": {"command": r"type .\notes.txt"}},
+                sandbox_root=self.sandbox,
+            )
+        finally:
+            os.chdir(original_cwd)
+        self.assertTrue(result["allow"], result["reason"])
+
+    # ── C4 hardening (Guardian Loop audit, MEDIUM, defense-in-depth) ────────────────
+
+    def test_webfetch_is_denied(self):
+        result = guard_mod.decide(
+            {"tool_name": "WebFetch", "tool_input": {"url": "https://example.com"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
+
+    def test_websearch_is_denied(self):
+        result = guard_mod.decide(
+            {"tool_name": "WebSearch", "tool_input": {"query": "colosseum"}},
+            sandbox_root=self.sandbox,
+        )
+        self.assertFalse(result["allow"])
 
 
 # ══════════════════════════════════════════════════════════════════════════

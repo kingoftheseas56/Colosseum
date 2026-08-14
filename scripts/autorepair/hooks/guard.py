@@ -30,15 +30,26 @@ A2 enforcement (binding amendment; this module's whole job):
      sandbox root -> DENY. Junction/reparse escapes are caught because canonicalization
      resolves them BEFORE the containment check runs, never by pattern-matching raw text.
   3. EGRESS DENIAL (the no-network v0 ruling, mechanized) - any Bash/command tool call
-     whose command text names curl, wget, Invoke-WebRequest, `git fetch|push|pull`, pip,
-     or npm -> DENY, independent of path containment.
-  4. A1's git hygiene - `git gc`, `git repack`, `git prune` anywhere in a Bash command ->
-     DENY (a `--no-hardlinks` clone's pack could still be corrupted by these; A1: "no
-     shared object store, ever").
+     whose command text names curl, wget, Invoke-WebRequest, pip, or npm -> DENY,
+     independent of path containment. git's own egress verbs (`fetch`/`push`/`pull`/
+     `clone`) are covered by a same-segment git-invocation + denied-subcommand
+     co-occurrence check (C1 hardening, Guardian Loop audit) rather than a rigid
+     rigid "git followed immediately by the verb" pattern - `git.exe fetch`,
+     `git -C . fetch`, `git --no-pager push`, and a path-prefixed git.exe all deny too,
+     not just bare `git fetch`.
+     WebFetch/WebSearch tool calls are also denied outright (C4 hardening,
+     defense-in-depth), independent of any --allowedTools whitelist.
+  4. A1's git hygiene - a git invocation followed later in the same command segment by
+     `gc`/`repack`/`prune` -> DENY (a `--no-hardlinks` clone's pack could still be
+     corrupted by these; A1: "no shared object store, ever") - the same C1-hardened
+     co-occurrence check as rule 3's git verbs, not a rigid adjacency pattern.
   5. Absolute reads under %USERPROFILE% (outside the sandbox) -> DENY - mechanizes "no
      default acquisition sources" for shell-borne reads, since a `type`/`cat`/
      `Get-Content` of a home-directory file would otherwise dodge the file-tool
-     containment check in rule 2 entirely.
+     containment check in rule 2 entirely. Rule 2's own path-token extraction (C2
+     hardening) also now catches a relative `..`-escape (`cd ..\\..\\..\\Users\\x`), an
+     absolute path embedded after `=` (`VAR=C:\\...`, `--out=C:\\...`), and a `cd <target>`
+     - not just a whole-token absolute path.
   6. FAIL CLOSED - no sandbox root configured -> DENY every tool call, no exceptions.
 
 Stdlib only (house pattern). This module deliberately does NOT import
@@ -106,28 +117,54 @@ _FILE_PATH_TOOLS: dict[str, tuple[str, ...]] = {
 
 _COMMAND_TOOLS = {"Bash"}
 
+# C4 hardening (Guardian Loop audit, MEDIUM, defense-in-depth): WebFetch/WebSearch are
+# network-egress tools by definition - denied outright by THIS hook regardless of
+# whatever a deferred --allowedTools whitelist does or does not include, rather than
+# falling through to the "unrecognized tool -> out of scope -> allow" path every other
+# unlisted tool gets.
+_EGRESS_DENIED_TOOLS = {"WebFetch", "WebSearch"}
+
 # Rule 3: egress binaries/verbs - the no-network v0 ruling, mechanized. Word-boundary,
 # case-insensitive substring matching over the raw command text - a deliberate v0
 # heuristic (not a full shell parse), named honestly: ruling 7's own stated threat model
 # is "an erring agent, not an adversarial one," so catching the plain, unobfuscated verb
-# is the bar this slice clears.
+# is the bar this slice clears. The git-specific verbs (fetch/push/pull/clone) are NOT
+# matched here - C1 hardening (below) replaced the old rigid `git\s+<verb>` shape (which
+# `git.exe fetch`/`git -C . fetch`/`git --no-pager push`/a path-prefixed git.exe all
+# bypassed) with a same-segment git-invocation + denied-subcommand co-occurrence check.
 _EGRESS_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"(?<![\w.-])curl(?:\.exe)?(?![\w.-])", re.IGNORECASE),
     re.compile(r"(?<![\w.-])wget(?:\.exe)?(?![\w.-])", re.IGNORECASE),
     re.compile(r"(?<![\w.-])Invoke-WebRequest(?![\w.-])", re.IGNORECASE),
-    re.compile(r"\bgit\s+fetch\b", re.IGNORECASE),
-    re.compile(r"\bgit\s+push\b", re.IGNORECASE),
-    re.compile(r"\bgit\s+pull\b", re.IGNORECASE),
     re.compile(r"(?<![\w.-])pip3?(?:\.exe)?(?![\w.-])", re.IGNORECASE),
     re.compile(r"(?<![\w.-])npm(?:\.cmd)?(?![\w.-])", re.IGNORECASE),
 )
 
-# Rule 4 (A1): sandbox git hygiene - never gc/repack/prune a --no-hardlinks clone.
-_GIT_GC_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\bgit\s+gc\b", re.IGNORECASE),
-    re.compile(r"\bgit\s+repack\b", re.IGNORECASE),
-    re.compile(r"\bgit\s+prune\b", re.IGNORECASE),
-)
+# C1 hardening (Guardian Loop audit, CRITICAL): a "git invocation" token - `git` or
+# `git.exe`, optionally preceded by a path (`C:\...\git.exe`, `...\Git\bin\git.exe`) - is
+# any occurrence of the literal "git"/"git.exe" NOT immediately preceded by a word
+# character, dot, or hyphen (so "digit"/"legitimate" never match, but a leading path
+# separator, quote, whitespace, or start-of-string all count as a valid boundary - a
+# path-prefixed invocation is caught without needing to parse the whole path). Rule
+# 3/rule 4's old `\bgit\s+<verb>\b` shape required the verb to sit IMMEDIATELY after
+# "git " - `git.exe fetch`, `git -C . fetch`, and `git --no-pager push` all bypassed it
+# outright. The new co-occurrence check (_segment_has_git_subcommand(), used by decide()
+# below) only requires the denied subcommand to appear SOMEWHERE LATER in the same
+# command segment, never immediately adjacent.
+_GIT_INVOCATION_RE = re.compile(r"(?<![\w.-])git(?:\.exe)?(?![\w.-])", re.IGNORECASE)
+
+# The denied subcommand tokens, split by which rule they enforce - egress (rule 3: no
+# fetch/push/pull/clone, ever) vs A1 sandbox git-hygiene (rule 4: no gc/repack/prune of a
+# --no-hardlinks clone, ever). `clone` is newly added to the egress set (C1) - the old
+# pattern-based check never named it at all.
+_EGRESS_GIT_SUBCOMMANDS: tuple[str, ...] = ("fetch", "push", "pull", "clone")
+_GIT_GC_SUBCOMMANDS: tuple[str, ...] = ("gc", "repack", "prune")
+
+# Best-effort split of a Bash command string into shell segments (&&, ||, |, ;, newline) -
+# scopes the git-invocation + denied-subcommand co-occurrence check to the SAME logical
+# command, never across an unrelated `&&`-chained sibling command. A deliberate v0
+# heuristic (not a full shell parse), matching this module's own stated threat model.
+_COMMAND_SEGMENT_SPLIT_RE = re.compile(r"&&|\|\||\||;|\n")
 
 # Best-effort absolute-path token shapes pulled out of a Bash command string for the
 # containment (rule 2) and %USERPROFILE% (rule 5) checks: a Windows drive path
@@ -135,6 +172,13 @@ _GIT_GC_PATTERNS: tuple[re.Pattern[str], ...] = (
 # a `~`-relative path.
 _WINDOWS_ABS_RE = re.compile(r"^[A-Za-z]:[\\/][^\s\"']*$")
 _UNC_OR_POSIX_ABS_RE = re.compile(r"^(?:\\\\[^\s\"']+|/[^\s\"']+|~[\\/][^\s\"']*)$")
+
+# C2 hardening (Guardian Loop audit, CRITICAL): a token containing a literal `..` PATH
+# SEGMENT (bounded by a path separator or the token's own start/end) - `..\..\..\Users\x`,
+# `../../etc/passwd` - is a relative-escape attempt the old absolute-path-only regexes
+# above never caught at all; canonicalize()+containment (rule 2) is what actually decides
+# whether it escapes, this just flags the token as worth checking.
+_DOTDOT_SEGMENT_RE = re.compile(r"(?:^|[\\/])\.\.(?:[\\/]|$)")
 
 
 def _deny(reason: str) -> dict[str, Any]:
@@ -185,28 +229,97 @@ def _is_contained(canon_target: str, canon_root: str) -> bool:
     return canon_target.startswith(canon_root.rstrip(sep) + sep)
 
 
+def _strip_quotes(text: str) -> str:
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
+        return text[1:-1]
+    return text
+
+
+def _looks_path_like(bare: str) -> bool:
+    """True if `bare` is one of the absolute-path shapes this hook already recognized
+    (Windows drive, UNC, POSIX-absolute, `~`-relative), OR (C2 hardening) contains a
+    literal `..` path segment, OR names %USERPROFILE%. The union of every shape
+    _extract_path_tokens() below flags as worth canonicalizing and containment-checking."""
+    return bool(
+        _WINDOWS_ABS_RE.match(bare)
+        or _UNC_OR_POSIX_ABS_RE.match(bare)
+        or _DOTDOT_SEGMENT_RE.search(bare)
+        or "%USERPROFILE%" in bare.upper()
+    )
+
+
 def _extract_path_tokens(command: str) -> list[str]:
     """Best-effort: pull path-LIKE tokens out of a Bash command string for the
     containment (rule 2) and %USERPROFILE% (rule 5) checks. Deliberately NOT a full
     shell parse - no variable expansion beyond what canonicalize() does per-token, no
     glob expansion, no quoting-edge-case handling beyond simple tokenizing. Named
     honestly as a v0 heuristic against an erring agent (ruling 7's own threat model), not
-    a guarantee against a determined adversary."""
+    a guarantee against a determined adversary.
+
+    C2 hardening (Guardian Loop audit, CRITICAL) added three more shapes the original
+    whole-token-absolute-path check missed entirely:
+      (a) a token containing a literal `..` path segment (relative escape - a Windows
+          absolute-path regex never matches `..\\..\\..\\Users\\x` at all).
+      (b) an absolute/`..`-escaping path embedded after `=` (`VAR=C:\\...`,
+          `--out=C:\\...`) - the VALUE half is extracted and checked, never the whole
+          "name=value" token (canonicalize() must never be asked to resolve the `=`
+          itself as if it were a path separator).
+      (c) a `cd <target>` target - ALWAYS extracted (even a plain relative one), so a
+          `cd` that walks outside the sandbox is caught by the same canonicalize()+
+          containment check every other path-bearing token already goes through; a
+          legitimate in-sandbox relative `cd` still canonicalizes inside the sandbox and
+          is therefore still allowed - this extraction step only decides what gets
+          CHECKED, never the allow/deny verdict itself.
+    """
     try:
         tokens = shlex.split(command, posix=False)
     except ValueError:
         tokens = command.split()
 
     found: list[str] = []
+    prev_bare = ""
     for tok in tokens:
-        bare = tok
-        if len(bare) >= 2 and bare[0] == bare[-1] and bare[0] in ("'", '"'):
-            bare = bare[1:-1]
-        if _WINDOWS_ABS_RE.match(bare) or _UNC_OR_POSIX_ABS_RE.match(bare):
+        bare = _strip_quotes(tok)
+
+        if "=" in bare:
+            _, _, value = bare.partition("=")
+            value = _strip_quotes(value)
+            if value and _looks_path_like(value):
+                found.append(value)
+
+        if _looks_path_like(bare):
             found.append(bare)
-        elif "%USERPROFILE%" in bare.upper():
+
+        if prev_bare.lower() == "cd" and bare and not bare.startswith("-"):
             found.append(bare)
+
+        prev_bare = bare
     return found
+
+
+def _command_segments(command: str) -> list[str]:
+    """C1 hardening: best-effort split of a Bash command string into shell segments
+    (&&, ||, |, ;, newline) - see _COMMAND_SEGMENT_SPLIT_RE's own comment for why."""
+    return _COMMAND_SEGMENT_SPLIT_RE.split(command)
+
+
+def _segment_has_git_subcommand(segment: str, subcommands: tuple[str, ...]) -> bool:
+    """C1 hardening (Guardian Loop audit, CRITICAL): True if `segment` contains a git
+    invocation (_GIT_INVOCATION_RE - `git`/`git.exe`, optionally path-prefixed) followed
+    LATER in the SAME segment by one of `subcommands` as its own token - never requiring
+    the old `git\\s+<subcommand>` immediate-adjacency shape, which `git.exe fetch`,
+    `git -C . fetch`, `git --no-pager push`, and a path-quoted git.exe all bypassed
+    outright. Conservative over-denial is acceptable here (this slice's own instructions):
+    any git invocation anywhere in the segment, followed by the subcommand token anywhere
+    after it, denies - never trying to prove the subcommand is THIS git's own argument."""
+    git_match = _GIT_INVOCATION_RE.search(segment)
+    if git_match is None:
+        return False
+    rest = segment[git_match.end():]
+    return any(
+        re.search(rf"(?<![\w.-]){re.escape(subcommand)}(?![\w.-])", rest, re.IGNORECASE)
+        for subcommand in subcommands
+    )
 
 
 # ── decide(): the pure PreToolUse decision ──────────────────────────────────
@@ -233,22 +346,36 @@ def decide(tool_call: dict[str, Any], *, sandbox_root: str | Path | None) -> dic
             "failing closed"
         )
 
+    if tool_name in _EGRESS_DENIED_TOOLS:
+        return _deny(
+            f"denied: {tool_name} is a network-egress tool (C4 hardening, defense in "
+            "depth) - denied by this hook regardless of any --allowedTools whitelist"
+        )
+
     if tool_name in _COMMAND_TOOLS:
         command = tool_input.get("command")
         if not isinstance(command, str) or not command.strip():
             return _deny(f"{tool_name}: no command text to evaluate - failing closed")
 
-        for pattern in _GIT_GC_PATTERNS:
-            if pattern.search(command):
+        for segment in _command_segments(command):
+            if _segment_has_git_subcommand(segment, _GIT_GC_SUBCOMMANDS):
                 return _deny(
-                    f"denied: sandbox git-hygiene violation (A1, no shared object store "
-                    f"ever) - command matches {pattern.pattern!r}"
+                    "denied: sandbox git-hygiene violation (A1, no shared object store "
+                    "ever) - a git invocation is followed by a gc/repack/prune "
+                    f"subcommand in the same command segment: {segment.strip()!r}"
                 )
         for pattern in _EGRESS_PATTERNS:
             if pattern.search(command):
                 return _deny(
                     f"denied: egress binary/verb in command (A2 no-network v0 ruling, "
                     f"mechanized) - command matches {pattern.pattern!r}"
+                )
+        for segment in _command_segments(command):
+            if _segment_has_git_subcommand(segment, _EGRESS_GIT_SUBCOMMANDS):
+                return _deny(
+                    "denied: egress git verb in command (A2 no-network v0 ruling, C1 "
+                    "hardening) - a git invocation is followed by a fetch/push/pull/"
+                    f"clone subcommand in the same command segment: {segment.strip()!r}"
                 )
 
         for token in _extract_path_tokens(command):

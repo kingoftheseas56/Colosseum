@@ -323,6 +323,80 @@ class StageFileValidityTests(unittest.TestCase):
         (self.dir / "report.md").write_text("# something\n", encoding="utf-8")
         self.assertTrue(mod.is_stage_complete(self.dir, "promotion"))
 
+    # ── F1 hardening (Guardian Loop audit, CRITICAL) ────────────────────────
+    # The old validators only checked `decision in (REJECT, APPROVE)` and `accepted is
+    # bool` - a thin/tampered stage file was then TRUSTED on resume and the loop walked
+    # straight to Promotion without the gates ever being re-derived. These prove the
+    # bypass is closed: a shallow file no longer satisfies is_stage_complete().
+
+    def test_bare_decision_only_verdict_is_invalid(self):
+        self.assertFalse(mod._is_valid_verdict_file({"decision": "APPROVE"}))
+
+    def test_bare_decision_only_verdict_stage_reruns_on_resume(self):
+        """The exact resume-facing assertion the audit named: a bare {"decision":
+        "APPROVE"} verdict.json must make is_stage_complete(..., "verify") False, so the
+        verify stage RE-RUNS on resume rather than being trusted."""
+        _write_incident(self.dir)
+        _write_json(self.dir / "verdict.json", {"decision": "APPROVE"})
+        self.assertFalse(mod.is_stage_complete(self.dir, "verify"))
+
+    def test_inconsistent_approve_gates_mismatch_verdict_is_invalid(self):
+        """decision=APPROVE but approve=True/gates.overall=FAIL disagree - a tampered or
+        hand-edited file must never be trusted just because `decision` alone parses."""
+        obj = {
+            "decision": "APPROVE", "approve": True,
+            "gates": {"overall": "FAIL"}, "reasons": [],
+        }
+        self.assertFalse(mod._is_valid_verdict_file(obj))
+
+    def test_decision_approve_but_approve_false_is_invalid(self):
+        obj = {
+            "decision": "APPROVE", "approve": False,
+            "gates": {"overall": "PASS"}, "reasons": ["x"],
+        }
+        self.assertFalse(mod._is_valid_verdict_file(obj))
+
+    def test_full_consistent_approve_verdict_is_valid(self):
+        self.assertTrue(mod._is_valid_verdict_file(_verdict_dict(decision="APPROVE")))
+
+    def test_full_consistent_reject_verdict_is_valid(self):
+        self.assertTrue(mod._is_valid_verdict_file(_verdict_dict(decision="REJECT")))
+
+    def test_verdict_missing_gates_key_is_invalid(self):
+        obj = _verdict_dict(decision="APPROVE")
+        del obj["gates"]
+        self.assertFalse(mod._is_valid_verdict_file(obj))
+
+    def test_verdict_reasons_not_a_list_is_invalid(self):
+        obj = _verdict_dict(decision="APPROVE")
+        obj["reasons"] = "clean"
+        self.assertFalse(mod._is_valid_verdict_file(obj))
+
+    def test_bare_accepted_only_repair_is_invalid(self):
+        """A thin {"accepted": true} with none of the accepted-only evidence fields
+        (classification/bugtest/redExitCodes/greenExitCodes) must be invalid - the exact
+        shallow-trust bypass the audit named."""
+        self.assertFalse(mod._is_valid_repair_file({"accepted": True}))
+
+    def test_bare_accepted_only_repair_stage_reruns_on_resume(self):
+        _write_incident(self.dir)
+        _write_json(self.dir / "repair.json", {"accepted": True})
+        self.assertFalse(mod.is_stage_complete(self.dir, "repair"))
+
+    def test_full_accepted_repair_is_valid(self):
+        self.assertTrue(mod._is_valid_repair_file(_repair_dict(accepted=True)))
+
+    def test_rejected_repair_needs_only_accepted_bool(self):
+        """A rejected/escalated repair (accepted=False) carries no accepted-only
+        evidence fields by design - the stricter shape check must apply ONLY to
+        accepted=True, never demand evidence fields a rejection never produces."""
+        self.assertTrue(mod._is_valid_repair_file(_repair_dict(accepted=False)))
+
+    def test_accepted_repair_missing_one_evidence_field_is_invalid(self):
+        obj = _repair_dict(accepted=True)
+        del obj["redExitCodes"]
+        self.assertFalse(mod._is_valid_repair_file(obj))
+
     def test_every_stage_present_first_incomplete_is_none(self):
         _write_incident(self.dir)
         _write_json(self.dir / "triage.json", _triage_dict())

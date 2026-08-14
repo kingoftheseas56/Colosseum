@@ -266,6 +266,58 @@ class GateAggregationTests(unittest.TestCase):
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# F2 hardening (Guardian Loop audit, MEDIUM-HIGH): bool-as-int fails these gates OPEN
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class BoolNotIntGateGuardTests(unittest.TestCase):
+    """_reproduce_gate/_warning_gate/_unit_tests_gate used `== 0` comparisons where
+    Python's `False == 0` is True, so a malformed `false` PASSED - contradicting
+    aggregate_gates()'s own fail-closed docstring. Guarded with the same isinstance(x,
+    int) and not isinstance(x, bool) check _inventory_gate() already used."""
+
+    def test_reproduce_gate_bool_exit_code_fails_closed(self):
+        result = verify_mod._reproduce_gate({"reproduceExitCode": False})
+        self.assertFalse(result["pass"])
+
+    def test_warning_gate_bool_exit_code_fails_closed(self):
+        result = verify_mod._warning_gate(
+            {"warningGate": {"verdict": "WARNING_GATE_OK", "exitCode": False}}
+        )
+        self.assertFalse(result["pass"])
+
+    def test_unit_tests_gate_bool_failed_count_fails_closed(self):
+        result = verify_mod._unit_tests_gate(
+            {"unitTests": {"failed": False, "failedNames": [], "total": "?"}}
+        )
+        self.assertFalse(result["pass"])
+
+    def test_genuine_int_zero_still_passes_all_three_gates(self):
+        """Negative control, direction 2: a genuine int 0 (never a bool) must still
+        pass - proving the guard fails closed on bool specifically, not on 0 itself."""
+        self.assertTrue(verify_mod._reproduce_gate({"reproduceExitCode": 0})["pass"])
+        self.assertTrue(
+            verify_mod._warning_gate(
+                {"warningGate": {"verdict": "WARNING_GATE_OK", "exitCode": 0}}
+            )["pass"]
+        )
+        self.assertTrue(
+            verify_mod._unit_tests_gate(
+                {"unitTests": {"failed": 0, "failedNames": [], "total": 43}}
+            )["pass"]
+        )
+
+    def test_aggregate_gates_end_to_end_bool_false_flips_overall_to_fail(self):
+        """End to end through aggregate_gates(): a bool-false reproduceExitCode must
+        flip overall to FAIL, not silently PASS the whole gate matrix - the exact
+        contradiction of aggregate_gates()'s own fail-closed docstring this closes."""
+        gates = _all_green_gate_results(reproduceExitCode=False)
+        result = aggregate_gates(gates)
+        self.assertEqual(result["overall"], "FAIL")
+        self.assertIn("reproduceNowGreen", result["failedGates"])
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # The mandatory negative control (pure aggregate_gates level, both directions)
 # ══════════════════════════════════════════════════════════════════════════
 

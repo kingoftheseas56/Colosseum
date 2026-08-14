@@ -16,9 +16,10 @@ validates JSON already checked out in the working tree.
 
 Self-protection (ruling 1, mechanized): after forbidden-paths.json validates structurally,
 the loader independently asserts that its own MODIFY/DELETE glob set still covers all three
-law files. A corrupted or narrowed forbidden-paths.json that no longer protects itself
-raises SelfProtectionError rather than silently trusting the file's content - "a model can
-argue; it cannot re-legislate."
+law files AND the Guardian Loop's own enforcement code (scripts/autorepair/** - C6
+hardening, Guardian Loop audit). A corrupted or narrowed forbidden-paths.json that no
+longer protects itself (or its own enforcement code) raises SelfProtectionError rather
+than silently trusting the file's content - "a model can argue; it cannot re-legislate."
 
 Public API (imported by later Guardian Loop slices - G2 sandbox, G6 repair contract, etc.):
 
@@ -49,6 +50,16 @@ LAW_FILES = ("policy.json", "forbidden-paths.json", "risk-classes.json")
 # The three law files this loader itself reads, expressed as repo-relative paths for the
 # self-protection assertion (ruling 1). Keep in sync with LAW_FILES/DEFAULT_LAW_DIR above.
 SELF_LAW_FILES = tuple(f"docs/autorepair/{name}" for name in LAW_FILES)
+
+# C6 hardening (Guardian Loop audit, LOW): a synthetic probe path used ONLY to assert
+# that scripts/autorepair/** (the Guardian Loop's own ENFORCEMENT CODE - this loader,
+# the guard hook, the repair contract, verify, the orchestrator itself) stays covered by
+# forbidden-paths.json's own MODIFY/DELETE glob set, not just the three JSON law files.
+# is_forbidden() is pure glob matching (never a filesystem existence check), so this
+# probe path never needs to name a real file - a future edit that drops or narrows the
+# scripts/autorepair/** glob fails closed here even if every real file under it is
+# untouched.
+SELF_ENFORCEMENT_PROBE_PATH = "scripts/autorepair/_self_protection_probe.py"
 
 AUTONOMY_LEVELS = {"patch-only", "draft-pr"}
 CONFIDENCE_LEVELS = {"low", "medium", "high"}
@@ -517,10 +528,19 @@ def _assert_self_protection(policy: Policy) -> None:
         for law_file in SELF_LAW_FILES
         if not (policy.is_forbidden(law_file, "modify") and policy.is_forbidden(law_file, "delete"))
     ]
+    # C6 hardening: also assert the ENFORCEMENT CODE itself (scripts/autorepair/**) stays
+    # covered for modify+delete, not just the three JSON law files - a future edit that
+    # drops that glob (or narrows it to no longer cover the loop's own modules) must fail
+    # closed here, exactly like a narrowed law-file glob already does above.
+    if not (
+        policy.is_forbidden(SELF_ENFORCEMENT_PROBE_PATH, "modify")
+        and policy.is_forbidden(SELF_ENFORCEMENT_PROBE_PATH, "delete")
+    ):
+        unprotected.append(SELF_ENFORCEMENT_PROBE_PATH)
     if unprotected:
         raise SelfProtectionError(
-            "forbidden-paths.json no longer protects its own law file(s) - "
-            "the model cannot re-legislate (Program ruling 1): "
+            "forbidden-paths.json no longer protects its own law file(s)/enforcement "
+            "code - the model cannot re-legislate (Program ruling 1): "
             + ", ".join(unprotected)
         )
 

@@ -12,9 +12,10 @@
       "docs/colosseum-lanista-verification.md",
       ".github/**",
       "docs/encyclopedia/*-state.json",
-      ".gitattributes",
-      ".gitignore",
-      ".claude/**"
+      "**/.gitattributes",
+      "**/.gitignore",
+      ".claude/**",
+      "**/.claude/**"
     ],
     "addExempt": [
       "tests/**"

@@ -198,7 +198,10 @@ def validate_patch_shape(
       2. `classification["testAdds"]` empty (ruling 5 - a repair MUST add a bug test; this
          is "the bug-test door" - a patch with zero new tests under tests/ carries no
          proof the bug ever existed).
-      3. `patch_line_count > max_patch_lines` (A8 - an oversized patch escalates to
+      3. `classification["production"]` empty (F3 hardening, Guardian Loop audit - a
+         repair that adds only a test and changes no production code proves nothing was
+         actually fixed; a real repair changes production code, not test files alone).
+      4. `patch_line_count > max_patch_lines` (A8 - an oversized patch escalates to
          Hemanth instead of promoting).
 
     ACCEPTS (returns None) only when all three checks clear - a patch that added at least
@@ -227,6 +230,13 @@ def validate_patch_shape(
             "REJECTED (Program ruling 5 - the bug must be proven to have existed): the "
             "patch adds no test under tests/ - a repair MUST add a bug test that proves "
             "the bug existed (the bug-test door; testAdds is empty)"
+        )
+
+    if not classification["production"]:
+        raise RepairContractError(
+            "REJECTED (F3 - a repair must change production code, not only add tests): "
+            "the patch's classification.production is empty - a bug test proves the bug "
+            "existed, but only a production-code change can prove it was actually fixed"
         )
 
     if patch_line_count > max_patch_lines:

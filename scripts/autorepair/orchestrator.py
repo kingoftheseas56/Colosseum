@@ -402,11 +402,47 @@ def _is_valid_diagnosis_file(obj: Any) -> bool:
 
 
 def _is_valid_repair_file(obj: Any) -> bool:
-    return isinstance(obj, dict) and isinstance(obj.get("accepted"), bool)
+    """F1 hardening (Guardian Loop audit, CRITICAL): a repair.json is trusted on resume
+    only if its shape matches what run_repair() actually produces, not merely "has an
+    `accepted` bool" - a thin/tampered `{"accepted": true}` with none of the accepted-only
+    evidence fields must be INVALID (the repair stage re-runs) rather than silently
+    trusted. When `accepted` is True, the four fields run_repair() always attaches on
+    acceptance (classification/bugtest/redExitCodes/greenExitCodes) must all be present;
+    a rejected/escalated repair (`accepted` False) needs nothing further here - its own
+    `escalateReason` shape is not itself resume-critical (the orchestrator only branches
+    on `accepted` for a rejected repair, per _run_loop())."""
+    if not isinstance(obj, dict) or not isinstance(obj.get("accepted"), bool):
+        return False
+    if obj["accepted"] is True:
+        required = {"classification", "bugtest", "redExitCodes", "greenExitCodes"}
+        if not required <= set(obj):
+            return False
+    return True
 
 
 def _is_valid_verdict_file(obj: Any) -> bool:
-    return isinstance(obj, dict) and obj.get("decision") in ("REJECT", "APPROVE")
+    """F1 hardening (Guardian Loop audit, CRITICAL): a verdict.json is trusted on resume
+    only if its shape matches a real verify.run_verify() return value AND is internally
+    CONSISTENT - not merely "decision is a known enum value." Requires: `approve` is a
+    bool; `gates` is a dict carrying `overall`; `reasons` is a list; and, critically, if
+    `decision == "APPROVE"` then `approve` must be True AND `gates["overall"]` must be
+    "PASS" - a decision/approve/gates MISMATCH (a tampered or hand-edited file claiming
+    APPROVE while its own gates disagree) is INVALID, so the verify stage re-runs and the
+    gates are re-derived rather than trusted on a self-contradictory record."""
+    if not isinstance(obj, dict):
+        return False
+    if obj.get("decision") not in ("REJECT", "APPROVE"):
+        return False
+    if not isinstance(obj.get("approve"), bool):
+        return False
+    gates = obj.get("gates")
+    if not isinstance(gates, dict) or "overall" not in gates:
+        return False
+    if not isinstance(obj.get("reasons"), list):
+        return False
+    if obj["decision"] == "APPROVE" and (obj["approve"] is not True or gates.get("overall") != "PASS"):
+        return False
+    return True
 
 
 def _is_valid_report_file(path: Path) -> bool:

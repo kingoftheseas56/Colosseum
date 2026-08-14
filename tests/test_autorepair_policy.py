@@ -328,6 +328,25 @@ class SelfProtectionTests(unittest.TestCase):
             self.assertIn("docs/autorepair/risk-classes.json", message)
             self.assertNotIn("docs/autorepair/policy.json,", message)
 
+    def test_removing_scripts_autorepair_glob_unprotects_enforcement_code(self):
+        """C6 hardening (Guardian Loop audit, LOW): self-protection must also cover the
+        ENFORCEMENT CODE itself (scripts/autorepair/**), not just the three JSON law
+        files - a future edit that drops that glob must fail closed here, naming the
+        synthetic probe path (never depending on any one real file continuing to exist)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            law_dir = _temp_law_copy(Path(tmp))
+            path = law_dir / "forbidden-paths.json"
+            obj = _load_json(path)
+            obj["forbidden"]["modifyDelete"] = [
+                p for p in obj["forbidden"]["modifyDelete"] if p != "scripts/autorepair/**"
+            ]
+            self.assertNotIn("scripts/autorepair/**", obj["forbidden"]["modifyDelete"])
+            _write_json(path, obj)
+
+            with self.assertRaises(mod.SelfProtectionError) as ctx:
+                mod.load_policy(law_dir)
+            self.assertIn("scripts/autorepair", str(ctx.exception))
+
     def test_restoring_full_protection_loads_clean_again(self):
         """Both directions, as required: break self-protection, then restore from the
         real shipped file and confirm it loads green again."""
@@ -423,6 +442,38 @@ class IsForbiddenSemanticsTests(unittest.TestCase):
     def test_unknown_operation_raises(self):
         with self.assertRaises(mod.PolicyError):
             self.policy.is_forbidden("native/engine/Foo.cpp", "rename")
+
+    def test_nested_gitattributes_modify_is_forbidden(self):
+        """C3 hardening (Guardian Loop audit, CRITICAL): the old bare '.gitattributes'
+        entry only protected the repo ROOT file - a repair patch could add a NESTED
+        .gitattributes (e.g. with linguist-generated/-diff) to hide its own diff from
+        the PR reviewer. '**/.gitattributes' must cover every directory depth."""
+        self.assertTrue(self.policy.is_forbidden("native/.gitattributes", "modify"))
+
+    def test_nested_gitattributes_add_is_forbidden(self):
+        self.assertTrue(
+            self.policy.is_forbidden(
+                "resources/reader2/vendor/foliate-anx/.gitattributes", "add"
+            )
+        )
+
+    def test_root_gitattributes_still_forbidden(self):
+        """Both directions: the root file must remain covered by the widened glob."""
+        self.assertTrue(self.policy.is_forbidden(".gitattributes", "modify"))
+
+    def test_nested_gitignore_modify_is_forbidden(self):
+        self.assertTrue(self.policy.is_forbidden("native/build/.gitignore", "modify"))
+
+    def test_root_gitignore_still_forbidden(self):
+        self.assertTrue(self.policy.is_forbidden(".gitignore", "modify"))
+
+    def test_nested_claude_dir_modify_is_forbidden(self):
+        """The root-only '.claude/**' entry never covered a NESTED .claude/ directory -
+        '**/.claude/**' is added alongside it, keeping the root entry intact too."""
+        self.assertTrue(self.policy.is_forbidden("native/.claude/settings.json", "modify"))
+
+    def test_root_claude_dir_still_forbidden(self):
+        self.assertTrue(self.policy.is_forbidden(".claude/settings.json", "modify"))
 
 
 # ══════════════════════════════════════════════════════════════════════════
