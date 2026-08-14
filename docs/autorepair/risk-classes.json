@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "classes": [
+    {
+      "id": "default",
+      "areaPattern": "*",
+      "verify": {
+        "unitTestLabel": "unit",
+        "journeys": [
+          "tests/lanista_scenarios/journey_open_manga.json",
+          "tests/lanista_scenarios/journey_play_video.json",
+          "tests/lanista_scenarios/journey_identify.json",
+          "tests/lanista_scenarios/journey_ceremony.json",
+          "tests/lanista_scenarios/journey_vault_browse.json",
+          "tests/lanista_scenarios/journey_tray.json"
+        ],
+        "warningGate": "tests/warning_gate.ps1"
+      }
+    }
+  ]
+}

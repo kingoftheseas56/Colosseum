@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "forbidden": {
+    "modifyDelete": [
+      "tests/**",
+      "docs/autorepair/**",
+      "scripts/autorepair/**",
+      "scripts/autorepair/hooks/**",
+      "scripts/night-watch*",
+      "tests/lanista-warning-allowlist.json",
+      "docs/colosseum-test-verification.md",
+      "docs/colosseum-lanista-verification.md",
+      ".github/**",
+      "docs/encyclopedia/*-state.json",
+      ".gitattributes",
+      ".gitignore",
+      ".claude/**"
+    ],
+    "addExempt": [
+      "tests/**"
+    ]
+  },
+  "notes": {
+    "tests/**": "MODIFY/DELETE forbidden; ADD is exempt (see addExempt) - this is the bug-test door a repair patch uses to prove its fix (Program ruling 2, ruling 5).",
+    "scripts/autorepair/hooks/**": "Placeholder for wherever the PreToolUse guard-hook scripts land (Slice G4 wires the real hook; exact path not finalized as of G1). Already covered by the broader scripts/autorepair/** entry above - named explicitly per amendment A8 ('the guard-hook scripts themselves') so intent is self-documenting even before G4 pins the real path. Reconfirm this entry once G4 lands.",
+    "native/CMakeLists.txt": "Deliberately NOT forbidden (A8): stays repairable, but any repair patch touching it is flagged HIGH-RISK in the promotion dossier (G8); the A5 'ctest -N' inventory-count gate at verify time is the compensating control against silent target deletion.",
+    "docs/encyclopedia/*-state.json": "Matches only the flat *-state.json files directly inside docs/encyclopedia/ (verified live at G1 time against biblio, catalogs, comics, downloads, extensions, player, shell, tankoban, torrent-search, vault)."
+  }
+}
