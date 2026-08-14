@@ -78,6 +78,11 @@ e.g. Hemanth's own Cricket clips). An Episode/Clip node's own `path` IS the vide
 (`VaultKit::planBrowseLevel`'s loose-video leaf grammar), never a group's folder-shaped
 `groupKey`/`subtreePath` the way a Film node's is, so that lookup goes through
 `VaultIndex::rowsForPath()` (exact-path query, added for this) rather than `rowsForGroup()`.
+A **Folder/Show/Season container** that is itself a group (a top-level show folder whose node path
+equals its group key) resolves the show's canonical poster too: `browseAt()` looks its group
+identity up via `rowsForGroup(n.path)` and hands `identityId`/`identityCoverUrl` to the poster rung,
+so an identified show (The Wire, `imdb:tt0306414`) wears its Cinemeta poster — not only a movie Film
+node (2026-08-14 fix). An unidentified show finds no winning identity and stays typographic.
 Missing art falls back to the typographic treatment (§4.7), never a broken frame. **A remote `identityCoverUrl`
 is only ever `resolve()`'s `posterUrl` INPUT — it never lands in `coverRef`/`coverUrl` directly**
 (the pre-Slice-3 behavior, which bound the raw remote URL straight to the tile, is retired). A

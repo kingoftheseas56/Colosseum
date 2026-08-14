@@ -1207,7 +1207,14 @@ Item {
         anchors.left: parent.left
         anchors.topMargin: 21
         anchors.leftMargin: theme.margin - 10
-        onTriggered: root.backRequested()
+        // The top-left Back steps UP one browse level first (or out of the hidden view), and only
+        // leaves the Vault entirely once there is nowhere left to ascend — matching the crumb trail
+        // and Backspace's own ascendBrowse(). Previously it always emitted backRequested() →
+        // closeVaultPage(), so one click from any depth jumped straight out to the library.
+        onTriggered: {
+            if (root.hiddenViewActive || root.crumbStack.length > 1) root.ascendBrowse()
+            else root.backRequested()
+        }
     }
 
     // ── the founding-ceremony confirmation card: a modal over the Vault once a census yields a

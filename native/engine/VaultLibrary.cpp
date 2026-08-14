@@ -568,18 +568,31 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             // or played by a real click. Away nuance is Slice 6's explicit business, not invented
             // here.
             state = QStringLiteral("identified");
-            // Browse-artwork execution plan, Slice 3 part 2: a container carries no local ref and
-            // no identity of its own today (identity lives on Film-level FileRows, never on a
-            // structural Folder/Show/Season grouping) — so every rung this call can supply is
-            // empty and resolve() is an honest no-op ("" back, same as before this slice). Wired
-            // now, exactly like the Film branch's own "pre-wired for when it lands" comment used
-            // to say about video identity covers, so a future container-level identity source
-            // needs no second wiring pass here.
+            // Browse-artwork execution plan (2026-08-14 fix): a container that IS a group — a
+            // top-level show folder whose node path equals the group key — carries the show's
+            // canonical identity on its own file rows (The Wire's episodes all carry
+            // imdb:tt0306414 + its poster URL). Look that up and hand it to resolve()'s
+            // canonical-poster rung, so an identified SHOW shows its Cinemeta poster, not only a
+            // movie Film node did. A container that is not a single identified show — an
+            // unidentified show, or a mixed folder — finds no winning identity and stays
+            // typographic, which is correct. (A Season node inheriting its parent show's poster
+            // when the season is not itself a group is a later refinement, tracked separately.)
             if (m_artworkResolver) {
                 VaultArtworkResolver::RowFacts facts;
                 facts.rowKey = n.key;
                 facts.kind = VaultKit::browseNodeTypeName(n.nodeType);
                 facts.path = n.path;
+                if (m_index && !n.path.isEmpty()) {
+                    const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
+                    for (const VaultIndex::FileRow& row : rows) {
+                        if (!row.identityId.isEmpty() && !row.identitySuppressed
+                            && !row.identityCoverUrl.isEmpty()) {
+                            facts.identityId = row.identityId;
+                            facts.posterUrl = row.identityCoverUrl;
+                            break;
+                        }
+                    }
+                }
                 const QString resolved = m_artworkResolver->resolve(facts);
                 if (!resolved.isEmpty())
                     m.insert(QStringLiteral("coverRef"), resolved);

@@ -97,7 +97,7 @@
       "accepted_comment": "// VaultKit — the Vault's pure-logic kit. Slice 1 of the Vault execution plan\n// (Brotherhood/docs/superpowers/plans/2026-08-08-colosseum-vault-execution-plan.md).\n//\n// Ported from Tankoban 2's src/core/ScannerUtils (the depth-bounded,\n// symlink-loop-safe, cooperatively-cancellable walker; the hard-coded\n// ignore-dir set; first-level grouping with loose-file capture; and the\n// media-folder title cleaner) and EXTENDED with three things the Vault needs\n// that TB2 kept scattered:\n//   (a) the Groundworks user `scanIgnore` needle layer (a case-insensitive\n//       full-path SUBSTRING match — books_library_handlers.py), sanitized and\n//       capped, threaded through every walk;\n//   (b) a census classifier that infers each first-level subtree's media kind\n//       and flags mixed leaves (spec §5, \"one folder one kind\"); and\n//   (c) the season/episode grammar extracted out of TB2's BulkPackVerifier\n//       regex and VideosPage::resolveShowPath season-climb guard, so a bare\n//       `Season 1` folder never masquerades as a show.\n//\n// Pure QtCore only (QDir / QFileInfo / QRegularExpression) — no QObject, no app\n// dependencies — so a Qt Test links it standalone and the production scanners\n// (Slice 4+) #include it the same way. QML paints, C++ decides."
     },
     "native/engine/VaultLibrary.cpp": {
-      "accepted_blob": "c6c5abfccc300f25ba63a3a3690c15e42db76f2c",
+      "accepted_blob": "2364acb394845017ee4ef3d98c632fe24eddfd3f",
       "accepted_comment": "// Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots()."
     },
     "native/engine/VaultLibrary.h": {
@@ -185,7 +185,7 @@
       "accepted_comment": "// Shared identity ceremony surface for launch sessions and Vault rows. It is seedable so\n// store decisions stay testable without booting the whole shell; the owning facade supplies\n// the ceremony and records the choice in VaultIdentity."
     },
     "qml/VaultPage.qml": {
-      "accepted_blob": "a9c7a68b09c1f96dce94534bc4c4f62bf7f2eeaf",
+      "accepted_blob": "d84467a53a4b21a61127e28e650a89dd0677a0b0",
       "accepted_comment": "// VaultPage — \"On this machine\": the local-media Vault as a host-owned full page, entered from\n// the taskbar folder door. Slice 10 lands the permanent door + this page's EMPTY state (nothing\n// indexed yet): eyebrow, title, and a dashed Add-folder drop surface. It paints from the\n// VaultLibrary read-model (itemCount/scanning); the shelves that fill a populated Vault, and the\n// folder-scan ingest behind Add folder, land in Slice 11. Same chrome vocabulary as\n// Settings/Downloads (back · minimize · fullscreen · power) so it reads as one of the house's pages."
     },
     "qml/VaultPosterCard.qml": {
@@ -201,6 +201,6 @@
       "accepted_comment": "// VaultWideCard — the 16:9 still face for episode/clip rows (Vault Browse face, execution plan\n// Slice 4). Same card language as VaultPosterCard (design §6.3) — artwork edge to edge, centered\n// one-line title with elision, a dimmer physical-fact line beneath, circular corner indicators,\n// near-square corners, hover dims and reveals a play affordance, gold reserved for the\n// uncertainty mark, away is reduced ink + desaturation with no hover/open, resolving crossfades\n// filename → settled face in place — just a different card, per the locked design's rule that\n// drilling into a series is a different card, not the same grid one level deeper (§6.3).\n//\n// UNWIRED (Slice 4 scope): no page instantiates this yet. Slice 5 assembles the grid. `state`,\n// `displayTitle` and `physicalFact` are exposed as readable properties on purpose — they are the\n// Lanista/Quick-Test vocabulary Slices 5-9 read."
     }
   },
-  "integrity": "sha256:75145b7af39c208781ef70a5e142f887d218da0057b3bf3f60bf393825d9bf07",
+  "integrity": "sha256:f6d0554baa34198b4cc71fc32ed47e61299ed422575d3f230d5aa626e4831c3e",
   "schema": 1
 }

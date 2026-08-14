@@ -396,8 +396,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/VaultLibrary.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `c6c5abfccc300f25ba63a3a3690c15e42db76f2c`
-- Current blob: `c6c5abfccc300f25ba63a3a3690c15e42db76f2c`
+- Accepted blob: `2364acb394845017ee4ef3d98c632fe24eddfd3f`
+- Current blob: `2364acb394845017ee4ef3d98c632fe24eddfd3f`
 - Source: [`native/engine/VaultLibrary.cpp`](../../native/engine/VaultLibrary.cpp)
 
 ```text
@@ -811,8 +811,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/VaultPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `a9c7a68b09c1f96dce94534bc4c4f62bf7f2eeaf`
-- Current blob: `a9c7a68b09c1f96dce94534bc4c4f62bf7f2eeaf`
+- Accepted blob: `d84467a53a4b21a61127e28e650a89dd0677a0b0`
+- Current blob: `d84467a53a4b21a61127e28e650a89dd0677a0b0`
 - Source: [`qml/VaultPage.qml`](../../qml/VaultPage.qml)
 
 ```text
