@@ -47,3 +47,7 @@ qml/comics_db.gen.js
 # not shipped through git; app degrades gracefully when absent.
 data/
 data/vault_token.txt
+
+# Python bytecode caches
+__pycache__/
+*.pyc
