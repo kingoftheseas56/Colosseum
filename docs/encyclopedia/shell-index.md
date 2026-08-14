@@ -8,7 +8,7 @@
 - Total files: **12**
 - Documented: **11**
 - Undocumented: **1**
-- Drifted: **3**
+- Drifted: **0**
 
 <a id="file-native-collectionstore-h"></a>
 ## `native/CollectionStore.h`
@@ -168,11 +168,10 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-main-qml"></a>
 ## `qml/Main.qml`
 
-- Status: **DRIFTED**
-- Accepted blob: `143a114ea240ba77788f417207b5d5a54f350bdc`
-- Current blob: `50fb99b615d194d546d45bdf98a9d3b031946712`
+- Status: **CURRENT**
+- Accepted blob: `c700e47610270f1223d13fe9da1264fef615e452`
+- Current blob: `c700e47610270f1223d13fe9da1264fef615e452`
 - Source: [`qml/Main.qml`](../../qml/Main.qml)
-- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // Colosseum — HOME (v1, on the proven spine)
@@ -185,11 +184,10 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-taskbar-qml"></a>
 ## `qml/Taskbar.qml`
 
-- Status: **DRIFTED**
-- Accepted blob: `6ecfa8212549db51d626dcb98797206d790f36f7`
+- Status: **CURRENT**
+- Accepted blob: `fc45a521edb196134d21591aa3d79077a76760c4`
 - Current blob: `fc45a521edb196134d21591aa3d79077a76760c4`
 - Source: [`qml/Taskbar.qml`](../../qml/Taskbar.qml)
-- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // Taskbar.qml - the OS-shell's auto-hiding switcher bar.
@@ -200,11 +198,10 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-topbar-qml"></a>
 ## `qml/TopBar.qml`
 
-- Status: **DRIFTED**
-- Accepted blob: `7fc81a9848f364a988593dec534aa0c599446a32`
+- Status: **CURRENT**
+- Accepted blob: `c1d135fce516483d02850189ae4a7b073ef32df5`
 - Current blob: `c1d135fce516483d02850189ae4a7b073ef32df5`
 - Source: [`qml/TopBar.qml`](../../qml/TopBar.qml)
-- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // TopBar — the shared Colosseum shell chrome: clock/date · library pills · system icons.

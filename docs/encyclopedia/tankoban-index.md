@@ -14,8 +14,8 @@
 ## `native/MangaEngine.h`
 
 - Status: **CURRENT**
-- Accepted blob: `3cd9daf883ab55f2a863f3210594d088e4385a0b`
-- Current blob: `3cd9daf883ab55f2a863f3210594d088e4385a0b`
+- Accepted blob: `94165fce11e986d0378107af7cd0a77bc2ee8bfd`
+- Current blob: `94165fce11e986d0378107af7cd0a77bc2ee8bfd`
 - Source: [`native/MangaEngine.h`](../../native/MangaEngine.h)
 
 ```text
@@ -606,8 +606,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/MangaSeries.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `4a94b78320f21001b3884ced00c6ae5524f422dd`
-- Current blob: `4a94b78320f21001b3884ced00c6ae5524f422dd`
+- Accepted blob: `d3487a2eb008604bd01ba57ddee20698bd697090`
+- Current blob: `d3487a2eb008604bd01ba57ddee20698bd697090`
 - Source: [`qml/MangaSeries.qml`](../../qml/MangaSeries.qml)
 
 ```text
@@ -629,24 +629,35 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/MangaTankobanLibrary.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `4274c26fa82dd9e851efdbf595e7d0499698f016`
-- Current blob: `4274c26fa82dd9e851efdbf595e7d0499698f016`
+- Accepted blob: `dc010c288793e8e3e5fa9ebd71c4d023be6c0d57`
+- Current blob: `dc010c288793e8e3e5fa9ebd71c4d023be6c0d57`
 - Source: [`qml/MangaTankobanLibrary.qml`](../../qml/MangaTankobanLibrary.qml)
 
 ```text
-// MangaTankobanLibrary - the reader-derived Tankoban Pages flow.
+// MangaTankobanLibrary - the volume shelf for a Tankoban series.
 //
-// Every canonical volume belongs to one virtualized ListView model. The focused
-// volume is centered through the reader's double-pass geometry operation; the
-// surrounding covers shrink monotonically into one consistent recession line.
+// 2026-08-14 bookshelf rebuild (approved mock: colosseum-manga-series-bookshelf-mock.html).
+// The shelf is a vertical cover grid that opens the page - every canonical volume is a
+// card (cover + state chip + Vol/name/chapter-range caption). Chapters past the last
+// mapped volume ("the X bucket", still computed by MangaReadingRoom via MangaVolumes.js)
+// surface as a persistent "Latest chapters" tail below the grid, never a separate tab.
+//
+// `focusIndex`/`focusToken` and their small `focusAtNumber`/`focusAtIndex`/`jumpToNumber`
+// API SURVIVE this rebuild - not as visual state (nothing highlights or centers on them
+// any more) but because they are the load-bearing cursor for the cover-prefetch burst
+// window (see `visibleRowsForCovers()` below). tests/manga_volume_cover_harness.qml pins
+// the exact production bug this guards against: opening a 115-volume series must never
+// fire a thumbnail scrape for every volume at once (2026-07-31, WeebCentral throttled and
+// left the tail of the shelf permanently blank). Removing the cursor outright would silently
+// reopen that bug, so it stays as a headless prefetch cursor only.
 ```
 
 <a id="file-qml-mangatankobansourcespage-qml"></a>
 ## `qml/MangaTankobanSourcesPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `afabe31cf40d201091cfc87a49b2f44de4e218d5`
-- Current blob: `afabe31cf40d201091cfc87a49b2f44de4e218d5`
+- Accepted blob: `75e1a836477ed6a86cf04f20e2c26842630ec243`
+- Current blob: `75e1a836477ed6a86cf04f20e2c26842630ec243`
 - Source: [`qml/MangaTankobanSourcesPage.qml`](../../qml/MangaTankobanSourcesPage.qml)
 
 ```text
@@ -793,8 +804,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/TankobanWorld.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `4b48a81a3188d1320d589fb4549fa0520235f597`
-- Current blob: `4b48a81a3188d1320d589fb4549fa0520235f597`
+- Accepted blob: `ee7b00c58d287b08692255d1c09eca1ce7a58db5`
+- Current blob: `ee7b00c58d287b08692255d1c09eca1ce7a58db5`
 - Source: [`qml/TankobanWorld.qml`](../../qml/TankobanWorld.qml)
 
 ```text

@@ -160,6 +160,39 @@ itself is the same `ComicReaderShell` for both.
   and how a synthesized volume *reads* — the pack proves bytes and ordering, not reading feel;
   those stay eyes-on with the running app.
 
+## Reading Room UI invariants
+
+The Reading Room is a vertical, reader-derived surface (2026-08-14 bookshelf rebuild):
+
+- `Main.qml` suppresses the Colosseum taskbar while a series detail is active.
+- `MangaReadingRoom.qml` compresses the series context into a slim glass masthead over the
+  wallpaper: title, author/status/year/score, `N volumes`/`N chapters`, an "ON THIS DEVICE" count
+  with a progress bar, and the primary action. The synopsis sits behind a tap (clamped to one
+  line, "more"/"less" expands/collapses) instead of a fixed rail column — the masthead grows only
+  for that line.
+- `MangaTankobanLibrary.qml` renders every canonical volume as a card in a vertical, virtualized
+  `GridView` (`volumeShelfGrid`) that opens the page — not a horizontal Pages flow. Each card shows
+  its cover (or a "NO COVER" placeholder), a state chip (`Owned` / `Downloading` / `Failed`, no
+  chip for a plain unowned volume), and a `VOL n` / title / chapter-span caption (`shelfRangeFor`;
+  "chapters not mapped yet" when the volume has none mapped).
+- Chapters past the last mapped volume surface as a persistent `LATEST CHAPTERS` tail below the
+  grid (the `GridView` footer), never a separate tab — the old Volumes/Chapters tab pair is gone.
+- Cover fetching is a bounded window that follows the scroll position (`visibleGridRows()`,
+  debounced 120 ms via `_coverPrefetchTimer`), not the whole shelf — this guards the 2026-07-31
+  WeebCentral-throttle bug: opening a 115-volume series must never fire a thumbnail scrape for
+  every volume at once.
+- Batch download (`Select` / `Download next 10` / `Download selected`) is kept alive behind a
+  plain text toggle in the grid header — the approved mock has no other entry point for it — and
+  the floating "N selected" bar still lands the selection.
+- `focusIndex`/`focusToken` and their `focusAtNumber`/`focusAtIndex`/`jumpToNumber` API survive the
+  rebuild as the headless cover-prefetch cursor only — nothing highlights or centers on them
+  visually any more.
+
+The offscreen behavior is covered by `tests/manga_reading_room_harness.qml`,
+`tests/manga_volume_cover_harness.qml`, and the existing volume-batch harnesses
+(`tests/manga_volume_batch_harness.qml`, `tests/test_manga_volume_batch.ps1`,
+`tests/test_manga_volume_covers.ps1`, `tests/test_manga_reading_room.ps1`).
+
 ## Keeping this page honest
 
 ```bash

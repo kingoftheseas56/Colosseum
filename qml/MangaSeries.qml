@@ -35,6 +35,7 @@ Item {
     signal readerBackRequested()
 
     // --- resolved state ---
+    property string malId: ""    // Slice C: Discover card's MAL id, when the series was opened from one
     property string seriesId: ""
     property string seriesUrl: ""
     property string banner: ""
@@ -195,7 +196,25 @@ Item {
         ctx.seriesTitle = page.seriesTitle
         ctx.volumeNumber = ctx.number
         ctx.volumeTitle = ctx.title
+        // Slice D: the sheet hero shows THIS volume's own synopsis when the enricher has
+        // accepted one (see MangaTankobanService::volumeMap — mostly absent, so the mock's
+        // italic empty state is the common case), else falls back to the series synopsis
+        // so the hero is never blank when the series itself has one.
+        ctx.synopsis = page._volumeSynopsis(ctx.volumeId) || page.synopsis
         sourcesPage.show(ctx)
+    }
+
+    // Looks up a volume's accepted per-volume synopsis off the live canonical model
+    // (the same rows the shelf renders from) — chooseSource()/_requestBatch() build ctx
+    // from a lighter row projection that does not carry synopsis, so this reads the
+    // library's own volumeRows directly rather than widening that shape.
+    function _volumeSynopsis(volumeId) {
+        var rows = readingRoom.library.volumeRows || []
+        var id = String(volumeId)
+        for (var i = 0; i < rows.length; i++)
+            if (String(rows[i].id) === id && rows[i].synopsis && String(rows[i].synopsis).length)
+                return String(rows[i].synopsis)
+        return ""
     }
 
     // A batch button was pressed: turn volume NUMBERS into volume ids and raise the
@@ -205,12 +224,12 @@ Item {
     // The picker searches ids[0]: the engine has no range search.
     function _requestBatch(numbers, label) {
         var want = {}
-        for (var i = 0; i < numbers.length; i++) want[Number(numbers[i])] = true
+        for (var i = 0; i < numbers.length; i++) want[String(numbers[i])] = true
         var ids = [], nums = [], rows = readingRoom.library.volumeRows || []
         for (var r = 0; r < rows.length; r++)
-            if (want[Number(rows[r].number)] && String(rows[r].state) !== "ready") {
+            if (want[String(rows[r].number)] && String(rows[r].state) !== "ready") {
                 ids.push(String(rows[r].id))
-                nums.push(Number(rows[r].number))
+                nums.push(String(rows[r].number))
             }
         if (!ids.length) return
         // volumeNumbers rides along so the picker can offer only the releases that
@@ -354,6 +373,9 @@ Item {
             Manga.search(seriesTitle)    // → chapters + WeebCentral detail (then volumes, keyed by its id)
             Manga.art(seriesTitle)       // → AniList banner / cover / synopsis / genres / year
         }
+        // Slice C: a Discover card carries a MAL id — fetch our MAL-keyed volume record
+        // directly so the shelf renders without waiting on the WeebCentral search above.
+        if (malId) Manga.volumes("", seriesTitle, malId)
     }
 
     // Safety net: if a source never answers, reveal after this timeout rather than spin forever.
@@ -385,8 +407,9 @@ Item {
             // from AniList (hi-res), set in onArtResult.
             page.author = r.author; page.status = r.status
             // volume structure needs the WC id (it is the volume DB's key) — fire it
-            // as soon as the search resolves
-            Manga.volumes(r.id, r.title)
+            // as soon as the search resolves. Guarded: a malId-opened series already fetched
+            // its volumes directly in resolve() and must not have that shelf overwritten.
+            if (!malId) Manga.volumes(r.id, r.title)
             Manga.chapters(r.id)
             Manga.detail(r.id, r.url, r.title, r.cover)
         }
@@ -397,9 +420,11 @@ Item {
         }
         function onDetailResult(d) {
             // AniList is the source for synopsis + genres (onArtResult). WeebCentral detail only
-            // contributes status + author — NOT its plainer description (AniList's reads better).
+            // contributes status + author — its description is a fallback only when AniList did
+            // not return a synopsis, so a series never opens with an unexplained empty rail.
             if (d.status && d.status.length) page.status = d.status
             if (d.author && d.author.length) page.author = d.author
+            if (!page.synopsis.length && d.description && d.description.length) page.synopsis = d.description
         }
         function onArtResult(a) {
             if (a.banner && a.banner.length) page.banner = a.banner
@@ -960,7 +985,6 @@ Item {
     }
 
         }
-    }
 
     // The approved Reading Room replaces the old corridor surface. The old corridor
     // is retained only as an uninstantiated Component for source-level migration

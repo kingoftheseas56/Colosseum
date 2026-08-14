@@ -189,17 +189,20 @@ Item {
         if (mb >= 1024) return (mb / 1024).toFixed(1) + " GB"
         return (mb >= 100 ? mb.toFixed(0) : mb.toFixed(1)) + " MB"
     }
-    function confidenceColor(tier) {
-        var t = Number(tier)
-        if (t === 1) return theme.gold
-        if (t === 2) return "#8ea3c0"   // muted blue-grey — possible
-        return "#c98a8a"                // muted red — weak, still visible
+    // MATCH confidence, NOT uploader identity. Everything reaching this sheet already passed
+    // the native strong-series + volume-coverage match (genuine non-matches are dropped
+    // upstream, MangaNyaaSource.cpp:306), so nothing shown here is a "weak match". A
+    // single-volume release is the tightest possible fit; a trusted uploader confirms it;
+    // anything else is a batch that still COVERS the target volume -- a solid POSSIBLE, never
+    // WEAK. Uploader trust is a bonus (the TRUSTED evidence chip), never a demotion.
+    function isTightMatch(row) {
+        return row && (row.standalone === true || Number(row.tier) === 1)
     }
-    function confidenceLabel(tier) {
-        var t = Number(tier)
-        if (t === 1) return "STRONG"
-        if (t === 2) return "POSSIBLE"
-        return "WEAK"
+    function confidenceColor(row) {
+        return sheet.isTightMatch(row) ? theme.gold : "#8ea3c0"   // gold = tight match; blue-grey = covering batch
+    }
+    function confidenceLabel(row) {
+        return sheet.isTightMatch(row) ? "STRONG" : "POSSIBLE"
     }
     // Evidence chips EXPLAIN coverage; they never claim the spreads inside are intact.
     function evidenceChips(modelData) {
@@ -292,6 +295,21 @@ Item {
             text: sheet.identityLine
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
             font.letterSpacing: 1; elide: Text.ElideRight
+        }
+        // Slice D (mock .hsyn): this volume's own synopsis when the enricher accepted one,
+        // else the honest italic empty state — a per-volume synopsis is mostly absent today,
+        // so the empty state is the common case, matching the mock.
+        Text {
+            id: heroSynopsis
+            objectName: "tankobanSourcesSynopsis"
+            width: parent.width
+            readonly property bool hasSynopsis: String(sheet.context.synopsis || "").length > 0
+            text: heroSynopsis.hasSynopsis
+                ? String(sheet.context.synopsis)
+                : "No synopsis for this volume yet."
+            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+            font.italic: !heroSynopsis.hasSynopsis
+            wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight
         }
     }
 
@@ -407,8 +425,8 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Text {
-                                text: sheet.confidenceLabel(row.modelData ? row.modelData.tier : 99)
-                                color: sheet.confidenceColor(row.modelData ? row.modelData.tier : 99)
+                                text: sheet.confidenceLabel(row.modelData || null)
+                                color: sheet.confidenceColor(row.modelData || null)
                                 font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
                                 anchors.verticalCenter: parent.verticalCenter
                             }

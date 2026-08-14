@@ -705,9 +705,20 @@ Item {
                 // a specific card across delegate recycling. Derived from the item's own id (or
                 // title as fallback), NEVER the row index — recycling reuses indices. Skeletons
                 // stay unnamed. World-neutral by construction: whatever items the adapter serves.
+                //
+                // Manga cards (item.type === "manga", TankobanDiscoverApi.js normalizeManga) get
+                // a WORLD-NAMESPACED "mangaDiscoverCard_"+malId name additionally (2026-08-14,
+                // manga series bookshelf rebuild): this shell is instantiated separately by
+                // Tankoban/Theatre/Biblio, so a bare "discoverCard_<id>" stem can resolve
+                // DFS-first into an occluded card in another world's tree — the same trap
+                // documented in MangaTankobanSourcesPage.qml's naming convention note. item.id
+                // IS the MAL id for a manga card (normalizeManga: id = String(mal_id)), which is
+                // exactly what MangaSeries.malId / TankobanWorld.mangaOpenById expect. Every
+                // other card kind keeps its existing "discoverCard_" name unchanged.
                 objectName: (!card.isSkel && card.item && (card.item.id || card.item.title))
-                            ? ("discoverCard_" + String(card.item.id !== undefined && String(card.item.id).length > 0
-                                                        ? card.item.id : card.item.title))
+                            ? ((card.item.type === "manga" ? "mangaDiscoverCard_" : "discoverCard_")
+                               + String(card.item.id !== undefined && String(card.item.id).length > 0
+                                        ? card.item.id : card.item.title))
                             : ""
                 width: wall.cellWidth - 14
                 height: wall.cellHeight - 14

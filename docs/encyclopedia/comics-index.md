@@ -8,7 +8,7 @@
 - Total files: **91**
 - Documented: **70**
 - Undocumented: **21**
-- Drifted: **1**
+- Drifted: **0**
 
 <a id="file-native-comicreader-comicreadercore-cpp"></a>
 ## `native/comicreader/ComicReaderCore.cpp`
@@ -982,8 +982,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/ComickCatalogClient.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `5f4da49ed2597c16d44dd457ed3f34a8479033d4`
-- Current blob: `5f4da49ed2597c16d44dd457ed3f34a8479033d4`
+- Accepted blob: `7074ecd66e088d1105bb54cdf712a40883479868`
+- Current blob: `7074ecd66e088d1105bb54cdf712a40883479868`
 - Source: [`native/engine/ComickCatalogClient.cpp`](../../native/engine/ComickCatalogClient.cpp)
 
 ```text
@@ -994,8 +994,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/ComickCatalogClient.h`
 
 - Status: **CURRENT**
-- Accepted blob: `5ec065c58c02b6e0823fe9b3fbcacb9d201be92c`
-- Current blob: `5ec065c58c02b6e0823fe9b3fbcacb9d201be92c`
+- Accepted blob: `eb7e72aa6183190d70a6c153d6aa05f99ada0de8`
+- Current blob: `eb7e72aa6183190d70a6c153d6aa05f99ada0de8`
 - Source: [`native/engine/ComickCatalogClient.h`](../../native/engine/ComickCatalogClient.h)
 
 ```text
@@ -1014,11 +1014,12 @@ _No explanatory comment was harvested after the allowed file preamble._
 // Either path ends at the completeness gate. Gate-fail => catalogFailed => the app
 // shows the flat WeebCentral chapter list. There is NO interpolation anywhere.
 //
-// Emitted volumes: ascending QVariantMap{number:double, cover:"", chapterStart, chapterEnd}.
-// cover is ALWAYS empty. Undownloaded tiles use the shelf's numbered placeholder; a
-// downloaded volume's cover is its own first page (MangaVolumeIndex). WeebCentral's
-// chapter list carries no thumbnails (verified 2026-07-29) and Comick's per-volume
-// covers don't exist, so there is nothing to fetch.
+// Emitted volumes: ascending QVariantMap{number:double, cover, chapterStart, chapterEnd}.
+// cover carries the published DB record's per-volume `cover` URL when present (the
+// Fandom-harvested art in colosseum-volume-db); it is empty for a volume the record has
+// no art for and for the live WeebCentral/Comick scrape path (which has no per-volume
+// covers). An empty cover means the shelf draws its numbered placeholder, and a
+// downloaded volume still uses its own first page (MangaVolumeIndex).
 //
 // Threading: pure QNetworkAccessManager + QObject::connect lambdas, all on the main
 // thread; each fetch carries its own PendingFetch via shared_ptr, so concurrent calls
@@ -1490,11 +1491,10 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-comicseries-qml"></a>
 ## `qml/ComicSeries.qml`
 
-- Status: **DRIFTED**
-- Accepted blob: `a32ef6524204801d5b3c474fb5ac2f775b344f38`
+- Status: **CURRENT**
+- Accepted blob: `7edd7f35f01fab8a984f7737c3b2a91438284d4c`
 - Current blob: `7edd7f35f01fab8a984f7737c3b2a91438284d4c`
 - Source: [`qml/ComicSeries.qml`](../../qml/ComicSeries.qml)
-- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // ComicSeries — the western-comics series page (Tankoban mode). A GetComics tag IS

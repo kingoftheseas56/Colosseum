@@ -535,14 +535,16 @@ Window {
     function closeTheatreGenreIndex() { theatreGenreIndexLayer.active = false }
 
     // ---- series detail: a layer over the current world page (opened from a Top-10 title tile) ----
-    function openSeries(title) {
+    function openSeries(title, malId) {
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
         seriesLayer.resumeVolumeId = ""
         seriesLayer.title = title
+        seriesLayer.malId = malId || ""
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
+            seriesLayer.item.malId = malId || ""       // set BEFORE seriesTitle: that triggers re-resolve
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
     }
@@ -2169,6 +2171,7 @@ Window {
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
                     item.seriesRequested.connect(win.openSeries)
+                    if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
                     item.genreRequested.connect(win.openGenre)
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
@@ -2381,12 +2384,14 @@ Window {
         active: false
         visible: active
         property string title: ""
+        property string malId: ""             // Slice C: Discover card's MAL id, threaded to the series page
         property string resumeSeriesId: ""    // Continue resume: jump straight to this chapter…
         property string resumeChapterId: ""   //   …in this series (set seriesId BEFORE the chapter)
         property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
         source: "MangaSeries.qml"
         onLoaded: {
             item.backdrop = wall
+            item.malId = seriesLayer.malId
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId

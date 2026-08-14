@@ -77,6 +77,9 @@ WorldPage {
     // Catalogue shelf rows (browse-landing, 2026-07-18): Most Stocked / publisher / decade /
     // deep-shelf / fan-made tiles all carry a gcd id and open the run page directly.
     signal gcdSeriesRequested(var d)
+    // Discover card carries a MAL id (Slice C): open the series page with the id so it can
+    // fetch our MAL-keyed volume record directly instead of falling back to a title search.
+    signal mangaOpenById(string title, string malId)
 
     // GetComics' own taxonomy (top tags by release count, publishers + franchises,
     // noise-filtered) drives the explore mosaic inline — the old Archives-door page
@@ -212,7 +215,7 @@ WorldPage {
         extensions: (typeof Extensions !== "undefined") ? Extensions.installed() : []
         showExplicitContent: tanko.showExplicitContent
         // Manga card → the existing manga series door (title-only route, already wired in Main).
-        onMangaSeriesRequested: function(item) { tanko.seriesRequested((item && item.title) || "") }
+        onMangaSeriesRequested: function(item) { tanko.mangaOpenById((item && item.title) || "", (item && item.id) || "") }
         // Comics card → the existing LOCG comic-series door (the normalized item carries the
         // locg id under raw.locgId, which openComicSeries reads via d.id).
         onComicSeriesRequested: function(item) {

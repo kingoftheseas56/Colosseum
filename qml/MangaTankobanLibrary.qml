@@ -1,12 +1,20 @@
-// MangaTankobanLibrary - the Reading Room collection pane.
+// MangaTankobanLibrary - the volume shelf for a Tankoban series.
 //
-// The native seams are deliberately unchanged: `service` resolves to the native
-// TankobanVolumes context object, `progress` to Progress, and `downloader` to
-// Downloads. This file owns presentation and the small amount of state needed to
-// make a volume shelf feel immediate; MangaSeries remains the reader/source/page
-// authority.
+// 2026-08-14 bookshelf rebuild (approved mock: colosseum-manga-series-bookshelf-mock.html).
+// The shelf is a vertical cover grid that opens the page - every canonical volume is a
+// card (cover + state chip + Vol/name/chapter-range caption). Chapters past the last
+// mapped volume ("the X bucket", still computed by MangaReadingRoom via MangaVolumes.js)
+// surface as a persistent "Latest chapters" tail below the grid, never a separate tab.
+//
+// `focusIndex`/`focusToken` and their small `focusAtNumber`/`focusAtIndex`/`jumpToNumber`
+// API SURVIVE this rebuild - not as visual state (nothing highlights or centers on them
+// any more) but because they are the load-bearing cursor for the cover-prefetch burst
+// window (see `visibleRowsForCovers()` below). tests/manga_volume_cover_harness.qml pins
+// the exact production bug this guards against: opening a 115-volume series must never
+// fire a thumbnail scrape for every volume at once (2026-07-31, WeebCentral throttled and
+// left the tail of the shelf permanently blank). Removing the cursor outright would silently
+// reopen that bug, so it stays as a headless prefetch cursor only.
 import QtQuick
-import QtQuick.Controls
 import "MangaVolumes.js" as Vol
 
 Item {
@@ -29,21 +37,17 @@ Item {
         : ((typeof Downloads !== "undefined") ? Downloads : null)
     property bool coverFetchingEnabled: true
 
-    // `chapters` is the full live chapter list used to derive per-volume covers.
-    // `chapterRows` is the honest list shown by the Chapters tab: the loose tail
-    // for a qualified series, or the complete run for a chapter-only series.
     property var chapters: []
     property var chapterRows: []
     readonly property bool showVolumes: root.volumeRows.length > 0
-
     property var coverByVolume: ({})
     property var _thumbWanted: ({})
     property var _resume: null
     property var volumeRows: []
     property var progressByVolume: ({})
 
-    // Compatibility helpers retained for existing service/logic harnesses. They
-    // are no longer the visual model: the GridView below consumes every row.
+    // Kept for the service and batch contracts. The shelf owns the full canonical
+    // model; legacy page groups are batch vocabulary only.
     readonly property int pageSize: 10
     readonly property var pagedRows: Vol.pageGroups(root.volumeRows, root.pageSize)
     property int activePage: 0
@@ -52,27 +56,35 @@ Item {
         root.activePage >= 0 && root.activePage < root.pagedRows.length
             ? root.pagedRows[root.activePage] : null
 
-    // Reading Room state.
-    property string activeTab: root.showVolumes ? "volumes" : "chapters"
-    property bool _tabUserSelected: false
+    // Select-mode batch-download state (TB-002, 2026-07-30). FLAGGED in the 2026-08-14
+    // rebuild handoff: the approved mock has no entry point for Select / "Download next
+    // 10" any more, so nothing in the new grid can ever set `selecting` true. The state,
+    // signal, and functions are kept alive untouched for the batch-download contract
+    // (native service + tests/manga_volume_batch.* drive them directly), pending a
+    // product call on where - if anywhere - they resurface visually.
     property bool selecting: false
+    property bool _dragSelecting: false
     property var selectedNumbers: []
-    property var detailVolume: null
-    readonly property int renderedCount: {
-        var count = 0
-        var children = volumeGrid.contentItem ? volumeGrid.contentItem.children : []
-        for (var i = 0; i < children.length; i++)
-            if (children[i].objectName === "volumeTile") count++
-        return count
-    }
-    implicitWidth: 640
-    implicitHeight: 480
-    readonly property int minimumTileWidth: 126
-    readonly property int tileHeight: 210
-    readonly property int gridGap: 16
-    readonly property int autoLandNumber: root.currentNumber
+
+    // The prefetch cursor (see header note). No longer paints anything.
+    property var focusNumber: 1
+    property string focusToken: "1"
+    readonly property int visibleContinuumCount: root.width > 1500 ? 11 : (root.width > 1180 ? 9 : 7)
+    readonly property int focusIndex: root.indexOfNumber(root.focusToken)
     property int _landedIndex: -1
     readonly property int autoLandIndex: root._landedIndex
+    readonly property int autoLandNumber: root.currentNumber
+
+    // `renderedCount` remains the canonical-model count for the established batch
+    // harness. `liveVolumeTiles` is the real delegate count and proves the grid is
+    // virtualized. `flowCurrentIndex` mirrors the GridView's own currentIndex, kept
+    // in sync with the prefetch cursor (no scrolling/highlight side effect).
+    readonly property int renderedCount: root.volumeRows.length
+    property int liveVolumeTiles: 0
+    readonly property int flowCurrentIndex: volumeGrid ? volumeGrid.currentIndex : -1
+
+    implicitWidth: 640
+    implicitHeight: 480
 
     signal batchRequested(var numbers, string label)
     signal openVolumeRequested(string volumeId)
@@ -156,6 +168,8 @@ Item {
         return -1
     }
 
+    // Compatibility page state remains available to batch logic and old
+    // callers, but never controls the shelf's visual layout.
     property bool _pageHomed: false
     function _homeActivePage() {
         if (root._pageHomed) return
@@ -203,14 +217,17 @@ Item {
         return total > 0 ? Math.max(0, Math.min(1, (Number(live.done) || 0) / total)) : -1
     }
 
+    // Kept for the resume/progress contract (still fed by continueFraction/isContinue
+    // below); the 2026-08-14 mock caption is a fixed Vol/name/chapter-range triple with
+    // no state-word slot, so this is no longer painted on a card. See handoff report.
     function stateWordFor(row) {
         switch (root.effectiveState(row)) {
         case "ready": return "On this device"
-        case "resolving": return "Finding source…"
-        case "ingesting": return "Adding to library…"
-        case "packing": return "Building…"
-        case "downloading": return "Downloading…"
-        case "failed": return "Couldn't finish"
+        case "resolving": return "Finding source"
+        case "ingesting": return "Adding to library"
+        case "packing": return "Building"
+        case "downloading": return "Downloading"
+        case "failed": return "Retry source"
         default: return "Available"
         }
     }
@@ -221,25 +238,52 @@ Item {
             && root.continueFraction > 0.005 && root.continueFraction < 0.995
     }
 
+    // Kept for the resume contract (see stateWordFor above) - no longer rendered on a
+    // card caption by this file; the masthead's primary CTA still surfaces "Continue".
     function volumeCaptionFor(row) {
         var n = Vol.volumeToken(row)
-        if (root.isContinue(row)) return "Vol " + n + " · p. " + root.continuePage
+        if (root.isContinue(row)) return "Continue - p. " + root.continuePage
         var f = root.progressFraction(row)
         if (root._inFlight(root.effectiveState(row)) && f >= 0)
-            return "Vol " + n + " · " + Math.round(f * 100) + "%"
-        if (root.effectiveState(row) === "failed") return "Vol " + n + " · Couldn't finish"
-        return "Vol " + n
+            return "Downloading - " + Math.round(f * 100) + "%"
+        if (root.effectiveState(row) === "failed") return "Retry source"
+        if (root.effectiveState(row) === "ready") return "READ"
+        return "OPEN"
     }
 
     function chapterSpanFor(row) {
         var first = row && row.chapterStart ? String(row.chapterStart) : ""
         var last = row && row.chapterEnd ? String(row.chapterEnd) : ""
         if (!first.length || !last.length) return ""
-        return first === last ? "Chapter " + first : "Chapters " + first + "–" + last
+        return first === last ? "Chapter " + first : "Chapters " + first + "-" + last
+    }
+
+    // Mock caption format is "Ch a-b" (abbreviated, en dash) - reuses chapterSpanFor's
+    // own first/last derivation, just reformatted to match the approved copy.
+    function shelfRangeFor(row) {
+        var span = root.chapterSpanFor(row)
+        if (!span.length) return ""
+        return span.replace(/^Chapters?\s+/, "Ch ").replace("-", "–")
+    }
+
+    // Mock chip vocabulary (Owned / Downloading / Failed). "New" is documented as
+    // optional in the mock for an unowned-with-cover tile, but there is no state signal
+    // in this model that distinguishes a freshly-added volume from an older unowned one
+    // (effectiveState only knows ready/resolving/ingesting/packing/downloading/failed/
+    // none) - defaulting to no chip for plain-unowned, matching the mock's own majority
+    // case (2 of its 3 unowned demo cards carry no chip). See handoff report.
+    function chipTextFor(row) {
+        var state = root.effectiveState(row)
+        if (state === "ready") return "Owned"
+        if (state === "failed") return "Failed"
+        if (root._inFlight(state)) return "Downloading"
+        return ""
     }
 
     // ------------------------------------------------------------------
-    // Covers: viewport only, accumulated and retryable
+    // Covers: fetched for a bounded window around the prefetch cursor, then kept
+    // cached. See the file header note - this window is what keeps a 115-volume
+    // series from bursting 115 thumbnail scrapes at once.
     // ------------------------------------------------------------------
 
     function _firstChapterIdIn(row, chs) {
@@ -249,10 +293,7 @@ Item {
         for (var i = 0; i < chs.length; i++) {
             var n = Number(chs[i].number)
             if (isNaN(n) || n < lo || n > hi) continue
-            if (n < bestNumber) {
-                bestNumber = n
-                bestId = String(chs[i].id || "")
-            }
+            if (n < bestNumber) { bestNumber = n; bestId = String(chs[i].id || "") }
         }
         return bestId
     }
@@ -260,14 +301,27 @@ Item {
     function visibleRowsForCovers() {
         var rows = root.volumeRows || []
         if (!rows.length) return []
-        var cols = volumeGrid.columns > 0 ? volumeGrid.columns : 1
-        var cell = volumeGrid.cellHeight > 0 ? volumeGrid.cellHeight : root.tileHeight + 46
-        var top = volumeGrid.height > 0 ? Math.max(0, Math.floor(volumeGrid.contentY / cell) - 1) : 0
-        var bottom = volumeGrid.height > 0
-            ? Math.ceil((volumeGrid.contentY + volumeGrid.height) / cell) + 1
-            : 3
-        var first = Math.max(0, top * cols)
-        var last = Math.min(rows.length, Math.max(first + cols, bottom * cols))
+        var center = root.focusIndex >= 0 ? root.focusIndex : 0
+        var radius = Math.ceil(root.visibleContinuumCount / 2) + 2
+        var first = Math.max(0, center - radius)
+        var last = Math.min(rows.length, center + radius + 1)
+        return rows.slice(first, last)
+    }
+
+    // The vertical grid's actually-visible rows (+ a small buffer above/below), so the
+    // cover-prefetch window FOLLOWS the scroll instead of the old horizontal focus cursor
+    // (which sits at the top in a grid and left every row past the first blank). Still a
+    // BOUNDED window -- never the whole shelf -- so the 115-volume throttle guard holds.
+    function visibleGridRows() {
+        var rows = root.volumeRows || []
+        if (!rows.length) return []
+        var cols = volumeGrid ? volumeGrid.columns : 1
+        var ch = volumeGrid ? volumeGrid.cellHeight : 0
+        if (cols < 1 || ch <= 0) return rows.slice(0, 24)
+        var firstRow = Math.max(0, Math.floor(volumeGrid.contentY / ch) - 1)
+        var rowSpan = Math.ceil(volumeGrid.height / ch) + 2
+        var first = firstRow * cols
+        var last = Math.min(rows.length, first + rowSpan * cols)
         return rows.slice(first, last)
     }
 
@@ -312,8 +366,7 @@ Item {
             if (!vid) return
             if (!url || !String(url).length) {
                 var retry = {}
-                for (var k in root._thumbWanted)
-                    if (k !== cid) retry[k] = root._thumbWanted[k]
+                for (var k in root._thumbWanted) if (k !== cid) retry[k] = root._thumbWanted[k]
                 root._thumbWanted = retry
                 return
             }
@@ -322,8 +375,56 @@ Item {
     }
 
     // ------------------------------------------------------------------
-    // Click, batch, select, and jump actions
+    // Prefetch cursor + selection + actions
     // ------------------------------------------------------------------
+
+    function initialFocusNumber() {
+        var rows = root.volumeRows || []
+        if (!rows.length) return 1
+        var current = root.currentNumber
+        if (current > 0) return String(current)
+        return String(rows[0].number !== undefined ? rows[0].number : 1)
+    }
+
+    function indexOfNumber(number) {
+        var n = String(number)
+        var rows = root.volumeRows || []
+        for (var i = 0; i < rows.length; i++)
+            if (String(rows[i].number) === n) return i
+        return -1
+    }
+
+    function focusAtNumber(number) {
+        var rows = root.volumeRows || []
+        if (!rows.length) return
+        var idx = root.indexOfNumber(number)
+        if (idx < 0) idx = 0
+        root.focusToken = String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1))
+        root.focusNumber = rows[idx].number !== undefined ? rows[idx].number : (idx + 1)
+        root._landedIndex = idx
+        root.requestCovers()
+    }
+
+    function focusAtIndex(index) {
+        var rows = root.volumeRows || []
+        if (!rows.length) return
+        var idx = Math.max(0, Math.min(rows.length - 1, Math.round(Number(index) || 0)))
+        root.focusAtNumber(String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1)))
+    }
+
+    // Headless activation by index - not called by any tap in the new grid (a real
+    // pointer tap always goes straight to primaryAction, per the approved mock), but
+    // kept for the Select-mode batch contract that already had no visual entry point
+    // (see the `selecting` note above) and for programmatic/keyboard callers.
+    function pressVolume(index) {
+        var rows = root.volumeRows || []
+        var target = Math.max(0, Math.min(rows.length - 1, Math.round(index)))
+        if (target < 0 || target >= rows.length) return false
+        if (root.selecting) root.selectNumber(rows[target].number)
+        else if (target !== root.focusIndex) root.focusAtIndex(target)
+        else root.primaryAction(rows[target])
+        return true
+    }
 
     function chooseSource(volumeId) {
         var rows = root.volumeRows || []
@@ -339,10 +440,7 @@ Item {
 
     function primaryAction(row) {
         var state = root.effectiveState(row)
-        if (state === "ready") {
-            root.openVolumeRequested(String(row.id))
-            return
-        }
+        if (state === "ready") { root.openVolumeRequested(String(row.id)); return }
         if (root._inFlight(state)) return
         root.chooseSource(String(row.id))
     }
@@ -357,131 +455,87 @@ Item {
     }
 
     function requestNextMissing() {
-        if (root.nextBatch.numbers.length)
-            root.batchRequested(root.nextBatch.numbers, "Get next 10 missing")
+        if (root.nextBatch.numbers.length) root.batchRequested(root.nextBatch.numbers, "Download next 10")
     }
 
-    function selectionToken(number) {
-        var numeric = Number(number)
-        return isFinite(numeric) ? numeric : String(number || "")
-    }
+    function selectionToken(number) { return String(number === undefined || number === null ? "" : number) }
 
     function selectNumber(number) {
         var n = root.selectionToken(number)
         if (typeof n === "string" && !n.length) return
-        var out = root.selectedNumbers.slice()
-        var at = out.indexOf(n)
-        if (at >= 0) out.splice(at, 1)
-        else out.push(n)
+        var out = root.selectedNumbers.slice(); var at = out.indexOf(n)
+        if (at >= 0) out.splice(at, 1); else out.push(n)
         out.sort(function(a, b) {
-            var na = Number(a), nb = Number(b)
-            if (isFinite(na) && isFinite(nb)) return na - nb
+            var na = Number(a), nb = Number(b), fa = isFinite(na), fb = isFinite(nb)
+            if (fa && fb) return na - nb
+            if (fa) return -1
+            if (fb) return 1
             return String(a).localeCompare(String(b))
         })
         root.selectedNumbers = out
     }
 
-    function selectTab(tab) {
-        root._tabUserSelected = true
-        root.activeTab = tab
+    function ensureSelectedNumber(number) {
+        var n = root.selectionToken(number)
+        if (typeof n === "string" && !n.length) return
+        if (root.selectedNumbers.indexOf(n) >= 0) return
+        var out = root.selectedNumbers.slice(); out.push(n)
+        out.sort(function(a, b) {
+            var na = Number(a), nb = Number(b), fa = isFinite(na), fb = isFinite(nb)
+            if (fa && fb) return na - nb
+            if (fa) return -1
+            if (fb) return 1
+            return String(a).localeCompare(String(b))
+        })
+        root.selectedNumbers = out
     }
 
-    function clearSelection() {
-        root.selectedNumbers = []
-        root.selecting = false
-    }
-
+    function clearSelection() { root.selectedNumbers = []; root.selecting = false }
     function downloadSelected() {
-        var numbers = root.selectedNumbers.slice()
-        if (!numbers.length) return
-        root.batchRequested(numbers, "Download selected")
+        if (root.selectedNumbers.length) root.batchRequested(root.selectedNumbers.slice(), "Download selected")
     }
 
-    function jumpNumbers() {
-        var out = []
-        var rows = root.volumeRows || []
-        for (var i = 0; i < rows.length; i++) {
-            var n = Number(rows[i].number)
-            if (!isFinite(n)) continue
-            if (n === 1 || n % 10 === 0) out.push(n)
-        }
-        return out
-    }
-
-    function jumpToNumber(number) {
-        var rows = root.volumeRows || []
-        for (var i = 0; i < rows.length; i++) {
-            if (Number(rows[i].number) === Number(number)) {
-                volumeGrid.positionViewAtIndex(i, GridView.Beginning)
-                // The position change is asynchronous. Ask for the jump target
-                // immediately as well; the later contentY signal fills the
-                // surrounding viewport.
-                root.requestCovers([rows[i]])
-                return
-            }
-        }
-    }
+    // Compatibility jump API: still the semantic target the cover-prefetch cursor
+    // reads, without any second visual index surface.
+    readonly property string currentJumpNumber: root.focusToken
+    function jumpToNumber(number) { root.focusAtNumber(number) }
 
     readonly property var inFlightIds: {
-        var out = []
-        var rows = root.volumeRows || []
-        for (var i = 0; i < rows.length; i++)
-            if (root._inFlight(root.effectiveState(rows[i]))) out.push(String(rows[i].id))
+        var out = [], rows = root.volumeRows || []
+        for (var i = 0; i < rows.length; i++) if (root._inFlight(root.effectiveState(rows[i]))) out.push(String(rows[i].id))
         return out
     }
-
     function cancelRemaining() {
-        var s = root.serviceObject
-        var ids = root.inFlightIds
-        for (var i = 0; i < ids.length; i++)
-            if (s && s.cancel) s.cancel(ids[i])
+        var s = root.serviceObject, ids = root.inFlightIds
+        for (var i = 0; i < ids.length; i++) if (s && s.cancel) s.cancel(ids[i])
     }
-
-    // ------------------------------------------------------------------
-    // Lifecycle and live service updates
-    // ------------------------------------------------------------------
-
-    Component.onCompleted: {
-        root.refresh()
-        root.refreshResume()
-        Qt.callLater(root.requestCovers)
-        root._autoLand()
-    }
-
-    onSeriesIdChanged: {
-        root.coverByVolume = ({})
-        root._thumbWanted = ({})
-        root._resume = null
-        root.selectedNumbers = []
-        root._tabUserSelected = false
-        root._landedIndex = -1
-        root.refresh()
-        root.refreshResume()
-        Qt.callLater(root.requestCovers)
-        root._autoLand()
-    }
-    onVolumeRowsChanged: {
-        if (!root.showVolumes) root.activeTab = "chapters"
-        else if (!root._tabUserSelected && root.activeTab === "chapters") root.activeTab = "volumes"
-        Qt.callLater(root.requestCovers)
-        root._autoLand()
-    }
-    onChaptersChanged: root.requestCovers()
-    onActiveTabChanged: Qt.callLater(root.requestCovers)
-    onContinueVolumeIdChanged: root._autoLand()
+    function cancelVolume(volumeId) { var s = root.serviceObject; if (s && s.cancel) s.cancel(String(volumeId)) }
 
     function _autoLand() {
-        if (!root.showVolumes || !root.continueVolumeId.length) return
         var rows = root.volumeRows || []
-        for (var i = 0; i < rows.length; i++) {
-            if (String(rows[i].id) === root.continueVolumeId) {
-                volumeGrid.positionViewAtIndex(i, GridView.Center)
-                root._landedIndex = i
-                root.requestCovers()
-                return
-            }
-        }
+        if (!rows.length) return
+        var n = root.initialFocusNumber(), idx = root.indexOfNumber(n)
+        root.focusAtNumber(n)
+        root._landedIndex = idx >= 0 ? idx : 0
     }
+
+    Component.onCompleted: {
+        root.refresh(); root.refreshResume()
+        Qt.callLater(root.requestCovers); root._autoLand()
+    }
+    onSeriesIdChanged: {
+        root.coverByVolume = ({}); root._thumbWanted = ({}); root._resume = null
+        root.selectedNumbers = []; root._landedIndex = -1; root._pageHomed = false
+        root.refresh(); root.refreshResume(); Qt.callLater(root.requestCovers); root._autoLand()
+    }
+    onVolumeRowsChanged: {
+        if (root.indexOfNumber(root.focusToken) < 0) root.focusAtNumber(root.initialFocusNumber())
+        Qt.callLater(root.requestCovers)
+        root._autoLand()
+    }
+    onChaptersChanged: _coverPrefetchTimer.restart()
+    onFocusNumberChanged: root.requestCovers()
+    onFocusTokenChanged: root.requestCovers()
 
     Connections {
         target: root.serviceObject
@@ -502,397 +556,316 @@ Item {
     }
 
     // ------------------------------------------------------------------
-    // Pane chrome
+    // The shelf - one continuous vertical scroll: grid header ("VOLUMES"), the
+    // cover-card grid, then the "Latest chapters" tail. GridView.header/footer keep
+    // this to ONE Flickable so the grid stays properly virtualized (liveVolumeTiles
+    // stays < volumeRows.length even for a 115-volume series) while the header/tail
+    // scroll with it, matching the mock's single-page flow.
     // ------------------------------------------------------------------
 
-    Item {
-        id: paneHeader
-        objectName: "readingRoomPaneHeader"
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 66
-
-        Row {
-            id: tabs
-            anchors.left: parent.left
-            anchors.leftMargin: 2
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 26
-
-            Item {
-                visible: root.showVolumes
-                width: volumesTab.implicitWidth
-                height: 42
-                Text {
-                    id: volumesTab
-                    anchors.centerIn: parent
-                    text: "Volumes  " + root.volumeRows.length + " books"
-                    color: root.activeTab === "volumes" ? theme.ink : theme.inkDimmer
-                    font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
-                }
-                Rectangle {
-                    visible: root.activeTab === "volumes"
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 2; color: theme.gold
-                }
-                MouseArea {
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: root.selectTab("volumes")
-                }
-            }
-
-            Item {
-                width: chaptersTab.implicitWidth
-                height: 42
-                Text {
-                    id: chaptersTab
-                    anchors.centerIn: parent
-                    text: root.showVolumes
-                        ? "Chapters  latest " + root._chapterRangeText()
-                        : "Chapters  " + root.chapterRows.length + " chapters"
-                    color: root.activeTab === "chapters" ? theme.ink : theme.inkDimmer
-                    font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
-                }
-                Rectangle {
-                    visible: root.activeTab === "chapters"
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 2; color: theme.gold
-                }
-                MouseArea {
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: root.selectTab("chapters")
-                }
-            }
-        }
-
-        Row {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 10
-
-            Rectangle {
-                visible: root.showVolumes && root.nextBatch.numbers.length > 0
-                width: nextText.implicitWidth + 28; height: 44; radius: 9
-                color: nextMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.10) : "transparent"
-                border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.45)
-                Text { id: nextText; anchors.centerIn: parent; text: "Get next 10 missing"
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
-                MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor; onClicked: root.requestNextMissing() }
-            }
-
-            Rectangle {
-                visible: root.showVolumes
-                width: selectText.implicitWidth + 28; height: 44; radius: 9
-                color: root.selecting ? theme.ink : "transparent"
-                border.width: 1; border.color: root.selecting ? theme.ink : theme.edge
-                Text { id: selectText; anchors.centerIn: parent; text: root.selecting ? "Done" : "Select"
-                    color: root.selecting ? "#1a1306" : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.selecting = !root.selecting; if (!root.selecting) root.selectedNumbers = [] } }
-            }
-        }
-
-        Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            height: 1; color: theme.edge }
+    // Debounce for the scroll-driven cover prefetch (see visibleGridRows / requestCovers):
+    // a fast flick must not spam WeebCentral with a thumb request per frame.
+    Timer {
+        id: _coverPrefetchTimer
+        interval: 120
+        onTriggered: root.requestCovers(root.visibleGridRows())
     }
 
-    Item {
-        id: paneBody
-        anchors.top: paneHeader.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
+    GridView {
+        id: volumeGrid
+        objectName: "volumeShelfGrid"
+        anchors.fill: parent
         clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        cacheBuffer: 640
+        model: root.volumeRows
+        currentIndex: root.focusIndex
+        highlightFollowsCurrentItem: false
 
-        GridView {
-            id: volumeGrid
-            objectName: "readingRoomVolumeGrid"
-            anchors.fill: parent
-            anchors.topMargin: 20
-            anchors.leftMargin: 2
-            anchors.rightMargin: root.longSeries ? 54 : 0
-            anchors.bottomMargin: 22
-            visible: root.activeTab === "volumes"
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            model: root.volumeRows
-            property int columns: Math.max(1, Math.floor((width + root.gridGap)
-                / (root.minimumTileWidth + root.gridGap)))
-            cellWidth: columns > 0 ? (width - (columns - 1) * root.gridGap) / columns + root.gridGap : width
-            cellHeight: root.tileHeight + 48
-            cacheBuffer: root.tileHeight * 2
-            onContentYChanged: root.requestCovers()
-            onWidthChanged: root.requestCovers()
+        readonly property int columnGap: 14
+        readonly property int rowGap: 18
+        readonly property int captionHeight: 78
+        property int columns: Math.max(1, Math.floor((width + columnGap) / (150 + columnGap)))
+        cellWidth: width / Math.max(1, columns)
+        cellHeight: Math.round((cellWidth - columnGap) * 1.5) + rowGap + captionHeight
 
-            delegate: Item {
-                id: tile
-                objectName: "volumeTile"
-                required property var modelData
-                width: volumeGrid.cellWidth - root.gridGap
-                height: root.tileHeight + 34
-                property string volumeId: String(modelData.id || "")
-                property string tileState: root.effectiveState(modelData)
-                property real fraction: root.progressFraction(modelData)
-                property bool continuation: root.isContinue(modelData)
-                property bool selected: root.selectedNumbers.indexOf(root.selectionToken(modelData.number)) >= 0
+        // Cover prefetch follows the scroll (debounced) + fills on initial layout/relayout.
+        onContentYChanged: _coverPrefetchTimer.restart()
+        onHeightChanged: _coverPrefetchTimer.restart()
+        Component.onCompleted: _coverPrefetchTimer.restart()
 
-                Rectangle {
-                    id: coverFrame
-                    width: parent.width
-                    height: root.tileHeight
-                    radius: 8
-                    color: Qt.rgba(1, 1, 1, 0.05)
-                    opacity: tile.tileState === "ready" ? 1.0
-                           : tile.tileState === "failed" ? 0.45
-                           : root._inFlight(tile.tileState) ? 0.60
-                           : tile.tileState === "none" ? 0.42 : 0.70
-                    border.width: tile.selected ? 2 : (tile.continuation ? 2 : 0)
-                    border.color: tile.selected || tile.continuation ? theme.gold : "transparent"
-
-                    Image {
-                        anchors.fill: parent
-                        source: root.coverFor(tile.modelData)
-                        sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
-                        asynchronous: true; cache: true
-                        fillMode: Image.PreserveAspectCrop
-                        visible: status === Image.Ready
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        visible: parent.children[0].status !== Image.Ready
-                        text: Vol.volumeToken(tile.modelData)
-                        color: Qt.rgba(1, 1, 1, 0.26)
-                        font.family: theme.display; font.pixelSize: 42; font.weight: Font.Black
-                    }
-                    Rectangle {
-                        visible: root._inFlight(tile.tileState) || tile.continuation
-                        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                        height: 3; color: Qt.rgba(0, 0, 0, 0.55)
-                        Rectangle { width: Math.max(0, Math.min(1, tile.fraction < 0 ? 0 : tile.fraction)) * parent.width
-                            height: parent.height; color: theme.gold }
-                    }
-                    Rectangle {
-                        visible: tile.tileState === "failed"
-                        anchors.fill: parent; color: "#e6a3a3"; opacity: 0.18; radius: 8
-                    }
-                    Rectangle {
-                        visible: tile.tileState === "none" && tileMa.containsMouse && !root.selecting
-                        anchors.centerIn: parent; width: getText.implicitWidth + 26; height: 32; radius: 8
-                        color: Qt.rgba(0.04, 0.04, 0.05, 0.88)
-                        border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.55)
-                        Text { id: getText; anchors.centerIn: parent; text: "Get"; color: theme.gold
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
-                    }
+        header: Component {
+            Item {
+                width: volumeGrid.width
+                height: root.volumeRows.length > 0 ? 44 : 0
+                Text {
+                    anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.bottomMargin: 14
+                    visible: root.volumeRows.length > 0
+                    text: "VOLUMES"
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
                 }
 
+                // Select-mode entry point (Hemanth greenlit KEEP-IT, 2026-08-14 handoff): the
+                // rebuild dropped the old paneHeader that used to trigger batch download, but
+                // every batch function it drove (`selecting`, `selectedNumbers`,
+                // `downloadSelected`, `requestNextMissing`, the floating "N selected" bar) was
+                // kept alive untouched. This is the ONE sanctioned addition back onto the mock's
+                // otherwise-clean header: a plain gray text toggle, no glass, no border — reusing
+                // the preserved functions as-is, nothing new wired into native.
                 Row {
-                    anchors.top: coverFrame.bottom; anchors.topMargin: 8
-                    anchors.left: parent.left; anchors.right: parent.right
-                    spacing: 6
-                    Rectangle { visible: tile.tileState === "ready"; width: 5; height: 5; radius: 3
-                        color: theme.gold; anchors.verticalCenter: parent.verticalCenter }
+                    id: selectRow
+                    anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 13
+                    visible: root.volumeRows.length > 0
+                    spacing: 16
                     Text {
-                        text: root.volumeCaptionFor(tile.modelData)
-                        color: tile.continuation ? theme.gold
-                             : (tile.tileState === "failed" ? "#e6a3a3" : theme.inkDimmer)
-                        font.family: theme.ui; font.pixelSize: 12
-                        font.weight: tile.continuation ? Font.DemiBold : Font.Normal
-                        elide: Text.ElideRight; maximumLineCount: 1
+                        objectName: "volumeDownloadNextAction"
+                        visible: root.selecting
+                        text: "Download next 10"
+                        color: nextMa.containsMouse ? theme.ink : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                        MouseArea {
+                            id: nextMa
+                            anchors.fill: parent; anchors.margins: -6
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: root.requestNextMissing()
+                        }
                     }
+                    Text {
+                        objectName: "volumeSelectToggle"
+                        text: root.selecting ? "Done" : "Select"
+                        color: selectMa.containsMouse ? theme.ink : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                        MouseArea {
+                            id: selectMa
+                            anchors.fill: parent; anchors.margins: -6
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (root.selecting) root.clearSelection()
+                                else root.selecting = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        delegate: Item {
+            id: card
+            objectName: "volumeTile"
+            required property var modelData
+            required property int index
+            width: volumeGrid.cellWidth - volumeGrid.columnGap
+            height: volumeGrid.cellHeight - volumeGrid.rowGap
+            property string cardState: root.effectiveState(card.modelData)
+            property real fraction: root.progressFraction(card.modelData)
+            property string chipText: root.chipTextFor(card.modelData)
+            property string spanText: root.shelfRangeFor(card.modelData)
+
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: "Volume " + Vol.volumeToken(card.modelData)
+            Keys.onReturnPressed: root.primaryAction(card.modelData)
+            Keys.onEnterPressed: root.primaryAction(card.modelData)
+
+            Rectangle {
+                id: coverBox
+                width: parent.width
+                height: Math.round(width * 1.5)
+                radius: 6
+                clip: true
+                color: theme.glassTint
+                border.width: 1
+                border.color: cardMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.34) : theme.edge
+
+                Image {
+                    id: coverImage
+                    anchors.fill: parent
+                    source: root.coverFor(card.modelData)
+                    sourceSize: Qt.size(Math.ceil(width * 1.6), Math.ceil(height * 1.6))
+                    asynchronous: true; cache: true; retainWhileLoading: true
+                    fillMode: Image.PreserveAspectCrop
+                    visible: status === Image.Ready
+                }
+                Column {
+                    visible: coverImage.status !== Image.Ready
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: Vol.volumeToken(card.modelData)
+                        color: theme.inkDim; font.family: theme.display; font.pixelSize: 30
+                    }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "NO COVER"
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.6
+                    }
+                }
+                Rectangle {
+                    visible: card.chipText.length > 0
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 7
+                    radius: 9; height: chipLabel.implicitHeight + 6; width: chipLabel.implicitWidth + 16
+                    color: Qt.rgba(0, 0, 0, 0.62); border.width: 1; border.color: theme.edge
+                    Text {
+                        id: chipLabel
+                        anchors.centerIn: parent
+                        text: card.chipText
+                        color: card.cardState === "ready" ? theme.ink : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.2
+                    }
+                }
+                Rectangle {
+                    visible: root._inFlight(card.cardState)
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    height: 3; color: Qt.rgba(1, 1, 1, 0.13)
+                    Rectangle { width: Math.max(0, card.fraction) * parent.width; height: parent.height; color: theme.gold }
+                }
+            }
+
+            Column {
+                anchors.top: coverBox.bottom; anchors.topMargin: 8
+                anchors.left: parent.left; anchors.right: parent.right
+                spacing: 2
+                Text {
+                    text: "VOL " + Vol.volumeToken(card.modelData)
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.8
                 }
                 Text {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.top: coverFrame.bottom; anchors.topMargin: 28
-                    text: root.chapterSpanFor(tile.modelData) + " · " + root.stateWordFor(tile.modelData)
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10
-                    elide: Text.ElideRight; maximumLineCount: 1
-                    visible: tileMa.containsMouse
+                    width: parent.width
+                    text: card.modelData.title || ""
+                    visible: text.length > 0
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                 }
-                MouseArea {
-                    id: tileMa
-                    anchors.fill: coverFrame
-                    hoverEnabled: true
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: function(mouse) {
-                        if (mouse.button === Qt.RightButton) {
-                            root.detailVolume = tile.modelData
-                            detailMenu.open()
-                            return
-                        }
-                        if (root.selecting) root.selectNumber(tile.modelData.number)
-                        else root.primaryAction(tile.modelData)
-                    }
+                Text {
+                    text: card.spanText.length ? card.spanText : "chapters not mapped yet"
+                    color: card.spanText.length ? theme.inkDim : theme.inkDimmer
+                    font.italic: !card.spanText.length
+                    font.family: theme.ui; font.pixelSize: 12
                 }
             }
-        }
 
-        ListView {
-            id: chapterScroll
-            anchors.fill: parent
-            anchors.topMargin: 20
-            anchors.bottomMargin: 20
-            visible: root.activeTab === "chapters"
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            cacheBuffer: Math.max(0, height * 2)
-            model: root.chapterRows
-            delegate: Item {
-                id: chapterRow
-                required property var modelData
-                width: chapterScroll.width - 10
-                height: 54
-                property string chapterId: String(modelData.id || "")
-                property string chapterLabel: (modelData.name && String(modelData.name).length)
-                    ? String(modelData.name) : ("Chapter " + String(modelData.number || ""))
-                property string chapterState: "none"
-
-                function refreshState() {
-                    var d = root.downloaderObject
-                    chapterState = d && d.statusOf ? String(d.statusOf(chapterId).state || "none") : "none"
-                }
-                Component.onCompleted: refreshState()
-
-                Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
-                Text { anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter
-                    text: modelData.number || ""; color: theme.ink; font.family: theme.display; font.pixelSize: 16
-                    font.weight: Font.DemiBold; width: 62; horizontalAlignment: Text.AlignRight }
-                Text { anchors.left: parent.left; anchors.leftMargin: 92; anchors.right: statusText.left
-                    anchors.verticalCenter: parent.verticalCenter; text: chapterRow.chapterLabel
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
-                Text { id: statusText; anchors.right: parent.right; anchors.rightMargin: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: chapterRow.chapterState === "done" ? "On this device"
-                        : (chapterRow.chapterState === "downloading" ? "Downloading…" : "Get")
-                    color: chapterRow.chapterState === "done" ? theme.gold : theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12 }
-                MouseArea {
-                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (chapterRow.chapterState === "done") {
-                            root.openChapterRequested(chapterRow.chapterId, chapterRow.chapterLabel)
-                        } else if (chapterRow.chapterState !== "downloading") {
-                            root.chapterDownloadRequested(chapterRow.chapterId, chapterRow.chapterLabel)
-                            chapterRow.chapterState = "downloading"
-                        }
-                    }
-                }
-                Connections {
-                    target: root.downloaderObject
-                    ignoreUnknownSignals: true
-                    function onProgress(cid, done, total) {
-                        if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "downloading"
-                    }
-                    function onFinished(cid) {
-                        if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "done"
-                    }
-                    function onRemoved(cid) {
-                        if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "none"
-                    }
-                    function onFailed(cid, reason) {
-                        if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "failed"
-                    }
-                }
-            }
-        }
-
-        Item {
-            id: jumpStrip
-            visible: root.longSeries && root.activeTab === "volumes"
-            anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.right: parent.right
-            width: 48
-            Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-                width: 1; color: Qt.rgba(1, 1, 1, 0.08) }
-            ListView {
-                id: jumpList
+            MouseArea {
+                id: cardMouse
                 anchors.fill: parent
-                anchors.margins: 2
-                model: root.jumpNumbers()
-                clip: true
-                interactive: contentHeight > height
-                boundsBehavior: Flickable.StopAtBounds
-                delegate: Item {
-                    required property var modelData
-                    width: jumpList.width
-                    height: 44
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onPressed: card.forceActiveFocus()
+                onClicked: root.primaryAction(card.modelData)
+            }
+
+            Component.onCompleted: root.liveVolumeTiles += 1
+            Component.onDestruction: root.liveVolumeTiles -= 1
+        }
+
+        footer: Component {
+            Item {
+                id: tailRoot
+                width: volumeGrid.width
+                visible: root.chapterRows.length > 0
+                height: visible ? tailColumn.height : 0
+
+                Column {
+                    id: tailColumn
+                    width: parent.width
+                    topPadding: 40
+                    spacing: 12
+
                     Text {
-                        anchors.centerIn: parent
-                        text: String(modelData)
-                        color: root._jumpInView(Number(modelData)) ? theme.gold : theme.inkDimmer
-                        font.family: theme.display; font.pixelSize: 12; font.weight: Font.DemiBold
+                        text: "LATEST CHAPTERS"
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
                     }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.jumpToNumber(Number(modelData)) }
+                    Text {
+                        text: root.chapterRows.length + (root.chapterRows.length === 1 ? " chapter" : " chapters")
+                            + (root.showVolumes ? " not yet collected into a volume" : "")
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    }
+                    Rectangle {
+                        width: parent.width; height: tailRows.height; radius: 8
+                        color: "transparent"; border.width: 1; border.color: theme.edge
+                        clip: true
+                        Column {
+                            id: tailRows
+                            width: parent.width
+                            Repeater {
+                                model: root.chapterRows
+                                delegate: Item {
+                                    id: chapterRow
+                                    required property var modelData
+                                    required property int index
+                                    width: tailRows.width; height: 42
+                                    property string chapterId: String(chapterRow.modelData.id || "")
+                                    property string chapterLabel:
+                                        (chapterRow.modelData.name && String(chapterRow.modelData.name).length)
+                                            ? String(chapterRow.modelData.name)
+                                            : ("Chapter " + String(chapterRow.modelData.number || ""))
+                                    property string chapterState: "none"
+                                    function refreshState() {
+                                        var d = root.downloaderObject
+                                        chapterRow.chapterState = d && d.statusOf
+                                            ? String(d.statusOf(chapterRow.chapterId).state || "none") : "none"
+                                    }
+                                    Component.onCompleted: chapterRow.refreshState()
+
+                                    Rectangle { anchors.fill: parent; color: theme.glassTint }
+                                    Rectangle {
+                                        visible: chapterRow.index < root.chapterRows.length - 1
+                                        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                                        height: 1; color: Qt.rgba(1, 1, 1, 0.07)
+                                    }
+                                    Text {
+                                        anchors.left: parent.left; anchors.leftMargin: 16
+                                        anchors.right: chapterStatus.left; anchors.rightMargin: 14
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: chapterRow.chapterLabel
+                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 14
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        id: chapterStatus
+                                        anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter
+                                        text: chapterRow.chapterState === "done" ? "On device"
+                                            : chapterRow.chapterState === "downloading" ? "Downloading" : "Get"
+                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 0.6
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (chapterRow.chapterState === "done")
+                                                root.openChapterRequested(chapterRow.chapterId, chapterRow.chapterLabel)
+                                            else if (chapterRow.chapterState !== "downloading") {
+                                                root.chapterDownloadRequested(chapterRow.chapterId, chapterRow.chapterLabel)
+                                                chapterRow.chapterState = "downloading"
+                                            }
+                                        }
+                                    }
+                                    Connections {
+                                        target: root.downloaderObject; ignoreUnknownSignals: true
+                                        function onProgress(cid, done, total) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "downloading" }
+                                        function onFinished(cid) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "done" }
+                                        function onRemoved(cid) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "none" }
+                                        function onFailed(cid, reason) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "failed" }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    readonly property bool longSeries: root.volumeRows.length > 0 && volumeGrid.contentHeight > height * 3
-    function _jumpInView(number) {
-        var rows = root.volumeRows || []
-        var index = -1
-        for (var i = 0; i < rows.length; i++)
-            if (Number(rows[i].number) === Number(number)) { index = i; break }
-        if (index < 0 || volumeGrid.columns <= 0) return false
-        var y = Math.floor(index / volumeGrid.columns) * volumeGrid.cellHeight
-        return y >= volumeGrid.contentY && y < volumeGrid.contentY + volumeGrid.height
-    }
-
-    function _chapterRangeText() {
-        var rows = root.chapterRows || []
-        if (!rows.length) return "none"
-        var first = rows[0].number || "", last = rows[rows.length - 1].number || ""
-        return String(first) + "–" + String(last)
-    }
-
-    Menu {
-        id: detailMenu
-        x: Math.max(12, root.width - width - 24)
-        y: 78
-        MenuItem {
-            text: root.detailVolume ? "Vol " + Vol.volumeToken(root.detailVolume) : "Volume"
-            enabled: false
-        }
-        MenuSeparator { }
-        MenuItem {
-            text: root.detailVolume && root.effectiveState(root.detailVolume) === "ready"
-                ? "Open volume" : "Find source"
-            onTriggered: if (root.detailVolume) root.primaryAction(root.detailVolume)
-        }
-        MenuItem {
-            text: "Choose source"
-            enabled: root.detailVolume !== null && !root._inFlight(root.effectiveState(root.detailVolume))
-            onTriggered: if (root.detailVolume) root.chooseSource(String(root.detailVolume.id))
-        }
-        MenuItem {
-            text: "Cancel remaining"
-            visible: root.detailVolume !== null && root._inFlight(root.effectiveState(root.detailVolume))
-            onTriggered: root.cancelRemaining()
-        }
-    }
-
-    // Floating selection bar: it belongs to this pane, not to the fixed rail.
+    // Select-mode floating action bar. Unreachable today (see the `selecting` note
+    // above - nothing in the new grid can ever flip it true), kept only so the
+    // batch-download contract has somewhere to land if a future entry point is added.
     Rectangle {
         visible: root.selecting && root.selectedNumbers.length > 0
-        z: 20
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 18
-        height: 48; width: selectedText.implicitWidth + downloadSelectedText.implicitWidth + 64
-        radius: 12; color: Qt.rgba(0.04, 0.04, 0.05, 0.94)
-        border.width: 1; border.color: theme.edge
-        Text { id: selectedText; anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
-            text: root.selectedNumbers.length + " selected"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
-        Rectangle { anchors.right: parent.right; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter
-            width: downloadSelectedText.implicitWidth + 24; height: 34; radius: 8; color: theme.gold
-            Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#1a1306"
-                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                onClicked: root.downloadSelected() }
+        z: 20; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 14
+        height: 42; width: selectedText.implicitWidth + downloadSelectedText.implicitWidth + 58; radius: 10
+        color: Qt.rgba(0.03, 0.035, 0.045, 0.96); border.width: 1; border.color: theme.edge
+        Text { id: selectedText; anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: root.selectedNumbers.length + " selected"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11 }
+        Rectangle { anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter; width: downloadSelectedText.implicitWidth + 20; height: 30; radius: 7; color: theme.gold
+            Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#171205"; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.downloadSelected() }
         }
     }
 }

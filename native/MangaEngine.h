@@ -138,8 +138,8 @@ public:
 
     // VOLUME structure — volume DB by WeebCentral id, live Comick scrape on a miss,
     // completeness-gated. {volumes:[]} = not qualified -> the flat chapter list.
-    Q_INVOKABLE void volumes(const QString& seriesId, const QString& title)
-    { m_comick->fetchSeries(seriesId, title); }
+    Q_INVOKABLE void volumes(const QString& seriesId, const QString& title, const QString& malId = QString())
+    { m_comick->fetchSeries(seriesId, title, malId); }
 
     // Dev self-test: resolve a title end-to-end and log the chapter count, so we can
     // confirm the in-app C++ path matches the curl de-risk.

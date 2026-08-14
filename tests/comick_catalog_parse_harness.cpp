@@ -28,6 +28,7 @@
 #include <QMetaType>
 #include <QString>
 #include <QStringList>
+#include <QHash>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
@@ -139,8 +140,8 @@ const char* const kQualifiedRecord = R"json(
   "comickHid": "aBcD1234",
   "comickSlug": "fixture-series",
   "volumes": [
-    { "number": 1, "chapterStart": "1",  "chapterEnd": "7.5" },
-    { "number": 2, "chapterStart": "8",  "chapterEnd": "17.5" },
+    { "number": 1, "chapterStart": "1",  "chapterEnd": "7.5",  "cover": "https://static.wikia.nocookie.net/fix/Volume_1.jpg" },
+    { "number": 2, "chapterStart": "8",  "chapterEnd": "17.5", "cover": "https://static.wikia.nocookie.net/fix/Volume_2.jpg" },
     { "number": 3, "chapterStart": "18", "chapterEnd": "26.5" }
   ],
   "weebCentral": { "seriesId": "01JQH0FBS5BGDMBDC0BJW034N2" },
@@ -328,26 +329,39 @@ int main()
                      QStringLiteral("1:1-7.5,2:8-17.5,3:18-26.5"),
                      "emitted volumes are ascending with the record's own boundaries");
 
-        bool coversEmpty = true;
+        bool coversAreStrings = true;
         bool numbersAreDoubles = true;
         bool boundariesAreStrings = true;
+        QHash<int, QString> emittedCover;
         for (const QVariant& entry : rec.volumes) {
             const QVariantMap map = entry.toMap();
             const QVariant cover = map.value(QStringLiteral("cover"));
-            if (!cover.isValid() || cover.typeId() != QMetaType::QString
-                || !cover.toString().isEmpty())
-                coversEmpty = false;
+            if (!cover.isValid() || cover.typeId() != QMetaType::QString)
+                coversAreStrings = false;
+            emittedCover.insert(static_cast<int>(map.value(QStringLiteral("number")).toDouble()),
+                                cover.toString());
             if (map.value(QStringLiteral("number")).typeId() != QMetaType::Double)
                 numbersAreDoubles = false;
             if (map.value(QStringLiteral("chapterStart")).typeId() != QMetaType::QString
                 || map.value(QStringLiteral("chapterEnd")).typeId() != QMetaType::QString)
                 boundariesAreStrings = false;
         }
-        require(coversEmpty,
-                "every emitted volume carries an EMPTY cover (the shelf draws its own "
-                "numbered placeholder; a downloaded volume uses its own first page)");
+        require(coversAreStrings,
+                "`cover` is always a string (empty when the record carries none)");
         require(numbersAreDoubles, "`number` is a double, as QML expects");
         require(boundariesAreStrings, "`chapterStart`/`chapterEnd` are strings");
+
+        // The record's per-volume cover URLs carry through to the emitted map, keyed by
+        // volume number; a volume the record gives no cover emits an empty string. This
+        // is the Slice-D unblock: before it, every emitted cover was blank.
+        requireEqual(emittedCover.value(1),
+                     QStringLiteral("https://static.wikia.nocookie.net/fix/Volume_1.jpg"),
+                     "volume 1's record cover carries through to the shelf");
+        requireEqual(emittedCover.value(2),
+                     QStringLiteral("https://static.wikia.nocookie.net/fix/Volume_2.jpg"),
+                     "volume 2's record cover carries through to the shelf");
+        requireEqual(emittedCover.value(3), QString(),
+                     "volume 3 (no cover in the record) emits an empty cover");
 
         const QVariantMap second = rec.volumes.at(1).toMap();
         requireEqual(second.value(QStringLiteral("chapterEnd")).toString(),

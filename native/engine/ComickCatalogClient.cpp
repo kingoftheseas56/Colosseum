@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QHash>
 #include <QVariantMap>
 
 #include <algorithm>
@@ -112,7 +113,8 @@ QString labelFromJson(const QJsonValue& value, const char* field, bool* warned)
     return QString();   // null, absent, or some other type: the grouper rejects "" anyway
 }
 
-QVariantList toEmitList(QList<VolumeRange> vols)
+QVariantList toEmitList(QList<VolumeRange> vols,
+                        const QHash<int, QString>& coverByNumber = {})
 {
     std::stable_sort(vols.begin(), vols.end(),
                      [](const VolumeRange& a, const VolumeRange& b) {
@@ -123,10 +125,12 @@ QVariantList toEmitList(QList<VolumeRange> vols)
     for (const VolumeRange& vol : vols) {
         out.append(QVariantMap{
             {QStringLiteral("number"), static_cast<double>(vol.number)},
-            // Always empty — see the header. The shelf draws a numbered placeholder
-            // for an undownloaded volume and uses the volume's own first page once
-            // it is on disk; there is no per-volume cover to fetch from either source.
-            {QStringLiteral("cover"), QString()},
+            // The published record's per-volume cover URL (Fandom-harvested art in
+            // colosseum-volume-db), keyed by volume number. Empty when the record has no
+            // art for this volume, and empty for the live-scrape path (no map passed) —
+            // an empty cover means the shelf draws its numbered placeholder and a
+            // downloaded volume uses its own first page.
+            {QStringLiteral("cover"), coverByNumber.value(vol.number)},
             {QStringLiteral("chapterStart"), vol.chapterStart},
             {QStringLiteral("chapterEnd"), vol.chapterEnd}});
     }
@@ -134,6 +138,24 @@ QVariantList toEmitList(QList<VolumeRange> vols)
 }
 
 } // namespace
+
+// ---- pure: db URL builder ----------------------------------------------------
+
+// A non-empty `malId` always wins over `weebCentralId`, even when both are present — a
+// series fetched by MAL id looks itself up under its MAL record, not a WeebCentral one
+// that happens to also be known. Pure and network-free so the key-selection rule and the
+// percent-encoding can both be proven without a live fetch (see the empty-malId row: it
+// must reproduce today's WeebCentral-ULID URL byte-for-byte).
+QString dbUrlFor(const QString& weebCentralId, const QString& malId)
+{
+    const QString trimmedMal = malId.trimmed();
+    const QString key = !trimmedMal.isEmpty()
+                             ? QStringLiteral("mal-") + trimmedMal
+                             : weebCentralId.trimmed();
+    return QString::fromLatin1(kDbBase)
+           + QString::fromLatin1(QUrl::toPercentEncoding(key))
+           + QStringLiteral(".json");
+}
 
 // ---- pure parse: a published DB record -------------------------------------
 
@@ -185,6 +207,7 @@ ParsedRecord parseDbRecord(const QByteArray& json)
     // refused below whatever the gate goes on to think of the survivors.
     QString structureProblem;
     QList<VolumeRange> vols;
+    QHash<int, QString> coverByNumber;   // volume number -> the record's per-volume cover URL
     const QJsonArray volumesArray = volumesValue.toArray();
     vols.reserve(volumesArray.size());
     for (int i = 0; i < volumesArray.size(); ++i) {
@@ -218,6 +241,9 @@ ParsedRecord parseDbRecord(const QByteArray& json)
             }
             continue;
         }
+        // Carry the record's per-volume cover URL (may be absent/empty) alongside the
+        // range; toEmitList stamps it onto the emitted map by volume number.
+        coverByNumber.insert(range.number, obj.value(QLatin1String("cover")).toString());
         vols.append(range);
     }
 
@@ -247,7 +273,7 @@ ParsedRecord parseDbRecord(const QByteArray& json)
     }
 
     out.qualified = true;
-    out.volumes = toEmitList(vols);
+    out.volumes = toEmitList(vols, coverByNumber);
     return out;
 }
 
@@ -289,6 +315,7 @@ struct ComickCatalogClient::PendingFetch {
     QString weebCentralId;
     QString title;
     QString hid;
+    QString malId;   // Slice B: non-empty when the caller resolved this series by MAL id.
 };
 
 ComickCatalogClient::ComickCatalogClient(QNetworkAccessManager* nam, QObject* parent)
@@ -320,14 +347,16 @@ void ComickCatalogClient::emitFailure(PendingFetchPtr pending, const QString& re
     emit catalogFailed(pending->title, reason);
 }
 
-void ComickCatalogClient::fetchSeries(const QString& weebCentralId, const QString& title)
+void ComickCatalogClient::fetchSeries(const QString& weebCentralId, const QString& title,
+                                      const QString& malId)
 {
     auto pending = std::make_shared<PendingFetch>();
     pending->weebCentralId = weebCentralId.trimmed();
     pending->title = title;
+    pending->malId = malId.trimmed();
 
-    if (pending->weebCentralId.isEmpty()) {
-        // No DB key to look up — the record is filed by WeebCentral id.
+    if (pending->weebCentralId.isEmpty() && pending->malId.isEmpty()) {
+        // No DB key to look up — the record is filed by WeebCentral id or MAL id.
         stepSearch(pending);
         return;
     }
@@ -338,9 +367,7 @@ void ComickCatalogClient::fetchSeries(const QString& weebCentralId, const QStrin
 
 void ComickCatalogClient::stepDbRecord(PendingFetchPtr pending)
 {
-    const QUrl url(QString::fromLatin1(kDbBase)
-                   + QString::fromLatin1(QUrl::toPercentEncoding(pending->weebCentralId))
-                   + QStringLiteral(".json"));
+    const QUrl url(dbUrlFor(pending->weebCentralId, pending->malId));
     QNetworkRequest req(url);
     applyHeaders(req, kTimeoutMs);
     QNetworkReply* reply = m_nam->get(req);

@@ -13,11 +13,12 @@
 // Either path ends at the completeness gate. Gate-fail => catalogFailed => the app
 // shows the flat WeebCentral chapter list. There is NO interpolation anywhere.
 //
-// Emitted volumes: ascending QVariantMap{number:double, cover:"", chapterStart, chapterEnd}.
-// cover is ALWAYS empty. Undownloaded tiles use the shelf's numbered placeholder; a
-// downloaded volume's cover is its own first page (MangaVolumeIndex). WeebCentral's
-// chapter list carries no thumbnails (verified 2026-07-29) and Comick's per-volume
-// covers don't exist, so there is nothing to fetch.
+// Emitted volumes: ascending QVariantMap{number:double, cover, chapterStart, chapterEnd}.
+// cover carries the published DB record's per-volume `cover` URL when present (the
+// Fandom-harvested art in colosseum-volume-db); it is empty for a volume the record has
+// no art for and for the live WeebCentral/Comick scrape path (which has no per-volume
+// covers). An empty cover means the shelf draws its numbered placeholder, and a
+// downloaded volume still uses its own first page (MangaVolumeIndex).
 //
 // Threading: pure QNetworkAccessManager + QObject::connect lambdas, all on the main
 // thread; each fetch carries its own PendingFetch via shared_ptr, so concurrent calls
@@ -58,6 +59,12 @@ ParsedRecord parseDbRecord(const QByteArray& json);
 // Pure parse of a live chapters payload — exposed for the harness.
 QList<ChapterRow> parseChapterRows(const QByteArray& json);
 
+// Pure db-URL builder — exposed for the harness. No network, no member state. The
+// published DB is keyed by WeebCentral ULID; Slice B adds a second key shape, `mal-<id>`,
+// for a series resolved by MAL id instead. A non-empty `malId` ALWAYS wins, even when
+// `weebCentralId` is also present — see fetchSeries for the call site.
+QString dbUrlFor(const QString& weebCentralId, const QString& malId);
+
 class ComickCatalogClient : public QObject
 {
     Q_OBJECT
@@ -65,8 +72,11 @@ public:
     explicit ComickCatalogClient(QNetworkAccessManager* nam, QObject* parent = nullptr);
 
     // DB by WeebCentral ULID first, live Comick scrape on miss. Emits exactly one of
-    // catalogReady/catalogFailed per call. Concurrent calls are allowed.
-    void fetchSeries(const QString& weebCentralId, const QString& title);
+    // catalogReady/catalogFailed per call. Concurrent calls are allowed. `malId`,
+    // when non-empty, looks the record up as `mal-<malId>` instead of the WeebCentral
+    // ULID (Slice B) — the search/chapters fallback path is unaffected either way.
+    void fetchSeries(const QString& weebCentralId, const QString& title,
+                     const QString& malId = QString());
 
 signals:
     void catalogReady(const QString& title, const QVariantList& volumes);
