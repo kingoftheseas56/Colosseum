@@ -128,7 +128,7 @@ independent judge) → Promotion (draft PR + dossier) → Hemanth
   Diagnosis. Policy default: 3 runs; CONFIRMED = ≥2 failures at the same step; FLAKY = mixed;
   INFRA = boot/session failure before the asserted step. This is the reduction reflex applied —
   the v0 triage *is* "run it again and count," so that is what gets built.
-- **D5 — Sandbox = local git clone at the failing SHA** (`git clone --local`, then
+- **D5 — Sandbox = local git clone at the failing SHA** (`git clone --local --no-hardlinks`, then
   `git remote remove origin`, checkout `<sha>`): real .git for trivial diff extraction, zero shared
   refs with the main repo, fast. Provisioned by script: build inputs + runtime DLL deploy
   (windeployqt step + `libmpv-2.dll`/`MpvQt.dll` copy — the exact recipe proven three times in
@@ -452,6 +452,63 @@ deferred until the two-cold-builds cost is proven painful in practice. Multi-inc
 rejected in v0 (one machine, one build at a time; the lock enforces it). Triage as an LLM —
 rejected in v0 (D4; a script that counts is honest and free). Registry hand-edits — rejected
 forever. Modifying existing tests by repair patches — rejected forever (ruling 2).
+
+## Pressure-test amendments (GLM-5.2 adversarial pass, 2026-08-14) — BINDING
+
+The plan was refuted by GLM at high thinking depth immediately after authoring; findings were
+triaged by Agent 0 against the plan's actual text. The following are **binding amendments** —
+where an amendment conflicts with a slice body above, the amendment wins:
+
+- **A1 (D5/G2) — no shared object store, ever.** Sandbox clones use `--local --no-hardlinks`
+  (a hardlinked pack rewritten by a sandbox `git gc`/`repack` could corrupt the MAIN repo's
+  object DB — the working-tree drift tripwire cannot see that layer). The guard hook additionally
+  denies `git gc|repack|prune` inside sandboxes.
+- **A2 (G4) — path canonicalization before every guard decision.** The hook resolves
+  `GetFullPathName` + realpath (junctions/reparse points/`.lnk`), strips `\\?\` prefixes, and
+  case-folds before matching (NTFS is case-insensitive; `Tests\` must match `tests/`). G4's probe
+  adds a junction-escape case. The hook also denies egress binaries (`curl`, `wget`,
+  `Invoke-WebRequest`, `git fetch|push|pull`, `pip`, `npm`) and absolute reads under
+  `%USERPROFILE%` — the no-network v0 ruling, mechanized.
+- **A3 (G6) — patch classification on canonical case-folded paths** (same rule as A2).
+- **A4 (G6) — bug-test command is template-constrained, not free-form:** it must be
+  `ctest -R <a-test-the-patch-ADDED>` or `lanista session run <a-scenario-the-patch-ADDED>` —
+  the declared command is validated against the patch's added paths, so the agent cannot point
+  the proof at something it controls elsewhere. Red and green are each proven **2/2 runs** (kills
+  timing-lucky proofs). `QML_DISABLE_DISK_CACHE=1` is set for red/green sessions (belt-and-braces;
+  tagged sessions already isolate CacheLocation).
+- **A5 (G7) — two added mechanical gates + a priming mitigation.** (1) `ctest -N` inventory count
+  in the verify sandbox must MATCH the base inventory (± tests the patch added) — kills
+  registration-tampering via build files. (2) The diagnosis-cited files and patch-touched files
+  must intersect — kills drive-by "fixes" aimed somewhere other than the blamed seam. (3) The
+  Verifier agent's primary exhibit is a comment-stripped production diff (raw patch remains in its
+  sandbox) — reduces narrative priming; full identifier anonymization is DEFERRED (named, not
+  silent). Acceptance criteria remain derived from the incident + policy only, never from
+  diagnosis.json — now stated as an assertable property of the verifier-context builder.
+- **A6 (G8) — HEAD drift handling.** Promotion attempts a rebase of the patch onto current
+  `master`; on conflict it keeps the base-SHA branch and the PR body opens with a prominent
+  NEEDS-REBASE flag — the human gate decides, never silent staleness.
+- **A7 (G3/G9) — incident dedup.** `incident.json` carries a fingerprint (scenario + failing step
+  + expected/got); opening a duplicate of an OPEN incident is refused with a pointer — no
+  five-copies-of-one-flake mornings.
+- **A8 (G1) — forbidden list widened; patch-size budget.** Forbidden MODIFY/DELETE additionally
+  covers `.gitattributes`, `.gitignore`, `.claude/**`, and the guard-hook scripts themselves.
+  `policy.json` gains `maxPatchLines` (default 400) — oversized patches escalate to Hemanth
+  instead of promoting. `native/CMakeLists.txt` stays repairable (a legitimate fix may need it)
+  but any build-file change is flagged HIGH-RISK in the dossier; the A5 inventory gate is the
+  compensating control against target deletion.
+- **A9 (G9) — Windows process hygiene.** Stage timeouts kill the full process tree
+  (`taskkill /T /F`), never bare `.kill()` (orphaned `cl.exe` holds `.obj` locks for the next
+  build). Operational notes: Defender exclusion for the sandbox root (snapshot races produce
+  false VIOLATIONs otherwise); keep sandbox roots short (MAX_PATH).
+- **Recorded misreads (so nobody re-litigates):** GLM's "no regression suite runs" and "green =
+  build exit code" findings were artifacts of the compressed review prompt — the plan already
+  orders the full `-L unit` gate, the risk-class journey set, the warning gate, and green =
+  bug-test exit 0, plus the original failing repro as a hard gate (which also disposes of its
+  entry-point-swallowing and temp-flag scenarios). Its "headless can't reproduce GUI bugs" does
+  not apply — all repro sessions here are windowed by house law.
+- **Deferred, named:** identifier-anonymized diffs for the verifier; post-merge auto-revert
+  (compensating control: Night Watch retests every new HEAD nightly — the loop's own last arrow);
+  FLAKY suppression lists; stage-file ACL hardening.
 
 ## Handoff
 
