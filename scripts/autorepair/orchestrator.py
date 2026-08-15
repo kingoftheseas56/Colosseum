@@ -265,6 +265,7 @@ from policy import Policy, load_policy  # noqa: E402  (after sys.path setup, by 
 
 import sandbox  # noqa: E402  (DriftViolation type - ruling 7b, actually caught below)
 import incident as incident_mod  # noqa: E402  (build_incident() - the CLI's --from-run path)
+import bugdoc  # noqa: E402  (write_bug_doc() - the document-only DOCUMENTED terminal's capstone)
 
 __all__ = [
     "REPO_ROOT",
@@ -309,6 +310,7 @@ STAGE_SEQUENCE: tuple[str, ...] = ("incident",) + LOOP_STAGES
 TERMINAL_STATES: tuple[str, ...] = (
     "PROMOTION-READY",
     "PROMOTED",
+    "DOCUMENTED",
     "ESCALATE",
     "BUDGET",
     "VIOLATION",
@@ -730,6 +732,11 @@ _STATE_SUMMARY: dict[str, str] = {
         "The failure did not reproduce reliably enough to act on, so no repair was ever "
         "attempted."
     ),
+    "DOCUMENTED": (
+        "The failure was triaged and diagnosed, then written up as a bug document "
+        "(bug.md) instead of being fixed - policy.autonomyLevel is document-only, "
+        "so no repair was attempted and no code was touched."
+    ),
 }
 
 
@@ -900,6 +907,28 @@ def _run_loop(
             return _terminate(
                 incident_dir, incident_obj, "ESCALATE", ran_stages, now,
                 detail=reason, stage_results=context,
+            )
+
+        # ---- document-only short-circuit (Hemanth directive 2026-08-15) ----
+        # policy.autonomyLevel "document-only": the incident stops HERE, after the
+        # diagnosis gates passed and before any repair machinery exists in the
+        # stage_results - the bug is written up (bug.md), never fixed. The two
+        # gates above still ran in full: a dismissed triage or an escalated
+        # diagnosis terminates exactly as it would in any other mode; only the
+        # walk TOWARD repair is cut.
+        if policy_obj.policy["autonomyLevel"] == "document-only":
+            bug_path = bugdoc.write_bug_doc(
+                incident_dir, incident_obj, triage_obj, diagnosis_obj, generated_at=now(),
+            )
+            return _terminate(
+                incident_dir, incident_obj, "DOCUMENTED", ran_stages, now,
+                detail=(
+                    f"document-only mode: the confirmed, diagnosed bug was written up as "
+                    f"{bug_path.name} in this incident directory. No repair was "
+                    "attempted, no production file was touched, and no branch or PR "
+                    "was created."
+                ),
+                stage_results=context,
             )
 
         # ---- repair (G6) ----

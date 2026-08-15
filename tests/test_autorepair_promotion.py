@@ -544,14 +544,17 @@ class PromoteOrchestrationSeamTests(unittest.TestCase):
         sig = inspect.signature(promote)
         self.assertIs(sig.parameters["invoke"].default, default_invoke)
 
-    def test_real_docs_autorepair_policy_loads_and_is_draft_pr_by_default(self):
+    def test_real_docs_autorepair_policy_loads_and_is_document_only_by_default(self):
         # Sanity check against the REAL shipped docs/autorepair/policy.json (Slice G1) -
         # not a canned policy - proving promote()'s policy_obj=None default path reads the
-        # actual committed law file without raising.
+        # actual committed law file without raising. The shipped autonomyLevel is
+        # document-only since 2026-08-15 (Hemanth: the Guardian documents bugs rather
+        # than fixing them, "for now") - promote() itself stays draft-pr/patch-only
+        # capable for when that law is flipped back.
         from policy import load_policy
 
         real_policy = load_policy()
-        self.assertEqual(real_policy.policy["autonomyLevel"], "draft-pr")
+        self.assertEqual(real_policy.policy["autonomyLevel"], "document-only")
 
 
 if __name__ == "__main__":

@@ -141,6 +141,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -452,6 +453,16 @@ def run_headless_claude(
     Raises ClaudeInvocationError on a nonzero exit, a timeout, an unparsable envelope, or an
     envelope whose own `"is_error"` is true - never returns a fabricated result.
     """
+    # Backend seam (see run_brain_file_handoff below): when GUARDIAN_BRAIN=handoff (or
+    # set_model_backend("handoff") was called by the embedding watch), this launcher
+    # delegates the WHOLE call to the file handoff instead of spawning a CLI - one
+    # choke point, so every stage invoke (diagnosis/repair/verify) inherits it.
+    if _resolved_backend() == "handoff":
+        return run_brain_file_handoff(
+            prompt, cwd=cwd, model=model, allowed_tools=allowed_tools,
+            add_dirs=add_dirs, settings_path=settings_path,
+            claude_cli=claude_cli, timeout_sec=timeout_sec,
+        )
     argv = _claude_argv(
         claude_cli=claude_cli, model=model, allowed_tools=allowed_tools,
         add_dirs=add_dirs, settings_path=settings_path,
@@ -487,6 +498,122 @@ def run_headless_claude(
         raise ClaudeInvocationError(f"headless claude's envelope carries no result text: {envelope!r}")
 
     return _extract_json_object(result_text)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# GLM brain file handoff - the model backend for "the thinking brain is the
+# GLM agent session itself" (Hemanth directive 2026-08-15: "opus doesn't think,
+# opus reviews after the entire process is done, the thinking brain shifts over
+# to you"). Proven live in the D10 dress rehearsal via a throwaway monkeypatch;
+# promoted here to a first-class backend so the standing Night Watch can run
+# the same way without out-of-repo shims.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+_MODEL_BACKENDS = {"claude", "handoff"}
+_model_backend: str | None = None  # resolved lazily from GUARDIAN_BRAIN, then sticky
+
+
+def set_model_backend(name: str) -> None:
+    """Select how every stage's model call is served. 'claude' (default): the real
+    headless `claude -p` launcher below. 'handoff': run_brain_file_handoff() - the
+    prompt is written to artifacts/glm-brain/call-NNN/ and the process BLOCKS until
+    an answering mind (the GLM agent session driving the watch) drops answer.json
+    there. The two tiers stay honest: policy.modelRouting names WHO should think
+    (e.g. 'glm'); the backend names HOW the call is served."""
+    global _model_backend
+    if name not in _MODEL_BACKENDS:
+        raise ClaudeInvocationError(
+            f"unknown model backend {name!r}; expected one of {sorted(_MODEL_BACKENDS)}"
+        )
+    _model_backend = name
+
+
+def _resolved_backend() -> str:
+    global _model_backend
+    if _model_backend is None:
+        _model_backend = os.environ.get("GUARDIAN_BRAIN", "claude").strip().lower() or "claude"
+        if _model_backend not in _MODEL_BACKENDS:
+            raise ClaudeInvocationError(
+                f"GUARDIAN_BRAIN={_model_backend!r} is not one of {sorted(_MODEL_BACKENDS)}"
+            )
+    return _model_backend
+
+
+def _next_brain_call_dir() -> Path:
+    root = REPO_ROOT / "artifacts" / "glm-brain"
+    root.mkdir(parents=True, exist_ok=True)
+    n = 1
+    while (root / f"call-{n:03d}").exists():
+        n += 1
+    d = root / f"call-{n:03d}"
+    d.mkdir()
+    return d
+
+
+def run_brain_file_handoff(
+    prompt: str,
+    *,
+    cwd: Path | str,
+    model: str,
+    allowed_tools: list[str],
+    add_dirs: list[Path | str],
+    settings_path: Path | str,
+    claude_cli: str = CLAUDE_CLI_DEFAULT,
+    timeout_sec: int = 3600,
+) -> dict[str, Any]:
+    """File-handoff model backend (same signature as run_headless_claude, so the
+    delegation in it is a drop-through). Writes prompt.txt + context.json into a
+    fresh artifacts/glm-brain/call-NNN/ directory, then polls (5 s) for answer.json
+    until the caller's own timeout_sec deadline - the SAME bound the claude backend
+    and the orchestrator's per-stage caps impose, deliberately NOT extended: a brain
+    too slow to answer inside its stage budget is an honest BUDGET terminal, never
+    a fabricated answer. An EMPTY answer.json is the sanctioned {} (a no-op the
+    stage's own gates judge); anything else must parse as a JSON object or the call
+    fails loudly. The call dir is the audit record: which prompt, which context,
+    which backend served it, what came back."""
+    d = _next_brain_call_dir()
+    (d / "prompt.txt").write_text(prompt, encoding="utf-8")
+    (d / "context.json").write_text(
+        json.dumps(
+            {
+                "cwd": str(cwd),
+                "model": model,
+                "allowedTools": list(allowed_tools),
+                "addDirs": [str(p) for p in add_dirs],
+                "settings": str(settings_path),
+                "backend": "file-handoff",
+                "note": (
+                    "GLM brain: do this prompt's tool work yourself in the named dirs, "
+                    "then write answer.json in THIS directory."
+                ),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    answer = d / "answer.json"
+    deadline = time.monotonic() + max(timeout_sec, 60)
+    while not answer.is_file():
+        if time.monotonic() > deadline:
+            raise ClaudeInvocationError(
+                f"brain file handoff timed out after {timeout_sec}s waiting for {answer}"
+            )
+        time.sleep(5)
+    text = answer.read_text(encoding="utf-8").strip()
+    if not text:
+        return {}  # sanctioned empty answer: the stage gates judge the no-op honestly
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ClaudeInvocationError(
+            f"brain handoff answer.json is not valid JSON ({answer}): {exc}"
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise ClaudeInvocationError(
+            f"brain handoff answer.json must be a JSON object, got {type(parsed).__name__} ({answer})"
+        )
+    return parsed
 
 
 # ══════════════════════════════════════════════════════════════════════════

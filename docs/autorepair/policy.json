@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "autonomyLevel": "draft-pr",
+  "autonomyLevel": "document-only",
   "maxRepairAttempts": 3,
   "maxPatchLines": 400,
   "triage": {
@@ -8,11 +8,11 @@
     "confirmThreshold": 2
   },
   "minConfidenceToRepair": "medium",
-  "nightWatchAutoRepair": false,
+  "nightWatchAutoRepair": true,
   "modelRouting": {
-    "diagnosis": "opus",
-    "repair": "sonnet",
-    "verify": "opus"
+    "diagnosis": "glm",
+    "repair": "glm",
+    "verify": "glm"
   },
   "verifierRefutation": {
     "provider": "glm",
@@ -21,7 +21,7 @@
   },
   "perStageTimeoutSec": {
     "build": 2700,
-    "triage": 1800,
+    "triage": 7200,
     "diagnosis": 1800,
     "repair": 5400,
     "verify": 5400,

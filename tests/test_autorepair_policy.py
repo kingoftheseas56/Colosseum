@@ -44,7 +44,8 @@ Six groups of cases, matching the G1 slice's own "Focused tests" contract:
   NegativeControlTests          - the plan's mandatory negative control, both directions:
                                    corrupt a temp copy of policy.json to
                                    `"autonomyLevel": "merge"` (not in the v0 enum
-                                   {"patch-only", "draft-pr"} - ruling 6/D... "merge"/level-C
+                                   {"patch-only", "draft-pr", "document-only"} - ruling 6/
+                                   D... "merge"/level-C
                                    is explicitly not a valid value yet) and assert EXACTLY
                                    the enum-validation case goes red (PolicySchemaError
                                    naming policy.autonomyLevel and the allowed values, not
@@ -106,12 +107,14 @@ class ShippedFilesLoadCleanTests(unittest.TestCase):
     def test_load_policy_defaults_succeeds_and_matches_program_rulings(self):
         policy = mod.load_policy()
 
-        # Ruling 6 + the plan's "widened enum for v0" note: autonomyLevel is draft-pr,
-        # and "merge" (level C) is deliberately not yet a valid value (see
-        # NegativeControlTests below).
-        self.assertEqual(policy.policy["autonomyLevel"], "draft-pr")
+        # Ruling 6 + the plan's "widened enum for v0" note, AMENDED 2026-08-15 per
+        # Hemanth's document-only directive: autonomyLevel is document-only (the
+        # Guardian documents bugs, never fixes them, "for now"), "document-only" is
+        # the third v0 enum value, and "merge" (level C) is deliberately still not a
+        # valid value (see NegativeControlTests below).
+        self.assertEqual(policy.policy["autonomyLevel"], "document-only")
         self.assertIn(policy.policy["autonomyLevel"], mod.AUTONOMY_LEVELS)
-        self.assertEqual(mod.AUTONOMY_LEVELS, {"patch-only", "draft-pr"})
+        self.assertEqual(mod.AUTONOMY_LEVELS, {"patch-only", "draft-pr", "document-only"})
 
         # Ruling 9: max 3 repair attempts.
         self.assertEqual(policy.policy["maxRepairAttempts"], 3)
@@ -125,13 +128,18 @@ class ShippedFilesLoadCleanTests(unittest.TestCase):
         # Slice G5 default confidence gate.
         self.assertEqual(policy.policy["minConfidenceToRepair"], "medium")
 
-        # Slice G10 default: Night Watch never auto-launches a repair yet.
-        self.assertFalse(policy.policy["nightWatchAutoRepair"])
+        # Slice G10 default, FLIPPED 2026-08-15 (Hemanth: "can we have the night watch
+        # and guardian loop only for documenting bugs rather than fixing them for
+        # now?"): Night Watch now auto-launches the (document-only) Guardian on a red.
+        self.assertTrue(policy.policy["nightWatchAutoRepair"])
 
-        # D3, CONFIRMED by Hemanth: Opus diagnoses and verifies, Sonnet repairs.
+        # D3, CONFIRMED by Hemanth, RE-ROUTED 2026-08-15 ("opus doesn't think, opus
+        # reviews after the entire process is done, the thinking brain shifts over to
+        # you"): GLM is the brain for every in-loop stage; Opus reviews the finished
+        # process afterwards, outside this routing.
         self.assertEqual(
             policy.policy["modelRouting"],
-            {"diagnosis": "opus", "repair": "sonnet", "verify": "opus"},
+            {"diagnosis": "glm", "repair": "glm", "verify": "glm"},
         )
 
         # D3's GLM refutation: advisory only in v0.
@@ -161,7 +169,7 @@ class ShippedFilesLoadCleanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             law_dir = _temp_law_copy(Path(tmp))
             policy = mod.load_policy(law_dir)
-            self.assertEqual(policy.policy["autonomyLevel"], "draft-pr")
+            self.assertEqual(policy.policy["autonomyLevel"], "document-only")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -365,7 +373,7 @@ class SelfProtectionTests(unittest.TestCase):
 
             path.write_text(original_text, encoding="utf-8")
             policy = mod.load_policy(law_dir)
-            self.assertEqual(policy.policy["autonomyLevel"], "draft-pr")
+            self.assertEqual(policy.policy["autonomyLevel"], "document-only")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -492,7 +500,7 @@ class NegativeControlTests(unittest.TestCase):
 
             self.assertNotIn("merge", mod.AUTONOMY_LEVELS)
             mutated_text = original_text.replace(
-                '"autonomyLevel": "draft-pr"', '"autonomyLevel": "merge"'
+                '"autonomyLevel": "document-only"', '"autonomyLevel": "merge"'
             )
             self.assertNotEqual(
                 mutated_text,
@@ -512,7 +520,7 @@ class NegativeControlTests(unittest.TestCase):
             # Restore and confirm green again.
             path.write_text(original_text, encoding="utf-8")
             policy = mod.load_policy(law_dir)
-            self.assertEqual(policy.policy["autonomyLevel"], "draft-pr")
+            self.assertEqual(policy.policy["autonomyLevel"], "document-only")
 
 
 if __name__ == "__main__":

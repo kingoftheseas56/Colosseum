@@ -476,7 +476,10 @@ class RunRepairOrchestrationSeamTests(unittest.TestCase):
         )
 
         self.assertEqual(len(calls), 1, "invoke must be called exactly once on a clean first attempt")
-        self.assertEqual(calls[0], (1, None, "sonnet"))
+        # Repair routing follows the shipped law's modelRouting.repair, re-routed
+        # to glm on 2026-08-15 ("the thinking brain shifts over to you" - Opus now
+        # reviews after the process, it no longer repairs inside it).
+        self.assertEqual(calls[0], (1, None, "glm"))
         self.assertTrue(result["accepted"])
         self.assertEqual(result["attempts"], 1)
         self.assertEqual(result["incidentId"], "AR-test-0006")

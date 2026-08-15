@@ -61,9 +61,9 @@ SELF_LAW_FILES = tuple(f"docs/autorepair/{name}" for name in LAW_FILES)
 # untouched.
 SELF_ENFORCEMENT_PROBE_PATH = "scripts/autorepair/_self_protection_probe.py"
 
-AUTONOMY_LEVELS = {"patch-only", "draft-pr"}
+AUTONOMY_LEVELS = {"patch-only", "draft-pr", "document-only"}
 CONFIDENCE_LEVELS = {"low", "medium", "high"}
-MODEL_TIERS = {"opus", "sonnet"}
+MODEL_TIERS = {"opus", "sonnet", "glm"}
 REFUTATION_PROVIDERS = {"glm", "deepseek"}
 THINKING_LEVELS = {"off", "low", "medium", "high", "max"}
 STAGE_NAMES = {"build", "triage", "diagnosis", "repair", "verify", "promotion"}

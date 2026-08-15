@@ -432,7 +432,7 @@ class FreshIncidentRunTests(unittest.TestCase):
 
     def test_fresh_incident_reaches_promotion_ready_in_patch_only_mode(self):
         runners = self._runners(_promotion_dict(mode="patch-only"))
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
 
         self.assertEqual(outcome["terminalState"], "PROMOTION-READY")
         self.assertFalse(outcome["alreadyTerminal"])
@@ -444,7 +444,7 @@ class FreshIncidentRunTests(unittest.TestCase):
 
     def test_fresh_incident_reaches_promoted_in_draft_pr_mode(self):
         runners = self._runners(_promotion_dict(mode="draft-pr", pr_status="created"))
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
 
         self.assertEqual(outcome["terminalState"], "PROMOTED")
         report = (self.dir / "report.md").read_text(encoding="utf-8")
@@ -453,7 +453,7 @@ class FreshIncidentRunTests(unittest.TestCase):
 
     def test_stage_files_are_written_with_expected_shapes(self):
         runners = self._runners(_promotion_dict(mode="patch-only"))
-        mod.run_incident(self.dir, stage_runners=runners)
+        mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
 
         triage_on_disk = json.loads((self.dir / "triage.json").read_text(encoding="utf-8"))
         self.assertEqual(triage_on_disk["verdict"], "CONFIRMED")
@@ -467,7 +467,7 @@ class FreshIncidentRunTests(unittest.TestCase):
         uniform calling contract this module documents (repair sees triage+diagnosis;
         verify additionally sees repair; promotion sees all four)."""
         runners = self._runners(_promotion_dict(mode="patch-only"))
-        mod.run_incident(self.dir, stage_runners=runners)
+        mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
 
         self.assertEqual(runners["triage"].calls[0]["prior"], [])
         self.assertEqual(runners["diagnosis"].calls[0]["prior"], ["triage"])
@@ -500,7 +500,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "TRIAGE-DISMISSED")
         self.assertEqual(outcome["ranStages"], ["triage"])
 
@@ -512,7 +512,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "TRIAGE-DISMISSED")
 
     def test_would_need_forbidden_change_escalates_before_repair(self):
@@ -523,7 +523,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "ESCALATE")
         self.assertEqual(outcome["ranStages"], ["triage", "diagnosis"])
 
@@ -535,7 +535,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "ESCALATE")
 
     def test_ordinary_repair_exhaustion_is_budget(self):
@@ -550,7 +550,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "BUDGET")
         self.assertEqual(outcome["ranStages"], ["triage", "diagnosis", "repair"])
 
@@ -570,7 +570,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "ESCALATE")
 
     def test_verifier_reject_escalates(self):
@@ -581,7 +581,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _Spy(_verdict_dict(decision="REJECT", reasons=["bug test meaningfulness in doubt"])),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "ESCALATE")
         self.assertIn("bug test meaningfulness in doubt", outcome["detail"])
 
@@ -593,7 +593,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _Spy(_verdict_dict()),
             "promotion": _Spy(_promotion_dict(mode="draft-pr", pr_status="Bridge blocked")),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "PROMOTED")
         self.assertIn("Bridge blocked", outcome["detail"])
         report = (self.dir / "report.md").read_text(encoding="utf-8")
@@ -610,7 +610,7 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "VIOLATION")
         self.assertIn("drifted", outcome["detail"])
         # the stage that raised never gets an on-disk stage file.
@@ -633,7 +633,14 @@ class TerminalStateTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners, clock=_clock)
+        # Its own tight stage caps (1_000s each): only _slow_repair advances the clock
+        # (by 999_999s), so the STAGE cap must fire here while the incident-total cap
+        # (default-generous in _FakePolicy) stays out of the way - that property has
+        # its own test below.
+        tight_stage_caps = _FakePolicy(
+            per_stage={stage: 1_000 for stage in mod.LOOP_STAGES},
+        )
+        outcome = mod.run_incident(self.dir, stage_runners=runners, clock=_clock, policy_obj=tight_stage_caps)
         self.assertEqual(outcome["terminalState"], "BUDGET")
         self.assertIn("perStageTimeoutSec", outcome["detail"])
         self.assertIn("'repair'", outcome["detail"])
@@ -696,7 +703,7 @@ class ResumeTests(unittest.TestCase):
             "verify": _Spy(_verdict_dict()),
             "promotion": _Spy(_promotion_dict(mode="patch-only")),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertEqual(outcome["terminalState"], "PROMOTION-READY")
         self.assertEqual(outcome["ranStages"], ["repair", "verify", "promotion"])
 
@@ -710,7 +717,7 @@ class ResumeTests(unittest.TestCase):
         )
 
         runners = {stage: _never_called(stage) for stage in mod.LOOP_STAGES}
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertTrue(outcome["alreadyTerminal"])
         self.assertEqual(outcome["terminalState"], "PROMOTED")
         self.assertEqual(outcome["ranStages"], [])
@@ -755,7 +762,7 @@ class NegativeControlTests(unittest.TestCase):
             "verify": _Spy(_verdict_dict()),
             "promotion": _Spy(_promotion_dict(mode="patch-only")),
         }
-        outcome = mod.run_incident(self.dir, stage_runners=runners)
+        outcome = mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
 
         # The exact assertion: triage's OWN stage_runner was called (not skipped), and
         # because it ran, every stage after it in the sequence ran too - the cascade -
@@ -875,16 +882,31 @@ class BudgetAccountingTests(unittest.TestCase):
 
 
 class _FakePolicy:
-    """A minimal stand-in for policy.Policy carrying only the two fields
+    """A minimal stand-in for policy.Policy carrying only the fields
     _execute_stage()/_run_loop() actually read - avoids coupling these pure tests to the
-    real shipped docs/autorepair/policy.json values."""
+    real shipped docs/autorepair/policy.json values. Since the 2026-08-15 document-only
+    directive the SHIPPED law stops the loop after diagnosis, so every test that walks
+    past diagnosis into repair/verify/promotion must inject an explicit repair-mode
+    policy (autonomy_level defaults to "draft-pr") instead of relying on the shipped
+    law - see _REPAIR_POLICY below."""
 
-    def __init__(self, *, per_stage, per_incident, min_confidence="medium"):
+    def __init__(self, *, per_stage=None, per_incident=100_000_000,
+                 min_confidence="medium", autonomy_level="draft-pr"):
         self.policy = {
-            "perStageTimeoutSec": per_stage,
+            "autonomyLevel": autonomy_level,
+            "perStageTimeoutSec": per_stage or {
+                stage: 10_000_000
+                for stage in ("build", "triage", "diagnosis", "repair", "verify", "promotion")
+            },
             "perIncidentTotalSec": per_incident,
             "minConfidenceToRepair": min_confidence,
         }
+
+
+# The explicit repair-mode law every repair/verify/promotion-path test injects - the
+# shipped law is document-only ("for now", Hemanth 2026-08-15) and would legitimately
+# terminate the loop DOCUMENTED right after diagnosis.
+_REPAIR_POLICY = _FakePolicy()
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -990,7 +1012,7 @@ class LockIntegrationTests(unittest.TestCase):
             )
             runners = {stage: _never_called(stage) for stage in mod.LOOP_STAGES}
             with self.assertRaises(mod.LockHeldError):
-                mod.run_incident(self.dir, stage_runners=runners)
+                mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         finally:
             proc.kill()
             proc.wait(timeout=15)
@@ -1003,7 +1025,7 @@ class LockIntegrationTests(unittest.TestCase):
             "verify": _never_called("verify"),
             "promotion": _never_called("promotion"),
         }
-        mod.run_incident(self.dir, stage_runners=runners)
+        mod.run_incident(self.dir, stage_runners=runners, policy_obj=_REPAIR_POLICY)
         self.assertFalse((self.dir / mod.LOCK_FILE_NAME).exists(), "the lock must be released after a run")
 
 
