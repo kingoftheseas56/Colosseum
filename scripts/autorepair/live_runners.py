@@ -199,8 +199,11 @@ class ClaudeInvocationError(LiveRunnerError):
 
 # The already-built, Runtime-validated golden-incident sandbox (docs/autorepair/
 # batched-runtime-pass.md). "Detect and reuse" checks this FIRST before ever cloning fresh.
+# 2026-08-16: the golden's contents were PROMOTED in place - incident AR-2026-08-15-0004's
+# built sandbox (de18d5d) was moved over the retired 353b675 build when the frontier
+# advanced, so the pinned sha moves with the fixture it names.
 GOLDEN_REUSE_DIR = Path("C:/arsbx/g2-live-proof")
-GOLDEN_BASE_SHA = "353b6757f812b5453040d0f313477e85253d9263"
+GOLDEN_BASE_SHA = "de18d5d5801a1305b31c1e7f62146fc5e7a3c25f"
 
 CLAUDE_CLI_DEFAULT = "claude"
 GH_CLI_DEFAULT = "gh"
@@ -220,12 +223,58 @@ _RED_GREEN_ENV_EXTRA = {"QML_DISABLE_DISK_CACHE": "1"}
 # ══════════════════════════════════════════════════════════════════════════
 
 
+def run_captured(cmd: list[str], *, cwd: Path | str | None = None,
+                 timeout: int | None = None, check: bool = False,
+                 env: dict[str, str] | None = None,
+                 input_text: str | None = None) -> subprocess.CompletedProcess:
+    """subprocess.run(capture_output=True) replacement immune to the grandchild-pipe
+    freeze (proven live twice on 2026-08-15/16: every colosseum boot spawns
+    stremio-runtime, which INHERITS the child's stdout pipe handle and outlives both
+    lanista.exe and colosseum.exe; subprocess.run's post-kill pipe drain then blocks
+    FOREVER - its timeout cannot fire through a grandchild-held write end, which froze
+    the Guardian's triage once and the Night Watch itself once). Output goes to temp
+    FILES instead of pipes: proc.wait() waits on the process handle only, so neither
+    the child's exit NOR a timeout can be wedged by inherited handles. Same return
+    contract as subprocess.run (CompletedProcess with text stdout/stderr; raises
+    TimeoutExpired after killing the child, with whatever partial output the files
+    hold). stdin is a temp file when input_text is given, DEVNULL otherwise - a child
+    that reads stdin never hangs the caller on a tty."""
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as out_f, \
+         tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as err_f, \
+         tempfile.TemporaryFile(mode="w+", encoding="utf-8") as in_f:
+        stdin_arg: Any = subprocess.DEVNULL
+        if input_text is not None:
+            in_f.write(input_text)
+            in_f.seek(0)
+            stdin_arg = in_f
+        proc = subprocess.Popen(
+            cmd, cwd=str(cwd) if cwd is not None else None,
+            stdout=out_f, stderr=err_f, stdin=stdin_arg, env=env,
+        )
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            try:
+                proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:  # kill refused (debugger-held?): report honestly
+                pass
+            out_f.seek(0)
+            err_f.seek(0)
+            raise subprocess.TimeoutExpired(cmd, timeout, output=out_f.read())
+        out_f.seek(0)
+        err_f.seek(0)
+        stdout_text, stderr_text = out_f.read(), err_f.read()
+    if check and proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd, stdout_text, stderr_text)
+    return subprocess.CompletedProcess(cmd, proc.returncode, stdout_text, stderr_text)
+
+
 def _run(cmd: list[str], *, cwd: Path | str | None = None, timeout: int | None = None,
           check: bool = False, env: dict[str, str] | None = None,
           input_text: str | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        cmd, cwd=str(cwd) if cwd is not None else None, capture_output=True, text=True,
-        timeout=timeout, env=env, input=input_text, check=check,
+    return run_captured(
+        cmd, cwd=cwd, timeout=timeout, check=check, env=env, input_text=input_text,
     )
 
 

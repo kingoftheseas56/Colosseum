@@ -482,5 +482,65 @@ class ExtractPatchTextTests(unittest.TestCase):
             self.assertEqual(patch.strip(), "")
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# run_captured - the grandchild-pipe-freeze fix (2026-08-16). Live proven twice:
+# stremio-runtime (spawned by every colosseum boot) inherited the child's stdout
+# pipe and outlived it, wedging subprocess.run's post-exit pipe drain forever -
+# its timeout could not fire through the grandchild-held write end. These tests
+# reproduce the exact shape: a child that spawns a sleeping grandchild with
+# close_fds=False (handle inheritance on), prints, and exits.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+_GRANDCHILD_SLEEPER_SEC = 30
+
+# Child: spawns the sleeper inheriting handles (the stremio-runtime move), prints,
+# exits. The grandchild keeps holding the child's stdout handle for 30 s after.
+_CHILD_SPAWNS_GRANDCHILD = (
+    "import subprocess, sys, time\n"
+    f"subprocess.Popen([sys.executable, '-c', 'import time; time.sleep({_GRANDCHILD_SLEEPER_SEC})'],"
+    " close_fds=False)\n"
+    "sys.stdout.write('child-done\\n')\n"
+    "sys.stdout.flush()\n"
+)
+
+
+class RunCapturedFreezeTests(unittest.TestCase):
+    def test_returns_promptly_when_a_grandchild_holds_the_output_handle(self):
+        import time as _time
+        started = _time.monotonic()
+        proc = mod.run_captured([sys.executable, "-c", _CHILD_SPAWNS_GRANDCHILD], timeout=60)
+        elapsed = _time.monotonic() - started
+        self.assertEqual(proc.returncode, 0)
+        self.assertIn("child-done", proc.stdout)
+        # The pre-fix pipe implementation blocks here until the grandchild exits
+        # (~30 s); the file implementation must return in child-exit time (~2 s).
+        self.assertLess(elapsed, 15, f"run_captured blocked {elapsed:.1f}s - pipe freeze is back")
+
+    def test_timeout_kills_the_child_and_raises_with_partial_output(self):
+        import time as _time
+        started = _time.monotonic()
+        with self.assertRaises(subprocess.TimeoutExpired):
+            mod.run_captured(
+                [sys.executable, "-c",
+                 "import sys, time\nsys.stdout.write('partial\\n')\nsys.stdout.flush()\n"
+                 "time.sleep(30)"],
+                timeout=3,
+            )
+        elapsed = _time.monotonic() - started
+        self.assertLess(elapsed, 15, f"timeout took {elapsed:.1f}s to fire - it wedged")
+
+    def test_input_text_reaches_the_child_on_stdin(self):
+        proc = mod.run_captured(
+            [sys.executable, "-c", "import sys; sys.stdout.write(sys.stdin.read().upper())"],
+            input_text="freeze-proof\n",
+        )
+        self.assertEqual(proc.stdout, "FREEZE-PROOF\n")
+
+    def test_check_true_raises_called_process_error_on_nonzero(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            mod.run_captured([sys.executable, "-c", "raise SystemExit(3)"], check=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
