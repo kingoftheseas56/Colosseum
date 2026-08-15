@@ -79,7 +79,15 @@ class _FakeGatePolicy:
         self.policy = {"nightWatchAutoRepair": gate}
 
 
-class NightWatchTests(unittest.TestCase):
+class _NightWatchHarness(unittest.TestCase):
+    """Shared hermetic harness: temp repo, fake lanista, repointed path constants,
+    spied Guardian, and a PINNED model backend. The pin matters: the resume test
+    legitimately passes --brain handoff, and live_runners' backend is a sticky
+    module global - unpinned, every later test would resolve handoff and the
+    mind legs would fire REAL file-handoff brain calls (write into the true
+    artifacts/glm-brain and wait out the timeout). Pinned to claude, the mind
+    legs' handoff gate keeps every unspied test bundle-only."""
+
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory(prefix="n0test_")
         tmp = Path(self._tmp.name)
@@ -124,7 +132,19 @@ class NightWatchTests(unittest.TestCase):
         self._saved_run_guardian = nw.run_guardian
         nw.run_guardian = self._guardian_spy
 
+        self._saved_backend = nw.live_runners._model_backend
+        nw.live_runners._model_backend = "claude"
+
+        # The disk guard reads the REAL machine disk through the repointed
+        # REPO_ROOT (temp dirs live on C:) - a nearly-full C: would flip tests
+        # into SKIPPED-LOW-DISK. Pin it high: these tests own the gate and the
+        # mind, never the machine's disk state.
+        self._saved_free_disk = nw._free_disk_bytes
+        nw._free_disk_bytes = lambda: 8 * 1024**3
+
     def tearDown(self):
+        nw._free_disk_bytes = self._saved_free_disk
+        nw.live_runners._model_backend = self._saved_backend
         nw.run_guardian = self._saved_run_guardian
         for name, value in self._saved.items():
             setattr(nw, name, value)
@@ -143,10 +163,16 @@ class NightWatchTests(unittest.TestCase):
         return nw.main(["--once", "--pause-sec", "0",
                         "--scenarios", "tests/lanista_scenarios/*.json", *extra])
 
-    def _report_text(self) -> str:
+    def _report_dir(self) -> Path:
         reports = sorted(self.reports.iterdir())
         self.assertTrue(reports, "no night-watch report dir was written")
-        return (reports[-1] / "report.md").read_text(encoding="utf-8")
+        return reports[-1]
+
+    def _report_text(self) -> str:
+        return (self._report_dir() / "report.md").read_text(encoding="utf-8")
+
+
+class NightWatchTests(_NightWatchHarness):
 
     # ---- G10 acceptance: failed_run_opens_incident ----
 
@@ -245,6 +271,254 @@ class NightWatchTests(unittest.TestCase):
         bogus.mkdir(parents=True)
         with self.assertRaises(SystemExit):
             nw.main(["--resume", str(bogus)])
+
+
+class MindLegTests(_NightWatchHarness):
+    """The mind legs (green review + night synthesis). Direct unit tests use spy
+    brain calls; the end-to-end tests pin the backend to handoff and spy the two
+    DEFAULT brain-call wrappers, so no test ever performs a real file handoff."""
+
+    def _make_record(self, *, red: bool = False, elapsed: int = 5, run_dir: Path | None = None,
+                     scenario: str = "tests/lanista_scenarios/green_one.json",
+                     tag: str = "nw-t-001") -> dict:
+        return {
+            "ts": "2026-08-16T00:00:00+00:00", "scenario": scenario, "tag": tag,
+            "exitCode": 1 if red else 0, "elapsedSec": elapsed, "red": red,
+            "runDir": str(run_dir) if run_dir else None,
+        }
+
+    def _make_run_dir(self, name: str, stderr_lines: list[str]) -> Path:
+        run_dir = self.sessions / name
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "stderr.log").write_text("\n".join(stderr_lines) + "\n", encoding="utf-8")
+        return run_dir
+
+    def _green_reviews(self, report_dir: Path) -> list[dict]:
+        lines = (report_dir / nw.GREEN_REVIEWS_NAME).read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines]
+
+    # ---- green review: bundle always, brain optional, honest either way ----
+
+    def test_bundle_and_jsonl_written_even_when_not_attempted(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+        record = run_green = nw.run_green_review(
+            1, [self._make_record()], report_dir,
+            attempt_call=False, skip_reason="backend not handoff",
+        )
+        bundle = report_dir / "green-review" / "cycle-01.json"
+        self.assertTrue(bundle.is_file(), "evidence bundle is the record - always written")
+        data = json.loads(bundle.read_text(encoding="utf-8"))
+        self.assertEqual(data["cycle"], 1)
+        self.assertEqual(len(data["runs"]), 1)
+        self.assertEqual(run_green["attempted"], False)
+        self.assertIn("backend not handoff", run_green["reason"])
+        reviews = self._green_reviews(report_dir)
+        self.assertEqual(len(reviews), 1)
+        self.assertFalse(reviews[0]["answered"])
+
+    def test_answered_brain_call_records_findings(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+        findings = [{"area": "vault", "severity": "low",
+                     "evidence": "QRhi context drop x3 in stderr.log"}]
+        record = nw.run_green_review(
+            1, [self._make_record()], report_dir,
+            brain_call=lambda prompt, *, timeout_sec: {
+                "findings": findings, "assessment": "solid cycle",
+            },
+        )
+        self.assertTrue(record["attempted"])
+        self.assertTrue(record["answered"])
+        self.assertEqual(record["findings"], findings)
+        self.assertEqual(record["assessment"], "solid cycle")
+        self.assertEqual(self._green_reviews(report_dir)[0]["answered"], True)
+
+    def test_invalid_findings_shape_is_recorded_not_fatal(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+        record = nw.run_green_review(
+            1, [self._make_record()], report_dir,
+            brain_call=lambda prompt, *, timeout_sec: {"findings": "not-a-list"},
+        )
+        self.assertFalse(record["answered"])
+        self.assertIn("list of objects", record["invalid"])
+        self.assertEqual(len(self._green_reviews(report_dir)), 1, "recorded despite invalid shape")
+
+    def test_brain_invocation_error_is_recorded_not_fatal(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+
+        def raise_timeout(prompt, *, timeout_sec):
+            raise nw.live_runners.ClaudeInvocationError("handoff timed out after 180s")
+
+        record = nw.run_green_review(1, [self._make_record()], report_dir, brain_call=raise_timeout)
+        self.assertFalse(record["answered"])
+        self.assertIn("timed out", record["reason"])
+        self.assertEqual(len(self._green_reviews(report_dir)), 1)
+
+    def test_signals_extracted_deduped_and_capped(self):
+        lines = ["all fine here"] + \
+                [f"QRhi warning variant {i}" for i in range(25)] + \
+                ["QRhi warning variant 0 again"]
+        run_dir = self._make_run_dir("s-run1", lines)
+        signals = nw._extract_signals(run_dir)
+        self.assertEqual(len(signals), nw._SIGNAL_LINES_PER_RUN, "capped at the per-run bound")
+        self.assertNotIn("all fine here", signals)
+        self.assertEqual(signals.count("QRhi warning variant 0 again"), 0, "deduped")
+        self.assertEqual(nw._extract_signals(None), [])
+        empty_dir = self.sessions / "s-run2"
+        empty_dir.mkdir()
+        self.assertEqual(nw._extract_signals(empty_dir), [], "no stderr.log -> no signals")
+
+    # ---- night synthesis: bundle the night, memo always written ----
+
+    def test_synthesis_bundle_carries_the_whole_night(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+        run1 = self._make_run_dir("s-a", ["QRhi failed=3 on boot"])
+        run2 = self._make_run_dir("s-b", ["QRhi failed=3 on boot", "QSqlDatabase warning"])
+        records = [
+            self._make_record(elapsed=10, run_dir=run1),
+            self._make_record(elapsed=25, run_dir=run2, red=True,
+                              scenario="tests/lanista_scenarios/red_one.json", tag="nw-t-002"),
+        ]
+        reviews = [{"cycle": 1, "answered": True, "findings": [{"area": "vault"}]}]
+        path = nw._write_synthesis_bundle(
+            report_dir,
+            started_at=nw._utc_now(), ended_at=nw._utc_now(), reason_stopped="1 cycle(s) completed",
+            records=records,
+            incident_results=[{"opened": True, "incidentId": "AR-2026-08-16-0001", "dir": "x"}],
+            guardian_results=[{"terminalState": "DOCUMENTED"}],
+            green_reviews=reviews,
+        )
+        bundle = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(bundle["totals"], {"runs": 2, "reds": 1})
+        stats = bundle["perScenario"]["tests/lanista_scenarios/red_one.json"]
+        self.assertEqual((stats["runs"], stats["reds"], stats["elapsedMinSec"], stats["elapsedMaxSec"]),
+                         (1, 1, 25, 25))
+        self.assertEqual(bundle["incidents"][0]["incidentId"], "AR-2026-08-16-0001")
+        self.assertEqual(bundle["guardianOutcomes"][0]["terminalState"], "DOCUMENTED")
+        self.assertEqual(bundle["greenReviews"], reviews)
+        self.assertGreater(bundle["signalHistogram"]["QRhi failed=3 on boot"], 0)
+        self.assertEqual(list(bundle["signalHistogram"])[0], "QRhi failed=3 on boot",
+                         "histogram sorted by frequency")
+
+    def test_memo_written_from_answer(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+        bundle = report_dir / nw.SYNTHESIS_BUNDLE_NAME
+        bundle.write_text("{}", encoding="utf-8")
+        memo = nw.run_night_synthesis(
+            report_dir, bundle,
+            brain_call=lambda prompt, *, timeout_sec: {
+                "summary": "The app held up.",
+                "lacking": [{"area": "reader", "severity": "medium",
+                             "evidence": "stderr QRhi x4", "suggestion": "check context loss"}],
+                "overall": "Trending cleaner.",
+            },
+        )
+        text = memo.read_text(encoding="utf-8")
+        self.assertIn("The app held up.", text)
+        self.assertIn("[MEDIUM] reader", text)
+        self.assertIn("check context loss", text)
+        self.assertIn("Trending cleaner.", text)
+
+    def test_memo_stub_when_not_attempted(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+        bundle = report_dir / nw.SYNTHESIS_BUNDLE_NAME
+        bundle.write_text("{}", encoding="utf-8")
+        memo = nw.run_night_synthesis(
+            report_dir, bundle, attempt_call=False, skip_reason="backend not handoff",
+        )
+        text = memo.read_text(encoding="utf-8")
+        self.assertIn("not attempted (backend not handoff)", text)
+        self.assertIn(nw.SYNTHESIS_BUNDLE_NAME, text, "stub points at the evidence bundle")
+        self.assertIn(nw.GREEN_REVIEWS_NAME, text)
+
+    def test_memo_stub_on_brain_timeout(self):
+        report_dir = self.reports / "r1"
+        report_dir.mkdir(parents=True)
+        bundle = report_dir / nw.SYNTHESIS_BUNDLE_NAME
+        bundle.write_text("{}", encoding="utf-8")
+
+        def raise_timeout(prompt, *, timeout_sec):
+            raise nw.live_runners.ClaudeInvocationError("no answer before the window closed")
+
+        memo = nw.run_night_synthesis(report_dir, bundle, brain_call=raise_timeout)
+        self.assertIn("timeout", memo.read_text(encoding="utf-8"))
+
+    # ---- end to end through main(): the mind runs with the watch, spied ----
+
+    def _spy_mind(self, findings_answer, synthesis_answer):
+        self._mind_prompts: list[str] = []
+        self._synth_prompts: list[str] = []
+        self._saved_green_call = nw._green_review_brain_call
+        self._saved_synth_call = nw._synthesis_brain_call
+
+        def green_spy(prompt, *, timeout_sec):
+            self._mind_prompts.append(prompt)
+            return findings_answer
+
+        def synth_spy(prompt, *, timeout_sec):
+            self._synth_prompts.append(prompt)
+            return synthesis_answer
+
+        nw._green_review_brain_call = green_spy
+        nw._synthesis_brain_call = synth_spy
+        nw.live_runners._model_backend = "handoff"
+
+    def _unspy_mind(self):
+        nw._green_review_brain_call = self._saved_green_call
+        nw._synthesis_brain_call = self._saved_synth_call
+
+    def test_once_watch_runs_green_review_and_synthesis_with_handoff(self):
+        self._spy_mind(
+            {"findings": [{"area": "vault", "severity": "low", "evidence": "QRhi x2"}],
+             "assessment": "clean"},
+            {"summary": "One red, one flake.", "lacking": [], "overall": "Stable."},
+        )
+        try:
+            self.assertEqual(self._run_main(), 0)
+        finally:
+            self._unspy_mind()
+        report_dir = self._report_dir()
+        reviews = self._green_reviews(report_dir)
+        self.assertEqual(len(reviews), 1, "one completed cycle -> one green review")
+        self.assertTrue(reviews[0]["answered"])
+        self.assertEqual(len(reviews[0]["findings"]), 1)
+        bundle = json.loads((report_dir / nw.SYNTHESIS_BUNDLE_NAME).read_text(encoding="utf-8"))
+        self.assertEqual(bundle["greenReviews"], reviews)
+        memo_text = (report_dir / nw.LACKING_MEMO_NAME).read_text(encoding="utf-8")
+        self.assertIn("One red, one flake.", memo_text)
+        report = self._report_text()
+        self.assertIn("## The mind's record", report)
+        self.assertIn(nw.LACKING_MEMO_NAME, report)
+        self.assertIn("1/1 answered", report)
+
+    def test_claude_backend_runs_mind_bundle_only_no_calls(self):
+        # setUp pins claude and NO spies are installed: if the handoff gate were
+        # broken, this test would attempt a real claude/handoff invocation. The
+        # assertions prove the gate held without firing anything.
+        self.assertEqual(self._run_main(), 0)
+        report_dir = self._report_dir()
+        reviews = self._green_reviews(report_dir)
+        self.assertEqual(len(reviews), 1)
+        self.assertFalse(reviews[0]["attempted"])
+        self.assertIn("backend not handoff", reviews[0]["reason"])
+        memo_text = (report_dir / nw.LACKING_MEMO_NAME).read_text(encoding="utf-8")
+        self.assertIn("not attempted", memo_text)
+
+    def test_zero_timeouts_write_bundles_without_calls(self):
+        self.assertEqual(self._run_main("--green-review-timeout-sec", "0",
+                                        "--synthesis-timeout-sec", "0"), 0)
+        report_dir = self._report_dir()
+        reviews = self._green_reviews(report_dir)
+        self.assertEqual(len(reviews), 1)
+        self.assertFalse(reviews[0]["attempted"])
+        memo_text = (report_dir / nw.LACKING_MEMO_NAME).read_text(encoding="utf-8")
+        self.assertIn("disabled", memo_text)
 
 
 if __name__ == "__main__":

@@ -36,8 +36,12 @@ Usage:
 
 Output: artifacts/night-watch/<UTC stamp>/watch-log.jsonl (one line per scenario
 run) and report.md (the wake capstone - cycles, reds, incidents, terminal states,
-bug docs). Exit code 0 unless the watch itself broke; red scenarios do NOT fail
-the watch - they are its product.
+bug docs). The mind legs add: green-review/cycle-NN.json + green-reviews.jsonl
+(per-cycle quality evidence and brain reads), synthesis-bundle.json (the whole
+night in one file), and lacking-memo.md (the "where is the app lacking" memo;
+handoff backend only, --green-review-timeout-sec 0 / --synthesis-timeout-sec 0
+disable the calls while keeping every bundle). Exit code 0 unless the watch
+itself broke; red scenarios do NOT fail the watch - they are its product.
 """
 
 from __future__ import annotations
@@ -147,11 +151,15 @@ def scenario_argv(scenario: str, *, tag: str) -> list[str]:
 
 def _kill_stray_app() -> None:
     """Hygiene between runs (Rule 17 spirit): a leaked colosseum.exe holds GPU
-    textures and file handles into the next run. Best-effort, never fatal."""
-    subprocess.run(
-        ["taskkill", "/F", "/IM", "colosseum.exe"],
-        capture_output=True, timeout=30,
-    )
+    textures and file handles into the next run, and every colosseum boot spawns a
+    stremio-runtime that OUTLIVES the app (live-proven 2026-08-15/16: one such
+    orphan froze the Guardian's triage and later the watch itself by holding the
+    child's stdout pipe). Best-effort, never fatal."""
+    for image in ("colosseum.exe", "stremio-runtime.exe"):
+        subprocess.run(
+            ["taskkill", "/F", "/IM", image],
+            capture_output=True, timeout=30,
+        )
 
 
 def _free_disk_bytes() -> int:
@@ -183,9 +191,11 @@ def run_one_scenario(
     before = _snapshot_session_dirs()
     started = time.monotonic()
     try:
-        proc = subprocess.run(
-            argv, cwd=REPO_ROOT, capture_output=True, text=True,
-            timeout=READY_MS + 300, encoding="utf-8", errors="replace",
+        # run_captured (not bare subprocess.run): the app under test spawns
+        # stremio-runtime which inherits the stdout pipe and outlives lanista -
+        # a pipe capture here froze the whole watch once (2026-08-16, 20:24 UTC).
+        proc = live_runners.run_captured(
+            argv, cwd=REPO_ROOT, timeout=READY_MS + 300,
         )
         exit_code, stdout = proc.returncode, proc.stdout
     except subprocess.TimeoutExpired as exc:
@@ -252,6 +262,285 @@ def _append_log(log_path: Path, record: dict[str, Any]) -> None:
         fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# The mind legs (2026-08-16, Hemanth directive: "make the night watch have a
+# more complex mind to figure out where the app is lacking"). The 2026-08-15
+# night proved the gap empirically: 77 runs, every red a flake, zero confirmed
+# product bugs - while the GREEN runs' own logs held the real signals (41 failed
+# metahub requests, QRhi context drops, QSqlDatabase thread warnings) that no
+# assertion looked at. These legs feed the brain (the GLM agent session, via the
+# same file-handoff backend the Guardian's diagnosis stage uses) evidence the
+# pass/fail harness cannot judge:
+#   - green review: once per completed cycle, a quality judgment of that cycle
+#   - night synthesis: at window close, the "where is the app lacking" memo
+# Both are timeout-tolerant and honest: an unanswered call is recorded as
+# unanswered, never fabricated, and the evidence bundles persist regardless so
+# a morning brain can answer after the fact.
+# ══════════════════════════════════════════════════════════════════════════
+
+GREEN_REVIEWS_NAME = "green-reviews.jsonl"
+SYNTHESIS_BUNDLE_NAME = "synthesis-bundle.json"
+LACKING_MEMO_NAME = "lacking-memo.md"
+
+# Quality-signal patterns from run stderr the assertions do not look at (each
+# pattern below was a real, ignored-by-the-harness signal in the 2026-08-15
+# night's logs).
+_SIGNAL_RE = re.compile(
+    r"(QRhi|QSqlDatabase|QIODevice|QML .?(Warning|Error)|failed=\d+|TIMEOUT|deadlock|"
+    r"stutter|dropped frames|context current)",
+    re.IGNORECASE,
+)
+_SIGNAL_LINES_PER_RUN = 20
+
+GREEN_REVIEW_PROMPT = """You are the GREEN REVIEW mind of the Colosseum Night Watch.
+
+The cycle bundle at {bundle_path} lists this cycle's runs. Most PASSED their assertions -
+your job is NOT pass/fail. Judge where the app is LACKING: quality signals the assertions
+cannot see. The bundle's "signals" field pre-extracts suspicious stderr lines; the run dirs
+it names hold the full stdout.log/stderr.log/session.json - do your own tool work there
+before claiming anything. Judge things like: warning storms, failed network requests on a
+green run, graphics-context loss, SQL threading warnings, run-to-run elapsed variance,
+anything that would embarrass us in front of a real user even though no step failed.
+
+Answer with EXACTLY this JSON shape and nothing else (no prose, no markdown fence):
+{{"findings": [{{"area": "<surface or subsystem>", "severity": "info|low|medium|high",
+   "evidence": "<what you saw - cite the log line or file>"}}],
+  "assessment": "<2-3 sentence overall quality read of this cycle>"}}
+
+An EMPTY answer.json ({{}}) is the sanctioned no-findings answer. If "findings" is present
+it must be a list of objects; anything malformed is recorded as invalid, never fatal."""
+
+NIGHT_SYNTHESIS_PROMPT = """You are the NIGHT SYNTHESIS mind of the Colosseum Night Watch.
+
+The whole night's evidence is bundled at {bundle_path}: every run with timings, the reds,
+every incident and its terminal state, every green-review finding, and a signal histogram
+across all cycles. Read it, then do your own tool work in the run dirs it names where you
+need more than the bundle carries.
+
+Write the "where is the app lacking" memo for this night. Answer with EXACTLY this JSON
+shape and nothing else (no prose, no markdown fence):
+{{"summary": "<what this night says about the app in 2-3 sentences>",
+  "lacking": [{{"area": "<surface or subsystem>", "severity": "info|low|medium|high",
+    "evidence": "<the night's evidence, cited>", "suggestion": "<what to look at next>"}}],
+  "overall": "<one sentence: is the app getting more or less lacking, and why>"}}
+
+An EMPTY answer.json ({{}}) is the sanctioned no-memo answer (the stub then points at the
+bundle for a morning brain). "lacking", if present, must be a list of objects."""
+
+
+def _extract_signals(run_dir: Path | None) -> list[str]:
+    """Suspicious stderr lines from one run dir, deduped, capped. Green-run quality
+    evidence: the 2026-08-15 night's real findings all lived in these lines."""
+    if run_dir is None:
+        return []
+    stderr = Path(run_dir) / "stderr.log"
+    if not stderr.is_file():
+        return []
+    try:
+        lines = stderr.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for line in lines:
+        if _SIGNAL_RE.search(line):
+            key = line.strip()
+            if key not in seen:
+                seen.add(key)
+                out.append(key)
+            if len(out) >= _SIGNAL_LINES_PER_RUN:
+                break
+    return out
+
+
+def _run_summary(record: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "scenario": record["scenario"], "tag": record["tag"],
+        "exitCode": record["exitCode"], "elapsedSec": record["elapsedSec"],
+        "red": record["red"], "runDir": record.get("runDir"),
+    }
+
+
+def _validate_findings_shape(answer: dict[str, Any], list_key: str) -> str | None:
+    """Loose validation, never fatal: returns an error string if a present list
+    field is malformed (recorded honestly), else None."""
+    items = answer.get(list_key)
+    if items is None:
+        return None
+    if not isinstance(items, list) or not all(isinstance(x, dict) for x in items):
+        return f"answer.{list_key} must be a list of objects"
+    return None
+
+
+def _green_review_brain_call(prompt: str, *, timeout_sec: int) -> dict[str, Any]:
+    """Default brain call for the green review - the same file-handoff backend the
+    Guardian's stages use (promoted for the watch by Hemanth's brain-reroute:
+    the thinking brain is the GLM agent session)."""
+    return live_runners.run_brain_file_handoff(
+        prompt, cwd=REPO_ROOT, model="glm",
+        allowed_tools=["Read", "Grep", "Glob", "Bash"],
+        add_dirs=[REPO_ROOT], settings_path="night-watch (no sandbox - main repo)",
+        timeout_sec=timeout_sec,
+    )
+
+
+def run_green_review(
+    cycle: int,
+    cycle_records: list[dict[str, Any]],
+    report_dir: Path,
+    *,
+    brain_call=None,
+    timeout_sec: int = 180,
+    attempt_call: bool = True,
+    skip_reason: str | None = None,
+) -> dict[str, Any]:
+    """One green review: bundle the cycle's evidence (always written - it is the
+    record), then ask the brain for a quality read (timeout-bounded; an
+    unanswered or invalid call is recorded honestly, never fatal to the watch).
+    Returns the review record; appends it to green-reviews.jsonl."""
+    review_dir = report_dir / "green-review"
+    review_dir.mkdir(parents=True, exist_ok=True)
+    bundle = {
+        "cycle": cycle,
+        "ts": _utc_now().isoformat(),
+        "runs": [_run_summary(r) for r in cycle_records],
+        "signals": {r["tag"]: _extract_signals(r.get("runDir")) for r in cycle_records},
+    }
+    bundle_path = review_dir / f"cycle-{cycle:02d}.json"
+    bundle_path.write_text(json.dumps(bundle, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    record: dict[str, Any] = {
+        "cycle": cycle, "bundle": str(bundle_path),
+        "attempted": bool(attempt_call and timeout_sec > 0), "answered": False,
+    }
+    if not record["attempted"] and skip_reason and timeout_sec > 0:
+        record["reason"] = skip_reason
+    if record["attempted"]:
+        prompt = GREEN_REVIEW_PROMPT.format(bundle_path=bundle_path)
+        try:
+            answer = (brain_call or _green_review_brain_call)(prompt, timeout_sec=timeout_sec)
+            shape_error = _validate_findings_shape(answer, "findings")
+            if shape_error:
+                record.update(answered=False, invalid=shape_error)
+            else:
+                record.update(answered=True, findings=answer.get("findings", []),
+                              assessment=answer.get("assessment", ""))
+        except live_runners.ClaudeInvocationError as exc:
+            record.update(answered=False, reason=str(exc)[:400])
+    (report_dir / GREEN_REVIEWS_NAME).open("a", encoding="utf-8").write(
+        json.dumps(record, ensure_ascii=False) + "\n"
+    )
+    return record
+
+
+def _synthesis_brain_call(prompt: str, *, timeout_sec: int) -> dict[str, Any]:
+    return live_runners.run_brain_file_handoff(
+        prompt, cwd=REPO_ROOT, model="glm",
+        allowed_tools=["Read", "Grep", "Glob", "Bash"],
+        add_dirs=[REPO_ROOT], settings_path="night-watch (no sandbox - main repo)",
+        timeout_sec=timeout_sec,
+    )
+
+
+def _write_synthesis_bundle(
+    report_dir: Path,
+    *,
+    started_at: datetime, ended_at: datetime, reason_stopped: str,
+    records: list[dict[str, Any]],
+    incident_results: list[dict[str, Any]],
+    guardian_results: list[dict[str, Any] | None],
+    green_reviews: list[dict[str, Any]],
+) -> Path:
+    per_scenario: dict[str, dict[str, Any]] = {}
+    for r in records:
+        name = r["scenario"]
+        stats = per_scenario.setdefault(
+            name, {"runs": 0, "reds": 0, "elapsed": [], "exitCodes": {}}
+        )
+        stats["runs"] += 1
+        stats["reds"] += 1 if r["red"] else 0
+        stats["elapsed"].append(r["elapsedSec"])
+        stats["exitCodes"][str(r["exitCode"])] = stats["exitCodes"].get(str(r["exitCode"]), 0) + 1
+    for stats in per_scenario.values():
+        e = stats.pop("elapsed")
+        stats["elapsedMinSec"], stats["elapsedMaxSec"] = min(e), max(e)
+    histogram: dict[str, int] = {}
+    for r in records:
+        for line in _extract_signals(r.get("runDir")):
+            key = line[:80]
+            histogram[key] = histogram.get(key, 0) + 1
+    bundle = {
+        "window": {"started": started_at.isoformat(), "ended": ended_at.isoformat(),
+                   "reasonStopped": reason_stopped},
+        "totals": {"runs": len(records), "reds": sum(1 for r in records if r["red"])},
+        "perScenario": per_scenario,
+        "runs": [_run_summary(r) for r in records],
+        "incidents": [
+            ir if not ir.get("opened")
+            else {"opened": True, "incidentId": ir["incidentId"], "dir": ir["dir"]}
+            for ir in incident_results
+        ],
+        "guardianOutcomes": [gr for gr in guardian_results if gr is not None],
+        "greenReviews": green_reviews,
+        "signalHistogram": dict(sorted(histogram.items(), key=lambda kv: -kv[1])),
+    }
+    path = report_dir / SYNTHESIS_BUNDLE_NAME
+    path.write_text(json.dumps(bundle, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def run_night_synthesis(
+    report_dir: Path,
+    bundle_path: Path,
+    *,
+    brain_call=None,
+    timeout_sec: int = 900,
+    attempt_call: bool = True,
+    skip_reason: str | None = None,
+) -> Path:
+    """The night's capstone: ask the brain for the lacking-memo. The memo file is
+    ALWAYS written - from the answer when answered, as an honest stub (pointing
+    at the bundle for a morning brain) when not."""
+    memo_path = report_dir / LACKING_MEMO_NAME
+    answer: dict[str, Any] = {}
+    state = "unanswered"
+    if timeout_sec <= 0:
+        state = "disabled"
+    elif not attempt_call:
+        state = f"not attempted ({skip_reason})" if skip_reason else "not attempted"
+    else:
+        try:
+            answer = (brain_call or _synthesis_brain_call)(
+                NIGHT_SYNTHESIS_PROMPT.format(bundle_path=bundle_path),
+                timeout_sec=timeout_sec,
+            )
+            if _validate_findings_shape(answer, "lacking"):
+                answer, state = {}, "invalid"
+            else:
+                state = "answered"
+        except live_runners.ClaudeInvocationError:
+            state = "timeout"
+    lines = ["# Where the app is lacking - Night Watch memo", ""]
+    if state == "answered":
+        lines.append(answer.get("summary", "").strip())
+        lines.append("")
+        for item in answer.get("lacking", []):
+            lines.append(
+                f"- [{str(item.get('severity', '?')).upper()}] {item.get('area', '?')} - "
+                f"{item.get('evidence', '')} (next: {item.get('suggestion', '')})"
+            )
+        lines.append("")
+        lines.append(f"Overall: {answer.get('overall', '').strip()}")
+    else:
+        lines.append(
+            f"The brain did not answer this night ({state}). The full evidence is bundled at "
+            f"`{bundle_path.name}` and per-cycle quality reads at `{GREEN_REVIEWS_NAME}` - "
+            "summon the brain with those to write this memo after the fact."
+        )
+    memo_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return memo_path
+
+
 def _write_report(
     report_dir: Path,
     *,
@@ -262,6 +551,7 @@ def _write_report(
     guardian_results: list[dict[str, Any] | None],
     gate_on: bool,
     reason_stopped: str,
+    mind: dict[str, Path] | None = None,
 ) -> Path:
     greens = [r for r in records if not r["red"]]
     reds = [r for r in records if r["red"]]
@@ -306,6 +596,21 @@ def _write_report(
             "Red runs occurred but no incidents were opened (gate off or capture "
             "failed) - see watch-log.jsonl for the run dirs."
         )
+        lines.append("")
+    if mind:
+        lines.append("## The mind's record (green review + night synthesis)")
+        lines.append("")
+        if memo := mind.get("memo"):
+            lines.append(f"- Where the app is lacking: {Path(memo).name}")
+        if reviews := mind.get("reviews"):
+            answered = mind.get("reviewsAnswered", 0)
+            total = mind.get("reviewsTotal", 0)
+            lines.append(
+                f"- Per-cycle quality reviews: {Path(reviews).name} "
+                f"({answered}/{total} answered by the brain)"
+            )
+        if bundle := mind.get("bundle"):
+            lines.append(f"- Whole-night evidence bundle: {Path(bundle).name}")
         lines.append("")
     path = report_dir / "report.md"
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
@@ -352,6 +657,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resume", metavar="INCIDENT_DIR",
                         help="run the Guardian on one existing incident dir and exit "
                              "(no scenarios are run; other watch flags are ignored)")
+    parser.add_argument("--green-review-timeout-sec", type=int, default=180,
+                        help="brain timeout per cycle's green review (default 180; "
+                             "0 = write the evidence bundle only, no brain call)")
+    parser.add_argument("--synthesis-timeout-sec", type=int, default=900,
+                        help="brain timeout for the end-of-night lacking-memo call "
+                             "(default 900; 0 = bundle only, stub memo)")
     parser.add_argument("--dry-run", action="store_true", help="print the plan, run nothing")
     args = parser.parse_args(argv)
 
@@ -399,16 +710,25 @@ def main(argv: list[str] | None = None) -> int:
     records: list[dict[str, Any]] = []
     incident_results: list[dict[str, Any]] = []
     guardian_results: list[dict[str, Any] | None] = []
+    green_reviews: list[dict[str, Any]] = []
     cycle = 0
     reason_stopped = "duration bound reached"
     watch_started = time.monotonic()
 
+    # The mind legs fire only on the handoff backend (Hemanth's brain reroute:
+    # the watch's thinking brain is the GLM agent session, reached by file
+    # handoff). On the claude backend they still write every evidence bundle -
+    # recorded as not attempted, never silently skipped.
+    mind_attempt = live_runners._resolved_backend() == "handoff"
+
     while True:
         cycle += 1
+        cycle_records: list[dict[str, Any]] = []
         for i, scenario in enumerate(scenarios, start=1):
             print(f"[cycle {cycle}] ({i}/{len(scenarios)}) {scenario}")
             record = run_one_scenario(scenario, run_index=len(records) + 1, log_path=log_path)
             records.append(record)
+            cycle_records.append(record)
             print(f"    -> {'RED' if record['red'] else 'green'} exit {record['exitCode']} "
                   f"({record['elapsedSec']}s)")
             if record["red"]:
@@ -442,6 +762,21 @@ def main(argv: list[str] | None = None) -> int:
                 break
             if i < len(scenarios) and args.pause_sec > 0:
                 time.sleep(args.pause_sec)
+        # Green review fires only after a FULL cycle (a window cut mid-cycle has
+        # its evidence folded into the night synthesis instead - reviewing a
+        # partial cycle would judge a set the watch never finished running).
+        if len(cycle_records) == len(scenarios):
+            review = run_green_review(
+                cycle, cycle_records, report_dir,
+                timeout_sec=args.green_review_timeout_sec,
+                attempt_call=mind_attempt,
+                skip_reason=None if mind_attempt else "backend not handoff",
+            )
+            green_reviews.append(review)
+            if review.get("answered"):
+                print(f"    green review cycle {cycle}: {len(review.get('findings', []))} finding(s)")
+            elif review.get("attempted"):
+                print(f"    green review cycle {cycle}: not answered ({review.get('invalid') or review.get('reason') or 'no answer'})")
         if max_cycles is not None:
             reason_stopped = f"{max_cycles} cycle(s) completed"
             if cycle >= max_cycles:
@@ -450,13 +785,33 @@ def main(argv: list[str] | None = None) -> int:
             break
 
     ended_at = _utc_now()
+    synthesis_bundle = _write_synthesis_bundle(
+        report_dir, started_at=started_at, ended_at=ended_at,
+        reason_stopped=reason_stopped, records=records,
+        incident_results=incident_results, guardian_results=guardian_results,
+        green_reviews=green_reviews,
+    )
+    memo = run_night_synthesis(
+        report_dir, synthesis_bundle,
+        timeout_sec=args.synthesis_timeout_sec,
+        attempt_call=mind_attempt,
+        skip_reason=None if mind_attempt else "backend not handoff",
+    )
     report = _write_report(
         report_dir, started_at=started_at, ended_at=ended_at, records=records,
         incident_results=incident_results, guardian_results=guardian_results,
         gate_on=gate_on, reason_stopped=reason_stopped,
+        mind={
+            "memo": memo,
+            "reviews": report_dir / GREEN_REVIEWS_NAME,
+            "reviewsAnswered": sum(1 for g in green_reviews if g.get("answered")),
+            "reviewsTotal": len(green_reviews),
+            "bundle": synthesis_bundle,
+        },
     )
     print(f"Night Watch end {ended_at.isoformat()}: {len(records)} runs, "
           f"{sum(1 for r in records if r['red'])} red. Report: {report}")
+    print(f"Lacking memo: {memo}")
     return 0
 
 
