@@ -559,6 +559,14 @@ bool ExtensionsStore::manifestIsAdult(const QVariantMap& slim)
                .value(QStringLiteral("adult")).toBool();
 }
 
+void ExtensionsStore::setShowExplicit(bool v)
+{
+    if (m_showExplicit == v)
+        return;
+    m_showExplicit = v;
+    emit showExplicitChanged();
+}
+
 void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstall)
 {
     QNetworkRequest req{ QUrl(transportUrl) };
@@ -593,8 +601,13 @@ void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstal
             fail(QStringLiteral("The manifest is missing its id or name."));
             return;
         }
-        if (manifestIsAdult(slim)) {
-            fail(QStringLiteral("Adult extensions are not carried in this store."));
+        // Follows the global Explicit Content preference (ContentPreferences.showExplicit,
+        // bound in Main.qml) rather than refusing outright: with the setting on, the user
+        // installs whatever they point at. The message names the switch so the refusal is
+        // actionable instead of a dead end.
+        if (!m_showExplicit && manifestIsAdult(slim)) {
+            fail(QStringLiteral("This is an adult extension. Turn on Explicit Content in "
+                                "Settings to install it."));
             return;
         }
         m_previewCache.insert(transportUrl, slim);

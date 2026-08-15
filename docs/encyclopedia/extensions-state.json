@@ -1,11 +1,11 @@
 {
   "entries": {
     "native/engine/ExtensionsStore.cpp": {
-      "accepted_blob": "efebc3e4acb07ce3fdefcbba413cee60a0bab93a",
+      "accepted_blob": "26597fe3d86e8f51eb055f43abd674652716d210",
       "accepted_comment": "// ExtensionsStore.cpp — see ExtensionsStore.h for the contract."
     },
     "native/engine/ExtensionsStore.h": {
-      "accepted_blob": "54af993a928ffb91db85db3a9d4bc10b6cc75cff",
+      "accepted_blob": "53dbbbdf0dc73c4856d17f875766e2aac3606417",
       "accepted_comment": "// ExtensionsStore.h\n//\n// The extension registry behind the Extensions page: which Stremio-protocol\n// addons the house carries, in what order, on or off. Spec:\n// docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md\n// (Brotherhood repo). Ratified mock: agents/colosseum-extensions-mock.html.\n//\n// What it is (plain): a list of {id, transportUrl, manifest} entries persisted\n// to <appdata>/extensions/installed.json (QSaveFile atomic, the MangaDownloader\n// index pattern). Install = fetch the manifest over HTTP, validate id+name,\n// slim it (strip data-URIs, cap description), persist. Order = the array order;\n// when Theatre asks its stream extensions for play sources it asks top-first.\n//\n// Law folded in at THIS layer (not a setting):\n//   - adult extensions (behaviorHints.adult) are refused at preview AND install;\n//   - no Stremio-account sync — the file is the only store;\n//   - first run seeds the four house extensions Theatre already runs on\n//     (Cinemeta core/locked, Torrentio, Anime Kitsu, OpenSubtitles v3), so the\n//     store tells the truth about the present from day one.\n//\n// Threading: pure QNetworkAccessManager + lambdas on the main thread."
     },
     "qml/AddonClient.js": {
@@ -25,11 +25,11 @@
       "accepted_comment": "// DiscoverApi.js — pure derivations for the Discover page (Stage 1, arc 2026-07-23).\n// Computes the three pickers and the fetch URLs from Extensions.installed() manifests.\n// A .pragma library can't see context properties: the PAGE passes the installed list\n// into every call. Fetch-free except loadPage (which rides AddonClient's XHR lane)."
     },
     "qml/ExtensionsCatalog.js": {
-      "accepted_blob": "c3c2e79d357df03468eff02f2f252b6f93831f7d",
-      "accepted_comment": "// ExtensionsCatalog.js — the store's shelf data: curated rails (Harbor's list,\n// minus adult — the house rule, applied at the data layer, not a toggle) and the\n// community registry (stremio-addons.net, with Stremio's official collection as\n// the fallback well). Ratified mock: agents/colosseum-extensions-mock.html;\n// spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md."
+      "accepted_blob": "f53c4495b4b7227e5e8bd4729048356498945604",
+      "accepted_comment": "// ExtensionsCatalog.js — the store's shelf data: curated rails (Harbor's list, ported\n// without its adult entries — baked at port time, nothing to unfilter here) and the\n// community registry (stremio-addons.net, with Stremio's official collection as\n// the fallback well). The community path is NO LONGER a hard wall: as of 2026-08-15 it\n// honours the global `showExplicit` preference (ContentPreferences.qml) like every other\n// surface, so with the Settings switch on the user installs whatever the registry lists.\n// Ratified mock: agents/colosseum-extensions-mock.html;\n// spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md."
     },
     "qml/ExtensionsPage.qml": {
-      "accepted_blob": "96fa3083dc504dc4283f9e034c420e2f1068acdd",
+      "accepted_blob": "a92fe176fec38d8107dc58da3c55e929e3bfc5e1",
       "accepted_comment": "// ExtensionsPage — the extension store: one page where Stremio-protocol addons\n// are discovered, browsed, installed, toggled, ordered and removed.\n// Ratified design: agents/colosseum-extensions-mock.html (2026-07-05, \"we can go\n// for it\"), spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.\n// Serves all three worlds, all live as of stage 1a — Tankoban and Biblio carry real\n// catalogues and wells now. Data = `Extensions` (the C++ registry)\n// + ExtensionsCatalog.js (curated rails, community registry, adult wall)."
     },
     "qml/ExtensionsSources.qml": {
@@ -41,6 +41,6 @@
       "accepted_comment": "// UniverseExtApi.js — load, validate and cache a universe extension's payload.\n//\n// The payload contract is the universes-as-extensions design §5.2. Its end state is a\n// served universe.json over HTTPS (§5.5); until that server exists the same document is\n// bundled at assets/universes/<file>.json. Same shape, same loader, same validation — so\n// the move to HTTPS changes the URL below and nothing else.\n//\n// VALIDATION IS A GATE, NOT A FORMALITY. A video tile that reaches Theatre without a type\n// opens a series as a movie and dies (§5.4). An invalid entry is DROPPED and the rest of\n// the payload still renders; a section left empty by that is removed entirely, because an\n// empty row is a lie about what the universe holds."
     }
   },
-  "integrity": "sha256:3a66313bf8f37cb3453b687e3e46b4e9e83dd3246e94563727ac794789906693",
+  "integrity": "sha256:25856e6fe703e4c8dab7bafe7b72c2d1e8fda0a4cdf756e8686b0598e610b4df",
   "schema": 1
 }

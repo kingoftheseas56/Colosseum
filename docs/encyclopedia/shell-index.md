@@ -169,8 +169,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/Main.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `c700e47610270f1223d13fe9da1264fef615e452`
-- Current blob: `c700e47610270f1223d13fe9da1264fef615e452`
+- Accepted blob: `74054d5b86aeec783d410a95bd2594532b1d1a43`
+- Current blob: `74054d5b86aeec783d410a95bd2594532b1d1a43`
 - Source: [`qml/Main.qml`](../../qml/Main.qml)
 
 ```text

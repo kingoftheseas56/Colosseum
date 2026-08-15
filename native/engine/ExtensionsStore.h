@@ -36,11 +36,19 @@ class ExtensionsStore : public QObject
     Q_OBJECT
     // bump-on-change counter so QML rebinds: (Extensions.revision, Extensions.installed())
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    // Mirrors the global ContentPreferences.showExplicit, bound from Main.qml. When false
+    // (the default) an adult-flagged manifest is refused on preview/install, as it always
+    // was; when true the user may install whatever they point at. Same preference the
+    // community catalogue and every Discover surface honour.
+    Q_PROPERTY(bool showExplicit READ showExplicit WRITE setShowExplicit NOTIFY showExplicitChanged)
 
 public:
     explicit ExtensionsStore(QNetworkAccessManager* nam, QObject* parent = nullptr);
 
     int revision() const { return m_revision; }
+
+    bool showExplicit() const { return m_showExplicit; }
+    void setShowExplicit(bool v);
 
     // Ordered entries: { id, transportUrl, installedAt, enabled, core, manifest }.
     Q_INVOKABLE QVariantList installed() const;
@@ -76,6 +84,7 @@ public:
 
 signals:
     void changed();
+    void showExplicitChanged();
     void previewReady(const QString& transportUrl, const QVariantMap& manifest);
     void previewFailed(const QString& transportUrl, const QString& reason);
     void installFinished(const QString& id, const QString& name);
@@ -101,6 +110,7 @@ private:
     QList<QVariantMap> m_items;                 // ordered — array order IS ask-order
     QHash<QString, QVariantMap> m_previewCache; // transportUrl → slim manifest
     int m_revision = 0;
+    bool m_showExplicit = false;   // conservative default; Main.qml binds the real preference
     // Which generation of house defaults this profile has already been given.
     // Absent from an older installed.json → treated as 1 (the original four).
     // Bumping kHouseDefaultsVersion adds the new rows once, and never again — so a

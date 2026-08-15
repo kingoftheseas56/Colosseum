@@ -45,4 +45,36 @@ if (!rows || rows.length !== 1) fail("_mapList should return 1 row, got " + (row
 if (rows[0].url !== "https://fedew04.github.io/OnePaceStremio/manifest.json")
   fail("_mapList row url must be manifestUrl, got: " + rows[0].url);
 
+// ---- adult entries follow the global showExplicit preference (2026-08-15) ----
+// Was an unconditional wall; it now mirrors ContentPreferences.showExplicit like every
+// other surface. Off must still filter (the old contract); on must pass them through.
+const adultEntry = {
+  manifest: { name: "Adult Addon", id: "com.adult.x" },
+  manifestUrl: "https://adult.example/manifest.json",
+  nsfw: true
+};
+
+let offRows = mod._mapList({ addons: [apiEntry, adultEntry] });          // omitted = off
+if (offRows.length !== 1) fail("showExplicit off must filter adult, got " + offRows.length);
+if (offRows[0].name === "Adult Addon") fail("adult entry leaked with preference off");
+
+let offExplicitFalse = mod._mapList({ addons: [apiEntry, adultEntry] }, false);
+if (offExplicitFalse.length !== 1) fail("explicit=false must filter adult, got " + offExplicitFalse.length);
+
+let onRows = mod._mapList({ addons: [apiEntry, adultEntry] }, true);
+if (onRows.length !== 2) fail("showExplicit on must pass adult through, got " + onRows.length);
+if (!onRows.some(r => r.url === "https://adult.example/manifest.json"))
+  fail("adult entry must be installable when preference is on");
+
+// A category-tagged adult entry follows the same rule (not just the nsfw flag).
+const catAdult = { manifest: { name: "Cat Adult", id: "c" }, manifestUrl: "https://c.example/manifest.json",
+                   categories: ["Adult"] };
+if (mod._mapList({ addons: [catAdult] }).length !== 0) fail("category adult must filter when off");
+if (mod._mapList({ addons: [catAdult] }, true).length !== 1) fail("category adult must pass when on");
+
+// Null entries are dropped in BOTH modes — _rowFrom dereferences entry.manifest, so a
+// null surviving the open path would throw rather than render.
+if (mod._mapList({ addons: [null, apiEntry] }, true).length !== 1) fail("null entry must be dropped when on");
+if (mod._mapList({ addons: [null, apiEntry] }, false).length !== 1) fail("null entry must be dropped when off");
+
 console.log("extensions_catalog_test: ALL PASS");

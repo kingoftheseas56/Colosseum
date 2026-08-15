@@ -68,6 +68,15 @@ Window {
     // showExplicit into Theatre/Tankoban/Biblio is Task 9 — here it is only set + surfaced.
     ContentPreferences { id: contentPreferences }
 
+    // The C++ extension store gates adult manifests on direct preview/install. It reads the
+    // same one preference, so the Settings switch governs both ingress paths (community
+    // Browse is filtered in ExtensionsCatalog.js) rather than only the one.
+    Binding {
+        target: typeof Extensions !== "undefined" ? Extensions : null
+        property: "showExplicit"
+        value: contentPreferences.showExplicit
+    }
+
     function wallpaperKey(world) {
         if (world === "Tankoban") return "tankobanPick"
         if (world === "Biblio") return "biblioPick"
@@ -2944,6 +2953,9 @@ Window {
         source: "ExtensionsPage.qml"
         onLoaded: {
             item.backdrop = wall
+            // Same global preference Discover/genres/search read — a live binding so
+            // flipping the Settings switch re-asks the registry without a relaunch.
+            item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeExtensionsPage)
             if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
                 item.guideRequested.connect(function(lessonId, originLabel) { win.openGuidePage(lessonId, "", originLabel) })

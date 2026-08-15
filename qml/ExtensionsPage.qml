@@ -24,6 +24,12 @@ Item {
     // ---- registry bindings ----
     property var installedList: []
 
+    // Global Explicit Content preference, injected live by Main.qml (same one Discover,
+    // genres and search read). Off -> the registry list is asked filtered and adult
+    // entries are dropped; on -> the catalogue is unfiltered and anything is installable.
+    property bool showExplicit: false
+    onShowExplicitChanged: if (communityLoaded || communityLoading) loadCommunity()
+
     // ---- worlds (spec §3.2): derived from each manifest's own `types`, never stored.
     //      One extension can serve two worlds — Torrent Indexers feeds comics AND books
     //      AND audiobooks from a single install — so these are filters, not partitions.
@@ -138,19 +144,20 @@ Item {
     function loadCommunity() {
         communityLoading = true;
         var mySort = sort, myQuery = query;
+        var myExplicit = showExplicit;
         Catalog.browse(mySort, myQuery, function(rows) {
             // A stale answer is discarded, but the flag it set is NOT its to keep: the
             // newer request owns it, and if none is coming this must still fall to false
             // or Browse sits on "Asking the registry…" forever with the re-entry guard
             // (!communityLoading) refusing to try again. (A5's audit P0-1.)
-            if (mySort !== root.sort || myQuery !== root.query) {
+            if (mySort !== root.sort || myQuery !== root.query || myExplicit !== root.showExplicit) {
                 if (!queryDebounce.running) root.communityLoading = false;
                 return;
             }
             root.communityRows = rows || [];
             root.communityLoading = false;
             root.communityLoaded = true;
-        });
+        }, myExplicit);
     }
 
     Component.onCompleted: refresh()

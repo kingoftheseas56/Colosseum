@@ -14,8 +14,8 @@
 ## `native/engine/ExtensionsStore.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `efebc3e4acb07ce3fdefcbba413cee60a0bab93a`
-- Current blob: `efebc3e4acb07ce3fdefcbba413cee60a0bab93a`
+- Accepted blob: `26597fe3d86e8f51eb055f43abd674652716d210`
+- Current blob: `26597fe3d86e8f51eb055f43abd674652716d210`
 - Source: [`native/engine/ExtensionsStore.cpp`](../../native/engine/ExtensionsStore.cpp)
 
 ```text
@@ -26,8 +26,8 @@
 ## `native/engine/ExtensionsStore.h`
 
 - Status: **CURRENT**
-- Accepted blob: `54af993a928ffb91db85db3a9d4bc10b6cc75cff`
-- Current blob: `54af993a928ffb91db85db3a9d4bc10b6cc75cff`
+- Accepted blob: `53dbbbdf0dc73c4856d17f875766e2aac3606417`
+- Current blob: `53dbbbdf0dc73c4856d17f875766e2aac3606417`
 - Source: [`native/engine/ExtensionsStore.h`](../../native/engine/ExtensionsStore.h)
 
 ```text
@@ -138,15 +138,18 @@
 ## `qml/ExtensionsCatalog.js`
 
 - Status: **CURRENT**
-- Accepted blob: `c3c2e79d357df03468eff02f2f252b6f93831f7d`
-- Current blob: `c3c2e79d357df03468eff02f2f252b6f93831f7d`
+- Accepted blob: `f53c4495b4b7227e5e8bd4729048356498945604`
+- Current blob: `f53c4495b4b7227e5e8bd4729048356498945604`
 - Source: [`qml/ExtensionsCatalog.js`](../../qml/ExtensionsCatalog.js)
 
 ```text
-// ExtensionsCatalog.js — the store's shelf data: curated rails (Harbor's list,
-// minus adult — the house rule, applied at the data layer, not a toggle) and the
+// ExtensionsCatalog.js — the store's shelf data: curated rails (Harbor's list, ported
+// without its adult entries — baked at port time, nothing to unfilter here) and the
 // community registry (stremio-addons.net, with Stremio's official collection as
-// the fallback well). Ratified mock: agents/colosseum-extensions-mock.html;
+// the fallback well). The community path is NO LONGER a hard wall: as of 2026-08-15 it
+// honours the global `showExplicit` preference (ContentPreferences.qml) like every other
+// surface, so with the Settings switch on the user installs whatever the registry lists.
+// Ratified mock: agents/colosseum-extensions-mock.html;
 // spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
 ```
 
@@ -154,8 +157,8 @@
 ## `qml/ExtensionsPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `96fa3083dc504dc4283f9e034c420e2f1068acdd`
-- Current blob: `96fa3083dc504dc4283f9e034c420e2f1068acdd`
+- Accepted blob: `a92fe176fec38d8107dc58da3c55e929e3bfc5e1`
+- Current blob: `a92fe176fec38d8107dc58da3c55e929e3bfc5e1`
 - Source: [`qml/ExtensionsPage.qml`](../../qml/ExtensionsPage.qml)
 
 ```text

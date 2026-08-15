@@ -1,7 +1,10 @@
-// ExtensionsCatalog.js — the store's shelf data: curated rails (Harbor's list,
-// minus adult — the house rule, applied at the data layer, not a toggle) and the
+// ExtensionsCatalog.js — the store's shelf data: curated rails (Harbor's list, ported
+// without its adult entries — baked at port time, nothing to unfilter here) and the
 // community registry (stremio-addons.net, with Stremio's official collection as
-// the fallback well). Ratified mock: agents/colosseum-extensions-mock.html;
+// the fallback well). The community path is NO LONGER a hard wall: as of 2026-08-15 it
+// honours the global `showExplicit` preference (ContentPreferences.qml) like every other
+// surface, so with the Settings switch on the user installs whatever the registry lists.
+// Ratified mock: agents/colosseum-extensions-mock.html;
 // spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
 .pragma library
 
@@ -30,7 +33,11 @@ function _get(url, done) {
     xhr.send();
 }
 
-// ---- the adult wall: nothing past this line reaches the UI ----
+// ---- adult classification ----
+// Was an unconditional wall ("nothing past this line reaches the UI"). It now feeds the
+// SAME global `showExplicit` preference every other surface honours (ContentPreferences.qml,
+// ExplicitContentPolicy.js): off -> adult entries are filtered here; on -> the user sees and
+// installs whatever the registry lists. The classifier itself is unchanged.
 function _isAdult(entry) {
     if (!entry) return true;
     if (entry.nsfw) return true;
@@ -421,7 +428,8 @@ function _rowFrom(entry, i) {
     };
 }
 
-function _mapList(raw) {
+// showExplicit defaults falsy, so any caller that omits it keeps the filtered behaviour.
+function _mapList(raw, showExplicit) {
     var arr = null;
     if (Array.isArray(raw)) arr = raw;
     else if (raw && Array.isArray(raw.addons)) arr = raw.addons;
@@ -432,7 +440,9 @@ function _mapList(raw) {
     var out = [];
     for (var i = 0; i < arr.length; i++) {
         var entry = arr[i];
-        if (_isAdult(entry)) continue;
+        // A null entry is dropped either way — _rowFrom dereferences entry.manifest.
+        if (!entry) continue;
+        if (!showExplicit && _isAdult(entry)) continue;
         var row = _rowFrom(entry, out.length);
         if (row) out.push(row);
     }
@@ -440,17 +450,19 @@ function _mapList(raw) {
 }
 
 // sort: "top" | "new" | "rising"; search: free text or ""
-function browse(sort, search, done) {
-    var qs = "?page=1&limit=40&nsfw=exclude&order=desc&sort_by="
+// showExplicit mirrors the global ContentPreferences setting; when it is on, the registry
+// is asked for the unfiltered list and nothing is dropped locally.
+function browse(sort, search, done, showExplicit) {
+    var qs = "?page=1&limit=40" + (showExplicit ? "" : "&nsfw=exclude") + "&order=desc&sort_by="
            + (sort === "new" ? "createdAt" : "stars");
     if (search) qs += "&search=" + encodeURIComponent(search);
     var url = COMMUNITY_API + (sort === "rising" && !search ? "/rising" : "/addons" + qs);
     _get(url, function(raw) {
-        var list = _mapList(raw);
+        var list = _mapList(raw, showExplicit);
         if (list && list.length) { done(list); return; }
         // registry down or shape drifted — fall back to Stremio's official collection
         _get(OFFICIAL_COLLECTION, function(rawOfficial) {
-            var official = _mapList(rawOfficial) || [];
+            var official = _mapList(rawOfficial, showExplicit) || [];
             if (search) {
                 var q = search.toLowerCase();
                 official = official.filter(function(r) {

@@ -34,7 +34,7 @@ The stored unit is an extension entry:
 ```
 
 `ExtensionsStore` owns that list and its persistence. It seeds the house roster, upgrades that roster across house
-generations, previews and installs remote manifests, refuses adult manifests, protects core rows, persists the
+generations, previews and installs remote manifests, refuses adult manifests when showExplicit is off, protects core rows, persists the
 enabled/order state, and emits one change signal when the roster changes.
 
 The C++ store deliberately does **not** know what “Theatre”, “Tankoban”, “Biblio”, or “Universes” mean.
@@ -142,7 +142,7 @@ ExtensionsPage.qml
     |             |
     |             +--> stremio-addons.net community registry
     |             +--> official collection fallback
-    |             +--> adult rows rejected at the catalogue-data layer
+    |             +--> adult rows filtered when showExplicit is off (catalogue-data layer)
     |             +--> installable manifest URL selected
     |
     +-- INSTALLED
@@ -187,7 +187,7 @@ GET manifest
 parse object
       |
       +-- missing id/name --------> refuse
-      +-- behaviorHints.adult ----> refuse
+      +-- behaviorHints.adult ----> refuse ONLY if showExplicit is off
       |
       v
 slimManifest()
@@ -430,10 +430,16 @@ qml/UniverseExtApi.js
    **WHY:** appending `/manifest.json` to the directory page caused real 404 installs. Keep the mapping rule in
    `ExtensionsCatalog.js`; do not make the C++ URL normalizer guess what a registry response meant.
 
-6. **The adult wall exists in two different ingress paths for a reason.** Community Browse filters NSFW/adult
-   rows before they reach the UI; direct manifest preview/install rejects `behaviorHints.adult` in the C++ store.
-   **WHY:** protecting only Browse leaves paste-a-link as a bypass. Protecting only installation still advertises
-   material the product rule says the store does not carry.
+6. **The adult gate spans two ingress paths, and both follow ONE preference.** Community Browse filters
+   NSFW/adult rows in `ExtensionsCatalog.js`; direct manifest preview/install checks `behaviorHints.adult` in
+   the C++ store. As of 2026-08-15 neither is an unconditional wall: both read the global
+   `ContentPreferences.showExplicit` (default off), bound from `Main.qml` — the page property for Browse, the
+   `Extensions.showExplicit` Q_PROPERTY for the store.
+   **WHY both still exist:** gating only Browse leaves paste-a-link as a bypass, and gating only installation
+   still advertises what cannot be installed. They must stay in step — **changing one without the other
+   reintroduces exactly that split**, which is why they share a single preference rather than two flags.
+   With the setting on, the user installs whatever they point at; the refusal message names the switch so a
+   block is actionable rather than a dead end.
 
 7. **Preview then install intentionally uses cached manifest data.** A successful preview is stored in
    `m_previewCache`; confirmation installs that slim manifest without fetching it again.
@@ -633,7 +639,7 @@ Manually check at least:
 - core catalogue rows cannot be toggled, removed, or ranked;
 - remove confirmation removes only the selected non-core row;
 - paste-a-link shows a manifest preview before install;
-- an adult-flagged manifest is refused;
+- an adult-flagged manifest is refused while Explicit Content is off, and installs once it is on;
 - install/update persists after restart;
 - bundled marks render, with an honest letter fallback for an unknown add-on.
 

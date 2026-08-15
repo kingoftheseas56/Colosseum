@@ -33,7 +33,7 @@
       "accepted_comment": "// BrowserDrawer — Feature 8: the in-player episode/source browser (spec 2026-07-08,\n// mock-ratified: side drawer, season pills, auto-play best source).\n// Self-contained like ShortcutsSheet: props in, signals out, its own Theme. The video\n// keeps playing beside it. All derivations live in EpisodeBrowser.js (harness-tested);\n// this file only renders and forwards taps."
     },
     "qml/Main.qml": {
-      "accepted_blob": "c700e47610270f1223d13fe9da1264fef615e452",
+      "accepted_blob": "74054d5b86aeec783d410a95bd2594532b1d1a43",
       "accepted_comment": "// Colosseum — HOME (v1, on the proven spine)\n// Fullscreen-exclusive frameless OS surface: persistent wallpaper + frosted-glass chrome.\n//   Top bar -> universal Continue -> per-medium widgets.\n// Glass = proven material (see Glass.qml).\n// Run:  C:/Qt/6.11.1/mingw_64/bin/qml.exe qml/Main.qml      (Esc / Ctrl+Q to quit)"
     },
     "qml/Taskbar.qml": {
@@ -49,6 +49,6 @@
       "accepted_comment": "// WorldTabBar — TheatreTabBar's glass pill bar, generalized to any tab set (parameterized\n// tabModel). Used by the Tankoban world (Manga|Comics); Theatre keeps TheatreTabBar for now\n// and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint."
     }
   },
-  "integrity": "sha256:eccd806eecef1b91a88ee6f189e73b88182f54123a960f7efd52918dcfe602a5",
+  "integrity": "sha256:849333f3652af14212358d139b217eb9b21e37c1543b9522405dd441c5304c32",
   "schema": 1
 }
