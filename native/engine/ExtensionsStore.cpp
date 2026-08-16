@@ -476,11 +476,31 @@ QString ExtensionsStore::normalizeUrl(const QString& raw) const
     if (!url.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)
         && !url.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive))
         url = QStringLiteral("https://") + url;
-    while (url.endsWith(QLatin1Char('/')))
-        url.chop(1);
-    if (!url.endsWith(QStringLiteral("manifest.json"), Qt::CaseInsensitive))
-        url += QStringLiteral("/manifest.json");
-    return url;
+
+    // Add the manifest suffix to the path, not after a query or fragment.
+    // Configured Stremio URLs may carry state in either location.
+    int pathEnd = url.size();
+    const int query = url.indexOf(QLatin1Char('?'));
+    const int fragment = url.indexOf(QLatin1Char('#'));
+    if (query >= 0 && query < pathEnd)
+        pathEnd = query;
+    if (fragment >= 0 && fragment < pathEnd)
+        pathEnd = fragment;
+    QString path = url.left(pathEnd);
+    const QString suffix = url.mid(pathEnd);
+    while (path.endsWith(QLatin1Char('/')))
+        path.chop(1);
+    if (!path.endsWith(QStringLiteral("manifest.json"), Qt::CaseInsensitive))
+        path += QStringLiteral("/manifest.json");
+
+    const QString normalized = path + suffix;
+    const QUrl parsed(normalized);
+    if (!parsed.isValid()
+        || (parsed.scheme() != QStringLiteral("http")
+            && parsed.scheme() != QStringLiteral("https"))
+        || parsed.host().isEmpty())
+        return {};
+    return normalized;
 }
 
 QVariantMap ExtensionsStore::slimManifest(const QJsonObject& m)

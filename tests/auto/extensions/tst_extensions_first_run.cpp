@@ -135,6 +135,19 @@ private slots:
         QVERIFY2(findById(reopened.installed(), wellId).value(QStringLiteral("enabled")).toBool(),
                  "a persisted enable choice was reset on store reconstruction");
     }
+
+    void configured_manifest_urls_keep_query_before_manifest_suffix()
+    {
+        ExtensionsStore store(nullptr);
+        QCOMPARE(store.normalizeUrl(QStringLiteral("https://example.test/user-state?token=fixture")),
+                 QStringLiteral("https://example.test/user-state/manifest.json?token=fixture"));
+        QCOMPARE(store.normalizeUrl(QStringLiteral("https://example.test/user-state/manifest.json?token=fixture")),
+                 QStringLiteral("https://example.test/user-state/manifest.json?token=fixture"));
+        QCOMPARE(store.normalizeUrl(QStringLiteral("https://example.test/user-state#fragment")),
+                 QStringLiteral("https://example.test/user-state/manifest.json#fragment"));
+        QCOMPARE(store.normalizeUrl(QStringLiteral("colosseum://house/source")),
+                 QStringLiteral("colosseum://house/source"));
+    }
 };
 
 QTEST_GUILESS_MAIN(tst_extensions_first_run)

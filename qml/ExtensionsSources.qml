@@ -288,6 +288,8 @@ Item {
                                                         .indexOf("colosseum://") === 0
                         readonly property bool configurable:
                             (row.manifest.behaviorHints || {}).configurable === true
+                        readonly property bool configurationRequired:
+                            (row.manifest.behaviorHints || {}).configurationRequired === true
                         readonly property string group:
                             row.isCat ? "catalogue" : (row.isWell ? "sources" : "rest")
                         readonly property string groupTitle:
@@ -463,8 +465,10 @@ Item {
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    visible: row.configurable
-                                    text: row.isHouse ? "Settings" : "Configure ↗"
+                                    visible: row.configurable || row.configurationRequired
+                                    text: row.configurationRequired
+                                          ? "Configure required"
+                                          : (row.isHouse ? "Settings" : "Configure ↗")
                                     color: cfgMa.containsMouse ? theme.ink : theme.inkDim
                                     font.family: theme.ui; font.pixelSize: 13
                                     MouseArea {

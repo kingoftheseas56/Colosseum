@@ -45,6 +45,10 @@ This is an in-session playback contract. Persisted Continue-resume, Cast, and
 Download have separate URL/header lifecycles and must not be inferred to support
 header-bearing or expiring Direct URLs from this seam alone.
 
+Debrid support here is supplied by the configured Stremio add-on. Colosseum
+does not authenticate with or call a debrid provider directly; it plays the
+Direct/Torrent row that the add-on returns.
+
 **The boot RHI choice gates everything.** mpvqt renders through OpenGL, so the process-wide
 graphics backend is picked in `native/main.cpp` **before the app object exists** (main.cpp:436–476).
 Player 1 is the default boot; `COLOSSEUM_PLAYER2=1` (on a Player-2 build) boots the experimental

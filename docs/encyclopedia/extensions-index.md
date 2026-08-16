@@ -14,8 +14,8 @@
 ## `native/engine/ExtensionsStore.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `26597fe3d86e8f51eb055f43abd674652716d210`
-- Current blob: `26597fe3d86e8f51eb055f43abd674652716d210`
+- Accepted blob: `8db376f7315b0754d226bcb6e9a89643db2d6145`
+- Current blob: `8db376f7315b0754d226bcb6e9a89643db2d6145`
 - Source: [`native/engine/ExtensionsStore.cpp`](../../native/engine/ExtensionsStore.cpp)
 
 ```text
@@ -58,8 +58,8 @@
 ## `qml/AddonClient.js`
 
 - Status: **CURRENT**
-- Accepted blob: `f2c253621c4d7111b8d38d81269e39d52d03b3f7`
-- Current blob: `f2c253621c4d7111b8d38d81269e39d52d03b3f7`
+- Accepted blob: `26028a6ab0ca3d0c6b6bc7f938a31662ba669cd9`
+- Current blob: `26028a6ab0ca3d0c6b6bc7f938a31662ba669cd9`
 - Source: [`qml/AddonClient.js`](../../qml/AddonClient.js)
 
 ```text
@@ -138,8 +138,8 @@
 ## `qml/ExtensionsCatalog.js`
 
 - Status: **CURRENT**
-- Accepted blob: `f53c4495b4b7227e5e8bd4729048356498945604`
-- Current blob: `f53c4495b4b7227e5e8bd4729048356498945604`
+- Accepted blob: `b9d297f9436dcd90b63d9f85793e8dca922972d4`
+- Current blob: `b9d297f9436dcd90b63d9f85793e8dca922972d4`
 - Source: [`qml/ExtensionsCatalog.js`](../../qml/ExtensionsCatalog.js)
 
 ```text
@@ -157,8 +157,8 @@
 ## `qml/ExtensionsPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `a92fe176fec38d8107dc58da3c55e929e3bfc5e1`
-- Current blob: `a92fe176fec38d8107dc58da3c55e929e3bfc5e1`
+- Accepted blob: `210d0c51f27f4249a9f242665d7efdd1997231ac`
+- Current blob: `210d0c51f27f4249a9f242665d7efdd1997231ac`
 - Source: [`qml/ExtensionsPage.qml`](../../qml/ExtensionsPage.qml)
 
 ```text
@@ -175,8 +175,8 @@
 ## `qml/ExtensionsSources.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `b25f8218e549a73fdfb915d36429c6bdce877cfe`
-- Current blob: `b25f8218e549a73fdfb915d36429c6bdce877cfe`
+- Accepted blob: `e04154e4a141dc485d270bb3371dea1f0e891751`
+- Current blob: `e04154e4a141dc485d270bb3371dea1f0e891751`
 - Source: [`qml/ExtensionsSources.qml`](../../qml/ExtensionsSources.qml)
 
 ```text

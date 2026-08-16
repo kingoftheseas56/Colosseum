@@ -122,6 +122,22 @@ Item {
     function carried(item) {
         return installedKeys[item.id] === true || installedKeys[item.url] === true;
     }
+    function configureUrl(rawUrl) {
+        var raw = String(rawUrl || "").trim();
+        if (!raw || /^colosseum:\/\//i.test(raw)) return "";
+        var split = raw.length;
+        var query = raw.indexOf("?");
+        var hash = raw.indexOf("#");
+        if (query >= 0 && query < split) split = query;
+        if (hash >= 0 && hash < split) split = hash;
+        var path = raw.slice(0, split).replace(/\/+$/, "");
+        var suffix = raw.slice(split);
+        if (/\/manifest\.json$/i.test(path))
+            path = path.replace(/\/manifest\.json$/i, "/configure");
+        else
+            path += "/configure";
+        return path + suffix;
+    }
     // Is this row one the house locks? Read off the installed entry rather than trusted
     // from the curated data, because the curated rails carry no `core` field at all —
     // which is how the featured slab came to print "built-in" over a removable add-on.
@@ -135,11 +151,7 @@ Item {
     }
     function installFromCard(item) {
         if (typeof Extensions === "undefined" || carried(item)) return;
-        var p = {};
-        for (var k in pendingUrls) p[k] = true;
-        p[item.url] = true;
-        pendingUrls = p;
-        Extensions.install(item.url);
+        sheet.openForUrl(item.url);
     }
     function loadCommunity() {
         communityLoading = true;
@@ -460,8 +472,8 @@ Item {
                     query: root.query
                     onRemoveRequested: function (entry) { root.askRemove(entry) }
                     onConfigureRequested: function (entry) {
-                        var url = String(entry.transportUrl || "");
-                        if (url.indexOf("colosseum://") !== 0) Qt.openUrlExternally(url);
+                        var url = root.configureUrl(entry.transportUrl);
+                        if (url.length) Qt.openUrlExternally(url);
                     }
                 }
 
@@ -881,7 +893,10 @@ Item {
                                     property var manifest: irow.modelData.manifest || ({})
                                     property bool isCore: irow.modelData.core === true
                                     property bool isOn: irow.modelData.enabled === true
-                                    property bool configurable: (irow.manifest.behaviorHints || {}).configurable === true
+                                    property var behaviorHints: irow.manifest.behaviorHints || ({})
+                                    property bool configurable: irow.behaviorHints.configurable === true
+                                    property bool configurationRequired:
+                                        irow.behaviorHints.configurationRequired === true
                                     // Role (spec §3.1): a catalogue fills the shelves — locked,
                                     // unranked, never removable. A well fetches — ranked, removable.
                                     property bool isCatalogue: Catalog.isCatalogue(irow.modelData)
@@ -1092,12 +1107,14 @@ Item {
                                                 font.family: theme.ui; font.pixelSize: 13
                                             }
                                             Text {
-                                                visible: irow.configurable
+                                                visible: irow.configurable || irow.configurationRequired
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 // A house well has no web page; Configure would silently
                                                 // leave the app. The ↗ marks the outbound one, matching
                                                 // the convention already at BiblioBook.qml:590.
-                                                text: irow.isHouse ? "Settings" : "Configure ↗"
+                                                text: irow.configurationRequired
+                                                      ? "Configure required"
+                                                      : (irow.isHouse ? "Settings" : "Configure ↗")
                                                 color: cfgMa.containsMouse ? theme.ink : theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
                                                 MouseArea {
@@ -1111,8 +1128,10 @@ Item {
                                                                         + " settings arrive with the indexer sheet."
                                                             noticeTimer.restart()
                                                         } else {
-                                                            Qt.openUrlExternally(irow.modelData.transportUrl
-                                                                .replace(/manifest\.json$/i, "configure"))
+                                                            var configure = root.configureUrl(
+                                                                irow.modelData.transportUrl);
+                                                            if (configure.length)
+                                                                Qt.openUrlExternally(configure);
                                                         }
                                                     }
                                                 }
@@ -1204,6 +1223,11 @@ Item {
             visible = true;
             urlInput.forceActiveFocus();
         }
+        function openForUrl(rawUrl) {
+            openSheet();
+            urlInput.text = String(rawUrl || "");
+            check();
+        }
         function closeSheet() { visible = false }
         function check() {
             if (!urlInput.text.trim().length) return;
@@ -1256,6 +1280,14 @@ Item {
                     text: "Paste an extension’s address. The house reads what it offers and shows you before anything is added."
                     color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    topPadding: 6
+                    width: parent.width
+                    text: "For configurable sources, paste the final configured manifest URL after using Configure."
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
 
@@ -1362,16 +1394,27 @@ Item {
                     }
                     Text {
                         text: sheet.previewManifest
-                              ? "Install " + sheet.previewManifest.name
+                              ? ((sheet.previewManifest.behaviorHints || {}).configurationRequired
+                                 ? "Configure ↗"
+                                 : "Install " + sheet.previewManifest.name)
                               : "Read it first"
                         color: readMa.containsMouse ? "#ffd968" : theme.gold
                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                         MouseArea {
                             id: readMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: sheet.previewManifest
-                                       ? Extensions.install(sheet.previewUrl)
-                                       : sheet.check()
+                            onClicked: {
+                                if (!sheet.previewManifest) {
+                                    sheet.check();
+                                    return;
+                                }
+                                if ((sheet.previewManifest.behaviorHints || {}).configurationRequired) {
+                                    var configure = root.configureUrl(sheet.previewUrl);
+                                    if (configure.length) Qt.openUrlExternally(configure);
+                                } else {
+                                    Extensions.install(sheet.previewUrl);
+                                }
+                            }
                         }
                     }
                 }

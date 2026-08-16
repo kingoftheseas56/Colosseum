@@ -260,6 +260,12 @@ function worldsFor(entry) {
         for (var i = 0; i < want.length; i++)
             if (types.indexOf(want[i]) !== -1) { out.push(w); break; }
     }
+    // A configuration-required add-on can expose an intentionally empty public
+    // manifest until the user finishes its external setup. Keep that installed
+    // row visible in Theatre so Configure is reachable instead of classifying it
+    // as an extension that belongs nowhere.
+    if (!out.length && m.behaviorHints && m.behaviorHints.configurationRequired === true)
+        out.push("theatre");
     return out;
 }
 

@@ -169,6 +169,41 @@ function _host(url) {
     return m ? m[1] : "";
 }
 
+// Resolve a Stremio stream resource from the exact transport URL that was
+// installed. Configured add-ons commonly encode state in the path and some
+// carry it in the query; both must survive the manifest-to-resource rewrite.
+function _transportParts(transportUrl) {
+    var raw = String(transportUrl || "").trim();
+    if (!raw || /^colosseum:\/\//i.test(raw)
+        || !/^https?:\/\//i.test(raw))
+        return null;
+
+    var split = raw.length;
+    var query = raw.indexOf("?");
+    var hash = raw.indexOf("#");
+    if (query >= 0 && query < split) split = query;
+    if (hash >= 0 && hash < split) split = hash;
+
+    var path = raw.slice(0, split).replace(/\/+$/, "");
+    var suffix = raw.slice(split);
+    if (!/\/manifest\.json$/i.test(path))
+        path += "/manifest.json";
+    return {
+        base: path.replace(/\/manifest\.json$/i, ""),
+        suffix: suffix
+    };
+}
+
+// Public to the deterministic contract harness. Stremio ids intentionally
+// retain their colons because the existing add-on contract uses them raw.
+function streamEndpoint(transportUrl, type, id) {
+    var parts = _transportParts(transportUrl);
+    if (!parts || !type || id === undefined || id === null || !String(id).length)
+        return "";
+    var sType = type === "series" ? "series" : "movie";
+    return parts.base + "/stream/" + sType + "/" + String(id) + ".json" + parts.suffix;
+}
+
 // Direct Stremio URLs may carry origin request headers under the standard
 // behaviorHints.proxyHeaders.request wrapper. Colosseum's mpv seam consumes a flat map.
 // Keep the historical flat proxyHeaders form as a compatibility fallback, but never
@@ -196,6 +231,7 @@ function _requestHeaders(s) {
 // One stream from one extension → a sheet row. Returns null for rows the player
 // can't carry (no infoHash AND no direct url — e.g. externalUrl-only addons).
 function parseStream(s, addonName, addonPriority) {
+    if (!s || typeof s !== "object" || Array.isArray(s)) return null;
     var isTorrent = !!(s.infoHash && String(s.infoHash).length);
     var directUrl = !isTorrent && s.url ? String(s.url) : "";
     if (!isTorrent && !directUrl) return null;
@@ -439,7 +475,11 @@ function streamExtensions(installedList, type, id) {
 // (rows = accumulated, deduped, sorted); onDone(rows, askedNames) once all have
 // answered or timed out. rows is [] when nothing answers.
 function loadStreams(extensions, type, id, onPartial, onDone) {
-    var exts = extensions || [];
+    var exts = [];
+    for (var ei = 0; ei < (extensions || []).length; ei++) {
+        if (extensions[ei] && extensions[ei].enabled === true)
+            exts.push(extensions[ei]);
+    }
     if (!type || !id || !exts.length) { onDone([], []); return; }
     var sType = (type === "series") ? "series" : "movie";
 
@@ -470,9 +510,12 @@ function loadStreams(extensions, type, id, onPartial, onDone) {
         (function(ext, priority) {
             var name = (ext.manifest && ext.manifest.name) || ext.id;
             names.push(name);
-            var base = String(ext.transportUrl).replace(/\/manifest\.json$/i, "");
             // the id goes into the path raw — Stremio ids need their colons
-            var url = base + "/stream/" + sType + "/" + id + ".json";
+            var url = streamEndpoint(ext.transportUrl, sType, id);
+            if (!url) {
+                settle(null, ext, priority);
+                return;
+            }
             var timeoutMs = SLOW_RE.test(ext.transportUrl) ? SLOW_TIMEOUT_MS : FAST_TIMEOUT_MS;
             _get(url, timeoutMs, function(json) {
                 settle(json && json.streams ? json.streams : null, ext, priority);

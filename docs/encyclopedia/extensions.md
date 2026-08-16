@@ -172,7 +172,7 @@ Extensions.normalizeUrl()
       |
       +-- stremio://host/... -> https://host/...
       +-- no scheme         -> https://...
-      +-- no manifest.json  -> append /manifest.json
+      +-- no manifest.json  -> append /manifest.json before any query/fragment
       |
       v
 Extensions.preview()
@@ -277,6 +277,24 @@ consumed by the player. `proxyHeaders.response` is not an origin request-header
 source. The historical flat `proxyHeaders` shape remains accepted as a
 compatibility fallback. Non-map/array header shapes are rejected. Torrent rows
 carry no HTTP request headers.
+
+This is a generic Stremio boundary, not a provider integration. Colosseum asks
+every enabled installed stream add-on whose manifest matches the requested
+type and id. A configured add-on keeps its configured manifest path and query
+state when the stream endpoint is built. The add-on remains responsible for
+Real-Debrid, TorBox, AllDebrid, Premiumize, Debrid-Link, or any other provider
+authentication; Colosseum does not call those provider APIs.
+
+Manifests with behaviorHints.configurable or
+behaviorHints.configurationRequired keep those flags through install, update,
+and reload. Configure opens the add-on's external configuration endpoint. The
+user then installs the final configured manifest URL through the existing
+manifest-link flow. Catalogue installs pass through the same manifest preview;
+an unconfigured configuration-required manifest opens Configure instead of
+creating a dead-end installed row. Resource-less configuration-required rows
+remain visible in Theatre until their final manifest is installed. The UI shows
+configuration state without displaying the credential-bearing URL, and logs must
+not print it.
 
 The roster still matters when a path carries a historical hardcoded Torrentio fallback. Those paths must ask
 `AddonClient.torrentioEnabled()` first. Removing or switching Torrentio off must mean it is actually no longer
@@ -623,6 +641,18 @@ This loads the real `qml/AddonClient.js` and pins the `url` versus `infoHash`
 boundary, standard request-header normalization, response-header exclusion,
 legacy flat-header compatibility, malformed array-shape rejection, and the rule
 that Torrent rows carry no HTTP request headers.
+
+Configured multi-extension stream matrix:
+
+    node tests/stremio_extension_matrix_test.mjs
+    node tests/extension_configuration_contract_test.mjs
+
+These deterministic tests cover root and configured manifest URLs, query
+parameters, enabled-extension fan-out, mixed Direct/Torrent/error responses,
+configuration-required state, request-header preservation, and disabled
+extension isolation. Live provider playback still requires a user-provided
+configured manifest URL and is recorded separately in
+docs/research/stremio-debrid-extension-matrix.md.
 
 **Universe payload contract:**
 
