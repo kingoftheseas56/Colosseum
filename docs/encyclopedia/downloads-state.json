@@ -21,10 +21,10 @@
       "accepted_comment": "// LocalDownloads — the unified read-model behind the Downloads page.\n// Normalizes all five download backbones (MangaDownloader, BookDownloader,\n// ComicDownloader, player DownloadStore, and MangaTankobanService's volume\n// lane) into one world → series → item shape so QML only renders. It owns NO\n// files and NO network: every action routes to the owning backend. Progress\n// (resume) is deliberately NOT consulted here — downloads answer \"what exists\n// locally\", not \"where do I resume\".\n// Design: chatgpt_requests/20260629-171426-…-plan-review/response.md (ratified),\n// layout ratified 2026-07-04 (agents/colosseum-downloads-mock.html).\n// 2026-07-16: Tankoban volume mode composed in — the page predated volume mode\n// and silently omitted every volume it ingested (Hemanth eyes-on)."
     },
     "qml/DownloadsPage.qml": {
-      "accepted_blob": "fdc2ff94352996e25018d12212895c85d0a020bf",
+      "accepted_blob": "9851cfa3a5eebb6dcd64409448272ea46d0e870f",
       "accepted_comment": "// DownloadsPage — everything the house holds locally, in one full page.\n// Ratified design: agents/colosseum-downloads-mock.html (2026-07-04, \"go with it\").\n// Structure IS the information: \"Now arriving\" (live jobs, cross-world) answers a\n// different question than the vault shelves (settled files, world → series → item),\n// so they are separate surfaces in that order. Data = LocalDownloads (read-model);\n// every action routes back to the owning backend. No sample data — empty lanes\n// say so honestly and route to their world."
     }
   },
-  "integrity": "sha256:83b865a64272b9c27857949e14832acfab3c2c4d4b49cbbe34b9c085e610a129",
+  "integrity": "sha256:ac7269b34a678e77d67a4a8359ef60909c23527f08468619609806dcf3f0ab20",
   "schema": 1
 }

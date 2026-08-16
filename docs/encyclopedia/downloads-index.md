@@ -8,7 +8,7 @@
 - Total files: **6**
 - Documented: **3**
 - Undocumented: **3**
-- Drifted: **0**
+- Drifted: **2**
 
 <a id="file-native-engine-audiobookdownloader-cpp"></a>
 ## `native/engine/AudiobookDownloader.cpp`
@@ -66,20 +66,22 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-native-engine-localdownloads-cpp"></a>
 ## `native/engine/LocalDownloads.cpp`
 
-- Status: **UNDOCUMENTED**
+- Status: **DRIFTED + UNDOCUMENTED**
 - Accepted blob: `73df1093a1137d760ee03db8681b61d565520c4f`
-- Current blob: `73df1093a1137d760ee03db8681b61d565520c4f`
+- Current blob: `a8c3fe17ed6ab9777319150f34f04275feed78ec`
 - Source: [`native/engine/LocalDownloads.cpp`](../../native/engine/LocalDownloads.cpp)
+- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 _No explanatory comment was harvested after the allowed file preamble._
 
 <a id="file-native-engine-localdownloads-h"></a>
 ## `native/engine/LocalDownloads.h`
 
-- Status: **CURRENT**
+- Status: **DRIFTED**
 - Accepted blob: `9d5e7e62773c2d22d7f9920aa83ca055f77b0e1c`
-- Current blob: `9d5e7e62773c2d22d7f9920aa83ca055f77b0e1c`
+- Current blob: `f7544c3a5e41c8f6c15517f65084a3e8cc4635d1`
 - Source: [`native/engine/LocalDownloads.h`](../../native/engine/LocalDownloads.h)
+- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // LocalDownloads — the unified read-model behind the Downloads page.
@@ -99,8 +101,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/DownloadsPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `fdc2ff94352996e25018d12212895c85d0a020bf`
-- Current blob: `fdc2ff94352996e25018d12212895c85d0a020bf`
+- Accepted blob: `9851cfa3a5eebb6dcd64409448272ea46d0e870f`
+- Current blob: `9851cfa3a5eebb6dcd64409448272ea46d0e870f`
 - Source: [`qml/DownloadsPage.qml`](../../qml/DownloadsPage.qml)
 
 ```text

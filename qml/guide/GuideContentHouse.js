@@ -137,7 +137,7 @@ function lessons() {
             searchTerms: ["download state", "progress", "speed", "eta", "paused", "queued", "landed"],
             related: ["downloads.overview", "downloads.actions"],
             blocks: [
-                { kind: "paragraph", text: "The Now arriving area labels each job's state first: queued — waits its turn, resolving — finding the best stream, downloading, paused — holds its place, unpacking, failed, or landed. Eligible manga work can show source cooling down — resumes in <time>." },
+                { kind: "paragraph", text: "The Now arriving area labels each job's state first: queued — waits its turn, resolving — reading the torrent (Theatre, which picks among streams, says finding the best stream), downloading, paused — holds its place, unpacking, failed, or landed. Eligible manga work can show source cooling down — resumes in <time>." },
                 { kind: "paragraph", text: "Where the backend knows totals, the page can show transferred bytes of total, a percentage, speed, ETA, N of M landed, and an aggregate progress bar." },
                 { kind: "note", text: "Not every job has byte numbers; some stages have no meaningful progress yet, and zero visible progress is not automatically failure." },
                 { kind: "note", text: "A Theatre row can show Play while the job is still arriving — play-while-arriving, not proof the local copy is landed." }

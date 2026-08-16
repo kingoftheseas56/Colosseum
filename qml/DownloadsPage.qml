@@ -430,6 +430,7 @@ Item {
         contentWidth: width
         contentHeight: col.implicitHeight + 140
         clip: true
+        pixelAligned: false
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
 
@@ -574,7 +575,11 @@ Item {
                                                     if (r0.state === "paused")
                                                         return wn + " · paused — holds its place";
                                                     if (r0.state === "resolving")
-                                                        return wn + " · resolving — finding the best stream";
+                                                        // Tankoban/Biblio pull a torrent that's already picked — there is no
+                                                        // "stream" to find; the engine is fetching the torrent's file list
+                                                        // from the swarm. Only Theatre genuinely picks among streams.
+                                                        return wn + " · " + (w === "theatre" ? "resolving — finding the best stream"
+                                                                                             : "resolving — reading the torrent");
                                                     if (r0.state === "extracting")
                                                         return wn + " · unpacking";
                                                     if (r0.state === "done")
@@ -813,7 +818,9 @@ Item {
                                                 width: parent.width
                                                 textFormat: Text.PlainText
                                                 text: epRow.modelData.state === "downloading" ? "downloading"
-                                                    : epRow.modelData.state === "resolving" ? "resolving — finding the best stream"
+                                                    : epRow.modelData.state === "resolving"
+                                                        ? (grp.modelData.world === "theatre" ? "resolving — finding the best stream"
+                                                                                             : "resolving — reading the torrent")
                                                     : epRow.modelData.state === "queued" ? "queued — waits its turn"
                                                     : epRow.modelData.state === "paused" ? "paused — holds its place"
                                                     : epRow.modelData.state === "failed"
