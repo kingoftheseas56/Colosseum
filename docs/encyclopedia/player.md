@@ -28,6 +28,23 @@ any door (TheatreSeries, Continue tile, Downloads, Universe, SourcesSheet)
   → MpvItem (mpvqt → libmpv)  →  OpenGL RHI  →  pixels on screen
 ```
 
+**Direct extension streams are HTTP, not torrents.** `AddonClient.js` gives a
+Stremio `url` row `streamKind = "Direct"` and keeps a synthetic
+`infoHash = "url:<url>"` only so the established source-selection signal can carry
+it without another interface. `SourcesSheet.warmTopRow()` gates on
+`streamKind === "Torrent"` before `Stream.prefetch()`, so that routing token never
+enters `StreamServer`.
+
+`PlayerPage.qml` recognizes the explicit `url` or `url:` token before
+`Stream.play`. Direct loads use the candidate's normalized request-header map on
+initial playback, retry, and wake reconnect; headerless loads use `mpv.loadFile`,
+which clears prior `http-header-fields`. Torrent retry/reconnect behavior remains
+on the existing StreamServer path.
+
+This is an in-session playback contract. Persisted Continue-resume, Cast, and
+Download have separate URL/header lifecycles and must not be inferred to support
+header-bearing or expiring Direct URLs from this seam alone.
+
 **The boot RHI choice gates everything.** mpvqt renders through OpenGL, so the process-wide
 graphics backend is picked in `native/main.cpp` **before the app object exists** (main.cpp:436–476).
 Player 1 is the default boot; `COLOSSEUM_PLAYER2=1` (on a Player-2 build) boots the experimental

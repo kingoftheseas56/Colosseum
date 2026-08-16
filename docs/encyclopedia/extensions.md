@@ -265,6 +265,19 @@ AddonClient.loadStreams(...)
 SourcesSheet / player route
 ```
 
+Stream normalization has one mechanical playback boundary. A response with an
+`infoHash` becomes a **Torrent** row. A response with a direct `url` and no
+`infoHash` becomes a **Direct** row. Direct rows keep `infoHash = "url:<url>"`
+only as an internal compatibility token for the established play signal; that
+token is not torrent identity and must never authorize torrent prefetch/playback.
+
+For Direct rows, `AddonClient.parseStream()` normalizes the standard Stremio
+`behaviorHints.proxyHeaders.request` object into the flat request-header map
+consumed by the player. `proxyHeaders.response` is not an origin request-header
+source. The historical flat `proxyHeaders` shape remains accepted as a
+compatibility fallback. Non-map/array header shapes are rejected. Torrent rows
+carry no HTTP request headers.
+
 The roster still matters when a path carries a historical hardcoded Torrentio fallback. Those paths must ask
 `AddonClient.torrentioEnabled()` first. Removing or switching Torrentio off must mean it is actually no longer
 asked.
@@ -599,6 +612,17 @@ node tests/addon_torrentio_honesty_test.mjs
 
 Run this when touching any historical Torrentio fallback. The important behavior is not “Torrentio is seeded”; it
 is “once the roster says no, every fallback also says no.”
+
+**Direct/Torrent stream normalization:**
+
+```bash
+node tests/addon_direct_stream_contract_test.mjs
+```
+
+This loads the real `qml/AddonClient.js` and pins the `url` versus `infoHash`
+boundary, standard request-header normalization, response-header exclusion,
+legacy flat-header compatibility, malformed array-shape rejection, and the rule
+that Torrent rows carry no HTTP request headers.
 
 **Universe payload contract:**
 

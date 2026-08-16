@@ -151,11 +151,15 @@ Item {
         if (typeof Stream === "undefined" || sheet.mode === "download") return;
         var rows = sheet.filteredRows();
         for (var i = 0; i < rows.length; ++i) {
-            var h = String(rows[i].infoHash || "");
-            if (!h.length) continue;                    // direct/url rows need no warming
+            var row = rows[i];
+            // Direct rows keep a synthetic url:<url> in infoHash only to ride the existing
+            // play signal chain. streamKind — not hash emptiness — decides whether warming is legal.
+            if (!row || row.streamKind !== "Torrent") continue;
+            var h = String(row.infoHash || "");
+            if (!h.length) continue;
             if (h === sheet.warmedHash) return;         // already warmed this one
             sheet.warmedHash = h;
-            Stream.prefetch(h, rows[i].fileIdx || 0);
+            Stream.prefetch(h, row.fileIdx || 0);
             return;
         }
     }

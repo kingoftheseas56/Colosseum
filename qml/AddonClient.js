@@ -169,6 +169,30 @@ function _host(url) {
     return m ? m[1] : "";
 }
 
+// Direct Stremio URLs may carry origin request headers under the standard
+// behaviorHints.proxyHeaders.request wrapper. Colosseum's mpv seam consumes a flat map.
+// Keep the historical flat proxyHeaders form as a compatibility fallback, but never
+// mistake proxy response headers for origin request headers.
+function _isObjectMap(value) {
+    return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function _requestHeaders(s) {
+    var hints = (s && s.behaviorHints) || ({});
+    var proxy = hints.proxyHeaders || ({});
+    if (!_isObjectMap(proxy)) return ({});
+
+    if (_isObjectMap(proxy.request))
+        return proxy.request;
+
+    // A standard wrapper with no usable request map contributes no origin headers.
+    // In particular, response-only hints belong to proxy response handling, not mpv.
+    if (proxy.request !== undefined || proxy.response !== undefined)
+        return ({});
+
+    return proxy;
+}
+
 // One stream from one extension → a sheet row. Returns null for rows the player
 // can't carry (no infoHash AND no direct url — e.g. externalUrl-only addons).
 function parseStream(s, addonName, addonPriority) {
@@ -202,7 +226,7 @@ function parseStream(s, addonName, addonPriority) {
         bingeGroup: (s.behaviorHints && s.behaviorHints.bingeGroup) || "",
         // HTTP hosts that gate on a Referer/Origin deliver the required headers here; the player
         // installs them via mpv.loadFileWithHeaders. Torrent rows carry none. (House HTTP, slice 1.)
-        headers: (s.behaviorHints && s.behaviorHints.proxyHeaders) || ({}),
+        headers: isTorrent ? ({}) : _requestHeaders(s),
         filename: (s.behaviorHints && s.behaviorHints.filename) || ""
     };
 }

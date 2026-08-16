@@ -8,7 +8,7 @@
 - Total files: **26**
 - Documented: **10**
 - Undocumented: **16**
-- Drifted: **1**
+- Drifted: **0**
 
 <a id="file-native-player-caststore-cpp"></a>
 ## `native/player/caststore.cpp`
@@ -301,8 +301,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/PlayerPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `88c89abf1a34f4eac1a58b6aa4c38d319039d5f5`
-- Current blob: `88c89abf1a34f4eac1a58b6aa4c38d319039d5f5`
+- Accepted blob: `749d47ffc5a085708c8720188d549fe17f339818`
+- Current blob: `749d47ffc5a085708c8720188d549fe17f339818`
 - Source: [`qml/PlayerPage.qml`](../../qml/PlayerPage.qml)
 
 ```text
@@ -323,11 +323,10 @@ _No explanatory comment was harvested after the allowed file preamble._
 <a id="file-qml-theatreapi-js"></a>
 ## `qml/TheatreApi.js`
 
-- Status: **DRIFTED**
-- Accepted blob: `b6dd1594103ba608ad04f2d0a56928b9cb4fd40f`
+- Status: **CURRENT**
+- Accepted blob: `ede8eb724c1661f97cdd16c6b00a734253c8ef5d`
 - Current blob: `ede8eb724c1661f97cdd16c6b00a734253c8ef5d`
 - Source: [`qml/TheatreApi.js`](../../qml/TheatreApi.js)
-- Interpretation: the accepted description predates the current blob; read the source before relying on it.
 
 ```text
 // TheatreApi.js - tiny live catalog adapter for the Colosseum QML prototype.

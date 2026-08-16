@@ -93,7 +93,7 @@
       "accepted_comment": "// Stremio-style per-show startup loader. Reference = Stremio's Player (stremio-web): a FULL-BLEED\n// backdrop shown CLEARLY (not blurred; only subtle top/bottom gradients) with the show's CINEMETA\n// LOGO — the stylized title art — centered as the hero. Text is only a fallback when no logo loads.\n// Beneath: the episode line, a status line, and a thin INDETERMINATE bar. Colosseum exposes no\n// trustworthy torrent readiness figure, so the bar only sweeps — it NEVER shows a fabricated number.\n//\n// Owned/fed by PlayerPage: `active` gates everything; PlayerPage flips it off on the truthful\n// first-frame advance (or when the resume-choice prompt takes over). Art decode runs ONLY while\n// active. Harbor shows the same logo with no backdrop; we keep Stremio's backdrop."
     },
     "qml/PlayerPage.qml": {
-      "accepted_blob": "88c89abf1a34f4eac1a58b6aa4c38d319039d5f5",
+      "accepted_blob": "749d47ffc5a085708c8720188d549fe17f339818",
       "accepted_comment": "// PlayerPage - Harbor/TB3-style fullscreen player chrome on top of Colosseum's mpvqt MpvItem.\n// Streaming remains behind the Stream.play -> streamReady seam; this file only owns player UI."
     },
     "qml/PlayerTrackPrefs.js": {
@@ -101,10 +101,10 @@
       "accepted_comment": null
     },
     "qml/TheatreApi.js": {
-      "accepted_blob": "b6dd1594103ba608ad04f2d0a56928b9cb4fd40f",
+      "accepted_blob": "ede8eb724c1661f97cdd16c6b00a734253c8ef5d",
       "accepted_comment": "// TheatreApi.js - tiny live catalog adapter for the Colosseum QML prototype.\n// Cinemeta is the identity source for movies, series, and anime-shaped series rows.\n// Extensions (spec Phase 3): installed catalog extensions add THEIR shelves to the\n// tab pages after the house rows, and answer meta asks the house sources can't.\n// A .pragma library can't see context properties, so Main.qml pushes the installed\n// list in via setExtensions() at boot and on every registry change."
     }
   },
-  "integrity": "sha256:1c534d518d35f17137988e273ebc796cf4ff4725568d9a55dae21fb013840907",
+  "integrity": "sha256:5001a23bc692ad8de989f50553cc733d77db830eaae0d45db4e156108dcb908e",
   "schema": 1
 }

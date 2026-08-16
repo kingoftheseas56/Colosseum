@@ -882,6 +882,28 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
 
+    function directStreamUrl(candidate) {
+        var c = candidate || ({})
+        if (c.url && String(c.url).length)
+            return String(c.url)
+        var routed = String(c.infoHash || "")
+        return routed.indexOf("url:") === 0 ? routed.substring(4) : ""
+    }
+
+    function loadDirectStreamUrl(url, headers) {
+        var directUrl = String(url || "")
+        if (!directUrl.length)
+            return false
+        var requestHeaders = (headers && typeof headers === "object" && !Array.isArray(headers))
+                           ? headers : ({})
+        root.currentPlaybackUrl = directUrl
+        if (Object.keys(requestHeaders).length)
+            mpv.loadFileWithHeaders(directUrl, requestHeaders)
+        else
+            mpv.loadFile(directUrl)
+        return true
+    }
+
     function normalizeStreamCandidates(infoHash, fileIdx, title, candidates) {
         var out = []
         var rows = candidates || []
@@ -900,7 +922,7 @@ Item {
                 // HTTP hosts that gate on a Referer/Origin ride their required headers this far;
                 // the play path installs them via mpv.loadFileWithHeaders. Must survive this
                 // reshape or the header channel is dead in the app. (House HTTP, slice 1.)
-                "headers": (c.headers && typeof c.headers === "object") ? c.headers : ({})
+                "headers": (c.headers && typeof c.headers === "object" && !Array.isArray(c.headers)) ? c.headers : ({})
             })
         }
         if (!out.length && infoHash && String(infoHash).length) {
@@ -1187,20 +1209,14 @@ Item {
         // torrent engine — mpv plays the url natively. They arrive either as an
         // explicit url field or under the "url:" infoHash routing prefix (the
         // resume path carries only the hash). Extensions spec Phase 2, slice G.
-        var directUrl = (c.url && String(c.url).length) ? String(c.url)
-                      : (String(c.infoHash || "").indexOf("url:") === 0
-                         ? String(c.infoHash).substring(4) : "")
+        var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
             root.mediaTransport = "Direct stream"
-            root.currentPlaybackUrl = directUrl
             root.updateMediaSubtitle()
-            // HTTP hosts that gate on a Referer/Origin need those headers on the request or the
-            // load fails silently; loadFileWithHeaders installs them (and loadFile clears them, so
-            // they never leak into the next stream). Header-free rows take the plain path.
-            if (c.headers && typeof c.headers === "object" && Object.keys(c.headers).length)
-                mpv.loadFileWithHeaders(directUrl, c.headers)
-            else
-                mpv.loadFile(directUrl)
+            // HTTP hosts that gate on a Referer/Origin need those headers on every request,
+            // including retries/reconnects. Header-free rows take the plain path, which also
+            // clears any prior mpv http-header-fields.
+            root.loadDirectStreamUrl(directUrl, c.headers)
             return
         }
         root.mediaTransport = "Torrent stream"
@@ -1287,6 +1303,11 @@ Item {
         root.resetRecoveryWatch()
         streamWatchdog.restart()
         root.wakeChrome()
+        var directUrl = root.directStreamUrl(c)
+        if (directUrl.length) {
+            root.loadDirectStreamUrl(directUrl, c.headers)
+            return
+        }
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
@@ -1414,7 +1435,12 @@ Item {
         root.wakeReconnectPendingSeek = pos
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
-        mpv.loadFile(root.currentPlaybackUrl)
+        var c = root.currentStreamCandidate()
+        var directUrl = root.directStreamUrl(c)
+        if (directUrl.length)
+            root.loadDirectStreamUrl(directUrl, c.headers)
+        else
+            mpv.loadFile(root.currentPlaybackUrl)
     }
 
     function handlePlaybackFailure(reason) {

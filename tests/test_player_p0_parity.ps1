@@ -31,6 +31,16 @@ Assert-Matches $main "playTorrent\([^\)]*streamCandidates" `
 Assert-Matches $player "function\s+playTorrent\([^\)]*streamCandidates" `
     "PlayerPage.playTorrent must accept streamCandidates."
 
+# Generic Direct-stream parity: a Stremio url row must stay outside the torrent
+# engine on warm-up, retry, and wake reconnect. These are source-wiring assertions;
+# runtime tests still own behavioral proof.
+Assert-Matches $sources "function\s+warmTopRow\(\)[\s\S]*?streamKind\s*!==\s*`"Torrent`"[\s\S]*?Stream\.prefetch" `
+    "SourcesSheet warmTopRow must reject Direct rows before Stream.prefetch."
+Assert-Matches $player "function\s+retryCurrentStream\(\)[\s\S]*?directStreamUrl\(c\)[\s\S]*?loadDirectStreamUrl\(directUrl,\s*c\.headers\)[\s\S]*?Stream\.play" `
+    "PlayerPage retry must reload Direct candidates through mpv before the torrent fallback."
+Assert-Matches $player "function\s+tickWakeReconnect\(\)[\s\S]*?directStreamUrl\(c\)[\s\S]*?loadDirectStreamUrl\(directUrl,\s*c\.headers\)" `
+    "PlayerPage wake reconnect must preserve Direct candidate request headers."
+
 # Harbor parity P0: the player must own recovery/switching state and actions.
 Assert-Contains $player "property var streamCandidates" `
     "PlayerPage must store streamCandidates."

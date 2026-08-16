@@ -58,8 +58,8 @@
 ## `qml/AddonClient.js`
 
 - Status: **CURRENT**
-- Accepted blob: `7de374ad8d56740edf29ac3577b964efc83f4357`
-- Current blob: `7de374ad8d56740edf29ac3577b964efc83f4357`
+- Accepted blob: `f2c253621c4d7111b8d38d81269e39d52d03b3f7`
+- Current blob: `f2c253621c4d7111b8d38d81269e39d52d03b3f7`
 - Source: [`qml/AddonClient.js`](../../qml/AddonClient.js)
 
 ```text
