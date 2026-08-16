@@ -694,6 +694,39 @@ Item {
                         font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter
                     }
+                    // ── the in-flight count pill (approved mock 2026-08-16): "↓ 1
+                    // downloading" appears the moment any volume of THIS series
+                    // starts acquiring and leaves when the last one lands — the
+                    // shelf-side answer to "did my click do anything?". ──
+                    Rectangle {
+                        visible: tankLib.inFlightIds.length > 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: flightRow.implicitWidth + 26; height: 26; radius: 13
+                        color: Qt.rgba(0.94, 0.77, 0.29, 0.12)
+                        border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.55)
+                        scale: visible ? 1 : 0.6
+                        Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+                        Row {
+                            id: flightRow
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Text {
+                                text: "↓"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: tankLib.inFlightIds.length; color: theme.gold
+                                font.family: theme.display; font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: "downloading"; color: theme.gold
+                                font.family: theme.ui; font.pixelSize: 11
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+                    }
                     Text {
                         text: {
                             var n = tankLib.volumeRows.length

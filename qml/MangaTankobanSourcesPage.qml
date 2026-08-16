@@ -46,6 +46,21 @@ Item {
     property bool complete: false
     property string failureText: ""
 
+    // ── live-pick state (approved mock: colosseum-tankoban-sources-live-download-mock.html,
+    // 2026-08-16). A pick no longer hides the sheet: the picked row's gold button becomes
+    // a status disc (resolving sweep → live % → ✓), the other rows recede, a toast points
+    // at the volume shelf, and once every volume started HERE has landed the sheet closes
+    // itself. Backing out mid-download is always allowed — the acquisition keeps running
+    // service-side and the shelf tile carries it from there. ──
+    property var liveIds: []          // volumeIds started from THIS sheet, still interesting
+    property var liveProgress: ({})   // volumeId -> { done, total } from `progress` ticks
+    property string livePhase: ""     // "" | "live" | "done" | "failed"
+    property real liveFraction: -1    // aggregated done/total; -1 = indeterminate (resolving)
+    property string pickedHash: ""    // the Nyaa release that was picked (row match key)
+    property bool pickedWeeb: false   // …or the WeebCentral fallback card
+    property bool toastVisible: false
+    property bool toastError: false
+
     readonly property string identityLine: buildIdentityLine()
 
     // ── batch mode (design 2026-07-30) ───────────────────────────────────────
@@ -137,7 +152,115 @@ Item {
         open = false
         rows = []
         loading = false; complete = false; failureText = ""
+        _resetLive()
         closed()
+    }
+
+    function _resetLive() {
+        liveIds = []; liveProgress = ({})
+        livePhase = ""; liveFraction = -1
+        pickedHash = ""; pickedWeeb = false
+        _liveCloseTimer.stop()
+    }
+
+    // One place that recomputes the sheet-level phase + fraction from the service's
+    // own per-volume status (statusOf reads the façade's live acquisition map, so it
+    // is always the truth — never a QML-side guess).
+    function _refreshLive() {
+        if (!liveIds.length) return
+        var s = sheet.serviceObject
+        var done = 0, total = 0, anyTotal = false, anyLive = false
+        for (var i = 0; i < liveIds.length; i++) {
+            var vid = liveIds[i]
+            var st = s && s.statusOf ? String(s.statusOf(vid).state || "none") : "none"
+            if (st === "failed") { livePhase = "failed"; return }
+            if (st === "resolving" || st === "downloading" || st === "ingesting" || st === "packing")
+                anyLive = true
+            var p = liveProgress[vid]
+            if (p && Number(p.total) > 0) {
+                done += Number(p.done) || 0
+                total += Number(p.total)
+                anyTotal = true
+            }
+        }
+        if (!anyLive) {
+            // Nothing is running any more. "done" only if EVERY volume this sheet
+            // started actually landed (statusOf flips to "ready"); a volume that
+            // vanished (cancelled from the Downloads page) must not wear the ✓.
+            var allReady = true
+            for (var j = 0; j < liveIds.length; j++) {
+                var end = s && s.statusOf ? String(s.statusOf(liveIds[j]).state || "none") : "none"
+                if (end !== "ready") { allReady = false; break }
+            }
+            livePhase = allReady ? "done" : "failed"
+            if (allReady)
+                _liveCloseTimer.restart()   // the ✓ beat, then the sheet closes itself
+            else
+                _liveFailTimer.restart()    // hand the rows back for another pick
+            return
+        }
+        livePhase = "live"
+        liveFraction = anyTotal ? Math.max(0, Math.min(1, done / total)) : -1
+    }
+
+    // The status line under the picked release: phase word first, % once bytes move.
+    function statusText() {
+        if (livePhase === "done") return "Done — added to your shelf"
+        if (livePhase === "failed") return "Failed — pick another source"
+        var s = sheet.serviceObject
+        var resolving = false, packing = false, ingesting = false
+        for (var i = 0; i < liveIds.length; i++) {
+            var st = s && s.statusOf ? String(s.statusOf(liveIds[i]).state || "") : ""
+            if (st === "resolving") resolving = true
+            if (st === "packing") packing = true
+            if (st === "ingesting") ingesting = true
+        }
+        if (packing) return "Building from chapters…"
+        if (resolving) return "Resolving torrent…"
+        if (ingesting) return "Adding to library…"
+        return liveFraction >= 0 ? ("Downloading · " + Math.round(liveFraction * 100) + "%")
+                                 : "Downloading…"
+    }
+
+    function toast(message, isError) {
+        toastText.text = message
+        toastError = isError === true
+        toastVisible = true
+        _toastTimer.restart()
+    }
+
+    // Called right after the service kick: keeps only the ids that actually went
+    // in flight. A pick the service refused outright has ALREADY emitted `failed`
+    // (same-thread direct signal) before downloadNyaa returned, so liveIds ends up
+    // empty and the refusal surfaces as an error toast instead of a frozen disc.
+    function startLive(ids, building) {
+        var s = sheet.serviceObject
+        var live = []
+        for (var i = 0; i < ids.length; i++) {
+            var st = s && s.statusOf ? String(s.statusOf(String(ids[i])).state || "none") : "none"
+            if (st === "resolving" || st === "downloading" || st === "ingesting" || st === "packing")
+                live.push(String(ids[i]))
+        }
+        if (!live.length) {
+            toast(failureText.length ? failureText : "That source could not be started.", true)
+            pickedHash = ""; pickedWeeb = false
+            return
+        }
+        liveIds = live
+        liveProgress = ({})
+        livePhase = "live"; liveFraction = -1
+        _refreshLive()
+        if (building) {
+            toast(live.length === 1 ? "Building from chapters — follow it on the volume shelf"
+                                    : live.length + " volumes building — follow the shelf", false)
+        } else if (live.length === 1) {
+            var n = (context.volumeNumber !== undefined && String(context.volumeNumber).length)
+                    ? String(context.volumeNumber) : ""
+            toast(n.length ? ("Vol. " + n + " is downloading — follow it on the volume shelf")
+                           : "Downloading — follow it on the volume shelf", false)
+        } else {
+            toast(live.length + " volumes are downloading — follow the shelf", false)
+        }
     }
 
     function applySources(vid, results) {
@@ -152,12 +275,14 @@ Item {
         loading = false; complete = true; failureText = String(reason)
     }
 
-    // A chosen Nyaa release → native download, then close (the library row reflects
-    // the in-flight state). A pick that can't isolate the volume simply reports why
-    // through the service's own `failed` reason — no auto-fallback here.
+    // A chosen Nyaa release → native download, then the sheet goes LIVE on that
+    // row (status disc + recede + toast) instead of vanishing. A pick that can't
+    // isolate the volume reports why through the service's own `failed` reason —
+    // no auto-fallback here.
     function pickNyaa(modelData) {
         var s = sheet.serviceObject
         if (!s || !modelData || !modelData.infoHash) { hide(); return }
+        pickedHash = String(modelData.infoHash); pickedWeeb = false
         if (sheet.isBatch) {
             // A batch acquires every volume from the ONE chosen torrent. The
             // transport is already multi-intent (one Job per infoHash holding an
@@ -167,18 +292,19 @@ Item {
         } else {
             s.downloadNyaa(context.volumeId, modelData.infoHash)
         }
-        hide()
+        startLive(sheet.isBatch ? sheet.batchIds : [String(context.volumeId)], false)
     }
     // The WeebCentral fallback: disabled cards do nothing; enabled ones compile.
     // It needs no per-volume choice, so a batch is a loop over the existing
-    // per-volume entry point — nothing new in the engine.
+    // per-volume entry point — nothing new in the engine. Same live treatment.
     function pickWeeb(modelData) {
         if (modelData && modelData.enabled === false) return
         var s = sheet.serviceObject
         if (!s) { hide(); return }
-        var ids = sheet.isBatch ? sheet.batchIds : [context.volumeId]
+        pickedWeeb = true; pickedHash = ""
+        var ids = sheet.isBatch ? sheet.batchIds : [String(context.volumeId)]
         for (var i = 0; i < ids.length; i++) s.compileWeebCentral(String(ids[i]))
-        hide()
+        startLive(ids, true)
     }
 
     // ── display helpers ──────────────────────────────────────────────────────
@@ -221,7 +347,48 @@ Item {
         target: sheet.serviceObject
         ignoreUnknownSignals: true
         function onSourcesReady(vid, results) { sheet.applySources(vid, results) }
-        function onFailed(vid, reason) { sheet.applyFailure(vid, reason) }
+        function onFailed(vid, reason) {
+            sheet.applyFailure(vid, reason)
+            if (sheet.liveIds.indexOf(String(vid)) < 0) return
+            // A volume THIS sheet started failed mid-flight: show the disc's "!" beat,
+            // tell him why, then hand the row back so another source can be picked.
+            sheet.livePhase = "failed"
+            sheet.toast("Couldn’t get it from that source — " + reason
+                        + ". Pick another one.", true)
+            sheet._liveFailTimer.restart()
+        }
+        function onProgress(vid, done, total) {
+            if (sheet.liveIds.indexOf(String(vid)) < 0) return
+            var out = {}
+            for (var k in sheet.liveProgress) out[k] = sheet.liveProgress[k]
+            out[String(vid)] = { "done": done, "total": total }
+            sheet.liveProgress = out
+            sheet._refreshLive()
+        }
+        function onFinished(vid) { if (sheet.liveIds.indexOf(String(vid)) >= 0) sheet._refreshLive() }
+        function onRemoved(vid) { if (sheet.liveIds.indexOf(String(vid)) >= 0) sheet._refreshLive() }
+    }
+
+    // The ✓ beat before the sheet closes itself on a completed pick.
+    Timer {
+        id: _liveCloseTimer
+        interval: 1400
+        onTriggered: { if (sheet.livePhase === "done") sheet.hide() }
+    }
+    // The "!" beat before the rows come back for another pick.
+    Timer {
+        id: _liveFailTimer
+        interval: 1600
+        onTriggered: {
+            sheet.pickedHash = ""; sheet.pickedWeeb = false
+            sheet.liveIds = []; sheet.liveProgress = ({})
+            sheet.livePhase = ""; sheet.liveFraction = -1
+        }
+    }
+    Timer {
+        id: _toastTimer
+        interval: 3800
+        onTriggered: sheet.toastVisible = false
     }
 
     // ── base: float over the wallpaper, not a flat void ──
@@ -234,6 +401,75 @@ Item {
         opacity: 0.5
     }
     MouseArea { anchors.fill: parent }   // absorb clicks from below
+
+    // ── the status disc that replaces a picked row's gold ↓ (approved mock). It
+    // rides the sheet's aggregated live state: spinner while resolving, gold %
+    // once bytes move, gold ✓ when every volume has landed, "!" on failure. ──
+    component StatusDisc: Rectangle {
+        width: 56; height: 56; radius: 28
+        color: sheet.livePhase === "done" ? theme.gold : Qt.rgba(0.04, 0.045, 0.06, 0.92)
+        border.width: sheet.livePhase === "done" ? 0 : 1
+        border.color: Qt.rgba(0.94, 0.77, 0.29, 0.6)
+        Canvas {
+            id: discSpin
+            anchors.centerIn: parent
+            width: 26; height: 26
+            visible: sheet.livePhase === "live" && sheet.liveFraction < 0
+            rotation: 0
+            RotationAnimation on rotation {
+                from: 0; to: 360; duration: 1150
+                loops: Animation.Infinite; running: discSpin.visible
+            }
+            onVisibleChanged: requestPaint()
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+                ctx.lineWidth = 2.4
+                ctx.strokeStyle = "#f0c44a"
+                ctx.beginPath()
+                ctx.arc(13, 13, 10, 0, Math.PI * 0.75)
+                ctx.stroke()
+            }
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: sheet.livePhase === "live" && sheet.liveFraction >= 0
+            text: Math.round(sheet.liveFraction * 100) + "%"
+            color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+            font.weight: Font.DemiBold
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: sheet.livePhase === "done"
+            text: "✓"; color: "#1a1306"
+            font.family: theme.ui; font.pixelSize: 20; font.weight: Font.DemiBold
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: sheet.livePhase === "failed"
+            text: "!"; color: "#e6a3a3"
+            font.family: theme.ui; font.pixelSize: 20; font.weight: Font.DemiBold
+        }
+    }
+
+    // ── the toast: one line of confirmation that leaves on its own ──
+    Rectangle {
+        visible: sheet.toastVisible && sheet.open
+        z: 40
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 34
+        width: toastText.implicitWidth + 44; height: 46; radius: 12
+        color: Qt.rgba(0.04, 0.045, 0.06, 0.95)
+        border.width: 1
+        border.color: sheet.toastError ? Qt.rgba(0.9, 0.4, 0.4, 0.55)
+                                       : Qt.rgba(0.94, 0.77, 0.29, 0.55)
+        Text {
+            id: toastText
+            anchors.centerIn: parent
+            color: sheet.toastError ? "#e6a3a3" : theme.ink
+            font.family: theme.ui; font.pixelSize: 13
+        }
+    }
 
     // ── volume key-art hero across the top, washing down ──
     Item {
@@ -386,7 +622,17 @@ Item {
                 width: ListView.view.width
                 readonly property bool isWeeb: row.modelData && row.modelData.kind === "weebcentral"
                 readonly property bool rowEnabled: row.modelData ? (row.modelData.enabled !== false) : false
+                // The row THIS sheet started a download from (hash match for Nyaa,
+                // the fallback flag for WeebCentral). While a pick is live the
+                // chosen row carries the status disc and the others recede.
+                readonly property bool isPickRow: sheet.pickedHash.length > 0 && row.modelData
+                    && String(row.modelData.infoHash || "") === sheet.pickedHash
+                readonly property bool carriesDisc: (row.isPickRow || (row.isWeeb && sheet.pickedWeeb))
+                    && sheet.livePhase.length > 0
+                readonly property bool dimmed: sheet.livePhase.length > 0 && !row.carriesDisc
                 height: row.isWeeb ? 96 : 150
+                opacity: row.dimmed ? 0.45 : 1
+                Behavior on opacity { NumberAnimation { duration: 180 } }
 
                 Rectangle {
                     anchors.fill: parent
@@ -454,13 +700,15 @@ Item {
                         }
                         Text {
                             text: {
+                                if (row.carriesDisc) return sheet.statusText()
                                 var p = []
                                 var sz = sheet.fmtSize(row.modelData ? row.modelData.sizeBytes : 0)
                                 if (sz.length) p.push(sz)
                                 p.push("\u{1F464} " + (row.modelData ? Number(row.modelData.seeders || 0) : 0))
                                 return p.join("   ·   ")
                             }
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            color: row.carriesDisc ? theme.gold : theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                         }
                     }
 
@@ -473,12 +721,18 @@ Item {
                         anchors.right: parent.right; anchors.rightMargin: 30
                         anchors.verticalCenter: parent.verticalCenter
                         width: 56; height: 56; radius: 28; color: theme.gold
+                        visible: !row.carriesDisc
                         scale: rowMa.containsMouse ? 1.05 : 1.0
                         Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                         Text {
                             anchors.centerIn: parent; text: "↓"; color: "#1a1306"
                             font.pixelSize: 18; font.weight: Font.DemiBold
                         }
+                    }
+                    StatusDisc {
+                        visible: row.carriesDisc
+                        anchors.right: parent.right; anchors.rightMargin: 30
+                        anchors.verticalCenter: parent.verticalCenter
                     }
                 }
 
@@ -512,12 +766,14 @@ Item {
                         }
                         Text {
                             width: parent.width
-                            text: row.rowEnabled
-                                ? ("Compiles this volume from "
-                                   + (row.modelData && row.modelData.chapterCount ? row.modelData.chapterCount : 0)
-                                   + " WeebCentral chapters.")
-                                : ((row.modelData && row.modelData.reason) ? row.modelData.reason : "Unavailable.")
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap
+                            text: row.carriesDisc ? sheet.statusText()
+                                : (row.rowEnabled
+                                   ? ("Compiles this volume from "
+                                      + (row.modelData && row.modelData.chapterCount ? row.modelData.chapterCount : 0)
+                                      + " WeebCentral chapters.")
+                                   : ((row.modelData && row.modelData.reason) ? row.modelData.reason : "Unavailable."))
+                            color: row.carriesDisc ? theme.gold : theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap
                         }
                     }
                     Rectangle {
@@ -528,18 +784,24 @@ Item {
                         anchors.right: parent.right; anchors.rightMargin: 30
                         anchors.verticalCenter: parent.verticalCenter
                         width: 56; height: 56; radius: 28
-                        visible: row.rowEnabled
+                        visible: row.rowEnabled && !row.carriesDisc
                         color: rowMa.containsMouse ? theme.glassHi : theme.glassTint
                         border.width: 1
                         border.color: rowMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.5) : theme.edge
                         Text { anchors.centerIn: parent; text: "↓"; color: theme.ink; font.pixelSize: 18 }
                     }
+                    StatusDisc {
+                        visible: row.carriesDisc
+                        anchors.right: parent.right; anchors.rightMargin: 30
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
 
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
-                    cursorShape: row.rowEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    cursorShape: row.rowEnabled && !sheet.liveIds.length ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
+                        if (sheet.liveIds.length > 0) return   // a pick is running — wait or back out
                         if (row.isWeeb) sheet.pickWeeb(row.modelData)
                         else sheet.pickNyaa(row.modelData)
                     }

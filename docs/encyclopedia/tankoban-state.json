@@ -41,7 +41,7 @@
       "accepted_comment": "// Pure logic for Tankoban volume mode: string-safe volume-number normalization,\n// stable escaped identity (volume id + per-series settings key), and assembly of\n// a SeriesSnapshot from QML-style QVariant snapshots. No Qt Quick / no I/O — this\n// header is harness-testable on its own (see tests/manga_tankoban_logic_harness.cpp)."
     },
     "native/engine/MangaTankobanService.cpp": {
-      "accepted_blob": "6bd0d20e685464951e24481604fbd23523ae0839",
+      "accepted_blob": "e066b11eb6e2edb111965567cb2b34897846f746",
       "accepted_comment": "// native/engine/MangaTankobanService.cpp"
     },
     "native/engine/MangaTankobanService.h": {
@@ -125,15 +125,15 @@
       "accepted_comment": "// The production reader (Task 13 cutover, 2026-07-25).\n//\n// This file used to BE the reader — ~2000 lines of Electron-recreation paging driven by\n// ReaderEngine.js. It is now a thin delegation to the from-scratch Comic Reader in qml/comicreader/,\n// which decides in C++ and paints in QML (ComicReaderCore + the image://comicreader/ provider).\n//\n// The filename stays because the callers stay: qml/MangaSeries.qml, qml/ComicSeries.qml,\n// qml/ComicSeriesPage.qml and qml/BakeoffStripHost.qml all instantiate `MangaReader { ... }` and are\n// UNCHANGED by this cutover — that was the design constraint of the whole rebuild, and\n// tests/test_comicreader_migration.ps1 enforces both halves of it: this file must stay thin (no\n// state, no behaviour), and the reader behind it must still honour the full Task 1 caller contract.\n//\n// Nothing belongs in here. A property or workaround added to this file is a second implementation\n// of the reader; put it in comicreader/ComicReaderShell.qml (orchestration) or in the surface that\n// owns the behaviour.\n//\n// Guided is ARCHIVED, not frozen-in-tree. It was still on disk when this reader was cut over, but\n// Agent 2's 1d79fee removed the ONNX/read-along/guided arc from master on Hemanth's call — sources,\n// harnesses and its gate. The whole thing lives on `archive/onnx-readalong-guided-2026-07-24`, one\n// command from restoration. Nothing here reaches it: the reader's mode identity is Manga/Comic/Strip\n// only, and tests/test_comicreader_surfaces.ps1 still greps this tree for any guided reference."
     },
     "qml/MangaSeries.qml": {
-      "accepted_blob": "d3487a2eb008604bd01ba57ddee20698bd697090",
+      "accepted_blob": "083f96170d94048d17f99d08e3126d5c25d0e098",
       "accepted_comment": "// MangaSeries — the manga detail page. Colosseum series-view design (mock:\n// agents/colosseum-series-mock.html, approved 2026-06-27). Floats over the wallpaper; metadata is\n// inline (no glass pills); gold stays a sparing accent. Data is LIVE from the native engine via the\n// `Manga` bridge:\n//   title → WeebCentral search → (chapters + detail)\n//                              → volumes(wcId, title) → the Comick volume DB / live scrape, gated\n//         → AniList art()      → banner / cover / synopsis / genres / year / score\n// THE SURFACE IS DECIDED BY THE DATA (2026-07-29 ruling, no toggle): a series whose volume list\n// passes the completeness gate gets the permanent tankoban volume library, with the glass chapter\n// table below reduced to the loose tail (\"Latest chapters\"); a series that does not qualify gets\n// the plain flat WeebCentral chapter list. An estimated volume boundary is never shown.\n// Opened from a Top-10 manga tile."
     },
     "qml/MangaTankobanLibrary.qml": {
-      "accepted_blob": "dc010c288793e8e3e5fa9ebd71c4d023be6c0d57",
+      "accepted_blob": "27f051fd8d7c485c514181e54c197f99fa6503ae",
       "accepted_comment": "// MangaTankobanLibrary - the volume shelf for a Tankoban series.\n//\n// 2026-08-14 bookshelf rebuild (approved mock: colosseum-manga-series-bookshelf-mock.html).\n// The shelf is a vertical cover grid that opens the page - every canonical volume is a\n// card (cover + state chip + Vol/name/chapter-range caption). Chapters past the last\n// mapped volume (\"the X bucket\", still computed by MangaReadingRoom via MangaVolumes.js)\n// surface as a persistent \"Latest chapters\" tail below the grid, never a separate tab.\n//\n// `focusIndex`/`focusToken` and their small `focusAtNumber`/`focusAtIndex`/`jumpToNumber`\n// API SURVIVE this rebuild - not as visual state (nothing highlights or centers on them\n// any more) but because they are the load-bearing cursor for the cover-prefetch burst\n// window (see `visibleRowsForCovers()` below). tests/manga_volume_cover_harness.qml pins\n// the exact production bug this guards against: opening a 115-volume series must never\n// fire a thumbnail scrape for every volume at once (2026-07-31, WeebCentral throttled and\n// left the tail of the shelf permanently blank). Removing the cursor outright would silently\n// reopen that bug, so it stays as a headless prefetch cursor only."
     },
     "qml/MangaTankobanSourcesPage.qml": {
-      "accepted_blob": "75e1a836477ed6a86cf04f20e2c26842630ec243",
+      "accepted_blob": "71f3c86dc2c0abe0ae7800cece72cdc81d37e39f",
       "accepted_comment": "// MangaTankobanSourcesPage — the full-screen \"Choose source\" picker for ONE\n// tankōbon volume, in the Colosseum house language (mirrors ComicTorrentSourcesPage:\n// black base + wallpaper backdrop, volume key-art hero washing down, gold eyebrow +\n// Fraunces title + identity line, a glass result table). Manga-specific: the ranked\n// Nyaa releases (uploader trust → STRONG/POSSIBLE/WEAK, evidence chips explaining\n// coverage) then the quieter WeebCentral \"Build from chapters\" fallback pinned LAST.\n// The user always chooses; nothing auto-picks.\n//\n// Belongs to MangaSeries (a sibling of the reader; mutually-exclusive overlays). All\n// acquisition rides the native TankobanVolumes service under the original volumeId —\n// this page emits NO reader signal; it only kicks a native download/compile then hides."
     },
     "qml/TankobanComicsTab.qml": {
@@ -161,6 +161,6 @@
       "accepted_comment": "// TankobanWorld — the REAL instantiation of the world-page template for the Tankoban mode\n// (comics + manga / sequential art). Owner: A1. Data lives in Catalog.js (one source, also used by\n// the boot prefetch). Ported from our shipped Tankoban Electron catalog (manga = AniList/WeebCentral\n// · comics = RCO \"rcostation\"); live sources come LATER (Hemanth: \"apis can come later\").\n//\n// The board (Hemanth-locked 2026-06-25) — personal surfaces BLENDED, discovery surfaces SPLIT:\n//   1. Featured (blended) · 2. Continue (blended) · 3. Top in Tankoban — Manga\n//   4. Top in Tankoban — Comics (curated) · 5. Explore Genre — Manga\n//   6. Explore Comics (GetComics' own tag taxonomy, inline)\n// The catalogue's needs override the doctrine's ~2-row cap: comics and manga are two real\n// sub-catalogues, so the split IS the need (not a lazy row-wall)."
     }
   },
-  "integrity": "sha256:06536b8736ac46029ed9a91d408ae33a2850357954fdfaf0b1e8cce242027989",
+  "integrity": "sha256:47e9e9131bf34dc616dbb4f6d0a6e07d4c849f20ddf52123326731e806759e7d",
   "schema": 1
 }

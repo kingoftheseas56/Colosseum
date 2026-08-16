@@ -266,18 +266,27 @@ Item {
         return span.replace(/^Chapters?\s+/, "Ch ").replace("-", "–")
     }
 
-    // Mock chip vocabulary (Owned / Downloading / Failed). "New" is documented as
-    // optional in the mock for an unowned-with-cover tile, but there is no state signal
-    // in this model that distinguishes a freshly-added volume from an older unowned one
-    // (effectiveState only knows ready/resolving/ingesting/packing/downloading/failed/
-    // none) - defaulting to no chip for plain-unowned, matching the mock's own majority
-    // case (2 of its 3 unowned demo cards carry no chip). See handoff report.
+    // Mock chip vocabulary (Owned / Failed — in-flight moved OFF the chip). The
+    // 2026-08-16 live-tile mock (colosseum-tankoban-series-volume-live-mock.html)
+    // gives an acquiring volume its own top-right status disc (ring + %) plus the
+    // gold caption, so the old top-left "Downloading" chip would duplicate it.
     function chipTextFor(row) {
         var state = root.effectiveState(row)
         if (state === "ready") return "Owned"
         if (state === "failed") return "Failed"
-        if (root._inFlight(state)) return "Downloading"
         return ""
+    }
+
+    // The live caption that REPLACES a tile's title while it acquires (approved
+    // mock): phase word first, the count once bytes move. Empty = not in flight.
+    function liveCaptionFor(row) {
+        var state = root.effectiveState(row)
+        if (!root._inFlight(state)) return ""
+        var f = root.progressFraction(row)
+        if (state === "resolving") return "Resolving…"
+        if (state === "packing") return "Building…"
+        if (state === "ingesting") return "Adding to library…"
+        return f >= 0 ? ("Downloading · " + Math.round(f * 100) + "%") : "Downloading…"
     }
 
     // ------------------------------------------------------------------
@@ -660,6 +669,8 @@ Item {
             property real fraction: root.progressFraction(card.modelData)
             property string chipText: root.chipTextFor(card.modelData)
             property string spanText: root.shelfRangeFor(card.modelData)
+            property string liveCaption: root.liveCaptionFor(card.modelData)
+            readonly property bool live: root._inFlight(card.cardState)
 
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
@@ -714,8 +725,69 @@ Item {
                         font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.2
                     }
                 }
+                // ── the live status disc (approved mock 2026-08-16): top-right pill
+                // with a spinning ring while resolving/indeterminate, the gold %
+                // once bytes move. This is what makes an acquiring tile readable
+                // from across the shelf. ──
                 Rectangle {
-                    visible: root._inFlight(card.cardState)
+                    visible: card.live
+                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 7
+                    radius: 10; height: 20
+                    width: discRow.implicitWidth + 18
+                    color: Qt.rgba(0.04, 0.045, 0.06, 0.82)
+                    border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.55)
+                    Row {
+                        id: discRow
+                        anchors.centerIn: parent
+                        spacing: 4
+                        Canvas {
+                            id: discRing
+                            visible: card.fraction < 0
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 11; height: 11
+                            rotation: 0
+                            RotationAnimation on rotation {
+                                from: 0; to: 360; duration: 1150
+                                loops: Animation.Infinite; running: discRing.visible
+                            }
+                            onVisibleChanged: requestPaint()
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                ctx.reset()
+                                ctx.lineWidth = 1.8
+                                ctx.strokeStyle = "#f0c44a"
+                                ctx.beginPath()
+                                ctx.arc(5.5, 5.5, 4, 0, Math.PI * 0.75)
+                                ctx.stroke()
+                            }
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: card.fraction >= 0 ? (Math.round(card.fraction * 100) + "%") : "···"
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: 10
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                }
+                // ── the breathing gold edge: an acquiring tile glows softly so the
+                // eye finds it without reading anything (mock's breathe). ──
+                Rectangle {
+                    id: liveGlow
+                    visible: card.live
+                    anchors.fill: parent
+                    radius: 6
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Qt.rgba(0.94, 0.77, 0.29, 0.75)
+                    SequentialAnimation on opacity {
+                        running: liveGlow.visible
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 0.4; to: 1.0; duration: 1200; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 1.0; to: 0.4; duration: 1200; easing.type: Easing.InOutSine }
+                    }
+                }
+                Rectangle {
+                    visible: card.live
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     height: 3; color: Qt.rgba(1, 1, 1, 0.13)
                     Rectangle { width: Math.max(0, card.fraction) * parent.width; height: parent.height; color: theme.gold }
@@ -732,9 +804,10 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: card.modelData.title || ""
+                    text: card.liveCaption.length ? card.liveCaption : (card.modelData.title || "")
                     visible: text.length > 0
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                    color: card.liveCaption.length ? theme.gold : theme.ink
+                    font.family: theme.ui; font.pixelSize: 13
                     wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                 }
                 Text {

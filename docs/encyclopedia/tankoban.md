@@ -148,6 +148,25 @@ itself is the same `ComicReaderShell` for both.
     engine/AV still holds the freshly written archive; miniz's fopen fails once on a valid zip.
     `validateAndAdoptCbz` retries 250 ms × 48 (the ComicTorrentDownloader flush-race twin).
     Don't collapse it back to a single open.
+14. **An acquisition must ANNOUNCE itself (2026-08-16).** `downloadNyaa` /
+    `downloadNyaaBatch` / `compileWeebCentral` each emit `progress(volumeId, 0, 0)` the
+    moment `m_acq` flips to resolving/packing. Every live surface — the sources sheet's
+    row disc, the shelf tile, the Volumes-header count pill — keys off `progress`, and
+    without that start-tick nothing paints until the first real byte (the
+    invisible-download bug). New acquisition entry points keep the same contract.
+15. **The sources sheet goes LIVE on a pick, it does not hide (2026-08-16).** The picked
+    row's gold ↓ is replaced by a status disc (spinner while indeterminate → % → ✓ →
+    auto-close), other rows recede, and a toast points at the shelf. A refused pick
+    surfaces as an error toast with the rows restored; backing out mid-download is always
+    allowed (the shelf tile carries it from there). The sheet's aggregate phase comes
+    from `statusOf` per started volumeId — never a QML-side guess.
+16. **The shelf tile's live vocabulary is a contract (2026-08-16).** An acquiring tile:
+    top-right status disc (ring while fraction < 0, gold % once bytes move), breathing
+    gold edge, gold caption replacing the title ("Resolving…" / "Downloading · N%" /
+    "Building…" / "Adding to library…"), bottom progress bar; the top-left chip stays
+    Owned/Failed only. The Volumes header shows a gold "↓ N downloading" pill bound to
+    `inFlightIds`. A volume that vanished (cancelled) must never render the done ✓ —
+    "done" requires `statusOf` landing "ready`, not merely "not in flight".
 
 ## 6. How to test it
 

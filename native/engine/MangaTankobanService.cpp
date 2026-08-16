@@ -303,6 +303,12 @@ void MangaTankobanService::downloadNyaa(QString volumeId, QString infoHash)
             m_tornDown.remove(volumeId);   // a fresh attempt clears any prior tombstone
             m_chosen[volumeId] = c;
             m_acq[volumeId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("resolving")}};
+            // Announce the acquisition the instant it starts (done=total=0 reads as
+            // "just began, indeterminate"). Every QML surface — the sources sheet's
+            // row disc, the shelf tile, the header count — keys live state off
+            // `progress`, and without this tick nothing paints until the first real
+            // byte: the invisible-download bug (2026-08-16).
+            emit progress(volumeId, 0, 0);
             m_transport->download(m_volumes.value(volumeId), c);
             return;
         }
@@ -356,6 +362,7 @@ void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString info
         m_tornDown.remove(volumeId);   // a fresh attempt clears any prior tombstone
         m_chosen[volumeId] = chosen;
         m_acq[volumeId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("resolving")}};
+        emit progress(volumeId, 0, 0);   // same start-tick as downloadNyaa
         m_transport->download(m_volumes.value(volumeId), chosen);
     }
 }
@@ -374,6 +381,7 @@ void MangaTankobanService::compileWeebCentral(QString volumeId)
     m_acq[volumeId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("packing")},
                                   {QStringLiteral("done"), 0},
                                   {QStringLiteral("total"), 0}};
+    emit progress(volumeId, 0, 0);   // same start-tick as downloadNyaa
     const VolumeRecord vol = m_volumes.value(volumeId);
     // Pass the SERIES snapshot title (not the volume title) so the published
     // provenance records the series, matching the nyaa path's provenanceFor.

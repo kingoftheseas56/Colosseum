@@ -188,8 +188,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/MangaTankobanService.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `6bd0d20e685464951e24481604fbd23523ae0839`
-- Current blob: `6bd0d20e685464951e24481604fbd23523ae0839`
+- Accepted blob: `e066b11eb6e2edb111965567cb2b34897846f746`
+- Current blob: `e066b11eb6e2edb111965567cb2b34897846f746`
 - Source: [`native/engine/MangaTankobanService.cpp`](../../native/engine/MangaTankobanService.cpp)
 
 ```text
@@ -606,8 +606,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/MangaSeries.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `d3487a2eb008604bd01ba57ddee20698bd697090`
-- Current blob: `d3487a2eb008604bd01ba57ddee20698bd697090`
+- Accepted blob: `083f96170d94048d17f99d08e3126d5c25d0e098`
+- Current blob: `083f96170d94048d17f99d08e3126d5c25d0e098`
 - Source: [`qml/MangaSeries.qml`](../../qml/MangaSeries.qml)
 
 ```text
@@ -629,8 +629,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/MangaTankobanLibrary.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `dc010c288793e8e3e5fa9ebd71c4d023be6c0d57`
-- Current blob: `dc010c288793e8e3e5fa9ebd71c4d023be6c0d57`
+- Accepted blob: `27f051fd8d7c485c514181e54c197f99fa6503ae`
+- Current blob: `27f051fd8d7c485c514181e54c197f99fa6503ae`
 - Source: [`qml/MangaTankobanLibrary.qml`](../../qml/MangaTankobanLibrary.qml)
 
 ```text
@@ -656,8 +656,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/MangaTankobanSourcesPage.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `75e1a836477ed6a86cf04f20e2c26842630ec243`
-- Current blob: `75e1a836477ed6a86cf04f20e2c26842630ec243`
+- Accepted blob: `71f3c86dc2c0abe0ae7800cece72cdc81d37e39f`
+- Current blob: `71f3c86dc2c0abe0ae7800cece72cdc81d37e39f`
 - Source: [`qml/MangaTankobanSourcesPage.qml`](../../qml/MangaTankobanSourcesPage.qml)
 
 ```text
