@@ -188,8 +188,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/MangaTankobanService.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `37594e9c08cc91d38ce0650d5b8e12ac3fcacf18`
-- Current blob: `37594e9c08cc91d38ce0650d5b8e12ac3fcacf18`
+- Accepted blob: `6bd0d20e685464951e24481604fbd23523ae0839`
+- Current blob: `6bd0d20e685464951e24481604fbd23523ae0839`
 - Source: [`native/engine/MangaTankobanService.cpp`](../../native/engine/MangaTankobanService.cpp)
 
 ```text
@@ -250,8 +250,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/MangaVolumeArchiveIngestor.cpp`
 
 - Status: **UNDOCUMENTED**
-- Accepted blob: `d0775437f0188455cc403e227c17e7b201ce106c`
-- Current blob: `d0775437f0188455cc403e227c17e7b201ce106c`
+- Accepted blob: `649bfc662d0b75e50fa6d9016d39a6f204d3eafc`
+- Current blob: `649bfc662d0b75e50fa6d9016d39a6f204d3eafc`
 - Source: [`native/engine/MangaVolumeArchiveIngestor.cpp`](../../native/engine/MangaVolumeArchiveIngestor.cpp)
 
 _No explanatory comment was harvested after the allowed file preamble._
@@ -260,8 +260,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/engine/MangaVolumeArchiveIngestor.h`
 
 - Status: **CURRENT**
-- Accepted blob: `233ce8c8abd995dd012fa18e5f462ed548ceabbe`
-- Current blob: `233ce8c8abd995dd012fa18e5f462ed548ceabbe`
+- Accepted blob: `2b9378d6a69536be1c62bdc0af4ad18addc39110`
+- Current blob: `2b9378d6a69536be1c62bdc0af4ad18addc39110`
 - Source: [`native/engine/MangaVolumeArchiveIngestor.h`](../../native/engine/MangaVolumeArchiveIngestor.h)
 
 ```text
@@ -397,8 +397,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/torrent/MangaNyaaSource.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `15f518415b05d77c39efaa9a0117325030e9984c`
-- Current blob: `15f518415b05d77c39efaa9a0117325030e9984c`
+- Accepted blob: `0e402ee8c6ee9c1c3c83d91d31345ed7a9194f05`
+- Current blob: `0e402ee8c6ee9c1c3c83d91d31345ed7a9194f05`
 - Source: [`native/torrent/MangaNyaaSource.cpp`](../../native/torrent/MangaNyaaSource.cpp)
 
 ```text

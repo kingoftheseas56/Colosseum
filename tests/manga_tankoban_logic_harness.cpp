@@ -4,6 +4,7 @@
 // chapter maps onto it.
 #include "engine/MangaSynopsisEnricher.h"
 #include "engine/MangaTankobanLogic.h"
+#include "torrent/BookTorrentMagnet.h"
 #include "torrent/MangaNyaaSource.h"
 
 #include <QByteArray>
@@ -236,8 +237,9 @@ int main()
         require(ranked[0].infoHash == "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
                 "infohash lower-cased and preserved");
         require(ranked[0].magnetUri
-                    == "magnet:?xt=urn:btih:a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-                "magnet uri built from infohash");
+                    == BookTorrentMagnet::buildMagnet("a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"),
+                "magnet uri built tracker-bearing from infohash (bare-DHT metadata "
+                "stalls on this network — 2026-08-16 resolving hang)");
         for (const auto& c : ranked)
             require(!c.title.contains(QStringLiteral("Chapter")),
                     "chapter pack never masquerades as a volume (even from a trusted uploader)");

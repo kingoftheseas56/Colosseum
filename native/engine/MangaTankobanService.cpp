@@ -71,7 +71,23 @@ QString MangaTorrentEngineAdapter::addMagnet(const QString& magnetUri, const QSt
     // engine). start() is idempotent (no-op when already running).
     if (m_engine && !m_engine->isRunning())
         m_engine->start();
-    return m_engine->addMagnet(magnetUri, savePath, paused);
+    // Nyaa's RSS publishes only nyaa:infoHash — no trackers — so the manga path
+    // historically handed the engine BARE magnets and metadata resolution rode
+    // DHT alone. On this network DHT is unreliable (2026-08-16: 3 of 4 bootstrap
+    // routers dead while every public UDP tracker answers), so bare magnets sit
+    // at "resolving" forever. Augment HERE because every add — fresh RSS
+    // candidate, ledger replay of a pre-fix stuck row, self-test — funnels
+    // through this one seam; a magnet that already carries trackers passes
+    // through untouched. Same cure BookTorrentMagnet::buildMagnet ships for
+    // the book transport ("bare-DHT metadata is slow").
+    QString magnet = magnetUri;
+    if (!magnet.contains(QStringLiteral("&tr="), Qt::CaseInsensitive)
+        && !magnet.contains(QStringLiteral("?tr="), Qt::CaseInsensitive)) {
+        const QString hash = ComicTorrentMagnet::infoHash(magnet);
+        if (!hash.isEmpty())
+            magnet = BookTorrentMagnet::buildMagnet(hash);
+    }
+    return m_engine->addMagnet(magnet, savePath, paused);
 }
 
 void MangaTorrentEngineAdapter::setFilePriorities(const QString& infoHash, const QVector<int>& priorities)

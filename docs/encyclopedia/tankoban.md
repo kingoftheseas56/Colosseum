@@ -138,6 +138,16 @@ itself is the same `ComicReaderShell` for both.
 11. **`MangaVolumeTorrentDownloader.h:30` is stale**: "The concrete adapter over the real
     TorrentEngine is wired in a later task" — the `IMangaTorrentEngine` concrete adapter already
     lives in `MangaTankobanService.h:23–25`, `HAS_LIBTORRENT`-gated.
+12. **Manga magnets must carry trackers — bare-DHT metadata stalls here.** Nyaa's RSS publishes
+    only `nyaa:infoHash` (its `<link>` is the .torrent file URL), so both `MangaNyaaSource::
+    parseRss` AND `MangaTorrentEngineAdapter::addMagnet` build tracker-bearing magnets
+    (`BookTorrentMagnet::buildMagnet`); the adapter seam also heals pre-fix bare ledger rows on
+    replay. Don't strip the `tr=` params or route bare magnets to the engine — on this network
+    DHT is unreliable and downloads sit at "resolving" forever (2026-08-16).
+13. **The ingestor's source-open is retried on purpose.** `torrentFinished` fires while the
+    engine/AV still holds the freshly written archive; miniz's fopen fails once on a valid zip.
+    `validateAndAdoptCbz` retries 250 ms × 48 (the ComicTorrentDownloader flush-race twin).
+    Don't collapse it back to a single open.
 
 ## 6. How to test it
 

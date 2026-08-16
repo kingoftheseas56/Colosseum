@@ -61,6 +61,9 @@ private:
     };
 
     void startNext();
+    // CBZ/ZIP fast path, retried on transient open failures of the source
+    // archive (flush race — see the constants block in the .cpp).
+    void validateAndAdoptCbz(int attempt);
     void runExtractor(int which);          // 0 = bsdtar, 1 = 7-Zip
     void onExtractDone(int exitCode, int which);
     void finishActiveSuccess();

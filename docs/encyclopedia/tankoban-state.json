@@ -41,7 +41,7 @@
       "accepted_comment": "// Pure logic for Tankoban volume mode: string-safe volume-number normalization,\n// stable escaped identity (volume id + per-series settings key), and assembly of\n// a SeriesSnapshot from QML-style QVariant snapshots. No Qt Quick / no I/O — this\n// header is harness-testable on its own (see tests/manga_tankoban_logic_harness.cpp)."
     },
     "native/engine/MangaTankobanService.cpp": {
-      "accepted_blob": "37594e9c08cc91d38ce0650d5b8e12ac3fcacf18",
+      "accepted_blob": "6bd0d20e685464951e24481604fbd23523ae0839",
       "accepted_comment": "// native/engine/MangaTankobanService.cpp"
     },
     "native/engine/MangaTankobanService.h": {
@@ -53,11 +53,11 @@
       "accepted_comment": "// Canonical value types for Tankoban \"volume mode\". A VolumeRecord is the app's\n// single source of truth for one tankobon volume: a stable escaped id, the\n// display fields lifted from the source row, and the ordered chapter ids that\n// fall under it. Volume numbers are STRINGS on purpose — fractional (10.5) and\n// special/named volumes must never be collapsed by a float round-trip."
     },
     "native/engine/MangaVolumeArchiveIngestor.cpp": {
-      "accepted_blob": "d0775437f0188455cc403e227c17e7b201ce106c",
+      "accepted_blob": "649bfc662d0b75e50fa6d9016d39a6f204d3eafc",
       "accepted_comment": null
     },
     "native/engine/MangaVolumeArchiveIngestor.h": {
-      "accepted_blob": "233ce8c8abd995dd012fa18e5f462ed548ceabbe",
+      "accepted_blob": "2b9378d6a69536be1c62bdc0af4ad18addc39110",
       "accepted_comment": "// Lossless archive → volume ingestion for Tankoban volume mode.\n//\n// A downloaded CBZ/ZIP is validated, copied atomically into canonical storage,\n// and published without extraction. Other supported comic archives use the OS\n// archiver only as a conversion step, then become a validated canonical CBZ.\n// Images are never recompressed. A partial or failed conversion never publishes\n// a ready volume.\n//\n// This is a focused fork of ComicDownloader's proven extraction lifecycle\n// (bsdtar-first, 7-Zip fallback, recursive QCollator natural sort, page_%03d\n// naming). ComicDownloader stays untouched; the manga path needs the volume\n// provenance + the two-phase staging→final atomic rename, so the lifecycle is\n// lifted here rather than shared through the western-comics object.\n//\n// publish() is the WeebCentral packer's entry: its temporary downloaded images\n// are naturally ordered and packed into one canonical CBZ before publication."
     },
     "native/engine/MangaVolumeIndex.cpp": {
@@ -85,7 +85,7 @@
       "accepted_comment": null
     },
     "native/torrent/MangaNyaaSource.cpp": {
-      "accepted_blob": "15f518415b05d77c39efaa9a0117325030e9984c",
+      "accepted_blob": "0e402ee8c6ee9c1c3c83d91d31345ed7a9194f05",
       "accepted_comment": "// native/torrent/MangaNyaaSource.cpp"
     },
     "native/torrent/MangaNyaaSource.h": {
@@ -161,6 +161,6 @@
       "accepted_comment": "// TankobanWorld — the REAL instantiation of the world-page template for the Tankoban mode\n// (comics + manga / sequential art). Owner: A1. Data lives in Catalog.js (one source, also used by\n// the boot prefetch). Ported from our shipped Tankoban Electron catalog (manga = AniList/WeebCentral\n// · comics = RCO \"rcostation\"); live sources come LATER (Hemanth: \"apis can come later\").\n//\n// The board (Hemanth-locked 2026-06-25) — personal surfaces BLENDED, discovery surfaces SPLIT:\n//   1. Featured (blended) · 2. Continue (blended) · 3. Top in Tankoban — Manga\n//   4. Top in Tankoban — Comics (curated) · 5. Explore Genre — Manga\n//   6. Explore Comics (GetComics' own tag taxonomy, inline)\n// The catalogue's needs override the doctrine's ~2-row cap: comics and manga are two real\n// sub-catalogues, so the split IS the need (not a lazy row-wall)."
     }
   },
-  "integrity": "sha256:b214e2ccdcd07b01a3d28a799452282543a808f86f7eea330c5dfc7d2bdfc73e",
+  "integrity": "sha256:06536b8736ac46029ed9a91d408ae33a2850357954fdfaf0b1e8cce242027989",
   "schema": 1
 }

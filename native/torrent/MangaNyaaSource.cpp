@@ -2,6 +2,7 @@
 #include "torrent/MangaNyaaSource.h"
 
 #include "engine/MangaTankobanLogic.h" // MangaTankoban::volumeId
+#include "torrent/BookTorrentMagnet.h" // buildMagnet() — tracker-bearing magnet for a bare infohash
 
 #include <QFile>
 #include <QJsonArray>
@@ -259,7 +260,13 @@ QList<MangaNyaaCandidate> MangaNyaaSource::parseRss(const QByteArray& payload)
                 cur.title += text; // characters may arrive in chunks
             } else if (tag == QStringLiteral("infoHash")) {
                 cur.infoHash = text.trimmed().toLower();
-                cur.magnetUri = QStringLiteral("magnet:?xt=urn:btih:") + cur.infoHash;
+                // Nyaa's RSS exposes no trackers (its <link> is the .torrent file
+                // URL), so a bare magnet here would ride DHT alone — and on this
+                // network DHT is unreliable, leaving downloads stuck at
+                // "resolving" forever (2026-08-16). Persist the tracker-bearing
+                // form so ledger rows are self-sufficient; TB2's comics mode gets
+                // the same effect by capturing Nyaa's full HTML magnet href.
+                cur.magnetUri = BookTorrentMagnet::buildMagnet(cur.infoHash);
             } else if (tag == QStringLiteral("seeders")) {
                 cur.seeders = text.toInt();
             } else if (tag == QStringLiteral("leechers")) {
