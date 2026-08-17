@@ -26,7 +26,7 @@ for(const p of MCU_PHASES){
   const specials=p.screen.filter(isSpecial);
   main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Movies`,movies,screenCard));
   main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · TV Shows`,tv,screenCard));
-  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Specials / One-Shots`,specials,screenCard));
+  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Specials`,specials,screenCard));
   if(p.adjacent && p.adjacent.length) main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} Era · Adjacent Releases`,p.adjacent,screenCard));
   main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Comics`,p.comics,comicCard));
 }
