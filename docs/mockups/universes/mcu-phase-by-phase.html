@@ -1,5 +1,40 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Colosseum MCU Phase-by-Phase Mock</title><link rel="stylesheet" href="mcu-phase-by-phase.css"></head>
-<body><header class="hero"><div class="back">&larr;</div><div class="chrome"><span>-</span><span>[]</span><span>x</span></div><div class="hero-copy"><span class="kicker">UNIVERSE</span><h1>Marvel Cinematic Universe</h1><div class="meta">117 works in this mock | 75 screen | 42 comics | Phase I to Phase VI</div></div><div class="legend"><b>DCAU house language</b><br>360 hero | 54 margin | 150x236 tiles | 22 gap<br>content first, bespoke MCU styling later</div></header>
-<main><p class="note">HTML design mock only. It keeps the current DCAU / generic UniverseExtensionPage visual grammar, but reorganises the content phase-by-phase. Adjacent releases are shown inside the era without falsely presenting them as formally phase-assigned. Comic cards with a GetComics link open the exact independent post; pending cards are deliberately disabled.</p></main>
-<script src="mcu-phase-data-init.js"></script><script src="mcu-phase-1.js"></script><script src="mcu-phase-2.js"></script><script src="mcu-phase-3.js"></script><script src="mcu-phase-4.js"></script><script src="mcu-phase-5.js"></script><script src="mcu-phase-6.js"></script><script src="mcu-phase-renderer.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Colosseum MCU Phase-by-Phase Mock</title>
+  <link rel="stylesheet" href="mcu-phase-by-phase.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="chrome-scrim"></div>
+    <button class="back" aria-label="Back">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+    </button>
+    <div class="chrome" aria-hidden="true">
+      <span class="minimize"></span>
+      <span class="maximize"></span>
+      <span class="close">×</span>
+    </div>
+    <div class="hero-art"></div>
+    <div class="hero-wash"></div>
+    <div class="hero-copy">
+      <div class="kicker">UNIVERSE</div>
+      <h1>Marvel Cinematic Universe</h1>
+      <div class="meta">117 works · screen, comics · Phase I to Phase VI</div>
+    </div>
+  </header>
+
+  <main id="universe-sections"></main>
+
+  <script src="mcu-phase-data-init.js"></script>
+  <script src="mcu-phase-1.js"></script>
+  <script src="mcu-phase-2.js"></script>
+  <script src="mcu-phase-3.js"></script>
+  <script src="mcu-phase-4.js"></script>
+  <script src="mcu-phase-5.js"></script>
+  <script src="mcu-phase-6.js"></script>
+  <script src="mcu-phase-renderer.js"></script>
+</body>
+</html>
