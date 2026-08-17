@@ -1,7 +1,22 @@
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-const poster=id=>`https://images.metahub.space/poster/medium/${id}/img`;
-function screenCard(x){return `<a class="tile screen" href="#"><div class="art"><img src="${poster(x.id)}" alt="" loading="lazy"><span class="badge">${esc(x.b)}</span></div><div class="caption"><strong>${esc(x.t)}</strong><small>${esc(x.id)}</small></div></a>`}
-function comicCard(x){const linked=!!x.u, label=x.k==="adaptation"?"ADAPTATION":x.k==="multiverse"?"MULTIVERSE":"ORIGINAL / TIE-IN"; const initials=(x.t.match(/[A-Za-z0-9]+/g)||[]).slice(0,4).map(w=>w[0]).join("").toUpperCase(); return `<a class="tile comic ${linked?"confirmed":"pending"}" href="${linked?esc(x.u):"#"}" ${linked?'target="_blank" rel="noopener"':""}><div class="art comic-art"><div class="monogram">${esc(initials||"MCU")}</div><span class="badge">${label}</span><span class="linkstate">${linked?"GETCOMICS":"LINK PENDING"}</span></div><div class="caption"><strong>${esc(x.t)}</strong><small>${linked?"GETCOMICS":"LINK PENDING"}</small></div></a>`}
-function rail(title,sub,cards){return `<div class="rail-block"><div class="rail-head"><div><h3>${title}</h3><p>${sub}</p></div></div><div class="gold-rule"></div><div class="rail">${cards}</div></div>`}
-const main=document.querySelector("main");
-for(const p of MCU_PHASES){const sec=document.createElement("section");sec.className="phase";sec.id=`phase-${p.roman.toLowerCase()}`; const screen=rail("Screen",`${p.screen.length} works · films, series, specials and One-Shots`,p.screen.map(screenCard).join("")); const adj=p.adjacent.length?rail("Adjacent releases",`${p.adjacent.length} works · released during this phase era, not formally phase-assigned`,p.adjacent.map(screenCard).join("")):""; const comics=rail("Comics",`${p.comics.length} works · original tie-ins and adaptations`,p.comics.map(comicCard).join("")); sec.innerHTML=`<div class="phase-title"><div><span>${p.saga}</span><h2>Phase ${p.roman}</h2></div><p>${p.years}</p></div>${screen}${adj}${comics}`; main.appendChild(sec)}
+const poster=id=>`https://images.metahub.space/poster/small/${id}/img`;
+
+function screenCard(x,i){
+  return `<a class="tile" href="#" aria-label="${esc(x.t)}"><div class="plate"><img class="poster" src="${poster(x.id)}" alt="" loading="lazy"><span class="index">${i+1}</span></div><div class="caption"><div class="title">${esc(x.t)}</div></div></a>`;
+}
+
+function comicCard(x,i){
+  const linked=!!x.u;
+  return `<a class="tile ${linked?"":"pending"}" href="${linked?esc(x.u):"#"}" ${linked?'target="_blank" rel="noopener"':''} aria-label="${esc(x.t)}"><div class="plate"><div class="fallback">${esc(x.t)}</div><span class="index">${i+1}</span>${linked?'':'<span class="note">PENDING</span>'}</div><div class="caption"><div class="title">${esc(x.t)}</div></div></a>`;
+}
+
+function rail(title,items,card){
+  return `<section class="section"><h2>${esc(title)}</h2><div class="count">${items.length} ${items.length===1?"work":"works"}</div><div class="rule"></div><div class="rail-wrap"><div class="rail">${items.map(card).join("")}</div></div></section>`;
+}
+
+const main=document.querySelector("#universe-sections");
+for(const p of MCU_PHASES){
+  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Screen`,p.screen,screenCard));
+  if(p.adjacent && p.adjacent.length) main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} Era · Adjacent Releases`,p.adjacent,screenCard));
+  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Comics`,p.comics,comicCard));
+}
