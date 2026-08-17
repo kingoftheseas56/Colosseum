@@ -11,12 +11,22 @@ function comicCard(x,i){
 }
 
 function rail(title,items,card){
+  if(!items.length) return "";
   return `<section class="section"><h2>${esc(title)}</h2><div class="count">${items.length} ${items.length===1?"work":"works"}</div><div class="rule"></div><div class="rail-wrap"><div class="rail">${items.map(card).join("")}</div></div></section>`;
 }
 
+function isTv(x){ return String(x.b||"").startsWith("SERIES") || String(x.b||"").includes("ANIMATION"); }
+function isMovie(x){ return String(x.b||"") === "MOVIE"; }
+function isSpecial(x){ return !isMovie(x) && !isTv(x); }
+
 const main=document.querySelector("#universe-sections");
 for(const p of MCU_PHASES){
-  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Screen`,p.screen,screenCard));
+  const movies=p.screen.filter(isMovie);
+  const tv=p.screen.filter(isTv);
+  const specials=p.screen.filter(isSpecial);
+  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Movies`,movies,screenCard));
+  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · TV Shows`,tv,screenCard));
+  main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Specials / One-Shots`,specials,screenCard));
   if(p.adjacent && p.adjacent.length) main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} Era · Adjacent Releases`,p.adjacent,screenCard));
   main.insertAdjacentHTML("beforeend",rail(`Phase ${p.roman} · Comics`,p.comics,comicCard));
 }
