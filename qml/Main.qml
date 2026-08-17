@@ -10,6 +10,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import QtCore
 import QtQuick.Dialogs
+import "account"
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "UniverseExtApi.js" as UniverseApi
@@ -1860,6 +1861,7 @@ Window {
     //      activeMedium "" → HOME: no pill selected (the no-selection rule). Tapping a pill
     //      enters that world. ----
     TopBar {
+        onAccountClicked: accountFlyout.toggle()
         id: topbar
         z: 20
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
@@ -3334,6 +3336,44 @@ Window {
         onFinished: bootFade.start()
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
+    }
+
+    // Account identity flyout, dropped from the topbar medallion.
+    AccountCenter {
+        id: accountCenter
+        objectName: "accountCenter"
+        controller: typeof AccountController !== "undefined" ? AccountController : null
+        initial: {
+            const who = (typeof AccountController !== "undefined" && AccountController)
+                        ? AccountController.username : "";
+            return who.length > 0 ? who.charAt(0).toUpperCase() : "?";
+        }
+    }
+
+    AccountFlyout {
+        id: accountFlyout
+        objectName: "accountFlyout"
+        controller: typeof AccountController !== "undefined" ? AccountController : null
+        initial: {
+            const who = (typeof AccountController !== "undefined" && AccountController)
+                        ? AccountController.username : "";
+            return who.length > 0 ? who.charAt(0).toUpperCase() : "?";
+        }
+    }
+
+    // Account onboarding + session surfaces (Bundle 8C adoption, 2026-08-16).
+    // The host is invisible unless an account flow is actually live (signed-out
+    // gate after boot, device approval, recovery, sign-out warning). Controller
+    // and recovery presenter are context properties owned by AccountRuntime.
+    AccountOnboardingHost {
+        id: accountHost
+        objectName: "accountHost"
+        anchors.fill: parent
+        z: 900   // above all chrome; below the boot splash (1000)
+        topInset: 0   // full-bleed cover: no app chrome peeks above the flow
+        controller: typeof AccountController !== "undefined" ? AccountController : null
+        recoveryPresenter: typeof AccountRecoveryKey !== "undefined" ? AccountRecoveryKey : null
+        backdrop: wall
     }
 
     // One shell-wide cover turns the full-monitor geometry jump into a deliberate beat.

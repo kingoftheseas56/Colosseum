@@ -45,6 +45,7 @@
 #include "SearchHistoryStore.h"
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
+#include "account/AccountRuntime.h"
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateInstallBridge.h"
@@ -1476,22 +1477,19 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), false);
 #endif
 
-    // Continue / resume backbone exposed to QML as `Progress`. The player and the
-    // manga reader write watch/read progress; every Continue row reads it back.
-    // QSettings-backed, so it survives a restart.
-    auto *progress = new ProgressStore(&app);
-    engine.rootContext()->setContextProperty(QStringLiteral("Progress"), progress);
-
-    // Your Collection shelf exposed to QML as `Collection`: what the user CHOSE to
-    // save via the + Library toggle, distinct from Progress's auto-tracked history.
-    auto *collection = new CollectionStore(&app);
-    engine.rootContext()->setContextProperty(QStringLiteral("Collection"), collection);
-
-    // Read-along pairings: which audiobook is linked to which book + chapter map.
-    // The reader's Audio tab writes it; opening a book reads it to auto-summon the
-    // paired audiobook at the right chapter. QSettings-backed, survives a restart.
-    auto *audioPairing = new AudioPairingStore(&app);
-    engine.rootContext()->setContextProperty(QStringLiteral("AudioPairing"), audioPairing);
+    // Account + personal-profile runtime (Bundle 8C adoption, 2026-08-16).
+    // AccountRuntime owns the personal store runtime, which is now the SOLE
+    // owner/binder of the Progress/Collection/SearchHistory/AudioPairing context
+    // properties (plus ProfilePreferences/ProfileHistory/ProfileContext and the
+    // AccountController/AccountRecoveryKey surfaces). Boot starts sealed behind
+    // the onboarding gate; the user's choice (create account / continue local)
+    // rebinds to the adopted account profile or the legacy stores exactly as
+    // designed. Replaces the four raw store constructions this block used to
+    // hold — the split-brain risk of two owners binding the same QML names is
+    // closed by construction.
+    auto *accountRuntime = new AccountRuntime(&app);
+    accountRuntime->prepareForQml(&engine);
+    auto *audioPairing = accountRuntime->profileStores()->audioPairingStore();
 
     // (Deleted 2026-08-07 with BookBridge: two setters that handed the retired bridge the
     // audiobook library + pairing store. Nothing read them — the reader takes `AudioPairing`
@@ -1502,10 +1500,7 @@ int main(int argc, char *argv[]) {
     // no pairing UI. Same store instance QML uses, so the reader's Audio tab reads it.
     audiobooks->setPairing(audioPairing);
 
-    // Durable, world-scoped recent searches. Search QML reloads this store when its Loader
-    // is recreated, so remote provider success is irrelevant to whether intent is remembered.
-    auto *history = new SearchHistoryStore(&app);
-    engine.rootContext()->setContextProperty(QStringLiteral("SearchHistory"), history);
+    // (SearchHistory is owned + bound by the account runtime's profile stores above.)
 
     // System clipboard for QML — the sources sheet's copy-magnet button (spec 2026-07-08).
     auto *clipboard = new ClipboardHelper(&app);

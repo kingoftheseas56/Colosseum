@@ -14,8 +14,8 @@
 ## `native/CollectionStore.h`
 
 - Status: **CURRENT**
-- Accepted blob: `61da5f28f6c051e98febd902ae29fbb96f0d8aee`
-- Current blob: `61da5f28f6c051e98febd902ae29fbb96f0d8aee`
+- Accepted blob: `027de5223ffec596294309f8eb8bc95082a5a557`
+- Current blob: `027de5223ffec596294309f8eb8bc95082a5a557`
 - Source: [`native/CollectionStore.h`](../../native/CollectionStore.h)
 
 ```text
@@ -126,8 +126,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `native/main.cpp`
 
 - Status: **CURRENT**
-- Accepted blob: `b3bc5cb54bebd28ed9e4d5a3cf4ebf7ff86df96e`
-- Current blob: `b3bc5cb54bebd28ed9e4d5a3cf4ebf7ff86df96e`
+- Accepted blob: `8c4947936967f51c56be30e835464bc587f37688`
+- Current blob: `8c4947936967f51c56be30e835464bc587f37688`
 - Source: [`native/main.cpp`](../../native/main.cpp)
 
 ```text
@@ -169,8 +169,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/Main.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `74054d5b86aeec783d410a95bd2594532b1d1a43`
-- Current blob: `74054d5b86aeec783d410a95bd2594532b1d1a43`
+- Accepted blob: `4f189dde88ddac415e8dd0266563842fbda3cd4d`
+- Current blob: `4f189dde88ddac415e8dd0266563842fbda3cd4d`
 - Source: [`qml/Main.qml`](../../qml/Main.qml)
 
 ```text
@@ -199,8 +199,8 @@ _No explanatory comment was harvested after the allowed file preamble._
 ## `qml/TopBar.qml`
 
 - Status: **CURRENT**
-- Accepted blob: `c1d135fce516483d02850189ae4a7b073ef32df5`
-- Current blob: `c1d135fce516483d02850189ae4a7b073ef32df5`
+- Accepted blob: `69f2973ac2f66f531a8a55ee7474a3e525162b57`
+- Current blob: `69f2973ac2f66f531a8a55ee7474a3e525162b57`
 - Source: [`qml/TopBar.qml`](../../qml/TopBar.qml)
 
 ```text

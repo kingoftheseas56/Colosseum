@@ -188,6 +188,19 @@ public:
 
     int revision() const { return m_revision; }
 
+    // Native sync seam: complete raw Continue/progress state. Unlike recent(),
+    // this does NOT group/dedupe series episodes, because sync identity is one
+    // logical progress record per kind/id.
+    QVariantList syncEntries() const {
+        QStringList keys = m_map.keys();
+        keys.sort();
+        QVariantList out;
+        out.reserve(keys.size());
+        for (const QString &key : keys)
+            out.append(m_map.value(key).toMap());
+        return out;
+    }
+
     // Upsert one resume entry, persist it, and refresh the Continue row. Use for lifecycle
     // writes (open / stop / forget, and the player's stop / stream-death / playback-failure /
     // episode-advance / EOF sites) where the visible Continue data genuinely changes. The payload
@@ -277,6 +290,7 @@ public:
         m_settings->remove(QStringLiteral("video/watchedMark/")
                           + seriesRootId(id));
         scheduleSave();
+        emit syncDirty();
         bump();
     }
 
@@ -324,8 +338,55 @@ public:
         bump();
     }
 
+    // ---- native remote-import seam (sync) ----
+    // These preserve the incoming durable record exactly instead of routing through
+    // record(), which intentionally stamps a fresh updatedAt for a NEW local user
+    // action. They emit changed() so existing Continue/QML bindings react once, but
+    // deliberately do not emit syncDirty(): remote import is not a new local mutation.
+    bool applySyncedEntry(const QVariantMap &entry) {
+        const QString kind = entry.value(QStringLiteral("kind")).toString();
+        const QString id   = entry.value(QStringLiteral("id")).toString();
+        if (kind.isEmpty() || id.isEmpty())
+            return false;
+
+        QVariantMap exact = entry;
+        exact.insert(QStringLiteral("kind"), kind);
+        exact.insert(QStringLiteral("id"), id);
+
+        const QString key = mapKey(kind, id);
+        if (m_map.value(key).toMap() == exact)
+            return true;
+
+        m_map.insert(key, exact);
+        scheduleSave();
+        bump();
+        emit syncedEntryApplied(kind, id);
+        return true;
+    }
+
+    bool removeSyncedEntry(const QString &kind, const QString &id) {
+        if (kind.isEmpty() || id.isEmpty())
+            return false;
+
+        const QString key = mapKey(kind, id);
+        if (!m_map.remove(key))
+            return true;
+
+        scheduleSave();
+        bump();
+        return true;
+    }
+
 signals:
     void changed();
+    // Remote-only import notification. Active readers may react to a synced
+    // winner without treating ordinary local progress writes as imported resume.
+    // Idempotent replay of the same winner does not emit it.
+    void syncedEntryApplied(const QString &kind, const QString &id);
+    // Fires for every LOCAL Continue/progress mutation, including the 5s
+    // recordSilent() playback tick. It intentionally does not alter revision
+    // or changed(), preserving the proven no-rerender silent path.
+    void syncDirty();
 
 private:
     static QString mapKey(const QString &kind, const QString &id) {
@@ -403,7 +464,11 @@ private:
         const bool isSeriesEpisode =
             kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2;
         if (kind == QStringLiteral("video") && progress >= 0.90 && !isSeriesEpisode) {
-            if (m_map.remove(key)) { scheduleSave(); return true; }
+            if (m_map.remove(key)) {
+                scheduleSave();
+                emit syncDirty();
+                return true;
+            }
             return false;
         }
 
@@ -415,6 +480,7 @@ private:
         rec.insert(QStringLiteral("updatedAt"), QDateTime::currentMSecsSinceEpoch());
         m_map.insert(key, rec);
         scheduleSave();
+        emit syncDirty();
         return true;
     }
 

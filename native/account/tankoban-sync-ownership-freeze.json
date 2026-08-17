@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "bundle": "8C",
+  "status": "uncompiled / untested / unexecuted / unadopted / unverified",
+  "inspection_base_commit": "ca637a30864040242d07125628cb4552cc2bc8e5",
+  "scope": "Tankoban Slice 15 ownership, portable identity, and schema freeze only; no Tankoban production adapter activation",
+  "position": {
+    "inventory_category": "tankoban_reading_position",
+    "owner_status": "confirmed",
+    "ordinary_payload_eligible": false,
+    "activation": "covered_by_existing_continue_progress",
+    "production_adapter": "continue_progress",
+    "new_tankoban_adapter_required": false,
+    "authoritative_owner": "native/ProgressStore.h",
+    "producer_chain": [
+      "qml/comicreader/ComicReaderShell.qml",
+      "qml/comicreader/ComicReaderState.js::progressPayload",
+      "native/ProgressStore.h"
+    ],
+    "logical_identity": {
+      "kind": "tankoban",
+      "id": "logical seriesId",
+      "unit": "logical resume.chapterId"
+    },
+    "portable_resume_fields": [
+      "resume.chapterId",
+      "resume.page",
+      "resume.pageFraction",
+      "resume.scrollFrac"
+    ],
+    "canonical_position": {
+      "paged": "resume.page",
+      "long_strip": "resume.page + resume.pageFraction",
+      "legacy_compatibility": "resume.scrollFrac is retained only because existing Progress records already carry it"
+    },
+    "local_only": [
+      "archive path",
+      "download path",
+      "filesystem path",
+      "cache identity",
+      "acquisition/source transport state"
+    ],
+    "note": "Tankoban resume already lives inside the owner-backed continue_progress record. 8A forbids a second competing Tankoban position authority.",
+    "integration": {
+      "owner_remote_signal": "syncedEntryApplied(kind,id)",
+      "resolver": "qml/comicreader/ComicReaderImportedResume.js",
+      "bridge": "qml/comicreader/ComicReaderSyncedResumeBridge.qml",
+      "semantic_fingerprint": [
+        "seriesId",
+        "chapterId",
+        "page",
+        "pageFraction"
+      ],
+      "shell_restore_hook": "repository_local_discovery_required",
+      "remote_delete_active_reader_reset": false
+    }
+  },
+  "preferences": {
+    "inventory_category": "tankoban_reader_preferences",
+    "owner_status": "confirmed",
+    "ordinary_payload_eligible": false,
+    "activation": "blocked_on_concrete_owner_binding",
+    "future_production_category": "tankoban_reader_preferences",
+    "persistence_scope": "per_series",
+    "owner_chain": [
+      "qml/comicreader/ComicReaderShell.qml per-series record",
+      "qml/comicreader/ComicReaderState.js::migrateReaderPrefs canonical normalization",
+      "native/comicreader/ComicReaderRenderProfile.* live render-profile normalization/application"
+    ],
+    "record_key": "tankoban/preferences/<encoded-logical-series-id>",
+    "schema_version": 1,
+    "approved_fields": {
+      "reading_mode": {
+        "wire_field": "layout",
+        "type": "enum",
+        "values": [
+          "single_page",
+          "paired_pages",
+          "long_strip"
+        ]
+      },
+      "reading_direction": {
+        "wire_field": "order",
+        "type": "enum",
+        "values": [
+          "ltr",
+          "rtl"
+        ]
+      },
+      "zoom": {
+        "wire_field": "zoomPercent",
+        "type": "number",
+        "range": [
+          100,
+          260
+        ]
+      },
+      "strip_width": {
+        "wire_field": "stripWidthPct",
+        "type": "number",
+        "range": [
+          40,
+          100
+        ]
+      },
+      "gap": {
+        "wire_field": "stripGap",
+        "type": "number",
+        "range": [
+          0,
+          80
+        ]
+      },
+      "auto_scroll": {
+        "wire_field": "autoScrollSpeed",
+        "type": "number",
+        "range": [
+          0.25,
+          3.0
+        ]
+      },
+      "brightness": {
+        "wire_field": "renderProfile.brightness",
+        "type": "integer",
+        "range": [
+          -100,
+          100
+        ]
+      },
+      "contrast": {
+        "wire_field": "renderProfile.contrast",
+        "type": "integer",
+        "range": [
+          -100,
+          100
+        ]
+      },
+      "gamma": {
+        "wire_field": "renderProfile.gamma",
+        "type": "integer",
+        "range": [
+          10,
+          300
+        ],
+        "unit": "hundredths; 100 = 1.0"
+      },
+      "rotation": {
+        "wire_field": "renderProfile.rotation",
+        "type": "enum",
+        "values": [
+          0,
+          90,
+          180,
+          270
+        ]
+      },
+      "crop": {
+        "wire_field": "renderProfile.autoCrop",
+        "type": "boolean"
+      },
+      "night_treatment": {
+        "wire_field": "renderProfile.nightFilter",
+        "type": "boolean",
+        "note": "Durable per-series flag exists; rendering is a shell veil rather than a pixel transform."
+      }
+    },
+    "observed_not_slice15_approved": {
+      "render_quality": {
+        "wire_field": "renderProfile.quality",
+        "values": [
+          "fast",
+          "balanced",
+          "best"
+        ],
+        "status": "product_decision_required_before_sync_activation"
+      }
+    },
+    "local_only": [
+      "archive path",
+      "download path",
+      "filesystem path",
+      "cache keys",
+      "decoded page identity",
+      "acquisition/source transport state",
+      "session-only reader geometry"
+    ],
+    "adapter_contract": {
+      "codec": "native/account/TankobanReaderPreferencesCodec.*",
+      "owner_interface": "native/account/TankobanReaderPreferencesOwner.h",
+      "adapter": "native/account/TankobanReaderPreferencesSyncAdapter.*",
+      "focused_test": "tests/auto/tankoban_preferences_sync/tst_tankoban_preferences_sync.cpp",
+      "contract_ready": true,
+      "production_registered": false
+    },
+    "production_owner_gate": {
+      "status": "open",
+      "required": [
+        "confirm exact production backing Settings category/key/path for seriesRecords.all",
+        "provide complete Tankoban-only series enumeration while no reader is open",
+        "prove persistent lane discriminator or equivalent Tankoban-only namespace",
+        "include existing local series preferences in first-account adoption/profile ownership",
+        "provide durable local mutation/revision seam",
+        "provide remote apply/remove seam that preserves unapproved local fields",
+        "provide open-reader reload seam after remote apply"
+      ],
+      "forbidden_shortcut": "do not export every ComicReader series record under tankoban_reader_preferences"
+    }
+  },
+  "hard_rules": [
+    "MangaReader.qml is a thin delegate and is not a persistence owner.",
+    "ComicReaderSettingsSheet.qml is a UI writer and is not a persistence authority.",
+    "No filesystem or archive path may participate in portable identity.",
+    "8A adds no Tankoban production adapter and changes no service allowlist.",
+    "8A does not resolve the separate 7C personalization stop gate.",
+    "8B remote import must enter the same existing Shell restore path as initial Progress resume; direct parallel page/strip mutation is forbidden.",
+    "8C codec/adapter code is complete against an abstract Tankoban-only owner, but production registration remains forbidden until the shared seriesRecords store can enumerate Tankoban records headlessly and safely."
+  ]
+}

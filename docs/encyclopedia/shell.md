@@ -18,7 +18,7 @@ them, and keep the open-sessions model + taskbar honest — without ever persist
 **Boot** — process start to shell revealed:
 
 ```
-native/main.cpp (1,145 lines, the launcher)
+native/main.cpp (1,554 lines, the launcher)
   1. RHI pick BEFORE the app object: OpenGL default; D3D11 only on a Player-2 build with
      COLOSSEUM_PLAYER2=1        (main.cpp:436–476; the player guide's Trap 1)
   2. WebEngine init, QT_QUICK_CONTROLS_STYLE=Basic, org identity "Brotherhood" + one-time
@@ -27,9 +27,14 @@ native/main.cpp (1,145 lines, the launcher)
      scoreboard, zero-byte image-cache sweep (main.cpp:596–742)
   4. ~30 context-property stores registered (Progress, Sessions, WindowMode, Power,
      Collection, SearchHistory, …) + qmlRegisterType<MpvItem>   (main.cpp:543–1124)
+     4a. Account runtime (Bundle 8C, 2026-08-17): AccountRuntime is now the SOLE
+     owner/binder of Progress/Collection/SearchHistory/AudioPairing (plus
+     ProfilePreferences/ProfileHistory/ProfileContext/AccountController/
+     AccountRecoveryKey); the four raw store constructions are gone. Boot starts
+     sealed behind the onboarding gate; the account choice rebinds stores.
   5. engine.load(qml/Main.qml); LanistaServer ALWAYS on; live-reload only under COLOSSEUM_DEV
                                                           (main.cpp:1125–1142)
-qml/Main.qml (2,938 lines, the dispatcher)
+qml/Main.qml (3,397 lines, the dispatcher)
   6. Window starts hidden; WindowMode.initializeShell picks the presentation (fullscreen
      default / last stable windowed)          (Main.qml:30–32, 223–228)
   7. BootSplash prefetches catalog covers → finished() → fade → shell revealed

@@ -89,6 +89,80 @@ endif()
 
 add_executable(colosseum
     main.cpp
+    # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
+    account/AccountBootstrapStore.cpp
+    account/AccountClient.cpp
+    account/AccountController.cpp
+    account/AccountDeviceIdentity.cpp
+    account/AccountHttpTransport.cpp
+    account/AccountRecoveryKeyPresenter.cpp
+    account/AccountRuntime.cpp
+    account/AccountServiceEndpoint.cpp
+    account/CollectionSyncAdapter.cpp
+    account/CoreStateSyncProjection.cpp
+    account/FirstAccountProfileCoordinator.cpp
+    account/HistoryStore.cpp
+    account/HistorySyncAdapter.cpp
+    account/LegacyPersonalStateStorage.cpp
+    account/ProfileAdoption.cpp
+    account/ProfileContext.cpp
+    account/ProfilePaths.cpp
+    account/ProfilePreferencesStore.cpp
+    account/ProfilePreferencesSyncAdapter.cpp
+    account/ProfileStoreRuntime.cpp
+    account/ProgressSyncAdapter.cpp
+    account/SharedPcProfileCoordinator.cpp
+    account/SyncAdapterRegistry.cpp
+    account/SyncEngine.cpp
+    account/SyncHybridClock.cpp
+    account/SyncOwnershipInventory.cpp
+    account/SyncPayloadFirewall.cpp
+    account/SyncProtocol.cpp
+    account/SyncStateStore.cpp
+    account/TankobanReaderPreferencesCodec.cpp
+    account/TankobanReaderPreferencesSyncAdapter.cpp
+    account/WindowsAccountCredentialStore.cpp
+    account/WindowsAccountSensitiveClipboard.cpp
+    account/AccountBootstrapStore.h
+    account/AccountClient.h
+    account/AccountController.h
+    account/AccountCredentialStore.h
+    account/AccountDeviceIdentity.h
+    account/AccountHttpTransport.h
+    account/AccountOneTimeSecretSink.h
+    account/AccountProfileCoordinator.h
+    account/AccountRecoveryKeyPresenter.h
+    account/AccountRuntime.h
+    account/AccountSensitiveClipboard.h
+    account/AccountServiceEndpoint.h
+    account/AccountTransport.h
+    account/CollectionSyncAdapter.h
+    account/CoreStateSyncProjection.h
+    account/FirstAccountProfileCoordinator.h
+    account/HistoryStore.h
+    account/HistorySyncAdapter.h
+    account/LegacyPersonalStateStorage.h
+    account/ProfileAdoption.h
+    account/ProfileContext.h
+    account/ProfilePaths.h
+    account/ProfilePreferencesStore.h
+    account/ProfilePreferencesSyncAdapter.h
+    account/ProfileStoreRuntime.h
+    account/ProgressSyncAdapter.h
+    account/SharedPcProfileCoordinator.h
+    account/SyncAdapter.h
+    account/SyncAdapterRegistry.h
+    account/SyncEngine.h
+    account/SyncHybridClock.h
+    account/SyncOwnershipInventory.h
+    account/SyncPayloadFirewall.h
+    account/SyncProtocol.h
+    account/SyncStateStore.h
+    account/TankobanReaderPreferencesCodec.h
+    account/TankobanReaderPreferencesOwner.h
+    account/TankobanReaderPreferencesSyncAdapter.h
+    account/WindowsAccountCredentialStore.h
+    account/WindowsAccountSensitiveClipboard.h
     update/UpdateVersion.cpp
     update/UpdateVersion.h
     update/UpdateManifest.cpp
@@ -387,6 +461,7 @@ endif()
 target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
+    advapi32 user32
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
 
 

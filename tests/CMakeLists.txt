@@ -1032,3 +1032,665 @@ add_test(NAME colosseum.selftest.red_canary
 set_tests_properties(colosseum.selftest.red_canary PROPERTIES
     WILL_FAIL TRUE
     LABELS "selftest")
+
+# ── First-light harness: production account chain vs the live local service.
+#    Not a ctest — built and run by hand for the world's first account.
+add_executable(account_first_light
+    auto/account/first_light.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_include_directories(account_first_light PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(account_first_light PRIVATE
+    Qt6::Core Qt6::Network Qt6::Qml)
+if(WIN32)
+    target_link_libraries(account_first_light PRIVATE Advapi32 User32)
+endif()
+set_target_properties(account_first_light PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+
+# ── Account + cloud sync foundation (Preflight Bundle 8C cumulative, adopted
+#    2026-08-16 by Agent 0 (ZCode); hand-applied from tests-CMakeLists.bundle8c-cumulative.patch) ──
+
+# ── Account + cloud sync foundation (cumulative Bundle 8C: Bundle 1) ─────
+# Test-only deterministic account transport plus profile-path/adoption substrate.
+add_executable(tst_account_core
+    auto/account/tst_account_core.cpp
+    support/account/AccountFixtureTransport.cpp
+    support/account/AccountFixtureTransport.h
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h")
+target_include_directories(tst_account_core PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
+target_link_libraries(tst_account_core PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_account_core PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_core POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_core
+         COMMAND tst_account_core)
+set_tests_properties(colosseum.qttest.account_core PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+add_executable(tst_sync_core
+    auto/sync/tst_sync_core.cpp
+    support/account/AccountFixtureTransport.cpp
+    support/account/AccountFixtureTransport.h
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h")
+target_include_directories(tst_sync_core PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
+target_link_libraries(tst_sync_core PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_sync_core PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_core POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.sync_core
+         COMMAND tst_sync_core)
+set_tests_properties(colosseum.qttest.sync_core PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Desktop account identity/session (cumulative Bundle 8C: Bundle 2B) ───
+add_executable(tst_account_identity
+    auto/account_identity/tst_account_identity.cpp
+    support/account/AccountFixtureTransport.cpp
+    support/account/AccountFixtureTransport.h
+    support/account/MemoryAccountCredentialStore.h
+    support/account/MemoryAccountOneTimeSecretSink.h
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountOneTimeSecretSink.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h")
+target_include_directories(tst_account_identity PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
+target_link_libraries(tst_account_identity PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_account_identity PRIVATE Advapi32)
+endif()
+set_target_properties(tst_account_identity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_identity POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_identity
+         COMMAND tst_account_identity)
+set_tests_properties(colosseum.qttest.account_identity PROPERTIES
+    LABELS "unit;qttest;windows"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Account onboarding/recovery composition (Bundle 4B, Slices 9-10) ────
+# Deterministic controller/presenter coverage. Clipboard writes use an in-memory
+# test double; the production Windows implementation is compiled for link/API
+# coverage but no system clipboard mutation is performed by these cases.
+add_executable(tst_account_onboarding
+    auto/account_onboarding/tst_account_onboarding.cpp
+    support/account/AccountFixtureTransport.cpp
+    support/account/AccountFixtureTransport.h
+    support/account/MemoryAccountCredentialStore.h
+    support/account/MemoryAccountOneTimeSecretSink.h
+    support/account/MemoryAccountSensitiveClipboard.h
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountOneTimeSecretSink.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h")
+target_include_directories(tst_account_onboarding PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
+target_link_libraries(tst_account_onboarding PRIVATE
+    Qt6::Core
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_account_onboarding PRIVATE User32)
+endif()
+set_target_properties(tst_account_onboarding PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_onboarding POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_onboarding
+         COMMAND tst_account_onboarding)
+set_tests_properties(colosseum.qttest.account_onboarding PROPERTIES
+    LABELS "unit;qttest;windows"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── First-account local-state adoption (Bundle 4B, Slice 11A) ─────────
+add_executable(tst_account_adoption
+    auto/account_adoption/tst_account_adoption.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_include_directories(tst_account_adoption PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_adoption PRIVATE
+    Qt6::Core
+    Qt6::Qml
+    Qt6::Test)
+set_target_properties(tst_account_adoption PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_adoption POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_adoption
+         COMMAND tst_account_adoption)
+set_tests_properties(colosseum.qttest.account_adoption PROPERTIES
+    LABELS "unit;qttest;profile"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── Shared-PC profile sealing / isolation (Bundle 4B, Slice 11B) ─────
+add_executable(tst_account_shared_pc
+    auto/account_shared_pc/tst_account_shared_pc.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_include_directories(tst_account_shared_pc PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_shared_pc PRIVATE
+    Qt6::Core
+    Qt6::Qml
+    Qt6::Test)
+set_target_properties(tst_account_shared_pc PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_shared_pc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_shared_pc
+         COMMAND tst_account_shared_pc)
+set_tests_properties(colosseum.qttest.account_shared_pc PROPERTIES
+    LABELS "unit;qttest;profile;shared-pc"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── Sync ownership inventory + exclusion firewall (Bundle 8C, Slice 12A) ──
+add_executable(tst_sync_inventory
+    auto/sync_inventory/tst_sync_inventory.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h")
+target_include_directories(tst_sync_inventory PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_sync_inventory PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_sync_inventory PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_inventory POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.sync_inventory
+         COMMAND tst_sync_inventory)
+set_tests_properties(colosseum.qttest.sync_inventory PROPERTIES
+    LABELS "unit;qttest;sync-contract"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── Sync adapter contract + typed registry (Bundle 8C, Slice 12B) ────
+add_executable(tst_sync_adapter_registry
+    auto/sync_adapter_registry/tst_sync_adapter_registry.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h")
+target_include_directories(tst_sync_adapter_registry PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_sync_adapter_registry PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_sync_adapter_registry PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_adapter_registry POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.sync_adapter_registry
+         COMMAND tst_sync_adapter_registry)
+set_tests_properties(colosseum.qttest.sync_adapter_registry PROPERTIES
+    LABELS "unit;qttest;sync-contract"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── Sync service wire protocol/client contract (Bundle 8C) ──────────
+add_executable(tst_sync_protocol
+    auto/sync_protocol/tst_sync_protocol.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h")
+target_include_directories(tst_sync_protocol PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_sync_protocol PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_sync_protocol PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_protocol POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.sync_protocol
+         COMMAND tst_sync_protocol)
+set_tests_properties(colosseum.qttest.sync_protocol PROPERTIES
+    LABELS "unit;qttest;sync-contract;wire"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── Bundle 8C AccountController sync lifecycle dependencies ──────────
+target_sources(tst_account_onboarding PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+
+# ── Bundle 8C: AccountController links the sync engine (same dependency the
+#    cumulative patch adds to tst_account_onboarding; the identity target
+#    compiles AccountController.cpp too and needs the identical source set). ──
+target_sources(tst_account_identity PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+
+# ── Generic offline SyncEngine / convergence (Bundle 8C, Slice 13) ──
+add_executable(tst_sync_engine
+    auto/sync_engine/tst_sync_engine.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_include_directories(tst_sync_engine PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_sync_engine PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_sync_engine PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.sync_engine
+         COMMAND tst_sync_engine)
+set_tests_properties(colosseum.qttest.sync_engine PROPERTIES
+    LABELS "unit;qttest;sync;convergence"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 180)
+
+
+# ── First production domain adapters: Collection + Continue/Progress
+#    (Bundle 8C, Slice 14A) ───────────────────────────────────────────
+add_executable(tst_core_sync_adapters
+    auto/core_sync_adapters/tst_core_sync_adapters.cpp
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h")
+target_include_directories(tst_core_sync_adapters PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_core_sync_adapters PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_core_sync_adapters PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_core_sync_adapters POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.core_sync_adapters
+         COMMAND tst_core_sync_adapters)
+set_tests_properties(colosseum.qttest.core_sync_adapters PROPERTIES
+    LABELS "unit;qttest;sync;domain;collection;progress"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 240)
+
+
+# ── Dedicated full History authority + sync (Bundle 8C, Slice 14B) ──
+add_executable(tst_history_sync
+    auto/history_sync/tst_history_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.h")
+target_include_directories(tst_history_sync PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_history_sync PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_history_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_history_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.history_sync
+         COMMAND tst_history_sync)
+set_tests_properties(colosseum.qttest.history_sync PROPERTIES
+    LABELS "unit;qttest;sync;domain;history"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 240)
+
+
+# ── Profile-owned explicit-content preference sync (Bundle 8C, Slice 14C) ──
+add_executable(tst_profile_preferences_sync
+    auto/profile_preferences_sync/tst_profile_preferences_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_include_directories(tst_profile_preferences_sync PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_profile_preferences_sync PRIVATE
+    Qt6::Core
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::Test)
+set_target_properties(tst_profile_preferences_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.profile_preferences_sync
+         COMMAND tst_profile_preferences_sync)
+set_tests_properties(colosseum.qttest.profile_preferences_sync PROPERTIES
+    LABELS "unit;qttest;sync;domain;preferences"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 180)
+
+
+# ── Tankoban reader-preference codec/adapter contract (Bundle 8C) ──
+# Production registration remains fail-closed until the concrete
+# Tankoban-only durable owner/discriminator discovery gate closes.
+add_executable(tst_tankoban_preferences_sync
+    auto/tankoban_preferences_sync/tst_tankoban_preferences_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/TankobanReaderPreferencesCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/TankobanReaderPreferencesCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/TankobanReaderPreferencesOwner.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/TankobanReaderPreferencesSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/TankobanReaderPreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/comicreader/ComicReaderRenderProfile.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/comicreader/ComicReaderRenderProfile.h")
+target_include_directories(tst_tankoban_preferences_sync PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tankoban_preferences_sync PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Test)
+set_target_properties(tst_tankoban_preferences_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_tankoban_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.tankoban_preferences_sync
+         COMMAND tst_tankoban_preferences_sync)
+set_tests_properties(colosseum.qttest.tankoban_preferences_sync PROPERTIES
+    LABELS "unit;qttest;sync;domain;tankoban;preferences"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 180)

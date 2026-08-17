@@ -51,3 +51,23 @@ data/vault_token.txt
 # Python bytecode caches
 __pycache__/
 *.pyc
+
+# Bundle 8C local account-service infra (live DB cluster + binaries; never commit)
+tools/pgdata/
+tools/pgsql/
+tools/pg-binaries.zip
+tools/_b8c*
+tools/_svc.log
+tools/_app_*.log
+tools/_v1.png
+tools/_run_*.png
+tools/_flyout*.png
+tools/_medallion*.png
+tools/_corner*.png
+tools/_c1.png
+tools/_moment.png
+tools/_zoom_*.png
+tools/_fields.png
+tools/_lower.png
+tools/_flow_*.png
+tools/_s0.png

@@ -45,6 +45,15 @@ public:
         load();
     }
 
+    // Test/diagnostic constructor: back the store with an explicit INI file so
+    // harnesses and per-profile runtimes stay hermetic. Mirrors ProgressStore's
+    // and CollectionStore's path constructors.
+    explicit AudioPairingStore(const QString &iniPath, QObject *parent = nullptr)
+        : QObject(parent),
+          m_settings(iniPath, QSettings::IniFormat) {
+        load();
+    }
+
     int revision() const { return m_revision; }
 
     // The pairing for a book, or {} when nothing is linked. bookId is the reader's

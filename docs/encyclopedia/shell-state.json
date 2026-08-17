@@ -1,7 +1,7 @@
 {
   "entries": {
     "native/CollectionStore.h": {
-      "accepted_blob": "61da5f28f6c051e98febd902ae29fbb96f0d8aee",
+      "accepted_blob": "027de5223ffec596294309f8eb8bc95082a5a557",
       "accepted_comment": "// CollectionStore — the \"Your Collection\" shelf: what the user CHOSE to save via\n// the + Library toggle. NOT Continue: distinct from ProgressStore (auto history) —\n// an entry can exist unstarted and survives finishing. One store, three worlds.\n//\n// QML side (the only contract):\n//   Collection.add(world, { id, type, title, cover, payload })   // upsert; stamps addedAt\n//   Collection.remove(world, id)\n//   Collection.has(world, id)\n//   Collection.items(world)        // newest-first by addedAt\n//   Collection.revision            // bump on every change — name it in a binding to make\n//                                  //   has()/items()-based bindings re-evaluate reactively.\n//\n// `type` must ride on every entry (universe-tile law: a tile without type opens a\n// series as a movie and dies). `payload` is the world-specific reopen snapshot.\n// Persistence mirrors ProgressStore: one JSON blob under \"collection/entries\"."
     },
     "native/SearchHistoryStore.h": {
@@ -21,7 +21,7 @@
       "accepted_comment": "// AppLog.h — the always-on rolling log.\n//\n// WHY THIS EXISTS (2026-08-05): Hemanth hit a Downloads \"Cancel\" that did\n// nothing and said nothing, killed the app, and asked for the log. There was\n// none. Colosseum installed no message handler, and Colosseum.bat — the\n// launcher he actually double-clicks — runs the exe with stderr unredirected,\n// so every qInfo/qWarning in a normal launch was discarded as it was produced.\n// A bug he can reproduce but never evidence is a bug we debug blind, so the\n// log is now unconditional: no dev launcher, no env var, no opt-in.\n//\n// Contract:\n//   - appends to <AppDataLocation>/logs/colosseum.log\n//   - flushes EVERY line — the case this was built for is a hard kill, and a\n//     buffered tail is exactly the part that would be missing\n//   - rotates at 5 MB, keeping colosseum.1..3.log (oldest dropped)\n//   - forwards to the previously-installed handler, so dev.bat's console and\n//     QT_FORCE_STDERR_LOGGING behave exactly as before\n//   - mutex-guarded: Qt logs from the network/decode threads, not just the GUI\n//\n// install() must be called AFTER applicationName/organizationName are set (and\n// after the COLOSSEUM_APPDATA_TAG override), because AppDataLocation resolves\n// from them — a dltest run then writes its own isolated log, never the real one."
     },
     "native/main.cpp": {
-      "accepted_blob": "b3bc5cb54bebd28ed9e4d5a3cf4ebf7ff86df96e",
+      "accepted_blob": "8c4947936967f51c56be30e835464bc587f37688",
       "accepted_comment": "// Colosseum native launcher. Runs the live qml/ tree with an on-disk HTTP cache\n// and the same Metahub IPv4 pin Tankoban-3 uses for instant poster loading."
     },
     "qml/BootSplash.qml": {
@@ -33,7 +33,7 @@
       "accepted_comment": "// BrowserDrawer — Feature 8: the in-player episode/source browser (spec 2026-07-08,\n// mock-ratified: side drawer, season pills, auto-play best source).\n// Self-contained like ShortcutsSheet: props in, signals out, its own Theme. The video\n// keeps playing beside it. All derivations live in EpisodeBrowser.js (harness-tested);\n// this file only renders and forwards taps."
     },
     "qml/Main.qml": {
-      "accepted_blob": "74054d5b86aeec783d410a95bd2594532b1d1a43",
+      "accepted_blob": "4f189dde88ddac415e8dd0266563842fbda3cd4d",
       "accepted_comment": "// Colosseum — HOME (v1, on the proven spine)\n// Fullscreen-exclusive frameless OS surface: persistent wallpaper + frosted-glass chrome.\n//   Top bar -> universal Continue -> per-medium widgets.\n// Glass = proven material (see Glass.qml).\n// Run:  C:/Qt/6.11.1/mingw_64/bin/qml.exe qml/Main.qml      (Esc / Ctrl+Q to quit)"
     },
     "qml/Taskbar.qml": {
@@ -41,7 +41,7 @@
       "accepted_comment": "// Taskbar.qml - the OS-shell's auto-hiding switcher bar.\n// The closed Colosseum button and the open taskbar are the same object, so the bar\n// grows out of the button instead of swapping between two separate pieces."
     },
     "qml/TopBar.qml": {
-      "accepted_blob": "c1d135fce516483d02850189ae4a7b073ef32df5",
+      "accepted_blob": "69f2973ac2f66f531a8a55ee7474a3e525162b57",
       "accepted_comment": "// TopBar — the shared Colosseum shell chrome: clock/date · library pills · system icons.\n// ONE source for the top bar across the home AND every world page.\n//   activeMedium == \"\"   → HOME: no pill is selected (the no-selection rule).\n//   activeMedium == \"X\"  → WORLD: pill X carries the gold selected accent, and a \"‹ Home\"\n//                          affordance appears at the left.\n// Emits intent signals; the host (home / world) decides what navigation happens."
     },
     "qml/WorldTabBar.qml": {
@@ -49,6 +49,6 @@
       "accepted_comment": "// WorldTabBar — TheatreTabBar's glass pill bar, generalized to any tab set (parameterized\n// tabModel). Used by the Tankoban world (Manga|Comics); Theatre keeps TheatreTabBar for now\n// and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint."
     }
   },
-  "integrity": "sha256:849333f3652af14212358d139b217eb9b21e37c1543b9522405dd441c5304c32",
+  "integrity": "sha256:7cb676ef3c5a78cc19d65bac7395a74992d35f6644aac6539b5af41ba2143b27",
   "schema": 1
 }

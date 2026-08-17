@@ -24,6 +24,7 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringList>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
@@ -73,6 +74,19 @@ public:
     }
 
     int revision() const { return m_revision; }
+
+    // Native sync seam: complete authoritative Collection state, without changing
+    // the QML contract or creating a second persistence authority. The sync
+    // adapter performs the portable/local-only projection.
+    QVariantList syncEntries() const {
+        QStringList keys = m_map.keys();
+        keys.sort();
+        QVariantList out;
+        out.reserve(keys.size());
+        for (const QString &key : keys)
+            out.append(m_map.value(key).toMap());
+        return out;
+    }
 
     // Callers must include `type` on every entry (enforced at the QML call sites,
     // Tasks 4+): the universe-tile law — a tile without type opens a series as a

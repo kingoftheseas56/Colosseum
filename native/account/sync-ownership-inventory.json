@@ -1,0 +1,830 @@
+{
+  "schema_version": 1,
+  "bundle": "5A",
+  "status": "uncompiled / untested / unexecuted / unadopted / unverified",
+  "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+  "scope": "Sync ownership/classification freeze and ordinary-payload exclusion firewall only; no adapter registry and no SyncEngine/outbox.",
+  "classification_values": [
+    "syncable",
+    "secret",
+    "local-only"
+  ],
+  "owner_status_values": [
+    "confirmed",
+    "partial",
+    "absent"
+  ],
+  "entries": [
+    {
+      "id": "collection",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/CollectionStore.h",
+      "cumulative_owner": "ProfileStoreRuntime -> CollectionStore",
+      "read_seam": "items(world)",
+      "write_seam": "add(world, entry) / remove(world, id)",
+      "change_seam": "revision + changed()",
+      "future_slice": 14,
+      "note": "Current owner is authoritative. Adapter must export logical collection fields only; path/media fields remain forbidden.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "collection"
+      ]
+    },
+    {
+      "id": "continue_progress",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/ProgressStore.h",
+      "cumulative_owner": "ProfileStoreRuntime -> ProgressStore",
+      "read_seam": "get(kind, id) / recent(kind, limit)",
+      "write_seam": "record(entry) / recordSilent(entry) / forget(kind, id)",
+      "change_seam": "revision + changed() for visible mutations; recordSilent() deliberately emits no visible revision",
+      "future_slice": 14,
+      "note": "Preserve recordSilent() performance contract; whole-store polling is not an acceptable substitute for a narrow dirty/export seam.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "continue",
+        "progress"
+      ]
+    },
+    {
+      "id": "full_history",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "",
+      "cumulative_owner": "native/account/HistoryStore.* -> ProfileStoreRuntime -> HistoryStore",
+      "read_seam": "records() / get(kind, id) / syncEntries()",
+      "write_seam": "recordActivity(kind,id,at) / markCompleted(kind,id,at) / remove(kind,id) / applySyncedRecord(record)",
+      "change_seam": "revision + changed() for owner observation; syncDirty() only for local durable history mutations",
+      "future_slice": 14,
+      "note": "Live repo still has no native/HistoryStore.h at the 7B evidence head. Bundle 7B promotes the cumulative profile-owned HistoryStore into the dedicated watched/read/completed history authority. Continue/progress remains separate.",
+      "denial_code": "",
+      "inspection_base_commit": "150ae80f36f50867ddf2fad7224121fa4c7a7e5f",
+      "fields": [
+        "watched_history",
+        "read_history",
+        "completed_history"
+      ]
+    },
+    {
+      "id": "per_world_customization",
+      "disposition": "syncable",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "qml/PersonalizePage.qml and world-specific QML settings surfaces (exact portable seam not frozen)",
+      "cumulative_owner": "",
+      "read_seam": "fragmented QML/Settings state",
+      "write_seam": "fragmented QML/Settings state",
+      "change_seam": "fragmented",
+      "future_slice": 14,
+      "note": "7C reinspection did not establish one durable portable owner/schema. PersonalizePage is a prototype and world-specific preference owners remain distributed across later domain slices. Registration remains blocked.",
+      "denial_code": "",
+      "inspection_base_commit": "150ae80f36f50867ddf2fad7224121fa4c7a7e5f",
+      "fields": [
+        "per_world_customization"
+      ]
+    },
+    {
+      "id": "wallpaper_personalization",
+      "disposition": "syncable",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "qml/PersonalizePage.qml (confirmed by approved plan evidence; exact persistence seam requires adoption inspection)",
+      "cumulative_owner": "",
+      "read_seam": "unknown exact portable snapshot seam",
+      "write_seam": "unknown exact apply seam",
+      "change_seam": "unknown",
+      "future_slice": 14,
+      "note": "Live qml/PersonalizePage.qml explicitly identifies itself as a prototype/throwaway design probe and does not establish a production persistence/apply seam. Do not sync wallpaper tile/index/path state until a real durable logical owner exists.",
+      "denial_code": "",
+      "inspection_base_commit": "150ae80f36f50867ddf2fad7224121fa4c7a7e5f",
+      "fields": [
+        "wallpapers",
+        "personalization"
+      ]
+    },
+    {
+      "id": "explicit_content_preference",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "qml/ContentPreferences.qml",
+      "cumulative_owner": "native/account/ProfilePreferencesStore.* via cumulative 4A+ composition",
+      "read_seam": "showExplicit",
+      "write_seam": "showExplicit assignment",
+      "change_seam": "QML property change / cumulative ProfilePreferencesStore::showExplicitChanged()",
+      "future_slice": 14,
+      "note": "Live ContentPreferences.qml remains the single QML explicit-content setting at the 7C evidence head. Cumulative production authority is ProfilePreferencesStore; 7C adds the production sync adapter over that native profile-owned authority.",
+      "denial_code": "",
+      "inspection_base_commit": "150ae80f36f50867ddf2fad7224121fa4c7a7e5f",
+      "fields": [
+        "explicit_content_on_off"
+      ]
+    },
+    {
+      "id": "other_durable_preferences",
+      "disposition": "syncable",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "multiple current QML/native settings owners",
+      "cumulative_owner": "",
+      "read_seam": "not unified",
+      "write_seam": "not unified",
+      "change_seam": "not unified",
+      "future_slice": 14,
+      "note": "Current settings remain distributed across domain-specific QML/native owners. 7C does not create an arbitrary settings JSON blob; exact owners stay gated.",
+      "denial_code": "",
+      "inspection_base_commit": "150ae80f36f50867ddf2fad7224121fa4c7a7e5f",
+      "fields": [
+        "other_durable_user_choices"
+      ]
+    },
+    {
+      "id": "tankoban_reading_position",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/ProgressStore.h; reader producer chain qml/comicreader/ComicReaderShell.qml + ComicReaderState.js::progressPayload",
+      "cumulative_owner": "ProfileStoreRuntime -> ProgressStore -> existing continue_progress adapter",
+      "read_seam": "ProgressStore::get(kind,id) / raw syncEntries; Tankoban resume is nested in the logical Progress record",
+      "write_seam": "ComicReaderState.js::progressPayload -> ProgressStore::record/recordSilent",
+      "change_seam": "existing ProgressStore syncDirty/revision contract from 7A; recordSilent remains visually silent; 8B adds remote-only syncedEntryApplied(kind,id) for active-reader import reaction",
+      "future_slice": 15,
+      "note": "8B keeps Tankoban page/strip resume inside continue_progress and adds no separate position adapter. Remote winning Progress PUT may notify the active reader through syncedEntryApplied + ComicReaderSyncedResumeBridge after logical validation. Final private Shell restore hookup remains repository-local discovery-gated; archive/download paths stay local.",
+      "denial_code": "",
+      "inspection_base_commit": "ca637a30864040242d07125628cb4552cc2bc8e5",
+      "fields": [
+        "page_position",
+        "strip_position"
+      ]
+    },
+    {
+      "id": "tankoban_reader_preferences",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "qml/comicreader/ComicReaderShell.qml per-series record + ComicReaderState.js canonical migration + native/comicreader/ComicReaderRenderProfile.* live apply",
+      "cumulative_owner": "",
+      "read_seam": "confirmed semantic owner is the shared ComicReader per-series seriesRecords map, normalized by ComicReaderState.migrateReaderPrefs; 8C adapter requires a concrete Tankoban-only headless enumeration binding before activation",
+      "write_seam": "8C defines applySyncedRawRecord/removeSyncedRawRecord on the abstract owner; production binding to the exact seriesRecords Settings backing remains discovery-gated",
+      "change_seam": "8C defines monotonic revision + localMutationAvailable + remote-only syncedRecordApplied on the owner contract; production emitter wiring remains discovery-gated",
+      "future_slice": 15,
+      "note": "8C completes schema-v1 codec and SyncAdapter reference code but does not register it. The shared seriesRecords map serves multiple ComicReader lanes and the inspectable evidence does not prove a persistent Tankoban lane discriminator or exact headless Settings backing. Exporting every shared record would leak manga/comic preferences into a Tankoban-only category. Keep fail-closed until that concrete owner gate closes. renderProfile.quality remains excluded pending product decision.",
+      "denial_code": "",
+      "inspection_base_commit": "ca637a30864040242d07125628cb4552cc2bc8e5",
+      "fields": [
+        "reading_mode",
+        "reading_direction",
+        "zoom",
+        "strip_width",
+        "gap",
+        "auto_scroll",
+        "brightness",
+        "contrast",
+        "gamma",
+        "rotation",
+        "crop",
+        "night_treatment"
+      ]
+    },
+    {
+      "id": "biblio_reading_position",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/reader/BookStores.* + native/reader2/Reader2Bridge.*",
+      "cumulative_owner": "",
+      "read_seam": "BookStores::get(progress.json, bookId)",
+      "write_seam": "BookStores::save(progress.json, bookId, data)",
+      "change_seam": "bridge/store mutation; portable identity seam required",
+      "future_slice": 16,
+      "note": "Current BookStores::keyFor() is derived from normalized absolute path. A portable identity must replace/translate that key before ordinary sync.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "exact_reading_position"
+      ]
+    },
+    {
+      "id": "biblio_bookmarks",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/reader/BookStores.* + native/reader2/Reader2Bridge.*",
+      "cumulative_owner": "",
+      "read_seam": "BookStores::listGet(bookmarks.json, bookId)",
+      "write_seam": "listSave/listDelete/listClear(bookmarks.json, ...)",
+      "change_seam": "bridge/store mutation; portable identity seam required",
+      "future_slice": 16,
+      "note": "Bookmark content is approved; absolute-path-derived book identity is not portable.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "bookmarks"
+      ]
+    },
+    {
+      "id": "biblio_annotations",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/reader/BookStores.* + native/reader2/Reader2Bridge.*",
+      "cumulative_owner": "",
+      "read_seam": "BookStores::listGet(annotations.json, bookId)",
+      "write_seam": "listSave/listDelete/listClear(annotations.json, ...)",
+      "change_seam": "bridge/store mutation; portable identity seam required",
+      "future_slice": 16,
+      "note": "Annotation payload is approved; local-path identity must not leave the device.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "annotations"
+      ]
+    },
+    {
+      "id": "biblio_reader_settings",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/reader/BookStores.* + native/reader2/Reader2Bridge.*",
+      "cumulative_owner": "",
+      "read_seam": "BookStores::get(settings.json, bookId)",
+      "write_seam": "BookStores::save(settings.json, bookId, data)",
+      "change_seam": "bridge/store mutation; portable identity seam required",
+      "future_slice": 16,
+      "note": "Covers typography/theme/layout/custom CSS where supported. Custom CSS text is allowed; filesystem references inside portable records are not.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "typography",
+        "theme",
+        "layout",
+        "custom_css"
+      ]
+    },
+    {
+      "id": "biblio_audio_pairing",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/AudioPairingStore.h",
+      "cumulative_owner": "ProfileStoreRuntime -> AudioPairingStore",
+      "read_seam": "getPairing(bookId) / allPairings()",
+      "write_seam": "savePairing(bookId, pairing) / deletePairing(bookId)",
+      "change_seam": "revision + changed() + pairingSaved/pairingDeleted",
+      "future_slice": 16,
+      "note": "Current bookId is documented as stable identity '(id or path)'; portable cross-device identity must be proven before registration.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "book_audiobook_read_along_pairing"
+      ]
+    },
+    {
+      "id": "theatre_track_preferences",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "qml/PlayerTrackPrefs.js",
+      "cumulative_owner": "",
+      "read_seam": "getPref(jsonText, showKey)",
+      "write_seam": "upsertPref(jsonText, showKey, patch, nowMs)",
+      "change_seam": "owning QML Settings/property seam must trigger export; JS helper itself is pure",
+      "future_slice": 17,
+      "note": "Allowlisted fields include audio/subtitle language, portable track labels, subtitlesOff, audioDelay and subDelay.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "preferred_audio_language",
+        "preferred_subtitle_language",
+        "portable_track_choices",
+        "subtitle_delay"
+      ]
+    },
+    {
+      "id": "theatre_subtitle_appearance",
+      "disposition": "syncable",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "player/Theatre QML settings surfaces; exact durable owner not frozen in current evidence",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 17,
+      "note": "Approved sync category; 5B blocked until exact live persistence owner is inspected.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "subtitle_appearance"
+      ]
+    },
+    {
+      "id": "theatre_row_customization",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "qml/TheatreRowPreferences.qml",
+      "cumulative_owner": "",
+      "read_seam": "valueFor(pageKey)",
+      "write_seam": "move/toggleHidden/rename/reset",
+      "change_seam": "changed(pageKey) after real mutation",
+      "future_slice": 17,
+      "note": "Qt Settings category theatreCatalogRows stores order/hidden/renamed per movies/shows/anime tab.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "row_order",
+        "row_hide_show",
+        "row_rename"
+      ]
+    },
+    {
+      "id": "theatre_watched_history",
+      "disposition": "syncable",
+      "owner_status": "absent",
+      "payload_eligible": false,
+      "live_owner": "",
+      "cumulative_owner": "reference HistoryStore is not live-repo authority",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 14,
+      "note": "Resolved through the same full-history discovery gap; do not reuse Continue as watched history.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "theatre_watched_history"
+      ]
+    },
+    {
+      "id": "extension_roster",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/engine/ExtensionsStore.h",
+      "cumulative_owner": "",
+      "read_seam": "installed() / isInstalled(id)",
+      "write_seam": "remove(id) / setEnabled(id,on) / moveTo(id,index)",
+      "change_seam": "revision + changed()",
+      "future_slice": 19,
+      "note": "Only logical extension id/list/order/enabled state is ordinary-sync eligible. Raw transportUrl is explicitly denied by the 5A firewall.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "installed_extension_identity",
+        "extension_list",
+        "extension_order",
+        "enabled_state"
+      ]
+    },
+    {
+      "id": "extension_safe_config",
+      "disposition": "syncable",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "extension-specific configuration owners; no unified safe-config export seam confirmed",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 19,
+      "note": "Only explicitly safe non-secret configuration may sync. Each field requires an owner and allowlist before 5B registration.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "extension_account_state",
+        "explicitly_safe_non_secret_configuration"
+      ]
+    },
+    {
+      "id": "vault_identity_decisions",
+      "disposition": "syncable",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "native/engine/VaultIdentity.*",
+      "cumulative_owner": "",
+      "read_seam": "pendingCeremonies()/pathAliases()/resolve()/knows()",
+      "write_seam": "decideCeremony()/reconcile()/observeFile()",
+      "change_seam": "changed()",
+      "future_slice": 18,
+      "note": "Current identity registry stores paths and derives ids from normalizedPath::size::mtimeMs. Slice 18 must define a portable decision record that strips path/file facts.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "media_identity_decisions"
+      ]
+    },
+    {
+      "id": "desired_download_intent",
+      "disposition": "syncable",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "native/player/downloadstore.* is current acquisition/queue owner, not a dedicated portable desired-intent authority",
+      "cumulative_owner": "",
+      "read_seam": "jobs()/downloadedVideos() are local acquisition state, not approved desired-intent snapshot",
+      "write_seam": "enqueue/cancel/remove are local acquisition actions",
+      "change_seam": "queueRevision/changed/libraryChanged",
+      "future_slice": 20,
+      "note": "Slice 20 must introduce/confirm desired-download intent separate from queue, URLs, paths, bytes, and historical acquisition transactions.",
+      "denial_code": "",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "current_desired_downloads"
+      ]
+    },
+    {
+      "id": "account_password",
+      "disposition": "secret",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "account authentication input/service only",
+      "cumulative_owner": "AccountController never exposes password as Q_PROPERTY",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "secret_requires_protected_channel",
+      "note": "Never enters ordinary sync records.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "account_password"
+      ]
+    },
+    {
+      "id": "recovery_key",
+      "disposition": "secret",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "one-time AccountRecoveryKeyPresenter/service recovery flow",
+      "cumulative_owner": "transient one-time presenter",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "secret_requires_protected_channel",
+      "note": "Never enters ordinary sync records or diagnostics.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "recovery_key"
+      ]
+    },
+    {
+      "id": "access_token",
+      "disposition": "secret",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "AccountClient volatile session",
+      "cumulative_owner": "AccountClient volatile session",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "secret_requires_protected_channel",
+      "note": "Never enters ordinary sync records.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "access_token"
+      ]
+    },
+    {
+      "id": "refresh_token",
+      "disposition": "secret",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "Windows Credential Manager active/pending-revocation credential slots",
+      "cumulative_owner": "WindowsAccountCredentialStore",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "secret_requires_protected_channel",
+      "note": "Never enters ordinary sync records.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "refresh_token"
+      ]
+    },
+    {
+      "id": "extension_credentials",
+      "disposition": "secret",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "extension-specific credential stores",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 19,
+      "denial_code": "secret_requires_protected_channel",
+      "note": "Approved post-Fable clarification: extension/API credentials do not cloud-sync in v1.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "extension_credentials"
+      ]
+    },
+    {
+      "id": "api_credentials",
+      "disposition": "secret",
+      "owner_status": "partial",
+      "payload_eligible": false,
+      "live_owner": "provider/extension-specific credential stores",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "secret_requires_protected_channel",
+      "note": "Ordinary sync denied. No protected secret-sync design is adopted in v1.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "api_credentials"
+      ]
+    },
+    {
+      "id": "search_history",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/SearchHistoryStore.h",
+      "cumulative_owner": "ProfileStoreRuntime -> SearchHistoryStore",
+      "read_seam": "list(scope)",
+      "write_seam": "record/remove/clear(scope,...)",
+      "change_seam": "revision + changed(scope)",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Hard product rule: search history never syncs.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "search_history"
+      ]
+    },
+    {
+      "id": "shell_session_state",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/SessionStore.h",
+      "cumulative_owner": "",
+      "read_seam": "get/list/groups/activeId",
+      "write_seam": "openOrSwitch/switchTo/close/saveState",
+      "change_seam": "revision/changed/activeChanged",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Open-session/savedState/taskbar model is machine/session state.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "open_sessions",
+        "active_session",
+        "session_saved_state"
+      ]
+    },
+    {
+      "id": "window_state",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/player/windowmodestore.* + windowstatepolicy.* and shell/window owners",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Window geometry/mode is machine state.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "window_geometry",
+        "window_mode"
+      ]
+    },
+    {
+      "id": "pip_state",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "player/window shell state",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Picture-in-picture/window mode remains device-local.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "pip_state"
+      ]
+    },
+    {
+      "id": "cast_state",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/player/caststore.*",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Cast target/session state is machine/LAN-owned.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "cast_state"
+      ]
+    },
+    {
+      "id": "room_state",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/player/roomstore.*",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Room/watch-party state is not account sync.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "room_state",
+        "watch_party_state"
+      ]
+    },
+    {
+      "id": "filesystem_paths",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "multiple owners: Vault, Biblio, downloads, media/session descriptors",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Absolute/relative machine filesystem paths are rejected at payload validation.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "filesystem_paths",
+        "machine_paths"
+      ]
+    },
+    {
+      "id": "physical_media",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "Vault/download/reader/player filesystem owners",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Actual media files are never uploaded as account sync.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "media_files"
+      ]
+    },
+    {
+      "id": "media_blobs",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "media/image/cache/download subsystems",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Binary/media payloads are excluded from ordinary sync records.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "media_blobs",
+        "binary_media_payloads"
+      ]
+    },
+    {
+      "id": "download_queue",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/player/downloadstore.*",
+      "cumulative_owner": "",
+      "read_seam": "jobs()/status()",
+      "write_seam": "enqueue/cancel/retry/pause/resume",
+      "change_seam": "queueRevision + changed()",
+      "future_slice": 20,
+      "denial_code": "category_local_only",
+      "note": "Queue/acquisition state includes URLs, paths, byte counts and machine-local work.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "download_queue",
+        "download_job_state"
+      ]
+    },
+    {
+      "id": "download_acquisition_history",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/player/downloadstore.* and world downloader state",
+      "cumulative_owner": "",
+      "read_seam": "downloadedVideos()/local indexes",
+      "write_seam": "remove/download lifecycle",
+      "change_seam": "libraryChanged",
+      "future_slice": 20,
+      "denial_code": "category_local_only",
+      "note": "Spec syncs current desired downloads, never exact historical acquisition/source transactions.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "download_acquisition_history",
+        "source_transaction_history"
+      ]
+    },
+    {
+      "id": "cache_state",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "comicreader/page caches, catalogue caches, player/media caches",
+      "cumulative_owner": "",
+      "read_seam": "",
+      "write_seam": "",
+      "change_seam": "",
+      "future_slice": 26,
+      "denial_code": "category_local_only",
+      "note": "Rebuildable caches remain device-local.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "caches"
+      ]
+    },
+    {
+      "id": "vault_path_aliases",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/engine/VaultIdentity.*",
+      "cumulative_owner": "",
+      "read_seam": "pathAliases()",
+      "write_seam": "reconcile()/observeFile()",
+      "change_seam": "changed()",
+      "future_slice": 18,
+      "denial_code": "category_local_only",
+      "note": "oldPath/newPath/path aliases and FileFacts never enter ordinary sync.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "vault_path_aliases",
+        "vault_file_facts"
+      ]
+    },
+    {
+      "id": "extension_transport_endpoint",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/engine/ExtensionsStore.h raw transportUrl field",
+      "cumulative_owner": "",
+      "read_seam": "installed()",
+      "write_seam": "installation/source ownership",
+      "change_seam": "revision + changed()",
+      "future_slice": 19,
+      "denial_code": "category_local_only",
+      "note": "Raw transport endpoint is not the portable roster identity; may contain machine/private or credential-bearing data.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "raw_extension_transport_endpoint"
+      ]
+    },
+    {
+      "id": "biblio_local_book_identity",
+      "disposition": "local-only",
+      "owner_status": "confirmed",
+      "payload_eligible": false,
+      "live_owner": "native/reader/BookStores.h keyFor(absPath)",
+      "cumulative_owner": "",
+      "read_seam": "keyFor(absPath)",
+      "write_seam": "path-derived key",
+      "change_seam": "",
+      "future_slice": 16,
+      "denial_code": "category_local_only",
+      "note": "Current SHA1 key is derived from normalized absolute path and is not a portable sync identity.",
+      "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
+      "fields": [
+        "absolute_path_derived_book_identity"
+      ]
+    }
+  ]
+}
