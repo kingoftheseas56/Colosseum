@@ -26,32 +26,59 @@ its own idea of progress — and none of them talk to each other.
 
 Colosseum is one fullscreen home for all of it. Three worlds — **Tankoban** (manga and western
 comics), **Biblio** (ebooks and audiobooks), **Theatre** (movies, shows, anime) — share a single
-shell: one Continue row across every medium, one collection, one downloads vault, one taskbar of
-open sessions. Each medium keeps the surface it deserves: a real comic reader, a real book
-reader with audiobook read-along, a real video player. Browsing is catalogue-first and
-discovery-rich; reading is download-fed, so your shelf works offline.
+shell: one Continue row across every medium, one Collection, one Downloads surface, one taskbar
+of open sessions, and **Vault**, a local-media library for files you already own. Each medium keeps
+the surface it deserves: a real comic reader, a real book reader with audiobook read-along, and a
+real video player. Browsing is catalogue-first and discovery-rich; downloaded media remains local
+so reading and listening can continue offline.
 
 > [!IMPORTANT]
 > Colosseum 1.1.0 is the current Windows 10/11 desktop release. Download the installer from
 > [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for a per-user install —
 > no administrator required. Building from source is documented below.
 
+## What's new in 1.1.0
+
+- **Vault grew into a real local-media library.** Add folders without moving their contents,
+  browse roots and nested folders, keep disconnected media represented as unavailable instead of
+  silently dropping it, correct uncertain identities, and open supported files in Colosseum's
+  existing readers and player. Vault artwork now reuses local comic/book covers, caches canonical
+  posters for recognized screen media, and can persist frame grabs for local video.
+- **Account and sync foundations landed.** Colosseum now has account onboarding, an account
+  medallion/flyout, an Account Centre, portable-state sync adapters, and trusted-device listing
+  and revocation. Continue/progress, Collection, history, and profile preferences are the portable
+  state; local paths, media files, window state, and search history stay local.
+- **Stremio compatibility is broader.** Compatible add-ons can contribute catalogues and Theatre
+  stream results; direct HTTP streams and torrents are understood, request headers can travel with
+  direct streams, configured manifests are supported, and provider/debrid authentication remains
+  owned by the add-on rather than Colosseum.
+- **Tankoban's volume flow was rebuilt and made visible.** The MAL-keyed series bookshelf, source
+  sheet, volume grid, acquisition state, progress indicators, and matching path were tightened.
+  A chosen source can stay on screen while resolving/downloading, and the volume shelf mirrors the
+  live acquisition instead of waiting for the first completed byte range to become obvious.
+- **Automatic updating is now part of the installed app.** 1.1.0 introduces the Update page and
+  the signed stable-release path used by later releases. Users coming from 1.0 perform one final
+  manual install of 1.1.0.
+
 ## Highlights
 
-- **Three worlds, one shell.** Universal Continue, Collection, downloads, search history,
-  wallpapers, and window sessions shared across manga, comics, books, audiobooks, and video.
+- **Three worlds, one shell.** Universal Continue, Collection, Downloads, search history,
+  wallpapers, local Vault media, and window sessions across manga, comics, books, audiobooks,
+  and video.
 - **Real readers and players, built in.** A from-scratch comic reader (long strip, paired
-  pages, RTL, exact resume), an ebook reader with typography control and audiobook
-  read-along, and an mpv-based player with subtitles, skip segments, episode queues, and
-  seek thumbnails.
-- **Deep catalogues that work offline.** Theatre shelves ranked by a local IMDb index;
-  manga discovery from a bundled MAL catalogue; Apple Books charts for Biblio — live rows
-  layered on top when the network is there.
-- **Stremio-compatible extensions.** A world-aware Sources picker, Browse and Installed
-  management, and per-world source chains. NoTorrent ships by default and is removable
-  like any extension.
-- **Download-fed by design.** Acquisition lands in one vault; reading and listening never
-  depend on a live connection to the source that provided the file.
+  pages, RTL, exact resume), an ebook reader with typography control and audiobook read-along,
+  and an mpv-based player with subtitles, skip segments, episode queues, and seek thumbnails.
+- **Local media is first-class.** Vault indexes folders in place, watches confirmed roots for
+  arrivals, keeps a recent-arrivals view, preserves unavailable roots, and routes supported local
+  files back into the same readers and player used elsewhere in Colosseum.
+- **Deep catalogues that work offline.** Theatre shelves ranked by a local IMDb index; manga
+  discovery from a bundled MAL catalogue; Apple Books charts for Biblio, with live rows layered
+  on top when the network is there.
+- **Stremio-compatible extensions.** World-aware Sources, community/curated Browse, Installed
+  management, configured manifests, and direct/torrent Theatre stream results. NoTorrent ships
+  by default and is removable like any extension.
+- **Download-fed reading.** Tankoban, comics, and Biblio retain native acquisition paths so the
+  media you keep does not depend on the source remaining online after download.
 
 ## Screenshots
 
@@ -84,6 +111,29 @@ discovery-rich; reading is download-fed, so your shelf works offline.
 | **Biblio** | ebooks and audiobooks | Apple Books discovery, LibGen, AudioBookBay |
 | **Theatre** | movies, shows, anime | Cinemeta + offline IMDb catalogue, Jikan/AniList/Kitsu; installed Stremio extensions |
 
+## Vault
+
+**Vault is Colosseum's library for local files you already have.** It is separate from the
+Downloads screen: Vault can index ordinary folders anywhere you choose, while Downloads continues
+to track media acquired by Colosseum's own backends.
+
+Add one or more roots and Colosseum scans them without relocating the originals. The Browse face
+has recent arrivals, a root rail, breadcrumbs, nested folder navigation, media-shaped cards, and
+in-place identity correction. Confirmed roots are watched for new files, while disconnected or
+missing roots remain represented as **away** instead of making your library silently shrink.
+
+Artwork follows the media rather than one generic poster rule. Comics and books can reuse covers
+inside their files; recognized movies and shows can receive locally cached canonical posters;
+episodes, clips, and other local video can receive persistent ffmpeg frame grabs. The resolver
+keeps the result local once it has been acquired, so the Browse wall can keep its art offline.
+
+Vault also has identity continuity for files that move or appear as copies. When a likely-copy
+ceremony needs a decision, you can keep existing state or treat it as a separate copy rather than
+letting the scanner silently merge the two. Supported books, comics/manga, and video then open
+through Reader2, the comic reader, or the Theatre player instead of a second set of local-only
+viewers. Colosseum's Downloads tree can also appear as a synthetic Vault root without deleting or
+moving the underlying download data.
+
 ## Players and readers
 
 - **Theatre player** — fullscreen QML surface over MpvQt / libmpv. Resume, warm minimize, audio and subtitle selection, online subtitles, track delays, speed, fill and aspect, PiP, skip segments, episode queues, source failover, Up Next, A-B loop, sleep timer, captures, GIF tools, chapter markers, loudness normalization, and ffmpeg-backed seek thumbnails.
@@ -93,15 +143,45 @@ discovery-rich; reading is download-fed, so your shelf works offline.
 
 ## Extensions
 
-The extension system is Stremio-compatible and has three surfaces: **Sources** (a world-aware picker with Theatre, Tankoban, and Biblio source chains on one page), **Browse** (discover and preview compatible manifests), and **Installed** (enable, order, remove).
+The extension system is Stremio-compatible and has three surfaces: **Sources** (world-aware source
+chains), **Browse** (curated/community discovery and manifest preview), and **Installed** (enable,
+order, configure, and remove).
 
-**NoTorrent**, an HTTP streaming source extension, ships enabled by default in Theatre's Sources sheet and is removable like any extension. Adult manifests are rejected by the native registry rather than merely hidden.
+In Theatre, compatible add-ons can return ordinary torrent streams or direct HTTP streams. Direct
+results can carry the add-on's request headers into the player, while configured manifests can
+hand their own setup/authentication flow back to the provider. Colosseum does not try to own a
+provider's debrid credentials or authentication state.
+
+Tankoban and Biblio can consume compatible extension **catalogues** in their Discover surfaces,
+while their acquisition/download paths remain native to those worlds rather than pretending every
+Stremio stream shape maps cleanly onto a book or manga volume.
+
+**NoTorrent**, an HTTP streaming source extension, ships enabled by default in Theatre and is
+removable like any extension. Explicit-content manifests are hidden by default, but they follow the
+same global **Explicit Content** preference as the rest of Colosseum when that setting is enabled;
+direct manifest installation and community Browse use the same gate so the two paths cannot drift.
 
 ## Downloads, Collection, sessions
 
-- **Downloads** — one vault across manga chapters, Tankoban volumes, comics, LibGen ebooks, and Theatre video, with open, retry, pause, cancel, and delete routed to the owning backend.
+- **Downloads** — one taskbar surface across manga chapters, Tankoban volumes, comics, LibGen ebooks, and Theatre video, with open, retry, pause, cancel, and delete routed to the owning backend. Tankoban volume acquisitions now expose resolving/progress/done state both in the source sheet and on the volume shelf.
 - **Collection** — a durable manual library across all three worlds, separate from progress and local ownership.
 - **Sessions** — open books, comic / manga readers, and video surfaces, switched from the taskbar. Audiobook playback stays inside the open book session.
+
+## Accounts and sync
+
+Colosseum 1.1.0 contains an account and portable-state sync stack. The shell has account onboarding,
+an account medallion/flyout, and an Account Centre with library-state explanations, device listing,
+and trusted-device revocation.
+
+The portable side is intentionally narrower than "sync my computer": Collection, Continue/progress,
+history, and profile preferences have sync adapters. Search history, window state, machine-specific
+paths, downloaded/local media files, and other device-local state stay on that device.
+
+The account service endpoint is configurable rather than hard-coded into the public desktop source.
+A build or runtime needs a configured account service before cloud sign-in/sync can function.
+Profile editing, the full Security and Recovery actions, and account deletion are also still
+incomplete surfaces; the Account Centre shows those boundaries rather than presenting them as
+finished controls.
 
 ## Wallpapers
 
@@ -112,7 +192,8 @@ Each world can persist its own wallpaper. The picker ships original Colosseum sh
 Qt 6 (Quick / QML, WebEngine, SQL, Concurrent) · C++ · MpvQt + libmpv · FFmpeg ·
 libtorrent-rasterbar · SQLite catalogues · Stremio-compatible extension protocol.
 QML owns presentation; native C++ owns durable state, files, catalogs, readers, playback
-engines, torrent transport, WebEngine bridges, downloads, and system integration.
+engines, torrent transport, WebEngine bridges, downloads, Vault indexing, accounts/sync, and
+system integration.
 
 ## Install
 
@@ -143,7 +224,7 @@ Requirements: Windows 10 or 11, Visual Studio 2022 C++ Build Tools, CMake 3.16+,
 MSVC 2022 64-bit (with Quick, QML, Network, GUI, SQL, Concurrent, WebEngineQuick, WebChannel,
 WebSockets), MpvQt + libmpv, libtorrent-rasterbar with Boost and OpenSSL, the bundled Stremio
 stream-server runtime, and ffmpeg. Python 3 is only needed to rebuild the optional catalogue
-databases.
+databases or run the repository's Python verification tooling.
 
 ```bat
 cmake -S native -B native/build-msvc -G Ninja ^
@@ -160,20 +241,39 @@ cmake --build native/build-msvc
 Then run the live QML loop with `dev.bat`. Player 2 additionally requires
 `-DCOLOSSEUM_PLAYER2_IN_APP=ON` at configure time and `COLOSSEUM_PLAYER2=1` at boot.
 
+### Development verification
+
+The repository also contains **Lanista**, UI journey fixtures, and the Night Watch / Guardian
+pipeline used to exercise the assembled app in isolated runs. Night Watch can collect failed
+journeys and quality signals; the current Guardian policy is **document-only**, so its automated
+path may reproduce, triage, diagnose, and write a bug record, but it does not silently merge a
+repair into `master`. This is development infrastructure, not part of the installed media UI.
+
+The MCU phase-by-phase material under `docs/mockups/universes/` is likewise a design/reference
+mock. The production universe system already has its own curated runtime data and renderer; the
+mock files should not be read as a second shipped MCU implementation.
+
 ## First run
 
 1. Launch Colosseum — it opens fullscreen on Home, with each world one click away.
 2. Pick a world and browse its Discover shelves, or search within the world.
 3. On a series, book, or title page: **Read** / **Watch** streams or opens immediately;
-   download actions pull media into the vault for offline reading and listening.
-4. Everything you start appears in **Continue** on Home and in each world; open surfaces
-   live on the taskbar as switchable sessions.
-5. Extensions, wallpapers, and preferences live behind the shell's top-bar controls.
+   download actions pull media into Downloads for offline reading and listening.
+4. Add folders to **Vault** when you want Colosseum to index media already on your machine without
+   moving the originals.
+5. Everything you start appears in **Continue** on Home and in each world; open surfaces live on
+   the taskbar as switchable sessions.
+6. Extensions, wallpapers, preferences, account access, and updates live behind the shell's
+   top-bar/taskbar controls.
 
 ## Known boundaries
 
 - Home-wide cross-world search is not implemented (per-world search is).
-- Tankoban and Biblio extension consumption is incomplete; Theatre consumption is live.
+- Tankoban and Biblio consume compatible extension catalogues for discovery, but their native
+  acquisition paths are not generic Stremio stream consumers. Theatre is the world with generic
+  torrent/direct-stream playback from compatible add-ons.
+- Account/cloud sync requires a configured account-service endpoint; several Account Centre
+  Profile, Security, Recovery, and deletion actions remain incomplete.
 - The calendar implementation is banked but has no live navigation route.
 - Player 2 is integrated but opt-in and Windows / D3D11-oriented; mpv remains the default.
 - Vinyl is visible as a coming-soon world, not yet implemented.
@@ -187,6 +287,8 @@ Then run the live QML loop with `dev.bat`. Player 2 additionally requires
 - **Each medium gets the surface it needs.** Manga, books, and film are not the same problem.
 - **Share transport, not policy.** One acquisition layer; each medium keeps its own rules.
 - **Separate browsing from acquisition, and collection from progress.**
+- **Treat local files as media, not anonymous paths.** Vault can identify, decorate, and reopen
+  local works without taking ownership of the originals.
 - **Match conservatively rather than opening the wrong work.**
 - **Show real fallbacks and empty states instead of invented content.**
 - **Credit influence instead of styling it away.** The Vault's Browse card language — poster
@@ -204,8 +306,8 @@ Colosseum/
 ├── data/        Pipeline-deployed, gitignored SQLite catalogs
 ├── scripts/     Catalogue bake, installer, verification, maintenance
 ├── assets/      Icons, extension logos, fonts, wallpaper assets
-├── docs/        Architecture laws, specifications, release notes
-├── tests/       Contract, harness, source, and smoke tests
+├── docs/        Architecture, research, mockups, specifications, release notes
+├── tests/       Contract, harness, source, journey, and smoke tests
 ├── archive/     Retired implementations and preserved universe pages
 ├── dev.bat      Standard Windows QML live-reload loop
 └── dist/        Built installers
