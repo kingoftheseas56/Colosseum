@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/release-1.0-111111?style=flat-square" alt="1.0" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/release-1.1.0-111111?style=flat-square" alt="1.1.0" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-777777?style=flat-square" alt="MIT License" /></a>
 </p>
 
@@ -32,7 +32,7 @@ reader with audiobook read-along, a real video player. Browsing is catalogue-fir
 discovery-rich; reading is download-fed, so your shelf works offline.
 
 > [!IMPORTANT]
-> Colosseum 1.0 is a Windows 10/11 desktop release. Download the installer from
+> Colosseum 1.1.0 is the current Windows 10/11 desktop release. Download the installer from
 > [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for a per-user install —
 > no administrator required. Building from source is documented below.
 
