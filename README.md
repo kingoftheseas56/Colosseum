@@ -249,10 +249,6 @@ journeys and quality signals; the current Guardian policy is **document-only**, 
 path may reproduce, triage, diagnose, and write a bug record, but it does not silently merge a
 repair into `master`. This is development infrastructure, not part of the installed media UI.
 
-The MCU phase-by-phase material under `docs/mockups/universes/` is likewise a design/reference
-mock. The production universe system already has its own curated runtime data and renderer; the
-mock files should not be read as a second shipped MCU implementation.
-
 ## First run
 
 1. Launch Colosseum — it opens fullscreen on Home, with each world one click away.
