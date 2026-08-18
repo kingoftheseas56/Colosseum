@@ -71,3 +71,6 @@ tools/_fields.png
 tools/_lower.png
 tools/_flow_*.png
 tools/_s0.png
+
+# Internal code encyclopedia generated for agent context; keep local only.
+docs/encyclopedia/
