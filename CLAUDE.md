@@ -1,7 +1,5 @@
-# Colosseum — workspace wake kernel
+# Colosseum Claude Adapter
 
-This is the app-level kernel the Brotherhood router's bootstrap step points to when a
-Claude session wakes inside `Colosseum/`. Layers on top of the global and Brotherhood
-workspace kernels, which already load first.
+Claude uses the same app-level rules as every other substrate. Keep this file thin so it cannot drift into a second Colosseum constitution.
 
 @AGENTS.md

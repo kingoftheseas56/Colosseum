@@ -1,32 +1,90 @@
-# Colosseum — agent notes
+# Colosseum App Adapter
 
-## The code encyclopedia — read before touching an unfamiliar subsystem
+This file is the active app-level instruction surface for Colosseum. It describes how to work on the live repository without duplicating Brotherhood governance.
 
-`docs/encyclopedia/` holds Colosseum's hand-written subsystem guides: what a piece of the
-app is for, its flow, its traps, how to test it. Reading the right one first is measured to
-roughly halve a cold agent's search time and wrong turns.
+## Authority and inheritance
 
-**Before exploring or changing an unfamiliar subsystem:** `ls docs/encyclopedia/*.md` and
-read whichever guide covers it.
+Use this order for Colosseum work:
 
-**`docs/encyclopedia/` is tracked in git** and ships with the repo, so it is present on
-every clone and visible to any reader (GitHub browse, a fetch-only tool, a new agent). It is
-*not* CI-enforced — the only enforcement point for "update the guide in the same change"
-(every guide's own header, and this file) is the local pre-commit hook below.
+1. Hemanth's current instruction.
+2. Live Colosseum source, tests, build files, and runtime evidence for mutable implementation facts.
+3. This app adapter and `CONTEXT.md` when present for Colosseum-specific procedure and vocabulary.
+4. Brotherhood `../governance/GOVERNANCE.md` and `../governance/CONTRACTS.md` when this checkout is nested under the Brotherhood workspace.
+5. Current product doctrine/specifications for intended product behavior.
+6. Historical plans, handoffs, recaps, and Git history.
 
-**After changing how a subsystem works:** update its guide in the same change — a stale
-guide is worse than none. A local pre-commit hook (`scripts/precommit-encyclopedia-check.sh`)
-**blocks** a commit when it touches a covered file whose description has drifted. It tells
-you the two ways to clear it: update the guide + re-accept, or (if the change left the
-guide's claims intact) re-accept just to refresh the fingerprint. Genuine emergencies can
-bypass with `git commit --no-verify`. Heed the block, don't reflexively bypass it.
+A standalone Colosseum clone may not have the Brotherhood parent directory. Do not fail bootstrap because a parent file is absent.
 
-**Fresh-clone setup — re-install the hook (one line).** Git never tracks `.git/hooks/`, so
-the hook must be recreated on each new clone before it protects you. On any fresh checkout:
+`agents/` in this repository is currently a handoff/evidence/mock area. It is **not** a second governance tree. Do not look for app-local `STATUS.md`, `routes.yml`, `GOVERNANCE.md`, `VERSIONS.md`, or `CONTRACTS.md` unless a future adapter explicitly creates and names them.
+
+When the Brotherhood parent is present and a mainline role is assigned, read `../agents/agent-N/IDENTITY.md` for that role's durable ownership. Current routing is: Agent 0 coordination/architecture, Agent 1 manga+comics/Tankoban, Agent 2 books+Biblio, Agent 3 video player, Agent 4 Theatre/stream+torrent acquisition, Agent 5 library UX+theme. Hemanth's current assignment overrides the default routing.
+
+## Reality anchors
+
+The live implementation has three primary anchors:
+
+- Native application entry and service wiring: `native/main.cpp`.
+- QML application root: `qml/Main.qml`.
+- Native build and harness graph: `native/CMakeLists.txt`.
+
+The current UI stack is Qt 6 Quick/QML with Qt Quick Controls/Layout. The live `qml/` tree currently has no Kirigami imports. Kirigami may remain a historical design reference, but **"build only with Kirigami" is not an implementation rule.**
+
+Colosseum is intentionally mixed while migration continues: native C++ owns substantial state/services, while QML/JavaScript still contains provider and network glue. The direction "QML paints/interacts; C++ owns durable machinery" is a design direction, not permission to pretend the current tree already obeys it everywhere.
+
+Atlas currently indexes the C++ structure, including live symbols such as `AccountController`, `ProgressStore`, `CollectionStore`, `BiblioCatalog`, `Colosseum::Update::UpdateService`, and the `MangaTankoban` namespace. Read the actual source ranges before changing behavior.
+
+## Atlas Scout workflow
+
+`docs/encyclopedia/` is Colosseum's local internal agent knowledge base. It may contain hand-written subsystem guides, generated indexes, and Atlas-derived snapshots.
+
+Before changing an unfamiliar subsystem:
+
+1. Read the matching guide under `docs/encyclopedia/` when it exists.
+2. Use Atlas Scout for C++ symbol definitions, references, callers, implementations, dependency neighborhoods, and structural orientation.
+3. Read the exact source ranges the structural result points to.
+4. Re-index after substantial code movement before trusting old graph results.
+5. For QML/JavaScript, supplement Atlas with direct source inspection and text search. An empty Atlas result is never proof that no QML path exists.
+
+Atlas is navigation evidence, not implementation authority.
+
+### Local Atlas setup
+
+Atlas Scout is installed in WSL at `~/.local/bin/atlas-scout`. Keep the cache outside the Windows working tree:
+
 ```sh
-echo 'exec sh "$(git rev-parse --show-toplevel)/scripts/precommit-encyclopedia-check.sh"' > .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+~/.local/bin/atlas-scout index "$(pwd)" --cache-dir ~/.cache/atlas-scout/colosseum
+~/.local/bin/atlas-scout schema --workspace "$(pwd)" --cache-dir ~/.cache/atlas-scout/colosseum
+~/.local/bin/atlas-scout doctor --workspace "$(pwd)" --cache-dir ~/.cache/atlas-scout/colosseum
 ```
 
-No guide exists yet for what you're touching? `docs/encyclopedia/downloads.md` is a recent
-worked example of drafting one from scratch, including catching and correcting an
-inaccuracy before landing it.
+## Encyclopedia privacy
+
+`docs/encyclopedia/` is intentionally local-only and ignored by Git. A fresh clone may not have it. Do not publish it, claim Git can restore it, or treat its absence as missing source documentation.
+
+After changing a documented subsystem, update the matching local guide/index when that encyclopedia is present. The source and tests remain the final implementation truth.
+
+## Product doctrine boundary
+
+When nested under Brotherhood, `../agents/COLOSSEUM_DOCTRINE.md` is product/design doctrine only. It must not assert stale implementation facts, provider choices, toolkit mandates, or build commands over the current source.
+
+When present, `CONTEXT.md` owns shared terminology such as Collection, Library, Progress, reading lanes, and `seriesId`.
+
+## Git discipline
+
+The normal working branch is `master`. Do not create a worktree, side branch, active separate clone, or separate built instance without Hemanth's explicit permission.
+
+The repository may be heavily dirty from concurrent work. Preserve unrelated changes. Never use destructive Git cleanup, reset, stash, or broad staging to make the tree look clean.
+
+Rule 28 does not grant every agent commit authority. Follow the active Brotherhood commit contract when that governance is present.
+
+## Verification
+
+Before declaring a change complete:
+
+- inspect the final diff for the files you touched;
+- use the nearest relevant tests/harnesses under `tests/` and the build wiring in `native/CMakeLists.txt`;
+- run QML-specific inspection/lint when QML changed and the tool is available;
+- keep build/test/runtime claims separate;
+- search for equivalent occurrences before claiming a defect class is fully fixed.
+
+Do not infer runtime success from a source edit, a generated encyclopedia, or an Atlas relationship graph.
