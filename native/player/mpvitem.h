@@ -121,6 +121,12 @@ public:
     Q_PROPERTY(double cacheTime READ cacheTime NOTIFY cacheTimeChanged)
     double cacheTime() const;
 
+    // Cached mid-play buffering percentage (mpv cache-buffering-state). Watch Party
+    // observes this without adding another blocking getProperty() call to PlayerPage's
+    // hot path. 100 means no active cache refill; lower values mean mpv is buffering.
+    Q_PROPERTY(double cacheBufferingState READ cacheBufferingState NOTIFY cacheBufferingStateChanged)
+    double cacheBufferingState() const;
+
     Q_PROPERTY(bool coreSeeking READ coreSeeking NOTIFY coreSeekingChanged)
     bool coreSeeking() const;
 
@@ -169,6 +175,7 @@ Q_SIGNALS:
     void subDelayChanged();
     void videoFillChanged();
     void cacheTimeChanged();
+    void cacheBufferingStateChanged();
     void coreSeekingChanged();
     void gifEncodingChanged();
     void gifSaved(QString path);
@@ -228,6 +235,7 @@ private:
     QVariantList m_trackList;
     QVariantList m_chapters;
     double m_cacheTime = 0.0;
+    double m_cacheBufferingState = 100.0;
     bool m_coreSeeking = false;
     QTimer m_gifTimer;
     QString m_gifTempDir;

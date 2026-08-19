@@ -47,7 +47,7 @@ colosseum_register_harness(update_install_bridge_harness unit;windows)
 # Test-only Qt components: discovered HERE, under BUILD_TESTING, never linked
 # into the shipping app (arc non-goal). Targets defined here are real Qt Tests:
 # per-case reporting, data rows, selectable by function/tag.
-find_package(Qt6 REQUIRED COMPONENTS Test)
+find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
 set(CMAKE_AUTOMOC ON)
 
 # Slice-3 pilot: windowstatepolicy/windowmodestore contracts. Same production
@@ -1694,3 +1694,250 @@ set_tests_properties(colosseum.qttest.tankoban_preferences_sync PROPERTIES
     LABELS "unit;qttest;sync;domain;tankoban;preferences"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 180)
+
+# ── Watch Party room domain (approved plan Slice 1) ──────────────────────────
+# Pure Qt6::Core room rules + protocol + deterministic fake transport. No QML,
+# player, account, persistence, or live-network dependency enters this target.
+add_executable(tst_watchparty_room
+    auto/watchparty/tst_watchparty_room.cpp
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomController.h")
+target_include_directories(tst_watchparty_room PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_watchparty_room PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_watchparty_room PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_watchparty_room POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.watchparty_room
+         COMMAND tst_watchparty_room)
+set_tests_properties(colosseum.qttest.watchparty_room PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Watch Party authoritative source descriptor (approved plan Slice 2) ──────
+# Pure Qt6::Core classifier + structured protocol shape. It mirrors Player 1's
+# torrent/direct routing without constructing QML/mpv/network/provider state.
+add_executable(tst_watchparty_source
+    auto/watchparty/tst_watchparty_source.cpp
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.h")
+target_include_directories(tst_watchparty_source PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_watchparty_source PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_watchparty_source PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_watchparty_source POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.watchparty_source
+         COMMAND tst_watchparty_source)
+set_tests_properties(colosseum.qttest.watchparty_source PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Watch Party Player 1 sync policy (approved plan Slice 3) ─────────────────
+# Pure Qt6::Core controller with explicit fake player observation/clock values.
+# No mpv/QML/network/account dependency enters this deterministic policy target.
+add_executable(tst_watchparty_sync
+    auto/watchparty/tst_watchparty_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.h")
+target_include_directories(tst_watchparty_sync PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_watchparty_sync PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_watchparty_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_watchparty_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.watchparty_sync
+         COMMAND tst_watchparty_sync)
+set_tests_properties(colosseum.qttest.watchparty_sync PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── Watch Party production client transport/service seam (plan Slice 4) ──────
+# Deterministic: WebSocket behavior is exercised through an injected fake socket.
+# No live-network endpoint is contacted by this target.
+add_executable(tst_watchparty_transport
+    auto/watchparty/tst_watchparty_transport.cpp
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySocket.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/QtWatchPartySocket.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/QtWatchPartySocket.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WebSocketWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WebSocketWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.h")
+target_include_directories(tst_watchparty_transport PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_watchparty_transport PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::WebSockets
+    Qt6::Test)
+set_target_properties(tst_watchparty_transport PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_watchparty_transport POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.watchparty_transport
+         COMMAND tst_watchparty_transport)
+set_tests_properties(colosseum.qttest.watchparty_transport PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
+# ── Watch Party account-owned identity/invite seam (approved plan Slice 5) ───
+# Deterministic interface/domain test. The fake account bridge exists only in
+# the test TU: production gets no fabricated account database/client and this
+# target performs no live account or room-service I/O.
+add_executable(tst_watchparty_identity
+    auto/watchparty/tst_watchparty_identity.cpp
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomController.h")
+target_include_directories(tst_watchparty_identity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_watchparty_identity PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_watchparty_identity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_watchparty_identity POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.watchparty_identity
+         COMMAND tst_watchparty_identity)
+set_tests_properties(colosseum.qttest.watchparty_identity PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Watch Party QML-facing lifecycle/readiness seam (approved plan Slice 6) ──
+# Deterministic native contract test. It uses fake room/account transport and the
+# real PlayerSync policy; no live account service, room server, QML engine, or
+# mpv instance is required.
+add_executable(tst_watchparty_ui
+    auto/watchparty/tst_watchparty_ui.cpp
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySocket.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/QtWatchPartySocket.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/QtWatchPartySocket.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WebSocketWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WebSocketWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.h")
+target_include_directories(tst_watchparty_ui PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_watchparty_ui PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::WebSockets
+    Qt6::Test)
+set_target_properties(tst_watchparty_ui PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_watchparty_ui POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.watchparty_ui
+         COMMAND tst_watchparty_ui)
+set_tests_properties(colosseum.qttest.watchparty_ui PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Watch Party assembled lifecycle/failure matrix (approved plan Slice 7) ───
+# Deterministic fake transport + real repo-local room/service/UI owners. No live
+# service/account/QML/mpv dependency enters this target.
+add_executable(tst_watchparty_lifecycle
+    auto/watchparty/tst_watchparty_lifecycle.cpp
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySocket.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/QtWatchPartySocket.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/QtWatchPartySocket.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WebSocketWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WebSocketWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/FakeWatchPartyTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyRoomServiceClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.h")
+target_include_directories(tst_watchparty_lifecycle PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_watchparty_lifecycle PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::WebSockets
+    Qt6::Test)
+set_target_properties(tst_watchparty_lifecycle PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_watchparty_lifecycle POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.watchparty_lifecycle
+         COMMAND tst_watchparty_lifecycle)
+set_tests_properties(colosseum.qttest.watchparty_lifecycle PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)

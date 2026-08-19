@@ -25,6 +25,10 @@
 
 class QQmlApplicationEngine;
 
+namespace Colosseum::WatchParty {
+class IWatchPartyAccountBridge;
+}
+
 class AccountRuntime final : public QObject {
     Q_OBJECT
 
@@ -36,6 +40,13 @@ public:
     ProfileStoreRuntime *profileStores();
 
     void prepareForQml(QQmlApplicationEngine *engine);
+
+    // Narrow Watch Party identity seam — supplies signed-in username +
+    // current bearer to the Watch Party WSS boundary only; never exposed to
+    // QML; invite delivery fail-closed until the account service exposes a
+    // delivery operation.
+    std::unique_ptr<Colosseum::WatchParty::IWatchPartyAccountBridge>
+    createWatchPartyAccountBridge();
 
 private:
     bool installCoreSyncAdapters(

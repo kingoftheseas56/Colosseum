@@ -38,6 +38,7 @@ MpvItem::MpvItem(QQuickItem *parent)
     observeProperty(MpvProperties::self()->VideoZoom, MPV_FORMAT_DOUBLE);
     observeProperty(MpvProperties::self()->VideoAspectOverride, MPV_FORMAT_STRING);
     observeProperty(QStringLiteral("demuxer-cache-time"), MPV_FORMAT_DOUBLE);
+    observeProperty(QStringLiteral("cache-buffering-state"), MPV_FORMAT_DOUBLE);
     observeProperty(QStringLiteral("seeking"), MPV_FORMAT_FLAG);
     observeProperty(QStringLiteral("chapter-list"), MPV_FORMAT_NODE);
     // Decoded-frame truth (J1-Video-Seam): the same two properties
@@ -199,6 +200,10 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
     } else if (property == QLatin1String("demuxer-cache-time")) {
         m_cacheTime = value.toDouble();
         Q_EMIT cacheTimeChanged();
+
+    } else if (property == QLatin1String("cache-buffering-state")) {
+        m_cacheBufferingState = qBound(0.0, value.toDouble(), 100.0);
+        Q_EMIT cacheBufferingStateChanged();
 
     } else if (property == QLatin1String("seeking")) {
         m_coreSeeking = value.toBool();
@@ -607,6 +612,11 @@ double MpvItem::duration()
 double MpvItem::cacheTime() const
 {
     return m_cacheTime;
+}
+
+double MpvItem::cacheBufferingState() const
+{
+    return m_cacheBufferingState;
 }
 
 bool MpvItem::coreSeeking() const

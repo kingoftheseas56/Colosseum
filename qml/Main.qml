@@ -3075,6 +3075,11 @@ Window {
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
         onOpenMediaClicked: openMediaDialog.open()
         onOpenRecentRequested: openRecentPanel.toggle()
+        onWatchPartyJoinClicked: watchPartyJoinSheet.openSheet()
+        watchPartyJoinOpen: watchPartyJoinSheet.opened
+        watchPartyJoinPhase: typeof WatchPartyUi !== "undefined" ? WatchPartyUi.phase : "unavailable"
+        watchPartyJoinErrorCategory: typeof WatchPartyUi !== "undefined"
+                                     ? WatchPartyUi.errorCategory : "unavailable"
         downloadsBadge: win.totalActiveDownloads
         // While the Living Guide floats above (z:59) only Guide carries the active underline; the
         // underlying loaders stay alive, so closing Guide restores each utility's real state.
@@ -3097,6 +3102,16 @@ Window {
         updatePresentation: updateLayer.item ? updateLayer.item.taskbarPresentation : ({})
         onUpdateClicked: (guideLayer.active || !updateLayer.active) ? win.openUpdatePage() : win.closeUpdatePage()
         onUpdatePrimaryActionRequested: if (updateLayer.item) updateLayer.item.invokePrimaryAction()
+    }
+
+    // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
+    // It joins room membership only; playback readiness remains false until Player 1
+    // positively loads the authoritative room source.
+    WatchPartyJoinSheet {
+        id: watchPartyJoinSheet
+        controller: typeof WatchPartyUi !== "undefined" ? WatchPartyUi : null
+        x: Math.round((win.width - width) / 2)
+        y: Math.round((win.height - height) / 2)
     }
 
     // ── Vault launch entry points (execution plan Slice 8): Open Media…, drag-drop, Ctrl+O ──

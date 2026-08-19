@@ -55,6 +55,50 @@ Item {
     // from a route counter) when known, else mpv's own currentUrl as the fallback.
     readonly property string sourceIdentity:  root.mediaId.length > 0 ? root.mediaId
                                                                        : mpv.currentUrl.toString()
+    // Slice 3: flat, read-only Watch Party sync truth for Lanista/qml-get.
+    readonly property bool watchPartySyncActive:
+        typeof WatchPartySync !== "undefined" && WatchPartySync.active
+    readonly property string watchPartySyncStatus:
+        typeof WatchPartySync !== "undefined" ? WatchPartySync.syncStatus : "inactive"
+    readonly property real watchPartyDriftSeconds:
+        typeof WatchPartySync !== "undefined" ? WatchPartySync.driftSeconds : 0
+    readonly property bool watchPartyCatchUpAvailable:
+        typeof WatchPartySync !== "undefined" && WatchPartySync.catchUpAvailable
+    readonly property bool watchPartyCanControlTimeline:
+        typeof WatchPartySync !== "undefined" && WatchPartySync.canControlTimeline
+    // Slice 6: minimal scalar UI/room observability only. No credentials or chat
+    // contents are exposed through these Player 1 diagnostics.
+    readonly property bool watchPartyRoomActive:
+        typeof WatchPartyUi !== "undefined" && WatchPartyUi.inRoom
+    readonly property string watchPartyUiPhase:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.phase : "unavailable"
+    readonly property string watchPartyControlMode:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.controlMode : "host"
+    // Slice 7: exact scalar lifecycle observability for deterministic/Lanista
+    // verification. These values intentionally omit Room ID, participant/source
+    // identifiers, chat/reaction contents, and every credential.
+    readonly property string watchPartyTransportState:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.transportState : "closed"
+    readonly property string watchPartyErrorCategory:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.errorCategory : ""
+    readonly property int watchPartyParticipantCount:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.participantCount : 0
+    readonly property int watchPartyBufferingParticipantCount:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.bufferingParticipantCount : 0
+    readonly property string watchPartyHostIdentityKind:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.hostIdentityKind : "none"
+    readonly property bool watchPartyHostGraceActive:
+        typeof WatchPartyUi !== "undefined" && WatchPartyUi.hostGraceActive
+    readonly property string watchPartyLocalSyncStatus:
+        typeof WatchPartyUi !== "undefined" ? WatchPartyUi.localSyncStatus : "inactive"
+    readonly property bool watchPartySourceEligible: !!root.watchPartySource.eligible
+    readonly property bool watchPartySourceMatchesRoom:
+        !root.watchPartyRoomActive
+        || root.watchPartyDescriptorsMatch(
+            root.watchPartySource.descriptor || ({}),
+            (typeof WatchPartyUi !== "undefined" ? WatchPartyUi.roomSource : ({})))
+    readonly property bool watchPartyPanelOpen:
+        typeof watchPartyMenu !== "undefined" && watchPartyMenu.panelOpen
 
     Settings {
         id: playerSettings
@@ -139,6 +183,7 @@ Item {
     property real resumePromptMinSec: 30       // only prompt after meaningful progress
     property real resumeRestartThreshold: 0.80 // at/over this fraction of duration, start over silently
     property bool resumeChoiceOpen: false      // is the overlay visible
+    onResumeChoiceOpenChanged: root.syncWatchPartyPlayerObservation()
     property real resumeChoiceSec: -1          // the saved position the overlay offers
     property bool resumePromptConsumed: false  // prompt only once per source load
 
@@ -181,6 +226,13 @@ Item {
 
     property var streamCandidates: []
     property int currentStreamIndex: -1
+    // Slice 2: one credential-free Player 1 → Watch Party source seam. The native
+    // inspector mirrors playStreamAt's real route decision; unsupported direct URLs
+    // stay unsupported until a provider owner supplies verified debrid semantics.
+    readonly property var watchPartySource: (typeof WatchPartySource !== "undefined")
+        ? WatchPartySource.describeCandidate(root.currentStreamCandidate())
+        : ({ "eligible": false, "eligibility": "unsupported",
+             "reason": "source_inspector_unavailable", "addonId": "", "descriptor": ({}) })
     property int streamRetryCount: 0
     property int streamWatchdogSeconds: 75
 
@@ -234,7 +286,10 @@ Item {
     // minimized, resume on restore — but only ever undoing a pause we caused.
     property bool autoPausedInactive: false
     readonly property bool windowMinimized: root.Window.window ? (root.Window.window.visibility === Window.Minimized) : false
-    onWindowMinimizedChanged: root.handleWindowMinimize()
+    onWindowMinimizedChanged: {
+        root.handleWindowMinimize()
+        root.syncWatchPartyPlayerObservation()
+    }
     property bool frameGrabToastOpen: false
     property string frameGrabToastText: ""
     property string frameGrabPath: ""
@@ -852,7 +907,7 @@ Item {
     // fullscreen 150%-DPI window and hid change-stream + download for no layout reason.
     readonly property bool barSnug: utilitySpace < 360
     readonly property bool barTiny: utilitySpace < 260
-    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
+    readonly property bool anyMenuOpen: watchPartyMenu.panelOpen || audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -918,6 +973,11 @@ Item {
                 "quality": c.qualityLine || c.quality || "",
                 "seeders": c.seeders !== undefined ? c.seeders : -1,
                 "sourceName": c.sourceName || c.addonName || "Torrentio",
+                // Preserve the source owner's stable identity separately from its display name.
+                // Watch Party may inspect this provenance locally; transportUrl never enters the row.
+                "addonId": c.addonId || "",
+                "addonName": c.addonName || "",
+                "streamKind": c.streamKind || "",
                 "url": c.url || "",
                 // HTTP hosts that gate on a Referer/Origin ride their required headers this far;
                 // the play path installs them via mpv.loadFileWithHeaders. Must survive this
@@ -932,7 +992,12 @@ Item {
                 "title": title || "Stream",
                 "quality": "",
                 "seeders": -1,
-                "sourceName": "Torrentio"
+                "sourceName": "Torrentio",
+                "addonId": "",
+                "addonName": "",
+                "streamKind": String(infoHash).indexOf("url:") === 0 ? "Direct" : "Torrent",
+                "url": "",
+                "headers": ({})
             })
         }
         return out
@@ -959,6 +1024,20 @@ Item {
         if (root.currentStreamIndex < 0 || root.currentStreamIndex >= root.streamCandidates.length)
             return ({})
         return root.streamCandidates[root.currentStreamIndex] || ({})
+    }
+
+    function watchPartyDescriptorsMatch(localDescriptor, roomDescriptor) {
+        var local = localDescriptor || ({})
+        var room = roomDescriptor || ({})
+        if (!local.kind || String(local.kind) !== String(room.kind || ""))
+            return false
+        if (String(local.kind) === "torrent")
+            return String(local.infoHash || "").toLowerCase() === String(room.infoHash || "").toLowerCase()
+                    && Number(local.fileIdx || 0) === Number(room.fileIdx || 0)
+        if (String(local.kind) === "debrid")
+            return String(local.providerId || "") === String(room.providerId || "")
+                    && String(local.providerSourceId || "") === String(room.providerSourceId || "")
+        return false
     }
 
     function isStreamDead(candidateOrIndex) {
@@ -2381,6 +2460,59 @@ Item {
         root.wakeChrome()
     }
 
+    // Slice 3: Player 1 remains the playback state machine. These helpers separate
+    // explicit local user intent from authoritative room application so ordinary
+    // mpv lifecycle/property changes can never echo back as room commands.
+    function syncWatchPartyPlayerObservation() {
+        var locallyPlayable = root.fileReady && !root.starting && !root.errored
+                && (!root.windowMinimized || root.pipMode)
+                && !root.resumeChoiceOpen
+        var exactRoomSource = root.watchPartyRoomActive
+                && root.watchPartySourceMatchesRoom
+                && root.watchPartySourceEligible
+        var roomReady = locallyPlayable && exactRoomSource
+
+        if (typeof WatchPartyUi !== "undefined")
+            WatchPartyUi.setLocalSourceReady(roomReady)
+
+        if (typeof WatchPartySync === "undefined" || !WatchPartySync.active) {
+            if (typeof WatchPartyUi !== "undefined" && root.watchPartyRoomActive)
+                WatchPartyUi.updateLocalParticipantState(false, "unknown")
+            return
+        }
+
+        var buffering = roomReady && !mpv.pause
+                && mpv.cacheBufferingState >= 0
+                && mpv.cacheBufferingState < 100
+        WatchPartySync.observePlayer(mpv.position, mpv.pause, roomReady, buffering,
+                                     mpv.coreSeeking, Date.now())
+        if (typeof WatchPartyUi !== "undefined")
+            WatchPartyUi.updateLocalParticipantState(roomReady, WatchPartySync.syncStatus)
+    }
+    function requestUserSeekTo(sec) {
+        var target = root.clamp(sec, 0, Math.max(0, mpv.duration))
+        if (typeof WatchPartySync !== "undefined" && WatchPartySync.active) {
+            WatchPartySync.requestLocalSeek(target)
+            root.wakeChrome()
+            return
+        }
+        root.seekTo(target)
+    }
+    function requestUserSeekStep(delta) {
+        if (typeof WatchPartySync !== "undefined" && WatchPartySync.active) {
+            var target = Math.max(0, mpv.position + delta)
+            if (mpv.duration > 0)
+                target = Math.min(target, mpv.duration)
+            root.requestUserSeekTo(target)
+            return
+        }
+        root.seekStep(delta)
+    }
+    function catchUpWatchParty() {
+        if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
+            WatchPartySync.catchUp(Date.now())
+    }
+
     // --- skip segments (Feature 4) ---
     function skipSegmentsExcluded() {
         if (root.subStreamId.indexOf("iptv:") === 0 || root.mediaId.indexOf("iptv:") === 0)
@@ -2683,8 +2815,12 @@ Item {
         return "--"
     }
     function togglePlayPause() {
-        if (!root.starting && !root.errored)
-            mpv.pause = !mpv.pause
+        if (!root.starting && !root.errored) {
+            if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
+                WatchPartySync.requestLocalPlayback(mpv.pause, mpv.position)
+            else
+                mpv.pause = !mpv.pause
+        }
         root.wakeChrome()
     }
     // Volume is a plain linear 0..100 (Hemanth 2026-07-09: "make the volume make sense...
@@ -2707,6 +2843,7 @@ Item {
         return root.clamp(mpv.volume, 0, 100) / 100
     }
     function closeMenus() {
+        watchPartyMenu.panelOpen = false
         audioMenu.panelOpen = false
         subMenu.panelOpen = false
         subStyleBar.open = false
@@ -2781,15 +2918,15 @@ Item {
             else
                 root.backRequested()
             return
-        case "seekBack": root.seekStep(-root.seekBackSeconds); return
-        case "seekForward": root.seekStep(root.seekForwardSeconds); return
-        case "frameBack": if (mpv.pause) mpv.frameBackStep(); else root.seekStep(-30); return
-        case "frameForward": if (mpv.pause) mpv.frameStep(); else root.seekStep(30); return
-        case "seekStart": root.seekTo(0); return
-        case "seekEnd": if (mpv.duration > 0) root.seekTo(mpv.duration - 0.5); return
+        case "seekBack": root.requestUserSeekStep(-root.seekBackSeconds); return
+        case "seekForward": root.requestUserSeekStep(root.seekForwardSeconds); return
+        case "frameBack": if (mpv.pause) mpv.frameBackStep(); else root.requestUserSeekStep(-30); return
+        case "frameForward": if (mpv.pause) mpv.frameStep(); else root.requestUserSeekStep(30); return
+        case "seekStart": root.requestUserSeekTo(0); return
+        case "seekEnd": if (mpv.duration > 0) root.requestUserSeekTo(mpv.duration - 0.5); return
         case "seekPercent":
             var digit = event.key - Qt.Key_0
-            root.seekTo(digit === 0 ? 0 : mpv.duration * digit / 10)
+            root.requestUserSeekTo(digit === 0 ? 0 : mpv.duration * digit / 10)
             return
         case "mute": mpv.mute = !mpv.mute; return
         case "volumeUp": root.adjustVolume(event.modifiers & Qt.ShiftModifier ? 1 : 5); return
@@ -3087,6 +3224,7 @@ Item {
             root.statusMsg = "Buffering..."
             root.wakeChrome()
             root.syncPowerInhibit()
+            root.syncWatchPartyPlayerObservation()
         }
         onFileLoaded: {
             // fileLoaded means mpv OPENED the file (its track list + duration are now available) —
@@ -3140,6 +3278,7 @@ Item {
             root.syncPowerInhibit()
             root.detectStubStream()
             root.loadSkipSegments()  // first attempt; re-runs on chapters/duration settle
+            root.syncWatchPartyPlayerObservation()
         }
         onPlaybackError: function(code, message) {
             root.handlePlaybackIssue(code, message)
@@ -3148,6 +3287,7 @@ Item {
             root.starting = false
             root.fileReady = false
             root.syncPowerInhibit()
+            root.syncWatchPartyPlayerObservation()
             // error/other now route through onPlaybackError → handlePlaybackIssue (typed code),
             // which owns the recovery ladder. Calling handlePlaybackFailure here too would
             // double-fire the retry (both signals emit on the same error). [Feature 3]
@@ -3170,8 +3310,12 @@ Item {
                 root.wakeChrome()
             root.syncPowerInhibit()
             root.detectStubStream()
+            root.syncWatchPartyPlayerObservation()
         }
-        onPositionChanged: root.finishStartingIfPlaybackAdvanced()
+        onPositionChanged: {
+            root.finishStartingIfPlaybackAdvanced()
+            root.syncWatchPartyPlayerObservation()
+        }
         onGifSaved: function(path) {
             root.gifState = "idle"
             root.gifElapsedSec = 0
@@ -3185,8 +3329,47 @@ Item {
         onDurationChanged: { root.detectStubStream(); root.loadSkipSegments() }
         onChaptersChanged: root.loadSkipSegments()
         onTrackListChanged: root.maybeAutoSelectTracks("track-list")
-        onCoreSeekingChanged: if (!mpv.coreSeeking) { root.seekTargetSec = -1; seekSettleGuard.stop() }
+        onCacheBufferingStateChanged: root.syncWatchPartyPlayerObservation()
+        onCoreSeekingChanged: {
+            if (!mpv.coreSeeking) {
+                root.seekTargetSec = -1
+                seekSettleGuard.stop()
+            }
+            root.syncWatchPartyPlayerObservation()
+        }
     }
+
+    Connections {
+        target: typeof WatchPartySync !== "undefined" ? WatchPartySync : null
+
+        function onPlayerObservationRequested() {
+            root.syncWatchPartyPlayerObservation()
+        }
+        function onSeekRequested(positionSeconds) {
+            // Authoritative room application uses the raw Player 1 seam. It never
+            // passes through requestUserSeek* and therefore cannot echo outbound.
+            root.seekTo(positionSeconds)
+        }
+        function onPauseRequested(paused) {
+            if (mpv.pause !== paused)
+                mpv.pause = paused
+            root.wakeChrome()
+        }
+    }
+
+    Connections {
+        target: typeof WatchPartyUi !== "undefined" ? WatchPartyUi : null
+
+        function onRoomChanged() {
+            root.syncWatchPartyPlayerObservation()
+        }
+        function onRoomActivated() {
+            root.syncWatchPartyPlayerObservation()
+            root.wakeChrome()
+        }
+    }
+
+    onWatchPartySourceChanged: root.syncWatchPartyPlayerObservation()
 
     // Per-show cinematic loader (Task 5): replaces the old black blanker + title card. Covers the
     // stale mpv frame while starting/errored and exits on the truthful first-frame advance. It
@@ -4893,7 +5076,7 @@ Item {
                             root.wakeChrome()
                         }
                         onReleased: {
-                            root.seekTo(root.seekPreview)
+                            root.requestUserSeekTo(root.seekPreview)
                             root.seeking = false
                         }
                     }
@@ -5011,7 +5194,7 @@ Item {
                         icon: "seekBack"
                         label: root.seekBackSeconds
                         tooltip: "Back " + root.seekBackSeconds + "s"
-                        onClicked: root.seekStep(-root.seekBackSeconds)
+                        onClicked: root.requestUserSeekStep(-root.seekBackSeconds)
                     }
                     RoundButton {
                         size: tight ? 46 : 48
@@ -5025,7 +5208,7 @@ Item {
                         icon: "seekForward"
                         label: root.seekForwardSeconds
                         tooltip: "Forward " + root.seekForwardSeconds + "s"
-                        onClicked: root.seekStep(root.seekForwardSeconds)
+                        onClicked: root.requestUserSeekStep(root.seekForwardSeconds)
                     }
                     RoundButton {
                         visible: root.hasAdjacentEpisode("next")
@@ -5037,6 +5220,8 @@ Item {
                 }
 
                 Row {
+                    id: playerRightControlCluster
+                    objectName: "playerRightControlCluster"
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 6
@@ -5056,6 +5241,25 @@ Item {
                             root.closeMenus()
                             root.browserOpen = !wasOpen
                             root.wakeChrome()
+                        }
+                    }
+
+                    WatchPartyPanel {
+                        id: watchPartyMenu
+                        anchors.verticalCenter: parent.verticalCenter
+                        overlayParent: chrome
+                        controller: typeof WatchPartyUi !== "undefined" ? WatchPartyUi : null
+                        syncController: typeof WatchPartySync !== "undefined" ? WatchPartySync : null
+                        sourceInfo: root.watchPartySource
+                        localSourceMatches: root.watchPartySourceMatchesRoom
+                        onToggleRequested: function(wasOpen) {
+                            root.closeMenus()
+                            watchPartyMenu.panelOpen = !wasOpen
+                            root.wakeChrome()
+                        }
+                        onCopyRequested: function(text) {
+                            if (typeof Clipboard !== "undefined")
+                                Clipboard.copy(text)
                         }
                     }
 

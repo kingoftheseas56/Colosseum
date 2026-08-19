@@ -324,6 +324,36 @@ add_executable(colosseum
     player/windowmodestore.h
     player/windowstatepolicy.cpp
     player/windowstatepolicy.h
+    # Watch Party cumulative Slices 1-6: isolated room core, credential-free
+    # source eligibility, narrow Player 1 timeline sync policy, repo-local
+    # transport/service boundary, account-owned identity/invite seam, and the
+    # QML-facing room/UI coordinator. Concrete account/cloud binding and
+    # room-service deployment remain external adoption prerequisites.
+    watchparty/WatchPartyTypes.cpp
+    watchparty/WatchPartyTypes.h
+    watchparty/WatchPartyProtocol.cpp
+    watchparty/WatchPartyProtocol.h
+    watchparty/WatchPartySource.cpp
+    watchparty/WatchPartySource.h
+    watchparty/WatchPartyPlayerSync.cpp
+    watchparty/WatchPartyPlayerSync.h
+    watchparty/WatchPartyTransport.cpp
+    watchparty/WatchPartyTransport.h
+    watchparty/WatchPartySocket.h
+    watchparty/QtWatchPartySocket.cpp
+    watchparty/QtWatchPartySocket.h
+    watchparty/WebSocketWatchPartyTransport.cpp
+    watchparty/WebSocketWatchPartyTransport.h
+    watchparty/FakeWatchPartyTransport.cpp
+    watchparty/FakeWatchPartyTransport.h
+    watchparty/WatchPartyRoomServiceClient.cpp
+    watchparty/WatchPartyRoomServiceClient.h
+    watchparty/WatchPartyIdentity.cpp
+    watchparty/WatchPartyIdentity.h
+    watchparty/WatchPartyUiController.cpp
+    watchparty/WatchPartyUiController.h
+    watchparty/WatchPartyRoomController.cpp
+    watchparty/WatchPartyRoomController.h
     torrent/TorrentResult.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h

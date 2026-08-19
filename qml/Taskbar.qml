@@ -9,6 +9,8 @@ Item {
     objectName: "colosseumTaskbar"
     anchors.fill: parent
 
+    Theme { id: theme }
+
     property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []
     property string activeId: (typeof Sessions !== "undefined") ? Sessions.activeId : ""
     property bool open: false
@@ -25,6 +27,12 @@ Item {
     signal closeRequested(string id)
     signal startClicked()
     signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
+    signal watchPartyJoinClicked()        // Accountless/signed-in Room ID entry outside Player 1
+    // Slice 6 Lanista scalars: bound by Main.qml to the outside-player Join sheet.
+    // Categories only; no Room ID, guest name, chat, or credentials enter diagnostics.
+    property bool watchPartyJoinOpen: false
+    property string watchPartyJoinPhase: "idle"
+    property string watchPartyJoinErrorCategory: ""
     signal openRecentRequested()          // Open Recent disclosure — the remembered files (Slice 9)
     signal vaultClicked()                 // Vault folder door — opens the "On this machine" page (Slice 10)
     property bool vaultActive: false      // the Vault page is the front surface
@@ -274,6 +282,59 @@ Item {
                         onClicked: bar.openRecentRequested()
                     }
                 }
+            }
+
+            // ---- Watch Party: Room ID join lives outside immersive Player 1 so
+            // accountless users always have a route into a private room. This is an
+            // action, not a page; the join sheet owns its temporary input state.
+            Item {
+                id: watchPartyJoinAction
+                objectName: "taskbarWatchPartyJoin"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                activeFocusOnTab: visible
+                Accessible.role: Accessible.Button
+                Accessible.name: "Join Watch Party"
+                readonly property bool atlasActive: bar.watchPartyJoinOpen
+
+                Rectangle {
+                    objectName: "taskbarWatchPartyJoinSurface"
+                    property bool activeState: watchPartyJoinAction.atlasActive
+                    anchors.fill: parent
+                    radius: 13
+                    color: watchPartyJoinAction.atlasActive || wpMa.containsMouse || watchPartyJoinAction.activeFocus
+                           ? Qt.rgba(1, 1, 1, 0.15)
+                           : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: watchPartyJoinAction.atlasActive || watchPartyJoinAction.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+
+                Item {
+                    objectName: "taskbarWatchPartyJoinGlyph"
+                    property bool activeState: watchPartyJoinAction.atlasActive
+                    property color glyphColor: watchPartyJoinAction.atlasActive ? theme.gold : theme.ink
+                    anchors.centerIn: parent
+                    width: 22
+                    height: 20
+                    opacity: watchPartyJoinAction.atlasActive || wpMa.containsMouse ? 1 : 0.75
+                    Rectangle { x: 3; y: 2; width: 7; height: 7; radius: 3.5; color: parent.glyphColor }
+                    Rectangle { x: 12; y: 4; width: 6; height: 6; radius: 3; color: parent.glyphColor }
+                    Rectangle { x: 1; y: 11; width: 11; height: 7; radius: 5; color: parent.glyphColor }
+                    Rectangle { x: 11; y: 12; width: 10; height: 6; radius: 5; color: parent.glyphColor }
+                }
+
+                MouseArea {
+                    id: wpMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.watchPartyJoinClicked()
+                }
+                Keys.onReturnPressed: bar.watchPartyJoinClicked()
+                Keys.onEnterPressed: bar.watchPartyJoinClicked()
+                Keys.onSpacePressed: bar.watchPartyJoinClicked()
             }
 
             // ---- Downloads: lives beside the Colosseum icon (ratified 2026-07-04) ----

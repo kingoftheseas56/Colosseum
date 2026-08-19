@@ -102,6 +102,9 @@
 #include "player/seekthumbnailer.h"
 #include "player/powerstore.h"
 #include "player/roomstore.h"
+#include "watchparty/WatchPartyPlayerSync.h"
+#include "watchparty/WatchPartySource.h"
+#include "watchparty/WatchPartyUiController.h"
 #include "player/streamserver.h"
 #include "player/windowmodestore.h"
 #include "torrent/TankorentSearchService.h"
@@ -1449,6 +1452,33 @@ int main(int argc, char *argv[]) {
     auto *room = new RoomStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Room"), room);
 
+    // Watch Party Slice 2: source eligibility is a separate, read-only decision seam.
+    // The existing local RoomStore remains untouched; no room/network/account behavior
+    // is adopted here. Player 1 asks this object only for a credential-free descriptor.
+    auto *watchPartySource = new Colosseum::WatchParty::SourceInspector(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("WatchPartySource"),
+                                             watchPartySource);
+
+    // Watch Party Slice 3: narrow Player 1 timeline synchronization policy. It starts
+    // inactive and owns neither room transport nor account/session state; later room
+    // integration feeds it authoritative timeline state and consumes explicit commands.
+    auto *watchPartySync = new Colosseum::WatchParty::PlayerSyncController(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("WatchPartySync"),
+                                             watchPartySync);
+
+    // Watch Party Slice 6: QML-facing room/UI coordinator. Account ownership stays outside
+    // this object; the real account bridge is bound after AccountRuntime construction below,
+    // and until then only the accountless guest flow exists. The service endpoint is
+    // deployment configuration, never room/shared state.
+    auto *watchPartyUi = new Colosseum::WatchParty::UiController(watchPartySync, &app);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_WATCH_PARTY_URL")) {
+        const QUrl watchPartyUrl(qEnvironmentVariable("COLOSSEUM_WATCH_PARTY_URL"));
+        if (!watchPartyUi->configureServiceUrl(watchPartyUrl))
+            qWarning() << "[watch-party] ignored invalid service endpoint";
+    }
+    engine.rootContext()->setContextProperty(QStringLiteral("WatchPartyUi"),
+                                             watchPartyUi);
+
     // Native player window modes exposed to QML as `WindowMode` for PiP/fullscreen parity.
     auto *windowMode = new WindowModeStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("WindowMode"), windowMode);
@@ -1489,6 +1519,15 @@ int main(int argc, char *argv[]) {
     // closed by construction.
     auto *accountRuntime = new AccountRuntime(&app);
     accountRuntime->prepareForQml(&engine);
+
+    // Watch Party account bridge (arc 03): signed-in identity + bearer stay native.
+    // Sign-out or identity replacement tears down any authenticated party session.
+    auto watchPartyAccountBridge = accountRuntime->createWatchPartyAccountBridge();
+    watchPartyUi->setAccountBridge(watchPartyAccountBridge.get());
+    QObject::connect(accountRuntime->controller(), &AccountController::signedIn,
+                     watchPartyUi, &Colosseum::WatchParty::UiController::handleAccountIdentityChanged);
+    QObject::connect(accountRuntime->controller(), &AccountController::signedOut,
+                     watchPartyUi, &Colosseum::WatchParty::UiController::handleAccountIdentityChanged);
     auto *audioPairing = accountRuntime->profileStores()->audioPairingStore();
 
     // (Deleted 2026-08-07 with BookBridge: two setters that handed the retired bridge the

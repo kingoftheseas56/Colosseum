@@ -230,7 +230,7 @@ function _requestHeaders(s) {
 
 // One stream from one extension → a sheet row. Returns null for rows the player
 // can't carry (no infoHash AND no direct url — e.g. externalUrl-only addons).
-function parseStream(s, addonName, addonPriority) {
+function parseStream(s, addonName, addonPriority, addonId) {
     if (!s || typeof s !== "object" || Array.isArray(s)) return null;
     var isTorrent = !!(s.infoHash && String(s.infoHash).length);
     var directUrl = !isTorrent && s.url ? String(s.url) : "";
@@ -254,6 +254,10 @@ function parseStream(s, addonName, addonPriority) {
         streamKind: isTorrent ? "Torrent" : "Direct",
         streamLabel: isTorrent ? "P2P stream" : "HTTP stream",
         addonName: addonName,
+        // Stable extension provenance survives into Player 1 for Watch Party eligibility.
+        // Deliberately do NOT carry transportUrl: configured extension URLs may embed
+        // provider configuration or credentials and are not room/source identity.
+        addonId: addonId || "",
         addonPriority: addonPriority,
         // the routing convention: url rows ride the torrent chain under a prefix
         infoHash: isTorrent ? s.infoHash : ("url:" + directUrl),
@@ -492,7 +496,7 @@ function loadStreams(extensions, type, id, onPartial, onDone) {
         var name = (ext.manifest && ext.manifest.name) || ext.id;
         if (list && list.length) {
             for (var i = 0; i < list.length; i++) {
-                var row = parseStream(list[i], name, priority);
+                var row = parseStream(list[i], name, priority, ext.id || "");
                 if (!row) continue;
                 var key = _rowKey(row);
                 if (seen[key]) continue;   // first (higher-priority) answer keeps the row

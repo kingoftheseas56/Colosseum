@@ -3,9 +3,64 @@
 #include "AccountRuntime.h"
 
 #include "AccountServiceEndpoint.h"
+#include "watchparty/WatchPartyIdentity.h"
 
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+
+namespace {
+
+// File-local Watch Party account bridge implementation. Kept out of the
+// header so the Watch Party identity contract (IWatchPartyAccountBridge)
+// stays the only thing AccountRuntime exposes across the seam.
+class WatchPartyAccountBridge final
+    : public Colosseum::WatchParty::IWatchPartyAccountBridge {
+public:
+    WatchPartyAccountBridge(
+        AccountController *controller,
+        AccountClient *client)
+        : m_controller(controller),
+          m_client(client) {
+    }
+
+    std::optional<Colosseum::WatchParty::SignedInAccountIdentity>
+    currentSignedInIdentity() const override {
+        if (!m_controller
+            || !m_client
+            || m_controller->mode() != QStringLiteral("signedIn")
+            || m_controller->username().isEmpty()
+            || m_client->accessToken().isEmpty()) {
+            return std::nullopt;
+        }
+
+        return Colosseum::WatchParty::SignedInAccountIdentity{
+            m_controller->username(),
+            m_client->accessToken()};
+    }
+
+    void inviteExactUsername(
+        const QString &roomId,
+        const QString &exactUsername,
+        InviteCompletion completion) override {
+        Q_UNUSED(roomId);
+        Q_UNUSED(exactUsername);
+
+        // The live account service has no invite-delivery operation yet;
+        // fail closed rather than touch the network.
+        if (completion) {
+            completion(
+                Colosseum::WatchParty::InviteDeliveryResult{
+                    Colosseum::WatchParty::InviteDeliveryStatus::Rejected,
+                    QStringLiteral("invite_delivery_unavailable")});
+        }
+    }
+
+private:
+    AccountController *m_controller = nullptr;
+    AccountClient *m_client = nullptr;
+};
+
+} // namespace
 
 AccountRuntime::AccountRuntime(QObject *parent)
     : QObject(parent),
@@ -287,6 +342,12 @@ AccountController *AccountRuntime::controller() {
 AccountRecoveryKeyPresenter *
 AccountRuntime::recoveryKeyPresenter() {
     return &m_recoveryKeyPresenter;
+}
+
+std::unique_ptr<Colosseum::WatchParty::IWatchPartyAccountBridge>
+AccountRuntime::createWatchPartyAccountBridge() {
+    return std::make_unique<WatchPartyAccountBridge>(
+        &m_controller, &m_client);
 }
 
 void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
