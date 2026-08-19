@@ -158,7 +158,7 @@ TestCase {
     }
 
     function test_slice06_guest_join_atlas_state() {
-        compare(sheet.width, 430)
+        compare(sheet.width, 650)
         compare(sheet.visualJoinState, "guest")
         compare(findChild(sheet.contentItem, "watchPartyJoinHeader").visible, true)
         compare(findChild(sheet.contentItem, "watchPartyJoinRoomField").visible, true)
