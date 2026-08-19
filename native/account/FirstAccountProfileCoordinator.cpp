@@ -2,6 +2,7 @@
 
 #include "FirstAccountProfileCoordinator.h"
 
+#include "ActivityStore.h"
 #include "LegacyPersonalStateStorage.h"
 #include "ProfilePreferencesStore.h"
 #include "ProfileStoreRuntime.h"
@@ -39,7 +40,14 @@ QString adoptionFailure(
 
 bool migratedProfileFilesPresent(
     const ProfilePaths &paths,
-    const PersonalStateSnapshot &source) {
+    const PersonalStateSnapshot &source,
+    const QString &activitySourceDigest) {
+    if (!activitySourceDigest.isEmpty()
+        && !QFileInfo::exists(
+            paths.activityDbPath())) {
+        return false;
+    }
+
     const bool needsProgress =
         !source.progressEntries.isEmpty()
         || !source.progressLastSeason.isEmpty()
@@ -318,6 +326,15 @@ runFreshAdoption(
                 captureError));
     }
 
+    // Captured alongside personal state, before the journal exists — a
+    // clean checkpoint+file digest of whatever legacy activity ledger is
+    // currently on disk (empty digest is the valid "nothing to migrate"
+    // sentinel, e.g. a fresh install predating this feature — §17).
+    QString activityCaptureError;
+    const QString activitySourceDigest =
+        captureLegacyActivityDigest(
+            &activityCaptureError);
+
     auto adoption =
         ProfileAdoption::begin(
             paths,
@@ -344,6 +361,15 @@ runFreshAdoption(
         return false;
     }
 
+    QString stagedActivityDigest;
+    if (!copyActivityLedgerToStaging(
+            paths,
+            activitySourceDigest,
+            &stagedActivityDigest,
+            error)) {
+        return false;
+    }
+
     QString stagedDigest;
     if (!verifyProfile(
             paths,
@@ -360,6 +386,13 @@ runFreshAdoption(
         return false;
     }
 
+    if (!adoption->markActivityTargetVerified(
+            activitySourceDigest,
+            stagedActivityDigest,
+            error)) {
+        return false;
+    }
+
     if (!adoption->promote(error))
         return false;
 
@@ -367,6 +400,7 @@ runFreshAdoption(
         paths,
         *adoption,
         *source,
+        activitySourceDigest,
         error);
 }
 
@@ -449,10 +483,19 @@ resumeAdoption(
                 error);
         }
 
+        // The activity digest is trusted from the journal here rather than
+        // recomputed: it was captured atomically with `source` in the same
+        // synchronous runFreshAdoption() call that produced this journal, so
+        // the personal-state identity check just above already vouches for
+        // "this is still the same interrupted adoption attempt." Recomputing
+        // independently would risk a false rollback if the legacy activity
+        // file was already (partially) quarantined by a prior crashed
+        // attempt.
         return finishPromotedAdoption(
             paths,
             adoption,
             *source,
+            adoption.snapshot().activitySourceDigest,
             error);
     }
 
@@ -538,6 +581,7 @@ finishPromotedAdoption(
     const ProfilePaths &paths,
     ProfileAdoption adoption,
     const PersonalStateSnapshot &source,
+    const QString &activitySourceDigest,
     QString *error) {
     QString targetDigest;
     if (!verifyProfile(
@@ -555,6 +599,16 @@ finishPromotedAdoption(
             error,
             QStringLiteral(
                 "The promoted account profile does not match local personal state."));
+    }
+
+    QString promotedActivityDigest;
+    if (!verifyActivityDigest(
+            paths,
+            paths.profileRoot(),
+            activitySourceDigest,
+            &promotedActivityDigest,
+            error)) {
+        return false;
     }
 
     if (!writeBackup(
@@ -577,12 +631,42 @@ finishPromotedAdoption(
                 "The rollback backup does not match local personal state."));
     }
 
+    QString activityBackupDigest;
+    if (!backupActivityLedger(
+            paths,
+            activitySourceDigest,
+            &activityBackupDigest,
+            error)) {
+        return false;
+    }
+
     m_profileRuntime
         ->suspendPersonalStoresForMigration();
+
+    // NOTE: restoreLegacyActivityFromBackup() always runs BEFORE
+    // restoreLegacyForRetry() in every failure branch below —
+    // restoreLegacyForRetry()'s reloadLegacyProfile() call reopens a live
+    // ActivityStore connection at the legacy path, so the file on disk must
+    // already be back in its pre-quarantine state before that connection
+    // opens (reopening first would create/lock a fresh empty file that a
+    // later restore would then have to fight for the handle on).
+
+    if (!quarantineLegacyActivityLedger(error)) {
+        restoreLegacyActivityFromBackup(
+            paths,
+            nullptr);
+        restoreLegacyForRetry(
+            source,
+            nullptr);
+        return false;
+    }
 
     if (!m_profileRuntime
              ->legacyStorage()
              .clearPersonalState(error)) {
+        restoreLegacyActivityFromBackup(
+            paths,
+            nullptr);
         restoreLegacyForRetry(
             source,
             nullptr);
@@ -594,6 +678,9 @@ finishPromotedAdoption(
             ->legacyStorage()
             .capture(error);
     if (!cleared.has_value()) {
+        restoreLegacyActivityFromBackup(
+            paths,
+            nullptr);
         restoreLegacyForRetry(
             source,
             nullptr);
@@ -601,6 +688,9 @@ finishPromotedAdoption(
     }
 
     if (!cleared->isEmpty()) {
+        restoreLegacyActivityFromBackup(
+            paths,
+            nullptr);
         restoreLegacyForRetry(
             source,
             nullptr);
@@ -610,9 +700,28 @@ finishPromotedAdoption(
                 "Legacy personal state was not fully quarantined."));
     }
 
+    // markActivityLegacyQuarantined() runs BEFORE markLegacyQuarantined():
+    // both require state==Promoted, and markLegacyQuarantined() is the call
+    // that actually advances state to LegacyQuarantined — calling it first
+    // would leave no valid state for the activity call to run in.
+    if (!adoption.markActivityLegacyQuarantined(
+            activityBackupDigest,
+            error)) {
+        restoreLegacyActivityFromBackup(
+            paths,
+            nullptr);
+        restoreLegacyForRetry(
+            source,
+            nullptr);
+        return false;
+    }
+
     if (!adoption.markLegacyQuarantined(
             backup->semanticDigest(),
             error)) {
+        restoreLegacyActivityFromBackup(
+            paths,
+            nullptr);
         restoreLegacyForRetry(
             source,
             nullptr);
@@ -624,6 +733,7 @@ finishPromotedAdoption(
 
     if (!activate(paths, error)) {
         return restoreLegacyAndRollback(
+            paths,
             &adoption,
             source,
             error);
@@ -668,9 +778,11 @@ verifyRestartAndCommit(
 
     if (!migratedProfileFilesPresent(
             paths,
-            *backup)) {
+            *backup,
+            adoption.snapshot().activitySourceDigest)) {
         QString restoreError;
         if (!restoreLegacyAndRollback(
+                paths,
                 &adoption,
                 *backup,
                 &restoreError)) {
@@ -701,6 +813,7 @@ verifyRestartAndCommit(
     if (!current.has_value()) {
         QString restoreError;
         if (!restoreLegacyAndRollback(
+                paths,
                 &adoption,
                 *backup,
                 &restoreError)) {
@@ -727,6 +840,34 @@ verifyRestartAndCommit(
             error)) {
         QString restoreError;
         if (!restoreLegacyAndRollback(
+                paths,
+                &adoption,
+                *backup,
+                &restoreError)) {
+            return setError(
+                error,
+                adoptionFailure(
+                    QStringLiteral(
+                        "Restart verification failed and rollback could not complete."),
+                    restoreError));
+        }
+
+        return setError(
+            error,
+            QStringLiteral(
+                "Restart verification failed; local personal state was restored."));
+    }
+
+    QString currentActivityDigest;
+    if (!verifyActivityDigest(
+            paths,
+            paths.profileRoot(),
+            adoption.snapshot().activityTargetDigest,
+            &currentActivityDigest,
+            error)) {
+        QString restoreError;
+        if (!restoreLegacyAndRollback(
+                paths,
                 &adoption,
                 *backup,
                 &restoreError)) {
@@ -747,6 +888,7 @@ verifyRestartAndCommit(
     if (!adoption.commit(error)) {
         QString restoreError;
         if (!restoreLegacyAndRollback(
+                paths,
                 &adoption,
                 *backup,
                 &restoreError)) {
@@ -1248,6 +1390,7 @@ restoreLegacyForRetry(
 
 bool FirstAccountProfileCoordinator::
 restoreLegacyAndRollback(
+    const ProfilePaths &paths,
     ProfileAdoption *adoption,
     const PersonalStateSnapshot &snapshot,
     QString *error) {
@@ -1255,6 +1398,17 @@ restoreLegacyAndRollback(
         ->suspendPersonalStoresForMigration();
 
     QString restoreError;
+    if (!restoreLegacyActivityFromBackup(
+            paths,
+            &restoreError)) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not restore the legacy activity ledger."),
+                restoreError));
+    }
+
     if (!m_profileRuntime
              ->legacyStorage()
              .restorePersonalState(
@@ -1333,6 +1487,291 @@ bool FirstAccountProfileCoordinator::activate(
             error);
 }
 
+// --- Activity-ledger adoption (CPP-PORT-CONTRACT §17) -----------------------
+//
+// The activity.sqlite file rides inside the SAME staging root/final profile
+// root every other personal-state file does, so ProfileAdoption::promote()'s
+// atomic directory rename already carries it across without any extra code
+// here. What these helpers add is: capturing a digest of whatever legacy
+// ledger exists (or the empty "nothing to migrate" sentinel), copying its
+// bytes into staging before promote(), verifying digests at each checkpoint
+// the personal-state path already has one for, and quarantining/restoring
+// the legacy file in step with legacy personal state.
+//
+// Safe-copy reasoning: every call below runs inside one synchronous
+// coordinator method with no event-loop turn (no processEvents/await) in
+// between capture and copy, so nothing else in this single-threaded Qt
+// process can write to the file mid-copy. checkpointForSafeCopy() (WAL
+// TRUNCATE) merges recent commits into the single main file first, so a
+// plain QFile::copy of just "activity.sqlite" — no "-wal"/"-shm" sidecars —
+// is a faithful snapshot. This matches CPP-PORT-CONTRACT §17's suggested
+// "SHA-256 of the sqlite file bytes after a clean close + wal checkpoint";
+// the store is checkpointed rather than closed mid-flow because it must keep
+// serving the still-live legacy session until adoption actually commits.
+
+QString FirstAccountProfileCoordinator::
+captureLegacyActivityDigest(
+    QString *error) const {
+    // Only a LIVE legacy-mode ActivityStore can hold uncommitted WAL pages
+    // for THIS exact path — any other active profile kind (sealed, during
+    // these unit tests; local/account in normal use) has its own unrelated
+    // activity.sqlite open, so there is nothing to checkpoint here and the
+    // legacy file on disk (if any) is already whatever a prior clean close
+    // left it as.
+    if (m_profileRuntime->activeProfile().kind()
+            == ProfilePaths::Kind::LegacyLocal
+        && m_profileRuntime->activityStore()) {
+        // Best-effort: activity is observational (§25) — a checkpoint
+        // failure does not block account creation, it just means the digest
+        // below is taken from whatever is already flushed to disk.
+        m_profileRuntime->activityStore()
+            ->checkpointForSafeCopy(error);
+    }
+
+    return ActivityStore::fileDigestSha256(
+        m_profileRuntime->legacyStorage()
+            .activityDbPath());
+}
+
+bool FirstAccountProfileCoordinator::
+copyActivityLedgerToStaging(
+    const ProfilePaths &paths,
+    const QString &sourceDigest,
+    QString *stagedDigest,
+    QString *error) const {
+    if (stagedDigest)
+        stagedDigest->clear();
+
+    if (sourceDigest.isEmpty()) {
+        // No legacy activity ledger to migrate — a fresh installation
+        // predating this feature, or one that never recorded activity while
+        // legacy-local. Valid, not a failure (§17).
+        return true;
+    }
+
+    const auto staged =
+        LegacyPersonalStateStorage::forProfileRoot(
+            paths,
+            paths.accountStagingRoot(),
+            error);
+    if (!staged.has_value())
+        return false;
+
+    const QString destination =
+        staged->activityDbPath();
+    const QFileInfo destinationInfo(destination);
+    if (!QDir().mkpath(
+            destinationInfo.absolutePath())) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not create the staged activity ledger directory."));
+    }
+
+    if (!QFile::copy(
+            m_profileRuntime->legacyStorage()
+                .activityDbPath(),
+            destination)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not copy the legacy activity ledger into the staged profile."));
+    }
+
+    const QString copiedDigest =
+        ActivityStore::fileDigestSha256(destination);
+    if (copiedDigest != sourceDigest) {
+        return setError(
+            error,
+            QStringLiteral(
+                "The staged activity ledger copy does not match the source activity ledger."));
+    }
+
+    if (stagedDigest)
+        *stagedDigest = copiedDigest;
+    return true;
+}
+
+bool FirstAccountProfileCoordinator::
+verifyActivityDigest(
+    const ProfilePaths &paths,
+    const QString &profileRoot,
+    const QString &expectedDigest,
+    QString *actualDigest,
+    QString *error) const {
+    if (actualDigest)
+        actualDigest->clear();
+
+    if (expectedDigest.isEmpty()) {
+        // Nothing was migrated for this profile, so there is nothing to
+        // verify — deliberately skip reading the file at all. Once the
+        // profile has been activated once, ActivityStore's own
+        // ensureSchema() will have created a schema-stamped but
+        // semantically-empty activity.sqlite there (a normal side effect of
+        // simply opening it), which is a real file with real bytes but is
+        // not "the migrated ledger" adoption promised to preserve — it must
+        // never be compared against an empty digest sentinel.
+        return true;
+    }
+
+    const auto storage =
+        LegacyPersonalStateStorage::forProfileRoot(
+            paths,
+            profileRoot,
+            error);
+    if (!storage.has_value())
+        return false;
+
+    const QString digest =
+        ActivityStore::fileDigestSha256(
+            storage->activityDbPath());
+    if (actualDigest)
+        *actualDigest = digest;
+
+    if (digest != expectedDigest) {
+        return setError(
+            error,
+            QStringLiteral(
+                "The profile activity ledger does not match the expected activity digest."));
+    }
+    return true;
+}
+
+bool FirstAccountProfileCoordinator::
+backupActivityLedger(
+    const ProfilePaths &paths,
+    const QString &expectedDigest,
+    QString *backupDigest,
+    QString *error) const {
+    if (backupDigest)
+        backupDigest->clear();
+
+    if (expectedDigest.isEmpty()) {
+        // Nothing was migrated, so there is nothing to back up either — the
+        // empty digest is the sentinel both sides compare against.
+        return true;
+    }
+
+    const QString destination =
+        activityBackupFilePath(paths);
+    if (!QDir().mkpath(
+            paths.adoptionBackupRoot())) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not create the activity ledger rollback backup directory."));
+    }
+
+    if (QFileInfo::exists(destination)
+        && !QFile::remove(destination)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not replace the existing activity ledger rollback backup."));
+    }
+
+    if (!QFile::copy(
+            paths.activityDbPath(),
+            destination)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not write the activity ledger rollback backup."));
+    }
+
+    const QString digest =
+        ActivityStore::fileDigestSha256(destination);
+    if (digest != expectedDigest) {
+        return setError(
+            error,
+            QStringLiteral(
+                "The activity ledger rollback backup does not match the promoted profile."));
+    }
+
+    if (backupDigest)
+        *backupDigest = digest;
+    return true;
+}
+
+bool FirstAccountProfileCoordinator::
+restoreLegacyActivityFromBackup(
+    const ProfilePaths &paths,
+    QString *error) const {
+    const QString backupPath =
+        activityBackupFilePath(paths);
+    if (!QFileInfo::exists(backupPath)) {
+        // Nothing was ever backed up (adoption failed before reaching the
+        // backup step, or there was no legacy activity data at all) — the
+        // legacy file, if any, was never touched, so there is nothing to
+        // restore. Not a failure.
+        return true;
+    }
+
+    const QString legacyPath =
+        m_profileRuntime->legacyStorage()
+            .activityDbPath();
+    if (legacyPath.isEmpty())
+        return true;
+
+    const QFileInfo legacyInfo(legacyPath);
+    if (!QDir().mkpath(
+            legacyInfo.absolutePath())) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not recreate the legacy activity ledger directory."));
+    }
+
+    if (QFileInfo::exists(legacyPath)
+        && !QFile::remove(legacyPath)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not clear the legacy activity ledger before restoring it."));
+    }
+
+    if (!QFile::copy(
+            backupPath,
+            legacyPath)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not restore the legacy activity ledger from backup."));
+    }
+
+    return true;
+}
+
+bool FirstAccountProfileCoordinator::
+quarantineLegacyActivityLedger(
+    QString *error) const {
+    const QString legacyPath =
+        m_profileRuntime->legacyStorage()
+            .activityDbPath();
+    if (legacyPath.isEmpty()
+        || !QFileInfo::exists(legacyPath)) {
+        return true; // nothing to quarantine
+    }
+
+    // Precondition: the caller has already suspended personal stores for
+    // migration, so no live QSqlDatabase connection holds this file open —
+    // removing it here is safe (CPP-PORT-CONTRACT §17 "flush/close it before
+    // profile migration").
+    if (!QFile::remove(legacyPath)) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Could not remove the legacy activity ledger during quarantine."));
+    }
+
+    // WAL sidecars: a prior clean checkpoint+close normally leaves these
+    // absent or empty, but clear them defensively so no orphaned sidecar
+    // survives beside a now-deleted main file.
+    QFile::remove(legacyPath + QStringLiteral("-wal"));
+    QFile::remove(legacyPath + QStringLiteral("-shm"));
+    return true;
+}
+
 std::optional<bool>
 FirstAccountProfileCoordinator::
 legacyPersonalStateClaimed(
@@ -1402,6 +1841,16 @@ backupFilePath(
         .filePath(
             QStringLiteral(
                 "personal-state.json"));
+}
+
+QString FirstAccountProfileCoordinator::
+activityBackupFilePath(
+    const ProfilePaths &paths) {
+    return QDir(
+        paths.adoptionBackupRoot())
+        .filePath(
+            QStringLiteral(
+                "activity.sqlite"));
 }
 
 QString FirstAccountProfileCoordinator::

@@ -28,6 +28,18 @@ public:
         QString legacyBackupRoot;
         QString stagingRoot;
         QString finalRoot;
+
+        // Activity-ledger digests (CPP-PORT-CONTRACT §17), parallel to the
+        // three digests above but tracked separately: the activity.sqlite
+        // file rides inside stagingRoot/finalRoot and is promoted by the same
+        // directory rename, so these are auxiliary verification facts, not a
+        // second state machine. Empty string is the deliberate "no legacy
+        // activity ledger to migrate" sentinel on both sides — a fresh
+        // installation predating this feature has nothing to digest, and
+        // that must compare equal, not fail verification.
+        QString activitySourceDigest;
+        QString activityTargetDigest;
+        QString activityLegacyBackupDigest;
     };
 
     static std::optional<ProfileAdoption> begin(const ProfilePaths &paths,
@@ -41,9 +53,28 @@ public:
 
     bool markTargetVerified(const QString &targetSemanticDigest,
                             QString *error = nullptr);
+
+    // Parallel activity-ledger verification (CPP-PORT-CONTRACT §17), called
+    // alongside markTargetVerified() (either order) while still Preparing —
+    // it does NOT itself transition state, only records/persists the two
+    // digests. Both empty is valid ("no activity data to migrate"); a
+    // non-empty pair must match exactly. This is a separate method rather
+    // than extra markTargetVerified() parameters so existing two-argument
+    // call sites (targetDigest, error) keep compiling unchanged.
+    bool markActivityTargetVerified(const QString &activitySourceDigest,
+                                    const QString &activityTargetDigest,
+                                    QString *error = nullptr);
+
     bool promote(QString *error = nullptr);
     bool markLegacyQuarantined(const QString &backupSemanticDigest,
                                QString *error = nullptr);
+
+    // Parallel activity-ledger quarantine verification, called alongside
+    // markLegacyQuarantined() while Promoted — same non-breaking-overload
+    // reasoning as markActivityTargetVerified() above.
+    bool markActivityLegacyQuarantined(const QString &activityLegacyBackupDigest,
+                                       QString *error = nullptr);
+
     bool commit(QString *error = nullptr);
 
     bool rollbackBeforeLegacyQuarantine(QString *error = nullptr);

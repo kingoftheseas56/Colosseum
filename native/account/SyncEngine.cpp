@@ -484,6 +484,7 @@ QString SyncEngine::lastErrorMessage() const {
 void SyncEngine::handleClientCompleted(
     quint64 requestId,
     AccountOperation operation,
+    quint64 accessTokenGeneration,
     const AccountTransportReply &reply) {
     if (!m_active
         || requestId == 0
@@ -518,11 +519,22 @@ void SyncEngine::handleClientCompleted(
         m_networkBusy = false;
         m_request = {};
 
-        setBlocked(
+        if (accessTokenGeneration != 0
+            && accessTokenGeneration
+                != m_client->accessTokenGeneration()) {
+            clearError();
+            setState(State::Idle);
+            m_initialPullPending = true;
+            maybeRunNetwork();
+            return;
+        }
+
+        setNetworkEnabled(false);
+        setRetrying(
             reply.errorCode,
             QStringLiteral(
-                "The account session is no longer valid."));
-        emit sessionInvalidated();
+                "Sync is waiting for account authentication to recover."));
+        emit accessTokenRejected();
         return;
     }
 

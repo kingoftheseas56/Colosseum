@@ -72,6 +72,12 @@ Item {
     // it" the way there is in Long Strip. It rides in the signature so all three surfaces speak one
     // shape and Task 11 has one handler, not three.
     signal presented(int anchorPage, real withinPageFraction)
+    // Activity presentation (CPP-PORT-CONTRACT.md §9 Lane C): the ONE physical page this
+    // surface actually rendered — never the error placard (excluded by contentRendered below,
+    // unlike presented() above, which counts a terminal placard as "the reader is here" for
+    // RESUME purposes). 0-based — the shell's/ComicActivityHelpers page-key namespace, NOT the
+    // 1-based scale presented()/retryRequested()/skipRequested() speak.
+    signal activityPagesPresented(var pageKeys)
     // The placard's two ways out (Task 11), raised straight through. The surface performs neither —
     // Retry is a backend re-read and Skip is a navigation, and both belong to the shell, which is
     // the only thing that knows what "the next page" means in this layout and this order.
@@ -105,8 +111,10 @@ Item {
             // reset, opening book B on page 1 straight after reading book A page 1 emitted nothing at
             // all, because the marker still said "page 1 is presented". (Measured: 0 emissions.)
             root._presentedPage = -1
+            root._activityPresentedPage = -1
             root._onPageShown()
             root._checkPresented()
+            root._checkActivityPresented()
         }
         function onPairingChanged()  { root.entryRev += 1 }
     }
@@ -225,10 +233,10 @@ Item {
         var idx = Math.max(0, currentPage - 1)
         if (core && core.setVisible) core.setVisible([idx])
     }
-    onCurrentPageChanged: { _onPageShown(); _checkPresented() }
+    onCurrentPageChanged: { _onPageShown(); _checkPresented(); _checkActivityPresented() }
     // Becoming the mounted surface with pixels already up IS a presentation — the layout switched and
     // the reader is now looking at that page — so the notice is re-checked here, not only on a decode.
-    onActiveChanged: { _onPageShown(); _checkPresented() }
+    onActiveChanged: { _onPageShown(); _checkPresented(); _checkActivityPresented() }
 
     // ---- presented(): fired once per page, the moment either tier has pixels up ----
     // Derived from the two Images rather than from a status handler on each, so preview-then-hq is one
@@ -277,6 +285,24 @@ Item {
     // the same method, one invocation), so a turn that also dips the status queues no extra work.
     function _checkPresented() { Qt.callLater(root._notePresented) }
     onContentOnScreenChanged: _notePresented()
+
+    // ---- activityPagesPresented(): the SAME "once per page" discipline as presented() above,
+    // but gated on contentRendered (pixels only) instead of contentOnScreen (pixels OR error) —
+    // §9 Lane C: "Error/terminal placeholder -> no successful physical page fact." A separate
+    // marker (_activityPresentedPage) rather than reusing _presentedPage: a page that arrived
+    // broken already latched _presentedPage for resume purposes, and a later retry landing real
+    // pixels must still be able to fire this notice once, independently.
+    property int _activityPresentedPage: -1
+    readonly property bool contentRendered: previewImage.status === Image.Ready
+                                            || hqImage.status === Image.Ready
+    function _noteActivityPresented() {
+        if (!active || !contentRendered) return
+        if (_activityPresentedPage === root.currentPage) return
+        _activityPresentedPage = root.currentPage
+        root.activityPagesPresented([root.pageIndex])
+    }
+    function _checkActivityPresented() { Qt.callLater(root._noteActivityPresented) }
+    onContentRenderedChanged: _noteActivityPresented()
 
     Item {
         id: pageBox

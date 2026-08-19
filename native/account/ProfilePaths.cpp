@@ -110,6 +110,10 @@ QString ProfilePaths::historyIniPath() const {
     return childPath(QStringLiteral("history.ini"));
 }
 
+QString ProfilePaths::activityDbPath() const {
+    return childPath(QStringLiteral("activity.sqlite"));
+}
+
 QString ProfilePaths::syncStatePath() const {
     return childPath(QStringLiteral("sync/state.json"));
 }

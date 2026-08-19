@@ -1,6 +1,9 @@
 import QtQuick
 import "controls"
 import "controls/Player2Browser.js" as Browser
+import "../ActivityLaneHelpers.js" as ActivityLaneHelpers
+import "../Player2ActivityHelpers.js" as Player2ActivityHelpers
+import Colosseum.Activity
 
 // The immersive Player 2 chrome, overlaid on the video surface. It receives the C++ `session` (typed
 // state + commands) and `hostServices` (app orchestration); it renders typed state and sends typed
@@ -45,6 +48,11 @@ Item {
     property bool isSeries: false
     property int activeSeason: 1
 
+    // Your Colosseum activity (Lane B) bookkeeping — the identity key currently open with
+    // activityTracker below, or "" when no session is tracked. See the activity block near
+    // the session Connections for the full hook (CPP-PORT-CONTRACT.md §9 Lane B).
+    property string activityActiveKey: ""
+
     // Host-resolved intro/recap/credits skip segments for the current episode (drives SkipButton).
     property var skipSegments: []
 
@@ -79,13 +87,123 @@ Item {
     Timer {
         id: endsAtTick
         interval: 1000; repeat: true; running: true
-        // Formats the clock (display only) and reports progress on cadence — never touches position.
-        onTriggered: { shell.updateEndsAt(); shell.reportProgress(false) }
+        // Formats the clock (display only), reports progress on cadence, and samples activity
+        // (§9 Lane B: "Player 2's existing regular UI clock/timer") — never touches position.
+        onTriggered: { shell.updateEndsAt(); shell.reportProgress(false); shell.activitySample() }
     }
     Connections {
         target: shell.session
         ignoreUnknownSignals: true
         function onDurationChanged() { shell.updateEndsAt() }
+        // --- Your Colosseum activity (Lane B), CPP-PORT-CONTRACT.md §9 Lane B ----------------
+        // consuming is driven EXCLUSIVELY from the native typed session state (never mpv/
+        // property-string state, per §9's "Recommended minimal bridge"). State entering
+        // Playing is "a real identity becomes actively playable" (begin-if-needed, itself a
+        // no-op for a same-identity reload/recovery); Ended is the natural end of the item;
+        // every other state entry (Opening/Buffering/Paused/Seeking/Recovering/Error/Idle) is a
+        // discontinuity reset — a superset of the contract's explicit "ANY transition out of
+        // Playing" + listed entries, safe because activityDiscontinuity() only resets the
+        // sampling baseline and fails closed toward undercount (§25), never invents time.
+        function onStateChanged() {
+            var st = shell.session ? shell.session.state : -1
+            if (st === 3)        // Player2State::Playing
+                shell.activityBeginIfNeeded()
+            else if (st === 6)   // Player2State::Ended
+                shell.activityNaturalEof()
+            else                 // Opening/Buffering/Paused/Seeking/Recovering/Error/Idle entry
+                shell.activityDiscontinuity()
+        }
+        // A generation bump is a new demux/decoder identity under the hood (episode switch,
+        // stream replacement, recovery) — reset the sampling baseline here directly rather than
+        // relying only on the state blip around it.
+        function onGenerationChanged() { shell.activityDiscontinuity() }
+        // The authoritative post-seek landing (§9 "seek start + seekCompleted") — seek START is
+        // already covered by the Seeking state entry above; this resets right at the landing
+        // rather than waiting for the next sample tick or a state flip back to Playing.
+        function onSeekCompleted(generation, actualSeconds) { shell.activityDiscontinuity() }
+        function onSpeedChanged() { shell.activityDiscontinuity() }
+    }
+    // A different session instance (or none at all) means whatever this shell was tracking
+    // under the OLD session no longer applies; the new session's own onStateChanged begins a
+    // fresh one when it reaches Playing.
+    onSessionChanged: shell.activityEndSession()
+
+    // Identity derivation (§7 Player 2) lives in Player2ActivityHelpers.js; the shared
+    // begin/no-op/end state-transition rule (§9 "item identity/autoplay change" — an autoplay
+    // episode switch ends the old item's session and begins a new one under the SAME titleKey,
+    // preserving title grouping) is the SAME ActivityLaneHelpers.decideTransition()/keyFor()
+    // Lane A (qml/PlayerPage.qml) and Lane E (qml/AudiobookSession.qml) already use — called,
+    // never modified, so tests/qml/tst_player2_activity.qml exercises the exact code this hook
+    // runs, not a parallel reimplementation. sink is guarded null so a missing/unbound
+    // ActivityStore can never break playback (§25).
+    function activityBeginIfNeeded() {
+        var idf = Player2ActivityHelpers.videoIdentityFor(shell.rootMediaId, shell.currentEpisodeId)
+        var action = ActivityLaneHelpers.decideTransition(shell.activityActiveKey, idf)
+        if (action === "noop")
+            return
+        shell.activityEndSession()
+        if (action === "end")
+            return
+        shell.activityActiveKey = ActivityLaneHelpers.keyFor(idf)
+        var sink = (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        var sessionId = (sink && sink.newSessionId) ? sink.newSessionId() : ""
+        activityTracker.begin({
+            "world": "theatre",
+            "kind": idf.kind,
+            "titleKey": idf.titleKey,
+            "itemKey": idf.itemKey,
+            "title": shell.mediaTitle,
+            "itemLabel": idf.kind === "episode" ? shell.mediaSubtitle : "",
+            "cover": shell.mediaLogo || "",
+            "syncable": true,
+            "source": "player2"
+        }, sessionId)
+    }
+    // Sampling source: the existing endsAtTick 1-second UI clock, in addition to (never instead
+    // of) its wall-clock/Continue work.
+    function activitySample() {
+        if (!shell.activityActiveKey.length)
+            return
+        var s = shell.session
+        if (!s)
+            return
+        // §9 Lane B qualifying state, exclusively from the native typed session.
+        var consuming = (s.state === 3) && !s.networkStalled   // Player2State::Playing
+        var rateMilli = (s.speed && s.speed > 0) ? Math.round(s.speed * 1000) : 1000
+        activityTracker.sample(Math.round(s.position * 1000), Math.round(s.duration * 1000),
+                                rateMilli, consuming)
+    }
+    // Discontinuity: every §9 Lane B reset bullet except item/episode change
+    // (activityBeginIfNeeded's own end+begin already covers that autoplay/identity case).
+    function activityDiscontinuity() {
+        if (!shell.activityActiveKey.length)
+            return
+        var s = shell.session
+        if (!s)
+            return
+        var rateMilli = (s.speed && s.speed > 0) ? Math.round(s.speed * 1000) : 1000
+        activityTracker.discontinuity(Math.round(s.position * 1000), Math.round(s.duration * 1000), rateMilli)
+    }
+    // Natural EOF: the native session's real Ended state. Ends the session too (a later replay
+    // begins a fresh one), mirroring Lane A/Lane E.
+    function activityNaturalEof() {
+        if (!shell.activityActiveKey.length)
+            return
+        activityTracker.naturalEof()
+        activityTracker.endSession()
+        shell.activityActiveKey = ""
+    }
+    function activityEndSession() {
+        if (!shell.activityActiveKey.length)
+            return
+        activityTracker.endSession()
+        shell.activityActiveKey = ""
+    }
+    // One transient tracker for this lane (§8/§9 Lane B). Activity NEVER breaks playback if
+    // ProfileActivity is absent (§25).
+    ActivityPlaybackTracker {
+        id: activityTracker
+        sink: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
     }
 
     // Pause info card (main-player parity): media details hydrated from host metadata, shown a beat
@@ -200,8 +318,10 @@ Item {
         var st = shell.session ? shell.session.state : 0
         if (Browser.shouldConfirmClose(st))
             closeConfirm.open = true
-        else
+        else {
+            shell.activityEndSession()   // Activity (§9 Lane B): close/lifecycle exit ends the session
             shell.closeRequested()
+        }
     }
 
     // Ask the host for this episode's skip segments (intro/recap/credits). Re-asked whenever the
@@ -555,7 +675,11 @@ Item {
     CloseConfirm {
         id: closeConfirm
         theme: shell.theme
-        onConfirmed: { closeConfirm.open = false; shell.closeRequested() }
+        onConfirmed: {
+            closeConfirm.open = false
+            shell.activityEndSession()   // Activity (§9 Lane B): close/lifecycle exit ends the session
+            shell.closeRequested()
+        }
         onCancelled: closeConfirm.open = false
     }
 }

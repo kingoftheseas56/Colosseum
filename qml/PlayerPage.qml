@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Window
 import QtCore
 import Colosseum.Player
+import Colosseum.Activity
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "AddonClient.js" as AddonClient
@@ -15,6 +16,7 @@ import "PlayerTrackPrefs.js" as PlayerTrackPrefs
 import "PlayerHotkeys.js" as PlayerHotkeys
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "TheatreApi.js" as TheatreApi
+import "ActivityLaneHelpers.js" as ActivityLaneHelpers
 
 Item {
     id: root
@@ -167,6 +169,13 @@ Item {
     property int    mediaResumeFileIdx: 0 //   ...at this file index
     property string mediaLocalPath: ""    // downloaded-file playback: resume by path, not torrent
     property real   pendingSeekSec: -1    // seek here once the file opens (resume / session restore)
+
+    // --- Your Colosseum activity (Lane A, CPP-PORT-CONTRACT.md §9): the identity key
+    // ("kind|titleKey|itemKey") the tracker's current open session was begun for, so a
+    // reload/recovery/stream-replacement of the SAME item resets the sampling baseline
+    // (activityDiscontinuity) instead of fragmenting the session/10s gate, while a genuine
+    // item/episode change ends the old session and begins a new one. Empty = no open session.
+    property string activityActiveKey: ""
 
     // --- pre-play stream telemetry (Popcorn Time streamer.js parity, 2026-08-02): while the
     // loading face is up, the engine's stats.json feeds the status line — connecting → peers
@@ -850,6 +859,10 @@ Item {
         streamWatchdog.stop()
         root.wakeChrome()
         root.syncPowerInhibit()
+        // Activity (§9 Lane A): "a new real movie/episode identity becomes the active playing
+        // file and playback can begin" — this is exactly that moment (fires once per genuine
+        // starting->false transition). A same-identity reload/recovery is a no-op here.
+        root.activityBeginIfNeeded()
     }
     property bool starting: false
     property bool errored: false
@@ -2014,6 +2027,94 @@ Item {
         else Progress.record(entry)
     }
 
+    // --- Your Colosseum activity (Lane A) ------------------------------------------------
+    // A dedicated ActivityPlaybackTracker sampler beside recordProgress()/Progress, never
+    // inside it (CPP-PORT-CONTRACT.md §9 Lane A: "Do not: count calls to recordProgress").
+    // sink is guarded null so a missing/unbound ActivityStore can never break playback (§25).
+    //
+    // Identity derivation (§7) and the begin/no-op/end state-transition rule (§9 Lane A
+    // "item/episode identity change") both live in the shared ActivityLaneHelpers.js module —
+    // also used by AudiobookSession.qml's Lane E and covered directly by
+    // tests/qml/tst_player1_activity.qml, so the QuickTest exercises the exact code this hook
+    // runs, not a parallel reimplementation.
+    // Begin session: called once playback genuinely begins on a file (see
+    // finishStartingIfPlaybackAdvanced — "a new real movie/episode identity becomes the
+    // active playing file and playback can begin", §9 Lane A). A reload/recovery/stream-
+    // replacement of the SAME item (mediaId unchanged) is a no-op here — activityDiscontinuity()
+    // at the load/reload hook resets its baseline instead, preserving gate progress already
+    // earned. A genuine identity change ends the old session (tracker.begin() also does this
+    // itself if one is still open — belt and suspenders) and starts a fresh one.
+    function activityBeginIfNeeded() {
+        var idf = ActivityLaneHelpers.videoIdentityFor(root.mediaId, EpisodeBrowser)
+        var action = ActivityLaneHelpers.decideTransition(root.activityActiveKey, idf)
+        if (action === "noop")
+            return
+        root.activityEndSession()
+        if (action === "end")
+            return
+        root.activityActiveKey = ActivityLaneHelpers.keyFor(idf)
+        var sink = (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        var sessionId = (sink && sink.newSessionId) ? sink.newSessionId() : ""
+        activityTracker.begin({
+            "world": "theatre",
+            "kind": idf.kind,
+            "titleKey": idf.titleKey,
+            "itemKey": idf.itemKey,
+            "title": root.mediaTitle,
+            "itemLabel": idf.kind === "episode" ? root.mediaSubtitle : "",
+            "cover": root.mediaArt || "",
+            "syncable": true,
+            "source": "player1"
+        }, sessionId)
+    }
+    // Sampling source: the existing five-second playing timer below, in addition to (never
+    // instead of) its Continue write — changing that timer's cadence never changes the
+    // tracker's measured wall/media-delta total (§9 Lane A).
+    function activitySample() {
+        if (!root.activityActiveKey.length)
+            return
+        var rateMilli = (mpv.speed && mpv.speed > 0) ? Math.round(mpv.speed * 1000) : 1000
+        var consuming = !mpv.pause && root.fileReady && !root.starting && !root.errored
+        activityTracker.sample(Math.round(mpv.position * 1000), Math.round(mpv.duration * 1000),
+                                rateMilli, consuming)
+    }
+    // Discontinuity: central seekTo()/seekStep(), pause/resume, media load/reload, stream
+    // replacement, recovery/reseek, speed change, error — every §9 Lane A reset bullet except
+    // item/episode change (activityBeginIfNeeded's own end+begin already covers that).
+    // `atSec`, when given, is the authoritative post-jump position (e.g. a seek target that
+    // mpv.position has not caught up to yet); otherwise the current mpv.position is used.
+    function activityDiscontinuity(atSec) {
+        if (!root.activityActiveKey.length)
+            return
+        var posSec = (atSec !== undefined) ? atSec : mpv.position
+        var rateMilli = (mpv.speed && mpv.speed > 0) ? Math.round(mpv.speed * 1000) : 1000
+        activityTracker.discontinuity(Math.round(posSec * 1000), Math.round(mpv.duration * 1000), rateMilli)
+    }
+    // Natural EOF: the real end of the item (not the arriving-.part handover, which is a
+    // discontinuity — same item, playback continues via switchArrivingToStream). Ends the
+    // session too (tracker header: "call endSession() afterward for lifecycle symmetry with
+    // begin()") so a later replay begins a fresh session rather than silently reusing this one.
+    function activityNaturalEof() {
+        if (!root.activityActiveKey.length)
+            return
+        activityTracker.naturalEof()
+        activityTracker.endSession()
+        root.activityActiveKey = ""
+    }
+    function activityEndSession() {
+        if (!root.activityActiveKey.length)
+            return
+        activityTracker.endSession()
+        root.activityActiveKey = ""
+    }
+    // One transient tracker for this lane (§8/§9 Lane A). sink is re-evaluated whenever
+    // ProfileActivity (profile switch/suspend) or the context property's own existence changes;
+    // activity NEVER breaks playback if it is absent (§25).
+    ActivityPlaybackTracker {
+        id: activityTracker
+        sink: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+    }
+
     // Tick the watch position into the store every few seconds while actually playing.
     // Silent: persists for crash-resume via recordSilent() without emitting changed(), so the
     // Continue row is not re-rendered every 5s (that cascade was the proven video-stutter
@@ -2023,7 +2124,10 @@ Item {
     Timer {
         interval: 5000; repeat: true
         running: !root.starting && !root.errored && !mpv.pause && mpv.duration > 0
-        onTriggered: root.recordProgress(true)
+        onTriggered: {
+            root.recordProgress(true)
+            root.activitySample()
+        }
     }
 
     Timer {
@@ -2394,6 +2498,7 @@ Item {
     function stop() {
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
+        root.activityEndSession()   // Activity (§9 Lane A): close/lifecycle exit ends the session
         root.closeMenus()
         mpv.command(["stop"])
         root.starting = false
@@ -2448,6 +2553,7 @@ Item {
         var target = root.clamp(sec, 0, Math.max(0, mpv.duration))
         root.seekTargetSec = target
         seekSettleGuard.restart()
+        root.activityDiscontinuity(target)   // Activity (§9 Lane A): central seekTo() path
         mpv.seekExact(target)
         root.wakeChrome()
     }
@@ -2455,6 +2561,7 @@ Item {
         if (mpv.duration > 0) {
             root.seekTargetSec = root.clamp(mpv.position + delta, 0, mpv.duration)
             seekSettleGuard.restart()
+            root.activityDiscontinuity(root.seekTargetSec)   // Activity: same reset as seekTo()
         }
         mpv.seekStep(delta)
         root.wakeChrome()
@@ -3279,8 +3386,14 @@ Item {
             root.detectStubStream()
             root.loadSkipSegments()  // first attempt; re-runs on chapters/duration settle
             root.syncWatchPartyPlayerObservation()
+            // Activity (§9 Lane A): "media load/reload"/"stream replacement"/"recovery/reseek"
+            // reset bullets. A no-op when no session is open yet (a genuinely new identity's
+            // session is begun later, in finishStartingIfPlaybackAdvanced, once playback
+            // actually advances) — this only resets the baseline for a reload of the SAME item.
+            root.activityDiscontinuity()
         }
         onPlaybackError: function(code, message) {
+            root.activityDiscontinuity()   // Activity (§9 Lane A): "error" reset bullet
             root.handlePlaybackIssue(code, message)
         }
         onEndFile: function(reason) {
@@ -3296,10 +3409,14 @@ Item {
                         && mpv.position < mpv.duration - 5) {
                     // Hit the end of the .part, not the end of the film — the frontier
                     // watcher's predictive handover missed (burst download, deep seek).
+                    // Activity: same item continues via switchArrivingToStream, so this is a
+                    // discontinuity (handover bridge discarded), never naturalEof().
+                    root.activityDiscontinuity()
                     root.switchArrivingToStream()
                     return
                 }
                 root.recordProgress()
+                root.activityNaturalEof()   // Activity (§9 Lane A): real end of the item
                 if (root.handleSleepEpisodeEnd())
                     return
                 root.startUpNextCountdown()
@@ -3311,7 +3428,9 @@ Item {
             root.syncPowerInhibit()
             root.detectStubStream()
             root.syncWatchPartyPlayerObservation()
+            root.activityDiscontinuity()   // Activity (§9 Lane A): pause/resume transition
         }
+        onSpeedChanged: root.activityDiscontinuity()   // Activity (§9 Lane A): speed change
         onPositionChanged: {
             root.finishStartingIfPlaybackAdvanced()
             root.syncWatchPartyPlayerObservation()

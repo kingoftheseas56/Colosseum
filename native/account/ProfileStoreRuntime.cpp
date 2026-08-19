@@ -2,6 +2,7 @@
 
 #include "ProfileStoreRuntime.h"
 
+#include "ActivityStore.h"
 #include "HistoryStore.h"
 #include "ProfilePreferencesStore.h"
 
@@ -23,6 +24,15 @@ struct ProfileStoreRuntime::StoreSet {
     std::unique_ptr<AudioPairingStore> audioPairing;
     std::unique_ptr<ProfilePreferencesStore> preferences;
     std::unique_ptr<HistoryStore> history;
+    // ActivityStore joins the StoreSet for every profile mode (sealed,
+    // legacy-local, explicit local, account — CPP-PORT-CONTRACT §2/§17).
+    // Declared last so it is destroyed FIRST (member dtors run in reverse
+    // declaration order): its SQL connection closes cleanly before any
+    // sibling store or the surrounding directory (m_sealedRoot) is torn
+    // down. Construction never fails/throws (ActivityStore's own contract),
+    // so an unhealthy activity DB never blocks profile bring-up — activity
+    // is observational, per CPP-PORT-CONTRACT §25.
+    std::unique_ptr<ActivityStore> activity;
 };
 
 ProfileStoreRuntime::ProfileStoreRuntime(
@@ -100,6 +110,13 @@ ProfileStoreRuntime::preferencesStore() const {
         : nullptr;
 }
 
+ActivityStore *
+ProfileStoreRuntime::activityStore() const {
+    return m_stores
+        ? m_stores->activity.get()
+        : nullptr;
+}
+
 void ProfileStoreRuntime::prepareForQml(
     QQmlApplicationEngine *engine) {
     Q_ASSERT(engine);
@@ -127,6 +144,13 @@ void ProfileStoreRuntime::prepareForQml(
 void ProfileStoreRuntime::flushPersonalStores() {
     if (m_stores && m_stores->progress)
         m_stores->progress->flush();
+    // Best-effort WAL merge, not required for correctness (every activity
+    // fact already commits transactionally on insert) — just keeps the
+    // on-disk .sqlite file current for anything that reads it directly
+    // (adoption's file-safe copy). A failure here is silently ignored:
+    // activity is observational and must never block store bring-up/flush.
+    if (m_stores && m_stores->activity)
+        m_stores->activity->checkpointForSafeCopy(nullptr);
 }
 
 void ProfileStoreRuntime::suspendPersonalStoresForMigration() {
@@ -377,6 +401,10 @@ ProfileStoreRuntime::createSealedStores(
         std::make_unique<HistoryStore>(
             QDir(root).filePath(
                 QStringLiteral("history.ini")));
+    stores->activity =
+        std::make_unique<ActivityStore>(
+            QDir(root).filePath(
+                QStringLiteral("activity.sqlite")));
 
     m_sealedRoot =
         std::move(sealedRoot);
@@ -423,6 +451,13 @@ ProfileStoreRuntime::createLegacyStores() const {
         ? std::make_unique<HistoryStore>(
               m_legacyStorage.historyIniPath())
         : std::make_unique<HistoryStore>();
+
+    // activity.sqlite has no QSettings-registry backend to fall back to —
+    // LegacyPersonalStateStorage always resolves an explicit durable path for
+    // it (CPP-PORT-CONTRACT §17 "Legacy-local mode").
+    stores->activity =
+        std::make_unique<ActivityStore>(
+            m_legacyStorage.activityDbPath());
 
     return stores;
 }
@@ -471,6 +506,9 @@ ProfileStoreRuntime::createProfileStores(
     stores->history =
         std::make_unique<HistoryStore>(
             paths.historyIniPath());
+    stores->activity =
+        std::make_unique<ActivityStore>(
+            paths.activityDbPath());
 
     return stores;
 }
@@ -497,6 +535,9 @@ void ProfileStoreRuntime::bindContextProperties() {
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileHistory"),
         m_stores->history.get());
+    m_qmlContext->setContextProperty(
+        QStringLiteral("ProfileActivity"),
+        m_stores->activity.get());
 }
 
 void ProfileStoreRuntime::clearContextProperties() {
@@ -520,6 +561,9 @@ void ProfileStoreRuntime::clearContextProperties() {
         static_cast<QObject *>(nullptr));
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileHistory"),
+        static_cast<QObject *>(nullptr));
+    m_qmlContext->setContextProperty(
+        QStringLiteral("ProfileActivity"),
         static_cast<QObject *>(nullptr));
 }
 

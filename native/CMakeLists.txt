@@ -98,6 +98,12 @@ add_executable(colosseum
     account/AccountRecoveryKeyPresenter.cpp
     account/AccountRuntime.cpp
     account/AccountServiceEndpoint.cpp
+    # Slice D1: native ActivityProjector (JS-oracle golden parity port).
+    account/ActivityProjector.cpp
+    # Slice D2: profile-owned SQLite ActivityStore (durable ledger writer).
+    account/ActivityStore.cpp
+    # Slice D3: transient ActivityPlaybackTracker (not QML-registered this slice).
+    account/ActivityPlaybackTracker.cpp
     account/CollectionSyncAdapter.cpp
     account/CoreStateSyncProjection.cpp
     account/FirstAccountProfileCoordinator.cpp
@@ -136,6 +142,10 @@ add_executable(colosseum
     account/AccountSensitiveClipboard.h
     account/AccountServiceEndpoint.h
     account/AccountTransport.h
+    # Slice D2: profile-owned SQLite ActivityStore (Q_OBJECT — moc needs the header listed).
+    account/ActivityStore.h
+    # Slice D3: transient ActivityPlaybackTracker (Q_OBJECT — moc needs the header listed).
+    account/ActivityPlaybackTracker.h
     account/CollectionSyncAdapter.h
     account/CoreStateSyncProjection.h
     account/FirstAccountProfileCoordinator.h

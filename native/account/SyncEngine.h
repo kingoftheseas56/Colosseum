@@ -67,7 +67,7 @@ signals:
         const QString &errorCode,
         const QString &message);
 
-    void sessionInvalidated();
+    void accessTokenRejected();
 
 private:
     enum class NetworkPhase {
@@ -86,6 +86,7 @@ private:
     void handleClientCompleted(
         quint64 requestId,
         AccountOperation operation,
+        quint64 accessTokenGeneration,
         const AccountTransportReply &reply);
 
     void handleLocalMutation(

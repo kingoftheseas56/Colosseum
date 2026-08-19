@@ -1060,6 +1060,10 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
+    # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
@@ -1078,7 +1082,7 @@ add_executable(account_first_light
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml)
+    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
 if(WIN32)
     target_link_libraries(account_first_light PRIVATE Advapi32 User32)
 endif()
@@ -1188,6 +1192,113 @@ set_tests_properties(colosseum.qttest.account_identity PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Slice D1: native ActivityProjector, JS-oracle golden parity ─────────
+# Pure-logic port of the Preflight-Architect activity-engine reference oracle
+# (activity-reference.js) — no QObject, no filesystem/network/machine-clock
+# dependency, so this target only needs Qt6::Core + Qt6::Test. Fixtures are
+# compiled in as a source-tree path (ACTIVITY_FIXTURES_DIR), same pattern as
+# VAULT_FIXTURES_DIR/TANKOBAN_FIXTURES_DIR above.
+add_executable(tst_activity_projector
+    auto/activity/tst_activity_projector.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h")
+target_include_directories(tst_activity_projector PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_activity_projector PRIVATE
+    ACTIVITY_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/auto/activity/fixtures")
+target_link_libraries(tst_activity_projector PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_activity_projector PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_projector POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.activity_projector
+         COMMAND tst_activity_projector)
+set_tests_properties(colosseum.qttest.activity_projector PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Slice D2: profile-owned SQLite ActivityStore ─────────────────────────
+# The durable ledger writer sitting in front of the golden-proven
+# ActivityProjector above: eventId idempotency/conflict rejection, pre-
+# mutation validation (reusing ActivityProjector::validateEvent — no second
+# validator), revision()/changed() semantics, a projectMonth() smoke check
+# against the same august-mixed fixture pair, earliestActivityMonth(),
+# hasFixedCoverage(), clearAll(), close+reopen persistence/determinism, and
+# unhealthy-database fail-closed behavior. Needs Qt6::Sql (SQLite storage) in
+# addition to tst_activity_projector's Qt6::Core + Qt6::Test; reuses the same
+# ACTIVITY_FIXTURES_DIR fixtures. Qt6Sql.dll is staged explicitly (same
+# pattern as tst_vault_downloads_root/tst_vault_index) rather than relying on
+# a prior `colosseum` app build having already deployed it.
+add_executable(tst_activity_store
+    auto/activity/tst_activity_store.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h")
+target_include_directories(tst_activity_store PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_activity_store PRIVATE
+    ACTIVITY_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/auto/activity/fixtures")
+target_link_libraries(tst_activity_store PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_activity_store PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_store POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_store POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.activity_store
+         COMMAND tst_activity_store)
+set_tests_properties(colosseum.qttest.activity_store PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Slice D3: transient ActivityPlaybackTracker ──────────────────────────
+# Reusable playback sampler (Player 1, Player 2, audiobook) sitting in front
+# of the same ActivityStore/ActivityProjector pair: the 10-second activation
+# gate, <=30s-block coalescing, discontinuity/rate/UTC-offset-change baseline
+# resets, and guarded-90% completion (movie/episode only). Deterministic via
+# injected monotonic/wall/UTC-offset clocks — no system clock dependency.
+# Persists through a real in-memory ActivityStore so every emitted fact is
+# proven to pass the same validation/idempotency/projection path a live
+# player would exercise. Needs Qt6::Sql for that reason, same as
+# tst_activity_store; reuses the same ACTIVITY_FIXTURES_DIR definition even
+# though this target does not load fixtures directly (kept for symmetry/
+# possible future differential use, harmless if unused).
+add_executable(tst_activity_playback_tracker
+    auto/activity/tst_activity_playback_tracker.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityPlaybackTracker.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityPlaybackTracker.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h")
+target_include_directories(tst_activity_playback_tracker PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_activity_playback_tracker PRIVATE
+    ACTIVITY_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/auto/activity/fixtures")
+target_link_libraries(tst_activity_playback_tracker PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_activity_playback_tracker PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_playback_tracker POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_playback_tracker POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.activity_playback_tracker
+         COMMAND tst_activity_playback_tracker)
+set_tests_properties(colosseum.qttest.activity_playback_tracker PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Account onboarding/recovery composition (Bundle 4B, Slices 9-10) ────
 # Deterministic controller/presenter coverage. Clipboard writes use an in-memory
 # test double; the production Windows implementation is compiled for link/API
@@ -1264,6 +1375,12 @@ add_executable(tst_account_adoption
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
+    # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
     "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
@@ -1273,12 +1390,17 @@ target_include_directories(tst_account_adoption PRIVATE
 target_link_libraries(tst_account_adoption PRIVATE
     Qt6::Core
     Qt6::Qml
+    Qt6::Sql
     Qt6::Test)
 set_target_properties(tst_account_adoption PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_account_adoption POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_adoption POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.account_adoption
          COMMAND tst_account_adoption)
@@ -1314,6 +1436,12 @@ add_executable(tst_account_shared_pc
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.h"
+    # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
+    # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
     "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
@@ -1323,6 +1451,7 @@ target_include_directories(tst_account_shared_pc PRIVATE
 target_link_libraries(tst_account_shared_pc PRIVATE
     Qt6::Core
     Qt6::Qml
+    Qt6::Sql
     Qt6::Test)
 set_target_properties(tst_account_shared_pc PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -1330,10 +1459,83 @@ add_custom_command(TARGET tst_account_shared_pc POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Test>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_shared_pc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.account_shared_pc
          COMMAND tst_account_shared_pc)
 set_tests_properties(colosseum.qttest.account_shared_pc PROPERTIES
     LABELS "unit;qttest;profile;shared-pc"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Profile activity isolation (Slice D4, activity-engine port) ─────────────
+# Proves ActivityStore joins ProfileStoreRuntime::StoreSet exactly like the
+# other personal stores (CPP-PORT-CONTRACT §2/§17): a profile switch
+# clears/rebinds the `ProfileActivity` QML context property in the same
+# transaction as Progress/ProfileHistory, the previous profile's
+# ActivityStore is destroyed (QPointer-proved, same pattern
+# tst_account_shared_pc.cpp already uses for SearchHistoryStore), and no
+# activity fact ever leaks across a profile switch. Same dependency graph as
+# tst_account_shared_pc (SharedPcProfileCoordinator drives the switches) plus
+# ActivityStore/ActivityProjector — a separate target rather than folding
+# into tst_store_isolation.cpp, which guards a narrower, already-documented
+# registry-vs-tagged-file contract with a much lighter (header-only) link set.
+add_executable(tst_profile_activity_isolation
+    auto/store_isolation/tst_profile_activity_isolation.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_include_directories(tst_profile_activity_isolation PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_profile_activity_isolation PRIVATE
+    Qt6::Core
+    Qt6::Qml
+    Qt6::Sql
+    Qt6::Test)
+set_target_properties(tst_profile_activity_isolation PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_activity_isolation POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_activity_isolation POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.profile_activity_isolation
+         COMMAND tst_profile_activity_isolation)
+set_tests_properties(colosseum.qttest.profile_activity_isolation PROPERTIES
+    LABELS "unit;qttest;profile;activity"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 

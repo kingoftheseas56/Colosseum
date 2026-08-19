@@ -270,7 +270,7 @@ private slots:
     void ordinarySignInPreparesAccountProfileBeforeCredentialAdoption();
     void rememberedAccountOpensProfileBeforeOfflineRefresh();
     void offlineLogoutQueuesRevocationAndSealsProfile();
-    void remoteRevocationSealsProfileAndLocksDevice();
+    void bearerRevocationLocksOnlyAfterRefreshAuthorityConfirms();
     void sealFailureFailsClosedAfterServerLogout();
     void protectedDeviceChallengeCanBeCancelled();
     void cancelledChallengeIgnoresLateApproval();
@@ -575,7 +575,7 @@ offlineLogoutQueuesRevocationAndSealsProfile() {
 }
 
 void tst_account_onboarding::
-remoteRevocationSealsProfileAndLocksDevice() {
+bearerRevocationLocksOnlyAfterRefreshAuthorityConfirms() {
     ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
     ControllerFixture fixture;
     RecordingProfileCoordinator profiles;
@@ -615,6 +615,10 @@ remoteRevocationSealsProfileAndLocksDevice() {
     fixture.transport->enqueueReply(
         QByteArrayLiteral("GET"),
         QStringLiteral("/v1/profile"),
+        revoked);
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/sessions/refresh"),
         revoked);
 
     fixture.controller->refreshProfile();

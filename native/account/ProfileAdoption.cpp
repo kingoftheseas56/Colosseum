@@ -143,6 +143,31 @@ bool ProfileAdoption::markTargetVerified(const QString &targetSemanticDigest,
     return writeSnapshot(error);
 }
 
+bool ProfileAdoption::markActivityTargetVerified(const QString &activitySourceDigest,
+                                                 const QString &activityTargetDigest,
+                                                 QString *error) {
+    if (m_snapshot.state != State::Preparing
+        && m_snapshot.state != State::TargetVerified) {
+        return setError(error, QStringLiteral(
+            "Activity target verification is only valid while preparing adoption."));
+    }
+
+    const QString sourceDigest = normalizedDigest(activitySourceDigest);
+    const QString targetDigest = normalizedDigest(activityTargetDigest);
+
+    // Both empty is the deliberate "no legacy activity ledger" sentinel —
+    // valid, not a verification failure. Otherwise the two must match
+    // exactly (a raw file hash has no "legacy v1 format" fuzz to allow).
+    if (sourceDigest != targetDigest) {
+        return setError(error, QStringLiteral(
+            "The staged activity ledger does not match the source activity digest."));
+    }
+
+    m_snapshot.activitySourceDigest = sourceDigest;
+    m_snapshot.activityTargetDigest = targetDigest;
+    return writeSnapshot(error);
+}
+
 bool ProfileAdoption::promote(QString *error) {
     if (m_snapshot.state != State::TargetVerified)
         return setError(error, QStringLiteral("Only a verified staged profile can be promoted."));
@@ -192,6 +217,23 @@ bool ProfileAdoption::markLegacyQuarantined(const QString &backupSemanticDigest,
     return writeSnapshot(error);
 }
 
+bool ProfileAdoption::markActivityLegacyQuarantined(const QString &activityLegacyBackupDigest,
+                                                    QString *error) {
+    if (m_snapshot.state != State::Promoted) {
+        return setError(error, QStringLiteral(
+            "Activity legacy state can only be marked quarantined after profile promotion."));
+    }
+
+    const QString backupDigest = normalizedDigest(activityLegacyBackupDigest);
+    if (backupDigest != m_snapshot.activitySourceDigest) {
+        return setError(error, QStringLiteral(
+            "The activity rollback backup does not match the source activity digest."));
+    }
+
+    m_snapshot.activityLegacyBackupDigest = backupDigest;
+    return writeSnapshot(error);
+}
+
 bool ProfileAdoption::commit(QString *error) {
     if (m_snapshot.state != State::LegacyQuarantined)
         return setError(error, QStringLiteral("Profile adoption cannot commit before legacy state is quarantined."));
@@ -202,6 +244,10 @@ bool ProfileAdoption::commit(QString *error) {
     if (m_snapshot.targetSemanticDigest != m_snapshot.sourceSemanticDigest
         || m_snapshot.legacyBackupSemanticDigest != m_snapshot.sourceSemanticDigest) {
         return setError(error, QStringLiteral("Profile adoption semantic verification is incomplete."));
+    }
+    if (m_snapshot.activityTargetDigest != m_snapshot.activitySourceDigest
+        || m_snapshot.activityLegacyBackupDigest != m_snapshot.activitySourceDigest) {
+        return setError(error, QStringLiteral("Profile adoption activity-ledger verification is incomplete."));
     }
 
     m_snapshot.state = State::Committed;
@@ -282,6 +328,8 @@ bool ProfileAdoption::rollbackAfterLegacyRestore(
     m_snapshot.state = State::RetryPending;
     m_snapshot.targetSemanticDigest.clear();
     m_snapshot.legacyBackupSemanticDigest.clear();
+    m_snapshot.activityTargetDigest.clear();
+    m_snapshot.activityLegacyBackupDigest.clear();
     return writeSnapshot(error);
 }
 
@@ -348,6 +396,12 @@ std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(const Pro
     snapshot.legacyBackupRoot = object.value(QStringLiteral("legacy_backup_root")).toString();
     snapshot.stagingRoot = object.value(QStringLiteral("staging_root")).toString();
     snapshot.finalRoot = object.value(QStringLiteral("final_root")).toString();
+    // Absent on a journal written before activity migration existed —
+    // toString() on a missing/undefined QJsonValue is "" already, matching
+    // the "no activity data" sentinel.
+    snapshot.activitySourceDigest = object.value(QStringLiteral("activity_source_digest")).toString();
+    snapshot.activityTargetDigest = object.value(QStringLiteral("activity_target_digest")).toString();
+    snapshot.activityLegacyBackupDigest = object.value(QStringLiteral("activity_legacy_backup_digest")).toString();
 
     if (snapshot.accountId != paths.profileId()
         || snapshot.stagingRoot != paths.accountStagingRoot()
@@ -372,6 +426,9 @@ bool ProfileAdoption::writeSnapshot(QString *error) const {
     object.insert(QStringLiteral("legacy_backup_root"), m_snapshot.legacyBackupRoot);
     object.insert(QStringLiteral("staging_root"), m_snapshot.stagingRoot);
     object.insert(QStringLiteral("final_root"), m_snapshot.finalRoot);
+    object.insert(QStringLiteral("activity_source_digest"), m_snapshot.activitySourceDigest);
+    object.insert(QStringLiteral("activity_target_digest"), m_snapshot.activityTargetDigest);
+    object.insert(QStringLiteral("activity_legacy_backup_digest"), m_snapshot.activityLegacyBackupDigest);
 
     const QByteArray payload = QJsonDocument(object).toJson(QJsonDocument::Compact);
 

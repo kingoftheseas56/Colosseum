@@ -228,6 +228,40 @@ let readAlong = null                   // the single createReadAlongPainter inst
 let programmaticNav = false
 let programmaticDepth = 0
 
+// ACTIVITY PROVENANCE (Slice D8, Your Colosseum reading activity — CPP-PORT-CONTRACT.md §9
+// Lane D) — the SMALLEST cause tag riding every 'relocated' emit, letting ReaderShell tell a
+// genuine forward-reading page turn apart from a jump/programmatic/layout relocation BEFORE
+// any activity fact is recorded. Foliate's own internal relocate `reason` ('page'|'snap'|
+// 'scroll'|'anchor') is discarded by view.js's #onRelocate before it ever reaches `lastLocation`
+// (and even if it weren't: 'anchor' alone conflates a TOC/search/bookmark/scrub jump, the
+// initial resume open, AND a post-appearance-edit re-anchor — see paginator.js scrollToAnchor(),
+// used by both a real navigation goTo() and render()/expand()'s reflow re-anchor). So the only
+// true positives available without touching vendor code are the ones WE generate: we already
+// know exactly when WE call paper.goTo() (every TOC/search/bookmark/scrub-rail jump funnels
+// through the ONE paperGoTo()) and exactly when WE call paper.setAppearance() (every font/
+// margin/theme/flow/column edit funnels through the ONE paperSetAppearance()). Anything that is
+// neither of those nor the existing `programmaticNav` (init/read-along) defaults to
+// 'sequential' — the ONLY cause that may ever credit reading progress or complete the book.
+let jumpNav = false
+let jumpNavDepth = 0
+const beginJumpNav = () => { jumpNavDepth++; jumpNav = true }
+const endJumpNav = () => setTimeout(() => {
+  jumpNavDepth = Math.max(0, jumpNavDepth - 1)
+  if (jumpNavDepth === 0) jumpNav = false
+}, 0)
+// Best-effort + BOUNDED (not depth-counted like the two flags above): an appearance edit's
+// resulting reflow re-anchor can fire asynchronously after `document.fonts.ready` resolves,
+// which is not reliably one microtask away. A generous fixed window covers the realistic case
+// (our fonts are bundled local TTFs, so `fonts.ready` resolves near-instantly) without leaking
+// indefinitely and mislabeling a later genuine page turn as 'layout'. A re-anchor that races
+// past this window falls back to 'sequential' — SAFE, not a real overcount risk: a reflow
+// re-anchor lands back at approximately the SAME whole-book fraction it started from (it
+// recomputes the same anchor after reflowing around it; it does not advance you), so a missed
+// tag computes a ~zero or negative forward delta and is caught by the ordinary backward/no-
+// progress path in Reader2ActivityHelpers.js anyway.
+let layoutNavUntilMs = 0
+const tagLayoutRelocate = () => { layoutNavUntilMs = Date.now() + 300 }
+
 // appearance state + defaults (dark paper)
 let appearance = {
   theme: { bg: '#000000', fg: '#e6e1d5' },
@@ -660,6 +694,15 @@ const wireView = (view, gen) => {
       fraction = Number.isFinite(f) ? f : 0
     }
     const finite = (n, fb = 0) => (Number.isFinite(n) ? n : fb)
+    // Activity provenance (see the flags declared above): programmatic (init/read-along) wins
+    // over an explicit jump (paper.goTo), which wins over the bounded post-appearance-edit
+    // window, which falls back to 'sequential' — the only cause that may credit reading
+    // progress. Computed fresh per relocate so a flag cleared between two relocates never
+    // bleeds from one into the next.
+    const activityCause = programmaticNav ? 'programmatic'
+      : jumpNav ? 'jump'
+      : (Date.now() < layoutNavUntilMs) ? 'layout'
+      : 'sequential'
     emit('relocated', {
       gen,                                       // THIS view's captured open-gen (closed over, not live)
       cfi: d.cfi ?? '',
@@ -675,6 +718,11 @@ const wireView = (view, gen) => {
       // real text pages; a focus band over a PDF page or a cover reads as a bug. Recompute
       // from the live section (robust vs a relocate that races ahead of this section's 'load').
       textPage: !(currentView && currentView.isFixedLayout) && currentSectionHasText(),
+      // Your Colosseum activity (Slice D8): true only for a proven fixed-layout book (CBZ/
+      // PDF — see Reader2ActivityHelpers.js's header note for why that alone is trustworthy
+      // physical-page evidence). ReaderShell reads this + pageInChapter for readingForm/pageKeys.
+      isFixedLayout: !!(currentView && currentView.isFixedLayout),
+      cause: activityCause,
     })
 
     // Read-along (Task 4): a READER-initiated relocate (wheel, drag, page turn, TOC/search/
@@ -1047,8 +1095,13 @@ const paperGoTo = target => {
   if (!currentView) return
   let t = target
   try { t = JSON.parse(target) } catch (e) { /* plain cfi/href string */ }
-  if (typeof t === 'number') currentView.goToFraction(t)   // fraction 0..1
-  else currentView.goTo(t)                                 // cfi or href
+  // Tag the resulting relocate 'jump' (activity provenance) — this is the ONE function every
+  // TOC/search/bookmark/scrub-rail jump funnels through. Fire-and-forget stays fire-and-forget
+  // (the caller never awaits this); we just internally await the navigation promise so the tag
+  // outlives it, then clear on the next tick (mirrors runProgrammatic's own pattern above).
+  beginJumpNav()
+  const nav = (typeof t === 'number') ? currentView.goToFraction(t) : currentView.goTo(t)
+  Promise.resolve(nav).catch(() => { /* navigation is best-effort */ }).finally(() => endJumpNav())
 }
 
 const paperSetAppearance = json => {
@@ -1059,6 +1112,9 @@ const paperSetAppearance = json => {
       theme: { ...appearance.theme, ...(a?.theme || {}) },
     }
   } catch (e) { console.warn('[paper] bad appearance json', e) }
+  // Arm the bounded 'layout' activity-provenance window BEFORE reflowing — see its
+  // declaration above for why this is best-effort/bounded rather than depth-counted.
+  tagLayoutRelocate()
   applyAppearance()
 }
 

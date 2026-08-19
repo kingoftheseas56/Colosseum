@@ -74,7 +74,7 @@ AccountController::AccountController(
                 setRestoreStageValue(RestoreStage::SessionRefresh);
             }
 
-            track(m_client->refreshSession(m_refreshToken));
+            requestSessionRefresh();
         });
 
     connect(
@@ -119,6 +119,10 @@ AccountController::RestoreStage AccountController::restoreStageValue() const {
 
 QString AccountController::username() const {
     return m_username;
+}
+
+QString AccountController::avatarId() const {
+    return m_avatarId;
 }
 
 bool AccountController::onboardingRequired() const {
@@ -307,10 +311,10 @@ void AccountController::setSyncEngine(
 
     connect(
         m_syncEngine,
-        &SyncEngine::sessionInvalidated,
+        &SyncEngine::accessTokenRejected,
         this,
         [this]() {
-            finishLocalSignOut(true);
+            beginAccessTokenRecovery();
         });
 }
 
@@ -447,7 +451,7 @@ void AccountController::restoreRememberedSession() {
 
     setRestoreStageValue(RestoreStage::SessionRefresh);
     setMode(Mode::Restoring);
-    track(m_client->refreshSession(m_refreshToken));
+    requestSessionRefresh();
 }
 
 void AccountController::continueWithoutAccount() {
@@ -480,6 +484,24 @@ void AccountController::continueWithoutAccount() {
     m_bootstrapStore->setLocalOnlyChosen(true);
     completeOnboarding();
     setMode(Mode::LocalOnly);
+}
+
+void AccountController::returnToSignIn() {
+    // The inverse of continueWithoutAccount(): leave guest/local-only mode and
+    // put the device back at the sign-in choice. The account overlay is
+    // mode-driven — SignedOut re-shows the Welcome surface (Create / Sign in /
+    // Continue without account) — so this only has to invalidate any in-flight
+    // work, forget the persisted local-only choice, and flip the mode. The
+    // local-only profile stores stay bound (nothing is destroyed): the user has
+    // not signed in yet and may re-choose guest mode, and a real sign-in adopts
+    // those stores through the normal path.
+    if (m_mode != Mode::LocalOnly)
+        return;
+
+    advanceGeneration();
+    clearError();
+    m_bootstrapStore->setLocalOnlyChosen(false);
+    setMode(Mode::SignedOut);
 }
 
 void AccountController::createAccount(
@@ -770,6 +792,9 @@ void AccountController::advanceGeneration() {
     ++m_generation;
     m_requestGenerations.clear();
     m_revokeDeviceRequests.clear();
+    m_revokeRefreshRequests.clear();
+    m_refreshRequestId = 0;
+    m_accessTokenRecoveryInFlight = false;
 }
 
 bool AccountController::takeTrackedRequest(quint64 requestId) {
@@ -785,6 +810,7 @@ bool AccountController::takeTrackedRequest(quint64 requestId) {
 void AccountController::handleCompleted(
     quint64 requestId,
     AccountOperation operation,
+    quint64 accessTokenGeneration,
     const AccountTransportReply &reply) {
     const auto pendingRevoke =
         m_pendingRevocationRequests.find(requestId);
@@ -800,11 +826,35 @@ void AccountController::handleCompleted(
     if (!takeTrackedRequest(requestId))
         return;
 
+    if (requestId == m_refreshRequestId)
+        m_refreshRequestId = 0;
+
     if (operationRequiresActiveSession(operation)
         && operation != AccountOperation::LogoutCurrent
+        && operation != AccountOperation::LogoutEverywhere
         && (reply.errorCode == QLatin1String("session_revoked")
             || reply.errorCode == QLatin1String("session_invalid"))) {
-        finishLocalSignOut(true);
+        QString revokedDeviceId;
+        if (operation == AccountOperation::RevokeDevice)
+            revokedDeviceId = m_revokeDeviceRequests.take(requestId);
+
+        if (accessTokenGeneration != 0
+            && accessTokenGeneration
+                != m_client->accessTokenGeneration()) {
+            // This reply belongs to a superseded access-token generation:
+            // the repair above must not start a second refresh or run
+            // teardown for it. But the operation the UI was waiting on
+            // (Saving.../Revoking... spinners) still needs a completion
+            // signal, or the page's pending flag never clears. Deliver
+            // only the operation-specific failure signal here; never
+            // touch m_errorCategory/m_lastErrorCode/m_lastErrorMessage
+            // and never call beginAccessTokenRecovery() for a stale reply.
+            emitStaleGenerationCompletion(
+                operation, requestId, revokedDeviceId);
+            return;
+        }
+
+        beginAccessTokenRecovery();
         return;
     }
 
@@ -958,7 +1008,9 @@ void AccountController::handleCompleted(
         return;
 
     case AccountOperation::LogoutEverywhere:
-        if (isSuccess(reply)) {
+        if (isSuccess(reply)
+            || reply.errorCode == QLatin1String("session_invalid")
+            || reply.errorCode == QLatin1String("session_revoked")) {
             finishLocalSignOut(false);
             return;
         }
@@ -984,8 +1036,11 @@ void AccountController::handleCompleted(
         return;
 
     case AccountOperation::ChangePassword:
-        if (!isSuccess(reply))
+        if (!isSuccess(reply)) {
             setErrorFromReply(reply);
+            return;
+        }
+        emit passwordChangeSucceeded();
         return;
 
     case AccountOperation::ReplaceRecoveryKey:
@@ -1001,22 +1056,32 @@ void AccountController::handleCompleted(
                     QStringLiteral("recovery_key_delivery_failed"),
                     QStringLiteral(
                         "The replacement recovery key could not be presented."));
+                emit recoveryKeyReplacementFailed(
+                    m_lastErrorMessage, errorCategory(), m_lastErrorCode);
+                return;
             }
+            emit recoveryKeyReplacementSucceeded();
             return;
         }
 
         setErrorFromReply(reply);
+        emit recoveryKeyReplacementFailed(
+            m_lastErrorMessage, errorCategory(), m_lastErrorCode);
         return;
 
     case AccountOperation::GetProfile:
-    case AccountOperation::RenameUsername:
-    case AccountOperation::SetBuiltinAvatar:
     case AccountOperation::SetNewDeviceProtection:
         if (isSuccess(reply)) {
             if (reply.body.contains(QStringLiteral("username"))) {
                 setUsername(
                     reply.body
                         .value(QStringLiteral("username"))
+                        .toString());
+            }
+            if (reply.body.contains(QStringLiteral("avatar_id"))) {
+                setAvatarId(
+                    reply.body
+                        .value(QStringLiteral("avatar_id"))
                         .toString());
             }
             if (reply.body.contains(
@@ -1034,21 +1099,72 @@ void AccountController::handleCompleted(
         setErrorFromReply(reply);
         return;
 
-    case AccountOperation::ListDevices:
+    case AccountOperation::RenameUsername:
         if (isSuccess(reply)) {
-            const QJsonArray devices = reply.body
-                .value(QStringLiteral("devices"))
-                .toArray();
+            if (reply.body.contains(QStringLiteral("username")))
+                setUsername(reply.body.value(QStringLiteral("username")).toString());
+            else
+                refreshProfile();
+            if (reply.body.contains(QStringLiteral("avatar_id")))
+                setAvatarId(reply.body.value(QStringLiteral("avatar_id")).toString());
+            emit usernameRenameSucceeded();
+            return;
+        }
+        setErrorFromReply(reply);
+        emit usernameRenameFailed(
+            m_lastErrorMessage, errorCategory(), m_lastErrorCode);
+        return;
+
+    case AccountOperation::SetBuiltinAvatar:
+        if (isSuccess(reply)) {
+            if (reply.body.contains(QStringLiteral("username")))
+                setUsername(reply.body.value(QStringLiteral("username")).toString());
+            if (reply.body.contains(QStringLiteral("avatar_id")))
+                setAvatarId(reply.body.value(QStringLiteral("avatar_id")).toString());
+            else
+                refreshProfile();
+            emit builtinAvatarChangeSucceeded();
+            return;
+        }
+        setErrorFromReply(reply);
+        emit builtinAvatarChangeFailed(
+            m_lastErrorMessage, errorCategory(), m_lastErrorCode);
+        return;
+
+    case AccountOperation::ListDevices: {
+        const QString reconciledRevoke =
+            m_revokeRefreshRequests.take(requestId);
+
+        if (isSuccess(reply)) {
+            const QJsonValue devicesValue =
+                reply.body.value(QStringLiteral("devices"));
+            if (!devicesValue.isArray()) {
+                setError(
+                    ErrorCategory::Protocol,
+                    QStringLiteral("invalid_devices_payload"),
+                    QStringLiteral(
+                        "The account service returned an invalid trusted-device list."));
+                emit deviceListRefreshFailed(
+                    m_lastErrorMessage, errorCategory(), m_lastErrorCode);
+                return;
+            }
+            const QJsonArray devices = devicesValue.toArray();
             setDeviceCount(devices.size());
             if (m_devices != devices) {
                 m_devices = devices;
                 emit devicesChanged();
             }
+            if (!reconciledRevoke.isEmpty())
+                emit deviceRevokeSucceeded(reconciledRevoke);
+            emit deviceListRefreshSucceeded();
             return;
         }
 
         setErrorFromReply(reply);
+        emit deviceListRefreshFailed(
+            m_lastErrorMessage, errorCategory(), m_lastErrorCode);
         return;
+    }
 
     case AccountOperation::RevokeDevice: {
         const QString revokedDevice =
@@ -1057,15 +1173,22 @@ void AccountController::handleCompleted(
         if (isSuccess(reply)) {
             if (!revokedDevice.isEmpty()
                 && revokedDevice == m_deviceId) {
+                emit deviceRevokeSucceeded(revokedDevice);
                 finishLocalSignOut(true);
                 return;
             }
 
-            refreshDevices();
+            const quint64 refreshRequestId =
+                track(m_client->listDevices());
+            if (!revokedDevice.isEmpty())
+                m_revokeRefreshRequests.insert(
+                    refreshRequestId, revokedDevice);
             return;
         }
 
         setErrorFromReply(reply);
+        emit deviceRevokeFailed(
+            revokedDevice, m_lastErrorMessage, errorCategory(), m_lastErrorCode);
         return;
     }
 
@@ -1100,6 +1223,91 @@ void AccountController::handleCompleted(
     case AccountOperation::RevokeRefreshToken:
     case AccountOperation::SyncPush:
     case AccountOperation::SyncPull:
+        return;
+    }
+}
+
+void AccountController::emitStaleGenerationCompletion(
+    AccountOperation operation,
+    quint64 requestId,
+    const QString &revokedDeviceId) {
+    // A stale-generation reply is a real completion for whatever the QML
+    // page was waiting on, so the operation-specific signal still has to
+    // fire. It must not go through setError()/setErrorFromReply(): those
+    // mutate the shared m_errorCategory/m_lastErrorCode/m_lastErrorMessage
+    // state and (via setError) emit the generic accountError signal, which
+    // would contradict the repair's guarantee that a stale reply leaves
+    // error/session state untouched.
+    static const QString kStaleMessage = QStringLiteral(
+        "The session was refreshed while this request was in flight. "
+        "Try again.");
+    static const QString kStaleCode =
+        QStringLiteral("stale_session_retry");
+    const QString staleCategory =
+        errorCategoryName(ErrorCategory::Unavailable);
+
+    switch (operation) {
+    case AccountOperation::RenameUsername:
+        emit usernameRenameFailed(
+            kStaleMessage, staleCategory, kStaleCode);
+        return;
+
+    case AccountOperation::SetBuiltinAvatar:
+        emit builtinAvatarChangeFailed(
+            kStaleMessage, staleCategory, kStaleCode);
+        return;
+
+    case AccountOperation::ReplaceRecoveryKey:
+        emit recoveryKeyReplacementFailed(
+            kStaleMessage, staleCategory, kStaleCode);
+        return;
+
+    case AccountOperation::ListDevices: {
+        const QString reconciledRevoke =
+            m_revokeRefreshRequests.take(requestId);
+        if (!reconciledRevoke.isEmpty()) {
+            emit deviceRevokeFailed(
+                reconciledRevoke,
+                kStaleMessage,
+                staleCategory,
+                kStaleCode);
+            return;
+        }
+        emit deviceListRefreshFailed(
+            kStaleMessage, staleCategory, kStaleCode);
+        return;
+    }
+
+    case AccountOperation::RevokeDevice:
+        emit deviceRevokeFailed(
+            revokedDeviceId,
+            kStaleMessage,
+            staleCategory,
+            kStaleCode);
+        return;
+
+    case AccountOperation::ChangePassword:
+        // ChangePassword has no dedicated failure signal; the security
+        // page's passwordRequestPending is cleared by its accountError
+        // handler alone. Emit the signal directly (not via setError()) so
+        // the persisted error-state properties stay untouched.
+        emit accountError(staleCategory, kStaleCode, kStaleMessage);
+        return;
+
+    case AccountOperation::SetNewDeviceProtection:
+        // SetNewDeviceProtection has no dedicated failure signal either;
+        // AccountSecurityPage.qml clears protectionRequestPending only on
+        // newDeviceProtectionChanged or accountError. Emit the signal
+        // directly (not via setError()) so the persisted error-state
+        // properties stay untouched.
+        emit accountError(staleCategory, kStaleCode, kStaleMessage);
+        return;
+
+    default:
+        // Other tracked operations (GetProfile, ListApprovals,
+        // DecideApproval, SyncPush, SyncPull) have no QML busy-flag
+        // contract tied to a per-operation failure signal; drop the stale
+        // reply silently, matching prior behavior for them.
         return;
     }
 }
@@ -1461,6 +1669,9 @@ void AccountController::handleSignInReply(
 
 void AccountController::handleRefreshReply(
     const AccountTransportReply &reply) {
+    const bool recoveringAccessToken =
+        m_accessTokenRecoveryInFlight;
+
     if (isSuccess(reply)) {
         const QJsonObject sessionObject =
             reply.body
@@ -1470,22 +1681,34 @@ void AccountController::handleRefreshReply(
         if (!prepareProfileForSession(
                 sessionObject,
                 false)) {
+            m_accessTokenRecoveryInFlight = false;
             return;
         }
 
         if (!adoptSession(sessionObject)) {
+            m_accessTokenRecoveryInFlight = false;
             setError(
                 ErrorCategory::Storage,
                 QStringLiteral("secure_store_unavailable"),
                 QStringLiteral(
                     "The account session could not be stored securely."),
                 true);
+            return;
+        }
+
+        m_accessTokenRecoveryInFlight = false;
+        if (recoveringAccessToken
+            && m_syncEngine
+            && m_syncEngine->active()) {
+            m_syncEngine->setNetworkEnabled(true);
+            m_syncEngine->requestImmediateSync();
         }
         return;
     }
 
     if (reply.errorCode == QLatin1String("session_revoked")
         || reply.errorCode == QLatin1String("session_invalid")) {
+        m_accessTokenRecoveryInFlight = false;
         finishLocalSignOut(true);
         return;
     }
@@ -1504,6 +1727,7 @@ void AccountController::handleRefreshReply(
         return;
     }
 
+    m_accessTokenRecoveryInFlight = false;
     setErrorFromReply(reply, true);
 }
 
@@ -1683,6 +1907,15 @@ void AccountController::setUsername(
     emit usernameChanged();
 }
 
+void AccountController::setAvatarId(
+    const QString &avatarId) {
+    const QString normalized = avatarId.trimmed();
+    if (m_avatarId == normalized)
+        return;
+    m_avatarId = normalized;
+    emit avatarIdChanged();
+}
+
 void AccountController::setDeviceCount(int count) {
     count = qMax(0, count);
     if (m_deviceCount == count)
@@ -1772,6 +2005,8 @@ void AccountController::clearVolatileSession() {
     m_refreshTimer.stop();
     m_challengeTimer.stop();
     m_approvalTimer.stop();
+    m_refreshRequestId = 0;
+    m_accessTokenRecoveryInFlight = false;
 
     m_client->clearAccessToken();
 
@@ -1787,6 +2022,7 @@ void AccountController::clearVolatileSession() {
     m_pendingTrustedRecoveryChallenge.clear();
 
     setUsername(QString());
+    setAvatarId(QString());
     setDeviceCount(0);
     setNewDeviceProtectionValue(false);
     setSyncStateValue(SyncState::Inactive);
@@ -1918,6 +2154,40 @@ void AccountController::finishLocalSignOut(bool locked) {
         setMode(Mode::SignedOut);
         emit signedOut();
     }
+}
+
+void AccountController::beginAccessTokenRecovery() {
+    if (m_refreshToken.isEmpty()
+        || m_mode == Mode::LocalOnly
+        || m_mode == Mode::SignedOut
+        || m_mode == Mode::Locked
+        || m_mode == Mode::DeletionPending) {
+        return;
+    }
+
+    m_accessTokenRecoveryInFlight = true;
+    m_refreshTimer.stop();
+    m_approvalTimer.stop();
+
+    if (m_syncEngine && m_syncEngine->active())
+        m_syncEngine->setNetworkEnabled(false);
+
+    setSyncStateValue(SyncState::Retrying);
+    requestSessionRefresh(true);
+}
+
+void AccountController::requestSessionRefresh(bool accessTokenRecovery) {
+    if (m_refreshToken.isEmpty())
+        return;
+
+    if (accessTokenRecovery)
+        m_accessTokenRecoveryInFlight = true;
+
+    if (m_refreshRequestId != 0)
+        return;
+
+    m_refreshRequestId = track(
+        m_client->refreshSession(m_refreshToken));
 }
 
 void AccountController::scheduleRefresh(
@@ -2155,7 +2425,8 @@ AccountController::categoryForReply(
         return ErrorCategory::RateLimited;
 
     if (code == QLatin1String("avatar_unavailable")
-        || code == QLatin1String("service_error")) {
+        || code == QLatin1String("service_error")
+        || code == QLatin1String("service_unavailable")) {
         return ErrorCategory::Unavailable;
     }
 

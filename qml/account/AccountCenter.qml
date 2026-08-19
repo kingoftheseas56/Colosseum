@@ -1,70 +1,218 @@
-// Account Centre (Bundle 8C, built to the Preflight 18-mock frame + Agent 0's
-// amendments): full-screen glass page in the Updates/Wallpapers trinity.
-// Left rail: Profile · Security · Devices · Recovery · Data & Privacy.
-// Opens on the sync hero the mocks lacked — the library the account protects.
+// AccountCenter.qml
+// Composed Account Centre candidate against the current live Colosseum shell.
+// All six locked page packages coexist here so transplantation does not depend
+// on stacking mutually-overlapping AccountCenter patches.
+
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../AccountActivityFormat.js" as AccountActivityFormat
 
 Rectangle {
     id: root
+    objectName: "accountCenter"
 
     property var controller: null
+    property var recoveryPresenter: null
+    readonly property bool signedIn:
+        controller && controller.mode === "signedIn"
     property string initial: "?"
-    property string activeSection: "library"
+    property string activeSection: "colosseum"
+
+    // Your Colosseum: bound to the native ProfileActivity projection (CPP-PORT-CONTRACT.md
+    // arcs/02-profile-account-centre/activity-engine/reference, section 14 "QML model
+    // contract"). This host owns selected-month UI state and formats ONE raw projection into
+    // AccountYourColosseumPage.qml's existing presentation-only seam; the page itself gained no
+    // aggregation logic (section 14: "Do not move aggregation into
+    // AccountYourColosseumPage.qml").
+
+    // Selected month, "YYYY-MM" — UI state, reset to the current system-local month each time
+    // the Centre opens from closed (see open() below), never a live clock binding (section 12).
+    property string colosseumMonthKey: ""
+    // The "current month" navigation ceiling, frozen at the same open() moment as
+    // colosseumMonthKey (section 12: "next month enabled only while selected month is before
+    // current month" — a live re-read of today's date here would make next/previous flicker
+    // mid-session if the Centre is left open across a real month boundary).
+    property string colosseumCurrentMonthKey: ""
+    // Section 12: "previous month stops at ProfileActivity.earliestActivityMonth() when one
+    // exists" — recomputed on revision too, since new activity can move the earliest month.
+    property string colosseumEarliestMonthKey: {
+        if (typeof ProfileActivity === "undefined" || !ProfileActivity)
+            return ""
+        void ProfileActivity.revision
+        return ProfileActivity.earliestActivityMonth()
+    }
+
+    // Section 14 "Recommended binding": exactly one projectMonth() call per selected
+    // month/revision (section 24 performance rule) — every yourColosseum* metric below reads
+    // THIS cached object, never calls projectMonth() itself. The null-guard/revision-read/
+    // projectMonth-call algorithm lives once in AccountActivityFormat.projectionFor() (not
+    // copy-pasted here) so tst_account_activity_binding.qml can prove the exact-one-call rule
+    // against a recording fake without instantiating this whole composed host.
+    property var colosseumProjection: AccountActivityFormat.projectionFor(
+            typeof ProfileActivity !== "undefined" ? ProfileActivity : null,
+            colosseumMonthKey)
+
+    property string yourColosseumMonthName: AccountActivityFormat.monthName(colosseumMonthKey)
+    property string yourColosseumMonthYear: AccountActivityFormat.monthYear(colosseumMonthKey)
+    property string yourColosseumWatchTimeText:
+        AccountActivityFormat.durationText(colosseumProjection.watchSeconds)
+    property string yourColosseumPagesReadText:
+        AccountActivityFormat.countText(colosseumProjection.pagesRead)
+    property string yourColosseumCompletedText:
+        AccountActivityFormat.countText(colosseumProjection.completedCount)
+    property string yourColosseumActiveDaysText:
+        AccountActivityFormat.countText(colosseumProjection.activeDays)
+    property var yourColosseumHighlights:
+        AccountActivityFormat.formatHighlights(colosseumProjection.highlights)
+    property var yourColosseumRecentActivity:
+        AccountActivityFormat.formatRecentActivity(colosseumProjection.recentActivity)
+    property bool yourColosseumPreviousMonthEnabled:
+        AccountActivityFormat.previousMonthEnabled(colosseumMonthKey, colosseumEarliestMonthKey)
+    property bool yourColosseumNextMonthEnabled:
+        AccountActivityFormat.nextMonthEnabled(colosseumMonthKey, colosseumCurrentMonthKey)
+
+    signal yourColosseumPreviousMonthRequested()
+    signal yourColosseumNextMonthRequested()
+
+    // Mutates the host's own selected-month UI state; AccountYourColosseumPage.qml stays
+    // presentation-only and only ever emits the request.
+    onYourColosseumPreviousMonthRequested: {
+        if (yourColosseumPreviousMonthEnabled)
+            colosseumMonthKey = AccountActivityFormat.shiftMonthKey(colosseumMonthKey, -1)
+    }
+    onYourColosseumNextMonthRequested: {
+        if (yourColosseumNextMonthEnabled)
+            colosseumMonthKey = AccountActivityFormat.shiftMonthKey(colosseumMonthKey, 1)
+    }
+
+    // Data & privacy is presentation-only until its dedicated backend lane
+    // supplies authoritative policy values and handles these requests.
+    property bool privacyRememberSearchHistory: true
+    property bool privacyKeepActivityHistory: true
+    property bool privacySyncActivityHistory: true
+    property bool privacyRememberSearchHistoryBusy: false
+    property bool privacyKeepActivityHistoryBusy: false
+    property bool privacySyncActivityHistoryBusy: false
+    property bool privacyClearSearchHistoryBusy: false
+    property bool privacyClearActivityHistoryBusy: false
+    property bool privacyDataExportBusy: false
+    property bool privacyAccountDeletionFlowBusy: false
+    property string privacyErrorMessage: ""
+
+    signal privacyRememberSearchHistoryChangeRequested(bool enabled)
+    signal privacyKeepActivityHistoryChangeRequested(bool enabled)
+    signal privacySyncActivityHistoryChangeRequested(bool enabled)
+    signal privacyClearSearchHistoryRequested()
+    signal privacyClearActivityHistoryRequested()
+    signal privacyDataExportRequested()
+    signal privacyAccountDeletionFlowRequested()
+
+    // E2/E3 backend wiring (roadmap §9, CPP-PORT-CONTRACT.md §16 "Deletion and user-control
+    // rules"): the two clears that have real existing local owners. Exposed as PROPERTIES
+    // (not a bare-global reference inside the handler) so a host/test can inject a fake —
+    // the same injection shape `controller`/`recoveryPresenter` already use above — while
+    // the real app picks up the native SearchHistoryStore/ActivityStore context properties
+    // automatically via the typeof-guarded default, same pattern as colosseumEarliestMonthKey.
+    property var searchHistoryStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
+    property var activityStore: typeof ProfileActivity !== "undefined" ? ProfileActivity : null
+
+    // The three real remembered search scopes, verified 2026-08-19 by grepping every
+    // SearchHistoryStore record()/list() call site in qml/ rather than trusting a guess:
+    // BiblioSearch.qml hardcodes "biblio"; SearchSurface.qml (shared by the Tankoban and
+    // Theatre worlds) derives its scope from searchMode.toLowerCase(), and Main.qml only
+    // ever sets searchMode to "Tankoban" or "Theatre". No "all"/"home"/"world" scope exists
+    // in production use — E2 clears exactly these three, nothing else.
+    readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre"]
+
+    // E2: aggregate local search-history clear via the real SearchHistoryStore owner.
+    onPrivacyClearSearchHistoryRequested: {
+        if (searchHistoryStore)
+            searchHistoryStore.clearAllScopes(privacySearchHistoryScopes)
+    }
+
+    // E3: activity-history clear via the real ActivityStore owner (QML name
+    // ProfileActivity). Continue (ProgressStore) and Collection (CollectionStore) are
+    // separate stores this handler never touches — CPP-PORT-CONTRACT.md §16 forbids
+    // ProgressStore::forget/HistoryStore::remove from secretly deleting activity, and the
+    // inverse holds here: clearing activity never reaches into Progress or Collection.
+    onPrivacyClearActivityHistoryRequested: {
+        if (activityStore)
+            activityStore.clearAll()
+    }
 
     visible: false
     anchors.fill: parent
-    z: 898   // under the onboarding host + flyout; above all chrome
+    // Same z as the Taskbar (900) and the AccountOnboardingHost (900): ties resolve by later
+    // sibling/document order in Main.qml, and AccountCenter is instantiated after the Taskbar
+    // (so it draws above the Taskbar dock and no longer loses clicks to it) and before the
+    // onboarding host (so onboarding still draws on top of the Centre).
+    z: 900
     color: "#0d0c09"
-
-    Behavior on opacity { NumberAnimation { duration: 160 } }
-    onVisibleChanged: if (visible) opacity = 1; else opacity = 0
     opacity: 0
 
-    function open(section) {
-        if (section) activeSection = section;
-        root.visible = true;
-    }
-    function close() { root.visible = false }
+    Behavior on opacity { NumberAnimation { duration: 160 } }
+    onVisibleChanged: opacity = visible ? 1 : 0
 
-    // Full-screen click layer is NOT used here (it's a page, not a popup) —
-    // Escape and the Back row close it.
+    function open(section) {
+        // Section 12/14: selected month resets to "current system-local month" once per
+        // closed->open transition, not on every internal rail-tab switch while already open.
+        if (!root.visible) {
+            colosseumMonthKey = AccountActivityFormat.currentMonthKey()
+            colosseumCurrentMonthKey = colosseumMonthKey
+        }
+        // Preserve old flyout callers while Your library finishes migrating to
+        // the locked Your Colosseum destination.
+        if (section === "library")
+            activeSection = "colosseum"
+        else if (section)
+            activeSection = section
+        root.visible = true
+    }
+
+    function close() {
+        root.visible = false
+    }
+
     Keys.onEscapePressed: root.close()
 
-    // ── dim the shell behind ──
     Rectangle {
         anchors.fill: parent
         color: "#000000"
         opacity: 0.45
-        MouseArea { anchors.fill: parent; onClicked: root.close() }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.close()
+        }
     }
 
     Row {
         anchors.fill: parent
-        anchors.margins: 0
         spacing: 0
 
-        // ── left rail ──
         Rectangle {
             width: 232
             height: parent.height
             color: "#121009"
 
             Column {
-                x: 20; y: 74
+                x: 20
+                y: 74
                 width: parent.width - 40
                 spacing: 4
 
-                // identity stamp
                 Row {
                     spacing: 12
                     bottomPadding: 18
+
                     Rectangle {
-                        width: 38; height: 38; radius: 19
+                        width: 38
+                        height: 38
+                        radius: 19
                         color: Qt.rgba(0.94, 0.77, 0.29, 0.14)
                         border.width: 1.5
                         border.color: Qt.rgba(0.94, 0.77, 0.29, 0.75)
+
                         Text {
                             anchors.centerIn: parent
                             text: root.initial
@@ -74,16 +222,19 @@ Rectangle {
                             font.weight: Font.DemiBold
                         }
                     }
+
                     Column {
                         spacing: 1
                         anchors.verticalCenter: parent.verticalCenter
+
                         Text {
-                            text: controller ? controller.username : ""
+                            text: root.controller ? root.controller.username : ""
                             color: "#f2f2ef"
                             font.family: "Inter"
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
                         }
+
                         Text {
                             text: qsTr("Colosseum account")
                             color: "#7d7a6f"
@@ -95,36 +246,51 @@ Rectangle {
 
                 Repeater {
                     model: [
-                        { id: "library",  label: qsTr("Your library"), glyph: "◍" },
-                        { id: "profile",  label: qsTr("Profile"),      glyph: "◌" },
-                        { id: "security", label: qsTr("Security"),     glyph: "◇" },
-                        { id: "devices",  label: qsTr("Devices"),      glyph: "▣" },
-                        { id: "recovery", label: qsTr("Recovery"),     glyph: "↶" },
-                        { id: "privacy",  label: qsTr("Data & privacy"), glyph: "◫" }
+                        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
+                        { id: "colosseum", label: qsTr("Your Colosseum"), glyph: "▥" },
+                        { id: "security", label: qsTr("Security"), glyph: "◇" },
+                        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
+                        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
+                        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
                     ]
+
                     Rectangle {
+                        objectName: "accountCenterRail_" + modelData.id
                         width: parent ? parent.width : 0
                         height: 38
                         radius: 9
                         color: root.activeSection === modelData.id
-                               ? Qt.rgba(0.94, 0.77, 0.29, 0.12)
-                               : (railMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                            ? Qt.rgba(0.94, 0.77, 0.29, 0.12)
+                            : (railMa.containsMouse
+                                ? Qt.rgba(1, 1, 1, 0.05)
+                                : "transparent")
+
                         Row {
-                            x: 12; spacing: 10
+                            x: 12
+                            spacing: 10
                             anchors.verticalCenter: parent.verticalCenter
+
                             Text {
                                 text: modelData.glyph
-                                color: root.activeSection === modelData.id ? "#f0df9a" : "#8f8b80"
+                                color: root.activeSection === modelData.id
+                                    ? "#f0df9a"
+                                    : "#8f8b80"
                                 font.pixelSize: 13
                             }
+
                             Text {
                                 text: modelData.label
-                                color: root.activeSection === modelData.id ? "#f2f2ef" : "#b7b3a6"
+                                color: root.activeSection === modelData.id
+                                    ? "#f2f2ef"
+                                    : "#b7b3a6"
                                 font.family: "Inter"
                                 font.pixelSize: 13
-                                font.weight: root.activeSection === modelData.id ? Font.DemiBold : Font.Normal
+                                font.weight: root.activeSection === modelData.id
+                                    ? Font.DemiBold
+                                    : Font.Normal
                             }
                         }
+
                         MouseArea {
                             id: railMa
                             anchors.fill: parent
@@ -137,303 +303,164 @@ Rectangle {
 
                 Item { width: 1; height: 14 }
 
-                // quiet sign-out at the rail's foot
                 Text {
-                    text: qsTr("Sign out")
-                    color: "#8f8b80"
+                    text: root.signedIn ? qsTr("Sign out") : qsTr("Sign in")
+                    color: railOutMa.containsMouse ? "#d8d4c8" : "#8f8b80"
                     font.family: "Inter"
                     font.pixelSize: 12
+
                     MouseArea {
+                        id: railOutMa
                         anchors.fill: parent
                         anchors.margins: -8
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onHoveredChanged: parent.color = railOutMa.containsMouse ? "#d8d4c8" : "#8f8b80"
-                        id: railOutMa
                         onClicked: {
-                            if (root.controller)
-                                root.controller.logoutCurrent();
-                            root.close();
+                            if (root.controller) {
+                                if (root.signedIn)
+                                    root.controller.logoutCurrent()
+                                else
+                                    root.controller.returnToSignIn()
+                            }
+                            root.close()
                         }
                     }
                 }
             }
-            Rectangle {  // rail's right hairline
-                width: 1; height: parent.height
+
+            Rectangle {
+                width: 1
+                height: parent.height
                 anchors.right: parent.right
                 color: "#221f18"
             }
         }
 
-        // ── content column ──
         Item {
             width: parent.width - 232
             height: parent.height
 
-            // Back row (house pattern)
             Text {
-                x: 34; y: 30
+                x: 34
+                y: 30
                 text: qsTr("‹ Back")
-                color: "#8f8b80"
+                color: backMa.containsMouse ? "#b7b3a6" : "#8f8b80"
                 font.family: "Inter"
                 font.pixelSize: 12
+
                 MouseArea {
+                    id: backMa
                     anchors.fill: parent
                     anchors.margins: -8
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.close()
                 }
             }
 
-            // ═══ LIBRARY — the hero the mocks lacked ═══
-            Column {
-                x: 34; y: 64
+            AccountProfilePage {
+                x: 34
+                y: 64
                 width: parent.width - 68
-                spacing: 18
-                visible: root.activeSection === "library"
-
-                Text {
-                    text: qsTr("Your library, everywhere")
-                    color: "#f2f2ef"
-                    font.family: "Inter"
-                    font.pixelSize: 26
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    width: parent.width
-                    text: controller
-                          ? qsTr("Signed in as %1 — your Continue shelf, Collection and history follow you to every device.")
-                            .arg(controller.username)
-                          : ""
-                    color: "#8f8b80"
-                    font.family: "Inter"
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                }
-
-                // sync truth line
-                Row {
-                    spacing: 8
-                    Rectangle {
-                        width: 8; height: 8; radius: 4
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: {
-                            if (!controller) return "#8f8b80";
-                            if (controller.syncState === "blocked") return "#e0564b";
-                            if (controller.pendingOutboxCount > 0
-                                || controller.syncState === "retrying") return "#f0df9a";
-                            return "#7ec97e";
-                        }
-                    }
-                    Text {
-                        text: {
-                            if (!controller) return "";
-                            if (controller.pendingOutboxCount > 0)
-                                return qsTr("Syncing — %1 pending").arg(controller.pendingOutboxCount);
-                            if (controller.syncState === "blocked") return qsTr("Sync needs attention");
-                            if (controller.syncState === "retrying") return qsTr("Waiting for the account service…");
-                            return qsTr("All changes synced");
-                        }
-                        color: "#b7b3a6"
-                        font.family: "Inter"
-                        font.pixelSize: 12
-                    }
-                }
-
-                // protected-worlds tiles (counts from the sync service data)
-                Row {
-                    spacing: 14
-                    Repeater {
-                        model: [
-                            { world: qsTr("Continue"), note: qsTr("resume points") },
-                            { world: qsTr("Collection"), note: qsTr("saved shelf") },
-                            { world: qsTr("History"), note: qsTr("completed") },
-                            { world: qsTr("Preferences"), note: qsTr("profile-wide") }
-                        ]
-                        Rectangle {
-                            width: 168; height: 92
-                            radius: 13
-                            color: "#15130e"
-                            border.width: 1
-                            border.color: "#242019"
-                            Column {
-                                x: 16; y: 14
-                                spacing: 4
-                                Text {
-                                    text: modelData.world
-                                    color: "#b7b3a6"
-                                    font.family: "Inter"
-                                    font.pixelSize: 11
-                                }
-                                Text {
-                                    text: modelData.note
-                                    color: "#5f5c53"
-                                    font.family: "Inter"
-                                    font.pixelSize: 10
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Text {
-                    text: qsTr("Search history, window state and machine paths never leave this device — by design.")
-                    color: "#5f5c53"
-                    font.family: "Inter"
-                    font.pixelSize: 10
-                    wrapMode: Text.WordWrap
-                    width: parent.width
-                }
+                height: parent.height - 96
+                active: root.visible && root.activeSection === "profile"
+                visible: active
+                controller: root.controller
             }
 
-            // ═══ PROFILE ═══
-            Column {
-                x: 34; y: 64
+            AccountYourColosseumPage {
+                x: 34
+                y: 64
                 width: parent.width - 68
-                spacing: 16
-                visible: root.activeSection === "profile"
+                height: parent.height - 96
+                active: root.visible && root.activeSection === "colosseum"
+                visible: active
 
-                Text {
-                    text: qsTr("Profile")
-                    color: "#f2f2ef"; font.family: "Inter"
-                    font.pixelSize: 22; font.weight: Font.DemiBold
-                }
-                Text {
-                    text: controller ? qsTr("Username: %1").arg(controller.username) : ""
-                    color: "#b7b3a6"; font.family: "Inter"; font.pixelSize: 13
-                }
-                Text {
-                    text: qsTr("Avatar and username changes arrive with this page's next pass.")
-                    color: "#5f5c53"; font.family: "Inter"; font.pixelSize: 11
-                }
+                monthName: root.yourColosseumMonthName
+                monthYear: root.yourColosseumMonthYear
+                watchTimeText: root.yourColosseumWatchTimeText
+                pagesReadText: root.yourColosseumPagesReadText
+                completedText: root.yourColosseumCompletedText
+                activeDaysText: root.yourColosseumActiveDaysText
+                highlights: root.yourColosseumHighlights
+                recentActivity: root.yourColosseumRecentActivity
+                previousMonthEnabled: root.yourColosseumPreviousMonthEnabled
+                nextMonthEnabled: root.yourColosseumNextMonthEnabled
+
+                onPreviousMonthRequested:
+                    root.yourColosseumPreviousMonthRequested()
+                onNextMonthRequested:
+                    root.yourColosseumNextMonthRequested()
             }
 
-            // ═══ SECURITY ═══
-            Column {
-                x: 34; y: 64
+            AccountSecurityPage {
+                x: 34
+                y: 64
                 width: parent.width - 68
-                spacing: 16
-                visible: root.activeSection === "security"
-
-                Text {
-                    text: qsTr("Security")
-                    color: "#f2f2ef"; font.family: "Inter"
-                    font.pixelSize: 22; font.weight: Font.DemiBold
-                }
-                Text {
-                    text: qsTr("Password change and new-device protection arrive with this page's next pass.")
-                    color: "#5f5c53"; font.family: "Inter"; font.pixelSize: 11
-                }
+                height: parent.height - 96
+                active: root.visible && root.activeSection === "security"
+                visible: active
+                controller: root.controller
             }
 
-            // ═══ DEVICES ═══
-            Column {
-                x: 34; y: 64
+            AccountDevicesPage {
+                x: 34
+                y: 64
                 width: parent.width - 68
-                spacing: 16
-                visible: root.activeSection === "devices"
-
-                Text {
-                    text: qsTr("Devices")
-                    color: "#f2f2ef"; font.family: "Inter"
-                    font.pixelSize: 22; font.weight: Font.DemiBold
-                }
-                Text {
-                    text: controller
-                          ? qsTr("%1 device%2 trusted on your account.")
-                            .arg(controller.deviceCount)
-                            .arg(controller.deviceCount === 1 ? "" : "s")
-                          : ""
-                    color: "#b7b3a6"; font.family: "Inter"; font.pixelSize: 13
-                }
-                Column {
-                    spacing: 10
-                    Repeater {
-                        model: controller ? controller.devices : []
-                        Rectangle {
-                            width: parent ? parent.width : 0
-                            height: 58
-                            radius: 12
-                            color: "#15130e"
-                            border.width: 1
-                            border.color: (controller && modelData.install_id === controller.deviceId)
-                                          ? Qt.rgba(0.94, 0.77, 0.29, 0.4) : "#242019"
-                            Column {
-                                x: 16; y: 11; spacing: 3
-                                Text {
-                                    text: (modelData.label || qsTr("Unnamed device"))
-                                          + ((controller && modelData.install_id === controller.deviceId)
-                                             ? qsTr("  ·  this device") : "")
-                                    color: "#e8e4d8"; font.family: "Inter"
-                                    font.pixelSize: 13; font.weight: Font.DemiBold
-                                }
-                                Text {
-                                    text: qsTr("%1 · last seen %2")
-                                        .arg(modelData.platform || "—")
-                                        .arg(modelData.last_seen_at || "—")
-                                    color: "#7d7a6f"; font.family: "Inter"; font.pixelSize: 11
-                                }
-                            }
-                            Text {
-                                anchors.right: parent.right; anchors.rightMargin: 16
-                                anchors.verticalCenter: parent.verticalCenter
-                                visible: !(controller && modelData.install_id === controller.deviceId)
-                                text: qsTr("Revoke")
-                                color: "#e0564b"; font.family: "Inter"
-                                font.pixelSize: 12; font.weight: Font.DemiBold
-                                MouseArea {
-                                    anchors.fill: parent; anchors.margins: -10
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (controller) controller.revokeDevice(modelData.id)
-                                }
-                            }
-                        }
-                    }
-                }
+                height: parent.height - 96
+                active: root.visible && root.activeSection === "devices"
+                visible: active
+                controller: root.controller
             }
 
-            // ═══ RECOVERY ═══
-            Column {
-                x: 34; y: 64
+            AccountRecoveryPage {
+                x: 34
+                y: 64
                 width: parent.width - 68
-                spacing: 16
-                visible: root.activeSection === "recovery"
-
-                Text {
-                    text: qsTr("Recovery")
-                    color: "#f2f2ef"; font.family: "Inter"
-                    font.pixelSize: 22; font.weight: Font.DemiBold
-                }
-                Text {
-                    width: parent.width
-                    text: qsTr("Your recovery key is the one way back into this account if you ever forget your password. It was shown once when the account was made. Replacing it needs your current password.")
-                    color: "#8f8b80"; font.family: "Inter"; font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                }
-                Text {
-                    text: qsTr("Key replacement arrives with this page's next pass.")
-                    color: "#5f5c53"; font.family: "Inter"; font.pixelSize: 11
-                }
+                height: parent.height - 96
+                active: root.visible && root.activeSection === "recovery"
+                visible: active
+                controller: root.controller
+                presenter: root.recoveryPresenter
             }
 
-            // ═══ DATA & PRIVACY ═══
-            Column {
-                x: 34; y: 64
-                width: parent.width - 68
-                spacing: 16
-                visible: root.activeSection === "privacy"
+            AccountDataPrivacyPage {
+                x: 34
+                y: 64
+                width: parent.width - 86
+                height: parent.height - 96
+                active: root.visible && root.activeSection === "privacy"
+                visible: active
 
-                Text {
-                    text: qsTr("Data & privacy")
-                    color: "#f2f2ef"; font.family: "Inter"
-                    font.pixelSize: 22; font.weight: Font.DemiBold
+                rememberSearchHistory: root.privacyRememberSearchHistory
+                keepActivityHistory: root.privacyKeepActivityHistory
+                syncActivityHistory: root.privacySyncActivityHistory
+                rememberSearchHistoryBusy: root.privacyRememberSearchHistoryBusy
+                keepActivityHistoryBusy: root.privacyKeepActivityHistoryBusy
+                syncActivityHistoryBusy: root.privacySyncActivityHistoryBusy
+                clearSearchHistoryBusy: root.privacyClearSearchHistoryBusy
+                clearActivityHistoryBusy: root.privacyClearActivityHistoryBusy
+                dataExportBusy: root.privacyDataExportBusy
+                accountDeletionFlowBusy: root.privacyAccountDeletionFlowBusy
+                errorMessage: root.privacyErrorMessage
+
+                onRememberSearchHistoryChangeRequested: function(enabled) {
+                    root.privacyRememberSearchHistoryChangeRequested(enabled)
                 }
-                Text {
-                    width: parent.width
-                    text: qsTr("What syncs: Continue progress, your Collection shelf, completed history, and profile preferences — encrypted end to end.\n\nWhat never leaves this device: search history, window state, file paths, media itself.\n\nAccount deletion arrives with the service's deletion slice; nothing here removes data today.")
-                    color: "#8f8b80"; font.family: "Inter"; font.pixelSize: 12
-                    wrapMode: Text.WordWrap
+                onKeepActivityHistoryChangeRequested: function(enabled) {
+                    root.privacyKeepActivityHistoryChangeRequested(enabled)
                 }
+                onSyncActivityHistoryChangeRequested: function(enabled) {
+                    root.privacySyncActivityHistoryChangeRequested(enabled)
+                }
+                onClearSearchHistoryRequested:
+                    root.privacyClearSearchHistoryRequested()
+                onClearActivityHistoryRequested:
+                    root.privacyClearActivityHistoryRequested()
+                onDataExportRequested:
+                    root.privacyDataExportRequested()
+                onAccountDeletionFlowRequested:
+                    root.privacyAccountDeletionFlowRequested()
             }
         }
     }

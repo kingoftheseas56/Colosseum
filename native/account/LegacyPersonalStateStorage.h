@@ -70,6 +70,14 @@ public:
     QString preferencesIniPath() const;
     QString historyIniPath() const;
 
+    // The durable activity.sqlite path for this storage location — always an
+    // explicit file path (SQLite has no registry-backed equivalent of the
+    // QSettings "DefaultApplication"/"BrotherhoodColosseum" backends above).
+    // §17 "Legacy-local mode": the default/legacy install's ActivityStore
+    // persists here, and first-account adoption migrates the file at this
+    // path into the new profile.
+    QString activityDbPath() const;
+
 private:
     enum class Backend {
         DefaultApplication,
@@ -88,7 +96,8 @@ private:
         const Location &searchHistory,
         const Location &audioPairing,
         const Location &preferences,
-        const Location &history);
+        const Location &history,
+        const QString &activityDbPath);
 
     static std::unique_ptr<QSettings> open(
         const Location &location);
@@ -107,4 +116,5 @@ private:
     Location m_audioPairing;
     Location m_preferences;
     Location m_history;
+    QString m_activityDbPath;
 };

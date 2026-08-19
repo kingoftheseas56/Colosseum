@@ -85,6 +85,13 @@ Item {
     // it rides in the signature so all three surfaces speak one shape. Task 11 is the consumer that
     // gates progress-saving on it; until then it is emitted and unused, which is expected.
     signal presented(int anchorPage, real withinPageFraction)
+    // Activity presentation (§9 Lane C): each successfully rendered member of the resolved
+    // spread — 0, 1 or 2 pages. Fires once the spread RESOLVES (the same paint gate presented()
+    // above uses), but a terminally broken half is excluded from the payload even though that
+    // SAME half counts toward presented()'s resume anchor: "Error/terminal placeholder -> no
+    // successful physical page fact." 0-based physical indices (unit.rightIndex/leftIndex) —
+    // the shell's/ComicActivityHelpers page-key namespace, not the 1-based anchor scale above.
+    signal activityPagesPresented(var pageKeys)
     // The placard's two ways out (Task 11), raised straight through. A pair can show TWO of these
     // cards at once, so the page number is the card's own — never `currentPage`, which would retry
     // the good half. The surface performs neither action: Retry is a backend re-read and Skip is a
@@ -130,8 +137,10 @@ Item {
             // because the marker still said "1 is presented". Measured: 0 emissions — and unlike the
             // warm-pixmap case below, this one does not depend on any cache behaviour.
             root._presentedAnchor = -1
+            root._activityPresentedAnchor = -1
             root._onUnitShown()
             root._checkPresented()
+            root._checkActivityPresented()
         }
         function onPairingChanged() { root.entryRev += 1; root._onUnitShown() }
     }
@@ -442,10 +451,10 @@ Item {
         }
         unitShown(_highestOf(u))                        // fold the unit's highest page into the shell's maxSeen
     }
-    onCurrentPageChanged: { _onUnitShown(); _checkPresented() }   // a page turn -> a new unit
+    onCurrentPageChanged: { _onUnitShown(); _checkPresented(); _checkActivityPresented() }   // a page turn -> a new unit
     // Becoming the mounted surface with the unit already decoded IS a presentation — the layout
     // switched and the reader is now looking at it — so the notice is re-checked here too.
-    onActiveChanged: { _onUnitShown(); _checkPresented() }
+    onActiveChanged: { _onUnitShown(); _checkPresented(); _checkActivityPresented() }
 
     // ================= the spread =================
     Item {
@@ -654,7 +663,35 @@ Item {
         root.presented(root.currentPage, 0)
     }
     function _checkPresented() { Qt.callLater(root._notePresented) }
-    onContentOnScreenChanged: _notePresented()
+
+    // ---- activityPagesPresented(): the SAME "once per anchor" discipline as presented()
+    // above (gated on the same contentOnScreen/unitPaints spread-resolution predicate), but the
+    // PAYLOAD only names members whose pixels genuinely arrived — a member whose own placard is
+    // up (rightPixelsShown/leftPixelsShown false) is silently dropped from the array rather
+    // than reported, which is how a half-broken spread still emits its one good page (§9 Lane
+    // C: "0/1/2 pages as applicable") while a fully-broken spread emits none. A separate marker
+    // (_activityPresentedAnchor) rather than reusing _presentedAnchor: a spread that resolved
+    // via an error the first time already latched _presentedAnchor for resume purposes, and a
+    // later retry landing real pixels must still be able to fire this notice once. ----
+    property int _activityPresentedAnchor: -1
+    readonly property bool rightPixelsShown: rightImg.status === Image.Ready
+    readonly property bool leftPixelsShown: leftImg.status === Image.Ready
+    function _noteActivityPresented() {
+        if (!active || !contentOnScreen) return
+        if (_activityPresentedAnchor === root.currentPage) return
+        _activityPresentedAnchor = root.currentPage
+        var pages = []
+        if ((root.isPair || root.isSingle) && root.rightPixelsShown && root.unit.rightIndex >= 0)
+            pages.push(root.unit.rightIndex)
+        if (root.isPair && root.leftPixelsShown && root.unit.leftIndex >= 0)
+            pages.push(root.unit.leftIndex)
+        if (pages.length) root.activityPagesPresented(pages)
+    }
+    function _checkActivityPresented() { Qt.callLater(root._noteActivityPresented) }
+    // ONE handler for the shared contentOnScreen signal — QML does not allow declaring
+    // onContentOnScreenChanged twice on the same Item, and the two notices are independent
+    // (different markers, different filtering) so both simply run off the one change.
+    onContentOnScreenChanged: { _notePresented(); _noteActivityPresented() }
 
     // ---- readbacks the gate added, for the harness. ----
     //

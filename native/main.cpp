@@ -46,6 +46,7 @@
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
 #include "account/AccountRuntime.h"
+#include "account/ActivityPlaybackTracker.h"
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateInstallBridge.h"
@@ -580,6 +581,11 @@ int main(int argc, char *argv[]) {
     // nothing at runtime â€” the engine is only constructed if QML instantiates Player2Page.
     qmlRegisterType<Colosseum::Player2::Player2VideoItem>("Colosseum.Player2", 1, 0, "Player2VideoItem");
     qmlRegisterType<Colosseum::Player2::Player2Backend>("Colosseum.Player2", 1, 0, "Player2Backend");
+
+    // "Your Colosseum" playback activity sampler (CPP-PORT-CONTRACT.md §8), reached from QML as
+    // `import Colosseum.Activity`. One transient instance per lane (Player 1, Player 2, audiobook);
+    // each binds its own `sink: ProfileActivity` (the profile-scoped ActivityStore context property).
+    qmlRegisterType<ActivityPlaybackTracker>("Colosseum.Activity", 1, 0, "ActivityPlaybackTracker");
 #endif
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);

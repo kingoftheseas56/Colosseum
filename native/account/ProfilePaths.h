@@ -33,6 +33,7 @@ public:
     QString audioPairingIniPath() const;
     QString preferencesIniPath() const;
     QString historyIniPath() const;
+    QString activityDbPath() const;
     QString syncStatePath() const;
     QString syncOutboxPath() const;
     QString syncMetaIniPath() const;

@@ -51,6 +51,7 @@ public:
 
     void setAccessToken(const QByteArray &accessToken);
     QByteArray accessToken() const;
+    quint64 accessTokenGeneration() const;
     void clearAccessToken();
 
     quint64 createAccount(
@@ -122,9 +123,15 @@ signals:
     void completed(
         quint64 requestId,
         AccountOperation operation,
+        quint64 accessTokenGeneration,
         const AccountTransportReply &reply);
 
 private:
+    struct PendingRequest {
+        AccountOperation operation = AccountOperation::CreateAccount;
+        quint64 accessTokenGeneration = 0;
+    };
+
     quint64 send(
         AccountOperation operation,
         const QByteArray &method,
@@ -136,6 +143,7 @@ private:
 
     AccountTransport *m_transport = nullptr;
     QByteArray m_accessToken;
+    quint64 m_accessTokenGeneration = 1;
     quint64 m_nextRequestId = 1;
-    QHash<quint64, AccountOperation> m_pending;
+    QHash<quint64, PendingRequest> m_pending;
 };

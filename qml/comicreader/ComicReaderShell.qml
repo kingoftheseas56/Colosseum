@@ -35,6 +35,13 @@
 import QtQuick
 import QtCore                                   // Settings — the house persistence sink
 import "ComicReaderState.js" as ComicReaderState
+// Slice D7 — Lane C (Tankoban/manga/comics) activity hook, CPP-PORT-CONTRACT.md §7/§9/§10.
+// ActivityLaneHelpers.js is the SAME generic begin/no-op/end session-transition module Player 1
+// (qml/PlayerPage.qml) and the audiobook lane (qml/AudiobookSession.qml) already share — a
+// third lane reusing it rather than re-deriving a third copy. ComicActivityHelpers.js holds
+// ONLY this lane's own pure logic (identity/kind derivation, cover sanitizing, page-key shape).
+import "../ActivityLaneHelpers.js" as ActivityLaneHelpers
+import "../ComicActivityHelpers.js" as ComicActivityHelpers
 
 Item {
     id: reader
@@ -1033,6 +1040,120 @@ Item {
         if (!_stripRestorePending) recordProgressSoon()
     }
 
+    // ================= Your Colosseum activity (Lane C) ====================================
+    // CPP-PORT-CONTRACT.md §7 identity, §9 Lane C, §10 fixed-page dedupe. `activity` is guarded
+    // exactly like `core`/`progress` above — a missing/unbound ActivityStore can never break
+    // reading (§25 fail-closed). Identity/session bookkeeping reuses the SAME generic
+    // begin/no-op/end rule (ActivityLaneHelpers keyFor/decideTransition) Player 1 and the
+    // audiobook lane already share (slice D5) — a third lane reusing it, not re-deriving a
+    // third copy.
+    property var activity: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+    property string activityActiveKey: ""
+    property string activitySessionId: ""
+    // Guards recordCompletion() to the FIRST beat hasFixedCoverage() turns true for this entry
+    // (§9: "when it first becomes true, record media_completed"). Reset only when a genuinely
+    // new session BEGINS (_activityBeginIfNeeded's begin branch) — never on a same-entry
+    // reload/noop, so re-opening an already-completed volume cannot re-fire it either
+    // (hasFixedCoverage already answers true on the very first check there).
+    property bool _activityCoverageCompleted: false
+
+    // Computed FRESH on every call, never cached in a bound property — this file's own
+    // _currentUnit()/ComicReaderDoubleSurface.qml documents why: a var-property binding's
+    // re-evaluation order versus the change handler that triggers it is not guaranteed, and
+    // this is read from inside onCurChapterIdChanged, the handler for exactly the property
+    // (curChapterId) the identity depends on.
+    function _activityIdentity() {
+        return ComicActivityHelpers.identityFor(reader.seriesId, reader.curChapterId, reader.progressKind)
+    }
+
+    // Start a new reading session on a fresh open or a chapter/issue/volume crossing (§9 Lane
+    // C: "Start a new reading session when the user opens the item afresh or crosses to a
+    // different chapter/issue/volume") — never on the hide/reshow-same-entry path (curChapterId
+    // does not change there; see the shell's own LIFECYCLE PARITY note at the top of this
+    // file), which is exactly what decideTransition's "noop" branch already encodes for
+    // Player 1/audiobook.
+    function _activityBeginIfNeeded() {
+        var idf = reader._activityIdentity()
+        var action = ActivityLaneHelpers.decideTransition(reader.activityActiveKey, idf)
+        if (action === "noop") return
+        if (action === "end") {
+            reader.activityActiveKey = ""
+            reader.activitySessionId = ""
+            return
+        }
+        reader.activityActiveKey = ActivityLaneHelpers.keyFor(idf)
+        reader.activitySessionId = (reader.activity && reader.activity.newSessionId) ? reader.activity.newSessionId() : ""
+        reader._activityCoverageCompleted = false
+    }
+
+    // Common identity/metadata fields every reading_delta/media_completed fact for THIS entry
+    // carries (§6 common fields). `itemLabel` is the CHAPTER/VOLUME label, `title` the SERIES —
+    // mirrors recordProgress()'s own seriesTitle/curLabel split above. syncable is always true
+    // here: itemKey is curChapterId, a catalog/archive entry id, never a raw filesystem path
+    // (unlike Biblio's local-path-derived book keys, §7's caveat does not apply to this lane).
+    function _activityCommonFields(idf) {
+        return {
+            world: "tankoban",
+            kind: idf.kind,
+            titleKey: idf.titleKey,
+            itemKey: idf.itemKey,
+            title: reader.seriesTitle,
+            itemLabel: reader.curLabel,
+            cover: ComicActivityHelpers.portableCover(reader.seriesCover),
+            utcOffsetMinutes: -(new Date().getTimezoneOffset()),
+            syncable: true,
+            source: "comicreader-shell",
+            sessionId: reader.activitySessionId
+        }
+    }
+
+    // THE Lane C activity trigger: all three surfaces' activityPagesPresented (mounted below)
+    // land here. `pageKeys0` is a raw 0-based physical-index list from whichever surface
+    // rendered it; ComicActivityHelpers.pageKeysFor shapes it into the stable page-key strings
+    // the native store/projector dedupe on (§10: sessionId+kind+itemKey+pageKey).
+    function _onActivityPagesPresented(pageKeys0) {
+        if (!reader.activity || !reader.activityActiveKey.length) return
+        var idf = reader._activityIdentity()
+        if (!idf) return
+        var keys = ComicActivityHelpers.pageKeysFor(pageKeys0)
+        if (!keys.length) return
+        var fact = reader._activityCommonFields(idf)
+        fact.readingForm = "fixed"
+        fact.pageKeys = keys
+        fact.atMs = Date.now()
+        fact.progressMicros = 0
+        reader.activity.recordReadingDelta(fact)
+        reader._checkActivityCoverage(idf)
+    }
+
+    // §9 Lane C "Fixed-page completion": the entry's exact required non-terminal-broken page
+    // set, asked fresh every time (a retry can un-break a page between checks). `_pageBroken`
+    // is the SAME per-page verdict onCurrentPageChanged already gates maxSeen on above — one
+    // owner of "is this page broken", not a second copy.
+    function _activityRequiredPageKeys() {
+        if (max <= 0) return []
+        var broken = []
+        for (var p = 0; p < max; p++) {
+            if (reader._pageBroken(p + 1)) broken.push(p)
+        }
+        return ComicActivityHelpers.requiredPageKeys(max, broken)
+    }
+    // "when it first becomes true, record media_completed reason full_page_coverage" (§9). A
+    // fast jump straight to the last page cannot complete the item by itself: only pages that
+    // actually reached recordReadingDelta above (a real presented/activity fact, never a
+    // requested-but-unrendered one) are ever covered by hasFixedCoverage.
+    function _checkActivityCoverage(idf) {
+        if (reader._activityCoverageCompleted) return
+        var required = reader._activityRequiredPageKeys()
+        if (!required.length) return
+        if (!reader.activity.hasFixedCoverage(idf.kind, idf.itemKey, required)) return
+        reader._activityCoverageCompleted = true
+        var fact = reader._activityCommonFields(idf)
+        fact.atMs = Date.now()
+        fact.reason = "full_page_coverage"
+        reader.activity.recordCompletion(fact)
+    }
+
     // Is this page showing an error card rather than pixels? The BACKEND answers — one owner of
     // "is this page broken", and it self-heals (a MissingFile page that comes back reports "none"
     // again), which a locally cached failure map in the shell would not.
@@ -1127,7 +1248,7 @@ Item {
     // reader was on). It is not a page nobody has seen — it is where this open is putting them, and
     // for a resume it is a page they demonstrably saw last time. What the rule removed is the write
     // that fired for every page number a FLICK swept through inside an already-open entry.
-    onCurChapterIdChanged: { load(); recordProgress() }
+    onCurChapterIdChanged: { load(); recordProgress(); _activityBeginIfNeeded() }
     onCurrentPageChanged: {
         // CONTRACT for Task 10 (double-page): maxSeen is the completion high-water mark, and
         // `currentPage` is the pair ANCHOR in double mode. MangaReader.qml bumpSeen() (lines 242-249)
@@ -1186,7 +1307,7 @@ Item {
         _resumeArmed = true
         cursorIdleTimer.restart()
         if (chapterId.length) {
-            if (curChapterId === chapterId) { load(); recordProgress() }   // handler didn't fire during construction
+            if (curChapterId === chapterId) { load(); recordProgress(); _activityBeginIfNeeded() }   // handler didn't fire during construction
             else curChapterId = chapterId                                  // -> onCurChapterIdChanged -> load() + record
         } else {
             load()
@@ -1534,6 +1655,7 @@ Item {
         // far down it the viewport centre sits — the only layout where that fraction is ever
         // non-zero, and the reason the record can put you back on the same panel area.
         onPresented: function (page, frac) { reader._onPresented(page, frac) }
+        onActivityPagesPresented: function (pageKeys) { reader._onActivityPagesPresented(pageKeys) }
         // a damaged page's card, from whichever ROW carries it (never the page under the centre)
         onRetryRequested: function (page) { reader.retryPage(page) }
         onSkipRequested: function (page) { reader.skipPage(page) }
@@ -1561,6 +1683,7 @@ Item {
         // fraction is always 0 in a paged layout — the unit IS the viewport's whole travel — and it
         // rides the shared signature so there is one handler, not three.
         onPresented: function (page, frac) { reader._onPresented(page, frac) }
+        onActivityPagesPresented: function (pageKeys) { reader._onActivityPagesPresented(pageKeys) }
         // a damaged half's card. The page is the HALF's, so the good side is never the one retried.
         onRetryRequested: function (page) { reader.retryPage(page) }
         onSkipRequested: function (page) { reader.skipPage(page) }
@@ -1579,6 +1702,7 @@ Item {
         core: reader.core
         currentPage: reader.currentPage
         onPresented: function (page, frac) { reader._onPresented(page, frac) }
+        onActivityPagesPresented: function (pageKeys) { reader._onActivityPagesPresented(pageKeys) }
         onRetryRequested: function (page) { reader.retryPage(page) }
         onSkipRequested: function (page) { reader.skipPage(page) }
     }

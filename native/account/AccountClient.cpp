@@ -22,14 +22,18 @@ AccountClient::AccountClient(
             if (it == m_pending.end())
                 return;
 
-            const AccountOperation operation = it.value();
+            const PendingRequest pending = it.value();
             m_pending.erase(it);
 
             QTimer::singleShot(
                 0,
                 this,
-                [this, requestId, operation, reply]() {
-                    emit completed(requestId, operation, reply);
+                [this, requestId, pending, reply]() {
+                    emit completed(
+                        requestId,
+                        pending.operation,
+                        pending.accessTokenGeneration,
+                        reply);
                 });
         });
 }
@@ -39,19 +43,32 @@ AccountClient::~AccountClient() {
 }
 
 void AccountClient::setAccessToken(const QByteArray &accessToken) {
-    clearAccessToken();
+    if (!m_accessToken.isEmpty())
+        m_accessToken.fill('\0');
     m_accessToken = accessToken;
+    ++m_accessTokenGeneration;
+    if (m_accessTokenGeneration == 0)
+        ++m_accessTokenGeneration;
 }
 
 QByteArray AccountClient::accessToken() const {
     return m_accessToken;
 }
 
+quint64 AccountClient::accessTokenGeneration() const {
+    return m_accessTokenGeneration;
+}
+
 void AccountClient::clearAccessToken() {
-    if (!m_accessToken.isEmpty())
-        m_accessToken.fill('\0');
+    if (m_accessToken.isEmpty())
+        return;
+
+    m_accessToken.fill('\0');
     m_accessToken.clear();
     m_accessToken.squeeze();
+    ++m_accessTokenGeneration;
+    if (m_accessTokenGeneration == 0)
+        ++m_accessTokenGeneration;
 }
 
 quint64 AccountClient::createAccount(
@@ -378,7 +395,11 @@ quint64 AccountClient::send(
     if (authenticated)
         request.bearerToken = m_accessToken;
 
-    m_pending.insert(requestId, operation);
+    PendingRequest pending;
+    pending.operation = operation;
+    pending.accessTokenGeneration =
+        authenticated ? m_accessTokenGeneration : 0;
+    m_pending.insert(requestId, pending);
     m_transport->send(requestId, request);
     return requestId;
 }

@@ -110,6 +110,14 @@ Item {
     // you genuinely stop part way down a page here — which is why it is in the signature at all.
     // Nothing consumes it yet; that is Task 11.
     signal presented(int anchorPage, real withinPageFraction)
+    // Activity presentation (§9 Lane C): fires ONLY for a USER-DRIVEN move that brings the
+    // viewport centre into a NEW successfully rendered physical page — never for a programmatic
+    // resume/compensation/layout-anchor write (those hold `_programmatic` true and never reach
+    // _emitUserScroll, the one caller below) and never for a page merely visible at the edge of
+    // the viewport (only the CENTRE index counts — the same index pageInView already reports).
+    // 0-based — the shell's/ComicActivityHelpers page-key namespace; pageInView above is
+    // 1-based for the shell's currentPage scale, this is not.
+    signal activityPagesPresented(var pageKeys)
     // Unlike the three above this one IS wheel-only — it means "a real gesture happened", not
     // "the position changed". Task 8 gave it its consumer at last: the shell pauses Auto-scroll on
     // it, which is exactly the question it was always answering ("was this a hand, or the machine")
@@ -231,6 +239,10 @@ Item {
     // reader today, but nothing else duplicates "did a wheel gesture happen" and removing it would
     // be an unrelated cleanup outside this bug fix's scope.
     property bool _userInteracted: false
+    // The last page the viewport CENTRE genuinely entered and reported activity for (§9 Lane C
+    // dedupe at the surface level — "avoid obviously duplicate spam"). -1 = nothing noted yet
+    // this entry; reset in the Connections block's onEntryChanged, alongside _rangeFirst/Last.
+    property int _activityLastCentrePage: -1
 
     // Decode-refresh dependency. The C++ provider returns a NULL image for a not-yet-decoded page
     // and imageUrl() embeds a per-page rev that bumps on pageReady — but imageUrl() reading that rev
@@ -298,7 +310,7 @@ Item {
         // sweeps even if it opens on the page numbers the last one closed at" — and a QML memo that
         // did not reset alongside it would swallow the new entry's FIRST call and leave the window
         // wherever the previous volume left it.
-        function onEntryChanged() { root._rangeFirst = -1; root._rangeLast = -1 }
+        function onEntryChanged() { root._rangeFirst = -1; root._rangeLast = -1; root._activityLastCentrePage = -1 }
     }
 
     function _applyCompensation(delta) {
@@ -353,6 +365,13 @@ Item {
             // value (measured on the Single surface, which carries the same note) — so the rule is
             // the named property and `opacity` merely follows it.
             readonly property bool hqShown: pageImg.status === Image.Ready || pageImg._hqEverReady
+            // "successfully rendered" for ACTIVITY purposes — real pixels up (either tier), NOT
+            // the error placard. Distinct from hqShown (the fade rule) because §9 Lane C
+            // excludes it explicitly: "Error/terminal placeholder -> no successful physical
+            // page fact" — unlike presented() below, which counts a placard as an honest
+            // "the reader is here" for resume purposes.
+            readonly property bool pixelsShown: !hasError
+                    && (previewImg.status === Image.Ready || pageImg.status === Image.Ready)
 
             // ---- TWO TIERS, stacked (Task 8), exactly as Single and Pair stack them ----
             // A fast half-width PREVIEW underneath, the real page faded over it as it completes.
@@ -884,6 +903,29 @@ Item {
     // the shell's fraction is written BY this surface's own onScrolled, so a binding the surface acts
     // on is a scroll -> fraction -> apply -> scroll loop, and the latch that used to break the loop
     // was per-object-lifetime — the reader is a persistent child, so the second book never resumed.
+    // "successfully rendered" for the activity centre check — reads the REALIZED delegate
+    // directly (list.itemAtIndex), mirroring _emitPresented's own "ask the backend/drawn
+    // column, not a re-derivation" discipline; an unrealized row (outside the viewport)
+    // answers false rather than guessing.
+    function _activityPageRendered(idx0) {
+        var it = list.itemAtIndex(idx0)
+        return !!(it && it.pixelsShown)
+    }
+    // Called ONLY from _emitUserScroll below (the user-driven scroll report) — never from
+    // haltScrollAt/onActiveChanged's direct _emitPresented() calls, which are exactly the
+    // programmatic-resume/layout-compensation/mount-time paths §9 Lane C excludes ("Programmatic
+    // resume/layout compensation -> no activity fact"). Dedupes on the LAST page the centre
+    // genuinely entered, so sitting still or an edge peek that never reaches the centre never
+    // re-fires — the "avoid obviously duplicate spam" surface-level politeness CPP-PORT-
+    // CONTRACT.md §9 Lane C asks for; correctness against a genuine same-session bounce back
+    // onto an already-read page is the projector's sessionId+kind+itemKey+pageKey dedupe (§10),
+    // not this check, so a real bounce is allowed to reach the ledger again.
+    function _noteActivityCentre(idx0) {
+        if (idx0 === root._activityLastCentrePage) return
+        if (!root._activityPageRendered(idx0)) return
+        root._activityLastCentrePage = idx0
+        root.activityPagesPresented([idx0])
+    }
     function _emitUserScroll() {
         if (list.count <= 0) return
         var span = list.contentHeight - list.height
@@ -891,8 +933,10 @@ Item {
         root.scrolled(Math.max(0, Math.min(1, frac)))
         var centreY = list.contentY + list.height / 2
         var idx = list.indexAt(list.width / 2, centreY)
-        if (idx >= 0)
+        if (idx >= 0) {
             root.pageInView(idx + 1)               // 1-based (shell currentPage scale)
+            root._noteActivityCentre(idx)
+        }
         _emitPresented()
         var lo = list.indexAt(list.width / 2, list.contentY + 1)
         var hi = list.indexAt(list.width / 2, list.contentY + list.height - 1)

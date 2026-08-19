@@ -13,7 +13,7 @@ Item {
 
     property string routeName: "welcome"
     readonly property bool presenterActive:
-        recoveryPresenter && recoveryPresenter.active
+        recoveryPresenter ? recoveryPresenter.active === true : false
     readonly property string controllerMode:
         controller ? controller.mode : "signedOut"
 

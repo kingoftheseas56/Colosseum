@@ -755,6 +755,7 @@ private slots:
     void rejectedFutureCanRebaseToServiceTime();
     void stateStoreRoundTripPreservesCheckpoint();
     void offlineMutationIsDurableAcrossRestart();
+    void bearerRejectionPausesForAuthenticationRecoveryWithoutDroppingOutbox();
     void adapterRegisteredAfterStartSnapshotsExistingState();
     void duplicatePushAfterLostResponseIsIdempotent();
     void twoReplicasConvergeByHLCTuple();
@@ -1074,6 +1075,49 @@ offlineMutationIsDurableAcrossRestart() {
     QTRY_COMPARE(
         restarted.pendingOutboxCount(),
         1);
+}
+
+void tst_sync_engine::
+bearerRejectionPausesForAuthenticationRecoveryWithoutDroppingOutbox() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+    Replica replica(
+        &service,
+        profile,
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("pending"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    QSignalSpy authRecoverySpy(
+        &replica.engine,
+        &SyncEngine::accessTokenRejected);
+
+    replica.client.clearAccessToken();
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(
+        replica.engine.state(),
+        SyncEngine::State::Retrying);
+    QCOMPARE(authRecoverySpy.count(), 1);
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
+    QVERIFY(replica.engine.active());
+
+    replica.client.setAccessToken(
+        QByteArrayLiteral("fixture-access-refreshed"));
+    replica.engine.setNetworkEnabled(true);
+    replica.engine.requestImmediateSync();
+
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(service.acceptedMutationCount(), 1);
 }
 
 void tst_sync_engine::

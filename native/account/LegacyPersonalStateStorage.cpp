@@ -382,6 +382,17 @@ LegacyPersonalStateStorage::forCurrentInstallation() {
     Location preferences;
     Location history;
 
+    // activity.sqlite has no QSettings-registry equivalent — it is always an
+    // explicit file, tagged or not, under the same AppData root the tagged
+    // Ini locations below use (§17 "Legacy-local mode").
+    const QString activityRoot =
+        QStandardPaths::writableLocation(
+            QStandardPaths::AppDataLocation);
+    QDir().mkpath(activityRoot);
+    const QString activityDbPath =
+        QDir(activityRoot).filePath(
+            QStringLiteral("activity.sqlite"));
+
     if (tagged) {
         const QString root =
             QStandardPaths::writableLocation(
@@ -430,7 +441,8 @@ LegacyPersonalStateStorage::forCurrentInstallation() {
         searchHistory,
         audioPairing,
         preferences,
-        history);
+        history,
+        activityDbPath);
 }
 
 LegacyPersonalStateStorage
@@ -477,13 +489,18 @@ LegacyPersonalStateStorage::isolated(
         QDir(base).filePath(
             QStringLiteral("history-store.ini"));
 
+    const QString activityDbPath =
+        QDir(base).filePath(
+            QStringLiteral("activity.sqlite"));
+
     return LegacyPersonalStateStorage(
         progress,
         collection,
         searchHistory,
         audioPairing,
         preferences,
-        history);
+        history,
+        activityDbPath);
 }
 
 std::optional<LegacyPersonalStateStorage>
@@ -559,13 +576,18 @@ LegacyPersonalStateStorage::forProfileRoot(
         QDir(root).filePath(
             QStringLiteral("history.ini"));
 
+    const QString activityDbPath =
+        QDir(root).filePath(
+            QStringLiteral("activity.sqlite"));
+
     return LegacyPersonalStateStorage(
         progress,
         collection,
         searchHistory,
         audioPairing,
         preferences,
-        history);
+        history,
+        activityDbPath);
 }
 
 std::optional<PersonalStateSnapshot>
@@ -869,19 +891,25 @@ QString LegacyPersonalStateStorage::historyIniPath() const {
     return m_history.iniPath;
 }
 
+QString LegacyPersonalStateStorage::activityDbPath() const {
+    return m_activityDbPath;
+}
+
 LegacyPersonalStateStorage::LegacyPersonalStateStorage(
     const Location &progress,
     const Location &collection,
     const Location &searchHistory,
     const Location &audioPairing,
     const Location &preferences,
-    const Location &history)
+    const Location &history,
+    const QString &activityDbPath)
     : m_progress(progress),
       m_collection(collection),
       m_searchHistory(searchHistory),
       m_audioPairing(audioPairing),
       m_preferences(preferences),
-      m_history(history) {}
+      m_history(history),
+      m_activityDbPath(activityDbPath) {}
 
 std::unique_ptr<QSettings>
 LegacyPersonalStateStorage::open(

@@ -16,7 +16,7 @@ Item {
 
     visible: false
     anchors.fill: parent
-    z: 899   // just under the onboarding host (900); above all chrome
+    z: 900   // above AccountCenter by document order; below the onboarding host (900), which is instantiated after this in Main.qml
 
     function syncLine() {
         if (!controller)
@@ -87,7 +87,9 @@ Item {
                     spacing: 2
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
-                        text: controller ? controller.username : ""
+                        text: root.signedIn
+                              ? (controller ? controller.username : "")
+                              : qsTr("Not signed in")
                         color: "#f2f2ef"
                         font.family: "Inter"
                         font.pixelSize: 15
@@ -102,11 +104,15 @@ Item {
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: "#26231d" }
+            Rectangle {
+                width: parent.width; height: 1; color: "#26231d"
+                visible: root.signedIn
+            }
 
             Row {
                 spacing: 8
                 width: parent.width
+                visible: root.signedIn
                 Rectangle {
                     width: 7; height: 7; radius: 3.5
                     anchors.verticalCenter: parent.verticalCenter
@@ -130,14 +136,18 @@ Item {
             }
 
             // nav into the centre (Preflight menu mock, merged with identity)
-            Rectangle { width: parent.width; height: 1; color: "#26231d" }
+            Rectangle {
+                width: parent.width; height: 1; color: "#26231d"
+                visible: root.signedIn
+            }
 
             Column {
                 width: parent.width
                 spacing: 2
+                visible: root.signedIn
                 Repeater {
                     model: [
-                        { label: qsTr("Account ›"), section: "library" },
+                        { label: qsTr("Account ›"), section: "colosseum" },
                         { label: qsTr("Devices ›"), section: "devices" }
                     ]
                     Item {
@@ -177,7 +187,7 @@ Item {
                     border.color: parent.hovered ? "#3a362c" : "#2a2720"
                 }
                 contentItem: Text {
-                    text: qsTr("Sign out")
+                    text: root.signedIn ? qsTr("Sign out") : qsTr("Sign in")
                     color: "#d8d4c8"
                     font.family: "Inter"
                     font.pixelSize: 12
@@ -186,8 +196,12 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                 }
                 onClicked: {
-                    if (root.controller)
-                        root.controller.logoutCurrent();
+                    if (root.controller) {
+                        if (root.signedIn)
+                            root.controller.logoutCurrent();
+                        else
+                            root.controller.returnToSignIn();
+                    }
                     root.close();
                 }
             }

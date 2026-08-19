@@ -1,5 +1,6 @@
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
+#include "account/ActivityStore.h"
 #include "account/FirstAccountProfileCoordinator.h"
 #include "account/LegacyPersonalStateStorage.h"
 #include "account/ProfileAdoption.h"
@@ -179,6 +180,32 @@ void seedMachineSentinels(
     preferences.sync();
 }
 
+// A single valid playback_delta fact — 30 seconds of movie playback, the
+// projector's own per-event activeMs cap (ActivityProjector.cpp) — used to
+// seed a legacy activity ledger the same way a real playback session would.
+// Field set mirrors tests/auto/activity/tst_activity_store.cpp's own fixture
+// builders; duplicated here deliberately, same reasoning as that file's own
+// compareJson() note: this is test infrastructure, not activity-engine logic.
+QVariantMap fixtureMovieFact() {
+    QVariantMap fact;
+    fact.insert(QStringLiteral("sessionId"), QStringLiteral("adoption-fixture-session"));
+    fact.insert(QStringLiteral("world"), QStringLiteral("theatre"));
+    fact.insert(QStringLiteral("kind"), QStringLiteral("movie"));
+    fact.insert(QStringLiteral("titleKey"), QStringLiteral("theatre:adoption-fixture-movie"));
+    fact.insert(QStringLiteral("itemKey"), QStringLiteral("adoption-fixture-movie"));
+    fact.insert(QStringLiteral("title"), QStringLiteral("Adoption Fixture Movie"));
+    fact.insert(QStringLiteral("itemLabel"), QString());
+    fact.insert(QStringLiteral("cover"), QString());
+    fact.insert(QStringLiteral("utcOffsetMinutes"), qint64(330));
+    fact.insert(QStringLiteral("syncable"), true);
+    fact.insert(QStringLiteral("source"), QStringLiteral("test"));
+    fact.insert(QStringLiteral("startAtMs"), qint64(1720000000000));
+    fact.insert(QStringLiteral("endAtMs"), qint64(1720000030000));
+    fact.insert(QStringLiteral("activeMs"), qint64(30000));
+    fact.insert(QStringLiteral("rateMilli"), qint64(1000));
+    return fact;
+}
+
 void verifyMachineSentinels(
     const LegacyPersonalStateStorage &legacy) {
     QSettings progress(
@@ -214,6 +241,9 @@ private slots:
     void retryIntentReAdoptsOnLaterSignIn();
     void legacySnapshotV1RemainsReadableWithoutHistory();
     void directAccountSwitchRequiresSealing();
+
+    void firstAccountAdoptionMigratesActivityLedger();
+    void interruptedAdoptionRestoresLegacyActivityLedger();
 };
 
 void tst_account_adoption::
@@ -790,6 +820,247 @@ directAccountSwitchRequiresSealing() {
     QCOMPARE(
         runtime.activeProfile().profileId(),
         fixture.accountPaths().profileId());
+}
+
+void tst_account_adoption::
+firstAccountAdoptionMigratesActivityLedger() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source =
+        populatedSnapshot();
+    QVERIFY(
+        fixture.legacy.restorePersonalState(
+            source));
+
+    // Seed a legacy activity ledger the way a real legacy-local session
+    // would accumulate one: write directly at the legacy activity path,
+    // then let the store close cleanly (scope exit) before adoption runs.
+    {
+        ActivityStore legacyActivity(
+            fixture.legacy.activityDbPath());
+        QVERIFY(legacyActivity.healthy());
+        QVERIFY2(
+            legacyActivity.recordPlaybackDelta(
+                fixtureMovieFact()),
+            "seeding the legacy activity fact should succeed");
+    }
+
+    const QString expectedActivityDigest =
+        ActivityStore::fileDigestSha256(
+            fixture.legacy.activityDbPath());
+    QVERIFY(!expectedActivityDigest.isEmpty());
+
+    ProfileStoreRuntime runtime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot);
+
+    QString error;
+    QVERIFY2(
+        coordinator.prepareCreatedAccount(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+
+    const ProfilePaths paths =
+        fixture.accountPaths();
+
+    // Legacy activity ledger is quarantined (removed) — mirrors the legacy
+    // personal-state quarantine the existing adoption tests already prove.
+    QVERIFY(
+        !QFileInfo::exists(
+            fixture.legacy.activityDbPath()));
+
+    // The promoted profile's activity ledger is a byte-identical copy.
+    QCOMPARE(
+        ActivityStore::fileDigestSha256(
+            paths.activityDbPath()),
+        expectedActivityDigest);
+
+    // A rollback backup of the activity ledger exists alongside the
+    // existing personal-state.json backup and matches too.
+    const QString backupActivityPath =
+        QDir(paths.adoptionBackupRoot())
+            .filePath(
+                QStringLiteral("activity.sqlite"));
+    QVERIFY(
+        QFileInfo::exists(backupActivityPath));
+    QCOMPARE(
+        ActivityStore::fileDigestSha256(
+            backupActivityPath),
+        expectedActivityDigest);
+
+    // The migrated fact is readable and semantically intact through the
+    // real ActivityStore API, not just byte-identical on disk.
+    ActivityStore promotedActivity(
+        paths.activityDbPath());
+    QVERIFY(promotedActivity.healthy());
+    const QString monthKey =
+        promotedActivity.earliestActivityMonth();
+    QVERIFY(!monthKey.isEmpty());
+    const QVariantMap projection =
+        promotedActivity.projectMonth(monthKey);
+    QCOMPARE(
+        projection.value(
+            QStringLiteral("watchSeconds"))
+            .toLongLong(),
+        qint64(30));
+}
+
+void tst_account_adoption::
+interruptedAdoptionRestoresLegacyActivityLedger() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source =
+        populatedSnapshot();
+    QVERIFY(
+        fixture.legacy.restorePersonalState(
+            source));
+
+    {
+        ActivityStore legacyActivity(
+            fixture.legacy.activityDbPath());
+        QVERIFY(legacyActivity.healthy());
+        QVERIFY2(
+            legacyActivity.recordPlaybackDelta(
+                fixtureMovieFact()),
+            "seeding the legacy activity fact should succeed");
+    }
+
+    const QString expectedActivityDigest =
+        ActivityStore::fileDigestSha256(
+            fixture.legacy.activityDbPath());
+    QVERIFY(!expectedActivityDigest.isEmpty());
+
+    const ProfilePaths paths =
+        fixture.accountPaths();
+
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+
+        QString error;
+        QVERIFY2(
+            coordinator.prepareCreatedAccount(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+    }
+
+    // Same restart-verification trip wire
+    // corruptRestartRestoresLegacyAndLeavesRetryIntent() already uses: a
+    // promoted personal-state file corrupted between sessions fails the
+    // second session's readback and forces a full rollback — this proves
+    // the activity ledger is restored through that same rollback, not just
+    // personal state.
+    QSettings corrupted(
+        paths.collectionIniPath(),
+        QSettings::IniFormat);
+    corrupted.setValue(
+        QStringLiteral("collection/entries"),
+        QByteArrayLiteral("not-json"));
+    corrupted.sync();
+    QCOMPARE(
+        corrupted.status(),
+        QSettings::NoError);
+
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+
+        QString error;
+        QVERIFY(
+            !coordinator.prepareAccountSession(
+                QString::fromLatin1(kAccountA),
+                &error));
+        QVERIFY(!error.isEmpty());
+    }
+
+    // The legacy activity ledger is restored, and the journal is left
+    // RetryPending — no silent history drop (CPP-PORT-CONTRACT §17).
+    //
+    // Verified SEMANTICALLY (open the restored file and re-project it), not
+    // by raw file-byte digest: the rollback path's own
+    // reloadLegacyProfile() legitimately reopens a live ActivityStore on the
+    // restored path afterward, and — exactly like
+    // tst_activity_store.cpp's own restartPersistsAndProjectsDeterministically
+    // proves — an independent open/close cycle over unchanged SQLite content
+    // is not guaranteed byte-identical (page/WAL layout can differ) even
+    // though the persisted ledger is. The earlier digest checks in
+    // firstAccountAdoptionMigratesActivityLedger already cover the adoption
+    // path's own single-session digest chain (legacy -> staged -> promoted
+    // -> backup), where no such intervening reopen occurs.
+    {
+        ActivityStore restoredLegacyActivity(
+            fixture.legacy.activityDbPath());
+        QVERIFY(restoredLegacyActivity.healthy());
+        const QString monthKey =
+            restoredLegacyActivity.earliestActivityMonth();
+        QVERIFY(!monthKey.isEmpty());
+        const QVariantMap projection =
+            restoredLegacyActivity.projectMonth(monthKey);
+        QCOMPARE(
+            projection.value(
+                QStringLiteral("watchSeconds"))
+                .toLongLong(),
+            qint64(30));
+    }
+
+    QString adoptError;
+    const auto adoption =
+        ProfileAdoption::open(
+            paths,
+            &adoptError);
+    QVERIFY2(
+        adoption.has_value(),
+        qPrintable(adoptError));
+    QCOMPARE(
+        adoption->state(),
+        ProfileAdoption::State::RetryPending);
+
+    // A later retry re-adopts cleanly, re-migrating the restored ledger.
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+
+        QString error;
+        QVERIFY2(
+            coordinator.prepareAccountSession(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+    }
+
+    QVERIFY(
+        !QFileInfo::exists(
+            fixture.legacy.activityDbPath()));
+
+    ActivityStore reAdoptedActivity(
+        paths.activityDbPath());
+    QVERIFY(reAdoptedActivity.healthy());
+    const QString reAdoptedMonthKey =
+        reAdoptedActivity.earliestActivityMonth();
+    QVERIFY(!reAdoptedMonthKey.isEmpty());
+    const QVariantMap reAdoptedProjection =
+        reAdoptedActivity.projectMonth(
+            reAdoptedMonthKey);
+    QCOMPARE(
+        reAdoptedProjection.value(
+            QStringLiteral("watchSeconds"))
+            .toLongLong(),
+        qint64(30));
 }
 
 QTEST_MAIN(tst_account_adoption)

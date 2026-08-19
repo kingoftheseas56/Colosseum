@@ -5,29 +5,51 @@ import ".."
 
 AccountPageFrame {
     id: root
-    objectName: purpose === "passwordRecovered"
+    readonly property bool manualReplacement: purpose === "manualReplacement"
+
+    objectName: manualReplacement
+        ? "accountManualReplacementRecoveryKey"
+        : (purpose === "passwordRecovered"
         ? "accountRecoverySuccess"
         : (purpose === "deviceChallengeRecovered"
             ? "accountDeviceRecoveryKey"
-            : "accountRecoveryKeyIssue")
+            : "accountRecoveryKeyIssue"))
 
     property var presenter: null
     property string purpose: presenter ? presenter.purpose : ""
 
     eyebrow: "COLOSSEUM · ACCOUNT"
-    headline: purpose === "passwordRecovered"
+    headline: manualReplacement
+        ? "Recovery"
+        : (purpose === "passwordRecovered"
         ? "Recover your account."
         : (purpose === "deviceChallengeRecovered"
             ? "Save your new recovery key."
-            : "Save your recovery key.")
-    detail: purpose === "passwordRecovered"
+            : "Save your recovery key."))
+    detail: manualReplacement
+        ? "Your account has a new one-time recovery key."
+        : (purpose === "passwordRecovered"
         ? "Use your username and recovery key to set a new password."
         : (purpose === "deviceChallengeRecovered"
             ? "The recovery key you used to approve this device has been replaced."
-            : "This key can reset your password if you ever lose access.")
-    panelWidth: 560
+            : "This key can reset your password if you ever lose access."))
+    panelWidth: manualReplacement ? 680 : 560
 
     signal finished(string purpose)
+
+    function copyPresentedKey() {
+        if (root.presenter && root.presenter.copyRecoveryKey()) {
+            copyToast.visible = true
+            copyToastTimer.restart()
+        }
+    }
+
+    function finishPresentedKey() {
+        const completedPurpose = root.purpose
+        if (root.presenter)
+            root.presenter.dismiss()
+        root.finished(completedPurpose)
+    }
 
     Text {
         visible: root.purpose === "passwordRecovered"
@@ -48,21 +70,27 @@ AccountPageFrame {
     }
 
     AccountPanelHeader {
-        kicker: root.purpose === "passwordRecovered"
+        kicker: root.manualReplacement
+            ? "RECOVERY KEY REPLACED"
+            : (root.purpose === "passwordRecovered"
             ? "ACCOUNT RECOVERED"
             : (root.purpose === "deviceChallengeRecovered"
                 ? "DEVICE APPROVED"
-                : "RECOVERY KEY")
-        title: root.purpose === "passwordRecovered"
+                : "RECOVERY KEY"))
+        title: root.manualReplacement
+            ? "Save the new key now."
+            : (root.purpose === "passwordRecovered"
             ? "Password reset."
             : (root.purpose === "deviceChallengeRecovered"
                 ? "Keep the replacement key safe"
-                : "Keep this somewhere safe")
-        copy: root.purpose === "passwordRecovered"
+                : "Keep this somewhere safe"))
+        copy: root.manualReplacement
+            ? "The previous recovery key no longer works. Colosseum only shows this replacement once."
+            : (root.purpose === "passwordRecovered"
             ? "Your old recovery key no longer works. Save the new one below."
             : (root.purpose === "deviceChallengeRecovered"
                 ? "The key used for this sign-in is no longer valid. Colosseum only shows the replacement once."
-                : "Colosseum only shows this key once.")
+                : "Colosseum only shows this key once."))
     }
 
     Item { width: 1; height: 24 }
@@ -90,10 +118,12 @@ AccountPageFrame {
                 spacing: 10
 
                 Text {
-                    text: root.purpose === "passwordRecovered"
+                    text: root.manualReplacement
+                        ? "New recovery key"
+                        : (root.purpose === "passwordRecovered"
                         || root.purpose === "deviceChallengeRecovered"
                         ? "New recovery key"
-                        : "Your recovery key"
+                        : "Your recovery key")
                     color: keyTheme.inkDim
                     font.family: keyTheme.ui
                     font.pixelSize: 11
@@ -121,6 +151,7 @@ AccountPageFrame {
             }
 
             Text {
+                objectName: "accountRecoveryKeyValue"
                 width: parent.width
                 text: root.presenter ? root.presenter.recoveryKey : ""
                 color: keyTheme.ink
@@ -139,12 +170,29 @@ AccountPageFrame {
     AccountButton {
         objectName: "accountRecoveryKeyCopy"
         width: parent.width
+        visible: !root.manualReplacement
         text: "Copy recovery key"
-        onClicked: {
-            if (root.presenter && root.presenter.copyRecoveryKey()) {
-                copyToast.visible = true
-                copyToastTimer.restart()
-            }
+        onClicked: root.copyPresentedKey()
+    }
+
+    Row {
+        width: parent.width
+        visible: root.manualReplacement
+        spacing: 9
+
+        AccountButton {
+            objectName: "accountRecoveryKeyCopyManual"
+            width: (parent.width - parent.spacing) / 2
+            text: "Copy recovery key"
+            onClicked: root.copyPresentedKey()
+        }
+
+        AccountButton {
+            objectName: "accountRecoveryKeySavedManual"
+            width: (parent.width - parent.spacing) / 2
+            text: "I saved it"
+            variant: "primary"
+            onClicked: root.finishPresentedKey()
         }
     }
 
@@ -204,26 +252,24 @@ AccountPageFrame {
     AccountButton {
         objectName: "accountRecoveryKeyContinue"
         width: parent.width
+        visible: !root.manualReplacement
         text: root.purpose === "passwordRecovered"
             ? "Continue to sign in"
             : "Continue to Colosseum"
         variant: "primary"
-        onClicked: {
-            const completedPurpose = root.purpose
-            if (root.presenter)
-                root.presenter.dismiss()
-            root.finished(completedPurpose)
-        }
+        onClicked: root.finishPresentedKey()
     }
 
     Item { width: 1; height: 18 }
 
     Text {
         width: parent.width
-        text: root.purpose === "passwordRecovered"
+        text: root.manualReplacement
+            ? "Store it somewhere outside this device. The key is not kept as ordinary Account Centre state."
+            : (root.purpose === "passwordRecovered"
             || root.purpose === "deviceChallengeRecovered"
             ? "The old recovery key has been replaced."
-            : "You can generate a new recovery key later while signed in."
+            : "You can generate a new recovery key later while signed in.")
         color: footerTheme.inkDimmer
         font.family: footerTheme.ui
         font.pixelSize: 11
@@ -234,7 +280,8 @@ AccountPageFrame {
 
     Text {
         width: parent.width
-        visible: root.purpose !== "passwordRecovered"
+        visible: !root.manualReplacement
+            && root.purpose !== "passwordRecovered"
             && root.purpose !== "deviceChallengeRecovered"
         text: "Generating a new one kills the old key."
         color: secondFooterTheme.inkDimmer

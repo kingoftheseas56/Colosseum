@@ -16,6 +16,7 @@
 import QtQuick
 import "Reader2Logic.js" as L
 import "../BiblioApi.js" as B    // pairKey(title, author) — the ONE derivation Biblio keys audiobooks by
+import "../Reader2ActivityHelpers.js" as AH   // Your Colosseum reading activity (Slice D8, CPP-PORT-CONTRACT.md §9 Lane D)
 
 FocusScope {
     id: shell
@@ -62,6 +63,15 @@ FocusScope {
     property var pendingSave: null
     property string pendingSaveId: ""
     property string pendingSaveBookPath: ""
+
+    // ---- Your Colosseum reading activity (Slice D8) ----
+    // sessionId is a FRESH ProfileActivity.newSessionId() per book open (reset in the 'ready'
+    // handler below, alongside every other per-book reset). activityState is the pure
+    // baseline/completed bookkeeping AH.activityDecision() reads and returns a new copy of —
+    // see qml/Reader2ActivityHelpers.js. Both are meaningless (and never read) until the first
+    // accepted 'relocated' after 'ready', so no separate "book not open yet" guard is needed.
+    property string activitySessionId: ""
+    property var activityState: AH.freshState()
 
     // ---- chrome view-model (fed by paper 'ready' + 'relocated' events) ----
     property string bookTitle: ""
@@ -714,6 +724,63 @@ FocusScope {
         interval: 60
         onTriggered: shell.flushProgressSave()
     }
+    // Your Colosseum reading activity (Slice D8, CPP-PORT-CONTRACT.md §9 Lane D) — called from
+    // the 'relocated' handler for every ACCEPTED (current-generation, book-ready) relocation,
+    // BEFORE the 60ms persistence debounce below. The decision itself is pure (AH.
+    // activityDecision, in qml/Reader2ActivityHelpers.js); this only derives identity, shapes
+    // the two possible facts, and sends them. sink/idf guards mean a missing ActivityStore or
+    // an unidentifiable book (no metadata id AND no bookId) silently records nothing — §25:
+    // activity is observational and must never affect reading itself.
+    // Cover is intentionally left "" here (never bookMeta.cover): §15 bars local file/qrc/
+    // absolute paths from an activity event's cover field, and Biblio's book covers are not
+    // reliably a portable remote URL — omitting is the fail-closed choice, not a placeholder.
+    function recordReadingActivity(p) {
+        var sink = (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        var idf = AH.biblioIdentityFor(shell.bookMeta, shell.bookId)
+        if (!sink || !idf) return
+
+        var relocation = {
+            "cause": p.cause,
+            "fraction": p.fraction,
+            "percent": p.percent,
+            "isFixedLayout": !!p.isFixedLayout,
+            "pageInChapter": p.pageInChapter
+        }
+        var decision = AH.activityDecision(shell.activityState, relocation)
+        shell.activityState = decision.newState
+
+        var base = {
+            "sessionId": shell.activitySessionId,
+            "world": "biblio",
+            "kind": idf.kind,
+            "titleKey": idf.titleKey,
+            "itemKey": idf.itemKey,
+            "title": (shell.bookMeta && shell.bookMeta.title) ? String(shell.bookMeta.title) : shell.bookTitle,
+            "itemLabel": shell.chapterLabel || "",
+            "cover": "",
+            "utcOffsetMinutes": -(new Date()).getTimezoneOffset(),
+            "syncable": idf.syncable,
+            "source": "reader2"
+        }
+
+        if (decision.emitReading) {
+            var readingFact = {}
+            for (var rk in base) readingFact[rk] = base[rk]
+            readingFact.atMs = Date.now()
+            readingFact.readingForm = decision.readingForm
+            readingFact.pageKeys = decision.pageKeys
+            readingFact.progressMicros = decision.progressMicros
+            sink.recordReadingDelta(readingFact)
+        }
+        if (decision.emitCompletion) {
+            var completionFact = {}
+            for (var ck in base) completionFact[ck] = base[ck]
+            completionFact.atMs = Date.now()
+            completionFact.reason = "sequential_book_end"
+            sink.recordCompletion(completionFact)
+        }
+    }
+
     // Write the pending progress NOW (timer fire, or an explicit flush on close / book switch).
     // No-op when nothing is pending. Same read-prev + L.progressRecord path as before; only the
     // TIMING moved off the per-event hot path.
@@ -787,6 +854,14 @@ FocusScope {
                 paper.setAppearance(L.appearanceToPaper(shell.appearance))           // first paint = the persisted appearance
                 shell.followOn = false                            // read-along Follow resets per book (default OFF)
                 shell.lastSyncedAudioChapter = -1                 // fresh book → no prior audio-chapter sync
+                // Your Colosseum reading activity (Slice D8) — a fresh session + bookkeeping
+                // per book open. The FIRST relocate after 'ready' (the resume/initial position)
+                // always carries cause "programmatic" (paper_glue.js wraps view.init() in its
+                // programmatic tag), so it seeds nothing here itself — activityState starting
+                // fresh is enough; there is no earlier baseline for it to disturb.
+                var actSink = (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+                shell.activitySessionId = (actSink && actSink.newSessionId) ? actSink.newSessionId() : ""
+                shell.activityState = AH.freshState()
                 // read-along per-book reset (Task 6) — all no-ops when dormant.
                 shell.readAlongFollowState = "following"
                 shell.lastPlayhead = null
@@ -899,6 +974,11 @@ FocusScope {
                 if (typeof p.textPage === "boolean") shell.currentPageIsText = p.textPage
                 if (Number.isFinite(p.pageInChapter)) { shell.pageInChapter = p.pageInChapter; shell.lastPageInChapter = p.pageInChapter }
                 if (Number.isFinite(p.pagesInChapter)) shell.pagesInChapter = p.pagesInChapter
+
+                // --- Your Colosseum reading activity (Slice D8) — BEFORE the persistence
+                // debounce below, per CPP-PORT-CONTRACT.md §9 Lane D. Resume/persistence
+                // semantics, the debounce, and the generation gate above are all untouched.
+                shell.recordReadingActivity(p)
 
                 // --- RESUME SEAM save (Task 6) — now DEBOUNCED (Part B4) ---
                 // Stash the position + THIS book's identity and restart the 60ms timer, so a

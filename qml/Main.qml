@@ -3358,6 +3358,7 @@ Window {
         id: accountCenter
         objectName: "accountCenter"
         controller: typeof AccountController !== "undefined" ? AccountController : null
+        recoveryPresenter: typeof AccountRecoveryKey !== "undefined" ? AccountRecoveryKey : null
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";

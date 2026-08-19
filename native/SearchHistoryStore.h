@@ -109,6 +109,19 @@ public:
         bump(scope);
     }
 
+    // Account Centre "Clear search history" (E2, CPP-PORT-CONTRACT.md-adjacent roadmap
+    // §9): a product-level aggregate clear over an EXPLICIT, caller-supplied scope list —
+    // never a scan of whatever keys happen to exist in the backing QSettings group. The
+    // caller (AccountCenter.qml) names exactly the scopes the confirmation copy promises
+    // ("biblio", "tankoban", "theatre" — the real scopes recorded via record()/list() as of
+    // 2026-08-19), so this aggregate can never silently widen to cover a future/unexpected
+    // scope. Reuses clear(scope)'s own remove+sync+bump per scope — same isolation-gated
+    // m_settings, same per-scope changed(scope) signal so any open SearchSurface reloads.
+    Q_INVOKABLE void clearAllScopes(const QStringList &scopes) {
+        for (const QString &scope : scopes)
+            clear(scope);
+    }
+
 signals:
     void changed(const QString &scope);
 

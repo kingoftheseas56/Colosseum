@@ -27,6 +27,7 @@ class AccountController final : public QObject {
     Q_PROPERTY(QString syncState READ syncState NOTIFY syncStateChanged)
     Q_PROPERTY(QString restoreStage READ restoreStage NOTIFY restoreStageChanged)
     Q_PROPERTY(QString username READ username NOTIFY usernameChanged)
+    Q_PROPERTY(QString avatarId READ avatarId NOTIFY avatarIdChanged)
     Q_PROPERTY(bool onboardingRequired READ onboardingRequired NOTIFY onboardingRequiredChanged)
     Q_PROPERTY(int deviceCount READ deviceCount NOTIFY deviceCountChanged)
     Q_PROPERTY(QJsonArray devices READ devices NOTIFY devicesChanged)
@@ -105,6 +106,7 @@ public:
     RestoreStage restoreStageValue() const;
 
     QString username() const;
+    QString avatarId() const;
     bool onboardingRequired() const;
     int deviceCount() const;
     QJsonArray devices() const;
@@ -119,7 +121,7 @@ public:
 
     // Native-only identity used by later ProfileContext composition.
     QString accountId() const;
-    QString deviceId() const;
+    Q_INVOKABLE QString deviceId() const;
 
     void setAutomaticPollingEnabled(bool enabled);
     void setProfileCoordinator(
@@ -134,6 +136,8 @@ public:
 
     Q_INVOKABLE void restoreRememberedSession();
     Q_INVOKABLE void continueWithoutAccount();
+    // Escape hatch out of guest/local-only mode back to the sign-in choice.
+    Q_INVOKABLE void returnToSignIn();
 
     Q_INVOKABLE void createAccount(
         const QString &username,
@@ -188,6 +192,7 @@ signals:
     void syncStateChanged();
     void restoreStageChanged();
     void usernameChanged();
+    void avatarIdChanged();
     void onboardingRequiredChanged();
     void deviceCountChanged();
     void devicesChanged();
@@ -201,8 +206,38 @@ signals:
     void accountProfileReadyForSync();
     void signedOut();
     void currentDeviceLocked();
+    void passwordChangeSucceeded();
     void approvalRequestsChanged(const QJsonArray &requests);
     void accountError(const QString &category, const QString &code, const QString &message);
+
+    // Narrow Account Centre result seams. Failure signals keep `message` first
+    // for QML source compatibility while also carrying structured category/code.
+    void usernameRenameSucceeded();
+    void usernameRenameFailed(
+        const QString &message,
+        const QString &category,
+        const QString &code);
+    void builtinAvatarChangeSucceeded();
+    void builtinAvatarChangeFailed(
+        const QString &message,
+        const QString &category,
+        const QString &code);
+    void recoveryKeyReplacementSucceeded();
+    void recoveryKeyReplacementFailed(
+        const QString &message,
+        const QString &category,
+        const QString &code);
+    void deviceListRefreshSucceeded();
+    void deviceListRefreshFailed(
+        const QString &message,
+        const QString &category,
+        const QString &code);
+    void deviceRevokeSucceeded(const QString &deviceId);
+    void deviceRevokeFailed(
+        const QString &deviceId,
+        const QString &message,
+        const QString &category,
+        const QString &code);
 
 private:
     enum class PendingLogout {
@@ -218,6 +253,7 @@ private:
     void handleCompleted(
         quint64 requestId,
         AccountOperation operation,
+        quint64 accessTokenGeneration,
         const AccountTransportReply &reply);
 
     bool prepareLocalOnlyProfile();
@@ -242,6 +278,7 @@ private:
     void setSyncStateValue(SyncState state);
     void setRestoreStageValue(RestoreStage stage);
     void setUsername(const QString &username);
+    void setAvatarId(const QString &avatarId);
     void completeOnboarding();
     void setDeviceCount(int count);
     void setNewDeviceProtectionValue(bool enabled);
@@ -263,6 +300,12 @@ private:
     void continuePendingLogout();
     void clearPendingLogoutWarning();
     void finishLocalSignOut(bool locked);
+    void beginAccessTokenRecovery();
+    void requestSessionRefresh(bool accessTokenRecovery = false);
+    void emitStaleGenerationCompletion(
+        AccountOperation operation,
+        quint64 requestId,
+        const QString &revokedDeviceId);
 
     void scheduleRefresh(const QString &accessExpiresAt);
     void scheduleChallengePoll();
@@ -302,6 +345,7 @@ private:
     ErrorCategory m_errorCategory = ErrorCategory::None;
 
     QString m_username;
+    QString m_avatarId;
     bool m_onboardingRequired = true;
     QString m_accountId;
     QString m_deviceId;
@@ -325,9 +369,12 @@ private:
     QTimer m_refreshTimer;
     QTimer m_challengeTimer;
     QTimer m_approvalTimer;
+    quint64 m_refreshRequestId = 0;
+    bool m_accessTokenRecoveryInFlight = false;
 
     quint64 m_generation = 1;
     QHash<quint64, quint64> m_requestGenerations;
     QHash<quint64, QByteArray> m_pendingRevocationRequests;
     QHash<quint64, QString> m_revokeDeviceRequests;
+    QHash<quint64, QString> m_revokeRefreshRequests;
 };

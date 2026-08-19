@@ -14,6 +14,8 @@
 
 import QtQuick
 import Colosseum.Player
+import Colosseum.Activity
+import "ActivityLaneHelpers.js" as ActivityLaneHelpers
 
 Item {
     id: session
@@ -42,6 +44,85 @@ Item {
 
     // ── the engine (audio only; the mpv surface is never shown — cover art is the remotes' job) ──
     MpvItem { id: mpv; width: 1; height: 1; visible: false }
+
+    // --- Your Colosseum activity (Lane E, CPP-PORT-CONTRACT.md §9): mirrors PlayerPage.qml's
+    // Lane A pattern beside this app-wide session. activePairKey is BiblioApi.pairKey(title,
+    // author) — a normalized text key (see BiblioApi.js), not a canonical cross-service book
+    // ID, so it is a trustworthy LOCAL item identity but not verified portable proof of "the
+    // same edition" across devices. Marked syncable:false and namespaced per §7 Audiobook /
+    // §25 fail-closed ("unsafe/path identity -> local-only event"), same conservative
+    // treatment Lane D already gives the identical pairKey concept for Biblio ebooks.
+    property string activityActiveKey: ""
+    ActivityPlaybackTracker {
+        id: activityTracker
+        // sink NEVER breaks playback if ProfileActivity is absent/unbound (§25) — this session
+        // outlives every UI surface, so the guard must hold across profile switches too.
+        sink: (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+    }
+    // Begin session: called when a genuinely new pairKey becomes active (openFor's own
+    // same-pairKey no-op guard already means this only runs for a real item change). Identity
+    // derivation and the begin/no-op/end state-transition rule live in the shared
+    // ActivityLaneHelpers.js module (also used by PlayerPage.qml's Lane A) and are covered
+    // directly by tests/qml/tst_audiobook_activity.qml.
+    function activityBeginIfNeeded() {
+        var idf = ActivityLaneHelpers.audiobookIdentityFor(session.activePairKey)
+        var action = ActivityLaneHelpers.decideTransition(session.activityActiveKey, idf)
+        if (action === "noop")
+            return
+        session.activityEndSession()
+        if (action === "end")
+            return
+        session.activityActiveKey = ActivityLaneHelpers.keyFor(idf)
+        var sink = (typeof ProfileActivity !== "undefined") ? ProfileActivity : null
+        var sessionId = (sink && sink.newSessionId) ? sink.newSessionId() : ""
+        activityTracker.begin({
+            "world": "biblio",
+            "kind": "audiobook",
+            "titleKey": idf.titleKey,
+            "itemKey": idf.itemKey,
+            "title": (session.book && session.book.title) ? session.book.title : "",
+            "itemLabel": "",
+            "cover": "",   // book.cover may be a local/relative asset locator — never portable (§15)
+            "syncable": false,
+            "source": "audiobook_session"
+        }, sessionId)
+    }
+    // Sampling: the existing 10s Progress heartbeat Timer below also drives this — independent
+    // cadence is fine (the tracker measures wall/media deltas, not ticks, §9 Lane E). consuming
+    // is ready && !paused; the heartbeat's own `running: session.ready` condition (NOT gated on
+    // paused — see AUDIT.md Lane 5) stays byte-identical, so a paused sample still arrives but
+    // the tracker itself discards it via consuming:false.
+    function activitySample() {
+        if (!session.activityActiveKey.length) return
+        var rateMilli = (mpv.speed && mpv.speed > 0) ? Math.round(mpv.speed * 1000) : 1000
+        var consuming = session.ready && !mpv.pause
+        activityTracker.sample(Math.round(mpv.position * 1000), Math.round(mpv.duration * 1000),
+                                rateMilli, consuming)
+    }
+    // Discontinuity: explicit seek, saved-resume seek, file/chapter source switch, pause/sleep-
+    // timer pause, speed change, abnormal load/recovery (§9 Lane E). `atSec`, when given, is the
+    // authoritative post-jump position (e.g. a resume seek mpv.position has not caught up to
+    // yet); otherwise the current mpv.position is used.
+    function activityDiscontinuity(atSec) {
+        if (!session.activityActiveKey.length) return
+        var posSec = (atSec !== undefined) ? atSec : mpv.position
+        var rateMilli = (mpv.speed && mpv.speed > 0) ? Math.round(mpv.speed * 1000) : 1000
+        activityTracker.discontinuity(Math.round(posSec * 1000), Math.round(mpv.duration * 1000), rateMilli)
+    }
+    // Final-file EOF only (§9 Lane E: "intermediate multi-file EOF does not complete" — that
+    // case is a plain activityDiscontinuity() from the file-switch, never this). Ends the
+    // session too, so a later replay begins a fresh one rather than reusing this one.
+    function activityNaturalEof() {
+        if (!session.activityActiveKey.length) return
+        activityTracker.naturalEof()
+        activityTracker.endSession()
+        session.activityActiveKey = ""
+    }
+    function activityEndSession() {
+        if (!session.activityActiveKey.length) return
+        activityTracker.endSession()
+        session.activityActiveKey = ""
+    }
 
     // chapter model: mp3 set → files; single m4b → mpv chapters
     function rebuildChapters() {
@@ -82,6 +163,7 @@ Item {
         session.ready = session.files.length > 0
         session.rebuildChapters()
         if (!session.ready) return
+        session.activityBeginIfNeeded()   // Activity (Lane E): new pairKey — end old session, begin new one
         // Continue resume: the saved listening spot rides in from ProgressStore
         var idx = 0, pos = 0
         if (typeof Progress !== 'undefined') {
@@ -101,6 +183,7 @@ Item {
         if (i < 0 || i >= session.files.length) return
         session.pendingResumeSec = -1         // a deliberate jump cancels any in-flight resume seek
         session.currentIndex = i
+        session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
         mpv.loadFile(session.files[i])
         mpv.pause = false
     }
@@ -109,8 +192,16 @@ Item {
     // carries a `play` flag — a double-click-to-seek wants the narration PLAYING, not toggled
     // (togglePlay would pause an already-playing stream). Idempotent: a no-op if already playing.
     function play() { if (mpv.pause) { mpv.pause = false; session.recordProgress() } }
-    function seekRel(delta) { mpv.seekExact(Math.max(0, Math.min(mpv.duration, mpv.position + delta))) }
-    function seekTo(t) { mpv.seekExact(Math.max(0, t)) }
+    function seekRel(delta) {
+        var target = Math.max(0, Math.min(mpv.duration, mpv.position + delta))
+        session.activityDiscontinuity(target)   // Activity (Lane E): explicit seek
+        mpv.seekExact(target)
+    }
+    function seekTo(t) {
+        var target = Math.max(0, t)
+        session.activityDiscontinuity(target)   // Activity (Lane E): explicit seek
+        mpv.seekExact(target)
+    }
     // Read-along: jump to a chapter by its index in chapterModel — a file load for an mp3
     // set, an mpv-chapter seek for a single m4b. No-op if we're already on it.
     function goToChapter(index) {
@@ -130,6 +221,7 @@ Item {
         var wasPaused = mpv.pause
         session.pendingResumeSec = -1
         session.currentIndex = i
+        session.activityDiscontinuity(0)   // Activity (Lane E): file/chapter source switch
         mpv.loadFile(session.files[i])
         mpv.pause = wasPaused
     }
@@ -146,6 +238,7 @@ Item {
     // a real close ends the stream for good (minimize never calls this — remotes just drop away)
     function stop() {
         if (session.ready) session.recordProgress()          // save the spot before the stream dies
+        session.activityEndSession()   // Activity (Lane E): real close ends the session
         mpv.command(["stop"])
         session.pendingResumeSec = -1
         session.ready = false
@@ -161,19 +254,28 @@ Item {
         target: mpv
         function onEndFile(reason) {
             if (reason === "eof" && session.multiFile && session.currentIndex + 1 < session.files.length)
-                session.playIndex(session.currentIndex + 1)
+                session.playIndex(session.currentIndex + 1)   // intermediate EOF: discontinuity, same session
+            else if (reason === "eof")
+                session.activityNaturalEof()   // Activity (Lane E): final-file EOF completes once
         }
         function onFileLoaded() {
             if (session.pendingResumeSec > 0) {
                 // apply the parked resume seek — and SKIP this heartbeat: mpv.position is
                 // still ~0 here (the seek lands async), so recording now would overwrite
                 // the saved Continue spot with 0. The 10s Timer records the true spot.
+                // Activity: pass the KNOWN resume target explicitly — mpv.position has not
+                // caught up to the async seek yet, so reading it here would anchor the
+                // tracker's baseline at ~0 and later misread the resume jump as watched time.
+                session.activityDiscontinuity(session.pendingResumeSec)
                 mpv.seekExact(session.pendingResumeSec)
                 session.pendingResumeSec = -1
             } else {
                 session.recordProgress()
+                session.activityDiscontinuity()   // Activity (Lane E): ordinary (re)load / abnormal-recovery reset
             }
         }
+        function onPauseChanged() { session.activityDiscontinuity() }   // Activity: pause/sleep-timer pause
+        function onSpeedChanged() { session.activityDiscontinuity() }   // Activity: speed change
     }
 
     // ── session state (kept for the Sessions record contract; {fileIndex, position}) ──
@@ -188,6 +290,7 @@ Item {
             session.playIndex(idx)                           // triggers a load (and clears stale pending)…
             if (pos > 0) session.pendingResumeSec = pos      // …so the seek rides its onFileLoaded
         } else if (pos > 0) {
+            session.activityDiscontinuity(pos)   // Activity (Lane E): saved-resume seek
             mpv.seekExact(pos)   // same file, already open — a live seek works (acceptResumeChoice precedent)
         }
     }
@@ -213,8 +316,17 @@ Item {
                         "position": mpv.position, "book": session.book }
         })
     }
-    Timer { interval: 10000; running: session.ready; repeat: true; onTriggered: session.recordProgress() }
-    Component.onDestruction: session.recordProgress()
+    Timer {
+        interval: 10000; running: session.ready; repeat: true
+        onTriggered: {
+            session.recordProgress()
+            session.activitySample()   // Activity (Lane E): independent cadence is fine (§9)
+        }
+    }
+    Component.onDestruction: {
+        session.recordProgress()
+        session.activityEndSession()   // Activity (Lane E): the app itself is closing — end cleanly
+    }
 
     // ── sleep timer (lives here so it survives the page being minimized) ──
     property int sleepMinutes: 0            // 0 = off

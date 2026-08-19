@@ -17,6 +17,7 @@ class CollectionStore;
 class ProgressStore;
 class HistoryStore;
 class ProfilePreferencesStore;
+class ActivityStore;
 
 class SearchHistoryStore;
 class AudioPairingStore;
@@ -44,6 +45,7 @@ public:
     AudioPairingStore *audioPairingStore() const;
     HistoryStore *historyStore() const;
     ProfilePreferencesStore *preferencesStore() const;
+    ActivityStore *activityStore() const;
 
     void prepareForQml(
         QQmlApplicationEngine *engine);

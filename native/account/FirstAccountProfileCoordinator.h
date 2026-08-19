@@ -48,7 +48,48 @@ private:
         const ProfilePaths &paths,
         ProfileAdoption adoption,
         const PersonalStateSnapshot &source,
+        const QString &activitySourceDigest,
         QString *error);
+
+    // Activity-ledger adoption (CPP-PORT-CONTRACT §17) — the ledger rides
+    // inside the same staging/promote/backup machinery as personal state
+    // (its file lives inside accountStagingRoot()/profileRoot(), so
+    // ProfileAdoption::promote()'s directory rename already moves it
+    // atomically); these helpers only add capture/copy/digest-verify/
+    // quarantine steps around that shared machinery. See their .cpp comments
+    // for the single-threaded-synchronous-flow safety reasoning behind using
+    // a WAL checkpoint + plain file copy instead of a full backup API.
+    QString captureLegacyActivityDigest(
+        QString *error) const;
+
+    bool copyActivityLedgerToStaging(
+        const ProfilePaths &paths,
+        const QString &sourceDigest,
+        QString *stagedDigest,
+        QString *error) const;
+
+    bool verifyActivityDigest(
+        const ProfilePaths &paths,
+        const QString &profileRoot,
+        const QString &expectedDigest,
+        QString *actualDigest,
+        QString *error) const;
+
+    bool backupActivityLedger(
+        const ProfilePaths &paths,
+        const QString &expectedDigest,
+        QString *backupDigest,
+        QString *error) const;
+
+    bool restoreLegacyActivityFromBackup(
+        const ProfilePaths &paths,
+        QString *error) const;
+
+    bool quarantineLegacyActivityLedger(
+        QString *error) const;
+
+    static QString activityBackupFilePath(
+        const ProfilePaths &paths);
 
     bool verifyRestartAndCommit(
         const ProfilePaths &paths,
@@ -80,6 +121,7 @@ private:
         QString *error);
 
     bool restoreLegacyAndRollback(
+        const ProfilePaths &paths,
         ProfileAdoption *adoption,
         const PersonalStateSnapshot &snapshot,
         QString *error);
