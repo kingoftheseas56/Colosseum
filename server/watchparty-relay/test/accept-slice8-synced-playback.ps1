@@ -304,25 +304,71 @@ function Resolve-HandleInRoot([string]$pipe, [string]$root, [string]$name, [int]
     return $match.handle
 }
 
+# GROUND-TRUTH FINDING (controller diagnostic, session 20260820-191520-a577b1cf,
+# independently reproduced): plain-name resolution (findItem's first-DFS-match)
+# is not safe for `extensionsPage` in this drive - after joining a room, more
+# than one Loader-backed instance of a full-page surface can exist, and a
+# name-only ui-wait-for/ui-click can silently answer against a HIDDEN one
+# (matches the topBarSearch shadowing already found and fixed in Slice 8b).
+# Resolve-VisibleHandle dumps the WHOLE tree (no root filter - the ambiguity
+# is precisely about not knowing which root is real) and returns the handle
+# of the first item with the given name whose own `visible` is true. Every
+# subsequent step in this function resolves through that HANDLE, not the name,
+# so a later stale/duplicate instance can never intercept a click that was
+# meant for the real one.
+function Resolve-VisibleHandle([string]$pipe, [string]$name, [string]$leg, [int]$maxDepth = 20) {
+    $r = Invoke-LanistaTimed -pipe $pipe -label "$leg dumpui-visible-$name" -cliArgs @("dump-ui","maxDepth=$maxDepth") -timeoutMs 10000
+    $parsed = ($r.Out -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    $match = $parsed.items | Where-Object { $_.objectName -eq $name -and $_.visible -eq $true } | Select-Object -First 1
+    if (-not $match) { throw "Resolve-VisibleHandle: no VISIBLE item named '$name' (count=$($parsed.items.Count) truncated=$($parsed.truncated)) - the surface never actually opened, or opened hidden" }
+    return $match.handle
+}
+
+# Click-and-verify: a bare ui-click reply proves the CALL succeeded, never
+# that it did anything (exactly the vacuous-pass class the controller found).
+# This clicks by name, then asserts the `checked` mirror (Slice 8b amendment)
+# actually flipped - if it doesn't, the run aborts here with the real cause
+# instead of surfacing as an unrelated rows-timeout three steps later.
+function Click-ToggleAndVerify([string]$pipe, [string]$toggleName, [string]$leg) {
+    Invoke-LanistaTimed -pipe $pipe -label "$leg toggle-visible-$toggleName" -cliArgs @("ui-wait-for","object=$toggleName","prop=visible","value=true","timeout_ms=5000") -timeoutMs 6000 | Out-Null
+    Invoke-LanistaTimed -pipe $pipe -label "$leg click-$toggleName" -cliArgs @("ui-click","target=$toggleName") | Out-Null
+    $verify = Invoke-LanistaTimed -pipe $pipe -label "$leg verify-checked-$toggleName" -cliArgs @("ui-wait-for","object=$toggleName","prop=checked","value=true","timeout_ms=4000") -timeoutMs 5000
+    if (($verify.Out -join "") -notmatch '"matched":\s*true') {
+        throw "$leg`: clicked $toggleName but checked never reached true - enablement did not actually land (this is the exact silent-failure class the controller diagnosed)"
+    }
+    Log "$leg $toggleName confirmed checked=true"
+}
+
 # --- Extension enablement (per-instance sandbox; fresh tag = fresh state) ---
 
 function Enable-TorrentioForInstance([string]$pipe, [string]$leg) {
     Invoke-LanistaTimed -pipe $pipe -label "$leg open-taskbar" -cliArgs @("ui-click","target=colosseumTaskbarHomeButton") | Out-Null
     Invoke-LanistaTimed -pipe $pipe -label "$leg dock-open" -cliArgs @("ui-wait-for","object=taskbarWatchPartyJoin","prop=width","value=46","timeout_ms=5000") -timeoutMs 6000 | Out-Null
     Invoke-LanistaTimed -pipe $pipe -label "$leg click-extensions" -cliArgs @("ui-click","target=taskbarExtensions") | Out-Null
+    # NOTE: an earlier version of this function used Resolve-VisibleHandle
+    # (a full unscoped dump-ui) here to defend against the shadowing class
+    # the controller diagnosed. Live-run finding: dump-ui's own byte budget
+    # truncates a full-tree walk before reaching extensionsPage (count=238,
+    # truncated=true, maxDepth=20) - a self-inflicted regression, LESS
+    # reliable than the plain name wait it replaced (which worked cleanly in
+    # every isolated diagnostic this session, including the join-first
+    # sequence that reproduces the original conditions). Reverted to the
+    # plain name wait; Click-ToggleAndVerify's `checked` assertion below is
+    # the actual safety net the controller asked for - if THIS toggle click
+    # silently misses its real target for any reason (shadowing or
+    # otherwise), the checked==true assertion catches it and aborts here
+    # with clear evidence, without needing a risky full-tree pre-resolution.
     Invoke-LanistaTimed -pipe $pipe -label "$leg extensions-page-open" -cliArgs @("ui-wait-for","object=extensionsPage","prop=visible","value=true","timeout_ms=6000") -timeoutMs 7000 | Out-Null
 
     # Layer 1: global install toggle (Installed pane).
     Invoke-LanistaTimed -pipe $pipe -label "$leg pane-installed" -cliArgs @("ui-click","target=extensionsPaneTab_installed") | Out-Null
-    Invoke-LanistaTimed -pipe $pipe -label "$leg toggle-installed-visible" -cliArgs @("ui-wait-for","object=extensionToggle_com.stremio.torrentio.addon","prop=visible","value=true","timeout_ms=5000") -timeoutMs 6000 | Out-Null
-    Invoke-LanistaTimed -pipe $pipe -label "$leg click-toggle-installed" -cliArgs @("ui-click","target=extensionToggle_com.stremio.torrentio.addon") | Out-Null
+    Click-ToggleAndVerify -pipe $pipe -toggleName "extensionToggle_com.stremio.torrentio.addon" -leg $leg
 
     # Layer 2: per-world (Theatre) ask-order toggle (Sources pane, the default).
     Invoke-LanistaTimed -pipe $pipe -label "$leg pane-sources" -cliArgs @("ui-click","target=extensionsPaneTab_sources") | Out-Null
-    Invoke-LanistaTimed -pipe $pipe -label "$leg toggle-source-visible" -cliArgs @("ui-wait-for","object=extensionSourceToggle_com.stremio.torrentio.addon","prop=visible","value=true","timeout_ms=5000") -timeoutMs 6000 | Out-Null
-    Invoke-LanistaTimed -pipe $pipe -label "$leg click-toggle-source" -cliArgs @("ui-click","target=extensionSourceToggle_com.stremio.torrentio.addon") | Out-Null
+    Click-ToggleAndVerify -pipe $pipe -toggleName "extensionSourceToggle_com.stremio.torrentio.addon" -leg $leg
 
-    Log "Torrentio enabled (both layers) for $leg"
+    Log "Torrentio enabled AND VERIFIED (both layers) for $leg"
 }
 
 # --- Search -> series -> sources sheet drive ---------------------------------
@@ -360,8 +406,24 @@ function Drive-ToSourcesSheet([string]$pipe, [string]$leg, [string]$searchTerm, 
 # to false at the SAME point `loading` is set true again (SourcesSheet.qml's
 # open-trigger function), so closing (Escape) and reopening (re-click Watch)
 # genuinely re-issues the ask rather than replaying a stale empty state.
+function Assert-AskedCountPositive([string]$pipe, [string]$leg, [string]$context) {
+    # HARDENED (controller order A): distinguishes "the multi-extension ask
+    # never went out" (enablement upstream failed silently) from "the ask is
+    # still running" or "it ran and returned nothing" - a bare rows-timeout
+    # cannot tell these apart, and this arc already lost real time to that
+    # exact ambiguity. askedCount==0 here means Torrentio (or nothing) was
+    # ever actually asked - abort with THIS evidence, not a later rows fail.
+    $zeroCheck = Invoke-LanistaTimed -pipe $pipe -label "$leg askedcount-check-$context" -cliArgs @("ui-wait-for","object=sourcesSheet","prop=askedCount","value=0","timeout_ms=800") -timeoutMs 1800
+    $isZero = (($zeroCheck.Out -join "") -match '"matched":\s*true')
+    if ($isZero) {
+        throw "$leg`: sourcesSheet.askedCount==0 at $context - the source ask never went out (enablement failure upstream, not a content/seed problem). Aborting with this evidence per controller order A."
+    }
+    Log "$leg sourcesSheet.askedCount confirmed nonzero at $context"
+}
+
 function Drive-ToSourcesSheetReady([string]$pipe, [string]$leg, [string]$searchTerm, [string]$imdbId, [int]$maxAttempts = 3) {
     Drive-ToSourcesSheet -pipe $pipe -leg $leg -searchTerm $searchTerm -imdbId $imdbId
+    Assert-AskedCountPositive -pipe $pipe -leg $leg -context "initial-open"
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         $timedOutR = Invoke-LanistaTimed -pipe $pipe -label "$leg timedout-check-$attempt" -cliArgs @("ui-wait-for","object=sourcesSheet","prop=timedOut","value=true","timeout_ms=500") -timeoutMs 1500
         $timedOut = (($timedOutR.Out -join "") -match '"matched":\s*true')
@@ -372,11 +434,12 @@ function Drive-ToSourcesSheetReady([string]$pipe, [string]$leg, [string]$searchT
         Invoke-LanistaTimed -pipe $pipe -label "$leg retry-click-watch" -cliArgs @("ui-click","target=theatreSeriesWatch") | Out-Null
         Invoke-LanistaTimed -pipe $pipe -label "$leg retry-sheet-visible" -cliArgs @("ui-wait-for","object=sourcesSheet","prop=visible","value=true","timeout_ms=10000") -timeoutMs 11000 | Out-Null
         Invoke-LanistaTimed -pipe $pipe -label "$leg retry-sheet-loaded" -cliArgs @("ui-wait-for","object=sourcesSheet","prop=loading","value=false","timeout_ms=23000") -timeoutMs 24000 | Out-Null
+        Assert-AskedCountPositive -pipe $pipe -leg $leg -context "retry-$attempt"
     }
     Log "$leg sourcesSheet still timedOut after $maxAttempts attempts - proceeding anyway, row match will fail honestly if truly empty"
 }
 
-function Find-MatchingSourceRow([string]$pipe, [string]$leg, [string[]]$candidateHashes, [int]$maxIndex = 5) {
+function Find-MatchingSourceRow([string]$pipe, [string]$leg, [string[]]$candidateHashes, [int]$maxIndex = 30) {
     # GROUND-TRUTH FINDING (this run): the sheet's row set is not stable to
     # read slowly. A first standalone (quiet-machine) diagnostic found rows
     # instantly; three orchestrated runs in a row found the sheet reporting
@@ -497,11 +560,18 @@ function Wait-PlaybackStarted([string]$pipe, [string]$leg, [int]$timeoutSec = 12
 # MAIN
 # =============================================================================
 
-$SearchTerm = "Coffee Run"
-$ImdbId = "tt12527510"
-$CandidateHashes = @("337ad6c185015feb48cb60fa06c40fb59c8e1e83", "519f45ee5eea3df1fa2339139cfb0f8f973a0eb4")
-$PipeA = "WP8A"; $PipeB = "WP8B2"
-$TagA = "wp-8-a"; $TagB = "wp-8-b"
+# Controller order B: Night of the Living Dead (1968), tt0063350 - public
+# domain, 24 live Torrentio rows verified (curl + in-app diagnostic session,
+# 2026-08-20). Row 0 (index 0 of 24 in-app, confirmed via a grab screenshot
+# in the same diagnostic): "Night of the Living Dead 1968 2160p BluRay",
+# 20 seeders, 4.35 GB, YTS, English, 4K/BluRay/HEVC - the exact well-seeded
+# row the controller named. No smaller-file YTS row was confirmed seeded at
+# diagnostic time; this is the controller-preapproved fallback.
+$SearchTerm = "Night of the Living Dead"
+$ImdbId = "tt0063350"
+$CandidateHashes = @("1d71aeb11a149d7f2c2d5b5b05193cf80a5b927c")
+$PipeA = "WP8A2"; $PipeB = "WP8B3"
+$TagA = "wp-8a2"; $TagB = "wp-8b2"
 
 try {
     Log "=== pre-flight: record any pre-existing colosseum.exe as untouchable ==="
@@ -554,7 +624,7 @@ try {
         $dumpR.Out | Out-File -FilePath (Join-Path $EvidenceRoot "DIAG-A-sourcesSheet-dump.json") -Encoding utf8
         $sheetQuery = Invoke-LanistaTimed -pipe $PipeA -label "A-diag-query-sheet" -cliArgs @("ui-query","object=sourcesSheet") -timeoutMs 8000
         $sheetQuery.Out | Out-File -FilePath (Join-Path $EvidenceRoot "DIAG-A-sourcesSheet-query.json") -Encoding utf8
-        throw "A: sourcesSheet showed neither known Coffee Run infoHash - Verification failed (diagnostic dump saved)"
+        throw "A: sourcesSheet showed none of the locked candidate infoHash(es) ($($CandidateHashes -join ', ')) - Verification failed (diagnostic dump saved)"
     }
     Save-Grab -pipe $PipeA -evidenceName "01-A-sources-sheet" -rootObj "sourcesSheet" | Out-Null
 
