@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <iostream>
+#include <memory>
 
 using namespace Colosseum::Update;
 
@@ -97,6 +98,38 @@ ReleaseCheckResult signedLanistaResult()
     result.verifiedManifestBytes = manifestBytes;
     result.verifiedSignatureBytes = signatureBytes;
     return result;
+}
+
+// Drives a fresh UpdateService through checkNow -> download -> progress ->
+// onCompleted so it lands on Ready, matching the recipe the top-of-file
+// lifecycle test uses (see the `service.restartAndUpdate()` block above).
+// Callers supply the releaseResult so signed fixtures (which populate
+// verifiedManifestBytes/Signature and make persist() durable) and unsigned
+// fixtures (persist() no-ops) both work through the same path.
+std::unique_ptr<UpdateService> readyService(UpdateServiceHooks hooks, const QString& cacheRoot,
+                                            const QString& installerPath,
+                                            const ReleaseCheckResult& releaseResult)
+{
+    hooks.checkLatest = [releaseResult](const QString&, UpdateReleaseClient::Callback done) {
+        done(releaseResult);
+    };
+    auto progress = std::make_shared<UpdateServiceHooks::DownloadProgress>();
+    auto completed = std::make_shared<UpdateServiceHooks::DownloadCompleted>();
+    auto failed = std::make_shared<UpdateServiceHooks::DownloadFailed>();
+    hooks.startDownload = [progress, completed, failed](
+        const DownloadRequest&, UpdateServiceHooks::DownloadProgress p,
+        UpdateServiceHooks::DownloadCompleted c, UpdateServiceHooks::DownloadFailed f) {
+        *progress = std::move(p);
+        *completed = std::move(c);
+        *failed = std::move(f);
+    };
+    auto service = std::make_unique<UpdateService>(version("1.1.0"), cacheRoot, hooks);
+    service->checkNow();
+    service->download();
+    require(bool(*progress) && bool(*completed), "readyService fixture wires download callbacks");
+    (*progress)(17, 17, 100);
+    (*completed)(installerPath);
+    return service;
 }
 
 } // namespace
@@ -472,6 +505,119 @@ int main()
             require(corrupt.release().isEmpty(),
                     "corrupted installed chronicle -> empty release (no unverified artwork)");
         }
+    }
+
+    // ── Shutdown lifecycle (Arc 11 slice 1): restartAndUpdate() requests an
+    // explicit process shutdown after a successful launch + persist(), so the
+    // installer's /WAITPID=<our PID> wait resolves instead of idling out its
+    // 120s timeout. requestShutdown is null-checked; unset must never crash. ──
+    {
+        // (1)(2) Success path: shutdown requested exactly once, and by the time
+        // the callback fires Installing is already durably persisted — proven
+        // by constructing a second UpdateService on the same cacheRoot from
+        // INSIDE the callback and requiring it restores to Installing. Uses the
+        // signed fixture (not manifestFor/validResult) because persist() only
+        // writes once verifiedManifestBytes/Signature are populated.
+        QTemporaryDir shutdownRoot;
+        require(shutdownRoot.isValid(), "shutdown-success temp root");
+        QTemporaryDir shutdownInstallerDir;
+        const QString shutdownInstaller =
+            QDir(shutdownInstallerDir.path()).filePath(QStringLiteral("setup.exe"));
+        QFile shutdownInstallerFile(shutdownInstaller);
+        require(shutdownInstallerFile.open(QIODevice::WriteOnly), "shutdown fixture installer opens");
+        shutdownInstallerFile.write("verified");
+        shutdownInstallerFile.close();
+
+        UpdateServiceHooks shutdownHooks;
+        shutdownHooks.installLauncher = [](const QString& path, const Version&, QString*) {
+            return !path.isEmpty();
+        };
+        int shutdownCalls = 0;
+        bool observedPersistedStateAtShutdown = false;
+        UpdateService::State persistedStateAtShutdown = UpdateService::Idle;
+        const QString shutdownCacheRoot = shutdownRoot.path();
+        shutdownHooks.requestShutdown = [&shutdownCalls, &persistedStateAtShutdown,
+                                          &observedPersistedStateAtShutdown, shutdownCacheRoot] {
+            ++shutdownCalls;
+            UpdateService reloaded(version("1.1.0"), shutdownCacheRoot);
+            persistedStateAtShutdown = reloaded.state();
+            observedPersistedStateAtShutdown = true;
+        };
+        auto readySvc = readyService(shutdownHooks, shutdownCacheRoot, shutdownInstaller,
+                                     signedLanistaResult());
+        require(readySvc->state() == UpdateService::Ready, "shutdown-success fixture reaches Ready");
+        readySvc->restartAndUpdate();
+        require(shutdownCalls == 1, "successful launch requests shutdown exactly once");
+        require(readySvc->state() == UpdateService::Installing,
+                "successful launch leaves state Installing");
+        require(observedPersistedStateAtShutdown
+                    && persistedStateAtShutdown == UpdateService::Installing,
+                "Installing is persisted before requestShutdown fires");
+
+        // (3) Launch failure: no shutdown, state becomes RecoverableError.
+        QTemporaryDir failRoot;
+        require(failRoot.isValid(), "shutdown-failure temp root");
+        QTemporaryDir failInstallerDir;
+        const QString failInstaller =
+            QDir(failInstallerDir.path()).filePath(QStringLiteral("setup.exe"));
+        QFile failInstallerFile(failInstaller);
+        require(failInstallerFile.open(QIODevice::WriteOnly), "failure fixture installer opens");
+        failInstallerFile.write("verified");
+        failInstallerFile.close();
+
+        UpdateServiceHooks failHooks;
+        failHooks.installLauncher = [](const QString&, const Version&, QString* error) {
+            if (error)
+                *error = QStringLiteral("launch_failed");
+            return false;
+        };
+        int failShutdownCalls = 0;
+        failHooks.requestShutdown = [&failShutdownCalls] { ++failShutdownCalls; };
+        auto failSvc = readyService(failHooks, failRoot.path(), failInstaller,
+                                    validResult(manifestFor("1.2.0")));
+        require(failSvc->state() == UpdateService::Ready, "shutdown-failure fixture reaches Ready");
+        failSvc->restartAndUpdate();
+        require(failShutdownCalls == 0, "failed launch never requests shutdown");
+        require(failSvc->state() == UpdateService::RecoverableError,
+                "failed launch leaves state RecoverableError");
+
+        // (4) Non-Ready call: restartAndUpdate() from Idle is a no-op, no shutdown.
+        QTemporaryDir idleRoot;
+        require(idleRoot.isValid(), "shutdown-idle temp root");
+        UpdateServiceHooks idleHooks;
+        int idleShutdownCalls = 0;
+        idleHooks.requestShutdown = [&idleShutdownCalls] { ++idleShutdownCalls; };
+        idleHooks.installLauncher = [](const QString&, const Version&, QString*) { return true; };
+        UpdateService idleSvc(version("1.1.0"), idleRoot.path(), idleHooks);
+        require(idleSvc.state() == UpdateService::Idle, "idle fixture starts idle");
+        idleSvc.restartAndUpdate();
+        require(idleShutdownCalls == 0,
+                "restartAndUpdate from a non-Ready state never requests shutdown");
+        require(idleSvc.state() == UpdateService::Idle,
+                "restartAndUpdate from a non-Ready state leaves state untouched");
+
+        // (5) Hook unset: success path must not crash without a requestShutdown hook.
+        QTemporaryDir unsetRoot;
+        require(unsetRoot.isValid(), "shutdown-unset temp root");
+        QTemporaryDir unsetInstallerDir;
+        const QString unsetInstaller =
+            QDir(unsetInstallerDir.path()).filePath(QStringLiteral("setup.exe"));
+        QFile unsetInstallerFile(unsetInstaller);
+        require(unsetInstallerFile.open(QIODevice::WriteOnly), "unset-hook fixture installer opens");
+        unsetInstallerFile.write("verified");
+        unsetInstallerFile.close();
+
+        UpdateServiceHooks unsetHooks;
+        unsetHooks.installLauncher = [](const QString& path, const Version&, QString*) {
+            return !path.isEmpty();
+        };
+        // unsetHooks.requestShutdown intentionally left default-constructed (unset).
+        auto unsetSvc = readyService(unsetHooks, unsetRoot.path(), unsetInstaller,
+                                     validResult(manifestFor("1.2.0")));
+        require(unsetSvc->state() == UpdateService::Ready, "unset-hook fixture reaches Ready");
+        unsetSvc->restartAndUpdate();
+        require(unsetSvc->state() == UpdateService::Installing,
+                "unset requestShutdown hook does not crash the success path");
     }
 
     std::cout << "UPDATE_SERVICE_OK\n";

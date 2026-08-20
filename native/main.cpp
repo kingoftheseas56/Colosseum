@@ -655,6 +655,9 @@ int main(int argc, char *argv[]) {
         const auto launch = updateBridge->prepare(installer, target, error);
         return launch.has_value() && updateBridge->launchDetached(*launch, error);
     };
+    // Installer waits on /WAITPID=<our PID>; queue the quit so it runs after
+    // this call stack (and any QML state signals from setState) unwind.
+    updateHooks.requestShutdown = [&app] { QTimer::singleShot(0, &app, &QCoreApplication::quit); };
     updateHooks.fetchArtwork = [updateNam](const QString&, const QUrl& url, qint64 cap,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkCompleted done,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkFailed failed) {

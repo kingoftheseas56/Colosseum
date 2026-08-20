@@ -655,6 +655,10 @@ void UpdateService::restartAndUpdate()
         return;
     }
     persist();
+    // Installer holds /WAITPID=<our PID>; request our own shutdown so it
+    // doesn't idle out its wait. State is already persisted above.
+    if (m_hooks.requestShutdown)
+        m_hooks.requestShutdown();
 }
 
 } // namespace Colosseum::Update

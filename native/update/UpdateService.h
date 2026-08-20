@@ -24,6 +24,7 @@ struct UpdateServiceHooks final {
     using CancelDownload = std::function<void()>;
     using Clock = std::function<qint64()>;
     using InstallLauncher = std::function<bool(const QString&, const Version&, QString*)>;
+    using RequestShutdown = std::function<void()>;
     using ArtworkCompleted = std::function<void(const QByteArray&)>;
     using ArtworkFailed = std::function<void(const QString&)>;
     using FetchArtwork = std::function<void(const QString&, const QUrl&, qint64,
@@ -34,6 +35,10 @@ struct UpdateServiceHooks final {
     CancelDownload cancelDownload;
     Clock nowMs;
     InstallLauncher installLauncher;
+    // Fires after a successful launch + persist() in restartAndUpdate(), so the
+    // installer's /WAITPID=<our PID> wait resolves instead of running out its
+    // 120s timeout. Unset is a no-op (null-checked before invoke).
+    RequestShutdown requestShutdown;
     FetchArtwork fetchArtwork;
 
     // Installed-chronicle seed paths. Production main.cpp points these at the
