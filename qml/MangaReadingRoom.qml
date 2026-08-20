@@ -12,6 +12,11 @@ Item {
     property Item backdrop
     property string seriesId: ""
     property string seriesTitle: ""
+    // The catalogue identity threaded through from MangaSeries (Slice 2, amended
+    // 2026-08-20) — "" when unresolved. Not read by this file's own visual tree yet
+    // (the masthead binds seriesTitle/author/etc directly); carried so a future caller
+    // that needs the numeric identity here does not need a new property added later.
+    property string malId: ""
     property string banner: ""
     property string cover: ""
     property string author: ""

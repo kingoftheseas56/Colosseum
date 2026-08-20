@@ -5,6 +5,13 @@
 // to 100, strict key + order allowlisting (unknown -> empty), and that tag values are
 // BOUND (a SQL-injection tag cannot drop the table).
 //
+// Catalogue-independence Slice 2 (amended, 2026-08-20) added MalCatalog::mangaById(int) —
+// the series masthead's identity-first single-row lookup. Cases below build a minimal
+// "manga" table fixture (same shape as mal_catalog_discover_harness's) and prove: a known
+// malId returns the full Jikan-shaped row (title/score/synopsis/images/authors/genres);
+// an unknown malId returns an empty map on an otherwise-ready db; a not-ready db (no file)
+// also returns empty.
+//
 // House convention: require() prints "FAIL: <msg>" and exits 1 (Release-safe); one PASS
 // line on success. No argv fixtures — the DB is built in the temp dir and removed after.
 #include "engine/MalCatalog.h"
@@ -73,6 +80,14 @@ int main(int argc, char** argv)
             "create anime table");
         require(q.exec(QStringLiteral(
             "CREATE TABLE tag (medium TEXT, tag TEXT, mal_id INTEGER)")), "create tag table");
+        // manga table (mangaById fixture, Slice 2 amended) — same shape as
+        // mal_catalog_discover_harness's, minus the discover-only columns this contract
+        // never reads (explicit/start_date/favorites are absent here on purpose).
+        require(q.exec(QStringLiteral(
+            "CREATE TABLE manga (mal_id INTEGER PRIMARY KEY, title TEXT, title_english TEXT, "
+            "type TEXT, score REAL, scored_by INTEGER, members INTEGER, status TEXT, "
+            "volumes INTEGER, chapters INTEGER, year INTEGER, cover TEXT, synopsis TEXT, "
+            "credits TEXT, tags TEXT)")), "create manga table");
 
         auto insertAnime = [&](int id, const QString& title, const QString& type, QVariant score,
                                int scoredBy, int members, const QString& status, int year) {
@@ -104,6 +119,32 @@ int main(int argc, char** argv)
             ins.addBindValue(id);
             require(ins.exec(), "insert tag row");
         };
+        auto insertManga = [&](int id, const QString& title, const QString& titleEnglish,
+                               QVariant score, int scoredBy, int members, const QString& status,
+                               int volumes, int chapters, int year, const QString& synopsis,
+                               const QString& creditsJson, const QString& tagsJson) {
+            QSqlQuery ins(w);
+            ins.prepare(QStringLiteral(
+                "INSERT INTO manga (mal_id,title,title_english,type,score,scored_by,members,"
+                "status,volumes,chapters,year,cover,synopsis,credits,tags) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"));
+            ins.addBindValue(id);
+            ins.addBindValue(title);
+            ins.addBindValue(titleEnglish);
+            ins.addBindValue(QStringLiteral("Manga"));
+            ins.addBindValue(score);
+            ins.addBindValue(scoredBy);
+            ins.addBindValue(members);
+            ins.addBindValue(status);
+            ins.addBindValue(volumes);
+            ins.addBindValue(chapters);
+            ins.addBindValue(year);
+            ins.addBindValue(QStringLiteral("http://cover/manga/") + QString::number(id));
+            ins.addBindValue(synopsis);
+            ins.addBindValue(creditsJson);
+            ins.addBindValue(tagsJson);
+            require(ins.exec(), "insert manga row");
+        };
 
         //          id  title       type     score            votes    members   status              year
         insertAnime(1,  "Air TV A",  "TV",    QVariant(8.5),   90000,   500000,   "Currently Airing",  2015);
@@ -127,6 +168,13 @@ int main(int argc, char** argv)
         for (int i = 1; i <= 120; ++i)
             insertAnime(1000 + i, QStringLiteral("Filler ") + QString::number(i),
                         "TV", QVariant(6.0), 100, 100 + i, "Finished Airing", 2005);
+
+        //           id   title       title_en   score          votes    members  status       vol chap  year  synopsis
+        insertManga(1, "Monster", "Monster", QVariant(9.1), 200000, 500000, "Finished",
+                    18, 162, 1994, "A synopsis about a doctor and a monster.",
+                    QStringLiteral("[\"Naoki Urasawa\"]"), QStringLiteral("[\"Mystery\",\"Seinen\"]"));
+        insertManga(2, "Ongoing Tale", "", QVariant(), 0, 1000, "Publishing",
+                    0, 0, 2020, "", QStringLiteral("[]"), QStringLiteral("[]"));
 
         w.close();
     }
@@ -223,7 +271,54 @@ int main(int argc, char** argv)
                 "table survived the injection attempt (values are bound)");
     }
 
+    // ── mangaById: found row carries the full Jikan-shaped facts (Slice 2 amended) ──
+    {
+        const QVariantMap row = catalog.mangaById(1);
+        require(!row.isEmpty(), "mangaById(known id) returns a non-empty row");
+        require(row.value("mal_id").toInt() == 1, "mangaById row carries the requested mal_id");
+        require(row.value("title").toString() == QStringLiteral("Monster"), "mangaById row carries title");
+        require(row.value("title_english").toString() == QStringLiteral("Monster"),
+                "mangaById row carries title_english");
+        require(qFuzzyCompare(row.value("score").toDouble(), 9.1), "mangaById row carries score");
+        require(row.value("members").toInt() == 500000, "mangaById row carries members");
+        require(row.value("status").toString() == QStringLiteral("Finished"), "mangaById row carries status");
+        require(row.value("volumes").toInt() == 18, "mangaById row carries volumes");
+        require(row.value("year").toInt() == 1994, "mangaById row carries year");
+        require(row.value("published").toMap().value("prop").toMap().value("from").toMap()
+                    .value("year").toInt() == 1994, "mangaById row carries the published.prop.from.year shape");
+        require(row.value("synopsis").toString().startsWith(QStringLiteral("A synopsis")),
+                "mangaById row carries synopsis");
+        require(row.value("images").toMap().value("jpg").toMap()
+                    .value("large_image_url").toString() == QStringLiteral("http://cover/manga/1"),
+                "mangaById row carries the poster under images.jpg.large_image_url");
+        const QVariantList authors = row.value("authors").toList();
+        require(authors.size() == 1 && authors.first().toMap().value("name").toString()
+                    == QStringLiteral("Naoki Urasawa"), "mangaById row carries authors");
+        const QVariantList genres = row.value("genres").toList();
+        require(genres.size() == 2, "mangaById row carries genres");
+    }
+    // an ongoing/zero-volume row still returns its facts (volumes==0 is honest, not empty)
+    {
+        const QVariantMap row = catalog.mangaById(2);
+        require(!row.isEmpty(), "mangaById(zero-volume id) still returns a row");
+        require(row.value("volumes").toInt() == 0, "mangaById row honestly reports zero volumes");
+        require(!row.contains("score"), "mangaById row omits score when the source value is NULL");
+    }
+    // unknown malId -> empty map on an otherwise-ready db
+    {
+        require(catalog.mangaById(999999).isEmpty(), "mangaById(unknown id) returns an empty map");
+        require(catalog.mangaById(0).isEmpty(), "mangaById(0) returns an empty map");
+        require(catalog.mangaById(-1).isEmpty(), "mangaById(negative id) returns an empty map");
+    }
+    // not-ready db (no file at all) -> empty map, never a crash
+    {
+        MalCatalog notReady(QDir::temp().filePath(QStringLiteral("mal_catalog_rows_fixture_missing.db")));
+        require(!notReady.ready(), "not-ready fixture is honestly not ready");
+        require(notReady.mangaById(1).isEmpty(), "mangaById on a not-ready db returns an empty map");
+    }
+
     QFile::remove(dbPath);
     std::cout << "PASS MalCatalog::animeCatalog allowlisted paged query contract\n";
+    std::cout << "PASS MalCatalog::mangaById single-row identity lookup contract\n";
     return 0;
 }

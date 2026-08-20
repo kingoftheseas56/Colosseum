@@ -41,6 +41,13 @@ public:
     // medium is "anime", "manga", or empty for both tables; year==0 is unset.
     Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0,
                                           const QString& medium = {}) const;
+    // Offline single-row lookup by MAL id (catalogue-independence Slice 2, 2026-08-20) —
+    // the series masthead's identity-first path. One bound SELECT on the manga table,
+    // mapped to the SAME Jikan-shaped row genreEntries() emits for manga (title,
+    // title_english, score, members, status, volumes/chapters, year+published,
+    // images.jpg.large_image_url, synopsis, authors, genres). Empty map when not ready
+    // or malId not found — never a partial row.
+    Q_INVOKABLE QVariantMap mangaById(int malId) const;
     // Cheap manual Identify search over the baked normalized-title columns. Results are
     // prefix-ranked and remain fully offline; an empty/unknown medium returns no rows.
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 20,

@@ -1,14 +1,15 @@
 // MangaSeries — the manga detail page. Colosseum series-view design (mock:
 // agents/colosseum-series-mock.html, approved 2026-06-27). Floats over the wallpaper; metadata is
-// inline (no glass pills); gold stays a sparing accent. Data is LIVE from the native engine via the
-// `Manga` bridge:
-//   title → WeebCentral search → (chapters + detail)
-//                              → volumes(wcId, title) → the Comick volume DB / live scrape, gated
-//         → AniList art()      → banner / cover / synopsis / genres / year / score
-// THE SURFACE IS DECIDED BY THE DATA (2026-07-29 ruling, no toggle): a series whose volume list
-// passes the completeness gate gets the permanent tankoban volume library, with the glass chapter
-// table below reduced to the loose tail ("Latest chapters"); a series that does not qualify gets
-// the plain flat WeebCentral chapter list. An estimated volume boundary is never shown.
+// inline (no glass pills); gold stays a sparing accent.
+//
+// Catalogue-independence Slice 2 (amended 2026-08-20): identity + masthead are now SYNCHRONOUS
+// and provider-free — malId (Discover) or a single exact matchByTitle() candidate resolves via
+// MalCatalog, and mangaById() supplies title/score/synopsis/poster/authors/genres straight from
+// the baked db. No WeebCentral/Comick/AniList call remains on this page's browse path (purity
+// law, spec §2.1). seriesId is "mal:"+malId on every resolved page, "" when identity never
+// resolves (ambiguous/unknown title) — see resolve()/_applyCatalogRow() below. The volume shelf
+// itself (TankobanCatalog-fed) is Slice 3's; this slice keeps the legacy MAL-keyed Manga.volumes()
+// seed only so the shelf does not go empty in the interim.
 // Opened from a Top-10 manga tile.
 
 import QtQuick
@@ -34,8 +35,21 @@ Item {
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
 
+    // --- catalogue-independence identity seams (Slice 2, amended 2026-08-20) ---
+    // Injectable properties defaulting to the context objects (the TankobanDiscoverPage
+    // pattern) so this page constructs bare in a harness. Production never overrides these.
+    property var malCatalogRef: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+    property var tankobanCatalogRef: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
+    property var tankobanVolumesRef: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
+
     // --- resolved state ---
     property string malId: ""    // Slice C: Discover card's MAL id, when the series was opened from one
+    // The catalogue-resolved numeric identity (0 = unresolved). seriesId below is derived
+    // from this ("mal:"+resolvedMalId) the moment a single row is found; a title that never
+    // resolves to exactly one candidate leaves both at their unresolved value — the honest
+    // shelf-less page, never a guess (identity-key vocabulary, plan Standing constraints).
+    property int resolvedMalId: 0
+    property var catalogRow: ({})   // the mangaById() row backing the masthead facts
     property string seriesId: ""
     property string seriesUrl: ""
     property string banner: ""
@@ -45,7 +59,10 @@ Item {
     property int    year: 0
     property string synopsis: ""
     property var genres: []
-    property int score: 0
+    // real, not int: MAL scores are one-decimal (9.1) — an int property silently truncated
+    // the masthead's ★ score (found live wiring this slice's harness). MangaReadingRoom's
+    // own `score` property was already `real`; this was the mismatch.
+    property real score: 0
     property var chaptersModel: []
     property bool loading: true
     property string errorMsg: ""
@@ -64,6 +81,27 @@ Item {
     // volumes.length IS the verdict. No toggle, no per-series persistence.
     property bool tankobanMode: volumes.length > 0
     property bool _tankobanPrepared: false
+
+    // --- the truthful primary button (Slice 2, amended) ---
+    // hasShelf reads the baked, provider-free catalogue count (Slice 1's TankobanCatalog) —
+    // the honest "does this series have a known shelf at all" fact, independent of whether
+    // any volume has been downloaded yet. Slice 3 owns actually SEEDING the shelf from this
+    // source; here it only backs the button truth-table + the masthead scalar.
+    readonly property var _tcInfo: (page.resolvedMalId > 0 && page.tankobanCatalogRef
+                                     && page.tankobanCatalogRef.ready())
+        ? (page.tankobanCatalogRef.seriesInfo(page.resolvedMalId) || {}) : ({})
+    readonly property bool hasShelf: (_tcInfo.volumeCount || 0) > 0
+    // vol1Ready reads TankobanVolumes directly (no new wiring — the existing seriesId-keyed
+    // read every other TankobanVolumes consumer in this file already performs).
+    readonly property bool _vol1Ready: {
+        var svc = page.tankobanVolumesRef
+        if (!svc || !page.seriesId.length) return false
+        var rows = svc.volumesForSeries(page.seriesId) || []
+        for (var i = 0; i < rows.length; i++)
+            if (String(rows[i].number) === "1" && String(rows[i].state) === "ready") return true
+        return false
+    }
+    readonly property string primaryAction: page._vol1Ready ? "open" : (page.hasShelf ? "get" : "search")
     // Whether the seeding above already had the chapter list. Volumes and chapters arrive
     // from DIFFERENT sources at different times (and WeebCentral can fail outright), so the
     // shelf seeds as soon as volumes land and re-seeds once chapters show up.
@@ -125,23 +163,6 @@ Item {
             Collection.remove("tankoban", String(legacy.id))
     }
 
-    // --- seamless reveal gate ---
-    // The page fires AniList (art) alongside the WeebCentral search, and the volume lookup as
-    // soon as that search resolves (it is keyed by the WC id). Three sources, each at a
-    // different speed. We must NEVER reveal the page until ALL three are in — otherwise the
-    // user sees the flat chapter list / low-q art first and watches it reflow. _maybeReveal()
-    // drops `loading` only when everything is ready, so the page appears once, already finished.
-    // Every path closes the gate: volumesResult always fires exactly once per volumes() call
-    // (gate-fail included); a 0-result search sets loading=false itself; revealGuard caps 12s.
-    property bool chaptersReady: false
-    property bool artReady: false
-    property bool volumesReady: false
-    function _maybeReveal() {
-        if (chaptersReady && artReady && volumesReady) {
-            loading = false; revealGuard.stop()
-            page._prepareTankoban()
-        }
-    }
     // Hand the snapshot to the native volume service. Called as soon as VOLUMES land —
     // deliberately NOT gated on the chapter list, because the two come from different
     // sources: the shelf is built from our volume DB, while chapters come from
@@ -361,25 +382,66 @@ Item {
     onSeriesTitleChanged: resolve()
     Component.onCompleted: if (seriesTitle.length) resolve()
 
-    function resolve() {
-        loading = true; errorMsg = ""
-        seriesId = ""; banner = ""; cover = ""; author = ""; status = ""; year = 0
-        synopsis = ""; genres = []; score = 0; chaptersModel = []
-        volumes = []
-        chaptersReady = false; artReady = false; volumesReady = false
-        _tankobanPrepared = false
-        if (seriesTitle.length) {
-            revealGuard.restart()        // never hang on a dead source — reveal what we have after N s
-            Manga.search(seriesTitle)    // → chapters + WeebCentral detail (then volumes, keyed by its id)
-            Manga.art(seriesTitle)       // → AniList banner / cover / synopsis / genres / year
-        }
-        // Slice C: a Discover card carries a MAL id — fetch our MAL-keyed volume record
-        // directly so the shelf renders without waiting on the WeebCentral search above.
-        if (malId) Manga.volumes("", seriesTitle, malId)
+    // Applies a mangaById()-shaped Jikan row to the masthead facts. The SOLE source of
+    // masthead data now (Slice 2, amended) — both the malId-primary path and the
+    // title-resolved-to-a-single-candidate path call this after finding the row, so the
+    // masthead always renders the same catalogue shape regardless of how identity resolved.
+    function _applyCatalogRow(row) {
+        page.catalogRow = row
+        var authors = row.authors || []
+        page.author = authors.map(function(a) { return a.name }).join(", ")
+        page.status = row.status || ""
+        page.year = row.year || 0
+        page.synopsis = row.synopsis || ""
+        var genreList = row.genres || []
+        page.genres = genreList.map(function(g) { return g.name })
+        page.score = row.score || 0
+        var poster = (row.images && row.images.jpg) ? (row.images.jpg.large_image_url || "") : ""
+        page.cover = poster
+        page.banner = poster    // the catalogue has no separate banner asset; reuse the poster
     }
 
-    // Safety net: if a source never answers, reveal after this timeout rather than spin forever.
-    Timer { id: revealGuard; interval: 12000; repeat: false; onTriggered: page.loading = false }
+    // The catalogue-fed identity + masthead resolve (Slice 2, amended 2026-08-20). Fully
+    // SYNCHRONOUS — MalCatalog's accessors are bound C++ calls, not network — so the page
+    // never needs a reveal timer. No WeebCentral/Comick/AniList call remains on this path
+    // (purity law, spec §2.1): the browse-path identity is malId-first (offline) or, when
+    // opened by title only, a single exact-normalized matchByTitle() candidate. Ambiguous
+    // or unmatched titles get the honest shelf-less page — never a guess.
+    function resolve() {
+        loading = true; errorMsg = ""
+        seriesId = ""; resolvedMalId = 0; catalogRow = ({})
+        banner = ""; cover = ""; author = ""; status = ""; year = 0
+        synopsis = ""; genres = []; score = 0; chaptersModel = []
+        volumes = []
+        _tankobanPrepared = false
+
+        var mc = page.malCatalogRef
+        var id = 0
+        if (malId) {
+            id = Number(malId) || 0
+        } else if (seriesTitle.length && mc) {
+            var candidates = mc.matchByTitle(seriesTitle, 0, "manga") || []
+            if (candidates.length === 1) id = Number(candidates[0].mal_id) || 0
+            // 0 candidates (no match) or >1 (ambiguous) -> id stays 0, honest shelf-less page
+        }
+
+        if (id > 0 && mc) {
+            var row = mc.mangaById(id) || {}
+            if (Object.keys(row).length > 0) {
+                page.resolvedMalId = id
+                page._applyCatalogRow(row)
+                page.seriesId = "mal:" + id
+                // TB-002: silently re-file a legacy title-keyed Collection save under seriesId.
+                page._refileLegacyCollectionEntryIfNeeded()
+                // MAL-keyed shelf seed (Slice C, kept this slice — Slice 3 replaces it with a
+                // TankobanCatalog-fed seed; without this the shelf renders empty this slice).
+                if (typeof Manga !== "undefined") Manga.volumes("", seriesTitle, id)
+            }
+            // id>0 but no row found (db not ready / id unknown): resolvedMalId/seriesId stay
+            // unresolved — same honest shelf-less page as an ambiguous/unmatched title.
+        }
+        loading = false
+    }
 
     function fmtDate(ms) {
         var n = Number(ms)
@@ -387,69 +449,28 @@ Item {
         return new Date(n).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
     }
 
+    // Only the shelf-seeding signal remains wired — identity/masthead resolution above is
+    // synchronous and needs no callback. Guarded so this page constructs bare in a harness.
     Connections {
-        target: Manga
-        function onSearchResults(results) {
-            if (results.length === 0) {
-                page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on WeebCentral."
-                page.loading = false
-                return
-            }
-            var r = results[0]
-            page.seriesId = r.id; page.seriesUrl = r.url
-            // TB-002: silently re-file a legacy title-keyed Collection save under seriesId.
-            // One-shot per seriesId on this page instance; no-op when there is nothing to
-            // migrate. Preserves the legacy addedAt so the save's Library position is kept,
-            // and only removes the legacy entry after confirming the canonical one landed.
-            page._refileLegacyCollectionEntryIfNeeded()
-            // NOTE: deliberately do NOT take WeebCentral's low-res cover for the banner — that was
-            // the source of the "low-q art that changes after a while" swap. The banner comes only
-            // from AniList (hi-res), set in onArtResult.
-            page.author = r.author; page.status = r.status
-            // volume structure needs the WC id (it is the volume DB's key) — fire it
-            // as soon as the search resolves. Guarded: a malId-opened series already fetched
-            // its volumes directly in resolve() and must not have that shelf overwritten.
-            if (!malId) Manga.volumes(r.id, r.title)
-            Manga.chapters(r.id)
-            Manga.detail(r.id, r.url, r.title, r.cover)
-        }
-        // chapters re-seed the shelf (they carry the ids downloads need) but never gate it
-        function onChaptersResults(chs) {
-            page.chaptersModel = chs; page.chaptersReady = true
-            page._prepareTankoban(); page._maybeReveal()
-        }
-        function onDetailResult(d) {
-            // AniList is the source for synopsis + genres (onArtResult). WeebCentral detail only
-            // contributes status + author — its description is a fallback only when AniList did
-            // not return a synopsis, so a series never opens with an unexplained empty rail.
-            if (d.status && d.status.length) page.status = d.status
-            if (d.author && d.author.length) page.author = d.author
-            if (!page.synopsis.length && d.description && d.description.length) page.synopsis = d.description
-        }
-        function onArtResult(a) {
-            if (a.banner && a.banner.length) page.banner = a.banner
-            if (a.cover && a.cover.length) page.cover = a.cover
-            if (a.description && a.description.length) page.synopsis = a.description
-            if (a.genres && a.genres.length) page.genres = a.genres
-            if (a.score) page.score = a.score
-            if (a.year) page.year = a.year
-            page.artReady = true; page._maybeReveal()
-        }
-        // volumes seed the shelf IMMEDIATELY — they are the shelf, and they arrive from our
-        // own volume DB, which does not depend on WeebCentral being reachable
+        target: (typeof Manga !== "undefined") ? Manga : null
+        ignoreUnknownSignals: true
         function onVolumesResult(d) {
-            page.volumes = Vol.fromEngine(d.volumes || []); page.volumesReady = true
-            page._prepareTankoban(); page._maybeReveal()
+            page.volumes = Vol.fromEngine(d.volumes || [])
+            page._prepareTankoban()
         }
-        // A source failing must not cost the user a shelf we already hold. WeebCentral
-        // rate-limits (429) and its raw transfer error is not something to put on screen;
-        // when the volumes are in, say what it actually costs him (the chapter tail) in
-        // plain words and keep the page. Only a page with nothing to show reports hard.
-        function onEngineError(msg) {
-            if (!page.loading) return
-            page.errorMsg = msg
-            page.loading = false; revealGuard.stop()
-        }
+    }
+
+    // Bridge automation surface (world-namespaced per the naming law — never a bare shared
+    // stem). Plain scalars only, per the Lanista ledger's qml-get vocabulary.
+    Item {
+        id: tankobanSeriesMasthead
+        objectName: "tankobanSeriesMasthead"
+        visible: false
+        property bool ready: !page.loading
+        property string resolvedMalId: page.resolvedMalId > 0 ? String(page.resolvedMalId) : ""
+        property string displayTitle: page.seriesTitle
+        property bool hasShelf: page.hasShelf
+        property string primaryAction: page.primaryAction
     }
 
     // ===================== visual tree =====================
@@ -1032,6 +1053,7 @@ Item {
         backdrop: page.backdrop
         seriesId: page.seriesId
         seriesTitle: page.seriesTitle
+        malId: page.resolvedMalId > 0 ? String(page.resolvedMalId) : ""
         banner: page.banner
         cover: page.cover
         author: page.author
@@ -1042,6 +1064,7 @@ Item {
         genres: page.genres
         score: page.score
         chapters: page.chaptersModel
+        service: page.tankobanVolumesRef
         collectionEntry: page.collectionEntry()
         onBackRequested: page.backRequested()
         onMinimizeRequested: page.minimizeRequested()

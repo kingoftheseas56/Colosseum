@@ -303,6 +303,49 @@ QVariantList MalCatalog::matchByTitle(const QString& title, int year,
     return out;
 }
 
+QVariantMap MalCatalog::mangaById(int malId) const
+{
+    if (!m_ok || malId <= 0)
+        return {};
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral(
+        "SELECT mal_id, title, title_english, type, score, scored_by, members, status, "
+        "volumes, chapters, year, cover, synopsis, credits, tags FROM manga WHERE mal_id = ?"));
+    q.addBindValue(malId);
+    if (!q.exec() || !q.next())
+        return {};
+
+    // Mirrors genreEntries()'s manga-row mapping exactly (same field names/shapes) so the
+    // series masthead and the genre-page card mappers consume identical Jikan shapes; not
+    // literally shared code because genreEntries() interleaves the anime branch inline and
+    // is already a green, tested function this slice must not risk regressing.
+    QVariantMap m;
+    m.insert(QStringLiteral("mal_id"), q.value(0).toInt());
+    m.insert(QStringLiteral("title"), q.value(1).toString());
+    const QString en = q.value(2).toString();
+    if (!en.isEmpty()) m.insert(QStringLiteral("title_english"), en);
+    m.insert(QStringLiteral("type"), q.value(3).toString());
+    if (!q.value(4).isNull()) m.insert(QStringLiteral("score"), q.value(4).toDouble());
+    m.insert(QStringLiteral("scored_by"), q.value(5).toInt());
+    m.insert(QStringLiteral("members"), q.value(6).toInt());
+    m.insert(QStringLiteral("status"), q.value(7).toString());
+    m.insert(QStringLiteral("volumes"), q.value(8).toInt());
+    m.insert(QStringLiteral("chapters"), q.value(9).toInt());
+    const int year = q.value(10).toInt();
+    if (year > 0) {
+        m.insert(QStringLiteral("year"), year);
+        m.insert(QStringLiteral("published"), QVariantMap{{QStringLiteral("prop"),
+            QVariantMap{{QStringLiteral("from"),
+            QVariantMap{{QStringLiteral("year"), year}}}}}});
+    }
+    m.insert(QStringLiteral("images"), QVariantMap{{QStringLiteral("jpg"),
+        QVariantMap{{QStringLiteral("large_image_url"), q.value(11).toString()}}}});
+    m.insert(QStringLiteral("synopsis"), q.value(12).toString());
+    m.insert(QStringLiteral("authors"), namedList(q.value(13).toString()));
+    m.insert(QStringLiteral("genres"), namedList(q.value(14).toString()));
+    return m;
+}
+
 QVariantList MalCatalog::search(const QString& text, int limit, const QString& medium) const
 {
     QVariantList out;

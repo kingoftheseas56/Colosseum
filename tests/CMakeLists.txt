@@ -981,6 +981,17 @@ set_tests_properties(colosseum.manga_reading_room PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# MangaSeries.qml's catalogue-fed identity + masthead (catalogue-independence Slice 2,
+# amended 2026-08-20) — fake MalCatalog/TankobanCatalog/TankobanVolumes seams, same
+# qml.exe offscreen shape as colosseum.manga_reading_room above.
+add_test(NAME colosseum.manga_series_catalogue
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_series_catalogue.ps1")
+set_tests_properties(colosseum.manga_series_catalogue PROPERTIES
+    LABELS "unit"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Installed chronicle (installed-release chronicle plan, Slice 2, 2026-08-09)
 # InstalledChronicle loads + verifies the bundled signed manifest that seeds the
 # Update gallery with the installed release's chapters at rest. Pure QtCore +
