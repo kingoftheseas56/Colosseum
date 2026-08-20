@@ -148,6 +148,27 @@ async function runHostOnly(args) {
     client.close(1000, "host-only-exit");
     setTimeout(() => process.exit(0), 200);
   };
+  // Test-instrument-only extension (Slice 6): a line "END" on stdin sends a
+  // real endRoom command as the host before shutting down, so an orchestrator
+  // can drive a clean roomEnded broadcast instead of only a host-drop/grace
+  // path. This does not touch src/ — it is the probe script's own stdin
+  // protocol, same file the plan names as the allowed test-instrument edit.
+  const endRoom = () => {
+    if (shuttingDown) return;
+    console.log("HOST_ONLY_ENDING");
+    client.send({
+      type: "endRoom",
+      roomId: established.roomId,
+      senderId: established.payload.participantId,
+      payload: {},
+    });
+    setTimeout(shutdown, 200);
+  };
+  const readline = await import("node:readline");
+  const rl = readline.createInterface({ input: process.stdin });
+  rl.on("line", (line) => {
+    if (line.trim() === "END") endRoom();
+  });
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
   process.stdin.resume();
