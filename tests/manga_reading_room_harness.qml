@@ -8,6 +8,13 @@
 // harness now proves the opposite contract — fetchThumb is NEVER called, and a card's
 // cover resolves off the catalogue-baked field or, once a volume is on disk, its own
 // first local page, else the honest NO COVER glass.
+//
+// Catalogue-independence Slice 5 (2026-08-20): the old "chapter-only room" case (a
+// MangaReadingRoom seeded with a bare `chapters` array and asserted to render a chapter
+// tail) is replaced — chapters are deleted completely, on-disk bytes included, per
+// Hemanth's lock. The room and its shelf no longer have any chapter-shaped property or
+// signal at all; a shelf-less series (no known volumes) now renders zero rows and the
+// chapter API surface is asserted fully absent (typeof undefined), not just unused.
 import QtQuick
 
 Item {
@@ -79,13 +86,6 @@ Item {
                 "state": state
             })
         }
-        return out
-    }
-
-    function chapters(count) {
-        var out = []
-        for (var i = 1; i <= count; i++)
-            out.push({ "id": "c" + i, "number": i, "name": "Chapter " + i })
         return out
     }
 
@@ -231,16 +231,30 @@ Item {
             ck(lastBatch.label === "Download selected",
                "selected batch must carry the exact action label")
 
+            // catalogue-independence Slice 5 (2026-08-20): chapters are gone completely.
+            // A shelf-less series (no volumes known at all) renders an honest empty shelf
+            // — no chapter tail, no chapter API surface anywhere, on the room or the
+            // library it owns.
             var chapterOnlyComp = Qt.createComponent("../qml/MangaReadingRoom.qml")
             chapterOnlyRoom = chapterOnlyComp.createObject(harness, {
                 "width": 1000, "height": 720, "seriesId": "C",
-                "seriesTitle": "Chapter Only", "chapters": chapters(42),
+                "seriesTitle": "No Shelf",
                 "service": service, "progress": progress, "downloader": downloads
             })
             ck(chapterOnlyRoom.library.showVolumes === false,
-               "chapter-only series must not expose an empty shelf")
-            ck(chapterOnlyRoom.library.chapterRows.length === 42,
-               "chapter-only series must show its full chapter run in the tail")
+               "a series with no known volumes must not expose a populated shelf")
+            ck(chapterOnlyRoom.library.volumeRows.length === 0,
+               "a series with no known volumes must render zero rows, never a chapter fallback")
+            ck(typeof chapterOnlyRoom.chapters === "undefined"
+               && typeof chapterOnlyRoom.chapterDisplayRows === "undefined"
+               && typeof chapterOnlyRoom.openChapterRequested === "undefined"
+               && typeof chapterOnlyRoom.chapterDownloadRequested === "undefined",
+               "the room's chapter API (chapters/chapterDisplayRows/chapter signals) must be fully removed")
+            ck(typeof chapterOnlyRoom.library.chapters === "undefined"
+               && typeof chapterOnlyRoom.library.chapterRows === "undefined"
+               && typeof chapterOnlyRoom.library.openChapterRequested === "undefined"
+               && typeof chapterOnlyRoom.library.chapterDownloadRequested === "undefined",
+               "the shelf's chapter API (chapters/chapterRows/chapter signals) must be fully removed")
 
             // Special canonical volume tokens must remain exact through focus
             // and selection; they are not guaranteed to be integers.

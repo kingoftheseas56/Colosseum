@@ -298,6 +298,30 @@ public:
         return m_map.value(mapKey(kind, id)).toMap();
     }
 
+    // Whole-kind purge (catalogue-independence Slice 5, 2026-08-20): unlike forget(),
+    // which drops one series' GROUP (kind+id) as the "remove from Continue" affordance,
+    // this drops EVERY record of a kind outright, no grouping. Built for
+    // TankobanChapterMigration's one-time removal of every kind:"manga" chapter-progress
+    // record when the WC-era chapter lane is deleted; no other caller is expected to
+    // need a whole-kind purge. Returns the count removed.
+    Q_INVOKABLE int purgeKind(const QString &kind) {
+        if (kind.isEmpty())
+            return 0;
+        QStringList doomed;
+        for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it) {
+            if (it.value().toMap().value(QStringLiteral("kind")).toString() == kind)
+                doomed.append(it.key());
+        }
+        if (doomed.isEmpty())
+            return 0;
+        for (const QString &key : doomed)
+            m_map.remove(key);
+        scheduleSave();
+        emit syncDirty();
+        bump();
+        return doomed.size();
+    }
+
     Q_INVOKABLE int lastSeason(const QString &seriesId) const {
         if (seriesId.isEmpty())
             return -1;

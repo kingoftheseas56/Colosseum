@@ -15,8 +15,6 @@
 // Opened from a Top-10 manga tile.
 
 import QtQuick
-import QtQuick.Controls
-import "MangaVolumes.js" as Vol
 
 Item {
     id: page
@@ -65,7 +63,6 @@ Item {
     // the masthead's ★ score (found live wiring this slice's harness). MangaReadingRoom's
     // own `score` property was already `real`; this was the mismatch.
     property real score: 0
-    property var chaptersModel: []
     property bool loading: true
     property string errorMsg: ""
     // What the USER is shown. A source failing must not read as the page failing: once the
@@ -104,16 +101,11 @@ Item {
         return false
     }
     readonly property string primaryAction: page._vol1Ready ? "open" : (page.hasShelf ? "get" : "search")
-    // Whether the seeding above already had the chapter list. Volumes and chapters arrive
-    // from DIFFERENT sources at different times (and WeebCentral can fail outright), so the
-    // shelf seeds as soon as volumes land and re-seeds once chapters show up.
-    property bool _tankobanPreparedWithChapters: false
     // A REUSED page item (openSeries/openSeriesAt switching series) must re-prepare
     // for the new series, or it would keep the old series' volumes. Reset the prepare
     // latch + the reader's volume model whenever the id changes.
     onSeriesIdChanged: {
         page._tankobanPrepared = false
-        page._tankobanPreparedWithChapters = false
         page.tankobanReaderEntries = []
     }
 
@@ -321,12 +313,6 @@ Item {
 
     // --- volumes (Comick volume DB via MangaVolumes.js; complete ranges or none — gated) ---
     property var volumes: []                                  // [{number,cover,startNum,endNum,chapterStart,chapterEnd}]
-    property var volGroups: Vol.group(chaptersModel, volumes) // { options:[{key,label}], byKey:{} }
-    // qualified series: the chapter section shows ONLY the loose tail past the last
-    // volume (group()'s X bucket) — an ongoing series' "Latest chapters".
-    // unqualified series: the full flat WeebCentral list, exactly as before.
-    property var visibleChapters: loading ? []
-        : (page.tankobanMode ? ((volGroups.byKey && volGroups.byKey.X) || []) : chaptersModel)
 
     // ── the facts column beside the synopsis (Theatre's key/value stack) ─────
     // Only facts we actually hold. Nothing is padded to fill the column: a row
@@ -341,8 +327,6 @@ Item {
             out.push({ "k": "On this device", "v": owned
                        ? (owned + (owned === 1 ? " volume" : " volumes")) : "None yet" })
         }
-        if (page.chaptersModel.length)
-            out.push({ "k": "Chapters", "v": String(page.chaptersModel.length) })
         return out
     }
 
@@ -367,31 +351,10 @@ Item {
             if (String(rows[i].state) === "ready") { page._openVolume(String(rows[i].id)); return }
         if (rows.length) { readingRoom.library.chooseSource(String(rows[0].id)); return }   // fetch volume 1
         // No known shelf at all (catalogue-independence Slice 4, 2026-08-20):
-        // primaryAction === "search" — open the series-level nyaa picker instead
-        // of falling through to the (purity-emptied) chapter fallback below.
+        // primaryAction === "search" — open the series-level nyaa picker. Chapters are
+        // gone entirely (catalogue-independence Slice 5, 2026-08-20, purity law) so
+        // there is no other fallback left — a shelf-less series always lands here.
         if (!page.hasShelf) { page._openSeriesSearch(); return }
-        var chs = page.visibleChapters                          // unqualified series: first chapter
-        if (chs && chs.length) {
-            page.openEntryKind = "manga"
-            page.openChapterId = String(chs[0].id)
-            page.openChapterLabel = (chs[0].name && String(chs[0].name).length)
-                ? String(chs[0].name) : ("Chapter " + (chs[0].number || ""))
-        }
-    }
-
-    function _openChapter(chapterId, label) {
-        var id = String(chapterId || "")
-        if (!id.length) return
-        page.openEntryKind = "manga"
-        page.openChapterLabel = String(label || "")
-        page.openChapterId = id
-    }
-
-    function _downloadChapter(chapterId, label) {
-        var id = String(chapterId || "")
-        if (!id.length || typeof Downloads === "undefined") return
-        Downloads.downloadChapter(id, page.seriesId, page.seriesTitle, String(label || ""))
-        if (typeof Collection !== "undefined") Collection.add("tankoban", page.collectionEntry())
     }
 
     function collectionEntry() {
@@ -437,7 +400,7 @@ Item {
         loading = true; errorMsg = ""
         seriesId = ""; resolvedMalId = 0; catalogRow = ({})
         banner = ""; cover = ""; author = ""; status = ""; year = 0
-        synopsis = ""; genres = []; score = 0; chaptersModel = []
+        synopsis = ""; genres = []; score = 0
         volumes = []
         _tankobanPrepared = false
 
@@ -563,500 +526,11 @@ Item {
         }
     }
 
-    // ---- the page: one vertical scroll; banner → synopsis → volume shelf → glass chapter table ----
-    Component {
-        id: legacyCorridor
-        Flickable {
-            id: flick
-            visible: false
-            enabled: false
-        anchors.fill: parent
-        contentWidth: width
-        contentHeight: pageCol.height
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: flick }
-
-        // The whole page stays invisible until fully assembled, then fades in as one finished piece.
-        opacity: page.loading ? 0.0 : 1.0
-        Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
-
-        Column {
-            id: pageCol
-            width: flick.width
-            spacing: 0
-
-            // ── BANNER HERO (full-bleed art; content inset to the margin) ──
-            Item {
-                width: parent.width
-                height: 360
-
-                Image {
-                    id: bannerImg
-                    anchors.fill: parent
-                    source: page.banner.length ? page.banner : page.cover
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true; cache: true
-                    // soft fade in when the pixels arrive — never a hard pop, even on first load
-                    opacity: status === Image.Ready ? 1.0 : 0.0
-                    Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-                }
-                // wash the banner down into the page so it reads as one surface (IP color stays up top)
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(0.03, 0.035, 0.055, 0.15) }
-                        GradientStop { position: 0.55; color: Qt.rgba(0.03, 0.035, 0.05, 0.45) }
-                        GradientStop { position: 1.0; color: Qt.rgba(0.02, 0.025, 0.04, 0.92) }
-                    }
-                }
-
-                Column {
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin; anchors.bottomMargin: 30
-                    spacing: 12
-
-                    Text {
-                        text: "Manga · Tankoban"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11
-                        font.letterSpacing: 3; font.capitalization: Font.AllUppercase
-                    }
-                    Text {
-                        width: parent.width
-                        text: page.seriesTitle
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 64
-                        font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                        style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
-                    }
-                    // INLINE metadata — author (bright) · status · year · ★score · genres. No glass pills.
-                    Row {
-                        spacing: 11
-                        Text { visible: page.author.length; text: page.author
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.author.length && (page.status.length || page.year)
-                            text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.status.length; text: page.status
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.status.length && page.year
-                            text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.year > 0; text: page.year
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.score > 0
-                            text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.score > 0; text: "★ " + page.score
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.genres.length > 0
-                            text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
-                        Text { visible: page.genres.length > 0
-                            text: page.genres.slice(0, 3).join(" · ")
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
-                    }
-                    // Primary CTA — Read. Theatre names the exact episode its button will
-                    // play ("Watch S1 · E3"); the same promise here names the volume, so the
-                    // button never lies about where it lands.
-                    Row {
-                        spacing: 12
-                        topPadding: 8
-                        Rectangle {
-                            width: readRow.implicitWidth + 40; height: 42; radius: 11; color: theme.gold
-                            Row {
-                                id: readRow; anchors.centerIn: parent; spacing: 9
-                                PlayerIcon { kind: "play"; ink: "#1a1306"; width: 16; height: 16; iconSize: 14
-                                    anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: page.readCtaLabel; color: "#1a1306"; font.family: theme.ui; font.pixelSize: 14
-                                    font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-                            }
-                            MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onEntered: parent.opacity = 0.92; onExited: parent.opacity = 1.0
-                                onClicked: page.readPrimary() }
-                        }
-
-                        LibraryButton {
-                            world: "tankoban"
-                            entry: page.collectionEntry()
-                        }
-                    }
-                }
-            }
-
-            // ── synopsis + facts, Theatre's two-column band (56px gutter) ──
-            Row {
-                x: theme.margin
-                spacing: 56
-                Text {
-                    visible: page.synopsis.length > 0
-                    width: 580
-                    text: page.synopsis
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15
-                    lineHeight: 1.5; wrapMode: Text.WordWrap
-                    topPadding: 22; bottomPadding: 6
-                }
-                Column {
-                    spacing: 10
-                    topPadding: 22
-                    visible: page.factRows.length > 0 && page.width > 1040
-                    Repeater {
-                        model: page.factRows
-                        Row {
-                            id: factRow
-                            required property var modelData
-                            spacing: 18
-                            Text { text: factRow.modelData.k; color: theme.inkDim; width: 104
-                                   font.family: theme.ui; font.pixelSize: 13 }
-                            Text { text: factRow.modelData.v; color: theme.ink
-                                   font.family: theme.ui; font.pixelSize: 13 }
-                        }
-                    }
-                }
-            }
-
-            // ── VOLUMES header — the shelf had none, so the page read as starting
-            //    abruptly out of the synopsis. Theatre labels its episode run; so do we. ──
-            Item {
-                width: parent.width
-                height: 60
-                visible: page.tankobanMode
-                Row {
-                    x: theme.margin
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 14
-                    Text {
-                        text: "Volumes"
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 22
-                        font.weight: Font.DemiBold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    // ── the in-flight count pill (approved mock 2026-08-16): "↓ 1
-                    // downloading" appears the moment any volume of THIS series
-                    // starts acquiring and leaves when the last one lands — the
-                    // shelf-side answer to "did my click do anything?". ──
-                    Rectangle {
-                        visible: tankLib.inFlightIds.length > 0
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: flightRow.implicitWidth + 26; height: 26; radius: 13
-                        color: Qt.rgba(0.94, 0.77, 0.29, 0.12)
-                        border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.55)
-                        scale: visible ? 1 : 0.6
-                        Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
-                        Row {
-                            id: flightRow
-                            anchors.centerIn: parent
-                            spacing: 6
-                            Text {
-                                text: "↓"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text {
-                                text: tankLib.inFlightIds.length; color: theme.gold
-                                font.family: theme.display; font.pixelSize: 14
-                                font.weight: Font.DemiBold
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text {
-                                text: "downloading"; color: theme.gold
-                                font.family: theme.ui; font.pixelSize: 11
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
-                    }
-                    Text {
-                        text: {
-                            var n = tankLib.volumeRows.length
-                            if (!n) return ""
-                            var owned = tankLib.ownedCount
-                            return owned > 0 ? (n + " books · " + owned + " on this device")
-                                             : (n + " books")
-                        }
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-
-                // NOTE: the batch controls used to live here, anchored to this
-                // header's right edge. They were CUT OFF by the window (eyes-on
-                // 2026-07-31) because `primaryBatch` was a Row with a MouseArea
-                // child — a positioner lays a MouseArea out as an item, inflating
-                // the Row past the viewport. The same trap TheatreSeries.qml:1186
-                // documents. They now live on the shelf's own ledger header, in
-                // Theatre's "Download season" position.
-            }
-
-            // ── THE VOLUME LIBRARY — the permanent surface for a gate-qualified series ──
-            // service defaults to the native TankobanVolumes context property. A Downloaded->Open
-            // action opens that volume through the SAME reader below (volume model + injected store).
-            MangaTankobanLibrary {
-                id: tankLib
-                width: parent.width
-                visible: false
-                coverFetchingEnabled: false
-                seriesId: page.seriesId
-                // the live chapter list is what a volume cover is derived FROM: the
-                // shelf asks Downloads.fetchThumb for the first page of each volume's
-                // first chapter, exactly as a chapter row gets its own thumbnail
-                chapters: page.chaptersModel
-                onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
-                // "Choose source" -> the full-screen picker. Merge the series identity
-                // (the library only knows the volume) and open the overlay below.
-                onSourcesRequested: (ctx) => page._openSources(ctx)
-                // One press, N volumes — the same picker, opened over a batch.
-                onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
-            }
-
-            // ── CHAPTER TABLE — the floating glass OS-widget.
-            //    Qualified series: the loose tail past the last volume ("Latest chapters"),
-            //      sitting BELOW the shelf as a footnote (his ruling 2026-07-30).
-            //    Unqualified series: the whole flat run — and with no shelf above it, this
-            //      card must stay exactly where it has always sat, directly under the
-            //      synopsis. That is why the air above it is CONDITIONAL, not built in. ──
-            Item {
-                id: chapterSection
-                width: parent.width
-                // air between the volume shelf and this card; ZERO when there is no shelf,
-                // so an unqualified series' geometry is unchanged by the reorder
-                readonly property int topGap: page.tankobanMode ? 30 : 0
-                height: chTable.height + chapterSection.topGap + 24
-                visible: page.visibleChapters.length > 0
-
-                Glass {
-                    id: chTable
-                    x: theme.margin
-                    y: chapterSection.topGap
-                    width: parent.width - 2 * theme.margin
-                    height: tableInner.height
-                    radius: 18
-                    backdrop: page.backdrop
-                    track: flick.contentY               // recompute blur as the page scrolls
-
-                    Column {
-                        id: tableInner
-                        width: parent.width
-                        // header
-                        Item {
-                            width: parent.width; height: 58
-                            Row {
-                                anchors.left: parent.left; anchors.leftMargin: 24
-                                anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                                Text {
-                                    // honest header: on a qualified series this section is ONLY the
-                                    // tail past the last volume; otherwise it is the whole run
-                                    text: page.tankobanMode ? "Latest chapters" : "Chapters"
-                                    color: theme.ink
-                                    font.family: theme.display; font.pixelSize: 19; font.weight: Font.DemiBold
-                                    anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: page.visibleChapters.length + " chapters"; color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                                // per-volume download — lives with the volume it acts on (DL wired in a later layer)
-                                Rectangle {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: dlVolRow.implicitWidth + 26; height: 30; radius: 8
-                                    color: dlVolMa.containsMouse ? theme.glassHi : theme.glassTint
-                                    border.width: 1
-                                    border.color: dlVolMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.55) : theme.edge
-                                    Row {
-                                        id: dlVolRow; anchors.centerIn: parent; spacing: 7
-                                        Text { text: "↓"; color: theme.ink; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
-                                        Text {
-                                            // says what it downloads: exactly what this section lists —
-                                            // the loose tail, or (flat state) the whole run
-                                            text: page.tankobanMode ? "Download latest" : "Download all"
-                                            color: theme.inkDim; font.family: theme.ui
-                                            font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                                    }
-                                    MouseArea { id: dlVolMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (typeof Downloads === "undefined") return
-                                            var chs = page.visibleChapters
-                                            for (var i = 0; i < chs.length; i++) {
-                                                var id = String(chs[i].id || "")
-                                                if (!id.length) continue
-                                                var lbl = (chs[i].name && String(chs[i].name).length)
-                                                          ? chs[i].name : ("Chapter " + (chs[i].number || ""))
-                                                Downloads.downloadChapter(id, page.seriesId, page.seriesTitle, lbl)
-                                            }
-                                            Collection.add("tankoban", page.collectionEntry())
-                                        } }
-                                }
-                            }
-                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
-                        }
-                        // chapter rows (selected volume → bounded count → a Repeater is fine)
-                        Repeater {
-                            model: page.visibleChapters
-                            delegate: Item {
-                                id: row
-                                required property var modelData
-                                width: tableInner.width; height: 156
-
-                                // per-row download state, kept live via the Downloads signals
-                                property string chId: String(row.modelData.id || "")
-                                property string dlState: "none"   // none | queued | downloading | done | error
-                                property int dlDone: 0
-                                property int dlTotal: 0
-                                readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
-                                property string liveThumb: ""   // first-page url for an UNdownloaded chapter (scraped)
-                                // chapter thumbnail = its FIRST page: downloaded -> local file (instant),
-                                // else the scraped first-page url resolved via Downloads.fetchThumb.
-                                readonly property string thumbUrl: dlState === "done" ? row.firstLocalUrl() : row.liveThumb
-                                function firstLocalUrl() {
-                                    if (typeof Downloads === "undefined") return ""
-                                    var lp = Downloads.localPages(row.chId)
-                                    return (lp && lp.length) ? lp[0].url : ""
-                                }
-                                function chLabel() {
-                                    return (row.modelData.name && String(row.modelData.name).length)
-                                        ? row.modelData.name : ("Chapter " + (row.modelData.number || ""))
-                                }
-                                function statusLine() {
-                                    if (dlState === "done") return "● Downloaded"
-                                    if (dlState === "queued") return "Queued…"
-                                    if (dlState === "downloading")
-                                        return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%") : "Downloading…"
-                                    if (dlState === "error") return "⚠ Failed — tap to retry"
-                                    return ""
-                                }
-                                function openReader() {
-                                    page.openEntryKind = "manga"   // chapters always read as manga
-                                    page.openChapterId = row.chId
-                                    page.openChapterLabel = row.chLabel()
-                                }
-                                function startDownload() {
-                                    if (typeof Downloads === "undefined" || !row.chId.length) return
-                                    row.dlState = "queued"
-                                    Downloads.downloadChapter(row.chId, page.seriesId, page.seriesTitle, row.chLabel())
-                                    Collection.add("tankoban", page.collectionEntry())
-                                }
-                                // download-fed: tap reads a downloaded chapter, else downloads it (the reader only opens what's on disk)
-                                function primary() {
-                                    if (row.dlState === "done") row.openReader()
-                                    else if (!row.inFlight) row.startDownload()
-                                }
-                                function refreshDl() {
-                                    if (typeof Downloads === "undefined") return
-                                    var st = Downloads.statusOf(row.chId)
-                                    row.dlState = st.state; row.dlDone = st.done; row.dlTotal = st.total
-                                }
-                                function requestThumb() {
-                                    if (typeof Downloads !== "undefined") Downloads.fetchThumb(page.seriesId, row.chId)
-                                }
-                                Component.onCompleted: { refreshDl(); requestThumb() }
-                                Connections {
-                                    target: typeof Downloads !== "undefined" ? Downloads : null
-                                    function onProgress(cid, done, total) {
-                                        if (cid !== row.chId) return
-                                        row.dlState = "downloading"; row.dlDone = done; row.dlTotal = total
-                                    }
-                                    function onFinished(cid) { if (cid === row.chId) row.dlState = "done" }
-                                    function onFailed(cid, reason) { if (cid === row.chId) row.dlState = "error" }
-                                    function onThumbReady(cid, url) { if (cid === row.chId && url.length) row.liveThumb = url }
-                                    function onRemoved(cid) {
-                                        if (cid !== row.chId) return
-                                        row.dlState = "none"; row.liveThumb = ""; row.requestThumb()
-                                    }
-                                }
-
-                                Rectangle { anchors.fill: parent; color: rowMa.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent" }
-
-                                // thumbnail (portrait) — first page once downloaded, numbered placeholder otherwise
-                                Item {
-                                    id: thumb
-                                    anchors.left: parent.left; anchors.leftMargin: 22
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 100; height: 140
-                                    Rectangle {
-                                        anchors.fill: parent; radius: 6; color: "#15171f"; border.width: 1
-                                        border.color: row.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
-                                        Text { anchors.centerIn: parent; visible: thumbImg.status !== Image.Ready
-                                            text: row.modelData.number || "?"; color: theme.inkDimmer
-                                            font.family: theme.display; font.pixelSize: 30 }
-                                    }
-                                    Image { id: thumbImg; anchors.fill: parent; anchors.margins: 1
-                                        source: row.thumbUrl; visible: status === Image.Ready
-                                        fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
-                                        sourceSize.width: 280 }
-                                }
-
-                                // title + status subtitle
-                                Column {
-                                    anchors.left: thumb.right; anchors.leftMargin: 16
-                                    anchors.right: trailing.left; anchors.rightMargin: 14
-                                    anchors.verticalCenter: parent.verticalCenter; spacing: 4
-                                    Text { width: parent.width; text: row.chLabel()
-                                        color: rowMa.containsMouse ? theme.gold : theme.ink
-                                        font.family: theme.ui; font.pixelSize: 17; elide: Text.ElideRight }
-                                    Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
-                                        color: row.dlState === "done" ? theme.gold
-                                             : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
-                                        font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
-                                }
-
-                                // trailing control: ✓→✕ delete (done) · ✕ cancel (in-flight) · ↓/↻ download/retry
-                                Item {
-                                    id: trailing
-                                    anchors.right: parent.right; anchors.rightMargin: 22
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 36; height: 36
-                                    Rectangle { anchors.fill: parent; radius: 18
-                                        color: trMa.containsMouse ? theme.glassHi : "transparent" }
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: row.dlState === "done" ? (trMa.containsMouse ? "✕" : "✓")
-                                            : row.inFlight ? "✕"
-                                            : row.dlState === "error" ? "↻" : "↓"
-                                        color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
-                                             : row.dlState === "done" ? theme.gold
-                                             : trMa.containsMouse ? theme.gold : theme.inkDim
-                                        font.pixelSize: 16
-                                        font.weight: (row.dlState === "done" && !trMa.containsMouse) ? Font.Bold : Font.Normal
-                                    }
-                                    MouseArea {
-                                        id: trMa; anchors.fill: parent; hoverEnabled: true; z: 5
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (typeof Downloads === "undefined") return
-                                            if (row.dlState === "done") Downloads.deleteChapter(row.chId)
-                                            else if (row.inFlight) Downloads.cancelDownload(row.chId)
-                                            else row.startDownload()
-                                        }
-                                    }
-                                }
-
-                                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1
-                                    color: Qt.rgba(1,1,1,0.05); visible: row.y + row.height < tableInner.height }
-                                MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: row.primary() }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // post-reveal error (inset). Alarm red only when the page genuinely has nothing;
-            // a shelf that loaded fine gets a quiet dimmed note instead.
-            Text {
-                visible: !page.loading && page.errorText.length > 0
-                x: theme.margin
-                width: Math.min(880, parent.width - 2 * theme.margin)
-                wrapMode: Text.WordWrap
-                text: page.errorText
-                color: page.volumes.length ? theme.inkDimmer : "#e6a3a3"
-                font.family: theme.ui; font.pixelSize: 13
-                topPadding: 18
-            }
-
-            Item { width: 1; height: 70 }   // bottom breathing room
-        }
-    }
-
-        }
-
-    // The approved Reading Room replaces the old corridor surface. The old corridor
-    // is retained only as an uninstantiated Component for source-level migration
-    // reference; all live controller paths point at this room's library instance.
+    // The approved Reading Room is the page's whole reading surface. The old
+    // uninstantiated "legacy corridor" Component (chapter table + duplicate volume
+    // shelf, never wired to a Loader) was deleted outright in catalogue-independence
+    // Slice 5, 2026-08-20 — it held the "Latest chapters" tail and per-chapter Get
+    // rows Hemanth's lock removes completely, and it had no live callers to migrate.
     MangaReadingRoom {
         id: readingRoom
         anchors.fill: parent
@@ -1078,7 +552,6 @@ Item {
         errorText: page.errorText
         genres: page.genres
         score: page.score
-        chapters: page.chaptersModel
         service: page.tankobanVolumesRef
         collectionEntry: page.collectionEntry()
         onBackRequested: page.backRequested()
@@ -1089,8 +562,6 @@ Item {
         onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
         onSourcesRequested: (ctx) => page._openSources(ctx)
         onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
-        onOpenChapterRequested: (chapterId, label) => page._openChapter(chapterId, label)
-        onChapterDownloadRequested: (chapterId, label) => page._downloadChapter(chapterId, label)
     }
 
     // ---- clean loading state ----
@@ -1141,7 +612,11 @@ Item {
         pageStore: page.openEntryKind === "tankoban"
                    ? ((typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null)
                    : null
-        chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : page.chaptersModel
+        // chapters are gone entirely (catalogue-independence Slice 5, 2026-08-20) —
+        // openEntryKind is never "manga" from a live route any more, so the reader's
+        // chapters prop only ever needs the tankoban entries; [] covers the defensive
+        // "manga" branch without an undefined chaptersModel reference.
+        chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : []
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
         // Do NOT clear openChapterId here — Main.qml's closeComicReader() reads it (still live)

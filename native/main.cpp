@@ -64,6 +64,7 @@
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
 #include "engine/TankobanCatalog.h"
+#include "engine/TankobanChapterMigration.h"
 #include "engine/ImdbCatalog.h"
 #include "engine/BiblioCatalog.h"
 #include "engine/LocalDownloads.h"
@@ -1534,6 +1535,25 @@ int main(int argc, char *argv[]) {
     // closed by construction.
     auto *accountRuntime = new AccountRuntime(&app);
     accountRuntime->prepareForQml(&engine);
+
+    // One-time WC-era chapter migration (catalogue-independence Slice 5, 2026-08-20).
+    // Hemanth's explicit lock: chapters are deleted completely, on-disk bytes included.
+    // Hooked HERE, not at the earlier AppLog::install() point this class's own header
+    // comment originally assumed, because ground-truthing this boot sequence during
+    // Slice 5 found the Bundle 8C account/profile runtime (just above) is now the SOLE
+    // constructor of ProgressStore -- no store exists any earlier in main() to purge
+    // kind:"manga" records from. The disk-side purge (<AppDataLocation>/manga/) does not
+    // need a ProgressStore at all and would be safe earlier, but both phases share one
+    // idempotency marker, so they run together, once, right after the store that binds
+    // to QML's `Progress` exists. NOTE (recorded honestly, not verified further this
+    // slice): ProfileStoreRuntime.cpp's own file header marks it "PRE-FLIGHT DRAFT
+    // STATUS: uncompiled/untested/unexecuted/unadopted/unverified" -- this purges
+    // whichever store is bound at THIS instant (the sealed store pre-onboarding-choice,
+    // per that runtime's own design), not necessarily the same instance a later
+    // "continue local" rebind swaps in. That rebind's own effect on an already-completed
+    // migration marker is outside this slice's fence.
+    TankobanChapterMigration::run(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation),
+                                  accountRuntime->profileStores()->progressStore());
 
     // Watch Party account bridge (arc 03): signed-in identity + bearer stay native.
     // Sign-out or identity replacement tears down any authenticated party session.

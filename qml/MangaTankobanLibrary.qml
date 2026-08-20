@@ -4,9 +4,10 @@
 // The shelf is a vertical cover grid that opens the page - every canonical volume is a
 // card (cover + state chip + Vol/name caption — the chapter-range caption was removed in
 // catalogue-independence Slice 3, 2026-08-20: a baked catalogue row carries no chapter
-// range at all). Chapters past the last mapped volume ("the X bucket", still computed by
-// MangaReadingRoom via MangaVolumes.js) surface as a persistent "Latest chapters" tail
-// below the grid, never a separate tab.
+// range at all). Catalogue-independence Slice 5 (2026-08-20, Hemanth's explicit lock —
+// chapters are deleted completely, on-disk bytes included) removed the grid's own
+// "Latest chapters" footer tail outright: the shelf is volumes only now, no chapter
+// surface anywhere in this component.
 //
 // `focusIndex`/`focusToken` and their small `focusAtNumber`/`focusAtIndex`/`jumpToNumber`
 // API SURVIVE catalogue-independence Slice 3 (2026-08-20) too - not as visual state, and no
@@ -44,8 +45,6 @@ Item {
     // hard-error; not read anywhere in this file.
     property bool coverFetchingEnabled: true
 
-    property var chapters: []
-    property var chapterRows: []
     readonly property bool showVolumes: root.volumeRows.length > 0
     property var _resume: null
     property var volumeRows: []
@@ -94,8 +93,6 @@ Item {
     signal batchRequested(var numbers, string label)
     signal openVolumeRequested(string volumeId)
     signal sourcesRequested(var context)
-    signal openChapterRequested(string chapterId, string label)
-    signal chapterDownloadRequested(string chapterId, string label)
 
     Theme { id: theme }
 
@@ -479,11 +476,11 @@ Item {
     }
 
     // ------------------------------------------------------------------
-    // The shelf - one continuous vertical scroll: grid header ("VOLUMES"), the
-    // cover-card grid, then the "Latest chapters" tail. GridView.header/footer keep
-    // this to ONE Flickable so the grid stays properly virtualized (liveVolumeTiles
-    // stays < volumeRows.length even for a 115-volume series) while the header/tail
-    // scroll with it, matching the mock's single-page flow.
+    // The shelf - one continuous vertical scroll: grid header ("VOLUMES"), then the
+    // cover-card grid (no footer any more — Slice 5 removed the chapter tail).
+    // GridView.header keeps this to ONE Flickable so the grid stays properly
+    // virtualized (liveVolumeTiles stays < volumeRows.length even for a 115-volume
+    // series) while the header scrolls with it, matching the mock's single-page flow.
     // ------------------------------------------------------------------
 
     // Bridge automation surface (world-namespaced per the naming law). Plain scalars
@@ -745,101 +742,6 @@ Item {
             Component.onDestruction: root.liveVolumeTiles -= 1
         }
 
-        footer: Component {
-            Item {
-                id: tailRoot
-                width: volumeGrid.width
-                visible: root.chapterRows.length > 0
-                height: visible ? tailColumn.height : 0
-
-                Column {
-                    id: tailColumn
-                    width: parent.width
-                    topPadding: 40
-                    spacing: 12
-
-                    Text {
-                        text: "LATEST CHAPTERS"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
-                    }
-                    Text {
-                        text: root.chapterRows.length + (root.chapterRows.length === 1 ? " chapter" : " chapters")
-                            + (root.showVolumes ? " not yet collected into a volume" : "")
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                    }
-                    Rectangle {
-                        width: parent.width; height: tailRows.height; radius: 8
-                        color: "transparent"; border.width: 1; border.color: theme.edge
-                        clip: true
-                        Column {
-                            id: tailRows
-                            width: parent.width
-                            Repeater {
-                                model: root.chapterRows
-                                delegate: Item {
-                                    id: chapterRow
-                                    required property var modelData
-                                    required property int index
-                                    width: tailRows.width; height: 42
-                                    property string chapterId: String(chapterRow.modelData.id || "")
-                                    property string chapterLabel:
-                                        (chapterRow.modelData.name && String(chapterRow.modelData.name).length)
-                                            ? String(chapterRow.modelData.name)
-                                            : ("Chapter " + String(chapterRow.modelData.number || ""))
-                                    property string chapterState: "none"
-                                    function refreshState() {
-                                        var d = root.downloaderObject
-                                        chapterRow.chapterState = d && d.statusOf
-                                            ? String(d.statusOf(chapterRow.chapterId).state || "none") : "none"
-                                    }
-                                    Component.onCompleted: chapterRow.refreshState()
-
-                                    Rectangle { anchors.fill: parent; color: theme.glassTint }
-                                    Rectangle {
-                                        visible: chapterRow.index < root.chapterRows.length - 1
-                                        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                                        height: 1; color: Qt.rgba(1, 1, 1, 0.07)
-                                    }
-                                    Text {
-                                        anchors.left: parent.left; anchors.leftMargin: 16
-                                        anchors.right: chapterStatus.left; anchors.rightMargin: 14
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: chapterRow.chapterLabel
-                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 14
-                                        elide: Text.ElideRight
-                                    }
-                                    Text {
-                                        id: chapterStatus
-                                        anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter
-                                        text: chapterRow.chapterState === "done" ? "On device"
-                                            : chapterRow.chapterState === "downloading" ? "Downloading" : "Get"
-                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 0.6
-                                    }
-                                    MouseArea {
-                                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (chapterRow.chapterState === "done")
-                                                root.openChapterRequested(chapterRow.chapterId, chapterRow.chapterLabel)
-                                            else if (chapterRow.chapterState !== "downloading") {
-                                                root.chapterDownloadRequested(chapterRow.chapterId, chapterRow.chapterLabel)
-                                                chapterRow.chapterState = "downloading"
-                                            }
-                                        }
-                                    }
-                                    Connections {
-                                        target: root.downloaderObject; ignoreUnknownSignals: true
-                                        function onProgress(cid, done, total) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "downloading" }
-                                        function onFinished(cid) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "done" }
-                                        function onRemoved(cid) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "none" }
-                                        function onFailed(cid, reason) { if (String(cid) === chapterRow.chapterId) chapterRow.chapterState = "failed" }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // Select-mode floating action bar. Unreachable today (see the `selecting` note

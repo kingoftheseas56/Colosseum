@@ -3,7 +3,6 @@
 // The series context is compressed into a story masthead. The collection owns
 // the rest of the screen so the reader-derived volume flow can lead.
 import QtQuick
-import "MangaVolumes.js" as Vol
 
 Item {
     id: root
@@ -32,19 +31,12 @@ Item {
     property string errorText: ""
     property var genres: []
     property real score: 0
-    property var chapters: []
     property var collectionEntry: null
     property var service: null
     property var progress: null
     property var downloader: null
     property bool synopsisExpanded: false
     readonly property real contentHeight: root.height
-
-    readonly property var chapterDisplayRows: {
-        if (!root.library.showVolumes) return root.chapters || []
-        var grouped = Vol.group(root.chapters || [], Vol.fromEngine(root.library.volumeRows || []))
-        return grouped.byKey && grouped.byKey.X ? grouped.byKey.X : []
-    }
 
     signal backRequested()
     signal minimizeRequested()
@@ -54,8 +46,6 @@ Item {
     signal openVolumeRequested(string volumeId)
     signal sourcesRequested(var context)
     signal batchRequested(var numbers, string label)
-    signal openChapterRequested(string chapterId, string label)
-    signal chapterDownloadRequested(string chapterId, string label)
 
     Theme { id: theme }
 
@@ -183,14 +173,6 @@ Item {
                     visible: root.library.showVolumes
                     text: root.library.volumeRows.length + " volumes"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11
                 }
-                Text {
-                    visible: root.chapters.length > 0 && (root.library.showVolumes || root.author.length > 0 || root.status.length > 0 || root.year > 0 || root.score > 0)
-                    text: "\u00b7"; color: theme.inkDimmer
-                }
-                Text {
-                    visible: root.chapters.length > 0
-                    text: root.chapters.length + " chapters"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11
-                }
             }
             // Synopsis behind a tap (mock .syn): clamped to one line, tap expands/collapses.
             Item {
@@ -274,13 +256,10 @@ Item {
             objectName: "readingRoomLibrary"
             anchors.fill: parent
             seriesId: root.seriesId; seriesTitle: root.seriesTitle
-            chapters: root.chapters; chapterRows: root.chapterDisplayRows
             service: root.service; progress: root.progress; downloader: root.downloader
             onOpenVolumeRequested: (volumeId) => root.openVolumeRequested(volumeId)
             onSourcesRequested: (ctx) => root.sourcesRequested(ctx)
             onBatchRequested: (numbers, label) => root.batchRequested(numbers, label)
-            onOpenChapterRequested: (chapterId, label) => root.openChapterRequested(chapterId, label)
-            onChapterDownloadRequested: (chapterId, label) => root.chapterDownloadRequested(chapterId, label)
         }
         Rectangle {
             visible: root.errorText.length > 0; z: 30
@@ -301,11 +280,12 @@ Item {
         }
         // The truthful three-way label (Slice 2's promise, completed Slice 4,
         // 2026-08-20): "open"/"get" both imply a known shelf (library.showVolumes);
-        // "search" is the shelf-less honest fallback \u2014 a chapter list never
-        // reaches the reader any more (purity law), so "Read first chapter" only
-        // remains as a defensive label for an unmodeled primaryAction value.
+        // "search" is the shelf-less honest fallback. Chapters are gone entirely
+        // (catalogue-independence Slice 5, 2026-08-20) so the only unmodeled case
+        // left is a not-yet-resolved page, where "Open volume 1" is still the
+        // honest eventual promise (never a chapter label).
         if (root.primaryAction === "get") return "Get volume 1"
         if (root.primaryAction === "search") return "Search nyaa"
-        return root.library.showVolumes ? "Open volume 1" : "Read first chapter"
+        return "Open volume 1"
     }
 }

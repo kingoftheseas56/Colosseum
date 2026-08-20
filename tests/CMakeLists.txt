@@ -326,6 +326,33 @@ set_tests_properties(colosseum.qttest.tankoban_catalog PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# -- Tankoban chapter migration (catalogue-independence Slice 5, 2026-08-20) --
+# TankobanChapterMigration -- the one-time WC-era chapter purge: chapter tree
+# deleted, manga-volumes/ intact, kind:"manga" progress purged, kind:"tankoban"/
+# "comic" intact, idempotent second run, marker written. QTemporaryDir fixture
+# (both the chapter tree and a ProgressStore backed by a temp ini), same
+# GUILESS shape as tst_tankoban_catalog. ProgressStore.h is header-only (no
+# matching .cpp on the app target), so only the migration's own .cpp joins it.
+add_executable(tst_tankoban_chapter_migration
+    auto/tankoban/tst_tankoban_chapter_migration.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankobanChapterMigration.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankobanChapterMigration.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+target_include_directories(tst_tankoban_chapter_migration PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tankoban_chapter_migration PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_tankoban_chapter_migration PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_tankoban_chapter_migration POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.tankoban_chapter_migration
+         COMMAND tst_tankoban_chapter_migration)
+set_tests_properties(colosseum.qttest.tankoban_chapter_migration PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault scanner (execution plan Slice 4, 2026-08-08) ───────────────────────
 # VaultScanner — the cancellable off-thread census: pure buildScan() over the
 # fixture tree, generation-guarded applyResult() (stale drop, cancelled no-publish),

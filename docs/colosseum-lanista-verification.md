@@ -1216,6 +1216,42 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
   triaged again here per the task's own instruction) plus the routine `QIODevice::read
   (QSslSocket): device not open` teardown line.
 
+## Tankoban catalogue-independence Slice 5 (2026-08-20) — Bridge blocked by an exe lock,
+## not a code or bridge defect; QML/C++ layers proven, runtime layer honestly deferred
+
+Slice 5 (the surgical unplug: chapters removed, WC disconnected, one-time chapter-store
+migration) is destructive by design — Hemanth's explicit lock, first daily boot on the
+migrated build deletes his real WC-era chapter downloads. Full account in
+`docs/colosseum-test-verification.md`'s Slice 5 gate entry; this entry covers the runtime
+layer only.
+
+- **No Lanista session was run this slice.** Hemanth's daily `colosseum.exe` (PID 9296)
+  was running for the whole session and was never killed, per the plan's own standing
+  constraint. `cmake --build --target colosseum` compiled all 35/35 objects clean
+  (including the new migration class and the main.cpp hook) but failed to LINK
+  (`LNK1104: cannot open file 'colosseum.exe'`) because that PID holds the file. A Lanista
+  session needs a colosseum.exe that actually contains this slice's C++ to prove anything
+  about the migration; none could be produced this pass.
+- **Not written as unverified/speculative gates:** the plan's NEW seeded-fixture
+  `tests/test_tankoban_chapter_migration.ps1` disk-gate runner, and the regression replay
+  of both committed scenarios (`tankoban_catalogue_smoke.json`,
+  `tankoban_discover_depth.json`) against a rebuilt exe. Writing a `.ps1` against
+  `--seed`/`COLOSSEUM_APPDATA_TAG` mechanics without being able to execute and watch it
+  fail-then-pass would ship a guess dressed as a gate — deferred honestly instead, to be
+  written AND run together in the next pass once the daily app is closed.
+- **Bridge status:** available (no new capability gap found or claimed) — the block is
+  purely the file lock, not a Lanista/ledger limitation. Once Hemanth closes the daily
+  app: rebuild, then replay both committed scenarios fresh (masthead/shelf/picker/wall
+  paths never touch chapters, so they should stay green unchanged), then write and run the
+  seeded migration `.ps1`, then the five human-witnessed items from the executor's report.
+- **Safety note (recorded, not alarmed):** this slice's QML edits (chapter UI removed from
+  MangaSeries/MangaReadingRoom/MangaTankobanLibrary) sit in the SAME source tree
+  colosseum.exe reads QML from directly — if Hemanth's running instance loads QML live
+  (not from a compiled resource) and he opened a manga series page during this session, he
+  may have already seen the chapter UI disappear. Cosmetic and reversible only: no C++,
+  no migration, no data deletion reaches a running process without the blocked rebuild +
+  relaunch.
+
 ---
 
 ## Status vocabulary (for plans and reports)

@@ -247,6 +247,8 @@ add_executable(colosseum
     engine/MalCatalog.h
     engine/TankobanCatalog.cpp     # baked Tankoban volume catalogue (catalogue-independence Slice 1)
     engine/TankobanCatalog.h
+    engine/TankobanChapterMigration.cpp  # one-time WC-era chapter purge (catalogue-independence Slice 5)
+    engine/TankobanChapterMigration.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
     engine/LocalDownloads.cpp

@@ -476,6 +476,140 @@ half the compiled harnesses are run by nobody.
   index-jump seam on the wall (or the click-resolution gap's root cause) is owed to a
   future slice or Slice 7's eyes-on list.
 
+## Tankoban catalogue-independence Slice 5 gate (2026-08-20) — the surgical unplug
+
+- **Scope.** QML: deleted the entire `legacyCorridor` `Component` in `qml/MangaSeries.qml`
+  (~490 lines) — GROUND-TRUTHED dead code, never instantiated by any `Loader`/`createObject`
+  (the only two hits for its id are its own declaration and an untracked thumbnail-mock
+  copy). It held the "Latest chapters" tail, per-chapter Get rows, chapter open/download
+  routing, and a duplicate/dead `MangaTankobanLibrary` instance. Also removed:
+  `chaptersModel` (was always `[]` — Slice 2 already dropped the `Manga.chapters()` call
+  that used to fill it) and everything derived from it (`volGroups`, `visibleChapters`,
+  `_openChapter`/`_downloadChapter`, the factRows "Chapters" row, the dead-anyway
+  `readPrimary()` chapter fallback, the now-unused `_tankobanPreparedWithChapters` latch,
+  the `MangaVolumes.js`/`QtQuick.Controls` imports that only the deleted code used).
+  `qml/MangaReadingRoom.qml`: removed `chapters`/`chapterDisplayRows`/the two chapter
+  signals, the metaRow "N chapters" stat text, the chapter-count wiring into its live
+  `MangaTankobanLibrary` instance, and the dead "Read first chapter" continueText fallback
+  (unreachable — collapses to "Open volume 1"). `qml/MangaTankobanLibrary.qml`: removed
+  `chapters`/`chapterRows` properties, the two chapter signals, and the GridView `footer`
+  Component that rendered the LIVE "Latest chapters" tail (this one WAS reachable at
+  runtime, but always rendered zero rows in production since Slice 2 removed the only
+  thing that ever fed `chapters` non-empty). Grep-verified zero `Manga.search/chapters/
+  detail/art/volumes` or `Downloads.fetchThumb/downloadChapter/deleteChapter/
+  cancelDownload` call sites remain anywhere in `qml/*.qml` (excluding untracked
+  `*ThumbnailMock.qml` scratch files) after these edits — `native/MangaEngine.h`'s
+  Q_INVOKABLEs and `MangaDownloader`'s chapter API compile untouched (organs kept, per
+  "unplug not delete") but are provably unreached from QML. One deliberately UNTOUCHED
+  live read: `qml/TankobanWorld.qml`'s `nextUpRows()` still calls
+  `Downloads.downloadedChapters()` for its "Next Up" manga branch — not in the plan's named
+  file list, and it degrades honestly to empty once the migration purges `kind:"manga"`
+  progress and no route can create new ones (no fabricated data, just an increasingly-dead
+  branch); named here rather than silently left.
+- **GROUND-TRUTH DEVIATION — the two named JS/QML files are unlanded WIP, not committed
+  source.** The plan named `qml/TankobanLibraryApi.js` + `qml/TankobanLibraryTab.qml` for
+  the chapter-progress-join removal. `git log` on both is empty — they have never been
+  committed, sit on disk since 2026-08-06, and chat.md's 2026-08-08 vault-planning entry
+  already named this exact trio (`TankobanLibraryTab.qml` + `TankobanWorld.qml` +
+  `WorldTabBar.qml`) as "the Tankoban Library lane's uncommitted WIP" with unresolved
+  ownership. `TankobanLibraryApi.js::buildRows()`'s manga branch was edited (the chapter-
+  lane join removed, volume-lane-only now, `mangaProgress` param kept for call-site
+  compat) so the join is clean whenever that WIP lands, but the edit is NOT staged/
+  committed under this slice — landing someone else's whole unlanded Library tab under a
+  chapter-removal commit message is not this slice's call to make. Same reasoning applied
+  to `tests/test_tankoban_library.ps1` (also untracked, also part of that bundle,
+  unregistered in CTest) — inspected, not deep-edited or committed.
+- **GROUND-TRUTH DEVIATION — main.cpp's ProgressStore construction moved since the plan
+  was written.** The plan assumed a boot-time `ProgressStore` singleton reachable right
+  after `AppLog::install()`. Ground-truthing `native/main.cpp` (itself currently DIRTY —
+  mid-adoption of a "Bundle 8C" account/profile runtime, `native/account/
+  ProfileStoreRuntime.cpp` whose OWN file header reads "PRE-FLIGHT DRAFT STATUS:
+  uncompiled/untested/unexecuted/unadopted/unverified") found no local `ProgressStore*` at
+  all that early — `AccountRuntime`/`ProfileStoreRuntime` is now the sole constructor, and
+  it only exists after `accountRuntime->prepareForQml(&engine)` (~line 1537, well after
+  `AppLog::install()`). The migration call was moved to right after that line, using
+  `accountRuntime->profileStores()->progressStore()`. Recorded honestly, not chased
+  further this slice: this purges whichever store is bound at that instant (the "sealed"
+  pre-onboarding-choice store, per that runtime's own design) — whether a later "continue
+  local" rebind swaps in a different store instance, and what that does to an
+  already-written migration marker, was not traced (outside this slice's fence; the
+  account/profile system is itself unverified/in-flight, not this slice's to fix).
+- **C++ organs.** NEW `native/engine/TankobanChapterMigration.{h,cpp}` — `static Result
+  run(appDataRoot, ProgressStore*)`: deletes `<appDataRoot>/manga/` (`QDir::
+  removeRecursively()`, only after recording `chapterDirsDeleted`/`indexDeleted` for the
+  log line), purges `kind:"manga"` records via a NEW `ProgressStore::purgeKind(kind)`
+  (additive Q_INVOKABLE, mirrors `forget()`'s scheduleSave/syncDirty/bump shape but no
+  group semantics — a whole-kind wipe), and writes a plain marker file
+  (`<appDataRoot>/tankoban-chapter-migration.v1.done`) ONLY after a successful disk purge
+  (a failed `removeRecursively()` — e.g. a locked file — withholds the marker so the next
+  boot retries instead of silently abandoning the tree). Deliberately does NOT use a
+  hardcoded `QSettings("Brotherhood","Colosseum")` for its own marker (the ProgressStore.h
+  store-isolation trap) — the marker is a plain file under `QStandardPaths::
+  AppDataLocation`, which already follows the active `applicationName` (tag or real) the
+  same way every other AppData-backed store here does; no tag-aware QSettings helper
+  needed. `manga-volumes/` and `kind:"tankoban"`/`"comic"` records are never touched by
+  any code path in this class.
+- **Qt Test: NEW `colosseum.qttest.tankoban_chapter_migration`** (labels `unit;qttest`,
+  registered `tests/CMakeLists.txt`, same shape as `tst_tankoban_catalog`). 6 cases, all
+  QTemporaryDir-fixtured (both the disk tree and a real `ProgressStore` over a temp ini —
+  never a real AppData root, never the registry): disk purge deletes the chapter tree and
+  leaves a seeded `manga-volumes/` archive untouched; progress purge removes the one
+  seeded `kind:"manga"` record and leaves seeded `kind:"tankoban"`/`"comic"` records
+  intact; the marker lands only after success; a second run is a TRUE no-op (reseeds a
+  fresh chapter dir AND a fresh manga-kind record AFTER the first run's marker exists,
+  asserts the second run touches NEITHER — stronger than "returns early"); a missing
+  `manga/` dir (fresh install) still purges progress and writes the marker cleanly; a null
+  `ProgressStore*` still purges disk with zero crash and zero progress side effect.
+  **Negative control performed live**: sabotaged `purgeMangaProgress()` to also call
+  `purgeKind("tankoban")` → exactly the three tankoban-survival-dependent cases (
+  `progress_purge_removes_manga_keeps_tankoban_and_comic`,
+  `idempotent_second_run_is_noop`,
+  `missing_manga_dir_still_purges_progress_and_writes_marker`) went red with the expected
+  `progressRecordsPurged` mismatch, the other three (disk-only/marker/null-store cases)
+  stayed green → restored → rebuilt → green again (`ctest -R
+  colosseum.qttest.tankoban_chapter_migration`, ran clean both before and after).
+- **Existing harnesses.** `tests/manga_reading_room_harness.qml` (registered
+  `colosseum.manga_reading_room`) — was RED after the QML edits (`MangaReadingRoom does
+  not have a property called chapters`, the harness's old "chapter-only room" case setting
+  `chapters: chapters(42)`). Replaced that case with a shelf-less-series case asserting
+  `library.showVolumes === false`, `library.volumeRows.length === 0`, and — the stronger
+  proof, matching this file's existing "assert fully removed, not just unused" idiom
+  (lines 188-192 already do this for the WC thumb-scrape machinery) — `typeof` on every
+  removed chapter property/signal on BOTH the room and its library returns `"undefined"`.
+  Removed the now-dead `chapters(count)` fixture helper. Rebuilt green
+  (`ctest -R colosseum.manga_reading_room`). The TB-002/TB-003 grep-assertion runner
+  (`tests/test_tankoban_library.ps1`, located via `grep -l TankobanLibraryApi tests/*.ps1`
+  per the plan's instruction) is untracked/unregistered — see the deviation note above;
+  not deep-edited or committed this slice.
+- **Full `-L unit` gate: 71/71 green** (baseline was 70/70 before this slice's one new Qt
+  Test target). Two PRE-EXISTING/FOREIGN failures were observed and are NOT this slice's:
+  `colosseum.qttest.profile_activity_isolation` (2 sub-cases,
+  `accountSwitchRebindsAndDestroysPreviousActivityStore` +
+  `noStaleCrossProfileActivityLeakage`) — belongs entirely to the in-flight, self-described
+  "unverified" account/profile system this slice only had to read around, zero overlap
+  with chapters/progress/migration code. Named explicitly, not swept under "known noise."
+- **App target compiles clean.** `cmake --build build-msvc --target colosseum` — all 35/35
+  changed objects compiled (including `main.cpp` and the new migration files); the FINAL
+  LINK step failed with `LNK1104: cannot open file 'colosseum.exe'` because Hemanth's
+  daily `colosseum.exe` (PID 9296) was running the whole session — per the plan's own
+  standing constraint, never killed. This is a lock, not a code defect: every translation
+  unit this slice touched or added built without error.
+- **Runtime layer: Bridge blocked (exe lock), not run this slice.** The planned Lanista
+  regression replay of both committed scenarios (`tankoban_catalogue_smoke.json`,
+  `tankoban_discover_depth.json`), the NEW seeded-fixture `.ps1` disk gate
+  (`tests/test_tankoban_chapter_migration.ps1`), and the human-witnessed eyes-on all
+  require a colosseum.exe that actually contains this slice's C++ (the migration class,
+  `ProgressStore::purgeKind`, the main.cpp hook) — which cannot link while the daily
+  instance holds the file. None of these were written or run as unverified/speculative
+  gates; they are honestly deferred to the next pass, once Hemanth closes the daily app.
+  Safety note: the QML edits (chapter UI removed) may already be visible in Hemanth's
+  CURRENTLY RUNNING instance if it loads QML live from the source tree and he opens a
+  manga series page — this is cosmetic and reversible (no C++, no data, no migration logic
+  has reached his running process, since that requires the blocked rebuild+relaunch); his
+  real chapter downloads and progress are untouched and remain so until he deliberately
+  rebuilds and relaunches, per the plan's own completion criterion ("only after this
+  criterion may the migrated build run as the daily app").
+
 ## House assertion idioms (no framework)
 
 - **require idiom:** `require()` prints `FAIL: <msg>`, `exit(1)`; one `*_OK` on success.
