@@ -1254,6 +1254,76 @@ layer only.
 
 ---
 
+## Tankoban catalogue-independence closing sweep (2026-08-21) — the exe lock cleared; runtime layer proven
+
+Full account (build/CTest/QML/ps1 detail) in `docs/colosseum-test-verification.md`'s matching
+entry; this entry covers the Lanista-specific runtime findings only.
+
+- **Bridge status: available, no new capability gap.** All sessions used the standard
+  `lanista session run --drive --seed --tag` shape plus the interactive `mcp__lanista__*`
+  adapter for two exploratory checks (the Vagabond uncovered-shelf branch, and diagnosing
+  the migration scenario's rail-click race). No new command was needed or invented.
+- **Build-slot collisions (3 total this window) — none resolved by killing a foreign
+  process, per standing rule.** Two occurred before this sweep's own work began (the
+  22:46 `arc12_theatre_anime` session that triggered the original STOP-and-report; already
+  exited by the time it was traced). A THIRD occurred mid-sweep (00:00-00:02): Agent 4's
+  `lanista.exe session run tests\lanista_capture\arc12_theatre_discover_movies_direct.json
+  --tag arc12-default-final-theatre-discover` cycled live `colosseum.exe`/`lanista.exe`
+  processes despite the posted chat.md hold. Per the coordinator's own bounded-wait
+  adjustment, waited it out (~3 minutes, polling) rather than stopping — cleared on its
+  own. No process was killed at any point this sweep.
+- **A NEW script-only automation gap, same class Slice 6 already named for Discover,
+  now also hit on the Slice-5 migration scenario's rail click.** Clicking
+  `tankobanTopMangaTile_0/1` immediately (or even after 2-3 extra `qml-get` settle round-
+  trips) after a `tankobanTab_manga` click reliably hit `NO_SUCH_ITEM` when driven through
+  batched `lanista session run` — but resolved on the FIRST try, no settle needed, when
+  driven interactively via `mcp__lanista__act()` (session `20260820-234936-963268d6`:
+  ping-through-masthead in 4 single act() calls, zero retries). This is strong evidence for
+  Slice 6's own "scenario-runner timing difference from interactive driving" hypothesis
+  over its other candidate (a DFS-first objectName recycling race) — the interactive
+  adapter's natural per-call round-trip latency appears to be exactly what the batched
+  runner never gives the QML Loader/Repeater. Not root-caused further (would need
+  instrumenting the actual Loader.onLoaded / Repeater itemAdded timing, out of this sweep's
+  scope). Resolved pragmatically the same way Slice 6 did: the shipped
+  `tankoban_chapter_migration.json` scenario stops at what batched driving proves reliably
+  (clean boot through Tankoban's tab bar rendering); the deeper masthead check for that
+  scenario is hand-driven evidence only.
+- **A SEPARATE, newly-reproduced defect class on the EXISTING committed
+  `tankoban_catalogue_smoke.json`: a stale-property read on late re-navigation, not a
+  click-target-resolution race.** 4 fresh isolated replays this sweep (tags
+  `closing-smoke`, `closing-smoke-r2`, `-r3`, `-r4`): run 2 hit the click-target class
+  above (early failure); runs 1, 3, 4 all reached the scenario's FINAL Berserk-shelf-less
+  assertion cleanly (the click landed, `tankobanSeriesMasthead.ready` flipped true, the
+  `ui-wait-for` matched) but the immediately-following `qml-get` read
+  `displayTitle=="One Piece"` — the PREVIOUS series still-shown, in 3 of those 3 attempts.
+  Every other assertion in all 4 runs passed clean, including two EARLIER masthead
+  re-navigations in the same scenario (the world-tab-away/back regression leg) — this
+  specific race only manifested on the scenario's THIRD-plus series-page open, late in a
+  31-step sequence. Read as `ready` and `displayTitle` (or the underlying `mangaById`
+  row bind) updating on different frames/ticks under load, exposed only after several
+  prior navigations have already exercised the page's re-bind path. Named here as new,
+  not swept into the already-known click-race class above; not fixed (out of this sweep's
+  "verification only" fence) — a candidate for whoever next touches `MangaSeries.qml`'s
+  `resolve()`.
+- **Warning gate: clean across every session this sweep drove.** `WARNING_GATE_OK` on
+  `tankoban_discover_depth.json`'s replay and on the smoke scenario's run 4 (the deepest
+  clean run). No new warning-noise class surfaced; the pre-documented
+  `TypeError: Cannot read property 'revision'/'items' of null` cluster and the routine
+  `QIODevice::read (QSslSocket): device not open` teardown line were not observed this
+  sweep (may be load-dependent — not chased).
+- **Step E, interactive adapter used for a genuine exploratory reach (not a scripted
+  gate):** Vagabond (malId 656, static rail index 3) opened in one clean single-session
+  pass — `hasShelf true`, `primaryAction "get"`, shelf `rowCount 37`/`coveredCount 0`,
+  confirming the mal-basis/uncovered-shelf branch (the plan's requested fixture) renders
+  honestly. Hal/Baby Princess remain unreached (Slice 6's own finding stands — no
+  search-to-series bridge seam exists yet).
+- **RQ for a future slice, not filed as a formal ticket here:** two real gaps now sit in
+  the ledger unfixed (the progress-purge account-rebind gap; the masthead stale-read
+  race) plus one confirmed, reproducible script-only automation gap. None of the three
+  block Hemanth's own eyes-on checklist.
+
+---
+
 ## Status vocabulary (for plans and reports)
 
 `Runtime-validated` is the only status that closes a user-visible slice without qualification.

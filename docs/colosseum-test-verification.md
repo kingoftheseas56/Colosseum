@@ -1006,3 +1006,136 @@ repairs"):
 
 All three repairs changed test expectations only; no production `native/watchparty/*` source
 changed to make them pass.
+
+## Tankoban catalogue-independence closing sweep (2026-08-21) — relink + Slice 5 runtime + Slice 7 gates
+
+Hemanth closed the daily `colosseum.exe` (PID 9296 from the Slice 5 gate entry above); this
+sweep relinked and ran every gate the exe lock had blocked. Verification-only per the task
+brief; no production code touched. Two build-slot collisions with Agent 4's concurrent Theatre
+Lanista sessions occurred and were handled per the coordinator's own ruling (waited them out
+bounded, never killed a foreign process); recorded in `agents/chat.md`.
+
+- **Relink: green.** `cmd /c native\build-msvc.bat` — full rebuild (945 targets; the CMakeLists
+  churn from concurrent work forced a from-scratch reconfigure, not a quick incremental link).
+  First attempt hit `LNK1104` again transiently (no process held the file at the time of
+  either check; root cause not chased — plausibly AV/OS handle lag on the freshly-written
+  exe) — retried clean, `BUILD_OK`, zero `error C`/`ninja: build stopped` lines. Evidence:
+  `artifacts/tankoban-independence/closing/build_relink.log` (+ `_attempt1_failed.log`).
+- **Slice 5 runtime gate: authored and run for the first time.** The plan's `tests/
+  test_tankoban_chapter_migration.ps1` + `tests/lanista_scenarios/tankoban_chapter_migration.json`
+  + seed fixture `tests/lanista_fixtures/tankoban-chapter-migration-v1/` (a WC-era `manga/`
+  chapter tree for `berserk-1`, a `manga-volumes/berserk-1/1.cbz` archive that must survive,
+  and a hand-authored `progress-store.ini` carrying one `manga`/`tankoban`/`comic` record
+  each, mirroring `tst_tankoban_chapter_migration.cpp`'s own fixture shape and the existing
+  `tests/lanista_fixtures/journeys/ceremony-use-existing-v1/progress-store.ini` for the exact
+  QSettings ini-escaping idiom) did not exist before this pass — Slice 5's own report deferred
+  writing them "to be written AND run together in the next pass." Authored now, iterated to
+  green:
+  - **Disk-byte purge: PASS.** `manga/` chapter tree deleted, `manga-volumes/berserk-1/1.cbz`
+    survives untouched, the `tankoban-chapter-migration.v1.done` marker lands, and
+    `colosseum.log` carries the exact summary line (`existed=yes deleted=yes, 1 series
+    dir(s), index.json=removed`). This is Hemanth's actual explicit lock ("on-disk bytes
+    included") and it holds.
+  - **Progress-record purge: CONFIRMED BROKEN (pre-existing, not fixed).** The seeded
+    `manga`-kind record survives the migration — `colosseum.log` reports `0 manga-kind
+    progress record(s) purged`, not the seeded 1. Root cause ground-truthed, not guessed:
+    `native/main.cpp`'s own comment at the `TankobanChapterMigration::run()` call site
+    (~line 1549-1555) already named this exact risk — the migration purges "whichever
+    [ProgressStore] is bound at THIS instant (the sealed store pre-onboarding-choice)...
+    not necessarily the same instance a later 'continue local' rebind swaps in." This
+    sweep's scenario clicks exactly that "continue without an account" affordance
+    (required to reach any Tankoban content in a fresh/tagged session), triggering the
+    rebind, and the purge count proves the sealed store it purged is provably NOT the one
+    that ends up bound to QML's `Progress` and flushed to disk at shutdown (confirmed: the
+    tagged `progress-store.ini` was rewritten at session end with all three records,
+    including the manga one, still present). This is Bundle 8C account/profile runtime
+    territory (`ProfileStoreRuntime.cpp`'s own header: "PRE-FLIGHT DRAFT STATUS:
+    unverified") — explicitly out of this sweep's fence per the plan's own Slice 5 text
+    and this task's "verification only" mandate; not patched here. Practical read for
+    Hemanth: the disk-side chapter files are deleted regardless (unconditional, no
+    ProgressStore dependency), so the user-visible risk is limited to a possible stale
+    Continue tile pointing at a now-deleted chapter — cosmetic, not data-loss.
+  - Scenario iteration (recorded for the next author who touches this file): the FIRST
+    scenario draft clicked straight into the "Top in Tankoban" rail immediately after the
+    tab switch and hit `NO_SUCH_ITEM` on `tankobanTopMangaTile_0/1` twice, even after adding
+    extra `qml-get` settle round-trips — proven NOT a materialization-timing issue (an
+    interactive `mcp__lanista__act()` session reached the identical target first try with
+    no settle needed) but the SAME script-only `lanista session run` batching gap Slice 6's
+    ledger already named for Discover deep-rank clicks. Resolved honestly the same way
+    Slice 6 did: the shipped scenario stops at a reliable clean-boot proof (bootSplash
+    clears, onboarding dismisses, Tankoban opens, tab bar renders) instead of shipping the
+    flaky rail click as a gate; the deeper masthead check was proven by hand via the
+    interactive adapter (session `20260820-234936-963268d6`, Vagabond check reused the same
+    technique below) and is recorded as hand-driven evidence, not a scripted gate.
+  - Evidence: `artifacts/tankoban-independence/slice5/test_tankoban_chapter_migration_run{1..4}.log`
+    (iteration history) + `artifacts/tankoban-independence/closing/` (final green run).
+- **Slice 7 scenario replays.**
+  - `tankoban_discover_depth.json`: clean, 18/18, matching the plan's own expectation (the
+    materialization proof only — the deep-rank click leg was already known Bridge-blocked
+    per Slice 6, unchanged this sweep). Warning gate: `WARNING_GATE_OK`.
+  - `tankoban_catalogue_smoke.json`: replayed 4× fresh isolated sessions. Run 1: 30/31
+    (one failure). Run 2: 9/10-equivalent early failure (a rail-click `WAIT_TIMEOUT`, the
+    same script-only class named above). Runs 3-4: 30/31, IDENTICAL failure both times —
+    the scenario's FINAL assertion (`Berserk is honestly shelf-less`) reads
+    `displayTitle=="One Piece"` instead of `"Berserk"` after the late-sequence tile click.
+    This is a NEW, distinct symptom from the click-target-resolution class above: the
+    preceding `ui-wait-for tankobanSeriesMasthead.ready==true` step PASSES cleanly every
+    time (the click itself lands), but the very next `qml-get` reads stale content —
+    `ready` flipping true a frame (or more) before `displayTitle`/`resolvedMalId` finish
+    updating to the newly-opened series, specifically on a LATE re-navigation (this is the
+    series page's 3rd+ open in the scenario, after two prior opens, two picker cycles, and
+    a world-tab round trip). 3 of 4 replays hit this; every OTHER step across all 4 runs —
+    masthead identity, the 113-volume shelf, both picker open/dismiss cycles, the
+    world-tab-away/back regression, the re-render-after-round-trip regression — passed
+    clean every single time. Named here as a genuinely reproduced, NOT previously
+    documented defect class (masthead `ready`/content update ordering on rapid
+    re-navigation) for a future slice to root-cause in `qml/MangaSeries.qml`'s `resolve()`
+    — not fixed this pass (out of "verification only" scope; the existing committed
+    scenario file was not altered). Warning gate on the one full-length run:
+    `WARNING_GATE_OK`. Evidence: `artifacts/tankoban-independence/closing/
+    smoke_replay{,_r2,_r3,_r4}.log`.
+- **Deterministic sweep.**
+  - `ctest --test-dir native/build-msvc -L unit --output-on-failure`: **71/71 green** — the
+    two previously-named foreign `colosseum.qttest.profile_activity_isolation` sub-case
+    reds (Slice 5 gate entry above) now PASS too; exceeds the plan's own "71/71 + up to 2
+    named foreign reds" expectation.
+  - `ctest -R colosseum.qml`: 436 passed / 30 failed / 3 skipped, both of two full runs
+    (stable, not flaky — identical failure set both times). Every failure is in
+    `AccountDataPrivacy`/`AccountDevicesCentre`/`AccountRecoveryCentre`/`AccountYourColosseum`
+    (Bundle 8C, self-described unverified), `GuideOverlay`/`GuidePage` (20 of the 30 —
+    the Guide search/journey rework whose source files were already dirty/uncommitted
+    in the working tree before this sweep touched anything), and `WatchPartyVisualHarness`
+    (Agent 4's own in-flight Theatre lane, one case). Zero Tankoban/manga-lane failures.
+    The one ledger-named flake, `SearchHistoryFlow::
+    test_biblioRecentChipBodyAndRemoveHaveIndependentClickTargets`, failed on the first run
+    and PASSED clean on the one allowed rerun (confirmed via the full-target rerun, since
+    the standalone `colosseum_qml_tests.exe` function-filter CLI syntax did not cooperate
+    within this pass's time budget — recorded as a minor tooling gap, not chased further).
+    Evidence: `artifacts/tankoban-independence/closing/ctest_qml{,_rerun}.log`.
+  - `tests/test_manga_series_catalogue.ps1`: OK. `tests/test_manga_reading_room.ps1`: OK.
+    `tests/test_tankoban_chapter_migration.ps1`: see above (disk PASS, progress-purge
+    confirmed-gap). The plan's "updated Library gates" (`TB-002`/`TB-003`) remain the same
+    untracked/unregistered `tests/test_tankoban_library.ps1` Slice 5's own report already
+    named as unowned WIP — not run (unregistered in CTest, not this sweep's to adopt).
+- **Step E (optional-if-time): the mal-basis/uncovered shelf branch, reached and recorded.**
+  Vagabond (in the static "Top in Tankoban" rail, index 3) opened clean via the interactive
+  adapter: malId 656, `hasShelf true`, `primaryAction "get"`, shelf `rowCount 37`,
+  `coveredCount 0` — every card an honest "NO COVER" glass, matching MAL's own count
+  (`count_basis=mal`, no BookWalker harvest yet). Screenshot:
+  `artifacts/tankoban-independence/closing/step-e-vagabond/vagabond-uncovered-shelf.png`.
+  Hal (malId 49611) and Baby Princess (malId 8676) remain unreached — Slice 6's own finding
+  stands unchanged this sweep (no search-to-series bridge route exists; scroll depth caps
+  around rank 18) — both moved to the human-witnessed list.
+- **Human-witnessed checklist** written (not performed, per this task's mandate):
+  `artifacts/tankoban-independence/closing/human-witnessed-checklist.md`.
+- **Slice 5 Overall status: Runtime-validated for the disk-byte purge and the app's own
+  functional health post-migration (clean boot, Tankoban opens, masthead/shelf/picker all
+  proven — Slice 7's own replays above); NOT Runtime-validated for the progress-record
+  purge (confirmed-broken pre-existing gap, named above, not fixed).** Human-witnessed
+  confirmations (this sweep's checklist) still pending Hemanth's own eyes.
+- **Slice 7 / arc status: gates run and recorded; NOT declared fully closed.** Two real,
+  newly-characterized-or-confirmed gaps stand open (the progress-purge rebind gap; the
+  masthead stale-read race on late re-navigation), plus the pre-existing 30 foreign QML
+  failures (unrelated lanes, unchanged by this sweep) and the still-unreached Hal/Baby
+  Princess pair. None of these block Hemanth's own eyes-on pass — the checklist above is
+  ready for him regardless.
