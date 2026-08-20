@@ -398,14 +398,12 @@ describe("endRoom", () => {
   });
 });
 
-describe("Slice 4 message types — typed refusal, not silent drop", () => {
-  it("timelineCommand is refused invalid_message (not yet handled) without disturbing the room", async () => {
-    const { host, roomId, participantId: hostId } = await createRoomAsHost();
-    send(host, "timelineCommand", roomId, hostId, { command: "play" });
-    const reply = await host.waitForNext();
-    expectError(reply, "invalid_message");
-  });
-});
+// Slice 4 (docs/superpowers/plans/2026-08-20-watch-party-relay-plan.md)
+// implements timelineCommand/setControlMode/participantState/
+// removeParticipant/chat/reaction for real — see test/room-authority.test.ts
+// for their coverage. The placeholder "not yet handled" typed-refusal test
+// that lived here through Slice 3 is superseded, not silently dropped: it
+// asserted exactly the stopgap behavior this slice replaces.
 
 describe("negative-control support (see slice report for the flip-one-guard transcript)", () => {
   it("baseline sanity: create -> join -> leave -> end all succeed in sequence", async () => {

@@ -227,8 +227,81 @@ vocabulary has no dedicated "not implemented yet" code) rather than a silent dro
   children) killed by exact PID after the probe run; command-line-verified no `wrangler`/`workerd`
   process remained.
 
+## Slice 4 — authority: timeline, control mode, presence, moderation, host grace, chat (2026-08-20)
+
+`RoomDO` now implements every message type Slice 3 stubbed with the "not yet handled" typed
+refusal: `timelineCommand` (authority per `controlMode` — host-only in Host Control, any current
+participant in Shared Control; accepted commands mutate the authoritative timeline and emit
+`timelineState` with the revision incremented by exactly 1, never reissued or regressed),
+`setControlMode` (host-only, broadcasts a fresh `roomSnapshot`), `participantState` (bound to the
+connection's own participant — no client-selected participant ID — broadcast as an authoritative
+`participantState` event to every connected participant), `removeParticipant` (host-only, cannot
+target the host; kicks by erasing the target's membership, sending it a terminal
+`participant_removed`, closing its socket, then broadcasting the resulting `roomSnapshot` — no
+ban/blacklist, so a fresh `joinRoom` afterward is evaluated under normal rules per the locked Arc-3
+policy), `chat`/`reaction` (server-stamped identity/display-name/sequence, broadcast, never
+persisted anywhere — not even Durable Object storage), and the per-connection rolling rate ceiling
+(<=120 messages/10s, `rate_limited` typed refusal, checked before any parsing so a malformed-frame
+flood still spends its own budget).
+
+**Host disconnect grace and deterministic transfer:** a host socket dropping (without an explicit
+`endRoom`) starts a grace window — `RELAY_HOST_GRACE_MS` (default 60000ms) — during which the room
+survives and `roomSnapshot.hostReconnectDeadlineMs` reflects the deadline. A host `reconnectRoom`
+within the window keeps ownership and clears the deadline. On expiry, the deposed host is erased
+from the roster entirely (oracle: `WatchPartyRoomController::advanceTime()` — a disconnected
+non-host participant keeps their slot for `reconnectRoom`, but an expired host does not), and the
+earliest-joined connected signed-in participant becomes host (`hostChanged` then a fresh
+`roomSnapshot`); guests are never eligible; with no eligible successor the room ends and is fully
+erased (`roomEnded`).
+
+**Durable Object alarm, one DO instance holding many rooms:** Slice 3's recorded architecture
+discrepancy (this DO holds a *registry* of rooms, not one DO per room) means a single alarm clock
+must serve every room's grace deadline. `scheduleGraceAlarm()` always sets the DO's one alarm to
+the EARLIEST pending `hostReconnectDeadlineMs` across all rooms; `alarm()` re-checks every room
+against the current clock (never fires unconditionally, even when forced early in tests) and
+reschedules for whatever remains pending.
+
+### Slice 4 evidence (2026-08-20)
+
+- `npm test`: 73/73 green — 38 protocol-conformance (Slice 2) + 17 room-lifecycle (Slice 3, one
+  stale placeholder assertion removed — see below) + 18 new `test/room-authority.test.ts` cases
+  covering timeline authority/monotonic revision, control mode, participant-state fan-out,
+  kick/fresh-rejoin, host grace/transfer/room-end, chat/reaction, and rate limiting.
+- The Slice 3 placeholder test asserting `timelineCommand` got a blanket "not yet handled"
+  `invalid_message` refusal is now factually wrong (that type is genuinely handled) and was
+  replaced with a comment pointing at `test/room-authority.test.ts` — not silently dropped, its
+  exact former assertion is what this slice implements.
+- Flip-one-guard drill (a) — timeline authority: replaced `handleTimelineCommand`'s
+  `participant.host || room.controlMode === "shared"` check with an unconditional `true`; rerun
+  went to 72/73, exactly "a participant's timelineCommand is refused not_authorized under Host
+  Control" red; reverted, rerun back to 73/73.
+- Flip-one-guard drill (b) — guest-skip in host-grace transfer: removed the
+  `candidate.identityKind !== "signedIn"` clause from `expireHostGrace`'s successor search; rerun
+  went to 71/73 — both "grace expiry transfers to the earliest-joined connected signed-in
+  participant, skipping guests" (a guest was picked instead of the signed-in second participant)
+  and "grace expiry with only guests left ends and destroys the room" (a guest became host instead
+  of the room ending) went red, plus the same benign client-side `parseMessage` self-check
+  "uncaught exception" noise already documented for Slice 3's capacity drill (a guest-as-host
+  snapshot violates `roomSnapshot`'s own "host must be signed in" invariant — not a second
+  silently-broken case); reverted, rerun back to 73/73.
+- Host-grace timers are tested with `vi.useFakeTimers()` + `vi.setSystemTime()` (so the DO's own
+  `Date.now()` inside `alarm()` sees a deadline that has genuinely passed — the DO and the test run
+  in the same isolate per `@cloudflare/vitest-pool-workers`) combined with
+  `runDurableObjectAlarm(stub)` to force the alarm to fire immediately rather than waiting on the
+  real Workers alarm scheduler. No real sleeps anywhere in `test/room-authority.test.ts`.
+- `node test/probe-handshake.mjs` against a live `wrangler dev --local-protocol https`: `PROBE_OK`
+  on all three cases, `overall=pass` — the transport/handshake layer is unaffected by Slice 4's
+  application-layer additions.
+- `wrangler dev` process tree (cmd.exe host, two `node.exe` wrangler processes, two `workerd.exe`
+  children) killed by exact PID after the probe run; command-line-verified no
+  `wrangler`/`workerd` process remained.
+- Logging discipline: audited every `console.*` call added or touched this slice — there is exactly
+  one (`sendTo`'s existing failure-path log, unchanged since Slice 1), and it logs only a connection
+  id and the thrown error's string form, never a bearer, reconnect token, chat/reaction content, or
+  source identity.
+
 ## Scope note
 
-Timeline authority, control mode, presence/moderation, host-loss grace and deterministic transfer,
-and chat/reactions are Slice 4. `src/room-do.ts`'s `SLICE_4_MESSAGE_TYPES` set and its typed-refusal
-path are the seam that slice extends — read it before adding a new handler.
+Slices 5+ (real-socket conformance probe, first real desktop client, two real clients, synced
+playback, deploy) are runtime/acceptance work layered on top of the authority machinery this file
+now fully implements.

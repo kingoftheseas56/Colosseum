@@ -23,6 +23,11 @@ export interface Env {
   /** JSON object: { "<bearer token>": "<username>" }. Only consulted when
    * RELAY_DEV_AUTH === "1". */
   RELAY_DEV_BEARERS?: string;
+  /** Slice 4 ("Host disconnect grace and deterministic transfer"): host
+   * grace duration in milliseconds — "intentionally a server
+   * configuration/runtime choice ... not invented by this desktop slice."
+   * Unset or unparseable falls back to the 60000ms default in room-do.ts. */
+  RELAY_HOST_GRACE_MS?: string;
 }
 
 export interface BearerIdentity {
