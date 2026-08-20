@@ -33,6 +33,11 @@ Column {
     TrendingTop10 {
         title: "Top in Tankoban — Manga"
         items: Catalog.topManga
+        // World-namespaced automation reach (catalogue-independence Slice 3, 2026-08-20):
+        // a Lanista scenario needs a scroll-free click path into a real series page — this
+        // rail is reachable without touching the Discover wall's un-named, un-scrollable
+        // GridView (the Slice-2 documented bridge gap).
+        namePrefix: "tankobanTopMangaTile_"
         onItemClicked: (i) => mangaTab.seriesRequested(Catalog.topManga[i].caption)
         onExploreClicked: mangaTab.discoverPinRequested({ type: "manga", catalogId: "popular",
                                                           filterGroup: "", filterKey: "" })

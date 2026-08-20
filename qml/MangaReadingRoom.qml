@@ -84,6 +84,10 @@ Item {
         height: 58
 
         BackAction {
+            // World-namespaced automation reach (catalogue-independence Slice 3, 2026-08-20):
+            // the Lanista scenario needs to leave a series page to drive a second one / prove
+            // a reopen regression, and BackAction carries no objectName of its own.
+            objectName: "tankobanReadingRoomBack"
             x: theme.margin; anchors.verticalCenter: parent.verticalCenter
             activeFocusOnTab: true
             Accessible.role: Accessible.Button

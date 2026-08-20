@@ -1,0 +1,27 @@
+{
+  "name": "tankoban-catalogue-smoke",
+  "comment": "Catalogue-independence Slice 3 (2026-08-20): PARTIAL scenario, committed honestly. Proven live in isolated tagged sessions: a fresh tag gates world content behind account onboarding (accountHost/accountWelcomeContinueLocal - undocumented until this slice, since Main.qml overrides AccountOnboardingHost's own objectName to \"accountHost\") and Tankoban is reachable (modePill_Tankoban). The masthead/shelf steps this scenario exists to prove (tankobanSeriesMasthead, tankobanShelfState, the One Piece/Vagabond pinned series) are NOT included here: reaching a series page without the Discover wall's documented un-scrollable-GridView gap (Slice 2 ledger) requires the 'Top in Tankoban - Manga' rail under the Manga tab, and driving live (isolated sessions tk3d/tk3e/tk3f/tk3g, 2026-08-20) found the Tankoban WorldTabBar's Repeater materializes only a SUBSET of its 4 modeled tab pills at runtime (tankobanTab_library confirmed present and clickable via dump-ui; tankobanTab_manga and tankobanTab_discover both NO_SUCH_ITEM/WAIT_TIMEOUT across two independent fresh-tag sessions) even though qml/TankobanWorld.qml's tabModel unambiguously lists all four (discover/manga/comics/library) and the Discover tab's own content renders correctly by default (TankobanDiscoverPage's wall visibly matches source). Root cause not resolved within this slice's fence - named as a Bridge/runtime gap, not guessed around. See docs/colosseum-lanista-verification.md 'Tankoban catalogue-independence Slice 3' for the full writeup. Isolated tagged session on a unique pipe; never the daily pipe.",
+  "steps": [
+    { "cmd": "ping", "label": "the smoke session answers, drive gated on",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
+    { "cmd": "get-state", "label": "one visible window, isolated data root",
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
+                  { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "a fresh tag gates world content behind account onboarding",
+      "payload": { "object": "accountHost", "props": ["visible"] },
+      "expect": [ { "path": "props.visible", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "continue without an account",
+      "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "onboarding dismisses (mode leaves signedOut)",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "enter Tankoban", "payload": { "target": "modePill_Tankoban" } },
+    { "cmd": "ui-query", "label": "the Tankoban tab bar renders (settle, real round-trip, no sleep)",
+      "payload": { "object": "tankobanTabBar", "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [ { "path": "visible", "op": "==", "value": "true" }, { "path": "grabPath", "op": "exists" } ] }
+  ]
+}

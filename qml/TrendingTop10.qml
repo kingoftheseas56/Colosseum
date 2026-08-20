@@ -14,6 +14,11 @@ Column {
     property string title: "Top 10 This Week"
     property var items: []            // [{ caption, cover, c1, c2 }]
     property bool navigable: true     // false → hide the Explore affordance (rows with no explore target)
+    // World-namespaced automation name prefix (naming law: never a bare shared stem — this
+    // component is reused verbatim by Tankoban/Theatre/Biblio). Empty by default (no name);
+    // a caller that wants Lanista reach opts in with its own world-prefixed stem, e.g.
+    // "tankobanTopMangaTile_" (catalogue-independence Slice 3, 2026-08-20).
+    property string namePrefix: ""
     signal itemClicked(int index)
     signal exploreClicked()
 
@@ -111,6 +116,7 @@ Column {
                     model: top10.items
                     delegate: Item {
                         id: rank
+                        objectName: top10.namePrefix.length ? (top10.namePrefix + rank.index) : ""
                         required property var modelData
                         required property int index
                         width: num.width + cov.width - 32

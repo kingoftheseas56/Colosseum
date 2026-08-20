@@ -191,6 +191,131 @@ half the compiled harnesses are run by nobody.
   give the Discover wall a named Flickable (or an index-jump automation seam) before this
   scenario can be authored honestly.
 
+## Tankoban catalogue-independence Slice 3 gate (2026-08-20) — the count-only shelf
+
+- `qml/MangaSeries.qml` `_prepareTankoban()` — rewritten to seed `TankobanVolumes` straight
+  from `TankobanCatalog.volumes(resolvedMalId)` (Slice 1's baked catalogue: numeric-ordered
+  `{number,cover,name}` rows, numbers "1".."N" synthesized from the baked count, baked
+  cover/name overlaid where the harvest has landed), mapped `name`→`title` for
+  `MangaTankobanLogic::prepareSeries`'s row shape, chapters ALWAYS `[]`. The legacy MAL-keyed
+  `Manga.volumes("", title, malId)` call Slice 2 kept (Comick/volume-db ladder) is REMOVED,
+  and with it the now-dead `Connections{target:Manga; onVolumesResult}` handler — no
+  provider data reaches the shelf on this path at all (purity law, spec §2.1). Gated on
+  `page.hasShelf` (the Slice-2 catalogue-count truth), one-shot per `seriesId` via the
+  existing `_tankobanPrepared` latch.
+- `native/engine/MangaTankobanLogic.cpp` — **zero C++ change needed.** Verified by direct
+  reading (not touched): `prepareSeries()`'s three-phase assembly already builds one
+  canonical `VolumeRecord` per volume row regardless of chapters (`chapterIds` stays empty,
+  `chapterMapComplete=false` with no range/no explicit tag), and the pre-existing "WHOLE
+  SHELF with no chapters" case in `tests/manga_tankoban_logic_harness.cpp` (lines ~148-171,
+  a 38-volume chapterless shelf) already pins exactly this contract. No new Qt Test case
+  added — the plan's own instruction was to touch this harness "only if assembly rejects
+  [chapterless records]"; it doesn't.
+- `qml/MangaTankobanLibrary.qml` — the WC thumb-scrape machinery is fully REMOVED:
+  `requestCovers`/`visibleRowsForCovers`/`visibleGridRows`/`_firstChapterIdIn`/
+  `_thumbWanted`/`coverByVolume`/the `onThumbReady` Connections/the cover-prefetch Timer and
+  every `chapters`-driven binding that fed it. The `CuratedVolumeCovers.js` XHR detour (dead
+  code, Qt6 blocks file XHR) is deleted along with `qml/data/manga_volume_covers.json` —
+  both were UNTRACKED in git (never committed), so removal is a plain file delete, no `git
+  rm` needed. `coverFor(row)` ladder is now: catalogue cover (`row.cover`, baked) →
+  `localPages()` first page when `effectiveState(row)=="ready"` (app-owned bytes) → `""`
+  (the delegate's own `coverImage.status !== Ready` branch paints the NO COVER glass — no
+  code change needed there, it was already conditional on load failure). Card range
+  captions are removed (`chapterSpanFor`/`shelfRangeFor` deleted); the caption line now
+  shows only the catalogue's own `title`/`name` field when non-empty (already what the
+  markup did for a real title — the range line was the only thing cut). The prefetch-cursor
+  API (`focusIndex`/`focusToken`/`focusAtNumber`/`focusAtIndex`/`jumpToNumber`) is KEPT,
+  fully inert now (no `requestCovers` call anywhere in its path) — callers (Select-mode
+  batch contract, programmatic/keyboard callers) are unaffected. NEW bridge scalars:
+  invisible `Item objectName:"tankobanShelfState"` with `rowCount` (mirrors
+  `volumeRows.length`) and `coveredCount` (rows whose `coverFor()` resolves non-empty).
+  Volume cards are renamed `objectName: "tankobanVolumeCard_" + <number>` (was the bare
+  shared stem `"volumeTile"` — naming-law violation, fixed as part of this rename; Slice 4's
+  own automation depends on the new stem per the plan).
+  `coverFetchingEnabled` is left declared (vestigial, unread anywhere) rather than removed —
+  a stale external binding on it must not hard-error.
+- `qml/MangaReadingRoom.qml` — the embedded shelf (`MangaReadingRoom` → its own `tankLib`
+  instance) needed NO separate catalogue wiring: it reads the SAME `TankobanVolumes`
+  service the page-level shelf does (`service: page.tankobanVolumesRef`), so once
+  `_prepareTankoban()` seeds the service once per series, both shelf instances see the
+  identical canonical rows. One new automation name: `tankobanReadingRoomBack` on the
+  room's `BackAction` (previously unnamed) — needed for the Lanista scenario to leave a
+  series page and prove reopen/second-series regressions; `BackAction.qml` itself carries no
+  default objectName.
+- `qml/TrendingTop10.qml` + `qml/TankobanMangaTab.qml` — NEW opt-in `namePrefix` property on
+  the shared `TrendingTop10` rail (default `""`, no name — Theatre/Biblio/Demo reuse it
+  unaffected); `TankobanMangaTab.qml`'s "Top in Tankoban — Manga" row opts in with
+  `namePrefix: "tankobanTopMangaTile_"`, naming each tile `tankobanTopMangaTile_<index>`.
+  Added specifically to give the Lanista layer a scroll-free click path into a real series
+  page, since the Discover wall's GridView remains the Slice-2-documented un-scrollable gap
+  — see the Lanista ledger entry below for what this route actually proved and where it
+  stalled.
+- Focused tests:
+  - Qt Test: not applicable (see MangaTankobanLogic.cpp note above — no C++ contract
+    changed).
+  - Qt Quick Test: not applicable — no `tests/qml/tst_*.qml` exists for this surface.
+  - Existing harnesses, both updated:
+    - `tests/manga_reading_room_harness.qml` (`colosseum.manga_reading_room`, registered):
+      rewritten against the REAL current `MangaTankobanLibrary` contract — ground-truthed
+      live that the harness's own `activeTab`/`selectTab`/`bookHeight` assertions (its
+      documented pre-existing red, "the focused book height must stay inside the mock safe
+      continuum bounds") tested properties/functions that **do not exist** on the shipped
+      component (confirmed by grep: zero matches for `activeTab`/`selectTab`/`bookHeight` in
+      `MangaTankobanLibrary.qml`) — stale from an earlier shelf design, predating the
+      2026-08-14 GridView bookshelf rebuild, never reached by any later assertion because
+      the harness threw at the first bad one and every check after it in the file had
+      therefore never actually run. Rewrote against the real API (GridView-based,
+      `volumeRows`/`effectiveState`/`chipTextFor`/`liveCaptionFor`/`selecting`/
+      `selectedNumbers`/`downloadSelected`/`batchRequested`/`focusIndex`/`focusToken`/
+      `focusAtIndex`/`flowCurrentIndex`), fixtures now catalogue-shaped (`number`/`cover`/
+      `title`, no `chapterStart`/`chapterEnd` — a baked catalogue row carries no chapter
+      range). Cases: state-word/tile-state contract (unchanged shape, kept); Select-mode
+      batch contract (unchanged, kept, `selectTab` call dropped — no tab concept anymore);
+      chapter-only series still shows its full chapter run in the footer tail
+      (`chapterRows.length===42`, still real — `MangaReadingRoom.chapterDisplayRows`
+      returns the flat `chapters` prop directly when `showVolumes` is false); fractional/
+      named volume token contract (unchanged, kept). NEW: `downloads.asked.length === 0`
+      ("the shelf must never call fetchThumb"), the cover ladder
+      (`lib.coverFor(row)` for a catalogue-covered row / a ready-with-local-page row / a
+      bare row → exact URL / exact URL / `""`), `tankobanShelfState.rowCount===115` +
+      `coveredCount===2` (exactly the two seeded rows: one catalogue-covered, one
+      ready-with-local-page), and two positive-absence proofs
+      (`typeof lib.shelfRangeFor === "undefined"` etc., `typeof lib.requestCovers ===
+      "undefined"` etc. — the removed functions are gone, not just unused). The
+      pre-existing red **FLIPPED GREEN** under this rewrite (confirmed in the full `-L unit`
+      run below) — recorded as required by the plan.
+    - `tests/manga_tankoban_service_harness.cpp` (integration, fake nyaa, unregistered —
+      run directly): ADDED one new isolated sub-scenario proving chapterless catalogue
+      seeding end-to-end — `prepareSeries()` called with catalogue-shaped rows (`number`/
+      `cover`/`title` only, chapters always `[]`, exactly TankobanCatalog's synthesized/
+      overlaid shape) — `volumesForSeries` returns every canonical row, then the ordinary
+      search→downloadNyaa→ingest→ready path (fake Nyaa candidate, real
+      `MangaVolumeArchiveIngestor` over the real `tests/fixtures/tankoban/tiny-volume.cbz`
+      fixture) converges to `ready` with 3 extracted pages — proving the WHOLE façade,
+      not just the pure-logic assembly the existing chapterless case already covered.
+      Every pre-existing case in this harness (search/download/ingest/ready, restart-replay,
+      batch, short-pack honesty) is UNCHANGED and still green.
+  - Negative controls, both performed LIVE against real source (QML has no compile step,
+    so these are true source-level reds, not just in-harness inverted assertions):
+    (a) temporarily reintroduced a `Downloads.fetchThumb(...)` call in
+    `MangaTankobanLibrary.qml`'s `Component.onCompleted` → exactly
+    `MANGA_READING_ROOM_FAIL: the shelf must never call fetchThumb` reds, restored, reran
+    green. (b) temporarily forced `coverFor()` to always return `""` → exactly
+    `MANGA_READING_ROOM_FAIL: a card with a baked catalogue cover must show it` reds,
+    restored, reran green. (c) C++: temporarily flipped the new chapterless-seeding case's
+    expected row count (2→3) → rebuilt → exactly `FAIL: chapterless catalogue seeding still
+    returns every canonical volume` reds, restored, rebuilt, reran green
+    (`MANGA_TANKOBAN_SERVICE_OK`). All six red+restore logs preserved under
+    `artifacts/tankoban-independence/slice3/`.
+  - Full `ctest --test-dir native/build-msvc -L unit --output-on-failure` gate: **70/70
+    green** — up from the 69/70 baseline this slice inherited (`colosseum.manga_series_catalogue`
+    also reconfirmed green, unaffected by the `_prepareTankoban()` rewrite: its fake
+    `FakeTankobanCatalog`/`FakeVolumesService` seams have no `volumes()`/`prepareSeries()`
+    methods, but the call path is gated behind the SAME `typeof TankobanVolumes ===
+    "undefined"` guard the pre-existing code already used — true in that bare harness, so
+    `_prepareTankoban()` no-ops there exactly as it always silently did). Full log:
+    `artifacts/tankoban-independence/slice3/ctest_unit_run1.log`.
+
 ## House assertion idioms (no framework)
 
 - **require idiom:** `require()` prints `FAIL: <msg>`, `exit(1)`; one `*_OK` on success.

@@ -2,18 +2,22 @@
 //
 // 2026-08-14 bookshelf rebuild (approved mock: colosseum-manga-series-bookshelf-mock.html).
 // The shelf is a vertical cover grid that opens the page - every canonical volume is a
-// card (cover + state chip + Vol/name/chapter-range caption). Chapters past the last
-// mapped volume ("the X bucket", still computed by MangaReadingRoom via MangaVolumes.js)
-// surface as a persistent "Latest chapters" tail below the grid, never a separate tab.
+// card (cover + state chip + Vol/name caption — the chapter-range caption was removed in
+// catalogue-independence Slice 3, 2026-08-20: a baked catalogue row carries no chapter
+// range at all). Chapters past the last mapped volume ("the X bucket", still computed by
+// MangaReadingRoom via MangaVolumes.js) surface as a persistent "Latest chapters" tail
+// below the grid, never a separate tab.
 //
 // `focusIndex`/`focusToken` and their small `focusAtNumber`/`focusAtIndex`/`jumpToNumber`
-// API SURVIVE this rebuild - not as visual state (nothing highlights or centers on them
-// any more) but because they are the load-bearing cursor for the cover-prefetch burst
-// window (see `visibleRowsForCovers()` below). tests/manga_volume_cover_harness.qml pins
-// the exact production bug this guards against: opening a 115-volume series must never
-// fire a thumbnail scrape for every volume at once (2026-07-31, WeebCentral throttled and
-// left the tail of the shelf permanently blank). Removing the cursor outright would silently
-// reopen that bug, so it stays as a headless prefetch cursor only.
+// API SURVIVE catalogue-independence Slice 3 (2026-08-20) too - not as visual state, and no
+// longer as a live cover-prefetch cursor either (that machinery is gone now that covers arrive
+// pre-baked with every row - see coverFor() below). It stays only as an INERT cursor because
+// callers still depend on the surface (focus/jump semantics for keyboard/programmatic callers,
+// the Select-mode batch contract). Slice 3 also removed the WeebCentral thumb-scrape machinery
+// this comment used to describe (requestCovers/_thumbWanted/coverByVolume/onThumbReady/
+// _firstChapterIdIn) and the CuratedVolumeCovers.js XHR detour (dead code, Qt6 blocks file
+// XHR) - covers now come straight from the baked TankobanCatalog row (MangaSeries.qml
+// _prepareTankoban) or, once a volume is on disk, its own first page.
 import QtQuick
 import "MangaVolumes.js" as Vol
 
@@ -35,13 +39,14 @@ Item {
     readonly property var downloaderObject: root.downloader
         ? root.downloader
         : ((typeof Downloads !== "undefined") ? Downloads : null)
+    // Vestigial (Slice 3, 2026-08-20): the WC thumb-scrape ladder this once gated is gone;
+    // no live caller flips it false anymore. Kept only so a stale caller binding does not
+    // hard-error; not read anywhere in this file.
     property bool coverFetchingEnabled: true
 
     property var chapters: []
     property var chapterRows: []
     readonly property bool showVolumes: root.volumeRows.length > 0
-    property var coverByVolume: ({})
-    property var _thumbWanted: ({})
     property var _resume: null
     property var volumeRows: []
     property var progressByVolume: ({})
@@ -251,21 +256,6 @@ Item {
         return "OPEN"
     }
 
-    function chapterSpanFor(row) {
-        var first = row && row.chapterStart ? String(row.chapterStart) : ""
-        var last = row && row.chapterEnd ? String(row.chapterEnd) : ""
-        if (!first.length || !last.length) return ""
-        return first === last ? "Chapter " + first : "Chapters " + first + "-" + last
-    }
-
-    // Mock caption format is "Ch a-b" (abbreviated, en dash) - reuses chapterSpanFor's
-    // own first/last derivation, just reformatted to match the approved copy.
-    function shelfRangeFor(row) {
-        var span = root.chapterSpanFor(row)
-        if (!span.length) return ""
-        return span.replace(/^Chapters?\s+/, "Ch ").replace("-", "–")
-    }
-
     // Mock chip vocabulary (Owned / Failed — in-flight moved OFF the chip). The
     // 2026-08-16 live-tile mock (colosseum-tankoban-series-volume-live-mock.html)
     // gives an acquiring volume its own top-right status disc (ring + %) plus the
@@ -290,97 +280,26 @@ Item {
     }
 
     // ------------------------------------------------------------------
-    // Covers: fetched for a bounded window around the prefetch cursor, then kept
-    // cached. See the file header note - this window is what keeps a 115-volume
-    // series from bursting 115 thumbnail scrapes at once.
+    // Covers (catalogue-independence Slice 3, 2026-08-20): no live thumb scraping, no
+    // qualified-vs-flat split, no bounded prefetch window - a row's cover is either
+    // already baked into it (TankobanCatalog, via MangaSeries.qml's _prepareTankoban)
+    // or, once the volume is on disk, its own first extracted page. Ladder: catalogue
+    // cover -> localPages() first page when ready (app-owned bytes) -> NO COVER glass
+    // (the delegate's own coverImage.status !== Ready branch).
     // ------------------------------------------------------------------
 
-    function _firstChapterIdIn(row, chs) {
-        var lo = Number(row && row.chapterStart), hi = Number(row && row.chapterEnd)
-        if (isNaN(lo) || isNaN(hi)) return ""
-        var bestId = "", bestNumber = Infinity
-        for (var i = 0; i < chs.length; i++) {
-            var n = Number(chs[i].number)
-            if (isNaN(n) || n < lo || n > hi) continue
-            if (n < bestNumber) { bestNumber = n; bestId = String(chs[i].id || "") }
-        }
-        return bestId
-    }
-
-    function visibleRowsForCovers() {
-        var rows = root.volumeRows || []
-        if (!rows.length) return []
-        var center = root.focusIndex >= 0 ? root.focusIndex : 0
-        var radius = Math.ceil(root.visibleContinuumCount / 2) + 2
-        var first = Math.max(0, center - radius)
-        var last = Math.min(rows.length, center + radius + 1)
-        return rows.slice(first, last)
-    }
-
-    // The vertical grid's actually-visible rows (+ a small buffer above/below), so the
-    // cover-prefetch window FOLLOWS the scroll instead of the old horizontal focus cursor
-    // (which sits at the top in a grid and left every row past the first blank). Still a
-    // BOUNDED window -- never the whole shelf -- so the 115-volume throttle guard holds.
-    function visibleGridRows() {
-        var rows = root.volumeRows || []
-        if (!rows.length) return []
-        var cols = volumeGrid ? volumeGrid.columns : 1
-        var ch = volumeGrid ? volumeGrid.cellHeight : 0
-        if (cols < 1 || ch <= 0) return rows.slice(0, 24)
-        var firstRow = Math.max(0, Math.floor(volumeGrid.contentY / ch) - 1)
-        var rowSpan = Math.ceil(volumeGrid.height / ch) + 2
-        var first = firstRow * cols
-        var last = Math.min(rows.length, first + rowSpan * cols)
-        return rows.slice(first, last)
-    }
-
-    function requestCovers(rowsOverride) {
-        if (!root.coverFetchingEnabled) return
-        var d = root.downloaderObject
-        if (!d || !d.fetchThumb || !root.seriesId.length || !(root.chapters || []).length) return
-        var wanted = {}
-        for (var oldKey in root._thumbWanted) wanted[oldKey] = root._thumbWanted[oldKey]
-        var rows = rowsOverride || root.visibleRowsForCovers()
-        var chs = root.chapters || []
-        for (var i = 0; i < rows.length; i++) {
-            var vid = String(rows[i].id || "")
-            if (!vid.length || root.coverByVolume[vid]) continue
-            var cid = root._firstChapterIdIn(rows[i], chs)
-            if (!cid.length || wanted[cid] === vid) continue
-            wanted[cid] = vid
-            d.fetchThumb(root.seriesId, cid)
-        }
-        root._thumbWanted = wanted
-    }
-
     function coverFor(row) {
-        var vid = String(row && row.id || "")
+        var catalogueCover = (row && row.cover && String(row.cover).length) ? String(row.cover) : ""
+        if (catalogueCover.length) return catalogueCover
         if (root.effectiveState(row) === "ready") {
+            var vid = String(row && row.id || "")
             var s = root.serviceObject
             if (s && s.localPages) {
                 var pages = s.localPages(vid)
                 if (pages && pages.length && pages[0].url) return String(pages[0].url)
             }
         }
-        if (row && row.cover && String(row.cover).length) return String(row.cover)
-        return root.coverByVolume[vid] || ""
-    }
-
-    Connections {
-        target: root.downloaderObject
-        ignoreUnknownSignals: true
-        function onThumbReady(chapterId, url) {
-            var cid = String(chapterId)
-            var vid = root._thumbWanted[cid]
-            if (!vid) return
-            if (!url || !String(url).length) {
-                var retry = {}
-                for (var k in root._thumbWanted) if (k !== cid) retry[k] = root._thumbWanted[k]
-                root._thumbWanted = retry
-                return
-            }
-            root.coverByVolume = root._reassign(root.coverByVolume, vid, String(url))
-        }
+        return ""
     }
 
     // ------------------------------------------------------------------
@@ -411,7 +330,6 @@ Item {
         root.focusToken = String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1))
         root.focusNumber = rows[idx].number !== undefined ? rows[idx].number : (idx + 1)
         root._landedIndex = idx
-        root.requestCovers()
     }
 
     function focusAtIndex(index) {
@@ -530,21 +448,17 @@ Item {
 
     Component.onCompleted: {
         root.refresh(); root.refreshResume()
-        Qt.callLater(root.requestCovers); root._autoLand()
+        root._autoLand()
     }
     onSeriesIdChanged: {
-        root.coverByVolume = ({}); root._thumbWanted = ({}); root._resume = null
+        root._resume = null
         root.selectedNumbers = []; root._landedIndex = -1; root._pageHomed = false
-        root.refresh(); root.refreshResume(); Qt.callLater(root.requestCovers); root._autoLand()
+        root.refresh(); root.refreshResume(); root._autoLand()
     }
     onVolumeRowsChanged: {
         if (root.indexOfNumber(root.focusToken) < 0) root.focusAtNumber(root.initialFocusNumber())
-        Qt.callLater(root.requestCovers)
         root._autoLand()
     }
-    onChaptersChanged: _coverPrefetchTimer.restart()
-    onFocusNumberChanged: root.requestCovers()
-    onFocusTokenChanged: root.requestCovers()
 
     Connections {
         target: root.serviceObject
@@ -572,12 +486,20 @@ Item {
     // scroll with it, matching the mock's single-page flow.
     // ------------------------------------------------------------------
 
-    // Debounce for the scroll-driven cover prefetch (see visibleGridRows / requestCovers):
-    // a fast flick must not spam WeebCentral with a thumb request per frame.
-    Timer {
-        id: _coverPrefetchTimer
-        interval: 120
-        onTriggered: root.requestCovers(root.visibleGridRows())
+    // Bridge automation surface (world-namespaced per the naming law). Plain scalars
+    // only, per the Lanista ledger's qml-get vocabulary — catalogue-independence
+    // Slice 3, 2026-08-20.
+    Item {
+        id: tankobanShelfState
+        objectName: "tankobanShelfState"
+        visible: false
+        property int rowCount: root.volumeRows.length
+        property int coveredCount: {
+            var n = 0, rows = root.volumeRows || []
+            for (var i = 0; i < rows.length; i++)
+                if (root.coverFor(rows[i]).length > 0) n++
+            return n
+        }
     }
 
     GridView {
@@ -597,11 +519,6 @@ Item {
         property int columns: Math.max(1, Math.floor((width + columnGap) / (150 + columnGap)))
         cellWidth: width / Math.max(1, columns)
         cellHeight: Math.round((cellWidth - columnGap) * 1.5) + rowGap + captionHeight
-
-        // Cover prefetch follows the scroll (debounced) + fills on initial layout/relayout.
-        onContentYChanged: _coverPrefetchTimer.restart()
-        onHeightChanged: _coverPrefetchTimer.restart()
-        Component.onCompleted: _coverPrefetchTimer.restart()
 
         header: Component {
             Item {
@@ -660,7 +577,9 @@ Item {
 
         delegate: Item {
             id: card
-            objectName: "volumeTile"
+            // world-namespaced per-volume name (catalogue-independence Slice 3, 2026-08-20;
+            // Slice 4 automation depends on this exact stem) — never the old bare "volumeTile".
+            objectName: "tankobanVolumeCard_" + Vol.volumeToken(card.modelData)
             required property var modelData
             required property int index
             width: volumeGrid.cellWidth - volumeGrid.columnGap
@@ -668,7 +587,6 @@ Item {
             property string cardState: root.effectiveState(card.modelData)
             property real fraction: root.progressFraction(card.modelData)
             property string chipText: root.chipTextFor(card.modelData)
-            property string spanText: root.shelfRangeFor(card.modelData)
             property string liveCaption: root.liveCaptionFor(card.modelData)
             readonly property bool live: root._inFlight(card.cardState)
 
@@ -804,17 +722,14 @@ Item {
                 }
                 Text {
                     width: parent.width
+                    // real title only — no range caption (catalogue-independence Slice 3):
+                    // TankobanCatalog's `name` overlay is empty for a synthesized (uncovered)
+                    // row, so this line is simply absent until the harvest lands one.
                     text: card.liveCaption.length ? card.liveCaption : (card.modelData.title || "")
                     visible: text.length > 0
                     color: card.liveCaption.length ? theme.gold : theme.ink
                     font.family: theme.ui; font.pixelSize: 13
                     wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                }
-                Text {
-                    text: card.spanText.length ? card.spanText : "chapters not mapped yet"
-                    color: card.spanText.length ? theme.inkDim : theme.inkDimmer
-                    font.italic: !card.spanText.length
-                    font.family: theme.ui; font.pixelSize: 12
                 }
             }
 

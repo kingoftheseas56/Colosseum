@@ -680,6 +680,69 @@ int main(int argc, char** argv)
                 "a volume missing from the chosen pack never emits finished");
     }
 
+    // ── Catalogue-independence Slice 3 (2026-08-20): seeding from CHAPTERLESS
+    // records ─────────────────────────────────────────────────────────────────
+    // Production now seeds TankobanVolumes exclusively from TankobanCatalog.volumes()
+    // (MangaSeries.qml's _prepareTankoban) — rows carry only number/cover/title, no
+    // chapterStart/chapterEnd, and chapters is ALWAYS []. Prove the full façade path
+    // (search -> download -> ingest -> ready) still converges end-to-end with zero
+    // chapters ever supplied, not just that prepareSeries accepts the shape (that pure-
+    // logic half is already pinned by manga_tankoban_logic_harness's own "WHOLE SHELF
+    // with no chapters" case).
+    {
+        QTemporaryDir dIndexRoot, dDlRoot;
+        require(dIndexRoot.isValid() && dDlRoot.isValid(), "chapterless temp roots created");
+        const QString dSaveRoot = dDlRoot.filePath(QStringLiteral("dl"));
+
+        FakeEngine dEngine;
+        MangaVolumeTorrentDownloader dTransport(&dEngine, dDlRoot.filePath(QStringLiteral("l.json")),
+                                                dSaveRoot);
+        MangaVolumeIndex dIndex(dIndexRoot.path());
+        MangaVolumeArchiveIngestor dIngestor(&dIndex);
+        MangaSynopsisEnricher dEnricher(nullptr, dIndexRoot.filePath(QStringLiteral("syn.json")));
+        FakeNyaaSearch dSearch;
+        MangaTankobanService dService(&dSearch, &dTransport, &dIndex, &dIngestor, &dEnricher, nullptr);
+
+        // Catalogue-shaped rows: number + cover + title only — no chapterStart/chapterEnd,
+        // exactly TankobanCatalog::volumes()'s synthesized/overlaid shape (name->title
+        // renamed at the QML layer, see MangaSeries.qml _prepareTankoban).
+        const QVariantMap dDescriptor{{QStringLiteral("seriesId"), QStringLiteral("s4")},
+                                      {QStringLiteral("title"), QStringLiteral("Catalogue Series")}};
+        const QVariantList dVolumes{
+            QVariantMap{{QStringLiteral("number"), QStringLiteral("1")}, {QStringLiteral("cover"), QString()}, {QStringLiteral("title"), QString()}},
+            QVariantMap{{QStringLiteral("number"), QStringLiteral("2")}, {QStringLiteral("cover"), QStringLiteral("cover2.jpg")}, {QStringLiteral("title"), QStringLiteral("Real Volume Name")}},
+        };
+        dService.prepareSeries(dDescriptor, dVolumes, QVariantList{});   // chapters ALWAYS empty
+
+        require(dService.volumesForSeries(QStringLiteral("s4")).size() == 2,
+                "chapterless catalogue seeding still returns every canonical volume");
+
+        const QString d1 = volumeId(QStringLiteral("s4"), QStringLiteral("1"));
+        const QString dHash(40, QLatin1Char('7'));
+        dSearch.next = {makeCandidate(dHash)};
+        dService.searchSources(d1);
+        require(dService.statusOf(d1).value(QStringLiteral("state")).toString() == QStringLiteral("none"),
+                "a chapterless volume starts un-acquired, same as any other");
+
+        dService.downloadNyaa(d1, dHash);
+        require(dEngine.addMagnetCount == 1, "chapterless volume 1 reaches the transport via Nyaa");
+        dEngine.emitMetadata(dHash, oneFile(QStringLiteral("Series v01.cbz")));
+        require(dEngine.startedHashes.count(dHash) == 1, "the resolved chapterless-volume torrent starts");
+
+        const QString dSaveDir = dSaveRoot + QLatin1Char('/') + dHash;
+        require(QDir().mkpath(dSaveDir), "chapterless-volume save dir created");
+        require(QFile::copy(fixturePath(QStringLiteral("tiny-volume.cbz")),
+                            dSaveDir + QStringLiteral("/Series v01.cbz")),
+                "chapterless-volume archive materialised");
+        dEngine.emitFinished(dHash);
+        require(waitFor(&dService, &MangaTankobanService::finished, 30000),
+                "search->download->ingest->ready converges with zero chapters ever supplied");
+        require(dService.statusOf(d1).value(QStringLiteral("state")).toString() == QStringLiteral("ready"),
+                "the chapterless-seeded volume reaches ready through the ordinary Nyaa path");
+        require(dService.localPages(d1).size() == 3,
+                "the ready chapterless volume exposes its three extracted pages");
+    }
+
     std::cout << "MANGA_TANKOBAN_SERVICE_OK\n";
     return 0;
 }

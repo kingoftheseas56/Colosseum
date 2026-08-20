@@ -7,9 +7,11 @@
 // MalCatalog, and mangaById() supplies title/score/synopsis/poster/authors/genres straight from
 // the baked db. No WeebCentral/Comick/AniList call remains on this page's browse path (purity
 // law, spec §2.1). seriesId is "mal:"+malId on every resolved page, "" when identity never
-// resolves (ambiguous/unknown title) — see resolve()/_applyCatalogRow() below. The volume shelf
-// itself (TankobanCatalog-fed) is Slice 3's; this slice keeps the legacy MAL-keyed Manga.volumes()
-// seed only so the shelf does not go empty in the interim.
+// resolves (ambiguous/unknown title) — see resolve()/_applyCatalogRow() below.
+//
+// Catalogue-independence Slice 3 (2026-08-20): the volume shelf is now seeded straight from
+// TankobanCatalog.volumes(resolvedMalId) — a count-only shelf with baked covers, no Comick/
+// WeebCentral volume-db ladder feeding it at all (purity law). See _prepareTankoban() below.
 // Opened from a Top-10 manga tile.
 
 import QtQuick
@@ -163,26 +165,32 @@ Item {
             Collection.remove("tankoban", String(legacy.id))
     }
 
-    // Hand the snapshot to the native volume service. Called as soon as VOLUMES land —
-    // deliberately NOT gated on the chapter list, because the two come from different
-    // sources: the shelf is built from our volume DB, while chapters come from
-    // WeebCentral, which rate-limits (429) and can fail for a whole session. Waiting on
-    // chapters meant a 429 emptied a shelf we already held in full (Vagabond: 38 volumes
-    // in hand, blank page — 2026-07-30). prepareSeries builds one record per VOLUME row
-    // and only attaches chapters afterwards, so seeding with none is safe and complete.
-    // Re-seeds once (and only once) if chapters arrive later, so downloads get their
-    // chapter ids; prepareSeries overwrites the series wholesale, so re-running is safe.
+    // Hand the catalogue's baked volume list to the native volume service (catalogue-
+    // independence Slice 3, 2026-08-20). The Comick/WeebCentral volume-db ladder no
+    // longer feeds the shelf (purity law, spec §2.1) — this is the SOLE seed path now.
+    // TankobanCatalog.volumes(malId) already returns numeric-ordered rows with STRING
+    // numbers ("1".."N", synthesized from the baked count, baked cover/name overlaid
+    // where the harvest has landed) — exactly the VolumeRecord shape prepareSeries
+    // wants, modulo the name->title rename. Chapter rows are always [] on this path:
+    // MangaTankobanLogic already assembles a chapterless VolumeRecord per row (proven
+    // by the "WHOLE SHELF with no chapters" case in manga_tankoban_logic_harness.cpp);
+    // no C++ change was needed for this slice. One-shot per seriesId — onSeriesIdChanged
+    // resets the latch for a reused page instance.
     function _prepareTankoban() {
-        if (!page.volumes.length) return          // unqualified series: never seed the volume service
+        if (!page.hasShelf) return                 // no known catalogue count: never seed
         if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
-        var haveChapters = page.chaptersModel.length > 0
-        if (page._tankobanPrepared && (page._tankobanPreparedWithChapters || !haveChapters)) return
+        if (page._tankobanPrepared) return
         page._tankobanPrepared = true
-        page._tankobanPreparedWithChapters = haveChapters
+        var tc = page.tankobanCatalogRef
+        var rows = (tc && tc.ready()) ? (tc.volumes(page.resolvedMalId) || []) : []
+        var vols = []
+        for (var i = 0; i < rows.length; i++)
+            vols.push({ number: rows[i].number, cover: rows[i].cover || "",
+                        title: rows[i].name || "" })
         TankobanVolumes.prepareSeries({
             seriesId: page.seriesId, title: page.seriesTitle,
             author: page.author, aliases: []
-        }, page.volumes, page.chaptersModel)
+        }, vols, [])
         page._rebuildTankobanEntries()
     }
 
@@ -433,9 +441,8 @@ Item {
                 page.seriesId = "mal:" + id
                 // TB-002: silently re-file a legacy title-keyed Collection save under seriesId.
                 page._refileLegacyCollectionEntryIfNeeded()
-                // MAL-keyed shelf seed (Slice C, kept this slice — Slice 3 replaces it with a
-                // TankobanCatalog-fed seed; without this the shelf renders empty this slice).
-                if (typeof Manga !== "undefined") Manga.volumes("", seriesTitle, id)
+                // Catalogue-fed shelf seed (Slice 3) — the sole feed now (purity law).
+                page._prepareTankoban()
             }
             // id>0 but no row found (db not ready / id unknown): resolvedMalId/seriesId stay
             // unresolved — same honest shelf-less page as an ambiguous/unmatched title.
@@ -447,17 +454,6 @@ Item {
         var n = Number(ms)
         if (!n || n <= 0) return ""
         return new Date(n).toLocaleDateString(Qt.locale(), Locale.ShortFormat)
-    }
-
-    // Only the shelf-seeding signal remains wired — identity/masthead resolution above is
-    // synchronous and needs no callback. Guarded so this page constructs bare in a harness.
-    Connections {
-        target: (typeof Manga !== "undefined") ? Manga : null
-        ignoreUnknownSignals: true
-        function onVolumesResult(d) {
-            page.volumes = Vol.fromEngine(d.volumes || [])
-            page._prepareTankoban()
-        }
     }
 
     // Bridge automation surface (world-namespaced per the naming law — never a bare shared

@@ -949,6 +949,77 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
   automated sessions. Read-only diagnosis of the daily app is allowed only when the task is
   explicitly about the daily app's live state.
 
+## Tankoban catalogue-independence Slice 3 (2026-08-20) — onboarding solved, a new tab-bar gap found
+
+- **Account onboarding objectName correction (closes a gap Slice 2 left open).** Slice 2's
+  ledger entry named the gate correctly (`accountWelcomeContinueLocal` must be clicked
+  before ANY world content is reachable on a fresh tag) but never resolved the HOST item's
+  addressable name. `main.cpp`'s `AccountOnboardingHost` is instantiated in `qml/Main.qml`
+  with an explicit `objectName: "accountHost"` override — this SHADOWS the component's own
+  internal default (`objectName: "accountOnboardingHost"`, set inside
+  `qml/account/AccountOnboardingHost.qml`'s root `Item`). The internal default is
+  UNREACHABLE from outside; `qml-get`/`ui-wait-for` against `"accountOnboardingHost"` is
+  `NO_SUCH_ITEM` — the correct target is `"accountHost"`. Proven live (isolated session,
+  tag `tk3c`): `qml-get accountHost.visible` → `true` right after `bootSplash.visible ==
+  false`; `ui-click accountWelcomeContinueLocal` → `ui-wait-for accountHost.visible ==
+  false` matches (mode leaves `signedOut`). The full onboarding→Tankoban entry sequence
+  (`bootSplash` wait → `accountHost` probe → `accountWelcomeContinueLocal` click →
+  `accountHost` dismiss wait → `modePill_Tankoban` click → `tankobanTabBar` settle) is
+  `tests/lanista_scenarios/tankoban_catalogue_smoke.json`, 8/8 green, session
+  `20260820-161046-c9c2af67`, `WARNING_GATE_OK` on its own logs.
+- **New named surfaces added this slice** (all world-namespaced per the naming law):
+  `tankobanShelfState` (invisible Item on `MangaTankobanLibrary`'s root: `rowCount` int,
+  `coveredCount` int — rows whose resolved cover is non-empty); `tankobanVolumeCard_<number>`
+  (the volume shelf's GridView delegate objectName, replacing the old bare shared stem
+  `"volumeTile"`); `tankobanReadingRoomBack` (the reading room's `BackAction`, previously
+  unnamed — needed to leave a series page in-session); `tankobanTopMangaTile_<index>` (the
+  "Top in Tankoban — Manga" rail's tiles, via a new opt-in `namePrefix` property on the
+  shared `TrendingTop10.qml` component — Theatre/Biblio/Demo are unaffected, `namePrefix`
+  defaults to `""`/no name).
+- **A newly-discovered, NOT-resolved bridge/runtime gap: the Tankoban `WorldTabBar` renders
+  only a subset of its modeled tab pills.** `qml/TankobanWorld.qml`'s `tabModel` is a static
+  4-entry array (`discover`/`manga`/`comics`/`library`), confirmed byte-identical on disk via
+  three independent reads (`Read` tool, `grep`, `sed`) across the investigation — this is not
+  a misread. Driving live in FOUR separate isolated fresh-tag sessions (`tk3d`, `tk3e`
+  with `--qml qml/Main.qml` explicitly forcing live-disk load, `tk3f`, `tk3g`), after a
+  confirmed-correct onboarding dismiss and `modePill_Tankoban` click:
+  `qml-get tankobanTab_manga` and a 10s `ui-wait-for tankobanTab_manga.visible==true` both
+  fail `NO_SUCH_ITEM`/`WAIT_TIMEOUT`; a `dump-ui` scoped to the real, visible, correctly-
+  geometried `tankobanTabBar` root (confirmed `visible:true`, on-screen rect, not clipped)
+  shows its inner `Row` (the `Repeater`'s parent, per QML's own delegate-placement rule)
+  with exactly TWO children: one materialized delegate — `tankobanTab_library` — and the
+  `QQuickRepeater` placeholder itself reporting `childCount:0`. Only 1 of the Repeater's 4
+  modeled items had materialized as a sibling; the other three (discover/manga/comics) never
+  appeared, across every session tried, not a transient race (confirmed at both an
+  immediate dump and after a 10s settling wait). `qml/WorldTabBar.qml` itself reads correct
+  on disk (a plain `Repeater { model: tabs.tabModel; delegate: Rectangle {...} }`) and
+  carries no scoped-fence issue found. Root cause NOT identified within this slice's fence —
+  named honestly rather than worked around by guessing. **Practical consequence:** the
+  "Top in Tankoban — Manga" rail (this slice's own new `tankobanTopMangaTile_*` names) is
+  UNREACHABLE without first switching to the Manga tab, which is itself unreachable — so
+  the masthead/shelf portion of `tankoban_catalogue_smoke.json` (the actual point of this
+  slice's scenario: opening One Piece/Vagabond and asserting `tankobanSeriesMasthead`/
+  `tankobanShelfState`) could NOT be driven live this slice. The Discover tab's own default
+  content DOES render correctly (screenshot-confirmed match to `TankobanDiscoverPage.qml`'s
+  "Tankoban built-in catalogue" wall — Slice 2's own `mangaDiscoverCard_<malId>` naming is
+  presumably still live there), but `TankobanDiscoverPage.qml`'s root carries no objectName
+  at all (only a `loading` property ALIAS, unreachable without one) — a second, smaller gap
+  a future slice should close before that route can be scripted either. The committed
+  `tankoban_catalogue_smoke.json` therefore stops at the Tankoban-entry step, honestly —
+  see the test ledger's Slice 3 entry for what it does and does not prove.
+- **Ground-truthed series/counts for a future attempt (real db lookups, 2026-08-20, not
+  from the plan's own baseline text — the catalogue has moved on since it was written):**
+  One Piece (malId 13, catalog `volumeCount=113`, `count_basis=bookwalker`, 112/113 baked
+  covers — the COVERED branch, tile index 0, no scroll needed once the Manga tab is
+  reachable); Vagabond (malId 656, catalog `volumeCount=37`, `count_basis=mal`, 0/0 baked
+  volume rows — the honest NO-COVER branch, tile index 3); Berserk (malId 2, catalog
+  `volumeCount=0` — an ONGOING series with no MAL count yet, so `hasShelf==false` and it
+  renders the shelf-less page, NOT a 0-covered shelf — not a usable fixture for the
+  coveredCount==0 branch); Monster (malId 1) is now `(8, bookwalker)` in the live db, NOT
+  the plan's stated "18 vols mal-basis NO covers" — the harvest has evidently landed
+  partially for Monster since the plan was authored; a future attempt should re-query
+  rather than trust either this note or the plan's own baseline.
+
 ---
 
 ## Status vocabulary (for plans and reports)
