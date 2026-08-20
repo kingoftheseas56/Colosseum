@@ -213,6 +213,35 @@ async function runHostOnly(args) {
       payload: { message: text },
     });
   };
+  // Test-instrument-only extension (Slice 8): "PLAY", "PAUSE", and
+  // "SEEK <ms>" send a real timelineCommand as the host — the same
+  // authoritative-timeline path the client's own Host Control transport
+  // buttons use (SERVER-PROTOCOL-CONTRACT.md timelineCommand). positionMs
+  // on SEEK is a non-negative integer millisecond offset, matching
+  // protocol.ts's timelineCommandFromJson validation.
+  const sendTimelineCommand = (command, positionMs) => {
+    if (shuttingDown) return;
+    const payload = positionMs === undefined ? { command } : { command, positionMs };
+    console.log(`HOST_ONLY_TIMELINE_SENDING ${command}${positionMs === undefined ? "" : " " + positionMs}`);
+    activeClient.send({
+      type: "timelineCommand",
+      roomId: established.roomId,
+      senderId: participantId,
+      payload,
+    });
+  };
+  const playTimeline = () => {
+    sendTimelineCommand("play");
+    console.log("HOST_ONLY_PLAYING");
+  };
+  const pauseTimeline = () => {
+    sendTimelineCommand("pause");
+    console.log("HOST_ONLY_PAUSING");
+  };
+  const seekTimeline = (positionMs) => {
+    sendTimelineCommand("seek", positionMs);
+    console.log("HOST_ONLY_SEEKING");
+  };
   // Test-instrument-only extension (Slice 7): "DROP" closes the host's
   // socket WITHOUT sending endRoom — this is the host-grace trigger. The
   // relay starts its RELAY_HOST_GRACE_MS clock; the room and this process
@@ -298,6 +327,14 @@ async function runHostOnly(args) {
       sendChat(trimmed.slice(5));
     } else if (trimmed.startsWith("KICK_BY_NAME ")) {
       kickByName(trimmed.slice(13));
+    } else if (trimmed === "PLAY") {
+      playTimeline();
+    } else if (trimmed === "PAUSE") {
+      pauseTimeline();
+    } else if (trimmed.startsWith("SEEK ")) {
+      const ms = Number.parseInt(trimmed.slice(5), 10);
+      if (Number.isFinite(ms) && ms >= 0) seekTimeline(ms);
+      else console.error(`HOST_ONLY_SEEK_FAIL bad positionMs: ${trimmed.slice(5)}`);
     }
   });
   process.on("SIGINT", shutdown);
