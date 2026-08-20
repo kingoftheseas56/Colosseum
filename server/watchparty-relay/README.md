@@ -300,8 +300,123 @@ reschedules for whatever remains pending.
   id and the thrown error's string form, never a bearer, reconnect token, chat/reaction content, or
   source identity.
 
+## Slice 5 — real-socket conformance probe against `wrangler dev` (2026-08-20)
+
+`test/probe-live.mjs` proves the relay over REAL WebSockets (not `vitest-pool-workers`'
+in-process `workerd`): it spawns its own `wrangler dev --local-protocol https` instance, drives
+the full multi-participant journey and the refusal matrix through real TLS sockets, and tears the
+relay process down by exact PID when done. It is built on a new reusable client library,
+`test/lib/wp-client.mjs` — `connect(url, {bearer?, protocolHeader?})` plus a typed
+`send`/`waitFor`/`waitForType`/`expectNone`/`waitForClose` surface where every wait is a message
+(or the socket closing) racing a bounded timeout, never a sleep — and `test/lib/relay-process.mjs`
+(spawns/waits-ready/kills a `wrangler dev` instance by PID, matching the PID-tree kill already
+evidenced for Slices 1-4). This client library is the SCRIPTED HOST instrument Slices 6-9 reuse.
+
+Run it:
+
+```
+cd server/watchparty-relay
+npm run probe:live
+```
+
+The script re-execs itself once with `NODE_EXTRA_CA_CERTS` pointed at `test/dev-ca.pem` if the
+caller hasn't already set it, so this one command is enough — no manual env var needed (an
+explicitly-set `NODE_EXTRA_CA_CERTS` from the caller is always respected as-is instead).
+
+### The 12 steps
+
+1. Host creates a room (signed-in via a dev bearer, torrent source) — `sessionEstablished` +
+   `roomSnapshot` (host, Host Control).
+2. Guest G1 joins with a display name — both participants see `roomSnapshot` roster=2.
+3. Guest G2 joins — roster=3 everywhere.
+4. Host `timelineCommand play` — everyone gets `timelineState` revision 1; G1's
+   `timelineCommand` under Host Control gets a typed `not_authorized` refusal to G1 only, no
+   broadcast to H/G2.
+5. Host `setControlMode shared` — snapshot broadcasts; G1's `timelineCommand seek` is now
+   accepted (revision 2 to everyone).
+6. `chat` from G2 and `reaction` from G1 — both server-stamped and broadcast to all three.
+7. Host `removeParticipant` G2 (kick) — G2 gets typed `participant_removed` and its socket
+   closes; roster drops to 2; G2 rejoins fresh (new `participantId` — kick-not-ban) and roster
+   returns to 3.
+8. `participantState` from G1 (ready/syncStatus) fans out to everyone.
+9. Host socket drops (no `endRoom`) — remaining participants see an active grace deadline and
+   the host's roster row marked disconnected; host `reconnectRoom`s with its token inside the
+   grace window — ownership retained, grace cleared, reconnect token rotated.
+10. Host drops again with `RELAY_HOST_GRACE_MS=2000` — only guests remain, so grace expiry ends
+    and fully erases the room (`roomEnded` to all, no eligible successor). A fresh room with a
+    second signed-in participant (the second dev bearer) then repeats the drop: grace expiry
+    transfers host via `hostChanged` to that signed-in participant, and the room survives.
+11. Refusal matrix (six independent checks, each on a fresh connection): protocol header `2`
+    refused at the WebSocket upgrade (HTTP 426); a signed-in connect against a **second**
+    `wrangler dev` instance started WITHOUT the dev-auth override (so `RELAY_DEV_AUTH` sits at
+    wrangler.toml's default `"0"`) gets a typed `unauthenticated` refusal; guest `createRoom` gets
+    the same typed refusal; a forged `senderId` on `timelineCommand` gets `not_authorized`; a
+    >64 KiB raw frame gets typed `invalid_message`; a 130-message rapid burst eventually gets
+    typed `rate_limited` (the first ~120 frames each get their own `invalid_message` first, since
+    the burst's envelopes are deliberately unbound — the assertion scans for the rate-limit code
+    specifically, not just any error).
+12. The main relay process is killed by exact PID while a connection is open — the probe
+    observes the transport failure (close or error event) within a bounded timeout, never hangs.
+
+### `--host-only` mode (the Slice 6 interface)
+
+```
+node test/probe-live.mjs --host-only \
+  --url wss://localhost:8787 --bearer dev-token-host \
+  --info-hash <40-or-64-hex-chars> --file-idx 0
+```
+
+Connects to an ALREADY-RUNNING relay (it does not spawn one itself), creates one room with the
+given torrent source descriptor, prints `ROOM_ID=<id>` (plus `PARTICIPANT_ID=`/`RECONNECT_TOKEN=`
+and a `HOST_ONLY_READY` marker) to stdout, then holds the process open. Shut it down by closing
+its stdin (`child.stdin.end()` from an orchestrator, or Ctrl-D interactively) — this is the
+reliable cross-platform path. `SIGINT`/`SIGTERM` are also handled, but on Windows,
+`ChildProcess.kill('SIGINT')` from a parent Node process does not deliver a real signal to the
+child (Windows has no POSIX SIGINT for arbitrary processes) — it terminates the process outright
+before the handler can run, so an orchestrator on this machine should close stdin, not rely on
+`kill('SIGINT')`, to get the clean `HOST_ONLY_CLOSING` shutdown path.
+
+### Real-socket bugs found and fixed this slice
+
+Both bugs were in the new probe script itself, not in `src/` — `npm test`'s 73 cases and the
+Slice 1-4 relay logic were unaffected and needed no changes:
+
+- A top-level `await main()` was placed before the `const` declarations (`TORRENT_SOURCE_A`,
+  `HOST_BEARER`, etc.) it depends on. A top-level `await` suspends the REST of the module's
+  top-level execution until it settles, so those `const`s were still in their temporal dead zone
+  the instant a step closure referenced them — `Cannot access 'HOST_BEARER' before
+  initialization`. Fixed by moving the `await main()` call to the very end of the file.
+- The rate-burst refusal check used `waitForType("error", ...)`, which matched the FIRST error
+  frame in the connection's backlog — an `invalid_message` from one of the ~120 deliberately
+  unbound envelopes sent before the rate ceiling actually trips — instead of specifically the
+  `rate_limited` code. Fixed by scanning for `payload.code === "rate_limited"` explicitly.
+
+### Probe self-negative-control (2026-08-20)
+
+Flipped step 3's first assertion literal from `hSnap.payload.participants.length === 3` to `=== 4`
+(the anchor comment in `test/probe-live.mjs` marks the exact line) and reran: `STEP_FAIL 3 G2
+joins guest, roster=3: assertion failed: H sees roster 3`, `PROBE_LIVE_OK 11/12` — exactly step 3
+went red, every other step (including 4-12, which reuse G1/G2/H's already-open connections)
+stayed green, proving the mutation didn't cascade-hide anything downstream. Reverted the literal
+back to `3`; rerun: `PROBE_LIVE_OK 12/12`.
+
+### Slice 5 evidence (2026-08-20)
+
+- `node test/probe-live.mjs` (via `npm run probe:live`): `PROBE_LIVE_OK 12/12` — full
+  happy-path journey + all 6 refusal-matrix checks green over real TLS sockets against a
+  self-spawned `wrangler dev --local-protocol https`.
+- `npm test`: 73/73 unchanged (no `src/` changes this slice).
+- `node test/probe-handshake.mjs` against a freshly-spawned `wrangler dev`: `PROBE_OK` on all
+  three cases, `overall=pass` — Slice 1's transport layer unaffected.
+- `--host-only` mode verified standalone against a separate `wrangler dev` instance: prints
+  `ROOM_ID=`/`PARTICIPANT_ID=`/`RECONNECT_TOKEN=`/`HOST_ONLY_READY`, then a clean
+  `HOST_ONLY_CLOSING` + exit code 0 on stdin close.
+- Every `wrangler dev` instance spawned during this slice's work (main relay, the dev-auth-off
+  refusal-matrix instance, the ad-hoc verification runs above) was killed by exact PID
+  (`taskkill /PID <pid> /T /F`, matching the documented PID-tree pattern); `tasklist` for
+  `workerd.exe` confirmed empty after every run.
+
 ## Scope note
 
-Slices 5+ (real-socket conformance probe, first real desktop client, two real clients, synced
-playback, deploy) are runtime/acceptance work layered on top of the authority machinery this file
-now fully implements.
+Slices 6-9 (first real desktop client, two real clients, synced playback, deploy) are
+runtime/acceptance work layered on top of `test/probe-live.mjs`'s scripted-host instrument.

@@ -8,6 +8,7 @@
     "dev": "wrangler dev",
     "dev:https": "wrangler dev --local-protocol https",
     "probe": "node test/probe-handshake.mjs",
+    "probe:live": "node test/probe-live.mjs",
     "test": "vitest run"
   },
   "devDependencies": {
