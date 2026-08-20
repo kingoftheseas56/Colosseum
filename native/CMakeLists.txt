@@ -245,6 +245,8 @@ add_executable(colosseum
     engine/ComicsCatalog.h
     engine/MalCatalog.cpp
     engine/MalCatalog.h
+    engine/TankobanCatalog.cpp     # baked Tankoban volume catalogue (catalogue-independence Slice 1)
+    engine/TankobanCatalog.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
     engine/LocalDownloads.cpp

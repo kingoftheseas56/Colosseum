@@ -300,6 +300,32 @@ set_tests_properties(colosseum.qttest.vault_index PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Tankoban catalogue (catalogue-independence Slice 1, 2026-08-20) ──────────
+# TankobanCatalog — the baked, provider-free volume-count/cover store: series
+# count/count_basis round-trip, "1".."N" number synthesis from a known count,
+# numeric-aware overlay ordering (2 before 10), and honest emptiness for a
+# missing db or unknown malId. Qt6::Sql; same deploy-trap resolution as
+# tst_vault_index (exe lands in build-msvc/ beside the app-deployed plugin).
+# GUILESS; QTemporaryDir DB per run, no committed .sqlite.
+add_executable(tst_tankoban_catalog
+    auto/tankoban/tst_tankoban_catalog.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.h")
+target_include_directories(tst_tankoban_catalog PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_tankoban_catalog PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_tankoban_catalog POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.tankoban_catalog
+         COMMAND tst_tankoban_catalog)
+set_tests_properties(colosseum.qttest.tankoban_catalog PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Vault scanner (execution plan Slice 4, 2026-08-08) ───────────────────────
 # VaultScanner — the cancellable off-thread census: pure buildScan() over the
 # fixture tree, generation-guarded applyResult() (stale drop, cancelled no-publish),

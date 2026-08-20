@@ -63,6 +63,7 @@
 #include "engine/ComicDownloader.h"
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
+#include "engine/TankobanCatalog.h"
 #include "engine/ImdbCatalog.h"
 #include "engine/BiblioCatalog.h"
 #include "engine/LocalDownloads.h"
@@ -1255,6 +1256,11 @@ int main(int argc, char *argv[]) {
     // read-only seam, script-built db in data/, dormant when absent (live ladder runs).
     auto *malCatalog = new MalCatalog(QStringLiteral("data/mal_catalog.db"), &app);
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
+
+    // Baked Tankoban volume catalogue (catalogue-independence Slice 1, 2026-08-20): same
+    // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
+    auto *tankobanCatalog = new TankobanCatalog(QStringLiteral("data/tankoban_catalog.db"), &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
     auto* imdbCatalog = new ImdbCatalog(QStringLiteral("data/imdb_catalog.db"), &app);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
     auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
