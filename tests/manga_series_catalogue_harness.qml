@@ -55,9 +55,20 @@ Item {
         function cancel(vid) {}
     }
 
+    // R1 (release gate for 1.1.1, 2026-08-21, "nyaa ships dark"): the same shape
+    // ExtensionsStore::installed() returns -- id/enabled pairs only, everything else
+    // the picker's _nyaaEnabled() reads is unused by it.
+    component FakeExtensions: QtObject {
+        property bool nyaaEnabled: false
+        function installed() {
+            return [ { "id": "colosseum.well.nyaa", "enabled": nyaaEnabled } ]
+        }
+    }
+
     FakeMalCatalog { id: malCatalog }
     FakeTankobanCatalog { id: tankCatalog }
     FakeVolumesService { id: volService }
+    FakeExtensions { id: fakeExtensions }
 
     function ck(condition, message) {
         if (!condition) throw new Error(message)
@@ -180,6 +191,28 @@ Item {
             ck(p5.errorMsg === "", "case5: errorMsg must never be set (no WeebCentral search/error path)")
             ck(p5.errorText === "", "case5: errorText must never surface WeebCentral copy")
             ck(p5.errorText.indexOf("WeebCentral") < 0, "case5: no WeebCentral string reaches errorText")
+
+            // ── Case 6 (R1, 2026-08-21): the picker's extension gate -- nyaa ships dark ──
+            tankCatalog.infoMap = ({ "1": { "volumeCount": 18, "countBasis": "mal" } })
+            volService.volMap = ({ "mal:1": [] })
+            var p6 = makePage("1", "Monster")
+            p6.sourcesPage.extensionsRef = fakeExtensions
+
+            fakeExtensions.nyaaEnabled = false
+            p6.sourcesPage.show({ "volumeId": "vol-1", "seriesTitle": "Monster" })
+            ck(p6.sourcesPage.sourcesEnabled === false,
+               "case6a: sourcesEnabled must be false when the nyaa well is disabled")
+            ck(p6.sourcesPage.loading === false,
+               "case6a: a dark well must resolve immediately, never hang loading")
+            ck(p6.sourcesPage.complete === true,
+               "case6a: a dark well must still mark the sheet complete (honest empty state)")
+            ck(p6.sourcesPage.rows.length === 0,
+               "case6a: a dark well must never return rows")
+
+            fakeExtensions.nyaaEnabled = true
+            p6.sourcesPage.show({ "volumeId": "vol-1", "seriesTitle": "Monster" })
+            ck(p6.sourcesPage.sourcesEnabled === true,
+               "case6b: sourcesEnabled must be true once the nyaa well is enabled")
 
             console.log("MANGA_SERIES_CATALOGUE_OK")
             Qt.exit(0)

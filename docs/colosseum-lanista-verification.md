@@ -1360,6 +1360,51 @@ matching entry; this entry covers the Lanista/bridge-specific status only.
 
 ---
 
+## Held runtime gates closed (R1 sweep, 2026-08-21) + Slice R1 landed — bridge-layer status
+
+Full mechanism, code diffs, and Qt Test/harness evidence in `docs/colosseum-test-
+verification.md`'s matching entry; this entry covers the Lanista/bridge-specific status.
+
+- **Held gate 1 (chapter-migration disk gate): GREEN.** `tests/
+  test_tankoban_chapter_migration.ps1` in a fresh isolated seeded session (tag
+  `tankoban-chmig-*`): `TANKOBAN_CHAPTER_MIGRATION_OK`, all disk + durable-ini checks pass.
+  A genuine defect was found and fixed in the SAME pass (a log-line gap in the `.ps1`'s own
+  assertions, not a production bug — see the test-verification.md entry) via a real
+  red-then-green cycle, not a synthetic negative control.
+- **Held gate 2 (masthead race): the underlying defect is closed; the exact "4/4 CLI
+  replay" form of the gate is not what closed it.** An interactive lanista session (tag
+  `r1sweep-diag`, session `20260821-013744-532e91b6`) ground-truthed that Defect 2's fix
+  works correctly whenever `resolve()` actually runs, and separately isolated a REAL,
+  previously-uncharacterized scenario defect (`tankobanTab_manga`/`tankobanTopMangaTile_*`
+  clicks are absorbed by `MangaSeries.qml`'s own full-window MouseArea while a series page
+  is showing — not a masthead race). Fixed in `tests/lanista_scenarios/
+  tankoban_catalogue_smoke.json` (an explicit `tankobanReadingRoomBack` close-and-settle
+  before every such navigation). A SEPARATE, unrelated `modePill_Biblio`/`modePill_Tankoban`
+  back-to-back click race was also found (3 of 4 replays this pass) and is NOT fixed —
+  named as a next-actor handoff, candidate root cause (duplicate objectNames across
+  keep-alive per-world Loaders) recorded but not confirmed.
+- **Slice R1 ("nyaa ships dark"): Runtime-validated.** New committed scenario `tests/
+  lanista_scenarios/tankoban_nyaa_dark_gate.json` — fresh tag, extensions default dark ->
+  picker shows `sourcesEnabled==false` + the honest empty state + `tankobanSourcesEnableRoute`
+  -> route opens Extensions on the Tankoban world -> Installed pane -> `extensionToggle_
+  colosseum.well.nyaa` enabled -> picker reopened fresh -> `sourcesEnabled==true`, live
+  rows land. Passed clean on repeated fresh replays this pass. A bridge coordinate-cache
+  nuance was ground-truthed and worked around with real-property settle waits (never a
+  sleep): a click fired immediately after a scroll, or immediately after a pane/tab switch,
+  can resolve a stale screen position — reproducible, not flaky-by-luck; noted here for any
+  future scenario touching a scrolled Flickable or the Extensions page's pane tabs.
+- **Full `-L unit`: 71/71 green** after all fixes (`colosseum.extensions_first_run`,
+  `colosseum.qttest.tankoban_chapter_migration`, `colosseum.manga_series_catalogue` all
+  included). Warning gate: the pre-existing `revision of null` boot-race class (11 hits,
+  reproduced BEFORE any R1 edit existed, confirmed foreign) is unrelated to this pass;
+  zero warnings reference any R1-touched file across the clean scenario runs.
+- Claim + release posted to `agents/chat.md` around this session block per standing
+  discipline; commit is a surgical blob for `qml/Main.qml` (carries an unrelated
+  brother's foreign in-flight hunks — `git diff qml/Main.qml` post-commit still shows
+  them, untouched, in the working tree).
+
+---
+
 ## Status vocabulary (for plans and reports)
 
 `Runtime-validated` is the only status that closes a user-visible slice without qualification.

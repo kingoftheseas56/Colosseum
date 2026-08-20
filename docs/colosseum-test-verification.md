@@ -1128,10 +1128,12 @@ bounded, never killed a foreign process); recorded in `agents/chat.md`.
   around rank 18) — both moved to the human-witnessed list.
 - **Human-witnessed checklist** written (not performed, per this task's mandate):
   `artifacts/tankoban-independence/closing/human-witnessed-checklist.md`.
-- **Slice 5 Overall status: Runtime-validated for the disk-byte purge and the app's own
-  functional health post-migration (clean boot, Tankoban opens, masthead/shelf/picker all
-  proven — Slice 7's own replays above); NOT Runtime-validated for the progress-record
-  purge (confirmed-broken pre-existing gap, named above, not fixed).** Human-witnessed
+- **Slice 5 Overall status: Runtime-validated for the disk-byte purge, the progress-record
+  purge, AND the app's own functional health post-migration.** The progress-record purge
+  line above is FLIPPED from "confirmed-broken" to fixed, 2026-08-21 — see "Held runtime
+  gates closed (R1 sweep)" below for the runtime confirmation: `tests/
+  test_tankoban_chapter_migration.ps1` green (`TANKOBAN_CHAPTER_MIGRATION_OK`), disk +
+  durable-store-ini checks all pass in a fresh isolated seeded session. Human-witnessed
   confirmations (this sweep's checklist) still pending Hemanth's own eyes.
 - **Slice 7 / arc status: gates run and recorded; NOT declared fully closed.** Two real,
   newly-characterized-or-confirmed gaps stand open (the progress-purge rebind gap; the
@@ -1311,3 +1313,206 @@ block per standing discipline.
 1) / not applicable (Defect 2); Bridge status: bridge blocked (both) — the live daily
 `colosseum.exe`, not a fix defect, is the blocker.** Both fixes are `git diff`-reviewable
 now; the runtime confirmations above are this pass's honest handoff, not a claimed pass.
+
+## Held runtime gates closed (R1 sweep, 2026-08-21) + Slice R1 landed ("nyaa ships dark")
+
+Two-mission pass once the daily `colosseum.exe` was closed and the build-msvc + Lanista slot
+was free: (1) the two held runtime gates the closing-sweep follow-up (above) could not run
+because the daily app was live; (2) Slice R1 (`docs/superpowers/plans/2026-08-20-colosseum-
+tankoban-catalogue-independence-plan.md`, added 2026-08-21). A full build was clean
+(`native/build-msvc.bat`, exe mtime advanced, grep-verified no `error C`/`ninja: build
+stopped`/`LNK`).
+
+### Held gate 1 — chapter-migration disk gate: GREEN, with one genuine gap found and fixed
+
+Running `tests/test_tankoban_chapter_migration.ps1` fresh (the gate the two closeout fixes
+in `3722794` were written for but never runtime-validated, both blocked by the live daily
+exe) surfaced a REAL, previously unexercised defect distinct from either closeout fix: the
+log-line assertions this `.ps1` already carried (from `21c4f2f`, predating the sealed/
+durable split) assumed a SINGLE combined `[tankoban-migration]` summary line reporting disk
++ progress facts together. Defect 1's fix (`3722794`) legitimately calls
+`TankobanChapterMigration::run()` TWICE per boot — once against the Sealed placeholder
+(disk-only pass, marker withheld) and once against the real durable store (marker written)
+— and by the second call the disk side is already clean, so the marker-writing line
+honestly reports `0 series dir(s)` even though 1 was purged on the FIRST call. The first
+run against the rebuilt fix genuinely reproduced this as a real RED
+(`migration summary line does not report 1 series dir(s) purged`), not a guess.
+
+**Fix.** `native/engine/TankobanChapterMigration.cpp`: the Sealed-pass `qInfo()` (previously
+only logging `existed`/`deleted` booleans) now also logs `chapterDirsDeleted`/`indexDeleted`
+— the same detail fields the final line has — so the disk-purge facts land on whichever
+call actually found the tree present. `tests/test_tankoban_chapter_migration.ps1`: the log
+assertions no longer require one combined line; they check the WHOLE log text for
+`existed=yes deleted=yes` + `1 series dir(s)` (wherever they land) and the final
+`chapter store purge complete`/`1 manga-kind progress record(s) purged` line separately —
+comment explains the sealed/durable split so a future reader doesn't reintroduce the
+single-line assumption. Verification: the ORIGINAL pre-fix run is the negative control (a
+genuine red on the exact predicted line, not a synthetic sabotage) — rebuild + rerun after
+the fix went green immediately. `colosseum.qttest.tankoban_chapter_migration` stayed 9/9
+green throughout (this defect was never visible at the unit-fixture layer — the fixture
+doesn't drive two real boot-time calls the way main.cpp does, matching why the held gate
+exists).
+
+**Runtime result:** `TANKOBAN_CHAPTER_MIGRATION_OK` — `manga/` gone, `manga-volumes/`
+intact, marker written, durable-store ini confirms `berserk-1` (manga-kind) purged and
+`mal:2`/`locg:123` (tankoban/comic-kind) survive. Slice 5's progress-purge line above is
+flipped to Runtime-validated.
+
+### Held gate 2 — masthead race: Defect 2's OWN fix verified correct; a SEPARATE,
+### previously-uncharacterized scenario defect found blocking a clean 4/4 replay
+
+The 4x fresh-session replay of `tankoban_catalogue_smoke.json` this gate calls for did NOT
+reach 4/4 clean on the first attempts — but ground-truthing WHY (an interactive lanista
+session, tag `r1sweep-diag`, session `20260821-013744-532e91b6`) proved Defect 2's own fix
+(the `resolve()`-synchronous `displayTitle` assignment, `qml/MangaSeries.qml`) is correct:
+driven step-by-step through the exact committed sequence up to the point the CLI replay
+always failed, the masthead resolved Berserk's `displayTitle`/`resolvedMalId`/`hasShelf`/
+`primaryAction` atomically and correctly the moment `resolve()` actually ran. The race
+Defect 2 targeted (Qt's connection-order dispatch on `seriesTitleChanged`) is closed.
+
+**What was actually failing: a click-target gap, not a masthead race.** `qml/MangaSeries.
+qml`'s root carries a full-window absorbing `MouseArea` (`anchors.fill: parent`, "absorb
+clicks from the world page below" — by design, so the hidden world page underneath a
+showing series page never receives stray clicks). The committed scenario's own "back to the
+Manga tab to reach the shelf-less fixture" step clicks `tankobanTab_manga` while One Piece's
+series page is STILL showing — that click is unconditionally absorbed (Qt hit-tests to the
+topmost item at that screen position, regardless of which objectName was requested), so
+`tankobanTopMangaTile_1` (Berserk) never gets a real click either: it lands wherever the
+showing shelf happens to render at that pixel, sometimes a no-op, sometimes (reproduced
+live) a MISCLICK into an unrelated volume card that started a REAL torrent resolving.
+`displayTitle` staying "One Piece" is the exact, correct, honest report of "nothing actually
+happened" — not the race Defect 2 fixed recurring. `tankobanReadingRoomBack` (the page's
+OWN back control, forwards to `page.backRequested()` -> `win.closeSeries()`) is the only
+real path back to world-tab navigation from an open series page.
+
+**Fix applied to `tests/lanista_scenarios/tankoban_catalogue_smoke.json`:** an explicit
+`tankobanReadingRoomBack` click (with its own async-frame-aware close-settle wait, matching
+the file's existing convention) is now inserted before EVERY subsequent world-tab/tile
+navigation attempted from an already-open series page (both the One Piece world-round-trip
+regression and the Berserk shelf-less leg); the round-trip regression also gained a
+`qml-get` on `displayTitle`/`resolvedMalId` so it asserts a REAL re-render instead of a
+vacuous "nothing changed, so nothing failed" pass. With this fix, a fresh replay reaches the
+Berserk masthead assertions and passes them cleanly.
+
+**A second, separate, NOT-fixed defect surfaced during this same investigation:** the
+scenario's `modePill_Biblio` -> `modePill_Tankoban` world-tab bounce (fired back-to-back, no
+settle wait) intermittently fails to land the second click — reproduced 3 of 4 fresh
+replays this pass, always at that exact step, never past it. Root cause not fully
+ground-truthed this pass (candidate: `openWorld()`'s keep-alive per-world Loaders mean a
+world's own `WorldPage`/`TopBar`/`Pill` tree — and its `modePill_*`/`tankobanTab_*`/
+`tankobanTopMangaTile_*` objectNames — may exist MULTIPLE times simultaneously across
+loaded-but-inactive worlds, a duplicate-objectName shadow the ledger's own naming law warns
+about; a `modePill_Biblio.active`/`modePill_Tankoban.active` settle-wait attempt this pass
+did not resolve it and was reverted rather than shipped unverified). **This is
+pre-existing, orthogonal to both closeout defects, and NOT fixed this pass** — named here
+as a next-actor handoff, not papered over. **Overall for held gate 2: Defect 2's fix is
+Runtime-validated by direct evidence (not a CLI-replay count); the scenario's own
+click-target gap is fixed and verified (fresh replay reaches and passes the Berserk
+masthead); the separate world-bounce race is open, unfixed, named.**
+
+### Slice R1 — "nyaa ships dark": Runtime-validated
+
+**Ground-truthed first (no guessing):** the extension-gate INFRASTRUCTURE already exists and
+already covers manga Nyaa. `native/engine/ExtensionsStore.cpp::appendHouseDefaults()`'s
+`entry()` lambda computes `removableWell = !core && resources.contains("stream")` and seeds
+`enabled: !removableWell` — Torrentio (`com.stremio.torrentio.addon`) and the manga well
+`colosseum.well.nyaa` (added `b528c98`, "the store carries three worlds") are BOTH
+non-core, stream-providing wells, so BOTH already seed disabled. Live-confirmed in this
+pass's own session: Torrentio, NoTorrent, Nyaa, WeebCentral, GetComics, and Tankorent all
+render OFF by default; only core catalogues (Colosseum Grand Database, AniList, Apple Books)
+and non-fetching capabilities (Anime Kitsu, OpenSubtitles v3) render ON. The Extensions page
+(`qml/ExtensionsPage.qml`) already lists and toggles every well generically (`extensionRow_
+<id>`/`extensionToggle_<id>`, `Extensions.setEnabled(id, bool)`) — no changes needed there.
+**The actual gap: the manga picker never consulted this state at all** —
+`qml/MangaTankobanSourcesPage.qml`'s `show()` called `TankobanVolumes.searchSources()`/
+`searchSeriesSources()` unconditionally, the exact class of violation
+`feedback_no-default-acquisition-sources.md` names against v1.0.
+
+**Fix, mirroring Theatre's OWN gate exactly** (`qml/SourcesSheet.qml` + `AddonClient.js`
+`streamExtensions()`, which filters to `enabled === true` extensions BEFORE ever asking
+them — the same shape, not reinvented):
+- `qml/MangaTankobanSourcesPage.qml`: new `sourcesEnabled` property (positive scalar, per
+  the ledger's no-absence-assertions law) + `_nyaaEnabled()`, read fresh on every `show()`
+  call (never cached) against an injectable `extensionsRef`/`extensionsObject` seam (same
+  shape as the file's existing `service`/`serviceObject` seam) falling back to the real
+  `Extensions` context property. `show()` now checks the gate FIRST: dark -> `loading=false;
+  complete=true; return` before any native search kicks — no auto-enable, no nag, and the
+  "get"/"search" primary button that opened the sheet still opens it every time (never a
+  silent no-op, per the plan's own requirement). The empty-state text
+  (`tankobanSourcesEmptyText`) names the fix ("No sources enabled — enable Nyaa in
+  Extensions to search.") when dark; a new `tankobanSourcesEnableRoute` control (house
+  style — gold-outline pill, no color pop, no tagline) is the ONLY route that ever turns
+  nyaa on, emitting `openExtensionsRequested()`.
+- `qml/MangaSeries.qml`: forwards `openExtensionsRequested()` from its `sourcesPage` child
+  up to the host (same shape as `backRequested`/`minimizeRequested`); exposes
+  `readonly property alias sourcesPage: sourcesPage` so a bare-page test harness can reach
+  the child and inject a fake `extensionsRef` (no Lanista bridge, no real Extensions
+  singleton available there).
+- `qml/Main.qml`: `openExtensionsPage(world)` gained an optional `world` param — the manga
+  route passes `"tankoban"` so enabling Nyaa is a direct one-click path (Extensions'
+  `pane: "sources"` default already lands the House Sources list; passing `world` skips
+  past Theatre's own rows) — wired via `item.openExtensionsRequested.connect(function() {
+  win.openExtensionsPage("tankoban") })`. `qml/Main.qml` carries unrelated foreign
+  in-flight hunks (a `reducedMotion` property, an `immersiveSurfaceOpen` refactor) —
+  committed via a surgical blob (`git update-index --cacheinfo`) so only these two hunks
+  land, per the shared-file discipline; `git diff qml/Main.qml` after this commit still
+  shows the foreign hunks, untouched, in the working tree.
+
+**Focused tests.**
+- `tests/auto/extensions/tst_extensions_first_run.cpp`: new
+  `manga_nyaa_well_seeded_disabled()` — names `colosseum.well.nyaa` directly (the existing
+  `fresh_profile_requires_consent_for_removable_wells()` already proved the GENERIC
+  removable-well mechanism nyaa rides, generically; this case is R1's own direct,
+  traceable assertion). 8/8 green including the new case. Negative control: inverted the
+  assertion -> exactly that case red (`'nyaa.value(...).toBool()' returned FALSE`) with
+  the other 7 unaffected -> restored -> 8/8 green.
+- `tests/manga_series_catalogue_harness.qml`: new Case 6, using the new
+  `sourcesPage`/`extensionsRef` seams — a `FakeExtensions` (id/enabled pairs, the exact
+  shape `ExtensionsStore::installed()` returns) toggled dark -> `sourcesEnabled===false`,
+  `loading===false`, `complete===true` (honest immediate empty state, never a hang),
+  `rows.length===0`; toggled enabled -> `sourcesEnabled===true`. Negative control: flipped
+  6a's expectation -> exactly that case red (`MANGA_SERIES_CATALOGUE_FAIL: case6a...`) ->
+  restored -> `MANGA_SERIES_CATALOGUE_OK`.
+- `qmllint` clean on all three touched QML files (`MangaTankobanSourcesPage.qml`,
+  `MangaSeries.qml`, `Main.qml`) — only the pre-existing "unqualified access" class
+  (context-property references, the file's own established convention) at or near the
+  edited lines, zero new warnings/errors.
+
+**Runtime — live evidence, interactive session (tag `r1-dark-verify`), then a committed
+scenario replayed multiple times fresh:** fresh install -> One Piece volume 1 picker shows
+`sourcesEnabled: false`, honest empty text + `tankobanSourcesEnableRoute` visible -> click
+route -> Extensions opens on the Tankoban world -> Installed pane -> toggle Nyaa on
+(`checked: true`) -> close Extensions (Escape) -> series page still showing underneath
+(Extensions was a layer over it) -> close the picker properly (async-frame-aware settle
+wait — the bug class also just fixed in `tankoban_catalogue_smoke.json`) -> reopen ->
+`sourcesEnabled: true`, `tankobanSourcesList.count: 10` real nyaa rows for One Piece vol. 1
+(grab shows `1r0n`/`Nyaa` STRONG rows with real release titles, sizes, seeder counts).
+**New committed scenario `tests/lanista_scenarios/tankoban_nyaa_dark_gate.json`** encodes
+this exact working sequence (including the "Installed pane, no scroll" route that avoids a
+separate bridge coordinate-cache nuance ground-truthed this pass: a click fired immediately
+after a scroll or a pane/tab switch can resolve a stale screen position — worked around here
+with settle waits on real properties, per the plan's "no sleep" law; not fixed at the bridge
+layer, named as a tooling nuance for future scenario authors). Multiple fresh isolated
+replays: the core gate (fresh-dark -> honest empty state -> route -> enable -> sourcesEnabled
+flips true on reopen) passed clean every time; one early replay attempt also hit the
+live-network-dependent tail wait (nyaa search taking longer than a fixed timeout —
+explicitly flagged in the scenario's own comments as never a deterministic gate), so that
+wait was removed from the gate path entirely (the closing exhibit grab is now best-effort,
+no loading-state assertion) — reran clean afterward. Warning gate: the `[W] ... revision of
+null` class seen on an earlier diagnostic session is CONFIRMED foreign and pre-existing (11
+occurrences reproduced in session `20260821-013744-532e91b6`, captured BEFORE any R1 QML
+edit existed) — zero occurrences in the final clean R1 scenario runs, and zero warnings
+anywhere referencing `MangaTankobanSourcesPage`/`MangaSeries`/`Extensions`/`nyaa`; remaining
+warnings (`QNetworkReplyHttpImpl device not open`, `QRhiGles2 context current`,
+`QSqlDatabase requires a QCoreApplication`) are known foreign/boot-timing noise, unrelated
+to this slice.
+
+**Full `-L unit` re-sweep after all fixes: 71/71 green** (includes `colosseum.
+extensions_first_run`, `colosseum.qttest.tankoban_chapter_migration`,
+`colosseum.manga_series_catalogue`), 91.98s total.
+
+**Slice R1 Overall status: Runtime-validated** — the fresh-install dark default, the
+picker's honest empty state + route, the enable-via-Extensions path, and the live-rows
+result on the next open are all proven by direct live evidence and a passing committed
+scenario; unit + harness gates green with negative controls performed; ledgers updated in
+the same commit as the code.

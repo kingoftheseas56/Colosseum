@@ -136,6 +136,22 @@ private slots:
                  "a persisted enable choice was reset on store reconstruction");
     }
 
+    // R1 (release gate for 1.1.1, 2026-08-21, "nyaa ships dark"): the manga Nyaa well
+    // rides the SAME generic removable-well gate proven above (fresh_profile_requires_
+    // consent_for_removable_wells) -- this case names it explicitly so the release
+    // gate has its own direct, traceable assertion rather than relying only on the
+    // generic "at least one well" count. Mirrors Torrentio's own treatment exactly:
+    // both are non-core, both provide "stream", both seed enabled:false.
+    void manga_nyaa_well_seeded_disabled()
+    {
+        ExtensionsStore store(nullptr);
+        const QVariantMap nyaa = findById(store.installed(), QStringLiteral("colosseum.well.nyaa"));
+        QVERIFY2(!nyaa.isEmpty(), "colosseum.well.nyaa missing from the house seed");
+        QVERIFY2(isRemovableWell(nyaa), "colosseum.well.nyaa is not classified as a removable well");
+        QVERIFY2(!nyaa.value(QStringLiteral("enabled")).toBool(),
+                 "colosseum.well.nyaa seeded ENABLED on a fresh install -- nyaa must ship dark");
+    }
+
     void configured_manifest_urls_keep_query_before_manifest_suffix()
     {
         ExtensionsStore store(nullptr);

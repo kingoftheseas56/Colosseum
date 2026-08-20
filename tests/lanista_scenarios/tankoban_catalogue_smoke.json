@@ -67,6 +67,9 @@
       "payload": { "object": "tankobanSourcesSheet", "prop": "visible", "value": false, "timeout_ms": 10000 },
       "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
 
+    { "cmd": "ui-click", "label": "close the series page back to the world (R1-sweep fix, 2026-08-21: the ONLY real path back to world-tab/tile navigation -- while MangaSeries.qml's page is showing, its own absorbing MouseArea intercepts any click aimed at a tankobanTab_*/tankobanTopMangaTile_* target hidden underneath it, so a click there is either a silent no-op or a misdirected click into the still-open shelf; ground-truthed live via an interactive lanista session, 2026-08-21, session 20260821-013744-532e91b6)",
+      "payload": { "target": "tankobanReadingRoomBack" } },
+
     { "cmd": "ui-click", "label": "world-tab away: Biblio", "payload": { "target": "modePill_Biblio" } },
     { "cmd": "ui-click", "label": "world-tab back: Tankoban", "payload": { "target": "modePill_Tankoban" } },
     { "cmd": "ui-click", "label": "reopen the Manga tab", "payload": { "target": "tankobanTab_manga" } },
@@ -74,7 +77,13 @@
     { "cmd": "ui-wait-for", "label": "regression: the masthead re-renders ready after a world round-trip",
       "payload": { "object": "tankobanSeriesMasthead", "prop": "ready", "value": true, "timeout_ms": 20000 },
       "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "regression is REAL, not vacuous: the reopened masthead is genuinely One Piece again",
+      "payload": { "object": "tankobanSeriesMasthead", "props": ["displayTitle", "resolvedMalId"] },
+      "expect": [ { "path": "props.displayTitle", "op": "==", "value": "One Piece" },
+                  { "path": "props.resolvedMalId", "op": "==", "value": "13" } ] },
 
+    { "cmd": "ui-click", "label": "close the series page again before reaching for the shelf-less fixture (same R1-sweep fix as above -- One Piece's page is still open here too)",
+      "payload": { "target": "tankobanReadingRoomBack" } },
     { "cmd": "ui-click", "label": "back to the Manga tab to reach the shelf-less fixture",
       "payload": { "target": "tankobanTab_manga" } },
     { "cmd": "ui-click", "label": "Berserk - index 1 of the static rail (malId 2, ground-truthed 2026-08-20 volumeCount==0, an ONGOING series with no MAL count yet)",

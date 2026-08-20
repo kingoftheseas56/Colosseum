@@ -25,6 +25,10 @@ Item {
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
+    // R1 (2026-08-21): the sources picker's honest empty-state route, forwarded
+    // straight through to the host (Main.qml -> win.openExtensionsPage()) — this
+    // page never opens Extensions itself.
+    signal openExtensionsRequested()
     // the READER's own chrome, distinct from this page's topbar: minimize = the comic session
     // drops to the Colosseum taskbar; close = the session is closed (Windows-window vocabulary).
     signal readerMinimizeRequested()
@@ -657,10 +661,17 @@ Item {
     //      escape) via the library's sourcesRequested. A sibling of the reader (they're
     //      mutually-exclusive overlays); acquisition rides the native TankobanVolumes
     //      service under the original volumeId. ----
+    // Harness reach (R1, 2026-08-21): a bare-page test (manga_series_catalogue_harness.qml)
+    // has no Lanista bridge and no real Extensions context property; exposing the child by
+    // alias lets it inject a fake via sourcesPage.extensionsRef and call sourcesPage.show()
+    // directly, the same seam shape as malCatalogRef/tankobanCatalogRef/tankobanVolumesRef.
+    readonly property alias sourcesPage: sourcesPage
+
     MangaTankobanSourcesPage {
         id: sourcesPage
         anchors.fill: parent
         z: 70
         backdrop: page.backdrop
+        onOpenExtensionsRequested: page.openExtensionsRequested()
     }
 }

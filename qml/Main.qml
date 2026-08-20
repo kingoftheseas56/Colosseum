@@ -38,6 +38,7 @@ Window {
 
     property string currentSurface: "Home"
     property var pendingIdentityRoute: null
+    property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
     // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
@@ -843,16 +844,19 @@ Window {
     // player page's error screen instead of swapping engines.
     readonly property bool usePlayer2: Player2Available === true
 
-    // Every reader/player surface that must suppress the OS-shell taskbar. There are THREE
-    // comic/manga reader lanes (all share the reader chrome — see minimizeComicReader):
-    // seriesLayer=manga, westernLayer=western comics, comicSeriesLayer=the LOCG catalogue.
-    // comicSeriesLayer was missing here, so the taskbar rode in front of that reader while
-    // the other two + book + player suppressed it correctly (Hemanth, 2026-07-16).
+    // Every immersive manga/comic/reader/player surface suppresses the OS-shell taskbar.
+    // A Tankoban series detail is itself an immersive Reading Room now: the fixed rail and
+    // volume pane own the whole window before a reader is opened, so the taskbar must not
+    // remain visible underneath that surface.
+    // The Living Guide (2026-08-16) is the same shape of surface — full-bleed, opaque
+    // backdrop, its own Close control — and belongs in this list for the same reason.
     readonly property bool immersiveSurfaceOpen: win.playerOpen
         || bookReaderLayer.active
+        || seriesLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
+        || guideLayer.active
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
@@ -1053,13 +1057,17 @@ Window {
     function openUniverseHall() { universeHallLayer.active = true }
     function closeUniverseHall() { universeHallLayer.active = false }
 
-    function openExtensionsPage() {
+    // world (optional, R1 2026-08-21): lands the page straight on that world's Sources
+    // tab instead of the default "theatre" — the manga picker's empty-state route
+    // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
+    function openExtensionsPage(world) {
         guideLayer.active = false      // a taskbar destination dismisses the floating Guide first
         downloadsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
+        if (world && extensionsLayer.item) extensionsLayer.item.world = world
         taskbar.open = false
     }
     function closeExtensionsPage() { extensionsLayer.active = false }
@@ -1084,8 +1092,11 @@ Window {
         settingsLayer.active = false
         vaultLayer.active = false
         updateLayer.active = true
-        taskbar.open = true
-        taskbar.autoRevealed = false
+        // Full-bleed: the chronicle owns the whole page. The taskbar closes like
+        // every other full-page destination (Downloads/Vault/Extensions/Settings)
+        // and still reveals on hover for session switching. The Update entry point
+        // is the home topbar glyph now — no launcher in the taskbar dock.
+        taskbar.open = false
         if (typeof Updates !== "undefined" && Updates.markSeen)
             Updates.markSeen()
     }
@@ -1109,7 +1120,8 @@ Window {
         if (!guideLayer.item) return
         guideLayer.item.originLabel = guideLayer.originLabel
         if (guideLayer.lessonId) guideLayer.item.openLesson(guideLayer.lessonId)
-        else if (guideLayer.sectionId) guideLayer.item.openSection(guideLayer.sectionId)
+        else if (guideLayer.sectionId && typeof guideLayer.item.openSection === "function")
+            guideLayer.item.openSection(guideLayer.sectionId)
     }
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
@@ -1874,6 +1886,12 @@ Window {
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: Qt.quit()
+        // Update glyph (home only, takes the retired search slot). Toggle mirrors
+        // the taskbar launcher: open when closed, close when already front.
+        updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
+        updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
+        reducedMotion: win.reducedMotion
+        onUpdateClicked: (guideLayer.active || !updateLayer.active) ? win.openUpdatePage() : win.closeUpdatePage()
     }
 
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
@@ -2412,6 +2430,7 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
@@ -3000,6 +3019,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.updates = typeof Updates !== "undefined" ? Updates : null
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.backRequested.connect(win.closeUpdatePage)
             item.guideActive = Qt.binding(function() { return guideLayer.active })   // yield its Escape while Guide floats above
             if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
@@ -3030,6 +3050,7 @@ Window {
         onLoaded: {
             item.closeRequested.connect(win.closeGuidePage)
             item.returnRequested.connect(win.closeGuidePage)
+            item.searchBackend = GuideSearch   // native C++ Living Guide search (spec 2026-08-15)
             win.applyGuideTarget()
         }
     }
@@ -3097,12 +3118,6 @@ Window {
         onSettingsClicked: (guideLayer.active || !settingsLayer.active) ? win.openSettingsPage() : win.closeSettingsPage()
         guideActive: guideLayer.active
         onGuideClicked: guideLayer.active ? win.closeGuidePage() : win.openGuidePage("", "", "")
-        updateActive: updateLayer.active && !guideLayer.active
-        updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
-        updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
-        updatePresentation: updateLayer.item ? updateLayer.item.taskbarPresentation : ({})
-        onUpdateClicked: (guideLayer.active || !updateLayer.active) ? win.openUpdatePage() : win.closeUpdatePage()
-        onUpdatePrimaryActionRequested: if (updateLayer.item) updateLayer.item.invokePrimaryAction()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
@@ -3225,7 +3240,6 @@ Window {
 
         function refresh() { model = (typeof LocalLaunch !== "undefined") ? LocalLaunch.recentItems() : [] }
         function toggle() { open = !open }
-
         onOpenChanged: { if (open) refresh(); opacity = open ? 1 : 0 }
         Component.onCompleted: refresh()
         Connections {
@@ -3256,6 +3270,7 @@ Window {
         onOpenRequested: (index, entry) => win.openNextToOpen(index)
         onRemoveRequested: (index, entry) => win.removeNextToOpen(index)
     }
+
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.
     VaultIdentityCeremonyDialog {
         id: identityCeremonyDialog
@@ -3263,6 +3278,7 @@ Window {
         z: 960
         onChoiceMade: (relationship, choice) => win.decidePendingIdentity(choice)
     }
+
     // A quiet, no-color status pill for local-open feedback: a categorized rejection, or the
     // folder-drop explain with a "Select Media Files…" action. Grays/white only (house rule).
     Rectangle {

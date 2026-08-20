@@ -55,6 +55,13 @@ Item {
     readonly property var serviceObject: sheet.service
         ? sheet.service
         : ((typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null)
+    // Same injection seam, for the extension gate (R1, 2026-08-21): a headless harness
+    // assigns a fake so the dark/enabled paths are testable without the real Extensions
+    // singleton; the app leaves this null and falls through to the context property.
+    property var extensionsRef: null
+    readonly property var extensionsObject: sheet.extensionsRef
+        ? sheet.extensionsRef
+        : ((typeof Extensions !== "undefined") ? Extensions : null)
 
     property Item backdrop: null
     property var context: ({})
@@ -68,6 +75,15 @@ Item {
     // Lanista bridge has no absence assertions, so a fact like "this route does
     // not exist" has to be asserted as a property, not inferred from a missing row.
     readonly property bool hasCompileFallback: false
+
+    // Extension gate (release gate R1, 2026-08-21, "nyaa ships dark"): mirrors
+    // Torrentio's own house-defaults treatment (native/engine/ExtensionsStore.cpp's
+    // "removableWell" rule — a non-core stream well is seeded enabled:false; the
+    // manga well "colosseum.well.nyaa" already gets that same treatment). A
+    // positive scalar the bridge can assert (the ledger has no absence assertions).
+    // Computed fresh every show() — never cached at construction — so an
+    // Extensions-page toggle is honored the next time this sheet opens, no restart.
+    property bool sourcesEnabled: false
 
     // ── live-pick state (approved mock: colosseum-tankoban-sources-live-download-mock.html,
     // 2026-08-16). A pick no longer hides the sheet: the picked row's gold button becomes
@@ -133,6 +149,10 @@ Item {
     }
 
     signal closed()
+    // Empty-state route (R1): this page never opens Extensions itself — it only
+    // asks, forwarded up the same way backRequested/minimizeRequested already are
+    // (MangaSeries.qml -> Main.qml -> win.openExtensionsPage()).
+    signal openExtensionsRequested()
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -161,11 +181,33 @@ Item {
         return "Sources"
     }
 
+    // True when the manga Nyaa well (native/engine/ExtensionsStore.cpp's
+    // "colosseum.well.nyaa" row) is installed AND enabled. Read fresh every call,
+    // never cached, so toggling it in Extensions and reopening this sheet sees the
+    // change immediately, with no app restart.
+    function _nyaaEnabled() {
+        var ext = sheet.extensionsObject
+        if (!ext) return false
+        var list = ext.installed() || []
+        for (var i = 0; i < list.length; i++)
+            if (list[i] && list[i].id === "colosseum.well.nyaa") return list[i].enabled === true
+        return false   // row missing entirely (should not happen post-seed) -- honest dark
+    }
+
     function show(contextObject) {
         context = contextObject
         rows = []
         loading = true; complete = false; failureText = ""
         open = true
+        // Extension gate (R1, 2026-08-21): nyaa ships dark on a fresh install. No
+        // auto-enable, no nag — a dark well means an honest empty state here, never
+        // a silent no-op; the "get"/"search" click that opened this sheet still
+        // opens it, every time.
+        sourcesEnabled = sheet._nyaaEnabled()
+        if (!sourcesEnabled) {
+            loading = false; complete = true
+            return
+        }
         var s = sheet.serviceObject
         if (!s) return
         // Series mode (Slice 4): no volumeId — a volume-agnostic search keyed by
@@ -611,6 +653,7 @@ Item {
         }
 
         Text {
+            id: emptyText
             anchors.centerIn: parent
             width: parent.width - 80
             horizontalAlignment: Text.AlignHCenter
@@ -619,12 +662,37 @@ Item {
             // sentence the reader sees, rather than reconstructing it from state.
             objectName: "tankobanSourcesEmptyText"
             visible: sheet.rows.length === 0
-            text: sheet.loading ? "Searching Nyaa releases…"
-                  : (sheet.failureText.length > 0
-                     ? ("Some sources didn’t answer — " + sheet.failureText)
-                     : "No releases matched this volume yet.")
+            text: !sheet.sourcesEnabled
+                  ? "No sources enabled — enable Nyaa in Extensions to search."
+                  : (sheet.loading ? "Searching Nyaa releases…"
+                     : (sheet.failureText.length > 0
+                        ? ("Some sources didn’t answer — " + sheet.failureText)
+                        : "No releases matched this volume yet."))
             color: sheet.failureText.length > 0 ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: 16
+        }
+        // The route to Extensions (R1): the ONLY way nyaa ever turns on — no
+        // auto-enable, no nag anywhere else on this page. A plain, truthful link,
+        // house style (gray/gold outline, no color pop, no tagline).
+        Rectangle {
+            objectName: "tankobanSourcesEnableRoute"
+            visible: sheet.rows.length === 0 && !sheet.sourcesEnabled
+            anchors.top: emptyText.bottom; anchors.topMargin: 18
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: enableLabel.implicitWidth + 32; height: 40; radius: 20
+            color: enableMa.containsMouse ? theme.glassHi : "transparent"
+            border.width: 1; border.color: theme.gold
+            Text {
+                id: enableLabel
+                anchors.centerIn: parent
+                text: "Open Extensions"
+                color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            }
+            MouseArea {
+                id: enableMa; anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: sheet.openExtensionsRequested()
+            }
         }
 
         ListView {

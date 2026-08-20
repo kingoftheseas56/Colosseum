@@ -129,17 +129,28 @@ $logPath = Join-Path $appDataRoot "logs/colosseum.log"
 if (!(Test-Path -LiteralPath $logPath)) {
     $failures += "colosseum.log not found at $logPath"
 } else {
+    # Two [tankoban-migration] lines are expected under the sealed/durable split
+    # (closing-sweep fix, 2026-08-21): run() is invoked once against the throwaway Sealed
+    # placeholder (disk purge only, marker withheld) and again once the real, durable
+    # store rebinds (marker written). The disk-purge facts (existed/deleted/series-dir
+    # count) land on whichever call actually found the tree present -- almost always the
+    # FIRST (sealed) call, since the disk purge is idempotent and the tree is already
+    # gone by the second call. The progress-purge fact lands only on the durable call.
+    # So these are checked as facts present SOMEWHERE in the log, not required on one
+    # single combined line.
     $logText = Get-Content -LiteralPath $logPath -Raw
-    if ($logText -notmatch "\[tankoban-migration\] chapter store purge complete") {
+    if ($logText -notmatch "\[tankoban-migration\] chapter (tree purge pass|store purge) complete") {
         $failures += "colosseum.log has no migration summary line"
     } elseif ($logText -notmatch "existed=yes deleted=yes") {
-        $failures += "migration summary line does not report existed=yes deleted=yes"
+        $failures += "migration log has no line reporting existed=yes deleted=yes"
     } elseif ($logText -notmatch "1 series dir\(s\)") {
-        $failures += "migration summary line does not report 1 series dir(s) purged"
+        $failures += "migration log has no line reporting 1 series dir(s) purged"
+    } elseif ($logText -notmatch "\[tankoban-migration\] chapter store purge complete") {
+        $failures += "migration log has no final marker-writing summary line"
     } elseif ($logText -notmatch "1 manga-kind progress record\(s\) purged") {
-        $failures += "migration summary line does not report 1 manga-kind progress record(s) purged"
+        $failures += "migration log has no line reporting 1 manga-kind progress record(s) purged"
     } else {
-        Write-Host "  colosseum.log summary line: present and matches the seeded fixture (1 series dir, 1 progress record)"
+        Write-Host "  colosseum.log summary lines: present and match the seeded fixture (1 series dir, 1 progress record, across the sealed+durable pass split)"
     }
 }
 

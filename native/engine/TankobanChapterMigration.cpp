@@ -58,11 +58,13 @@ TankobanChapterMigration::Result TankobanChapterMigration::run(const QString &ap
         // store's manga-kind records would purge a throwaway instance and burn the
         // marker before the real, durable store a later rebind swaps in is ever
         // reached. Withhold the marker; the caller retries once its rebind fires.
-        qInfo("[tankoban-migration] chapter tree purge pass complete (existed=%s deleted=%s); "
-              "progress store not yet durable (Sealed/pre-onboarding) — marker withheld, "
-              "will retry once a real profile activates",
+        qInfo("[tankoban-migration] chapter tree purge pass complete: manga/ existed=%s deleted=%s, "
+              "%d series dir(s), index.json=%s; progress store not yet durable "
+              "(Sealed/pre-onboarding) — marker withheld, will retry once a real profile activates",
               out.mangaDirExisted ? "yes" : "no",
-              out.mangaDirDeleted ? "yes" : "n/a");
+              out.mangaDirDeleted ? "yes" : "n/a",
+              out.chapterDirsDeleted,
+              out.indexDeleted ? "removed" : "absent");
         return out;
     }
 
