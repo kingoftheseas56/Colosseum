@@ -21,6 +21,20 @@ The workers.dev URL it prints is the release endpoint. Configure the app with:
 COLOSSEUM_WATCH_PARTY_URL=wss://<worker>.workers.dev
 ```
 
+**Deployed 2026-08-20** (Hemanth's account, pinned in wrangler.toml; version
+`7abaf8b1-420c-4689-a954-2442eb5d78bf`):
+
+```
+COLOSSEUM_WATCH_PARTY_URL=wss://colosseum-watchparty-relay.colosseum-watchparty-relay.workers.dev
+```
+
+Live checks performed at deploy: `probe-handshake.mjs` 3/3 against the deployed URL
+(upgrade 101 with header 3, 426 without/with wrong header); strict envelope validation
+answered a malformed frame with a typed `invalid_message`; a bearer-carrying `createRoom`
+refused `unauthenticated` — proving `RELAY_DEV_AUTH` is off and dev tokens are dead in
+production. Note: a freshly created workers.dev subdomain needs a few minutes for
+DNS/certificates (first probes read HTTP 000 — retry, don't diagnose).
+
 Unset, the app ships fail-closed: the Join sheet states the service is not configured and
 nothing else changes — verified in acceptance (Slice 6 leg S, solo journey 33/33 with the
 feature dormant).

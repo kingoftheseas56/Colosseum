@@ -1,6 +1,9 @@
 name = "colosseum-watchparty-relay"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
+# Hemanth's personal account (ruled 2026-08-20; "Helpful Ankle" is an auto-generated
+# account he never set up). Pinned so non-interactive deploys never prompt.
+account_id = "69049ce787cd73028c878bf0953946f6"
 
 [[durable_objects.bindings]]
 name = "ROOMS"
@@ -8,7 +11,10 @@ class_name = "RoomDO"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["RoomDO"]
+# SQLite-backed DO class: required for Durable Objects on the Workers Free plan,
+# and the storage API our RoomDO uses is identical. Never deployed under
+# new_classes, so editing v1 in place is safe (no live migration history).
+new_sqlite_classes = ["RoomDO"]
 
 # Fail-closed identity (plan "Standing constraints"): the dev bearer
 # validator is OFF by default. A deployed configuration must keep
@@ -17,4 +23,6 @@ new_classes = ["RoomDO"]
 # `wrangler dev` inherits these same defaults unless overridden.
 [vars]
 RELAY_DEV_AUTH = "0"
-RELAY_DEV_BEARERS = "{\"dev-token-host\":\"agent4-host\",\"dev-token-guest-signed-in\":\"agent4-second\"}"
+# RELAY_DEV_BEARERS deliberately absent from deployed vars: local probes supply
+# it via `wrangler dev --var` / .dev.vars (see README). With RELAY_DEV_AUTH off,
+# no validator is configured and signed-in connects are refused fail-closed.
