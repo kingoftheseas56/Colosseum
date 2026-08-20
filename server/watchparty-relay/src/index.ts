@@ -4,9 +4,9 @@
 // relay running locally. No room logic yet — see docs/superpowers/plans/
 // 2026-08-20-watch-party-relay-plan.md Slice 1.
 
-export interface Env {
-  ROOMS: DurableObjectNamespace;
-}
+import type { Env } from "./auth";
+
+export type { Env } from "./auth";
 
 const PROTOCOL_HEADER = "X-Colosseum-Watch-Party-Protocol";
 const REQUIRED_PROTOCOL_VERSION = "3";

@@ -160,10 +160,75 @@ above and needs no environment variable.
 - `wrangler dev` process (PIDs 3820, 12680 — the wrangler CLI + its workerd child) killed by exact
   PID after the probe run; command-line-verified no `wrangler` process remained.
 
+## Slice 3 — room lifecycle (2026-08-20)
+
+`RoomDO` now owns real room state: `createRoom` (signed-in only), `joinRoom` (signed-in + guest,
+capacity 12), `reconnectRoom` (token validate + rotate), `leaveRoom`, `endRoom` (host-only, full
+ephemeral erasure). A new `src/auth.ts` seam (`validateBearer`) resolves the `Authorization: Bearer`
+header at WebSocket-upgrade time; fail-closed by default (`RELAY_DEV_AUTH` unset/not `"1"` refuses
+every signed-in attempt with `unauthenticated`, matching the plan's "Standing constraints"). Every
+session-scoped command binds to the connection's own participant — a client-asserted `senderId` that
+disagrees with that binding is refused `not_authorized`, never trusted on its own.
+
+**Architecture discrepancy, recorded and resolved:** the plan's header describes "Durable Object per
+room". The frozen client (`WatchPartyUiController::configureServiceUrl`) only ever opens one static
+service URL and sends `createRoom`/`joinRoom` *after* the socket is already connected — it never
+learns a room-specific URL before connecting. There is therefore no signal `src/index.ts` could route
+on to pick a per-room DO before the room exists. This slice keeps Slice 1/2's single fixed DO instance
+(`env.ROOMS.idFromName("slice1-spike-room")`, `index.ts` unchanged) and has that one instance hold a
+room *registry* (`Map<roomId, Room>`). Every room is still exclusively Durable-Object-owned, ephemeral,
+in-memory state — only the one-DO-per-room shard granularity is deferred to a future deployment slice
+(would need either a client change, frozen for this plan, or a lobby-hop redirect scheme).
+
+**roomId format:** `WP-XXXX-XXXX` (8 random chars from a 32-symbol alphabet with ambiguous characters
+`0/O/1/I` excluded, drawn via `crypto.getRandomValues`). Oracle: the client treats `roomId` as an
+opaque string with no format validation beyond `WatchPartyUiController::trimmedRoomId`'s 128-character
+single-line cap (`native/watchparty/WatchPartyUiController.cpp`) — any short human-typeable token
+satisfies it. The `WP-XXXX-XXXX` shape mirrors the plan's own illustrative join-sheet placeholder
+while staying inside a text field meant for a person to read aloud or type.
+
+**Host-leave rule (oracle-derived, not invented):** `WatchPartyRoomController::leave()`
+(`native/watchparty/WatchPartyRoomController.cpp`) refuses `HostMustEndRoom` when the host tries to
+leave while other participants remain. This relay ports that exact rule (`not_authorized` refusal) —
+without it, a host leaving a non-empty room would violate `roomSnapshot`'s "exactly one host" invariant
+with no grace/transfer machinery yet to repair it (that's Slice 4). A lone host leaving still destroys
+the room via the normal "everyone left" ephemeral-erasure path.
+
+**Slice 4 message types** (`timelineCommand`, `setControlMode`, `participantState`,
+`removeParticipant`, `chat`, `reaction`) are syntactically accepted by `protocol.ts` but not yet
+processed here; they get a typed `invalid_message` refusal (the contract's closed error-code
+vocabulary has no dedicated "not implemented yet" code) rather than a silent drop.
+
+### Slice 3 evidence (2026-08-20)
+
+- `npm test`: 56/56 green (38 protocol-conformance cases from Slice 2, unchanged, + 18 new
+  `test/room-lifecycle.test.ts` cases covering create/join/reconnect/leave/end, capacity, identity
+  binding, and the Slice-4 typed-refusal path).
+- Flip-one-guard drill (a) — capacity: changed the 12-participant cap check from `>=` to `>` in
+  `handleJoinRoom`; rerun went to 55/56, exactly `13th join attempt (capacity 12) is refused
+  room_full, typed` red (plus expected client-side `uncaught exception` noise from the test's own
+  `parseMessage` self-check rejecting the resulting 13-row snapshot as non-conformant — not a second
+  silently-broken case); reverted, rerun back to 56/56.
+- Flip-one-guard drill (b) — reconnect token rotation: commented out the `reconnectToken =
+  generateReconnectToken()` line in `handleReconnectRoom`; rerun went to 54/56, exactly the two
+  token-rotation cases red (`valid token restores the same participant identity and rotates the
+  token` and `a reused, rotated-away reconnect token is refused unauthenticated` — both guarded by
+  the same line, both went red, nothing else moved); reverted, rerun back to 56/56.
+- `node test/probe-handshake.mjs` against a live `wrangler dev --local-protocol https`: `PROBE_OK`
+  on all three cases. The "with-header-3" case was updated for Slice 3's real per-type dispatch: it
+  used to send an arbitrary bogus `type: "probe"` frame and rely on Slice 1/2's blanket
+  echo-scaffold (which replied `protocol_version_mismatch` to literally any frame, since no room
+  logic existed yet); that blanket behavior is gone by design now that real dispatch exists — an
+  unrecognized type correctly gets a non-terminal `invalid_message` reply and the socket stays open.
+  The probe now sends a `version: 2` frame instead, which is still genuinely supposed to be terminal
+  per the contract ("protocol/version mismatch is terminal for that connection") — `PROBE_OK
+  case=with-header-3 upgrade=101 closeCode=1000 errorCode=protocol_version_mismatch`.
+- `wrangler dev` process (cmd.exe host PID 9444, its two `node.exe` children, two `workerd.exe`
+  children) killed by exact PID after the probe run; command-line-verified no `wrangler`/`workerd`
+  process remained.
+
 ## Scope note
 
-This slice (2) adds the protocol core and conformance suite only. No `createRoom`/`joinRoom`/
-lifecycle/authority room logic exists yet — that is Slices 3–4 of the plan. `RoomDO` still has no
-per-room state; it remains the Slice 1 echo scaffold, now speaking through `protocol.ts`. Do not
-build room features on top of this DO without reading `src/protocol.ts`'s exported builders and
-validation first — they are the seam Slice 3 extends.
+Timeline authority, control mode, presence/moderation, host-loss grace and deterministic transfer,
+and chat/reactions are Slice 4. `src/room-do.ts`'s `SLICE_4_MESSAGE_TYPES` set and its typed-refusal
+path are the seam that slice extends — read it before adding a new handler.

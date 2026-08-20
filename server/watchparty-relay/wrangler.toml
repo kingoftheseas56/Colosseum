@@ -9,3 +9,12 @@ class_name = "RoomDO"
 [[migrations]]
 tag = "v1"
 new_classes = ["RoomDO"]
+
+# Fail-closed identity (plan "Standing constraints"): the dev bearer
+# validator is OFF by default. A deployed configuration must keep
+# RELAY_DEV_AUTH "0" (or unset) — see src/auth.ts. Tests that exercise the
+# dev-auth path flip env.RELAY_DEV_AUTH to "1" at runtime and restore it;
+# `wrangler dev` inherits these same defaults unless overridden.
+[vars]
+RELAY_DEV_AUTH = "0"
+RELAY_DEV_BEARERS = "{\"dev-token-host\":\"agent4-host\",\"dev-token-guest-signed-in\":\"agent4-second\"}"

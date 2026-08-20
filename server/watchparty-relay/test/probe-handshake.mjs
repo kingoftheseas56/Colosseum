@@ -1,9 +1,20 @@
-// Node probe for the Slice 1 transport spike.
+// Node probe for the Slice 1 transport spike (still exercised as a
+// regression check by later slices — see docs/superpowers/plans/
+// 2026-08-20-watch-party-relay-plan.md Slice 3+).
 // Connects to the relay over wss:// (or ws:// if RELAY_URL says so), sends
 // the protocol header, and asserts:
-//   1. WITH header "3": upgrade succeeds, and any text frame sent gets back
-//      a valid protocol-v3 `error` envelope (code protocol_version_mismatch)
-//      before the socket closes 1000.
+//   1. WITH header "3": upgrade succeeds, and a frame carrying a
+//      wire-level `version: 2` gets back a valid protocol-v3 `error`
+//      envelope (code protocol_version_mismatch) before the socket closes
+//      1000 — this is the one case protocol.ts treats as connection-
+//      terminal (SERVER-PROTOCOL-CONTRACT.md "protocol/version mismatch is
+//      terminal for that connection"). Slice 1/2's scaffold used to echo
+//      this same code for ANY frame (no room logic existed yet); Slice 3's
+//      real per-type dispatch made that blanket behavior go away, so this
+//      probe now sends the one frame shape that is still genuinely
+//      supposed to close the socket, instead of an arbitrary bogus
+//      `type: "probe"` frame (which now correctly gets a non-terminal
+//      `invalid_message` reply and stays connected).
 //   2. WITHOUT the header (or with a wrong version "2"): the upgrade itself
 //      is refused (HTTP 426, never reaches websocket open).
 //
@@ -48,8 +59,8 @@ function connect(headerValue) {
       if (headerValue === "3") {
         ws.send(
           JSON.stringify({
-            version: 3,
-            type: "probe",
+            version: 2,
+            type: "createRoom",
             roomId: "",
             senderId: "",
             sequence: 1,
