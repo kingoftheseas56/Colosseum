@@ -35,6 +35,14 @@ Item {
     property bool timedOut: false
     property var rows: []
     property var askedNames: []     // the extensions this ask went out to, ask-order
+    // Automation surface (additive, no behavior change): the plain per-pipe
+    // Lanista CLI cannot express a JSON array through qml-get, so a length
+    // check on askedNames needs a scalar mirror to be equality-probeable.
+    // askedCount==0 after loading settles means the ask never actually went
+    // out (e.g. an enablement step upstream silently failed) - a drive can
+    // assert this BEFORE waiting for rows, instead of only ever seeing an
+    // indistinguishable rows-timeout.
+    readonly property int askedCount: askedNames.length
     property int gen: 0
     property string qualityFilter: "all"
     // Extension picker (2026-08-07, Hemanth's call after the NoTorrent burial): rows sort by ask
@@ -486,6 +494,15 @@ Item {
                 // own infoHash, cheapest identity a watch-party acceptance can read via qml-get
                 // without depending on UI text formatting. Empty for non-torrent (Direct/HTTP) rows.
                 readonly property string automationInfoHash: row.modelData && row.modelData.infoHash ? row.modelData.infoHash : ""
+                // Automation surface (additive, no behavior change): the row's
+                // own seeder count, so a drive can pick a well-seeded row
+                // without depending on parsing the rendered meta-line text.
+                // -1 (not >= 0) when the field is absent (e.g. non-torrent rows).
+                readonly property int automationSeeders: row.modelData && row.modelData.seeders !== undefined ? row.modelData.seeders : -1
+                // Automation surface (additive, no behavior change): the row's
+                // quality tag (e.g. "1080p"/"2160p"), a same-pattern size proxy
+                // when no raw byte count is available on the model.
+                readonly property string automationQuality: row.modelData && row.modelData.quality ? row.modelData.quality : ""
                 property string streamKind: row.modelData.streamKind || "Torrent"
                 property string providerName: row.modelData.addonName || row.modelData.sourceName || ""
                 // Today every shown row is ready; slice 5 drives HTTP rows "checking" → "confirmed".

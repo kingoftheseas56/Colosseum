@@ -432,6 +432,10 @@ Item {
 
                                 Rectangle {
                                     objectName: "extensionSourceToggle_" + String(row.modelData ? row.modelData.id : row.index)
+                                    // Automation surface (additive, no behavior change): a
+                                    // click-assertable mirror of row.isOn, matching the same
+                                    // amendment on ExtensionsPage.qml's extensionToggle_.
+                                    readonly property bool checked: row.isOn
                                     width: 40; height: 22; radius: 11
                                     anchors.verticalCenter: parent.verticalCenter
                                     color: row.isOn ? Qt.rgba(0.94, 0.77, 0.29, 0.85)

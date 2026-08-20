@@ -1072,6 +1072,11 @@ Item {
                                             // the on/off switch: gold when carrying
                                             Rectangle {
                                                 objectName: "extensionToggle_" + String(irow.modelData ? irow.modelData.id : irow.index)
+                                                // Automation surface (additive, no behavior change): a
+                                                // click-assertable mirror of irow.isOn, so a drive can
+                                                // confirm the toggle actually landed instead of trusting
+                                                // a bare ui-click reply.
+                                                readonly property bool checked: irow.isOn
                                                 width: 40; height: 22; radius: 11
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 color: irow.isOn ? Qt.rgba(0.94, 0.77, 0.29, 0.85)
