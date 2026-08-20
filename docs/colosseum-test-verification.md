@@ -424,6 +424,58 @@ half the compiled harnesses are run by nobody.
   click routing ("get" opens the picker for volume 1 via the pre-existing `chooseSource`)
   needed no change — Slice 3 already wired it correctly; ground-truthed, not assumed.
 
+## Tankoban catalogue-independence Slice 6 gate (AMENDED, 2026-08-20) — Discover-as-browse depth
+
+- **Amendment context.** The original Slice 6 named a dedicated `MangaCatalogPage.qml`/
+  `MalCatalog::topManga` "wall" that a prior executor proved never existed (Plan
+  contradicted). Hemanth's ruling: Discover IS the browse surface for the 10k catalogue
+  (Option A); a dedicated wall page is deferred. This amended slice is verification-first:
+  ground-truth `MalCatalog::discoverPage`'s deep-offset paging, prove a deep-rank Discover
+  card click still lands the Slice-2 masthead, prove a series absent from
+  `tankoban_catalog.db`'s 10k band renders the honest shelf-less page. No new UI/C++ unless
+  a paging defect was proven — none was; every change this slice is test-fixture-only.
+- `tests/mal_catalog_discover_harness.cpp` — extended with a "deep offset paging" block
+  proving `MalCatalog::discoverPage("popular", ...)` pages correctly well past offset 2000,
+  not just the pre-existing offset-0/3 cases. A NEW 2600-row "deep-fill" fixture block
+  (`mal_id` 5001-7600, `members` 20000-i for i=1..2600, `start_date` "2000-01-01" —
+  deliberately OLDER than every other fixture row so it never intrudes into the existing
+  "new-releases" assertions) sits strictly between the named rows (4000-600000 members) and
+  the pre-existing 120-row filler block (101-220 members) in popular order, giving the new
+  cases a closed-form expected mal_id/members at any offset instead of a guessed value.
+  Total fixture size 2728 rows (8 named + 2600 deep-fill + 120 old-filler). New cases: (1)
+  a page at offset 2400 (well past 2000) returns exactly the predicted 5 rows
+  (mal_id 7396-7400), strictly members-descending — proves both row IDENTITY and the ORDER
+  BY clause itself hold that deep, not just a row count; (2) the `[1,100]` limit clamp is
+  still honored at a deep offset (`limit=99999` at `offset=2400` still returns exactly 100,
+  `exhausted=false`); (3) `exhausted` flips true ONLY at the fixture's true end (offset
+  2723, 5 rows short of 2728, returns exactly 5 + `exhausted=true` + `nextOffset==2728`),
+  stays false one page earlier with 10+ rows still behind it, and an offset past the true
+  end returns empty + `exhausted=true` with no crash. Negative control performed live: the
+  deep-page case's expected `mal_id` deliberately offset by +1 → rebuilt → exactly
+  `FAIL: deep page row carries the exact expected mal_id (ORDER BY holds past offset 2000)`
+  reds → restored → rebuilt → green (`MAL_CATALOG_DISCOVER_OK`). Run directly (not
+  CTest-registered, same as before): `native/build-msvc/mal_catalog_discover_harness.exe`;
+  already wired into `tests/test_tankoban_discover.ps1` (child 7) unchanged. Full
+  `ctest --test-dir native/build-msvc -L unit --output-on-failure` gate: **70/70 green**
+  (unchanged from the Slice 3/4 baseline — this slice touches no CTest-registered target).
+- **Runtime layer: partially Runtime-validated, honestly split.** See the Lanista ledger's
+  own Slice 6 entry for the full account. Summary: a genuinely new, working scroll
+  technique was found live (page-level scroll on a stable always-visible item to clear a
+  featured-banner dead zone, then handing off to a materialized delegate's own objectName)
+  that reaches rank 1-18 (3 materialized rows) reliably and reproducibly, both by hand and
+  scripted — a real improvement over the Slice-2-documented "ZERO measurable movement." The
+  deep-rank card CLICK (materialized delegate → masthead) was proven live by hand (Naruto,
+  malId 11, session 20260820-202607-0ade0c74) but did NOT reproduce in 2/2 scripted
+  attempts even with settle reads and a belt-and-braces re-click — a script-only automation
+  gap, not a masthead/identity defect (the identical click mechanism Slice 4 already proved
+  Runtime-validated via the static "Top in Tankoban" rail). The committed
+  `tests/lanista_scenarios/tankoban_discover_depth.json` therefore stops at the
+  materialization proof (18/18 green, 3 scripted runs) rather than ship an unreliable click
+  step as if it were a proven gate. The plan's own pinned deep-rank series (Hal, malId
+  49611, live rank ~3000) was not reached this slice; a bridge-addressable load-more/
+  index-jump seam on the wall (or the click-resolution gap's root cause) is owed to a
+  future slice or Slice 7's eyes-on list.
+
 ## House assertion idioms (no framework)
 
 - **require idiom:** `require()` prints `FAIL: <msg>`, `exit(1)`; one `*_OK` on success.

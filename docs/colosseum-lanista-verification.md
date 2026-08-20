@@ -1114,6 +1114,108 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
   entry, both honestly, both now superseded by a full live run reaching every scalar both
   slices only proved by source reading or partial replay).
 
+## Tankoban catalogue-independence Slice 6 (AMENDED, 2026-08-20) — the Discover wall's real
+## scroll technique, a script-only click gap, and a window-minimize flake fully characterized
+
+- **The Slice-2-documented "ZERO measurable movement" is SOLVED — but not the way it looks
+  at first.** Ground-truthed live across three isolated sessions (tags `tk6`, `tk6b`,
+  `tk6c`) that `ui-scroll` targeting a Discover delegate card DIRECTLY (e.g.
+  `mangaDiscoverCard_2`) at REST produces no click-usable result, but for a subtler reason
+  than "the WheelHandler never receives the event": at 1280x720, `TankobanDiscoverPage`'s
+  own wall sits almost entirely BELOW the fold at rest — the "Featured in Tankoban" banner
+  + tab bar + filter row already consume nearly the whole 720px viewport, so even RANK-1's
+  card (materialized, `visible:true`) reports a scene-space click center around y=879,
+  outside the window's own 0-720 range. `visible:true` on a GridView delegate means "not
+  culled by virtualization," NOT "on-screen" — the two are easy to conflate and this slice
+  did, at first. **The working technique, found live:** `ui-scroll` targeting a STABLE,
+  ALWAYS-VISIBLE item (`tankobanTabBar`, not a delegate) with a moderate `dy` first moves
+  the PAGE-level container down, clearing the banner dead zone; ONE such scroll is enough
+  (repeat calls on the same stable target stop producing movement once it scrolls outside
+  the wall's own bounds — expected, not a bug). Once the wall itself is on-screen, handing
+  off further `ui-scroll` calls to a currently-MATERIALIZED delegate's own objectName
+  (`mangaDiscoverCard_<malId>`) DOES move real content, monotonically, confirmed via
+  `qml-get` on the GridView's own ephemeral snapshot handle (`contentY`/`contentHeight`
+  tracked frame-to-frame) as well as visually (whole-window grabs matching the live
+  `data/mal_catalog.db` popular-order malIds exactly: rank1 Berserk id2, rank11 Naruto
+  id11, rank18 Spy x Family id119161). Reach achieved and reproduced 3× scripted
+  (`tests/lanista_scenarios/tankoban_discover_depth.json`, sessions `20260820-203921-
+  1bba75ed`/`20260820-204140-d87b4944`/`20260820-204605-ebe6608d`, the last one committed
+  as the clean evidence run): rank 1-18 (3 materialized rows), after which further scrolls
+  by the identical technique stop producing additional movement or additional
+  `requestPage()` growth in the same session — a genuine, now-precisely-named automation-
+  reach ceiling (not root-caused this slice: candidates are the GridView's plain-integer
+  `model:` binding resetting scroll on every page-load-driven count change, or the
+  ScrollGlide `FrameAnimation` simply running out of queued backlog with no further trigger
+  — a future slice should instrument `browser.loading`/`exhausted` through a bridge-
+  addressable scalar before guessing further).
+- **A genuinely reproduced window-minimize flake, now more precisely characterized than the
+  Slice-2 diagnosis's "once left the window itself minimized mid-sequence."** Two earlier
+  isolated attempts this slice (tag `tk6`, session `20260820-201428-0bcae05f`: `ui-keypress
+  End`/`PageDown` sent to the window after a tab round-trip; tag `tk6b`, session
+  `20260820-202230-e5ac8b98`: the FIRST `ui-scroll` call of the session, against a delegate
+  card, before any page-level scroll had cleared the banner) both left `get-state`/`grab`
+  reporting the session's own root window `state:"minimized", active:false` — confirmed via
+  a bare `grab target=window` returning a blank white capture. Both times this happened
+  BEFORE any successful content movement was observed, and a third session (`tk6c`) that
+  used the two-stage scroll technique from a healthy baseline (confirmed `state:"normal"`
+  before driving anything) never reproduced it across ~20 subsequent scroll/click actions —
+  suggesting the minimize correlates with driving `ui-scroll`/`ui-keypress` against a
+  delegate whose on-screen position is invalid (below the fold) rather than being a random
+  flake, though this is a correlation observed across 3 sessions, not a proven mechanism.
+  No `window-set-state` capability is exposed through the `mcp__lanista__*` session-adapter
+  tools available to this executor (only `session_start`/`act`/`get`/`wait_for`/`grab`/
+  `snapshot`/`warnings`/`session_stop`/`vault_forensics`/`lanista_call`, the last scoped to
+  the DAILY pipe only per its own tool description) — once minimized, this executor's only
+  recovery was `session_stop` + a fresh `session_start`, not an in-session restore. A future
+  slice should either expose `window-set-state` through the session adapter or root-cause
+  why an off-screen-target scroll/keypress correlates with a real OS-level minimize.
+- **A NEW script-only automation gap: the deep-rank card CLICK does not reproduce in a
+  scripted `session run`, despite being proven live by hand.** Hand-driven (tag `tk6c`,
+  session `20260820-202607-0ade0c74`): after reaching rank 11 (Naruto, malId 11) by the
+  two-stage scroll technique above, `ui-click target=mangaDiscoverCard_11` navigated
+  cleanly and `tankobanSeriesMasthead` resolved correctly (`ready:true`,
+  `displayTitle:"Naruto"`, `resolvedMalId:"11"`, `hasShelf:true`, `primaryAction:"get"`),
+  whole-window grab confirms a fully-rendered series page with real BookWalker covers on
+  volumes 1-7. The IDENTICAL scroll-then-click sequence, scripted via `lanista session run`
+  (sessions `20260820-203921-1bba75ed` and `20260820-204140-d87b4944`), failed 2/2 times —
+  the masthead never became ready and the post-failure grab shows the app STILL on the
+  Discover wall, meaning the click did not navigate at all. Adding settle reads (3× extra
+  `qml-get` round trips before the click, to rule out an animation-still-draining race) and
+  a belt-and-braces re-click (`ui-click` a second time on the same target — safe, since
+  `ui-click` carries no `expect` and can never manufacture a false PASS) did NOT fix it
+  (session `20260820-204302-0552eaed`, still failed identically). Root cause not
+  identified this slice — candidate hypotheses (not verified): a DFS-first objectName
+  resolution race against a delegate that JUST finished recycling into that name (the
+  binding for `objectName` on `CataloguePosterCard` recomputes from `card.item.id`, which
+  could theoretically lag one frame behind a fast-scrolled recycle), or a scenario-runner
+  timing difference from interactive driving that this executor did not instrument
+  further. Because it could not be made to reproduce reliably, the committed
+  `tests/lanista_scenarios/tankoban_discover_depth.json` deliberately STOPS at the
+  materialization proof (rank 1-18 reached, whole-window exhibit grabbed) and does NOT
+  include the click/masthead steps — shipping an unreliable step as a "gate" would
+  misrepresent it, per the same honesty standard Slice 2/3's own partial scenarios set.
+  The click-to-masthead path itself remains Runtime-validated (by the hand-driven session
+  above, plus Slice 4's own independent proof via the "Top in Tankoban" rail) — only the
+  SCRIPTED reproduction of reaching it via deep Discover scroll is the open gap.
+- **Ground-truthed pinned series for a future attempt (real db lookups, 2026-08-20):** Hal
+  (malId 49611) sits at live popular-order rank 3000 (offset 2999), `tankoban_catalog.db`
+  carries `volume_count=1, count_basis=mal` — the plan's originally-requested "inside the
+  10k band, rank 2500-5000" fixture, NOT reached through the bridge this slice (scroll
+  depth capped at rank 18, four orders of magnitude short). Baby Princess (malId 8676) sits
+  at live popular-order rank 15000, ABSENT from `tankoban_catalog.db`'s `series` table
+  entirely (0 rows for that malId, confirmed by direct query) — the plan's "absent from the
+  10k band" fixture; also not reached. No search-to-series bridge route exists to reach
+  either without scroll depth (`qml/TankobanWorld.qml`/`qml/Main.qml` grep found no global
+  search-to-series signal path this slice), so both remain candidates for Slice 7's
+  eyes-on list or a future slice's bridge-addressable jump seam, not silently dropped.
+- Warning gate: `WARNING_GATE_OK` on the committed scenario's own clean session
+  (`20260820-204605-ebe6608d`). The two earlier isolated diagnostic sessions this slice
+  (tags `tk6`/`tk6b`, not committed as scenarios) surfaced the SAME pre-documented
+  `TypeError: Cannot read property 'revision' of null` / `Cannot call method 'recent'/
+  'items' of null` cluster Slice 4's own ledger entry already named (foreign, not
+  triaged again here per the task's own instruction) plus the routine `QIODevice::read
+  (QSslSocket): device not open` teardown line.
+
 ---
 
 ## Status vocabulary (for plans and reports)

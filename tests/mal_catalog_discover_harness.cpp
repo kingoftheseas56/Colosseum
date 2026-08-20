@@ -173,6 +173,27 @@ int main(int argc, char** argv)
             insertClass("genre", "Filler", 1000 + i);
         }
 
+        // 2600 deep-fill rows (Slice 6, catalogue-independence, 2026-08-20) so
+        // discoverPage's offset paging is provable past offset 2000 -- the amended
+        // slice's own ask, since the app's Discover wall itself proved bridge-limited
+        // to shallow ranks this slice (see docs/colosseum-lanista-verification.md).
+        // mal_id/members ranges are disjoint from every row above and below: named
+        // rows sit at 4000-600000 members, the pre-existing 120-filler block sits at
+        // 101-220, so 17400-19999 (mal_id 5001-7600) slots strictly between them in
+        // the popular ORDER BY (members DESC, score DESC, mal_id ASC) without
+        // disturbing a single existing assertion in this file. members = 20000-i
+        // makes each row's popular-order RANK a closed-form function of i, which the
+        // deep-offset cases below compute directly rather than hardcoding guesses.
+        // start_date is 2000-01-01 -- OLDER than every other row in the fixture
+        // (the oldest named row, Established, is 2009-01-01; the old filler block
+        // is 2005-01-01) so this block never intrudes into the "new-releases"
+        // catalogue's top-100 window and cannot disturb its existing assertions.
+        for (int i = 1; i <= 2600; ++i) {
+            insertManga(5000 + i, QStringLiteral("Deep Filler ") + QString::number(i), "Manga",
+                        QVariant(6.5), 500, 20000 - i, "2000-01-01", 0, 0, "[\"DeepFiller\"]");
+            insertClass("genre", "DeepFiller", 5000 + i);
+        }
+
         // classification_count mirrors the per-row classification totals (bake fills it
         // over the whole loaded set; the fixture states it directly).
         auto insertCount = [&](const QString& axis, const QString& value, int total) {
@@ -281,6 +302,87 @@ int main(int argc, char** argv)
         require(p0.size() == 3 && p1.size() == 3, "both offset pages fill");
         for (int id : idsOf(p0))
             require(!containsId(p1, id), "offset paging produces no overlap");
+    }
+
+    // ── deep offset paging (Slice 6, catalogue-independence, 2026-08-20): proves
+    //    discoverPage pages cleanly past offset 2000, stays correctly ORDER-BY'd
+    //    that deep, and exhausted only flips true at the fixture's TRUE end ──────
+    {
+        // Fixture population, precisely: 5 named rows outrank the whole deep-fill
+        // block (Berserk 600000, SoloLeveling 500000, Established 400000,
+        // ExplicitTitle 200000, Newest 50000 -- all >= 50000 members, vs. the
+        // deep-fill block's 17400-19999), so the block occupies POPULAR-order
+        // 0-indexed offsets 5..2604 (2600 rows), deep-fill row i (1..2600) sitting
+        // at offset = i + 4. Three named rows (FutureBook 10000, BadDate 8000,
+        // LowVoteNine9 4000) and the pre-existing 120-row filler (members 101-220)
+        // outrank nothing in the deep-fill block and sit after it: offsets
+        // 2605, 2606, 2607, then 2608..2727 (120 rows). Total fixture size 2728
+        // (8 named + 2600 deep-fill + 120 old-filler), last valid offset 2727.
+        constexpr int kDeepFillFirstOffset = 5;      // i=1 -> offset 5
+        constexpr int kFixtureTotal = 8 + 2600 + 120; // 2728
+
+        // A page deep inside the block (offset 2400, well past the 2000 mark):
+        // items must be exactly i=2396..2400 (mal_id 7396..7400), strictly
+        // members-descending, none of them wrapping to a different named/filler row.
+        {
+            const int offset = 2400;
+            const QVariantMap page = cat.discoverPage("popular", "", "", true, offset, 5);
+            const QVariantList items = page.value("items").toList();
+            require(items.size() == 5, "a deep page (offset 2400) still fills to the limit");
+            const int firstI = offset - kDeepFillFirstOffset + 1;   // 2396
+            for (int k = 0; k < items.size(); ++k) {
+                const QVariantMap row = items.at(k).toMap();
+                const int expectI = firstI + k;
+                const int expectMalId = 5000 + expectI;
+                const int expectMembers = 20000 - expectI;
+                require(row.value("mal_id").toInt() == expectMalId,
+                        "deep page row carries the exact expected mal_id (ORDER BY holds past offset 2000)");
+                require(row.value("members").toInt() == expectMembers,
+                        "deep page row carries the exact expected members (ordering value itself, not just id)");
+            }
+            // strictly descending across the returned page -- the ORDER BY clause
+            // itself, not just this fixture's closed-form id/member relationship.
+            for (int k = 1; k < items.size(); ++k)
+                require(items.at(k - 1).toMap().value("members").toInt()
+                            > items.at(k).toMap().value("members").toInt(),
+                        "deep page stays strictly members-descending");
+            require(page.value("nextOffset").toInt() == offset + 5, "deep page nextOffset = offset + rows");
+            require(page.value("exhausted").toBool() == false, "a full deep page mid-fixture is not exhausted");
+        }
+
+        // limit is clamp-honored at a deep offset too (not just at offset 0).
+        {
+            const QVariantMap page = cat.discoverPage("popular", "", "", true, 2400, 99999);
+            require(page.value("items").toList().size() == 100,
+                    "limit still clamps to 100 at a deep offset");
+            require(page.value("exhausted").toBool() == false,
+                    "a clamped 100-row page with more rows behind it is not exhausted");
+        }
+
+        // exhausted flips true ONLY at the true end of the fixture, not early.
+        {
+            // 5 rows short of the true end: returns exactly 5, exhausted true.
+            const int nearEndOffset = kFixtureTotal - 5;   // 2723
+            const QVariantMap end = cat.discoverPage("popular", "", "", true, nearEndOffset, 10);
+            require(end.value("items").toList().size() == 5,
+                    "the true-end page returns only the rows that actually remain");
+            require(end.value("exhausted").toBool() == true,
+                    "exhausted flips true exactly at the fixture's true end");
+            require(end.value("nextOffset").toInt() == kFixtureTotal,
+                    "true-end nextOffset lands exactly on the fixture's total row count");
+
+            // one page short of the true end (still 10+ rows remaining): NOT exhausted.
+            const QVariantMap notYet = cat.discoverPage("popular", "", "", true, nearEndOffset - 20, 10);
+            require(notYet.value("items").toList().size() == 10,
+                    "a page with rows still behind it fills completely");
+            require(notYet.value("exhausted").toBool() == false,
+                    "exhausted stays false while rows remain past the fixture's true end");
+
+            // past the true end entirely: empty, still exhausted, never a crash.
+            const QVariantMap past = cat.discoverPage("popular", "", "", true, kFixtureTotal + 50, 10);
+            require(past.value("items").toList().isEmpty(), "an offset past the true end returns no rows");
+            require(past.value("exhausted").toBool() == true, "an offset past the true end is exhausted");
+        }
     }
 
     // ── limit clamps to 100; a small facet reports exhausted ─────────────────
