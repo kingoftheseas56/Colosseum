@@ -24,6 +24,7 @@ import "ExtensionsCatalog.js" as Catalog
 
 Item {
     id: root
+    objectName: "extensionsSources"
     implicitHeight: col.implicitHeight
 
     property var installedList: []
@@ -273,6 +274,9 @@ Item {
                     model: section.modelData.rows
                     delegate: Item {
                         id: row
+                        // Automation identity (Lanista), DiscoverBrowser.qml:727 precedent:
+                        // keyed by the row's own extension id, stable across re-sort/re-filter.
+                        objectName: "extensionSourceRow_" + String(row.modelData ? row.modelData.id : row.index)
                         required property var modelData
                         required property int index
                         width: section.width
@@ -427,6 +431,7 @@ Item {
                                 spacing: 22
 
                                 Rectangle {
+                                    objectName: "extensionSourceToggle_" + String(row.modelData ? row.modelData.id : row.index)
                                     width: 40; height: 22; radius: 11
                                     anchors.verticalCenter: parent.verticalCenter
                                     color: row.isOn ? Qt.rgba(0.94, 0.77, 0.29, 0.85)

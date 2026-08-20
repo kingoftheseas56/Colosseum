@@ -12,6 +12,7 @@ import "ExtensionsCatalog.js" as Catalog
 
 Item {
     id: root
+    objectName: "extensionsPage"
     property Item backdrop: null
     signal backRequested()
     signal minimizeRequested()
@@ -444,6 +445,7 @@ Item {
                     }
                     Text {
                         id: addLink
+                        objectName: "extensionsAddLink"
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Install from a link ›"
@@ -888,6 +890,9 @@ Item {
                                 model: root.installedRowsFor(root.world)
                                 delegate: Item {
                                     id: irow
+                                    // Automation identity (Lanista), DiscoverBrowser.qml:727 precedent:
+                                    // keyed by the row's own extension id, stable across re-sort/re-filter.
+                                    objectName: "extensionRow_" + String(irow.modelData ? irow.modelData.id : irow.index)
                                     required property var modelData
                                     required property int index
                                     property var manifest: irow.modelData.manifest || ({})
@@ -1064,6 +1069,7 @@ Item {
 
                                             // the on/off switch: gold when carrying
                                             Rectangle {
+                                                objectName: "extensionToggle_" + String(irow.modelData ? irow.modelData.id : irow.index)
                                                 width: 40; height: 22; radius: 11
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 color: irow.isOn ? Qt.rgba(0.94, 0.77, 0.29, 0.85)

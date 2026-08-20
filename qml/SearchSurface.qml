@@ -161,6 +161,7 @@ Item {
         }
         TextInput {
             id: queryInput
+            objectName: "searchSurfaceInput"
             anchors.left: glass.right; anchors.leftMargin: 15
             anchors.right: rightCluster.left; anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -375,6 +376,7 @@ Item {
 
             // results state
             Column {
+                objectName: "searchSurfaceResults"
                 width: parent.width; spacing: 0
                 visible: !surf.isEmpty
 
@@ -386,6 +388,11 @@ Item {
                 Item { visible: surf.results.length > 0; width: 1; height: 14 }
                 Rectangle {
                     id: topCard
+                    // Automation identity (Lanista), same DiscoverBrowser.qml:727 precedent: keyed by
+                    // the result's own data.id (theatre meta.id) or its title fallback, never index.
+                    objectName: (topCard.m && topCard.m.title)
+                                ? ("searchResult_" + String(topCard.m.data && topCard.m.data.id ? topCard.m.data.id : topCard.m.title))
+                                : ""
                     visible: surf.results.length > 0
                     property var m: surf.results.length > 0 ? surf.results[0] : ({})
                     width: parent.width; height: 210; radius: 18
@@ -464,7 +471,12 @@ Item {
                                 model: section.expanded ? modelData.items
                                                         : modelData.items.slice(0, secGrid.columns)
                                 delegate: Column {
+                                    id: resultCard
                                     required property var modelData
+                                    // Same keyed precedent as topCard above (DiscoverBrowser.qml:727): id-or-title, never index.
+                                    objectName: modelData && modelData.title
+                                                ? ("searchResult_" + String(modelData.data && modelData.data.id ? modelData.data.id : modelData.title))
+                                                : ""
                                     width: secGrid.cellW; spacing: 9
                                     Rectangle {
                                         width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"

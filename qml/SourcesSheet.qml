@@ -482,6 +482,10 @@ Item {
                 // read-only state so the Lanista bridge can address it and prove slices 5–7 in the
                 // running app. dump-ui sees only named items; this is that name.
                 objectName: "sourceRow_" + row.index
+                // Slice 8a: read-only automation surface (additive, no behavior change) — the row's
+                // own infoHash, cheapest identity a watch-party acceptance can read via qml-get
+                // without depending on UI text formatting. Empty for non-torrent (Direct/HTTP) rows.
+                readonly property string automationInfoHash: row.modelData && row.modelData.infoHash ? row.modelData.infoHash : ""
                 property string streamKind: row.modelData.streamKind || "Torrent"
                 property string providerName: row.modelData.addonName || row.modelData.sourceName || ""
                 // Today every shown row is ready; slice 5 drives HTTP rows "checking" → "confirmed".

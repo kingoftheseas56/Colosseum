@@ -10,6 +10,7 @@ import "TheatreFacts.js" as TheatreFacts
 
 Item {
     id: page
+    objectName: "theatreSeriesPage"
     property Item backdrop
     property var itemData: ({})
     signal backRequested()
@@ -938,6 +939,7 @@ Item {
                         spacing: 12
                         topPadding: 8
                         Rectangle {
+                            objectName: "theatreSeriesWatch"
                             visible: page.mediaType !== "series" || page.heroEpisode() !== null
                             width: watchRow.implicitWidth + 40
                             height: 42
@@ -1804,6 +1806,10 @@ Item {
                                 onClicked: ep.openForPlay()
                             }
                             Rectangle {
+                                // Automation identity (Lanista): keyed by the episode's own stream id
+                                // (page.episodeStreamId), stable across recycling — ListView delegates
+                                // carry no `index` here (pragma ComponentBehavior: Bound, unrequired).
+                                objectName: "theatreEpisodePlay_" + String(page.episodeStreamId(ep.modelData))
                                 x: rowActions.x
                                 y: rowActions.y
                                 width: 38
