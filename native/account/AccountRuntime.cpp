@@ -360,8 +360,16 @@ void AccountRuntime::prepareForQml(QQmlApplicationEngine *engine) {
     engine->rootContext()->setContextProperty(
         QStringLiteral("AccountController"),
         &m_controller);
+    // Named "AccountRecoveryPresenter", not "AccountRecoveryKey": the QML
+    // directory import `import "account"` (Main.qml) implicitly exposes
+    // every qml/account/*.qml file as a type by its filename, and
+    // qml/account/AccountRecoveryKey.qml (the one-time key display page)
+    // already claims that identifier. A same-named context property is
+    // shadowed by the imported type when referenced as a bare identifier,
+    // so `typeof AccountRecoveryKey` was always the type reference, never
+    // this presenter -- silently breaking every live binding to it.
     engine->rootContext()->setContextProperty(
-        QStringLiteral("AccountRecoveryKey"),
+        QStringLiteral("AccountRecoveryPresenter"),
         &m_recoveryKeyPresenter);
 
     m_qmlPrepared = true;

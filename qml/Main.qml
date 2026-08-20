@@ -2245,6 +2245,7 @@ Window {
                     if (item.fullscreenClicked) item.fullscreenClicked.connect(win.toggleFullscreenShell)
                     item.minimizeClicked.connect(win.minimizeShell)
                     item.powerClicked.connect(function() { Qt.quit() })
+                    if (item.accountClicked) item.accountClicked.connect(function() { accountFlyout.toggle() })
                 }
             }
         }
@@ -3358,7 +3359,7 @@ Window {
         id: accountCenter
         objectName: "accountCenter"
         controller: typeof AccountController !== "undefined" ? AccountController : null
-        recoveryPresenter: typeof AccountRecoveryKey !== "undefined" ? AccountRecoveryKey : null
+        recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
@@ -3388,7 +3389,7 @@ Window {
         z: 900   // above all chrome; below the boot splash (1000)
         topInset: 0   // full-bleed cover: no app chrome peeks above the flow
         controller: typeof AccountController !== "undefined" ? AccountController : null
-        recoveryPresenter: typeof AccountRecoveryKey !== "undefined" ? AccountRecoveryKey : null
+        recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
         backdrop: wall
     }
 

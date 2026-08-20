@@ -41,6 +41,7 @@ Item {
     signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
     signal settingsClicked()
+    signal accountClicked()          // topbar account medallion → host toggles Main's accountFlyout
     signal wallpaperClicked()
     signal fullscreenClicked()               // topbar fullscreen toggle → host flips the shell (same door as F11)
     signal minimizeClicked()
@@ -62,6 +63,7 @@ Item {
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
         onSettingsClicked: world.settingsClicked()
+        onAccountClicked: world.accountClicked()
         onWallpaperClicked: world.wallpaperClicked()
         onFullscreenClicked: world.fullscreenClicked()
         onMinimizeClicked: world.minimizeClicked()

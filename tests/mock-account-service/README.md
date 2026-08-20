@@ -132,17 +132,21 @@ in and logout-all → subsequent request → `session_revoked`.
   mock emits `avatar_id` on every account-shaped response (`/v1/profile`,
   rename, set-avatar, set-protection). The Go-only fields were dropped as
   stale/superseded rather than mirrored.
-- **Approval item id field.** `AccountSecurityPage.qml` (`approvalChallengeId`,
-  lines ~66–71) reads `challenge_id` first, falling back to `challengeId`.
-  The Go reference's `listApprovals` handler instead serializes the
-  challenge as `id` (`account_handlers.go` lines ~480–489), with no
-  `challenge_id` key. `AccountController.cpp`'s `ListApprovals` case
-  (line ~1181) only cares that the top-level key is `"approvals"` — it
-  passes the array through to QML untouched, so it doesn't disambiguate
-  the item shape itself. Resolved in favor of the QML reader: each
-  approval item carries both `id` and `challenge_id` set to the same
-  value, so it satisfies the QML contract directly while staying
-  recognizable against the Go shape.
+- **Approval item id field (resolved 2026-08-20, service-side).** `AccountSecurityPage.qml`
+  (`approvalChallengeId`, lines ~66–71) reads `challenge_id` first, falling
+  back to `challengeId`. The Go reference's `listApprovals` handler used to
+  serialize the challenge as `id` only (`account_handlers.go` lines
+  ~480–489), with no `challenge_id` key — against the real service the QML
+  reader would derive an empty challenge id and approval decisions could
+  not be submitted. Hemanth ratified the service-side fix (the client
+  shipped publicly, the service had not deployed): the preserved Go
+  service now emits both `id` and `challenge_id` (same value) from
+  `listApprovals`, additively, alongside the pre-existing `id`. The mock's
+  dual-emission of `id`/`challenge_id` was already correct against the QML
+  contract; it now also matches the Go service instead of merely masking
+  the drift. `AccountController.cpp`'s `ListApprovals` case (line ~1181)
+  still passes the array through to QML untouched and does not
+  disambiguate the item shape itself.
 - **Revoking the current device.** The task brief asked to check "whatever
   shape the real service uses" for self-revoke via `DELETE /v1/devices/{id}`.
   Per `account_handlers.go`'s `revokeDevice` handler, the endpoint is
