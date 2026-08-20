@@ -177,7 +177,7 @@ Item {
     Row {
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: 20
-        SysIcon { source: "../assets/icons/search.svg";   onClicked: bar.searchClicked() }
+        SysIcon { objectName: "topBarSearch"; source: "../assets/icons/search.svg";   onClicked: bar.searchClicked() }
         SysIcon { source: "../assets/icons/settings.svg"; onClicked: bar.wallpaperClicked() }
         SysIcon { source: "../assets/icons/minimize.svg"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar

@@ -371,6 +371,7 @@ Item {
                             model: root.paneModel
                             delegate: Item {
                                 id: paneTab
+                                objectName: "extensionsPaneTab_" + String(modelData ? modelData.key : "")
                                 required property var modelData
                                 implicitWidth: paneLabel.implicitWidth
                                 implicitHeight: paneLabel.implicitHeight + 9
@@ -566,6 +567,7 @@ Item {
                                     }
                                     MouseArea {
                                         id: featuredMa
+                                        objectName: "extensionsFeaturedInstall"
                                         anchors.right: parent.right
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: Math.max(88, featuredVerbLabel.implicitWidth + 28)

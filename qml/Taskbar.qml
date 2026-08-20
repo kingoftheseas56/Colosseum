@@ -389,6 +389,7 @@ Item {
 
             // ---- Extensions: the store, beside Downloads (ratified 2026-07-05) ----
             Item {
+                objectName: "taskbarExtensions"
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
