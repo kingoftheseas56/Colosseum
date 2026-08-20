@@ -180,6 +180,13 @@ public:
     {
         emit searchSucceeded(volumeId(series.seriesId, targetVolume), next);
     }
+    // Series-level search (catalogue-independence Slice 4): the façade passes its
+    // own opaque key as series.seriesId — echo it back verbatim, same as the real
+    // MangaNyaaSource does.
+    void searchSeries(const SeriesSnapshot& series) override
+    {
+        emit searchSucceeded(series.seriesId, next);
+    }
     QList<MangaNyaaCandidate> next;
 };
 
@@ -702,6 +709,9 @@ int main(int argc, char** argv)
         MangaSynopsisEnricher dEnricher(nullptr, dIndexRoot.filePath(QStringLiteral("syn.json")));
         FakeNyaaSearch dSearch;
         MangaTankobanService dService(&dSearch, &dTransport, &dIndex, &dIngestor, &dEnricher, nullptr);
+        QHash<QString, QVariantList> dSources;
+        QObject::connect(&dService, &MangaTankobanService::sourcesReady, &app,
+            [&](const QString& vid, const QVariantList& results) { dSources.insert(vid, results); });
 
         // Catalogue-shaped rows: number + cover + title only — no chapterStart/chapterEnd,
         // exactly TankobanCatalog::volumes()'s synthesized/overlaid shape (name->title
@@ -723,6 +733,36 @@ int main(int argc, char** argv)
         dService.searchSources(d1);
         require(dService.statusOf(d1).value(QStringLiteral("state")).toString() == QStringLiteral("none"),
                 "a chapterless volume starts un-acquired, same as any other");
+        // Catalogue-independence Slice 4: a chapterless volume carries zero mapped
+        // WeebCentral chapters, so the (unrouted, QML never renders it — see
+        // MangaTankobanSourcesPage.qml's nyaa-only filter) compile-from-chapters
+        // card the façade still emits is never OFFERED as usable.
+        {
+            const QVariantList d1Sources = dSources.value(d1);
+            require(!d1Sources.isEmpty(), "sourcesReady delivered for the chapterless volume");
+            const QVariantMap dWeeb = d1Sources.last().toMap();
+            require(dWeeb.value(QStringLiteral("kind")).toString() == QStringLiteral("weebcentral"),
+                    "fallback card still last for a chapterless volume");
+            require(!dWeeb.value(QStringLiteral("enabled")).toBool(),
+                    "no compile path is ever offered for a chapterless volume");
+            require(dWeeb.value(QStringLiteral("chapterCount")).toInt() == 0,
+                    "a chapterless volume carries zero mapped chapters");
+        }
+
+        // ── Series-level search (Slice 4): the shelf-less page's "Search nyaa"
+        // entry. No prepareSeries call for this key at all — proves the façade
+        // needs no cached series/volume snapshot to run a series-mode search.
+        {
+            const QString seriesKey = QStringLiteral("series:s5");
+            const QString eHash(40, QLatin1Char('8'));
+            dSearch.next = {makeCandidate(eHash)};
+            dService.searchSeriesSources(seriesKey, QStringLiteral("Never-Prepared Series"));
+            require(dSources.contains(seriesKey),
+                    "searchSeriesSources fires sourcesReady under the caller's own key, "
+                    "with no prior prepareSeries for it");
+            require(!dService.volumesForSeries(seriesKey).size(),
+                    "a series-mode search key is never promoted into the canonical volume model");
+        }
 
         dService.downloadNyaa(d1, dHash);
         require(dEngine.addMagnetCount == 1, "chapterless volume 1 reaches the transport via Nyaa");

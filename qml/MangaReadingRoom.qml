@@ -17,6 +17,12 @@ Item {
     // (the masthead binds seriesTitle/author/etc directly); carried so a future caller
     // that needs the numeric identity here does not need a new property added later.
     property string malId: ""
+    // The truthful primary-button verdict from MangaSeries.qml (Slice 2's
+    // truth-table, completed by catalogue-independence Slice 4, 2026-08-20):
+    // "open" (volume 1 ready) / "get" (shelf present, not yet downloaded) /
+    // "search" (no known shelf — series-level nyaa search). Drives continueText
+    // below; the actual click routing lives in MangaSeries.qml's readPrimary().
+    property string primaryAction: "open"
     property string banner: ""
     property string cover: ""
     property string author: ""
@@ -238,6 +244,10 @@ Item {
                 id: actionRow
                 anchors.left: parent.left; anchors.top: deviceProgress.bottom; anchors.topMargin: 10; spacing: 8
                 Rectangle {
+                    // World-namespaced automation reach (catalogue-independence Slice 4,
+                    // 2026-08-20): the Lanista scenario needs to press the honest
+                    // open/get/search primary action without knowing its label text.
+                    objectName: "tankobanSeriesPrimaryAction"
                     width: openLabel.implicitWidth + 30; height: 34; radius: 8; color: theme.gold
                     activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: root.continueText
                     Keys.onReturnPressed: root.primaryRequested(); Keys.onEnterPressed: root.primaryRequested()
@@ -289,6 +299,13 @@ Item {
                 return "Continue \u00b7 Vol. " + n + " \u00b7 p. " + root.library.continuePage
             return "Continue \u00b7 Vol. " + n
         }
+        // The truthful three-way label (Slice 2's promise, completed Slice 4,
+        // 2026-08-20): "open"/"get" both imply a known shelf (library.showVolumes);
+        // "search" is the shelf-less honest fallback \u2014 a chapter list never
+        // reaches the reader any more (purity law), so "Read first chapter" only
+        // remains as a defensive label for an unmodeled primaryAction value.
+        if (root.primaryAction === "get") return "Get volume 1"
+        if (root.primaryAction === "search") return "Search nyaa"
         return root.library.showVolumes ? "Open volume 1" : "Read first chapter"
     }
 }

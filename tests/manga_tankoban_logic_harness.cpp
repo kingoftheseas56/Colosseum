@@ -366,6 +366,61 @@ int main()
                 "apostrophe-folded series title (JoJo's) matches a JoJos release");
     }
 
+    // ── Catalogue-independence Slice 4: series-mode filterAndRank ─────────────
+    // Reuses the same 7-item fixture as the volume-mode contract above. Series
+    // mode has no volume to target — item 4 (Volume 03, otherwise rejected as
+    // "wrong target" in volume mode) must now survive, while every OTHER
+    // rejection (chapter-pack item 3, blocked-uploader item 5, raw item 6,
+    // duplicate-infohash item 7) still applies unchanged.
+    {
+        TrustTable trust;
+        trust.tier1 = QSet<QString>{QStringLiteral("1r0n")};
+        trust.blocked = QSet<QString>{QStringLiteral("baduploader")};
+
+        const auto parsed = MangaNyaaSource::parseRss(fixture("nyaa_volume_results.xml"));
+        require(parsed.size() == 7, "series-mode reuses the same 7-item RSS parse");
+
+        const auto ranked = MangaNyaaSource::filterAndRank(
+            {"s1", "Grand Blue Dreaming", "Kenji Inoue", {"Grand Blue"}, {}},
+            QString(), parsed, trust, /*seriesMode=*/true);
+        require(ranked.size() == 3,
+                "series mode keeps volume 2 (item 1), the 1-12 pack (item 2), AND the "
+                "otherwise-wrong-target volume 3 (item 4) — three, not volume mode's two");
+
+        bool sawVol2 = false, sawPack = false, sawVol3 = false;
+        for (const auto& c : ranked) {
+            if (c.coverageLo == "2" && c.coverageHi == "2") sawVol2 = true;
+            if (c.coverageLo == "1" && c.coverageHi == "12") sawPack = true;
+            if (c.coverageLo == "3" && c.coverageHi == "3") sawVol3 = true;
+        }
+        require(sawVol2 && sawPack, "series mode still carries the two volume-mode survivors");
+        require(sawVol3,
+                "series mode does NOT reject volume 3 for missing a target — the volume-target "
+                "match is the one thing series mode skips");
+
+        for (const auto& c : ranked)
+            require(!c.title.contains(QStringLiteral("Chapter")),
+                    "series mode still rejects a chapter pack (item 3) even with no volume target");
+        for (const auto& c : ranked)
+            require(c.uploader != QStringLiteral("baduploader"),
+                    "series mode still drops a blocked uploader (item 5) — trust tiers unchanged");
+        for (const auto& c : ranked)
+            require(!c.title.toLower().contains(QStringLiteral("(japanese)")),
+                    "series mode still rejects a raw/untranslated release (item 6)");
+        int hashHits = 0;
+        for (const auto& c : ranked)
+            if (c.infoHash == "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678")
+                ++hashHits;
+        require(hashHits == 1,
+                "series mode still dedups by infohash (item 7's repost of item 1)");
+
+        // Trust tiers themselves are unchanged in series mode: the exact volume 2
+        // release from the trusted uploader still ranks ahead of the untrusted
+        // 1-12 pack (tier compare is the sort's first key, independent of target).
+        require(ranked[0].tier == 1 && ranked[0].coverageLo == "2",
+                "series mode still ranks the tier-1 uploader's release first");
+    }
+
     // ── Task 3: honest lazy synopsis enrichment (Open Library + Apple Books) ──
     // matchOpenLibrary / matchApple accept a synopsis ONLY on genuine target-
     // volume evidence; equal-strong Apple candidates with no author distinction

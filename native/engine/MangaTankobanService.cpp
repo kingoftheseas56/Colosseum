@@ -41,6 +41,11 @@ void MangaNyaaSearchAdapter::search(const SeriesSnapshot& series, const QString&
     m_source->search(series, targetVolume);
 }
 
+void MangaNyaaSearchAdapter::searchSeries(const SeriesSnapshot& series)
+{
+    m_source->searchSeries(series);
+}
+
 // ── MangaTorrentEngineAdapter (real engine, HAS_LIBTORRENT only) ──────────────
 
 #ifdef HAS_LIBTORRENT
@@ -279,6 +284,16 @@ void MangaTankobanService::searchSources(QString volumeId)
     const VolumeRecord vol = m_volumes.value(volumeId);
     const SeriesSnapshot series = m_series.value(vol.seriesId);
     m_search->search(series, vol.number);
+}
+
+void MangaTankobanService::searchSeriesSources(QString key, QString seriesTitle)
+{
+    if (key.isEmpty() || seriesTitle.trimmed().isEmpty())
+        return;
+    MangaTankoban::SeriesSnapshot snap;
+    snap.seriesId = key;              // the opaque grouping key, not a real series id
+    snap.title = seriesTitle;
+    m_search->searchSeries(snap);
 }
 
 void MangaTankobanService::downloadNyaa(QString volumeId, QString infoHash)

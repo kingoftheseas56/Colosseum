@@ -218,6 +218,20 @@ Item {
         })
         page.tankobanReaderEntries = out
     }
+    // Shelf-less series' "Search nyaa" primary action (catalogue-independence
+    // Slice 4, 2026-08-20): the SAME picker chrome as _openSources() below, but
+    // in series mode — a volume-agnostic query from the series title, since a
+    // shelf-less series has no volume 1 to target. One acquisition path only.
+    function _openSeriesSearch() {
+        sourcesPage.show({
+            seriesMode: true,
+            seriesId: page.seriesId,
+            seriesTitle: page.seriesTitle,
+            volumeId: "series:" + (page.seriesId.length ? page.seriesId : page.seriesTitle),
+            volumeNumber: "", volumeTitle: "", cover: page.cover, synopsis: page.synopsis
+        })
+    }
+
     // The ONE path that raises the source picker — a single tile and a batch both
     // come through here, so the series identity is merged in exactly one place.
     function _openSources(ctx) {
@@ -352,6 +366,10 @@ Item {
         for (var i = 0; i < rows.length; i++)                    // first book on disk
             if (String(rows[i].state) === "ready") { page._openVolume(String(rows[i].id)); return }
         if (rows.length) { readingRoom.library.chooseSource(String(rows[0].id)); return }   // fetch volume 1
+        // No known shelf at all (catalogue-independence Slice 4, 2026-08-20):
+        // primaryAction === "search" — open the series-level nyaa picker instead
+        // of falling through to the (purity-emptied) chapter fallback below.
+        if (!page.hasShelf) { page._openSeriesSearch(); return }
         var chs = page.visibleChapters                          // unqualified series: first chapter
         if (chs && chs.length) {
             page.openEntryKind = "manga"
@@ -1050,6 +1068,7 @@ Item {
         seriesId: page.seriesId
         seriesTitle: page.seriesTitle
         malId: page.resolvedMalId > 0 ? String(page.resolvedMalId) : ""
+        primaryAction: page.primaryAction
         banner: page.banner
         cover: page.cover
         author: page.author

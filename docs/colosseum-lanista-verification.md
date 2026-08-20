@@ -1020,6 +1020,100 @@ Biblio Image Diagnostics decision brief (Brotherhood repo, `agents/`).
   partially for Monster since the plan was authored; a future attempt should re-query
   rather than trust either this note or the plan's own baseline.
 
+## Tankoban catalogue-independence Slice 4 (2026-08-20) — the tab-bar gap did NOT recur;
+## masthead/shelf/picker all driven live, series-mode search proven end-to-end
+
+- **Slices 2-3's own runtime debt is CLOSED — the committed `tankoban_catalogue_smoke.json`
+  now runs the whole masthead→shelf→picker journey live, not just the Tankoban-entry stub
+  Slice 3 shipped honestly.** Session `20260820-173802-4baf3a24` (tag `tk4`, isolated
+  pipe, `Colosseum-dltest-tk4` appData root), driven step-by-step via the MCP session
+  tools (a shared single-slot resource — session start was refused twice with `a Lanista
+  session is already active: id=20260820-172321-6a31cca9 ... tag=wp-8a`, a genuinely
+  concurrent brother's Watch Party acceptance session (PID 22108, live and growing in
+  memory across two retries); waited it out rather than force it, slot freed after ~6
+  minutes). Sequence run, every step green, no workaround needed at any point:
+  `bootSplash.visible==false` → `accountHost.visible==true` → click
+  `accountWelcomeContinueLocal` → `accountHost.visible==false` → click
+  `modePill_Tankoban` → click `tankobanTab_manga` → click `tankobanTopMangaTile_0` →
+  `tankobanSeriesMasthead.ready==true` with `displayTitle=="One Piece"`,
+  `resolvedMalId=="13"`, `hasShelf==true`, `primaryAction=="get"` (byte-identical to the
+  diagnosis agent's earlier read) → `tankobanShelfState.rowCount==113`,
+  `coveredCount==112` → click `tankobanVolumeCard_1` → `tankobanSourcesSheet.visible==true`
+  → `hasCompileFallback==false` → whole-window grab (real live Nyaa results: "10 sources",
+  header reads "Nyaa" only, no WeebCentral anywhere) → dismiss via `tankobanSourcesBack` →
+  regression: reopen on `tankobanVolumeCard_2`, dismiss again → world-tab away
+  (`modePill_Biblio`) → world-tab back (`modePill_Tankoban`) → **the series page state
+  SURVIVED the round-trip untouched** (`tankobanSeriesMasthead.ready`/`displayTitle`
+  still "One Piece" with no re-navigation at all — a stronger regression proof than the
+  plan's own "reopen series" wording anticipated, recorded as a runtime fact: Tankoban's
+  world root does not tear down an open series page on a sibling-world visit) → back to
+  the Manga tab (via `tankobanReadingRoomBack`) → click `tankobanTopMangaTile_1` (Berserk,
+  index 1 of the STATIC `qml/Catalog.js#topManga` list backing this rail — deterministic,
+  not live-ranked, so this index is stable across runs) → `tankobanSeriesMasthead.ready`
+  with `displayTitle=="Berserk"`, `resolvedMalId=="2"`, `hasShelf==false`,
+  `primaryAction=="search"` (matches the diagnosis's ground-truthed db read exactly) →
+  click the NEW `tankobanSeriesPrimaryAction` button → `tankobanSourcesSheet.visible==true`
+  in SERIES MODE (no volumeId) → `hasCompileFallback==false` → whole-window grab: **67
+  real live Nyaa results for Berserk** (individual per-volume releases — v41, v42, etc. —
+  proving `filterAndRank(seriesMode=true)` genuinely skips the volume-target match end to
+  end, not just in the pure-logic harness), header reads "Nyaa" only → dismiss. Shelf
+  exhibit grab on One Piece: `On this device 0 OF 113`, real BookWalker cover art on
+  volumes 1-7, primary button reads **"Get volume 1"** (not the old always-"Open volume 1"
+  — Slice 2's incomplete button-text promise, closed this slice, confirmed live not just
+  in source).
+- **The Slice-3 tab-bar gap (`tankobanTab_manga`/`tankobanTab_discover` `NO_SUCH_ITEM` /
+  `WAIT_TIMEOUT` across four isolated sessions) did NOT recur in this session.**
+  `ui-click tankobanTab_manga` resolved and clicked cleanly on the first try, both times
+  it was pressed (initial entry and after the world-tab-away/back regression — the second
+  press even read back an off-screen `atY: -24`, still registering as a successful click,
+  since the geometry query and the click dispatch race slightly differently once the item
+  has settled off the visible viewport top — worth a future slice's attention if it ever
+  causes a MISS rather than a harmless click-through). No `dump-ui` root-scoping
+  workaround was needed to reach it this time. The task brief for this slice (citing a
+  separate diagnosis pass, sessions `20260820-162647-95a9507f` and
+  `20260820-163420-9f431989`) reported the gap as SOLVED via a specific mechanism: a
+  hidden pre-warmed duplicate of `tankobanTabBar` exists in the tree, and `dump-ui`'s DFS-
+  first resolution can match the wrong (occluded) copy when scoped ambiguously — the
+  fix/workaround being to capture a FULL-WINDOW paged `dump-ui` at any failure point
+  rather than a scoped one. This executor did not reproduce the failure to verify that
+  mechanism directly (this session's own clicks never needed it), so it is recorded here
+  as REPORTED, attributed to those two session ids, not independently re-derived — a
+  future session that DOES hit `NO_SUCH_ITEM` on a Tankoban tab pill should reach for the
+  full-window paged `dump-ui` first, per that diagnosis, before assuming a new gap.
+- **New named surfaces added this slice** (world-namespaced): `tankobanSourcesBack` (the
+  picker's `BackAction`, previously unnamed — the dismiss target); `hasCompileFallback`
+  (scalar on `tankobanSourcesSheet`, always `false`); `tankobanSeriesPrimaryAction`
+  (the reading room's honest open/get/search button, previously unnamed).
+- **Warning gate: FAILED, evidence captured, one class of noise named — not fixed, not
+  silently allowlisted.** `warnings()` against this session's `colosseum.log` + `stderr.log`
+  surfaced ~20 `TypeError: Cannot read property 'revision' of null` / `Cannot call method
+  'recent'/'items' of null` lines, all timestamped within the same ~10ms window
+  (17:39:00.374-383) across `TankobanWorld.qml`, `TankobanLibraryTab.qml`,
+  `TheatreWorld.qml`, `BiblioWorld.qml`, `LibraryPage.qml`, `BiblioLibraryPage.qml`, `Main.qml:2061`
+  — none of them a file this slice touched. The single-moment, multi-world clustering
+  (Tankoban AND Theatre AND Biblio all erroring at once) points at a shared `Collection`/
+  `Progress` context-property construction race at first world-mode entry, not anything
+  specific to the nyaa/picker work — but this executor did NOT trace the root cause or
+  confirm it pre-dates this slice by bisection; it is named as a newly-OBSERVED foreign
+  warning class for a future slice to adjudicate (search the ledger before this entry —
+  no prior record of this exact class was found). A trailing `QIODevice::read (QSslSocket):
+  device not open` line is almost certainly incidental network/SSL library noise from the
+  live Nyaa RSS fetches this session deliberately exercised (not asserted on, per the
+  plan's "live nyaa results are NOT a deterministic gate" — but the fetches DID run for
+  real, producing the 10-source and 67-source grabs above). Full lines preserved in
+  `artifacts/lanista-sessions/20260820-173802-4baf3a24/`.
+- **Cover-branch note owed to Slice 7's sweep (per this slice's own instructions):** One
+  Piece covers the COVERED branch (112/113). The mal-basis/uncovered branch (Vagabond,
+  malId 656, `count_basis=mal`, 0/0 covers per the Slice-3 ground-truth note above) is
+  still UNASSERTED by any committed scenario — this slice did not add it (out of fence;
+  Slice 4's own shelf-less fixture, Berserk, has NO shelf at all, which is a different
+  branch than "has a shelf with zero covers").
+- **Runtime status of Slices 2-3's own claims, revised in light of this session:** both are
+  now RUNTIME-VALIDATED by this slice's replay, not merely Test-reported as their own
+  ledger entries left them (Slice 2 stalled at onboarding; Slice 3 stalled at Tankoban
+  entry, both honestly, both now superseded by a full live run reaching every scalar both
+  slices only proved by source reading or partial replay).
+
 ---
 
 ## Status vocabulary (for plans and reports)

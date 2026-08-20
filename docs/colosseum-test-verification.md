@@ -316,6 +316,114 @@ half the compiled harnesses are run by nobody.
     `_prepareTankoban()` no-ops there exactly as it always silently did). Full log:
     `artifacts/tankoban-independence/slice3/ctest_unit_run1.log`.
 
+## Tankoban catalogue-independence Slice 4 gate (2026-08-20) — acquisition purity + series search
+
+- `qml/MangaTankobanSourcesPage.qml` — the pinned-last WeebCentral "Build from chapters"
+  row is REMOVED from this page's visual tree (the `Item{visible: row.isWeeb}` delegate
+  block, `weebBadge`/`weebBtn`/`tankobanSourceBuildFromChapters`), along with `pickWeeb()`
+  (the service kick to `compileWeebCentral`), the `pickedWeeb` state field, and `isWeeb`.
+  `applySources()` now filters `results` to `kind !== "weebcentral"` BEFORE assigning
+  `rows` — the one enforcement point for "nyaa-only", independent of what the native
+  façade still emits (it does still emit a weebcentral card; see the native note below —
+  "unplug, not delete"). NEW named scalar `hasCompileFallback: false` (a literal constant,
+  the positive-assertable proof the ledger's missing-absence-assertion gap calls for).
+  NEW `show()` branch: `context.seriesMode === true` calls
+  `TankobanVolumes.searchSeriesSources(context.volumeId, context.seriesTitle)` instead of
+  `searchSources(volumeId)` — `context.volumeId` doubles as the opaque series-mode result
+  key so the existing stale-handle guards in `applySources`/`applyFailure` need no new
+  branch. NEW `objectName: "tankobanSourcesBack"` on the picker's `BackAction` (previously
+  unnamed) — the Lanista dismiss target. Empty-state copy ("No releases matched this
+  volume yet." / "Searching Nyaa releases…" / the failure line) is UNCHANGED — it already
+  states the empty case plainly, per the plan's "do not invent new design."
+- `native/torrent/MangaNyaaSource.{h,cpp}` — `filterAndRank()` gains a `bool seriesMode =
+  false` trailing parameter (default preserves every existing call byte-identical): when
+  true, the `coverageIncludesTarget()` check is skipped entirely — every other rejection
+  (chapter-pack, raw/untranslated, weak series-match, blocked uploader, hash-less, dedup)
+  and the tier/standalone/digital sort stay unchanged. NEW `searchSeries(series)` public
+  method + a shared private `startSearch(vid, series, targetVolume, seriesMode)` both
+  `search()` and `searchSeries()` now call — `search()` computes
+  `vid=volumeId(seriesId,targetVolume)` as before; `searchSeries()` uses `series.seriesId`
+  verbatim as `vid` (the caller — the façade — already hands in its own opaque key, so no
+  double-prefixing). `queryVariants`/`parseRss` are UNCHANGED, reused as-is (an empty
+  target volume naturally falls to the bare-title query family inside `queryVariants`,
+  producing "SeriesTitle" and "SeriesTitle Vol" query variants — harmless, filtered same
+  as any other query by the trust/rejection ladder).
+- `native/engine/MangaTankobanService.{h,cpp}` — `IMangaNyaaSearch` gains a pure virtual
+  `searchSeries(series)`; `MangaNyaaSearchAdapter` forwards it to
+  `MangaNyaaSource::searchSeries`. NEW `Q_INVOKABLE void searchSeriesSources(QString key,
+  QString seriesTitle)`: builds a minimal `SeriesSnapshot{seriesId: key, title:
+  seriesTitle}` (no aliases — the shelf-less page carries none) and calls
+  `m_search->searchSeries(snap)`. Deliberately does NOT touch `onSourcesFound`/
+  `weebCardFor` — the native façade STILL appends a weebcentral-kind card to every
+  `sourcesReady` payload (per-volume AND series-mode alike); this is "unplug, not
+  delete" for the whole WeebCentral-compile organ (`MangaVolumePacker`,
+  `compileWeebCentral` stay in-tree, reachable only from a future explicit route, never
+  from today's QML) — purity enforcement lives solely in the QML layer's
+  `applySources()` filter (see above). A series-mode search key is never promoted into
+  `m_series`/`m_volumes` — proven by a dedicated harness case (below).
+- Focused tests:
+  - Qt Test (pure-logic, unregistered — run directly): extended
+    `tests/manga_tankoban_logic_harness.cpp` with a new series-mode block reusing the
+    SAME 7-item `nyaa_volume_results.xml` fixture the volume-mode contract pins. Proves
+    series mode keeps the two volume-mode survivors (exact volume-2, the 1-12 pack) AND
+    now ALSO keeps item 4 (Volume 03 — rejected in volume mode as "wrong target",
+    surviving here because series mode has no target to miss) — three candidates, not
+    two. Proves every OTHER rejection is unchanged: chapter-pack item 3 still absent,
+    blocked-uploader item 5 still absent, raw item 6 still absent, duplicate-infohash
+    item 7 still deduped to one survivor. Proves trust-tier ranking is unchanged (the
+    tier-1 uploader's exact-volume-2 release still ranks first). `manga_tankoban_logic_harness.exe`
+    → `MANGA_TANKOBAN_LOGIC_OK`.
+  - Existing harnesses, both re-run + one extended:
+    - `manga_tankoban_logic_harness.exe` — see above; green.
+    - `tests/manga_tankoban_service_harness.cpp` (integration, fake nyaa, unregistered):
+      the `FakeNyaaSearch` test double gained a `searchSeries()` override (echoes
+      `series.seriesId` back verbatim as the result key, same as the real
+      `MangaNyaaSource`). TWO new sub-scenarios added to the existing chapterless-seeding
+      block: (a) "no compile path is ever offered for a chapterless volume" —
+      `dService.searchSources(d1)`'s `sourcesReady` payload asserted directly: the
+      trailing weebcentral card is present (native still emits it, unchanged) but
+      `enabled==false` and `chapterCount==0` — the honest disabled state Slice 3 already
+      proved for a chapterless volume, now asserted explicitly per the plan's ask; (b)
+      "searchSeriesSources fires sourcesReady under the caller's own key, with no prior
+      prepareSeries" — `dService.searchSeriesSources("series:s5", "Never-Prepared
+      Series")` delivers a `sourcesReady("series:s5", …)` payload with zero setup, and
+      `volumesForSeries("series:s5")` stays empty (the series-mode key is never promoted
+      into the canonical volume model). `manga_tankoban_service_harness.exe` →
+      `MANGA_TANKOBAN_SERVICE_OK`.
+  - A THIRD target needed a one-line fix, not a design change: `tst_local_downloads_failure`
+    (`colosseum.qttest.local_downloads_failure`, registered) lists only
+    `MangaTankobanService.h` as a MOC source (not the `.cpp`) and instead links
+    `tests/auto/downloads/local_downloads_test_stubs.cpp`'s hand-written stub body for
+    every `MangaTankobanService` method it needs — a NEW `Q_INVOKABLE` method needs a
+    matching stub line or the target's moc-generated `qt_static_metacall` carries an
+    unresolved external at link time (confirmed empirically: reverting the native changes
+    via `git stash` made this target link clean again; restoring them reproduced the
+    exact `LNK2019` on `searchSeriesSources`). Added
+    `void MangaTankobanService::searchSeriesSources(QString, QString) {}` alongside the
+    other 13 stub lines — same pattern, no new machinery. Not a foreign/pre-existing gap:
+    a straightforward, expected consequence of growing this class's invokable surface,
+    now closed for future additions too (the pattern is self-evident from the file).
+  - Negative control performed live: `manga_tankoban_logic_harness.cpp`'s new series-mode
+    trust-tier assertion (`ranked[0].tier == 1`) flipped to `== 99` → rebuilt → exactly
+    `FAIL: series mode still ranks the tier-1 uploader's release first` red, nothing else
+    touched → restored → rebuilt → `MANGA_TANKOBAN_LOGIC_OK` again.
+  - Full `ctest --test-dir native/build-msvc -L unit --output-on-failure` gate: **70/70
+    green**, zero regressions, zero foreign reds (unchanged from the Slice 3 baseline this
+    slice inherited).
+- QML-side completion: `qml/MangaSeries.qml` gained `_openSeriesSearch()` (opens the
+  picker with `seriesMode: true`, `volumeId: "series:" + (seriesId.length ? seriesId :
+  seriesTitle)`) and `readPrimary()` now routes the `!hasShelf` case there instead of
+  falling through to the (purity-emptied, dead since Slice 2) chapter fallback. Slice 2's
+  own promised three-way button text ("Open volume 1"/"Get volume 1"/"Search nyaa") was
+  left as a TODO — `MangaReadingRoom.qml`'s `continueText` only ever said "Open volume 1"
+  regardless of whether volume 1 was actually ready (ground-truthed live: the button read
+  "Open volume 1" on a NOT-yet-downloaded shelf). Closed this slice: `MangaReadingRoom`
+  gained a `primaryAction` property (bound from `page.primaryAction`), and `continueText`
+  now branches on it — confirmed live in the Lanista session below (One Piece's button
+  reads "Get volume 1", not "Open volume 1", once threaded through). `tankobanVolumeCard_1`
+  click routing ("get" opens the picker for volume 1 via the pre-existing `chooseSource`)
+  needed no change — Slice 3 already wired it correctly; ground-truthed, not assumed.
+
 ## House assertion idioms (no framework)
 
 - **require idiom:** `require()` prints `FAIL: <msg>`, `exit(1)`; one `*_OK` on success.

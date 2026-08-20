@@ -94,15 +94,31 @@ public:
     // blocked uploaders, raw/untranslated releases, weak series-title matches and
     // hash-less rows; dedups by infohash; assigns tiers; orders advisory-only
     // (trusted tier, standalone-before-pack, digital hint, seeders, title).
+    // `seriesMode` (catalogue-independence Slice 4, 2026-08-20, default false —
+    // every existing volume-targeted call is byte-identical): when true, the
+    // coverage/target match is SKIPPED entirely — a shelf-less series has no
+    // volume to target, so the series-level "Search nyaa" picker wants every
+    // release that matches the series, not one that covers a specific number.
+    // Trust tiers and every rejection filter (chapter-pack, raw, weak-match,
+    // hash-less, blocked uploader, dedup) still apply unchanged.
     static QList<MangaNyaaCandidate> filterAndRank(const SeriesSnapshot& series,
                                                    const QString& targetVolume,
                                                    const QList<MangaNyaaCandidate>& parsed,
-                                                   const TrustTable& trust);
+                                                   const TrustTable& trust,
+                                                   bool seriesMode = false);
 
     // Fire an RSS search for one volume across the query family. Results land on
     // searchSucceeded keyed by MangaTankoban::volumeId(series.seriesId,
     // targetVolume); a failure with no results lands on searchFailed.
     void search(const SeriesSnapshot& series, const QString& targetVolume);
+
+    // Series-level search (catalogue-independence Slice 4): no volume target at
+    // all, for a shelf-less series' "Search nyaa" entry. Reuses queryVariants/
+    // parseRss unchanged (an empty volume number naturally falls to the bare-
+    // title query family); filterAndRank runs in series mode. Results land on
+    // searchSucceeded keyed by series.seriesId verbatim — the caller (the
+    // façade) supplies whatever opaque key it wants results grouped under.
+    void searchSeries(const SeriesSnapshot& series);
 
 signals:
     void searchSucceeded(const QString& volumeId,
@@ -117,12 +133,17 @@ private:
         QString volumeId;
         SeriesSnapshot series;
         QString targetVolume;
+        bool seriesMode = false;
         int pendingReplies = 0;
         QList<MangaNyaaCandidate> parsed;
         QStringList errors;
     };
 
     void loadTrustResource();
+    // Shared by search()/searchSeries(): fires the query family, tracks the
+    // pending replies under `vid`, and (in finishReply) ranks with the right mode.
+    void startSearch(const QString& vid, const SeriesSnapshot& series,
+                     const QString& targetVolume, bool seriesMode);
     void finishReply(QNetworkReply* reply);
 
     QPointer<QNetworkAccessManager> m_nam;

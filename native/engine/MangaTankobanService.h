@@ -57,6 +57,10 @@ public:
     ~IMangaNyaaSearch() override = default;
     virtual void search(const MangaTankoban::SeriesSnapshot& series,
                         const QString& targetVolume) = 0;
+    // Series-level search (catalogue-independence Slice 4, 2026-08-20): no
+    // volume target — a shelf-less series' "Search nyaa" entry. series.seriesId
+    // here is the caller's opaque result key (searchSeriesSources builds it).
+    virtual void searchSeries(const MangaTankoban::SeriesSnapshot& series) = 0;
 signals:
     void searchSucceeded(const QString& volumeId,
                          const QList<MangaTankoban::MangaNyaaCandidate>& rows);
@@ -70,6 +74,7 @@ public:
     explicit MangaNyaaSearchAdapter(QNetworkAccessManager* nam, QObject* parent = nullptr);
     void search(const MangaTankoban::SeriesSnapshot& series,
                 const QString& targetVolume) override;
+    void searchSeries(const MangaTankoban::SeriesSnapshot& series) override;
 private:
     MangaTankoban::MangaNyaaSource* m_source = nullptr;
 };
@@ -123,6 +128,13 @@ public:
     Q_INVOKABLE bool modeEnabled(QString seriesId) const;
     Q_INVOKABLE void setModeEnabled(QString seriesId, bool enabled);
     Q_INVOKABLE void searchSources(QString volumeId);
+    // Series-level search (catalogue-independence Slice 4, 2026-08-20): the
+    // shelf-less page's "Search nyaa" primary action, and the series-mode picker
+    // entry. `key` is an opaque caller-chosen id (QML uses "series:"+seriesId)
+    // results are grouped under — this series is never prepared into m_series/
+    // m_volumes, so there is no volumeId to reuse. `sourcesReady`/`failed` land
+    // on that same key.
+    Q_INVOKABLE void searchSeriesSources(QString key, QString seriesTitle);
     Q_INVOKABLE void downloadNyaa(QString volumeId, QString infoHash);
     // Acquire a whole batch of volumes from ONE chosen torrent (design 2026-07-30).
     // Measured 2026-07-30 (tests/manga_volume_pack_probe.md): on-target SINGLE-volume

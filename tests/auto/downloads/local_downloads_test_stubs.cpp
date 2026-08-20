@@ -80,6 +80,7 @@ QVariantList MangaTankobanService::volumesForSeries(QString) const { return {}; 
 bool MangaTankobanService::modeEnabled(QString) const { return false; }
 void MangaTankobanService::setModeEnabled(QString, bool) {}
 void MangaTankobanService::searchSources(QString) {}
+void MangaTankobanService::searchSeriesSources(QString, QString) {}
 void MangaTankobanService::downloadNyaa(QString, QString) {}
 void MangaTankobanService::downloadNyaaBatch(QStringList, QString) {}
 void MangaTankobanService::compileWeebCentral(QString) {}

@@ -287,7 +287,8 @@ QList<MangaNyaaCandidate> MangaNyaaSource::parseRss(const QByteArray& payload)
 QList<MangaNyaaCandidate> MangaNyaaSource::filterAndRank(const SeriesSnapshot& series,
                                                         const QString& targetVolume,
                                                         const QList<MangaNyaaCandidate>& parsed,
-                                                        const TrustTable& trust)
+                                                        const TrustTable& trust,
+                                                        bool seriesMode)
 {
     QList<MangaNyaaCandidate> kept;
     QSet<QString> seenInfoHashes;
@@ -312,7 +313,9 @@ QList<MangaNyaaCandidate> MangaNyaaSource::filterAndRank(const SeriesSnapshot& s
             continue;                       // raw / untranslated Japanese release
         if (!strongSeriesMatch(c.title, series))
             continue;                       // weak series-title / alias match
-        if (!coverageIncludesTarget(c.coverageLo, c.coverageHi, targetVolume))
+        // Series mode has no volume to target — every strongly-matched, kept
+        // release is in scope regardless of what it covers.
+        if (!seriesMode && !coverageIncludesTarget(c.coverageLo, c.coverageHi, targetVolume))
             continue;                       // wrong target or no volume coverage
 
         QString uploader = c.uploader;
@@ -377,21 +380,37 @@ void MangaNyaaSource::loadTrustResource()
 
 void MangaNyaaSource::search(const SeriesSnapshot& series, const QString& targetVolume)
 {
-    const QString vid = volumeId(series.seriesId, targetVolume);
+    startSearch(volumeId(series.seriesId, targetVolume), series, targetVolume, /*seriesMode=*/false);
+}
+
+void MangaNyaaSource::searchSeries(const SeriesSnapshot& series)
+{
+    // The caller (the façade) already hands us the opaque key it wants results
+    // grouped under — series.seriesId here is that key, not a raw malId/title.
+    startSearch(series.seriesId, series, QString(), /*seriesMode=*/true);
+}
+
+void MangaNyaaSource::startSearch(const QString& vid, const SeriesSnapshot& series,
+                                  const QString& targetVolume, bool seriesMode)
+{
     if (!m_nam) {
         emit searchFailed(vid, QStringLiteral("network manager unavailable"));
         return;
     }
-    // Re-entrancy guard: a search for this volume is already in flight. Overwriting
+    // Re-entrancy guard: a search for this key is already in flight. Overwriting
     // m_pending[vid] would reset the reply counter and mismerge the two batches, so
     // ignore the duplicate call.
     if (m_pending.contains(vid))
         return;
+    // Series mode reuses queryVariants/parseRss UNCHANGED (plan directive): an
+    // empty target volume naturally falls to the bare-title query family inside
+    // queryVariants — no separate query builder needed.
     const QStringList queries = queryVariants(series.title, targetVolume);
     PendingSearch pending;
     pending.volumeId = vid;
     pending.series = series;
     pending.targetVolume = targetVolume;
+    pending.seriesMode = seriesMode;
     pending.pendingReplies = queries.size();
     m_pending.insert(vid, pending);
 
@@ -440,11 +459,12 @@ void MangaNyaaSource::finishReply(QNetworkReply* reply)
 
     const SeriesSnapshot series = it->series;
     const QString target = it->targetVolume;
+    const bool seriesMode = it->seriesMode;
     const QList<MangaNyaaCandidate> parsed = it->parsed;
     const QStringList errors = it->errors;
     m_pending.erase(it);
 
-    const QList<MangaNyaaCandidate> ranked = filterAndRank(series, target, parsed, m_trust);
+    const QList<MangaNyaaCandidate> ranked = filterAndRank(series, target, parsed, m_trust, seriesMode);
     if (ranked.isEmpty() && !errors.isEmpty()) {
         emit searchFailed(vid, errors.join(QStringLiteral("; ")));
         return;

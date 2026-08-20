@@ -1,14 +1,32 @@
-// MangaTankobanSourcesPage — the full-screen "Choose source" picker for ONE
-// tankōbon volume, in the Colosseum house language (mirrors ComicTorrentSourcesPage:
-// black base + wallpaper backdrop, volume key-art hero washing down, gold eyebrow +
-// Fraunces title + identity line, a glass result table). Manga-specific: the ranked
-// Nyaa releases (uploader trust → STRONG/POSSIBLE/WEAK, evidence chips explaining
-// coverage) then the quieter WeebCentral "Build from chapters" fallback pinned LAST.
-// The user always chooses; nothing auto-picks.
+// MangaTankobanSourcesPage — the full-screen "Choose source" picker, in the
+// Colosseum house language (mirrors ComicTorrentSourcesPage: black base +
+// wallpaper backdrop, volume key-art hero washing down, gold eyebrow + Fraunces
+// title + identity line, a glass result table). Manga-specific: ranked Nyaa
+// releases only (uploader trust → STRONG/POSSIBLE, evidence chips explaining
+// coverage). The user always chooses; nothing auto-picks.
+//
+// Catalogue-independence Slice 4 (2026-08-20): the picker is NYAA-ONLY — the
+// pinned-last WeebCentral "Build from chapters" row and its service kick
+// (pickWeeb -> compileWeebCentral) are REMOVED from this page. The organ stays
+// in-tree (MangaVolumePacker, MangaTankobanService::compileWeebCentral) but is
+// unrouted: nothing in this file can reach it any more. `hasCompileFallback` is
+// a positive, always-false scalar the bridge can assert (the ledger has no
+// absence assertions). applySources() also filters out any weebcentral-kind
+// card the native façade still emits in its sourcesReady payload (it does, by
+// design — the native "unplug, not delete" side of this slice; see
+// MangaTankobanService::onSourcesFound), so this is the ONE enforcement point
+// for "nyaa-only" regardless of native's payload shape.
+//
+// This slice also adds SERIES mode: a shelf-less series' "Search nyaa" primary
+// action opens this same sheet with context.seriesMode === true and no
+// volumeId — a volume-agnostic query from the series title (native:
+// MangaTankobanService::searchSeriesSources / MangaNyaaSource::searchSeries).
+// One acquisition path only — this picker — whether per-volume or series-wide.
 //
 // Belongs to MangaSeries (a sibling of the reader; mutually-exclusive overlays). All
-// acquisition rides the native TankobanVolumes service under the original volumeId —
-// this page emits NO reader signal; it only kicks a native download/compile then hides.
+// acquisition rides the native TankobanVolumes service under the original volumeId
+// (or, in series mode, a "series:"-prefixed opaque key) — this page emits NO reader
+// signal; it only kicks a native download then hides.
 import QtQuick
 import QtQuick.Controls
 
@@ -45,6 +63,11 @@ Item {
     property bool loading: false
     property bool complete: false
     property string failureText: ""
+    // Catalogue-independence Slice 4: a POSITIVE, always-false scalar proving the
+    // WeebCentral compile-from-chapters row/kick is gone from this page — the
+    // Lanista bridge has no absence assertions, so a fact like "this route does
+    // not exist" has to be asserted as a property, not inferred from a missing row.
+    readonly property bool hasCompileFallback: false
 
     // ── live-pick state (approved mock: colosseum-tankoban-sources-live-download-mock.html,
     // 2026-08-16). A pick no longer hides the sheet: the picked row's gold button becomes
@@ -57,7 +80,6 @@ Item {
     property string livePhase: ""     // "" | "live" | "done" | "failed"
     property real liveFraction: -1    // aggregated done/total; -1 = indeterminate (resolving)
     property string pickedHash: ""    // the Nyaa release that was picked (row match key)
-    property bool pickedWeeb: false   // …or the WeebCentral fallback card
     property bool toastVisible: false
     property bool toastError: false
 
@@ -90,17 +112,16 @@ Item {
         return true
     }
 
-    // Batch view of the service's rows: only releases covering the whole batch,
-    // TIGHTEST COVERAGE FIRST (design §2 step 3 — a v01–v105 58 GB row must be
-    // visible and labelled, not the default). The WeebCentral card carries no
-    // coverage and is never a torrent, so it survives untouched and stays LAST:
-    // it is the route that always works.
+    // Batch view of the service's rows: only nyaa releases covering the whole
+    // batch, TIGHTEST COVERAGE FIRST (design §2 step 3 — a v01–v105 58 GB row
+    // must be visible and labelled, not the default). Nyaa-only (Slice 4):
+    // applySources() has already dropped any non-nyaa card before this runs, so
+    // `all` is nyaa rows only; this stays a filter+sort, nothing else to bucket.
     function rowsForBatch(all) {
-        var nyaa = [], other = []
+        var nyaa = []
         for (var i = 0; i < all.length; i++) {
             var r = all[i]
-            if (String(r.kind) !== "nyaa") { other.push(r); continue }
-            if (sheet.coversBatch(r)) nyaa.push(r)
+            if (String(r.kind) === "nyaa" && sheet.coversBatch(r)) nyaa.push(r)
         }
         nyaa.sort(function (a, b) {
             var sa = Number(a.coverageHi) - Number(a.coverageLo)
@@ -108,7 +129,7 @@ Item {
             if (sa !== sb) return sa - sb                              // tightest first
             return (Number(b.seeders) || 0) - (Number(a.seeders) || 0) // then best seeded
         })
-        return nyaa.concat(other)
+        return nyaa
     }
 
     signal closed()
@@ -146,7 +167,15 @@ Item {
         loading = true; complete = false; failureText = ""
         open = true
         var s = sheet.serviceObject
-        if (s && context.volumeId) s.searchSources(context.volumeId)
+        if (!s) return
+        // Series mode (Slice 4): no volumeId — a volume-agnostic search keyed by
+        // the caller's own opaque id (context.volumeId doubles as that key so the
+        // stale-handle guards in applySources/applyFailure need no new branch).
+        if (context.seriesMode === true) {
+            if (context.volumeId && context.seriesTitle) s.searchSeriesSources(context.volumeId, context.seriesTitle)
+        } else if (context.volumeId) {
+            s.searchSources(context.volumeId)
+        }
     }
     function hide() {
         open = false
@@ -159,7 +188,7 @@ Item {
     function _resetLive() {
         liveIds = []; liveProgress = ({})
         livePhase = ""; liveFraction = -1
-        pickedHash = ""; pickedWeeb = false
+        pickedHash = ""
         _liveCloseTimer.stop()
     }
 
@@ -233,7 +262,7 @@ Item {
     // in flight. A pick the service refused outright has ALREADY emitted `failed`
     // (same-thread direct signal) before downloadNyaa returned, so liveIds ends up
     // empty and the refusal surfaces as an error toast instead of a frozen disc.
-    function startLive(ids, building) {
+    function startLive(ids) {
         var s = sheet.serviceObject
         var live = []
         for (var i = 0; i < ids.length; i++) {
@@ -243,17 +272,14 @@ Item {
         }
         if (!live.length) {
             toast(failureText.length ? failureText : "That source could not be started.", true)
-            pickedHash = ""; pickedWeeb = false
+            pickedHash = ""
             return
         }
         liveIds = live
         liveProgress = ({})
         livePhase = "live"; liveFraction = -1
         _refreshLive()
-        if (building) {
-            toast(live.length === 1 ? "Building from chapters — follow it on the volume shelf"
-                                    : live.length + " volumes building — follow the shelf", false)
-        } else if (live.length === 1) {
+        if (live.length === 1) {
             var n = (context.volumeNumber !== undefined && String(context.volumeNumber).length)
                     ? String(context.volumeNumber) : ""
             toast(n.length ? ("Vol. " + n + " is downloading — follow it on the volume shelf")
@@ -265,9 +291,16 @@ Item {
 
     function applySources(vid, results) {
         if (String(vid) !== String(context.volumeId)) return   // stale handle
+        // Nyaa-only (Slice 4): drop any weebcentral-kind card BEFORE it ever
+        // reaches `rows` — the one enforcement point for "the picker is
+        // nyaa-only", independent of what the native façade still emits.
+        var nyaaOnly = []
+        var all = results || []
+        for (var i = 0; i < all.length; i++)
+            if (String(all[i].kind) !== "weebcentral") nyaaOnly.push(all[i])
         // Filter HERE, so the count line, the empty state and the list all agree
         // — a single-volume pick is untouched and still sees the service's order.
-        rows = sheet.isBatch ? sheet.rowsForBatch(results || []) : (results || [])
+        rows = sheet.isBatch ? sheet.rowsForBatch(nyaaOnly) : nyaaOnly
         loading = false; complete = true
     }
     function applyFailure(vid, reason) {
@@ -282,7 +315,7 @@ Item {
     function pickNyaa(modelData) {
         var s = sheet.serviceObject
         if (!s || !modelData || !modelData.infoHash) { hide(); return }
-        pickedHash = String(modelData.infoHash); pickedWeeb = false
+        pickedHash = String(modelData.infoHash)
         if (sheet.isBatch) {
             // A batch acquires every volume from the ONE chosen torrent. The
             // transport is already multi-intent (one Job per infoHash holding an
@@ -292,20 +325,12 @@ Item {
         } else {
             s.downloadNyaa(context.volumeId, modelData.infoHash)
         }
-        startLive(sheet.isBatch ? sheet.batchIds : [String(context.volumeId)], false)
+        startLive(sheet.isBatch ? sheet.batchIds : [String(context.volumeId)])
     }
-    // The WeebCentral fallback: disabled cards do nothing; enabled ones compile.
-    // It needs no per-volume choice, so a batch is a loop over the existing
-    // per-volume entry point — nothing new in the engine. Same live treatment.
-    function pickWeeb(modelData) {
-        if (modelData && modelData.enabled === false) return
-        var s = sheet.serviceObject
-        if (!s) { hide(); return }
-        pickedWeeb = true; pickedHash = ""
-        var ids = sheet.isBatch ? sheet.batchIds : [String(context.volumeId)]
-        for (var i = 0; i < ids.length; i++) s.compileWeebCentral(String(ids[i]))
-        startLive(ids, true)
-    }
+    // pickWeeb() (the WeebCentral compile-from-chapters kick) was REMOVED in
+    // catalogue-independence Slice 4, 2026-08-20 — the picker is nyaa-only.
+    // MangaTankobanService::compileWeebCentral stays in-tree, unreferenced by
+    // any QML/route (unplug, not delete).
 
     // ── display helpers ──────────────────────────────────────────────────────
     function fmtSize(bytes) {
@@ -380,7 +405,7 @@ Item {
         id: _liveFailTimer
         interval: 1600
         onTriggered: {
-            sheet.pickedHash = ""; sheet.pickedWeeb = false
+            sheet.pickedHash = ""
             sheet.liveIds = []; sheet.liveProgress = ({})
             sheet.livePhase = ""; sheet.liveFraction = -1
         }
@@ -501,6 +526,10 @@ Item {
     }
 
     BackAction {
+        // World-namespaced automation reach (catalogue-independence Slice 4,
+        // 2026-08-20): the Lanista smoke scenario needs to dismiss the picker
+        // without knowing pixel coordinates. Mirrors tankobanReadingRoomBack.
+        objectName: "tankobanSourcesBack"
         x: theme.margin; y: 30; z: 20
         onTriggered: sheet.hide()
     }
@@ -549,7 +578,7 @@ Item {
         }
     }
 
-    // ── the glass table: ranked Nyaa rows, WeebCentral fallback last ──
+    // ── the glass table: ranked Nyaa rows, nyaa-only (Slice 4) ──
     Glass {
         id: table
         backdrop: sheet.backdrop
@@ -575,7 +604,7 @@ Item {
             Text {
                 anchors.right: parent.right; anchors.rightMargin: 26
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Nyaa · WeebCentral"
+                text: "Nyaa"
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
             }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
@@ -620,17 +649,14 @@ Item {
                 // seeders, coverage) is then readable off this same name via qml-get.
                 objectName: "tankobanSourceRow_" + row.index
                 width: ListView.view.width
-                readonly property bool isWeeb: row.modelData && row.modelData.kind === "weebcentral"
                 readonly property bool rowEnabled: row.modelData ? (row.modelData.enabled !== false) : false
-                // The row THIS sheet started a download from (hash match for Nyaa,
-                // the fallback flag for WeebCentral). While a pick is live the
-                // chosen row carries the status disc and the others recede.
+                // The row THIS sheet started a download from. While a pick is live
+                // the chosen row carries the status disc and the others recede.
                 readonly property bool isPickRow: sheet.pickedHash.length > 0 && row.modelData
                     && String(row.modelData.infoHash || "") === sheet.pickedHash
-                readonly property bool carriesDisc: (row.isPickRow || (row.isWeeb && sheet.pickedWeeb))
-                    && sheet.livePhase.length > 0
+                readonly property bool carriesDisc: row.isPickRow && sheet.livePhase.length > 0
                 readonly property bool dimmed: sheet.livePhase.length > 0 && !row.carriesDisc
-                height: row.isWeeb ? 96 : 150
+                height: 150
                 opacity: row.dimmed ? 0.45 : 1
                 Behavior on opacity { NumberAnimation { duration: 180 } }
 
@@ -639,10 +665,9 @@ Item {
                     color: (rowMa.containsMouse && row.rowEnabled) ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
                 }
 
-                // ── NYAA release row ──
+                // ── NYAA release row (the only kind this sheet renders — Slice 4) ──
                 Item {
                     anchors.fill: parent
-                    visible: !row.isWeeb
 
                     Rectangle {
                         id: srcBadge
@@ -736,74 +761,17 @@ Item {
                     }
                 }
 
-                // ── WEEBCENTRAL fallback row (quieter; disabled shows its reason) ──
-                Item {
-                    anchors.fill: parent
-                    visible: row.isWeeb
-                    opacity: row.rowEnabled ? 1.0 : 0.55
-
-                    Rectangle {
-                        id: weebBadge
-                        anchors.left: parent.left; anchors.leftMargin: 26
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 54; height: 54; radius: 12
-                        color: "transparent"; border.width: 1; border.color: theme.edge
-                        Text {
-                            anchors.centerIn: parent; text: "W"
-                            color: theme.inkDim; font.family: theme.display; font.pixelSize: 22
-                        }
-                    }
-                    Column {
-                        anchors.left: weebBadge.right; anchors.leftMargin: 24
-                        anchors.right: weebBtn.left; anchors.rightMargin: 20
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
-                        Text {
-                            width: parent.width
-                            text: (row.modelData && row.modelData.label) ? row.modelData.label : "Build from chapters"
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 14
-                            font.weight: Font.DemiBold; elide: Text.ElideRight
-                        }
-                        Text {
-                            width: parent.width
-                            text: row.carriesDisc ? sheet.statusText()
-                                : (row.rowEnabled
-                                   ? ("Compiles this volume from "
-                                      + (row.modelData && row.modelData.chapterCount ? row.modelData.chapterCount : 0)
-                                      + " WeebCentral chapters.")
-                                   : ((row.modelData && row.modelData.reason) ? row.modelData.reason : "Unavailable."))
-                            color: row.carriesDisc ? theme.gold : theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap
-                        }
-                    }
-                    Rectangle {
-                        id: weebBtn
-                        // The non-torrent route: build this volume from WeebCentral chapters.
-                        // One per sheet (the fallback card is always last and always single).
-                        objectName: "tankobanSourceBuildFromChapters"
-                        anchors.right: parent.right; anchors.rightMargin: 30
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 56; height: 56; radius: 28
-                        visible: row.rowEnabled && !row.carriesDisc
-                        color: rowMa.containsMouse ? theme.glassHi : theme.glassTint
-                        border.width: 1
-                        border.color: rowMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.5) : theme.edge
-                        Text { anchors.centerIn: parent; text: "↓"; color: theme.ink; font.pixelSize: 18 }
-                    }
-                    StatusDisc {
-                        visible: row.carriesDisc
-                        anchors.right: parent.right; anchors.rightMargin: 30
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
+                // The WeebCentral "Build from chapters" fallback row was REMOVED here
+                // in catalogue-independence Slice 4, 2026-08-20 — the picker is
+                // nyaa-only (applySources() also drops any weebcentral-kind card
+                // before it ever reaches `rows`, so this delegate never sees one).
 
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: row.rowEnabled && !sheet.liveIds.length ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
                         if (sheet.liveIds.length > 0) return   // a pick is running — wait or back out
-                        if (row.isWeeb) sheet.pickWeeb(row.modelData)
-                        else sheet.pickNyaa(row.modelData)
+                        sheet.pickNyaa(row.modelData)
                     }
                 }
             }
