@@ -428,6 +428,27 @@ Item {
             // id>0 but no row found (db not ready / id unknown): resolvedMalId/seriesId stay
             // unresolved — same honest shelf-less page as an ambiguous/unmatched title.
         }
+        // Bridge automation surface (closing-sweep fix, 2026-08-21): displayTitle is
+        // committed here, in resolve()'s own synchronous call, rather than left as a
+        // live `displayTitle: page.seriesTitle` binding. seriesTitle changing is what
+        // TRIGGERS resolve() via onSeriesTitleChanged in the first place, so that binding
+        // shared the SAME seriesTitleChanged signal's slot queue as this handler — Qt
+        // dispatches connected slots in connection order, and onSeriesTitleChanged
+        // (declared earlier in this file, so connected first during construction) always
+        // runs to completion before a sibling binding declared later gets its turn. Every
+        // OTHER masthead scalar (resolvedMalId, hasShelf, primaryAction) is bound to a
+        // page property that changes INSIDE this function, so each fires its own
+        // dedicated notify chain synchronously nested right here — but displayTitle's old
+        // binding only caught up once resolve() returned and the outer signal moved on to
+        // its next slot. That left a real window, on the GUI thread, where `ready` had
+        // already flipped true (loading's own dedicated notify, below) while
+        // `displayTitle` still held the PREVIOUS series' title — the exact stale-read
+        // race the closing sweep (2026-08-21) caught on 3 of 4 replays, specifically on a
+        // late re-navigation once enough prior work was queued for an external poll to
+        // land inside that window. Assigning it explicitly here folds it into the same
+        // synchronous batch as everything else, so by the time `ready` flips true below,
+        // every masthead scalar an external reader can observe is already final.
+        tankobanSeriesMasthead.displayTitle = seriesTitle
         loading = false
     }
 
@@ -445,7 +466,10 @@ Item {
         visible: false
         property bool ready: !page.loading
         property string resolvedMalId: page.resolvedMalId > 0 ? String(page.resolvedMalId) : ""
-        property string displayTitle: page.seriesTitle
+        // Assigned explicitly at the end of resolve() (see the comment there) instead of
+        // a live `page.seriesTitle` binding — closes the ready/displayTitle stale-read
+        // race the closing sweep (2026-08-21) ground-truthed on late re-navigation.
+        property string displayTitle: ""
         property bool hasShelf: page.hasShelf
         property string primaryAction: page.primaryAction
     }

@@ -1536,24 +1536,50 @@ int main(int argc, char *argv[]) {
     auto *accountRuntime = new AccountRuntime(&app);
     accountRuntime->prepareForQml(&engine);
 
-    // One-time WC-era chapter migration (catalogue-independence Slice 5, 2026-08-20).
-    // Hemanth's explicit lock: chapters are deleted completely, on-disk bytes included.
-    // Hooked HERE, not at the earlier AppLog::install() point this class's own header
-    // comment originally assumed, because ground-truthing this boot sequence during
-    // Slice 5 found the Bundle 8C account/profile runtime (just above) is now the SOLE
-    // constructor of ProgressStore -- no store exists any earlier in main() to purge
-    // kind:"manga" records from. The disk-side purge (<AppDataLocation>/manga/) does not
-    // need a ProgressStore at all and would be safe earlier, but both phases share one
-    // idempotency marker, so they run together, once, right after the store that binds
-    // to QML's `Progress` exists. NOTE (recorded honestly, not verified further this
-    // slice): ProfileStoreRuntime.cpp's own file header marks it "PRE-FLIGHT DRAFT
-    // STATUS: uncompiled/untested/unexecuted/unadopted/unverified" -- this purges
-    // whichever store is bound at THIS instant (the sealed store pre-onboarding-choice,
-    // per that runtime's own design), not necessarily the same instance a later
-    // "continue local" rebind swaps in. That rebind's own effect on an already-completed
-    // migration marker is outside this slice's fence.
-    TankobanChapterMigration::run(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation),
-                                  accountRuntime->profileStores()->progressStore());
+    // One-time WC-era chapter migration (catalogue-independence Slice 5, 2026-08-20;
+    // progress-purge rebind fix, closing-sweep 2026-08-21). Hemanth's explicit lock:
+    // chapters are deleted completely, on-disk bytes included. Hooked HERE, not at the
+    // earlier AppLog::install() point this class's own header comment originally assumed,
+    // because ground-truthing this boot sequence during Slice 5 found the Bundle 8C
+    // account/profile runtime (just above) is now the SOLE constructor of ProgressStore --
+    // no store exists any earlier in main() to purge kind:"manga" records from.
+    //
+    // Boot always starts behind ProfileStoreRuntime's Sealed placeholder (a throwaway
+    // QTemporaryDir-backed store -- see ProfileStoreRuntime::createSealedStores); the
+    // user's onboarding choice ("continue local" / sign in) or a restored remembered
+    // session later rebinds it to the real, durable store. TankobanChapterMigration::run's
+    // `progressStoreIsDurable` flag (ground-truthed by the closing sweep, 2026-08-21: the
+    // progress purge was silently landing on the Sealed placeholder and burning the
+    // once-only marker before the real store was ever touched) keeps the marker withheld
+    // while Sealed. Running it once now covers the case a remembered session already
+    // rebound synchronously inside prepareForQml() above; the storesChanged connection
+    // covers every later rebind (continue-local, sign-in, sign-out-to-local, ...) so the
+    // real store gets the real purge exactly once, whenever it first becomes durable.
+    //
+    // One more transitional state storesChanged fires for: ProfileStoreRuntime::
+    // suspendPersonalStoresForMigration() (the first half of "continue local"/sign-in,
+    // called by FirstAccountProfileCoordinator::prepareLocalOnly() before it activates
+    // anything) tears the current store set down to nullptr and emits storesChanged
+    // BEFORE the replacement store exists. progressStore() returning null there is NOT
+    // the disk-only "no store handed in" contract TankobanChapterMigration::run's null
+    // parameter otherwise means (that contract is for a caller that deliberately never
+    // wants the progress step) -- it is a live boot mid-rebind, and calling run() on it
+    // would purge nothing, write nothing, and (with a null progress arg) still burn the
+    // marker on the disk-only path, exactly re-creating the bug one signal later. Skip
+    // the call outright when there is no store yet; the very next storesChanged (once
+    // the real store is bound) runs it for real.
+    auto runTankobanChapterMigration = [accountRuntime]() {
+        ProfileStoreRuntime *stores = accountRuntime->profileStores();
+        ProgressStore *progress = stores->progressStore();
+        if (!progress)
+            return;
+        const bool durable = stores->activeProfile().kind() != ProfilePaths::Kind::Sealed;
+        TankobanChapterMigration::run(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation),
+                                      progress, durable);
+    };
+    runTankobanChapterMigration();
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     &app, runTankobanChapterMigration);
 
     // Watch Party account bridge (arc 03): signed-in identity + bearer stay native.
     // Sign-out or identity replacement tears down any authenticated party session.

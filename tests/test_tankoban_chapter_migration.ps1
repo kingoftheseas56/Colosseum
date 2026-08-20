@@ -143,6 +143,54 @@ if (!(Test-Path -LiteralPath $logPath)) {
     }
 }
 
+# ---- The rebind-gap records check (closing-sweep fix, 2026-08-21) ---------------------
+# The colosseum.log summary line above only proves the migration's LAST completed pass
+# purged 1 manga-kind record from WHATEVER store it was holding at the time -- it does not
+# by itself prove that store is the one QML's `Progress` stays bound to after the session's
+# own onboarding step ("continue without an account", scripted in the scenario). This is
+# the exact gap the closing sweep (2026-08-21) ground-truthed: the migration used to purge
+# ProfileStoreRuntime's throwaway Sealed placeholder (a temp-dir store nothing ever reads
+# again) and burn its once-only marker there, leaving the REAL, durable store's manga-kind
+# record on disk forever. Read the durable store's own ini directly and assert the record
+# is actually gone from it. In THIS scenario (a fresh, never-adopted tagged session)
+# FirstAccountProfileCoordinator::prepareLocalOnly() takes the reloadLegacyProfile() branch
+# (legacyPersonalStateClaimed() is false pre-adoption), whose ProgressStore is the
+# COLOSSEUM_APPDATA_TAG-diverted default constructor -- the SAME path as the seed fixture's
+# own file, $appDataRoot/progress-store.ini (ProgressStore.h's progressStoreTaggedIniPath).
+# An already-adopted profile would instead land in profiles/local/progress.ini
+# (ProfilePaths::localOnly) -- checked too, defensively, in case that branch is ever the
+# one exercised here.
+$durableIniCandidates = @(
+    (Join-Path $appDataRoot "progress-store.ini"),
+    (Join-Path $appDataRoot "profiles/local/progress.ini")
+)
+$durableIniChecked = $false
+foreach ($iniPath in $durableIniCandidates) {
+    if (!(Test-Path -LiteralPath $iniPath)) { continue }
+    $durableIniChecked = $true
+    # Matched by the fixture's own id VALUES, not the "kind" JSON key -- the disk-writer's
+    # own QSettings ini-escaping of the backslash/quote-heavy JSON blob is a layer this
+    # script does not need to reproduce exactly; each seeded id value is unique to its one
+    # record (berserk-1 only ever appears in the manga-kind row; mal:2 only in the
+    # tankoban-kind row; locg:123 only in the comic-kind row), so a plain substring check
+    # is exact without needing to know the on-disk escaping shape.
+    $iniText = Get-Content -LiteralPath $iniPath -Raw
+    if ($iniText.Contains("berserk-1")) {
+        $failures += "the durable store's own ini ($iniPath) still contains the manga-kind berserk-1 record -- the rebind gap this check exists to catch"
+    } else {
+        Write-Host "  durable store ini ($iniPath): manga-kind record confirmed absent"
+    }
+    if (!$iniText.Contains("mal:2")) {
+        $failures += "the durable store's own ini ($iniPath) lost its tankoban-kind record (over-purge)"
+    }
+    if (!$iniText.Contains("locg:123")) {
+        $failures += "the durable store's own ini ($iniPath) lost its comic-kind record (over-purge)"
+    }
+}
+if (!$durableIniChecked) {
+    $failures += "neither durable-profile ini candidate exists under $appDataRoot -- cannot confirm the rebind purge reached the real store"
+}
+
 if ($failures.Count -gt 0) {
     Write-Host ("FAIL: tankoban chapter migration disk gate - " + ($failures -join "; "))
     Write-Host "AppData root left on disk for inspection: $appDataRoot"

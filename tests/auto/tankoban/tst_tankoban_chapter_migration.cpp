@@ -83,6 +83,7 @@ private slots:
     void idempotent_second_run_is_noop();
     void missing_manga_dir_still_purges_progress_and_writes_marker();
     void null_progress_store_still_purges_disk();
+    void sealed_store_purge_deferred_until_durable_rebind();
 };
 
 void tst_tankoban_chapter_migration::disk_purge_deletes_chapter_tree_keeps_volumes()
@@ -204,6 +205,74 @@ void tst_tankoban_chapter_migration::null_progress_store_still_purges_disk()
     QVERIFY(result.mangaDirDeleted);
     QCOMPARE(result.progressRecordsPurged, 0);   // no store handed in — nothing to purge, no crash
     QVERIFY(!QDir(tmp.path() + QStringLiteral("/manga")).exists());
+}
+
+// Reproduces the closing-sweep's ground-truthed gap (2026-08-21): boot always purges
+// against ProfileStoreRuntime's Sealed placeholder first (a throwaway store, never the
+// one QML's `Progress` ends up bound to), and only later does the user's onboarding
+// choice ("continue local") rebind to the real, durable store. A migration that purges
+// once against whatever is bound at boot and burns its marker there never reaches the
+// real store's manga-kind records. This fixture mirrors that exact shape: a `sealedStore`
+// (the ephemeral pre-onboarding placeholder) and a SEPARATE `realStore` (the durable
+// store the app rebinds Progress to post-onboarding), both seeded independently, run()
+// called first against the sealed store (progressStoreIsDurable=false, as main.cpp does
+// at boot) and then against the real store (progressStoreIsDurable=true, as main.cpp's
+// storesChanged-triggered retry does after the rebind).
+void tst_tankoban_chapter_migration::sealed_store_purge_deferred_until_durable_rebind()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    seedChapterTree(tmp.path());
+    const QString marker = tmp.path() + QStringLiteral("/tankoban-chapter-migration.v1.done");
+
+    // The Sealed placeholder: its own ini, seeded the same shape a stray manga record
+    // could take there, but this store is NEVER the one that persists to disk long-term.
+    QTemporaryDir sealedDir;
+    QVERIFY(sealedDir.isValid());
+    ProgressStore sealedStore(sealedDir.path() + QStringLiteral("/progress.ini"));
+    seedProgressRecords(sealedStore);
+
+    // The real, durable store — the one the app's "continue local" rebind swaps
+    // `Progress` to. This is where a real user's pre-existing manga-kind chapter
+    // progress actually lives on disk.
+    const QString realIniPath = tmp.path() + QStringLiteral("/progress-store.ini");
+    ProgressStore realStore(realIniPath);
+    seedProgressRecords(realStore);
+    QVERIFY(!realStore.get(QStringLiteral("manga"), QStringLiteral("berserk-1")).isEmpty());
+
+    // Boot-time call: bound to the Sealed placeholder. Disk purge still runs (it has no
+    // ProgressStore dependency), but the progress purge and the marker must both be
+    // withheld — burning the marker here is exactly the defect: it would permanently
+    // skip the real store below.
+    const auto sealedPass = TankobanChapterMigration::run(tmp.path(), &sealedStore,
+                                                            /*progressStoreIsDurable=*/false);
+    QVERIFY2(sealedPass.mangaDirDeleted, "the disk-side purge has no ProgressStore dependency "
+             "and must still run while sealed");
+    QVERIFY2(!QFile::exists(marker), "the marker must NOT land while only the Sealed placeholder "
+             "was purged -- burning it here is the defect this case reproduces");
+    QCOMPARE(sealedPass.progressRecordsPurged, 0);
+    QVERIFY2(!sealedStore.get(QStringLiteral("manga"), QStringLiteral("berserk-1")).isEmpty(),
+             "the sealed placeholder's own record is left alone (never the target)");
+    QVERIFY2(!realStore.get(QStringLiteral("manga"), QStringLiteral("berserk-1")).isEmpty(),
+             "the real store must be completely untouched by the sealed-pass call");
+
+    // The rebind retry: bound to the real, durable store (main.cpp's storesChanged
+    // handler). This must be the pass that actually purges and writes the marker.
+    const auto realPass = TankobanChapterMigration::run(tmp.path(), &realStore,
+                                                          /*progressStoreIsDurable=*/true);
+    QVERIFY2(QFile::exists(marker), "the marker must land once the REAL store has been purged");
+    QCOMPARE(realPass.progressRecordsPurged, 1);
+    QVERIFY2(realStore.get(QStringLiteral("manga"), QStringLiteral("berserk-1")).isEmpty(),
+             "the real store's manga-kind record must be gone after the durable pass");
+    QVERIFY2(!realStore.get(QStringLiteral("tankoban"), QStringLiteral("mal:2")).isEmpty(),
+             "tankoban-kind records on the real store survive");
+    QVERIFY2(!realStore.get(QStringLiteral("comic"), QStringLiteral("locg:123")).isEmpty(),
+             "comic-kind records on the real store survive");
+
+    // A third call, now that the marker exists, is the ordinary idempotent no-op.
+    const auto thirdPass = TankobanChapterMigration::run(tmp.path(), &realStore,
+                                                           /*progressStoreIsDurable=*/true);
+    QVERIFY2(!thirdPass.ran, "once the real purge has landed, later calls are true no-ops");
 }
 
 QTEST_GUILESS_MAIN(tst_tankoban_chapter_migration)

@@ -27,6 +27,20 @@
 // written ONLY after a successful disk purge (or when there was nothing to delete), so a
 // failed deletion (e.g. a locked file) is retried on the next boot instead of being
 // silently forgotten.
+//
+// progressStoreIsDurable (closing-sweep fix, 2026-08-21): the account/profile runtime
+// (Bundle 8C) boots EVERY run behind a Sealed placeholder ProgressStore backed by a
+// fresh QTemporaryDir (ProfileStoreRuntime::createSealedStores) — a throwaway instance
+// that is discarded, never the store QML's `Progress` ends up bound to once the user's
+// onboarding choice ("continue local" / sign in) rebinds ProfileStoreRuntime to a real,
+// durable profile. Purging kind:"manga" records from the Sealed placeholder purges
+// nothing that will ever persist, and if the marker were written on that pass, the real
+// store's manga-kind records would never be reached (the closing sweep, 2026-08-21,
+// ground-truthed exactly this). The caller passes false while the bound store is Sealed;
+// run() then does its disk-only pass and WITHHOLDS the marker so a later call — made
+// once the caller's own rebind signal fires — gets the real store and the real chance to
+// write it. Defaults to true so every existing disk-only/no-store caller and every
+// already-durable-store caller is unaffected.
 
 #include <QString>
 
@@ -50,7 +64,10 @@ public:
     // identity dance required).
     // progress: may be null (a caller that only wants the disk purge exercised, e.g. a
     // disk-only fixture) — the ProgressStore purge step is skipped when null.
-    static Result run(const QString &appDataRoot, ProgressStore *progress);
+    // progressStoreIsDurable: false when `progress` is a Sealed/ephemeral placeholder —
+    // see the class-comment note above. Ignored when progress is null.
+    static Result run(const QString &appDataRoot, ProgressStore *progress,
+                       bool progressStoreIsDurable = true);
 
 private:
     static QString markerPath(const QString &appDataRoot);

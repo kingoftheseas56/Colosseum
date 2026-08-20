@@ -35,7 +35,8 @@ int TankobanChapterMigration::purgeMangaProgress(ProgressStore *progress)
 }
 
 TankobanChapterMigration::Result TankobanChapterMigration::run(const QString &appDataRoot,
-                                                                 ProgressStore *progress)
+                                                                 ProgressStore *progress,
+                                                                 bool progressStoreIsDurable)
 {
     Result out;
     if (appDataRoot.isEmpty())
@@ -50,6 +51,21 @@ TankobanChapterMigration::Result TankobanChapterMigration::run(const QString &ap
 
     out.ran = true;
     const bool diskOk = deleteChapterTree(appDataRoot, out);
+
+    if (progress && !progressStoreIsDurable) {
+        // Bound to the Sealed pre-onboarding placeholder (see header comment): the
+        // disk-side tree is unconditional and safe to purge now, but purging THIS
+        // store's manga-kind records would purge a throwaway instance and burn the
+        // marker before the real, durable store a later rebind swaps in is ever
+        // reached. Withhold the marker; the caller retries once its rebind fires.
+        qInfo("[tankoban-migration] chapter tree purge pass complete (existed=%s deleted=%s); "
+              "progress store not yet durable (Sealed/pre-onboarding) — marker withheld, "
+              "will retry once a real profile activates",
+              out.mangaDirExisted ? "yes" : "no",
+              out.mangaDirDeleted ? "yes" : "n/a");
+        return out;
+    }
+
     out.progressRecordsPurged = purgeMangaProgress(progress);
 
     if (!diskOk) {

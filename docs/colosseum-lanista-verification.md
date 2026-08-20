@@ -1324,6 +1324,42 @@ entry; this entry covers the Lanista-specific runtime findings only.
 
 ---
 
+## Catalogue-independence closing-sweep FOLLOW-UP fixes (2026-08-21) — bridge-layer status
+
+Full mechanism, code diffs, and Qt Test/static evidence in `docs/colosseum-test-verification.md`'s
+matching entry; this entry covers the Lanista/bridge-specific status only.
+
+- **Bridge status for both fixes: bridge blocked, not a defect in either fix.**
+  `native/build-msvc/colosseum.exe` (PID 18392, started 00:31:52) was live for this entire
+  pass — the closing sweep's own written human-witnessed checklist (`artifacts/tankoban-
+  independence/closing/human-witnessed-checklist.md`, item 2) names THIS exact build's next
+  boot as Hemanth's real first daily boot of the migrated app (the actual one-time
+  destructive chapter purge on his real AppData root), so this was very plausibly not a
+  spare/forgotten process. Never killed, per standing rule; polled bounded (~17 min direct
+  wait at the claim, ~37 min total elapsed since it was first observed running) rather than
+  block indefinitely, per this task's own "poll-wait bounded ~10min" instruction. Claim +
+  status posted to `agents/chat.md` before this session block; no Lanista session was driven
+  against the live process at any point.
+- **No scenario changes needed for either fix's own gate.** The already-committed
+  `tests/lanista_scenarios/tankoban_chapter_migration.json` already clicks
+  `accountWelcomeContinueLocal` (the exact onboarding rebind Defect 1's fix depends on) —
+  Defect 1's fix should turn its existing progress-purge assertion truthful once rebuilt and
+  rerun, no scenario edit required. `tests/lanista_scenarios/tankoban_catalogue_smoke.json`
+  already carries the late-re-navigation Berserk-shelf-less leg the closing sweep caught the
+  race on — Defect 2's completion criterion is a plain 4x fresh-session replay of the SAME
+  committed scenario, no edit required there either.
+- **Next actor, once `colosseum.exe` is free:** (1) rebuild
+  (`native/build-msvc.bat` or the targeted `native/_slice5_build_app.bat` — full relink,
+  since `native/main.cpp` changed); (2) rerun `tests/test_tankoban_chapter_migration.ps1`
+  for the `TANKOBAN_CHAPTER_MIGRATION_OK` sentinel plus its new durable-ini records check;
+  (3) replay `tankoban_catalogue_smoke.json` in 4 fresh isolated tagged sessions and confirm
+  the final Berserk `displayTitle` assertion passes 4/4 (previously 3/4); (4) flip this
+  entry's and the matching test-verification.md entry's status lines to Runtime-validated
+  once both gates are green, and flip Slice 5's own progress-purge line in the closing-sweep
+  entry above from "confirmed broken" to fixed, citing this entry.
+
+---
+
 ## Status vocabulary (for plans and reports)
 
 `Runtime-validated` is the only status that closes a user-visible slice without qualification.

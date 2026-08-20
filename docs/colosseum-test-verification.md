@@ -1139,3 +1139,175 @@ bounded, never killed a foreign process); recorded in `agents/chat.md`.
   failures (unrelated lanes, unchanged by this sweep) and the still-unreached Hal/Baby
   Princess pair. None of these block Hemanth's own eyes-on pass — the checklist above is
   ready for him regardless.
+
+## Catalogue-independence closing-sweep FOLLOW-UP: two named defects fixed (2026-08-21)
+
+Systematic-debugging pass (`brotherhood-systematic-debugging`) on the two gaps the closing
+sweep above characterized but explicitly left unfixed (out of its own "verification only"
+fence). Both root causes were confirmed by direct code inspection of the boot/rebind
+sequence and the masthead's signal-dependency graph, not guessed.
+
+### Defect 1 — progress-record purge missed the rebound ProgressStore
+
+**Mechanism, ground-truthed.** `ProfileStoreRuntime`'s constructor
+(`native/account/ProfileStoreRuntime.cpp:38-55`) ALWAYS starts behind a Sealed placeholder
+store (`createSealedStores()`, line 344): a `ProgressStore` backed by a fresh
+`QTemporaryDir` under `<appDataRoot>/profile-session/sealed-XXXXXX/progress.ini` — a
+throwaway instance discarded the moment onboarding resolves. `main.cpp:1556-1557` (as it
+stood after the closing sweep) called `TankobanChapterMigration::run()` exactly once,
+synchronously, right after `accountRuntime->prepareForQml()` — i.e. against THIS sealed
+placeholder in the common case (a fresh session with no remembered account). The purge ran,
+found the placeholder empty (nothing was ever seeded into a per-boot temp path), wrote its
+once-only marker (`tankoban-chapter-migration.v1.done`) regardless, and the REAL store a
+later "continue without an account" click rebinds `Progress` to
+(`ProfileStoreRuntime::activateLocalOnlyProfile()` / `reloadLegacyProfile()`, both invoked
+from `FirstAccountProfileCoordinator::prepareLocalOnly()`,
+`native/account/FirstAccountProfileCoordinator.cpp:279-305`) never got purged — the marker
+already existed, so the migration's own idempotency guard silently skipped it forever.
+Traced further: in a fresh/never-adopted tagged session (this test's own shape),
+`prepareLocalOnly()` takes the `reloadLegacyProfile()` branch (`legacyPersonalStateClaimed()`
+is false pre-adoption), whose `ProgressStore` uses the tag-diverted DEFAULT constructor
+(`ProgressStore.h:139-149`, `progressStoreTaggedIniPath`) — landing at
+`<appDataRoot>/progress-store.ini`, the SAME path the seed fixture writes to, which is why
+the closing sweep could directly confirm the seeded manga record survived to session end.
+
+**Fix (native/engine/TankobanChapterMigration.{h,cpp}, native/main.cpp).** Added a
+`progressStoreIsDurable` parameter to `TankobanChapterMigration::run()` (default `true`,
+preserving every existing disk-only/no-store caller's contract unchanged). When `progress`
+is non-null and `progressStoreIsDurable` is false, `run()` still performs the unconditional,
+idempotent disk-side purge (`<AppDataLocation>/manga/`, no `ProgressStore` dependency) but
+WITHHOLDS the once-only marker and skips the progress purge — the once-only marker must not
+burn before the real purge succeeds. `main.cpp` now wraps the call in a lambda
+(`runTankobanChapterMigration`) run once immediately (covering a remembered session that
+already rebound synchronously inside `prepareForQml()`) and reconnected to
+`ProfileStoreRuntime::storesChanged` (covering every later rebind: continue-local, sign-in,
+sign-out-to-local). The lambda computes `durable = activeProfile().kind() != Sealed` fresh
+on every call. A second, load-bearing correction found while tracing the rebind: `storesChanged`
+also fires from `ProfileStoreRuntime::suspendPersonalStoresForMigration()`
+(`ProfileStoreRuntime.cpp:156-166`, the first half of `prepareLocalOnly()`) with `m_stores`
+already reset to null — a transitional signal, not "no store handed in" by caller choice.
+Calling `run()` on that null-progress transitional emission would have re-created the exact
+same bug one signal later (disk purge repeats harmlessly, but a null-progress call still
+withholds nothing and would burn the marker on the "no store" path). The lambda now returns
+early whenever `progressStore()` is null, so only a call with a REAL store pointer ever
+reaches `run()`.
+
+**Verification — Qt Test layer (`colosseum.qttest.tankoban_chapter_migration`), Root cause
+confirmed, red-then-green with negative control performed.** Extended
+`tests/auto/tankoban/tst_tankoban_chapter_migration.cpp` with
+`sealed_store_purge_deferred_until_durable_rebind()`: seeds a SEPARATE `sealedStore` (the
+ephemeral placeholder shape) and `realStore` (the durable shape) each with one
+manga/tankoban/comic record; calls `run(root, &sealedStore, /*durable=*/false)` and asserts
+the disk purge still ran but the marker is withheld and BOTH stores' manga records survive
+untouched; then calls `run(root, &realStore, /*durable=*/true)` and asserts the marker now
+lands, the real store's manga record is gone, tankoban/comic survive, and a third call is a
+true no-op. **Negative control:** temporarily disabled the new `if (progress &&
+!progressStoreIsDurable)` guard (`if (false && progress && ...)`) and rebuilt — the new case
+went RED exactly as predicted (`'!QFile::exists(marker)' returned FALSE` — the marker landed
+after only the sealed-placeholder pass, reproducing the original defect precisely); restored
+the guard and rebuilt clean — full suite green again. Evidence: local build/run cycle,
+`tst_tankoban_chapter_migration.exe` — sabotaged run: `Totals: 2 passed, 1 failed` (the new
+case FAILing on the marker assertion); restored run: `Totals: 9 passed, 0 failed`
+(all prior cases plus the new one). Build via `native/_slice5_build.bat`
+(`cmake --build build-msvc --target tst_tankoban_chapter_migration`), invoked through
+PowerShell per `feedback_verify_exe_mtime_after_build` (bare `cmd /c` from Bash no-ops on
+this machine); exe `LastWriteTime` verified to advance on every rebuild.
+
+**Runner-side records check extended.** `tests/test_tankoban_chapter_migration.ps1` gained a
+direct disk-ini check (beyond the existing `colosseum.log` summary-line assertion, which only
+proves the migration's LAST pass purged 1 record from WHATEVER store it held, not that the
+store is the durable one): reads
+`$appDataRoot/progress-store.ini` and `$appDataRoot/profiles/local/progress.ini` (whichever
+exists) and asserts the seeded `berserk-1` id string is gone while `mal:2`/`locg:123` (the
+tankoban/comic ids) survive — matched by id VALUE, not the `"kind":"manga"` JSON key, so the
+check does not need to reproduce the disk writer's own QSettings ini-escaping exactly.
+Syntax-checked (`[System.Management.Automation.PSParser]::Tokenize`, `PARSE_OK`) and
+confirmed ASCII-only (file's own house rule) via `perl -ne 'print if /[^\x00-\x7F]/'`
+(zero matches).
+
+**Bridge-layer / full runtime .ps1 gate: NOT run this pass — Bridge blocked, not a defect in
+the fix.** `native/build-msvc/colosseum.exe` (PID 18392, started 00:31:52, the closing
+sweep's own relink) was live for this entire pass — per the sweep's own written
+human-witnessed checklist, THIS is Hemanth's real first daily boot of the migrated build (the
+actual one-time destructive chapter purge on his real AppData root), not a spare build
+someone left running. Standing rule (never kill a `colosseum.exe`) plus the app-lock-the-exe
+build trap (`feedback_no_concurrent_builds_same_out_dir`) both apply; polled bounded
+(~17 min direct wait, ~37 min total elapsed since claim) per this task's own instruction
+rather than block indefinitely or touch the live process. `tests/test_tankoban_chapter_migration.ps1`
+(the runner-side disk+records gate this fix's completion criterion names) and the
+`colosseum.exe`-side half of `tst_tankoban_chapter_migration`'s Qt Test build both need a
+full-app relink this pass could not obtain. **Test seam status: available** (harness and
+runner both exist, extended, syntax-valid); **Bridge status: bridge blocked** (needs
+`colosseum.exe` free to relink + `lanista session run`). Next actor: rebuild
+(`native/build-msvc.bat` or the targeted `_slice5_build_app.bat`) once the daily app is
+closed, then rerun `tests/test_tankoban_chapter_migration.ps1` for the `TANKOBAN_CHAPTER_MIGRATION_OK`
+sentinel and the new durable-ini records check.
+
+### Defect 2 — masthead ready/displayTitle stale-read race on late re-navigation
+
+**Mechanism, ground-truthed by direct QML signal/slot analysis (Qt connects slots to a
+signal in connection order).** `qml/MangaSeries.qml`'s `resolve()` (triggered by
+`onSeriesTitleChanged`, itself fired by the SAME `page.seriesTitle` assignment that opens a
+new series) is the sole writer of every masthead-facing `page` property. Every OTHER masthead
+scalar (`tankobanSeriesMasthead.resolvedMalId`/`hasShelf`/`primaryAction`) binds to a `page`
+property that changes INSIDE `resolve()` itself (`page.resolvedMalId`, and the `hasShelf`/
+`primaryAction` chain derived from it) — each such property change fires its OWN dedicated
+notify signal, synchronously nested inside `resolve()`'s call stack, well before `resolve()`
+returns. `tankobanSeriesMasthead.ready` (`!page.loading`) is the same shape: `page.loading`
+changes inside `resolve()` too, so `ready` flips true synchronously nested, still inside
+`resolve()`. `tankobanSeriesMasthead.displayTitle`, before this fix, was a live binding on
+`page.seriesTitle` — the ONE property that changes BEFORE `resolve()` starts (it's what
+triggers `resolve()` via `onSeriesTitleChanged` in the first place). That means
+`displayTitle`'s binding-update and `onSeriesTitleChanged`'s handler (`resolve()`) are BOTH
+subscribers of the SAME `seriesTitleChanged` signal; Qt dispatches connected slots in
+connection order, and `onSeriesTitleChanged` (declared at `page`'s own construction, earlier
+in the file) connects before `tankobanSeriesMasthead`'s child-Item binding (declared later).
+So `resolve()` runs to completion — including `ready` flipping true — strictly BEFORE
+`displayTitle`'s own binding re-evaluation gets its turn on that same signal. Internally this
+ordering is deterministic every time `resolve()` runs on a title change; what made it read as
+"3 of 4 replays" flaky (per the closing sweep's own log) is that the race is only OBSERVABLE
+by an external, differently-scheduled reader (Lanista's bridge poll) landing inside that
+narrow inter-slot window on the GUI thread — a window whose odds of being sampled rise with
+how much prior work is queued, matching the sweep's own finding that it only hit on the
+scenario's THIRD-plus series-page open, late in a 31-step sequence.
+
+**Fix (qml/MangaSeries.qml).** Changed `tankobanSeriesMasthead.displayTitle` from a live
+`page.seriesTitle` binding to a plain property (`property string displayTitle: ""`),
+assigned EXPLICITLY inside `resolve()` (`tankobanSeriesMasthead.displayTitle = seriesTitle`,
+right before `loading = false`). This folds `displayTitle` into the SAME synchronous call
+stack as every other masthead scalar and `ready`, closing the cross-slot gap structurally —
+no reliance on Qt's connection-order semantics survives in the fixed code. Minimal: one
+property-declaration line, one assignment line, both inside the file's own existing
+`resolve()`/masthead-Item shapes; no other masthead scalar needed the same treatment (each
+already updates via its own dedicated notify chain nested inside `resolve()`, as traced
+above).
+
+**Verification — static layer: Root cause confirmed by code-level signal-dependency tracing;
+`qmllint` clean.** `qmllint qml/MangaSeries.qml` shows the same pre-existing "unqualified
+access" warnings this file already carried (context-property references — expected pattern,
+unrelated to this change) and zero new warnings or errors at or near the edited lines
+(`resolve()`, the masthead `Item` block). No new unit/harness seam applies here: an
+in-process QML harness call (e.g. `tests/manga_series_catalogue_harness.qml`) cannot exercise
+this race at all — the whole `resolve()` call, INCLUDING the previously-buggy sibling-binding
+catch-up, completes synchronously within one harness JS statement, before an in-process
+assertion could ever observe the intermediate state. The only layer that can actually
+observe the race is an external, differently-scheduled reader — i.e. Lanista's own bridge
+poll — matching this defect's own completion criterion below.
+
+**Bridge-layer replay: NOT run this pass — Bridge blocked, same live `colosseum.exe` as
+Defect 1.** The fix's own required gate — 4 fresh isolated `lanista session run` replays of
+`tests/lanista_scenarios/tankoban_catalogue_smoke.json`, the previously-flaky final Berserk
+assertion must pass 4/4 — needs a colosseum.exe built from this fix AND an idle machine (no
+foreign `colosseum.exe`/`lanista.exe`), per this task's own pre-session-claim discipline. The
+same live daily instance blocking Defect 1's runtime gate blocks this one too. **Test seam
+status: not applicable** (no deterministic unit/harness seam exists at this layer, by
+design — see above). **Bridge status: bridge blocked.** Next actor: once `colosseum.exe`
+is free, rebuild, then run 4 fresh tagged sessions of `tankoban_catalogue_smoke.json` and
+confirm the Berserk shelf-less final assertion (`displayTitle=="Berserk"`, not a stale prior
+title) passes in all 4, posting a claim/release line to `agents/chat.md` around the session
+block per standing discipline.
+
+**Overall status: Root cause confirmed (both defects); Test seam status: available (Defect
+1) / not applicable (Defect 2); Bridge status: bridge blocked (both) — the live daily
+`colosseum.exe`, not a fix defect, is the blocker.** Both fixes are `git diff`-reviewable
+now; the runtime confirmations above are this pass's honest handoff, not a claimed pass.
