@@ -416,7 +416,88 @@ back to `3`; rerun: `PROBE_LIVE_OK 12/12`.
   (`taskkill /PID <pid> /T /F`, matching the documented PID-tree pattern); `tasklist` for
   `workerd.exe` confirmed empty after every run.
 
+## Slice 7 — two real clients: membership, chat, kick/rejoin, host-grace (2026-08-20)
+
+`test/accept-two-clients.ps1` (new, this slice's committed deliverable) launches TWO real
+`native/build-msvc/colosseum.exe` instances directly (unique `COLOSSEUM_LANISTA_PIPE` +
+`COLOSSEUM_APPDATA_TAG` per instance, isolation-asserted from `get-state`'s own
+`appDataRoot`/`cacheRoot`), drives each through the real Join sheet via per-pipe `lanista.exe`
+CLI calls, and exercises the full social sequence against one scripted host
+(`test/probe-live.mjs --host-only`): both join → chat → kick GuestB → GuestB fresh-rejoins →
+host socket drops (grace) → host reconnects within grace → host ends the room.
+
+`test/probe-live.mjs --host-only` gained four new stdin extensions this slice (test-instrument
+only, mirrors the Slice 6 `END` extension, `src/` untouched): `CHAT <text>`, `DROP` (closes the
+host socket without `endRoom` — the grace trigger), `RECONNECT` (opens a fresh socket and sends
+`reconnectRoom` with the rotated token), and `KICK_BY_NAME <displayName>` (resolves the target's
+opaque `participantId` from a passive roster mirror kept by a second `message` listener on the
+host's own socket, then sends `removeParticipant`). All four were sanity-verified standalone
+against a live relay before being driven through two real apps.
+
+**Ground-truth findings (both read from source, both confirmed live):**
+
+- **Chat is not observable outside the Player.** `qml/WatchPartyPanel.qml`'s
+  `watchPartyChatSection`/`watchPartyChatViewport` is the only chat-rendering surface, and it is
+  reachable only through `PlayerPage.qml`'s `WatchPartyPanel { ... }` instantiation.
+  `qml/WatchPartyJoinSheet.qml` has no chat surface at all, and `colosseumTaskbar` exposes only
+  `watchPartyJoinPhase`/`watchPartyJoinErrorCategory`. With the Player closed in this slice (that's
+  Slice 8), app-side chat visibility is **Bridge blocked outside the Player** — this run proves
+  chat crossed the relay (host `CHAT` command, relay-stamped, both connections would receive it
+  per the Slice 5 probe's own step 6) and that taskbar scalars are unaffected by chat traffic, not
+  that either app rendered the message.
+- **Host-grace has no scalar outside the Player either.** `hostGraceActive` is exposed only via
+  `PlayerPage.qml`'s `watchPartyHostGraceActive` (reads the `WatchPartyUi` singleton) and
+  `WatchPartyPanel.qml`'s own `controller.hostGraceActive` — both require the Player surface.
+  `WatchPartyUi` is a root-context `QObject`, not a `QQuickItem`, so `LanistaServer::cmdQmlGet`
+  (which requires `resolveTarget()` to return a `QQuickItem`) cannot read it directly, and
+  `UiController::diagnosticSnapshot()` (which does carry `hostGraceActive`) is not on
+  `LanistaServer::cmdInvokeRead`'s allowlist. This run captured taskbar scalars through the grace
+  window anyway: membership survives it cleanly on both apps (phase stays `active`, no error).
+- **The plain per-pipe CLI cannot express an array-valued `props` argument.**
+  `payloadFromArgs()` (`native/tools/lanista.cpp`) inserts every `k=v` as a bare string/number/bool
+  and never parses JSON, so `qml-get object=X props=a,b` serializes `props` as the literal string
+  `"a,b"`; `LanistaServer::cmdQmlGet` then calls `.toArray()` on that string, which silently
+  returns an empty array — `qml-get ... props=...` always returns `"props": {}` over the plain
+  CLI, with no error. (The JSON scenario-file path, e.g. Slice 6's `session run`, is unaffected —
+  it serializes `props` as a real JSON array.) Confirmed reproducibly on this run's first
+  checkpoint. Worked around here by probing each candidate value with a 200ms `ui-wait-for`
+  (`prop=`/`value=` — a single k=v pair, not an array — is unaffected) instead of reading a
+  property dump directly.
+
+**Stall instrumentation (the open Slice 6 leg-B finding):** every per-pipe CLI call around the
+`DROP`/`RECONNECT` moments was timestamped (before/after, delta logged) in
+`stall-instrumentation.log` under each run's evidence root. The severe (>31s) bridge stall Slice 6
+leg B saw (after the relay PROCESS was killed) did **not** reproduce here — `DROP`/`RECONNECT`
+never kill the relay, only the host's own socket, so the relay stays live throughout. A much
+smaller, distinct episode DID reproduce on one run: instance B's `lanista.exe` calls timed out
+(`exit=4`, `NO_PIPE/TIMEOUT`) twice in a row (~1.4s and ~1.6s) immediately after B's own busy
+rejoin UI sequence, then recovered to normal (~200-800ms) latencies on the very next call — read as
+transient GUI-thread contention under two-instance RAM/CPU pressure (matches
+`reference_qtquick_gui_thread_gates_the_picture`), not the relay-kill stall mechanism Slice 6 saw.
+
+### Slice 7 evidence (2026-08-20)
+
+- Six orchestrator runs total; the first three surfaced and fixed real bugs (`$host` is a
+  read-only PowerShell automatic variable — renamed to `$hostSession`; a stray file-lock on
+  `Add-Content` needed a best-effort retry so a transient AV/indexer lock never aborts the whole
+  run; the `props=a,b` CLI gap above). The final two runs completed the full sequence cleanly.
+- Full sequence, both apps, real `wrangler dev` relay, `RELAY_HOST_GRACE_MS=15000`: both-joined →
+  chat-sent → kick GuestB (`watchPartyJoinPhase=error`, `watchPartyJoinErrorCategory=
+  participantRemoved` on B; A stayed `active`/no-error) → B fresh-rejoin (`active`) → host `DROP`
+  (both apps' membership survived; A stayed `active` throughout) → host `RECONNECT` (both apps
+  `active` after) → host `END` (both apps' `watchPartyJoinPhase` reached `idle`, `ui-wait-for`
+  exit 0 on both).
+- Zero stray `colosseum.exe` processes at teardown on every run (only the daily PID remained);
+  every launched PID (relay, host, both app instances) was command-line-verified before any kill.
+- Paired grabs (PNG, both apps, every checkpoint) copied into the evidence root before teardown
+  wiped the tagged AppData roots — `artifacts/watchparty-slice7/<timestamp>/*.png` +
+  `results.json` + `stall-instrumentation.log` (evidence directories are gitignored, not
+  committed; this README section is the durable record).
+
 ## Scope note
 
 Slices 6-9 (first real desktop client, two real clients, synced playback, deploy) are
 runtime/acceptance work layered on top of `test/probe-live.mjs`'s scripted-host instrument.
+Slice 7 proved the two-client social machinery (membership, chat transport, kick/rejoin,
+host-grace/reconnect, room-end) without playback; Slice 8 adds synced playback through the
+Player, which is also the first surface where chat/host-grace become app-visible.

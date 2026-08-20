@@ -140,12 +140,48 @@ async function runHostOnly(args) {
   console.log(`RECONNECT_TOKEN=${established.payload.reconnectToken}`);
   console.log("HOST_ONLY_READY");
 
+  // Mutable across the CHAT/DROP/RECONNECT extensions below: DROP replaces
+  // `client` with a terminated socket, RECONNECT replaces it with a fresh one
+  // bound to the SAME participantId via the rotated reconnect token. Every
+  // extension below reads/writes these two closures, never a stale capture.
+  let activeClient = client;
+  let reconnectToken = established.payload.reconnectToken;
+  const participantId = established.payload.participantId;
+
+  // Test-instrument-only extension (Slice 7): a passive roster mirror. This
+  // listens on the raw ws directly (a SECOND "message" listener alongside
+  // WpClient's own internal one — ws supports many listeners) so it never
+  // competes with the single-slot waitFor() cursor the rest of this file
+  // uses. Every roomSnapshot updates `latestRoster` regardless of whether
+  // anything is currently awaiting one — this is how KICK_BY_NAME resolves a
+  // guest's opaque participantId from the display name an orchestrator
+  // actually knows.
+  let latestRoster = [];
+  function attachRosterMirror(c) {
+    c.ws.on("message", (data) => {
+      let msg;
+      try {
+        msg = JSON.parse(data.toString());
+      } catch {
+        return;
+      }
+      if (msg && msg.type === "roomSnapshot" && msg.payload && Array.isArray(msg.payload.participants)) {
+        latestRoster = msg.payload.participants;
+      }
+    });
+  }
+  attachRosterMirror(client);
+
   let shuttingDown = false;
   const shutdown = () => {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log("HOST_ONLY_CLOSING");
-    client.close(1000, "host-only-exit");
+    try {
+      activeClient.close(1000, "host-only-exit");
+    } catch {
+      // best effort — DROP may have already terminated the socket.
+    }
     setTimeout(() => process.exit(0), 200);
   };
   // Test-instrument-only extension (Slice 6): a line "END" on stdin sends a
@@ -156,18 +192,113 @@ async function runHostOnly(args) {
   const endRoom = () => {
     if (shuttingDown) return;
     console.log("HOST_ONLY_ENDING");
-    client.send({
+    activeClient.send({
       type: "endRoom",
       roomId: established.roomId,
-      senderId: established.payload.participantId,
+      senderId: participantId,
       payload: {},
     });
     setTimeout(shutdown, 200);
   };
+  // Test-instrument-only extension (Slice 7): a line "CHAT <text>" sends a
+  // real chat message as the host — the rest of the line (after the first
+  // space) is the message body verbatim, so it may itself contain spaces.
+  const sendChat = (text) => {
+    if (shuttingDown) return;
+    console.log(`HOST_ONLY_CHAT_SENDING ${text}`);
+    activeClient.send({
+      type: "chat",
+      roomId: established.roomId,
+      senderId: participantId,
+      payload: { message: text },
+    });
+  };
+  // Test-instrument-only extension (Slice 7): "DROP" closes the host's
+  // socket WITHOUT sending endRoom — this is the host-grace trigger. The
+  // relay starts its RELAY_HOST_GRACE_MS clock; the room and this process
+  // both stay alive so a later "RECONNECT" line can rejoin within the
+  // window. terminate() (not close()) mirrors the probe's own step-9 grace
+  // test — an abrupt drop, not a clean close handshake, is the honest
+  // model of a host's connection actually dying.
+  const dropHost = () => {
+    if (shuttingDown) return;
+    console.log("HOST_ONLY_DROPPING");
+    activeClient.terminate();
+  };
+  // Test-instrument-only extension (Slice 7): "RECONNECT" opens a fresh
+  // socket and sends reconnectRoom with the last-known reconnect token —
+  // the same recipe as probe-live.mjs step 9's Hb reconnect. On success the
+  // rotated token replaces reconnectToken and activeClient replaces client,
+  // so a subsequent END/CHAT/DROP acts through the new connection.
+  const reconnectHost = async () => {
+    if (shuttingDown) return;
+    console.log("HOST_ONLY_RECONNECTING");
+    try {
+      const { connect } = await import("./lib/wp-client.mjs");
+      const fresh = await connect(args.url, {
+        bearer: args.bearer,
+        protocolHeader: "3",
+        label: "host-only-reconnect",
+      });
+      if (fresh.refused) {
+        console.error(`HOST_ONLY_RECONNECT_FAIL upgrade refused status=${fresh.statusCode}`);
+        return;
+      }
+      fresh.send({
+        type: "reconnectRoom",
+        roomId: established.roomId,
+        payload: { reconnectToken },
+      });
+      const reestablished = await fresh.waitForType("sessionEstablished", { timeoutMs: 10_000 });
+      if (reestablished.payload.participantId !== participantId) {
+        console.error(
+          `HOST_ONLY_RECONNECT_FAIL participantId changed: expected ${participantId} got ${reestablished.payload.participantId}`
+        );
+        return;
+      }
+      reconnectToken = reestablished.payload.reconnectToken;
+      activeClient = fresh;
+      attachRosterMirror(fresh);
+      console.log("HOST_ONLY_RECONNECTED");
+    } catch (err) {
+      console.error(`HOST_ONLY_RECONNECT_FAIL ${err && err.message ? err.message : String(err)}`);
+    }
+  };
+  // Test-instrument-only extension (Slice 7): "KICK_BY_NAME <displayName>"
+  // resolves the guest via `latestRoster` (never trusting an orchestrator-
+  // guessed participantId) and sends the real removeParticipant command an
+  // orchestrator cannot otherwise construct without first parsing relay
+  // broadcast traffic itself.
+  const kickByName = (displayName) => {
+    if (shuttingDown) return;
+    const target = latestRoster.find((p) => p.displayName === displayName && !p.host);
+    if (!target) {
+      console.error(`HOST_ONLY_KICK_FAIL no non-host participant named ${JSON.stringify(displayName)} in latest roster: ${JSON.stringify(latestRoster.map((p) => p.displayName))}`);
+      return;
+    }
+    console.log(`HOST_ONLY_KICKING ${displayName} participantId=${target.participantId}`);
+    activeClient.send({
+      type: "removeParticipant",
+      roomId: established.roomId,
+      senderId: participantId,
+      payload: { participantId: target.participantId },
+    });
+  };
   const readline = await import("node:readline");
   const rl = readline.createInterface({ input: process.stdin });
   rl.on("line", (line) => {
-    if (line.trim() === "END") endRoom();
+    const trimmed = line.trim();
+    if (trimmed === "END") {
+      endRoom();
+    } else if (trimmed === "DROP") {
+      dropHost();
+    } else if (trimmed === "RECONNECT") {
+      void reconnectHost();
+    } else if (trimmed.startsWith("CHAT ")) {
+      sendChat(trimmed.slice(5));
+    } else if (trimmed.startsWith("KICK_BY_NAME ")) {
+      kickByName(trimmed.slice(13));
+    }
   });
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
