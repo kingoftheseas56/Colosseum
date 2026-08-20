@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "type": "reconnectRoom",
+  "roomId": "room-abc123",
+  "senderId": "",
+  "sequence": 1,
+  "payload": {}
+}

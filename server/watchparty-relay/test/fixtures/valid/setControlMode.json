@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "type": "setControlMode",
+  "roomId": "room-abc123",
+  "senderId": "participant-1",
+  "sequence": 5,
+  "payload": {
+    "controlMode": "shared"
+  }
+}

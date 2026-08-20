@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "type": "participantState",
+  "roomId": "room-abc123",
+  "senderId": "participant-2",
+  "sequence": 6,
+  "payload": {
+    "ready": true,
+    "syncStatus": "inSync"
+  }
+}

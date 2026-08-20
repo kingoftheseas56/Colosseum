@@ -1,0 +1,3 @@
+{
+  "note": "Marker fixture only — protocol.test.ts pads a real chat-request envelope's message field past MAX_WIRE_MESSAGE_BYTES (64 KiB) and asserts parseMessage rejects it as invalid_message before attempting JSON.parse. Not itself fed to parseMessage as literal JSON."
+}

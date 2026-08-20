@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "type": "createRoom",
+  "roomId": "",
+  "senderId": "",
+  "sequence": 1,
+  "payload": {
+    "source": {
+      "kind": "directHttp",
+      "url": "https://example.invalid/stream.mp4"
+    }
+  }
+}

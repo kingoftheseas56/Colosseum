@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "type": "timelineCommand",
+  "roomId": "room-abc123",
+  "senderId": "participant-1",
+  "sequence": 4,
+  "payload": {
+    "command": "seek",
+    "positionMs": 300000
+  }
+}

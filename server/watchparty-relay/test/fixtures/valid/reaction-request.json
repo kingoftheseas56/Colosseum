@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "type": "reaction",
+  "roomId": "room-abc123",
+  "senderId": "participant-2",
+  "sequence": 9,
+  "payload": {
+    "reaction": "👍"
+  }
+}
