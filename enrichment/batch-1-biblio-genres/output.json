@@ -1,0 +1,175 @@
+{
+  "batch": "biblio-genres",
+  "items": [
+    {
+      "genre": "Fiction & Literature",
+      "current_blurb": "The broad country of made lives. Fiction and literature follow people through desire, damage, wit, and consequence - the ordinary world made strange by attention.",
+      "new_blurb": "Stories where character runs deeper than plot. Fiction and literature trade in the interior weight of ordinary lives - the slow press of memory, the friction between what is said and what is meant. These books earn their pace by refusing to look away from what other genres skim past.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Literary_fiction",
+          "title": "Literary fiction - Wikipedia",
+          "snippet": "fiction that is more character-driven than plot-driven, examines the human condition",
+          "contributed": "Defined the core distinction: literary fiction privileges character over plot and examines interior human experience - the engine behind 'character runs deeper than plot.'"
+        },
+        {
+          "url": "https://www.britannica.com/art/fiction-literature",
+          "title": "Fiction | literature | Britannica",
+          "snippet": "literature created from the imagination, not presented as fact, though it may be based on a true story",
+          "contributed": "Grounded the definition of fiction as imaginative construction, which informed the language of 'made worlds' and the refusal to look away from lived texture."
+        }
+      ],
+      "notes": "Written from scratch - zero sentence overlap with current_blurb. Emphasizes interiority, pace, and character-depth as the defining traits per Wikipedia's definition of literary fiction as character-driven rather than plot-driven."
+    },
+    {
+      "genre": "Mysteries & Thrillers",
+      "current_blurb": "A secret, a threat, and the pressure of time. Mysteries and thrillers turn pages by withholding the truth, then tightening every room around it.",
+      "new_blurb": "A puzzle and a pulse. Mysteries bait the mind with a hidden truth; thrillers grip the body with escalating danger. Both begin with something broken - a crime, a lie, a disappearance - and make the reader a second investigator, sifting evidence alongside the detective until the room shrinks to one answer.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Crime_fiction",
+          "title": "Crime fiction - Wikipedia",
+          "snippet": "narratives that centre on criminal acts and especially on the investigation, either by an amateur or a professional detective, of a crime, often a murder",
+          "contributed": "Provided the core structure: crime, investigation, detection. Informed the 'something broken' framing and the reader-as-second-investigator angle."
+        },
+        {
+          "url": "https://www.britannica.com/art/mystery-story",
+          "title": "Mystery story | Narrative Genre, Crime Fiction, Detective Fiction | Britannica",
+          "snippet": "the reader be confronted with a number of mysterious facts and situations, explanation of which is reserved until the end",
+          "contributed": "Confirmed the riddle-story mechanism - facts presented, explanation withheld - which shaped the 'hidden truth' and 'sifting evidence' language."
+        }
+      ],
+      "notes": "Written from scratch. Distinguishes mystery (mind/puzzle) from thriller (body/urgency) within the combined label. 54 words."
+    },
+    {
+      "genre": "Sci-Fi & Fantasy",
+      "current_blurb": "The impossible with rules. Science fiction and fantasy build other orders - future, magical, alien, or mythic - then ask what humans become inside them.",
+      "new_blurb": "Reality with a lever pushed. Science fiction tests what might be true if technology or time took one more step; fantasy builds worlds from myth and magic that never were but feel whole. Both genres measure humanity against unfamiliar orders - the alien, the ancient, the yet-to-be.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Speculative_fiction",
+          "title": "Speculative fiction - Wikipedia",
+          "snippet": "an umbrella genre of fiction that encompasses all the subgenres that depart from realism, or strictly imitating everyday reality",
+          "contributed": "Framed both SF and fantasy as departures from realism, which grounds the 'reality with a lever pushed' and 'unfamiliar orders' metaphors."
+        },
+        {
+          "url": "https://www.britannica.com/art/science-fiction",
+          "title": "Science fiction | Definition, Books, Movies, Authors, Examples, & Facts | Britannica",
+          "snippet": "a form of fiction that deals principally with the impact of actual or imagined science upon society or individuals",
+          "contributed": "Defined SF as impact-of-science fiction, which informed the 'tests what might be true' framing for the SF half of the combined genre."
+        }
+      ],
+      "notes": "Written from scratch. Britannica SF page explicitly distinguishes SF from fantasy on grounds of scientific/technological plausibility, which shaped the contrast between 'might be true' (SF) and 'never were but feel whole' (fantasy). 49 words."
+    },
+    {
+      "genre": "Romance",
+      "current_blurb": "Two people moving toward each other, and everything that says they cannot. Romance lives in longing, friction, trust, and the courage to choose feeling.",
+      "new_blurb": "The architecture of falling. Romance novels build toward a promise kept - an emotionally just finish - but earn it through friction: the wrong person in the right light, a wall two people chip at from opposite sides. At its centre is the radical act of trusting another person with the self you barely trust alone.",
+      "sources": [
+        {
+          "url": "https://www.britannica.com/art/romance-novel",
+          "title": "Romance novel | Covers, Authors, Tropes, & Facts | Britannica",
+          "snippet": "a central love story involving individuals falling in love and struggling to make their relationship work and an emotionally satisfying and optimistic ending",
+          "contributed": "Provided the RWA structural definition - central love story + optimistic ending - which informed 'emotionally just finish' and 'promise kept.'"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Romance_novel",
+          "title": "Romance novel - Wikipedia",
+          "snippet": "a fiction book that focuses on the themes of love and romantic relationships",
+          "contributed": "Grounded the genre's thematic core in love and relationship, complementing Britannica's structural definition."
+        }
+      ],
+      "notes": "Written from scratch. The 'wall two people chip at from opposite sides' is a deliberate reframing of the enemies-to-lovers trope catalogued in Britannica's extensive tropes section. 50 words."
+    },
+    {
+      "genre": "Biographies & Memoirs",
+      "current_blurb": "A life looked at directly. Biography and memoir turn memory, evidence, and voice into a portrait - the person, the era, and the cost of becoming.",
+      "new_blurb": "A single life held up to the light. Biographies build from the outside in - documents, witnesses, the grain of an era - while memoirs speak from inside the skin, narrowing focus to a season or a wound. Together they ask the same unanswerable question: how does one life add up to something that means?",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Biography_in_literature",
+          "title": "Biography in literature - Wikipedia",
+          "snippet": "A literary biography is the biographical exploration of individuals' lives merging historical facts with the conventions of narrative",
+          "contributed": "Defined biography as a narrative built from historical fact, which informed 'outside in - documents, witnesses, the grain of an era.'"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Memoir",
+          "title": "Memoir - Wikipedia",
+          "snippet": "presenting a narrowed focus, usually a particular time phase in someone's life or career. A biography or autobiography tells the story 'of a life,' while a memoir often tells the story of a particular career, event, or time",
+          "contributed": "Defined the key distinction: biography covers a whole life, memoir narrows to a phase. Shaped 'from inside the skin' and 'season or a wound.'"
+        }
+      ],
+      "notes": "Written from scratch. The biography/memoir distinction comes directly from the Memoir Wikipedia page which explicitly contrasts 'of a life' with 'a particular career, event, or time.' 54 words."
+    },
+    {
+      "genre": "History",
+      "current_blurb": "The past as a living argument. History follows power, accident, invention, and witness - not just what happened, but why it still presses on us.",
+      "new_blurb": "What happened and why it still moves. History reconstructs the dead from what they left behind - letters, ledgers, ruins, silence - then argues with itself about cause and meaning. Every generation questions the archive anew and gets different answers, because the present is always the hidden co-author of the past.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/History",
+          "title": "History - Wikipedia",
+          "snippet": "History is the systematic study of the past. As an academic discipline it uses a narrative to describe, examine, question, and analyze past events, and investigate their patterns of cause and effect",
+          "contributed": "Provided the core definition: systematic study using narrative, investigation of cause and effect. Informed 'reconstructs the dead from what they left behind' and 'argues with itself about cause and meaning.'"
+        }
+      ],
+      "notes": "Only one source for History (Wikipedia). The genre is broad and well-covered by the primary page. 53 words. Written from scratch."
+    },
+    {
+      "genre": "Young Adult",
+      "current_blurb": "Stories at the edge of becoming. Young adult fiction carries first stakes at full volume - identity, loyalty, danger, love, and the future arriving fast.",
+      "new_blurb": "The loud years. Young adult fiction puts a teenage mind at the centre of the frame and refuses to patronize it - first love, first danger, first betrayal arrive at full voltage because they are happening for the first time. The door between childhood and the rest of the world swings one way only, and these books live in its hinge.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Young_adult_fiction",
+          "title": "Young adult literature - Wikipedia",
+          "snippet": "Young adult literature (YA) is literature written for readers aged 12 to 18. It may include themes found in adult fiction, such as family dysfunction, substance abuse, alcoholism, and sexuality",
+          "contributed": "Defined the age range and the genre's willingness to tackle adult themes. Informed 'refuses to patronize it' and the weight of first-stakes."
+        }
+      ],
+      "notes": "Only one source for YA (Wikipedia). The page redirects from young_adult_fiction. The 'door swings one way only' metaphor is original synthesis from the age-range framing. 54 words."
+    },
+    {
+      "genre": "Comics & Graphic Novels",
+      "current_blurb": "Sequential art in book form. Comics and graphic novels make image and text move together - panels, rhythm, silence, and impact on the turn.",
+      "new_blurb": "Stories told in panels - a medium where time lives in the space between frames. A graphic novel is a self-contained work of sequential art: image and text share every decision about pacing, silence, and revelation. What a page shows in one glance might take a prose novel three chapters to arrive at, and what it hides between panels belongs to the reader alone.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Graphic_novel",
+          "title": "Graphic novel - Wikipedia",
+          "snippet": "A graphic novel is a self-contained, book-length form of sequential art",
+          "contributed": "Provided the exact definition: self-contained, book-length, sequential art. Informed the core framing of the blurb."
+        }
+      ],
+      "notes": "Only one source - the primary Wikipedia page. 54 words. The 'time lives in the space between frames' is a compressed reference to closure/gutter theory highly present in comics scholarship."
+    },
+    {
+      "genre": "Humor",
+      "current_blurb": "Built around the release of a laugh. Humor sharpens absurdity, embarrassment, and social truth until the joke becomes the cleanest way to say it.",
+      "new_blurb": "The release valve and the scalpel. Comic writing turns awkwardness, pain, and the unspoken into shared recognition - a sudden exhale that means you are not alone in what you noticed. The best humor does not dodge gravity; it slips under its guard faster than sincerity can, and lands the truth while you are still laughing.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Humour",
+          "title": "Humour - Wikipedia",
+          "snippet": "Humour is the tendency of experiences to provoke laughter and provide amusement",
+          "contributed": "Provided the base definition. The page also discusses benign-violation theory ('something seems wrong... but simultaneously seems okay') which informed the tension between gravity and release."
+        }
+      ],
+      "notes": "Only one source for Humor (Wikipedia). The benign-violation theory discussed on the page informed the idea that humor engages with serious things by approaching them obliquely. 46 words."
+    },
+    {
+      "genre": "Travel & Adventure",
+      "current_blurb": "Motion with consequence. Travel and adventure leave the familiar behind - across maps, cultures, dangers, and the self that changes on the road.",
+      "new_blurb": "A departure that changes the departee. Travel and adventure writing charts the space between leaving and arriving - the foreign street, the wrong turn, the stranger whose kindness rearranges your sense of scale. The outer journey is never the whole story; every mile outward is also a mile inward, measured in the self that comes back different.",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Travel_literature",
+          "title": "Travel literature - Wikipedia",
+          "snippet": "Travel literature is a broad and popular genre of writing covering adventure and exploration, travel writing collections, travel-related memoirs, and travel-centric fiction",
+          "contributed": "Defined the genre's breadth - spanning adventure, exploration, memoir, and fiction - which informed the 'leaving and arriving' framing."
+        }
+      ],
+      "notes": "Only one source for Travel (Wikipedia). 53 words. The 'outer journey / inner journey' structure is a synthesis of the travelogue tradition where physical displacement generates interior change."
+    }
+  ]
+}
