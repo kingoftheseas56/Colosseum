@@ -39,7 +39,7 @@ Check "MangaSeries feeds the shelf its chapter list" ($series -match "chapters: 
 #     and every failure was cached as an empty string FOREVER - so those volumes and
 #     chapters showed numbered placeholders for the rest of the session.
 Check "the shelf asks only for the viewport window" ($lib -match "visibleRowsForCovers\(\)")
-Check "scrolling the grid fetches the newly visible covers" ($lib -match "onContentYChanged: root\.requestCovers\(\)")
+Check "moving continuum focus fetches newly visible covers" ($lib -match "onFocusNumberChanged")
 # Imperative code must not read the visibleRows BINDING: a change handler runs
 # before dependent bindings re-evaluate, so it would see the page he just left.
 Check "requestCovers resolves the page directly, not via the stale binding" `

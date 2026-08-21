@@ -77,4 +77,10 @@ Assert-Absent  $tw 'title: "Top in Tankoban — Manga"' "manga row moved out of 
 Assert-Absent  $tw 'title: "Top in Tankoban — Comics"' "comics row moved out of the world into the tab"
 Assert-Absent  $tw 'title: "Explore Comics"' "explore-comics moved out of the world into the tab"
 
+# --- TB-001: Library is a FOURTH tab, retained alongside Discover (not Loader-swapped) ---
+Assert-Contains $tw '"library"' "tab model has the library key (TB-001)"
+Assert-Contains $tw 'TankobanLibraryTab {' "world mounts the retained TankobanLibraryTab (TB-001)"
+Assert-Contains $tw 'active: tanko.activeTab === "manga" || tanko.activeTab === "comics"' `
+    "the Manga/Comics Loader's active condition must stay exactly two tabs (Library is not a third)"
+
 Write-Host "tankoban tabs contract OK"

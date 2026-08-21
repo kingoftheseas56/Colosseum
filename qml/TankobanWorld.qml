@@ -18,6 +18,7 @@ import "NextUp.js" as NextUp
 
 WorldPage {
     id: tanko
+    objectName: "tankobanWorld"
     medium: "Tankoban"
 
     // Bubbles a tap on a Your Collection tile (from either tab) up to Main's openCollectionEntry door.
@@ -188,15 +189,20 @@ WorldPage {
         onSeeAllRequested: tanko.continueSeeAllRequested()
     }
 
-    // Discover | Manga | Comics — three tabs (mirrors Theatre's discover-first order).
-    // Discover is first and default; only the browse rows split into Manga/Comics halves.
-    // Featured/Next Up/Continue above stay blended across all three tabs.
+    // Discover | Manga | Comics | Library — four tabs (mirrors Theatre's discover-first
+    // order, which also carries a trailing Library tab). Discover is first and default;
+    // only the browse rows split into Manga/Comics halves. Featured/Next Up/Continue above
+    // stay blended across all tabs. Library consolidates every saved manga/comic series
+    // (Brotherhood#1) — TB-001 slice: mixed wall + Details routing only.
     WorldTabBar {
+        objectName: "tankobanTabBar"
+        tabPrefix: "tankobanTab"
         backdrop: tanko.backdrop
         currentTab: tanko.activeTab
         tabModel: [ { key: "discover", label: "Discover" },
                     { key: "manga", label: "Manga" },
-                    { key: "comics", label: "Comics" } ]
+                    { key: "comics", label: "Comics" },
+                    { key: "library", label: "Library" } ]
         onTabRequested: (tab) => tanko.activeTab = tab
     }
 
@@ -225,6 +231,27 @@ WorldPage {
                                           cover: (item && item.cover) || "",
                                           locgMeta: raw })
         }
+    }
+
+    // ── Library: retained (NOT Loader-swapped) so its scroll position survives tab
+    //    switches, same reasoning as Discover above and the same fixed-viewport-height +
+    //    self-scrolling GridView pattern Theatre's own LibraryPage already ships. A card
+    //    tap always opens Details for now (TB-001; no progress means no row can be
+    //    "started" yet) via the existing collectionOpenRequested door. ──
+    TankobanLibraryTab {
+        id: libraryPage
+        visible: tanko.activeTab === "library"
+        width: parent.width
+        height: visible ? Math.max(620, tanko.height - 200) : 0
+        onDetailRequested: function(entry) { tanko.collectionOpenRequested(entry) }
+        // TB-002: a started row's tap emits the row's Progress record up through the
+        // existing continueResumeRequested door (already wired in Main.qml to route a
+        // kind:"manga" record into the reader). No Main.qml edit — just this signal hop.
+        onResumeRequested: function(record) { tanko.continueResumeRequested(record) }
+        // TB-005: the ⋮ menu's Remove drops the row's entry from the Collection. The
+        // String() cast mirrors TheatreWorld's onRemoveRequested and matches the
+        // CollectionStore QString id param.
+        onRemoveRequested: function(entry) { if (typeof Collection !== "undefined") Collection.remove("tankoban", String(entry.id)) }
     }
 
     // The active half's browse rows. Loader-swapped so only the shown half is built; the

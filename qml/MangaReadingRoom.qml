@@ -276,14 +276,14 @@ Item {
                     // search action on a shelf-less series without knowing its label text.
                     objectName: "tankobanSeriesPrimaryAction"
                     visible: !root.library.showVolumes
-                    width: visible ? primaryLabel.implicitWidth + 30 : 0
-                    height: 34; radius: 8; color: theme.gold
+                    width: visible ? primaryLabel.implicitWidth + 36 : 0
+                    height: 42; radius: 11; color: theme.gold
                     activeFocusOnTab: visible
                     Accessible.role: Accessible.Button; Accessible.name: root.continueText
                     Keys.onReturnPressed: root.primaryRequested(); Keys.onEnterPressed: root.primaryRequested()
-                    Row { id: primaryLabel; anchors.centerIn: parent; spacing: 7
-                        Image { source: "../assets/icons/play-dark.svg"; width: 13; height: 13 }
-                        Text { text: root.continueText; color: "#171205"; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                    Row { id: primaryLabel; anchors.centerIn: parent; spacing: 8
+                        Image { source: "../assets/icons/play-dark.svg"; width: 14; height: 14; visible: root.primaryAction !== "search"; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: root.continueText; color: "#171205"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.primaryRequested() }
                 }

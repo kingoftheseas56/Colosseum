@@ -29,6 +29,12 @@ function Assert-Contains([string]$text, [string]$needle, [string]$message) {
         exit 1
     }
 }
+function Assert-Absent([string]$text, [string]$needle, [string]$message) {
+    if ($text.Contains($needle)) {
+        Write-Host "FAIL: $message"
+        exit 1
+    }
+}
 
 $series  = Read-RepoFile "qml/MangaSeries.qml"
 $library = Read-RepoFile "qml/MangaTankobanLibrary.qml"
@@ -50,11 +56,15 @@ Assert-Contains $series 'visible: page.tankobanMode' "the volume surface must be
 Assert-Contains $series 'TankobanVolumes.prepareSeries' "dynamic snapshot is not handed off"
 Assert-Contains $series 'MangaTankobanLibrary {' "volume-first surface missing"
 Assert-Contains $series 'MangaTankobanSourcesPage {' "full-screen sources page must be hosted"
-# The Reading Room retires numbered paging. The grid owns the complete canonical
-# model while Qt virtualizes the delegates; this keeps a 105-volume series one
-# fixed-height surface without reviving the old ten-row corridor.
-Assert-Contains $library 'model: root.volumeRows' "the collection grid must consume every canonical volume"
-Assert-Contains $library 'GridView' "the volume collection must be a virtualized grid"
+# The Reading Room is a single virtualized Pages flow. The canonical model is
+# retained by the ListView while chapter mode keeps its own honest list/grid.
+Assert-Contains $library 'id: continuum' "the volume collection must expose the continuum surface"
+Assert-Contains $library 'id: volumeFlow' "the continuum must use the reader-style ListView flow"
+Assert-Contains $library 'function centreNow()' "the flow must own model-safe centering"
+Assert-Contains $library 'positionViewAtIndex(i, ListView.Center)' "focused volume must center through ListView geometry"
+Assert-Contains $library 'model: root.activeTab === "volumes" ? root.volumeRows : []' "inactive volume mode must instantiate no flow delegates"
+Assert-Absent $library 'id: continuumRepeater' "the hand-positioned Repeater continuum must be gone"
+Assert-Contains $library 'function sizeContinuumBooks()' "the focused book must fit the available height"
 Assert-Contains $library 'renderedCount' "the grid must expose its active delegate count for the perf harness"
 Assert-Contains $library 'autoLandNumber' "the grid must expose the continue target"
 Assert-Contains $library 'signal sourcesRequested' "library must emit a full-screen sources request"

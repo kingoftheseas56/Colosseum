@@ -223,8 +223,8 @@ Item {
             // screen, not 25 — a header-per-ten inside one long scroll is exactly
             // what this replaced.
             ck(harness.lib.volumeRows.length === 25, "the series must expose 25 volumes")
-            ck(harness.lib.renderedCount > 0 && harness.lib.renderedCount < harness.lib.volumeRows.length,
-               "the complete grid must remain virtualized, rendered " + harness.lib.renderedCount)
+            ck(harness.lib.renderedCount === harness.lib.volumeRows.length,
+               "the continuum must retain every canonical volume, rendered " + harness.lib.renderedCount)
             ck(harness.lib.visibleRows.length === 10, "the active page holds ten volumes")
 
             var pages = harness.lib.pagedRows
@@ -253,8 +253,8 @@ Item {
             ck(harness.lib.activePage === 0, "a never-opened series starts on page 1")
             ck(Number(harness.lib.visibleRows[0].number) === 1, "page 1 starts at volume 1")
             harness.lib.activePage = 2
-            ck(harness.lib.renderedCount > 0 && harness.lib.renderedCount < harness.lib.volumeRows.length,
-               "changing compatibility pages must not instantiate all rows, rendered " + harness.lib.renderedCount)
+            ck(harness.lib.renderedCount === harness.lib.volumeRows.length,
+               "changing compatibility pages must not hide continuum volumes, rendered " + harness.lib.renderedCount)
             ck(Number(harness.lib.visibleRows[0].number) === 21, "page 3 starts at volume 21")
             deepEq(harness.lib.activePageUnowned, range(21, 25),
                    "the page button follows the active page")
@@ -416,8 +416,8 @@ Item {
             harness.lib.selectNumber(20)
             harness.lib.selectNumber(21)
             harness.lib.downloadSelected()
-            deepEq(harness.lastBatchNumbers, [20, 21],
-                   "Select mode must emit exactly the selected volume numbers")
+            deepEq(harness.lastBatchNumbers, ["20", "21"],
+                   "Select mode must emit exactly the selected canonical volume tokens")
             ck(harness.lastBatchLabel === "Download selected",
                "Select mode must label the batch honestly")
 

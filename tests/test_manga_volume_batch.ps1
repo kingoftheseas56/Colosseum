@@ -54,7 +54,7 @@ $svcHdr  = Read-RepoFile "native/engine/MangaTankobanService.h"
 $svcCpp  = Read-RepoFile "native/engine/MangaTankobanService.cpp"
 
 # The Reading Room is continuous, and can ask for a batch through either path.
-Assert-Contains $library 'model: root.volumeRows' "the grid must consume the full canonical volume model"
+Assert-Contains $library 'model: root.activeTab === "volumes" ? root.volumeRows : []' "the active flow must consume the full canonical volume model"
 Assert-Contains $library 'Vol.nextBatch'  "the shelf must derive the next batch through MangaVolumes.js"
 Assert-Contains $library 'signal batchRequested' "the shelf must be able to ask for a batch"
 Assert-Contains $library 'unavailableNumbers' "a batch must know what it may not ask for"
@@ -64,7 +64,7 @@ Assert-Contains $library 'inFlightIds' "cancel remaining must target only unfini
 Assert-Contains $library 'property bool selecting' "the pane must expose Select mode"
 Assert-Contains $library 'property var selectedNumbers' "Select mode must retain exact volume numbers"
 Assert-Contains $library 'function downloadSelected' "Select mode must dispatch one exact batch"
-Assert-Contains $library 'Get next 10 missing' "the forward batch action must remain visible"
+Assert-Contains $library 'Download next 10' "the forward batch action must remain visible"
 
 # The series page turns numbers into ids, re-checks ownership, and opens ONE picker.
 Assert-Contains $series 'onBatchRequested' "the series page must handle a batch request"
