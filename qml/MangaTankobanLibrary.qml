@@ -1,24 +1,50 @@
-// MangaTankobanLibrary - the volume shelf for a Tankoban series.
+// MangaTankobanLibrary - the Pages/Flow-derived volume continuum for a Tankoban series.
 //
-// 2026-08-14 bookshelf rebuild (approved mock: colosseum-manga-series-bookshelf-mock.html).
-// The shelf is a vertical cover grid that opens the page - every canonical volume is a
-// card (cover + state chip + Vol/name caption — the chapter-range caption was removed in
-// catalogue-independence Slice 3, 2026-08-20: a baked catalogue row carries no chapter
-// range at all). Catalogue-independence Slice 5 (2026-08-20, Hemanth's explicit lock —
-// chapters are deleted completely, on-disk bytes included) removed the grid's own
-// "Latest chapters" footer tail outright: the shelf is volumes only now, no chapter
-// surface anywhere in this component.
+// v2.3 adoption (arc-08, 2026-08-21, re-derived against the LANDED catalogue-independence
+// tree — Slices 2-5 + R1 are all in on master by the time this landed). Supersedes the
+// 2026-08-14 vertical bookshelf. Governing docs, in force order: POLISH-DELTA.md (the
+// amending contract) over DESIGN-CONTRACT.md (v1), both against the approved v2.3 oracle
+// reference/visual/colosseum-manga-series-volume-flow-mock-v2.html (Preflight arc-08).
+// Eyes-on verdict on the v2.3 direction: "perfect" (Hemanth, 2026-08-20).
 //
-// `focusIndex`/`focusToken` and their small `focusAtNumber`/`focusAtIndex`/`jumpToNumber`
-// API SURVIVE catalogue-independence Slice 3 (2026-08-20) too - not as visual state, and no
-// longer as a live cover-prefetch cursor either (that machinery is gone now that covers arrive
-// pre-baked with every row - see coverFor() below). It stays only as an INERT cursor because
-// callers still depend on the surface (focus/jump semantics for keyboard/programmatic callers,
-// the Select-mode batch contract). Slice 3 also removed the WeebCentral thumb-scrape machinery
-// this comment used to describe (requestCovers/_thumbWanted/coverByVolume/onThumbReady/
-// _firstChapterIdIn) and the CuratedVolumeCovers.js XHR detour (dead code, Qt6 blocks file
-// XHR) - covers now come straight from the baked TankobanCatalog row (MangaSeries.qml
-// _prepareTankoban) or, once a volume is on disk, its own first page.
+// Reconciled against LIVE drift the arc's own candidate could not see (STATUS.md Adoption
+// risk #1, ground-truthed live during this adoption):
+//   - coverFor() is the LIVE ladder, not the candidate's — catalogue-independence Slice 3
+//     already deleted the WeebCentral thumb-scrape machinery and CuratedVolumeCovers.js
+//     entirely (Qt6 blocks file XHR; that lookup was dead code). A row's cover is either
+//     already baked into it (TankobanCatalog, via MangaSeries.qml's _prepareTankoban) or,
+//     once the volume is on disk, its own first extracted page. Ladder: catalogue cover ->
+//     localPages() first page when ready -> NO COVER glass. `chapters`, `curatedCovers`,
+//     `requestCovers`/`visibleRowsForCovers`/`visibleGridRows`/`_firstChapterIdIn`/
+//     `_thumbWanted`/`coverByVolume`/the cover-prefetch timer/the onThumbReady Connections
+//     do not exist in this file — tests/manga_reading_room_harness.qml asserts their
+//     absence by typeof, not just their being unused.
+//   - Range captions are dead (POLISH-DELTA ruling #1): the caption slot reads the volume's
+//     real catalogue name via volumeNameFor() (a redundant "Volume N" name collapses to
+//     nothing) and an in-flight/failed state line via stateLineFor().
+//   - The Select-mode header toggle ("Hemanth greenlit KEEP-IT", 2026-08-14 handoff) is
+//     LIVE, separately-approved work the v2.3 candidate never saw (it was authored against
+//     an earlier header shape) — it is preserved here, transplanted onto the new flow's
+//     lane header, rather than silently dropped.
+//   - The per-volume card keeps its LIVE automation name (`tankobanVolumeCard_<token>`,
+//     catalogue-independence Slice 3/4's own naming law — the committed Lanista scenarios
+//     click it directly) instead of the candidate's bare `volumeFlowTile` name.
+//   - `tankobanShelfState` (rowCount/coveredCount bridge scalars) is preserved unchanged —
+//     the committed cover-ladder harness assertion depends on it.
+//
+// What the v2.3 pass itself changes (from the pre-arc vertical grid, POLISH-DELTA rulings):
+// no strict division lines (#11) — a whisper "VOLUMES" label, no bordered header/select-bar;
+// dynamic never-cropped cover clamp measured from the actual flow viewport (#10); 2px gold
+// owned mark, label-free (#6); NO COVER fallback matches the app's existing glass language
+// (#5); Get/Read/Retry/percent state vocabulary lives on one shallow action bar tied to the
+// centred volume (never a second acquisition path); long-series PageUp/PageDown/Home/End and
+// Shift+wheel jump 10, plain wheel/arrow keys step 1 (#7); resume-centering on the existing
+// auto-land cursor (#8).
+//
+// `focusIndex`/`focusToken` and their small `focusAtNumber`/`focusAtIndex`/`jumpToNumber` API
+// now drive the flow's own centring (scaleForIndex/centreFlow) — a real visual job, not the
+// inert-cursor status they carried in the pre-v2.3 vertical grid.
+pragma ComponentBehavior: Bound
 import QtQuick
 import "MangaVolumes.js" as Vol
 
@@ -50,8 +76,8 @@ Item {
     property var volumeRows: []
     property var progressByVolume: ({})
 
-    // Kept for the service and batch contracts. The shelf owns the full canonical
-    // model; legacy page groups are batch vocabulary only.
+    // Kept for the service and batch contracts. The flow owns the full canonical model;
+    // legacy page groups are batch vocabulary only.
     readonly property int pageSize: 10
     readonly property var pagedRows: Vol.pageGroups(root.volumeRows, root.pageSize)
     property int activePage: 0
@@ -60,17 +86,14 @@ Item {
         root.activePage >= 0 && root.activePage < root.pagedRows.length
             ? root.pagedRows[root.activePage] : null
 
-    // Select-mode batch-download state (TB-002, 2026-07-30). FLAGGED in the 2026-08-14
-    // rebuild handoff: the approved mock has no entry point for Select / "Download next
-    // 10" any more, so nothing in the new grid can ever set `selecting` true. The state,
-    // signal, and functions are kept alive untouched for the batch-download contract
-    // (native service + tests/manga_volume_batch.* drive them directly), pending a
-    // product call on where - if anywhere - they resurface visually.
+    // Select-mode batch-download state (TB-002, 2026-07-30; header toggle greenlit
+    // 2026-08-14). Untouched by the v2.3 pass — see the file header note.
     property bool selecting: false
     property bool _dragSelecting: false
     property var selectedNumbers: []
 
-    // The prefetch cursor (see header note). No longer paints anything.
+    // The flow's centring cursor (see file header note - upgraded from inert to live-visual
+    // by the v2.3 pass).
     property var focusNumber: 1
     property string focusToken: "1"
     readonly property int visibleContinuumCount: root.width > 1500 ? 11 : (root.width > 1180 ? 9 : 7)
@@ -79,13 +102,12 @@ Item {
     readonly property int autoLandIndex: root._landedIndex
     readonly property int autoLandNumber: root.currentNumber
 
-    // `renderedCount` remains the canonical-model count for the established batch
-    // harness. `liveVolumeTiles` is the real delegate count and proves the grid is
-    // virtualized. `flowCurrentIndex` mirrors the GridView's own currentIndex, kept
-    // in sync with the prefetch cursor (no scrolling/highlight side effect).
+    // `renderedCount` remains the canonical-model count for the established batch harness.
+    // `liveVolumeTiles` is the real delegate count and proves the flow is virtualized.
+    // `flowCurrentIndex` mirrors the ListView's own currentIndex.
     readonly property int renderedCount: root.volumeRows.length
     property int liveVolumeTiles: 0
-    readonly property int flowCurrentIndex: volumeGrid ? volumeGrid.currentIndex : -1
+    readonly property int flowCurrentIndex: volumeFlow ? volumeFlow.currentIndex : -1
 
     implicitWidth: 640
     implicitHeight: 480
@@ -97,7 +119,7 @@ Item {
     Theme { id: theme }
 
     // ------------------------------------------------------------------
-    // Native seams and canonical state
+    // Native seams and canonical state (unchanged from the pre-arc baseline)
     // ------------------------------------------------------------------
 
     function refresh() {
@@ -170,8 +192,8 @@ Item {
         return -1
     }
 
-    // Compatibility page state remains available to batch logic and old
-    // callers, but never controls the shelf's visual layout.
+    // Compatibility page state remains available to batch logic and old callers, but never
+    // controls the flow's visual layout.
     property bool _pageHomed: false
     function _homeActivePage() {
         if (root._pageHomed) return
@@ -219,70 +241,48 @@ Item {
         return total > 0 ? Math.max(0, Math.min(1, (Number(live.done) || 0) / total)) : -1
     }
 
-    // Kept for the resume/progress contract (still fed by continueFraction/isContinue
-    // below); the 2026-08-14 mock caption is a fixed Vol/name/chapter-range triple with
-    // no state-word slot, so this is no longer painted on a card. See handoff report.
-    function stateWordFor(row) {
-        switch (root.effectiveState(row)) {
-        case "ready": return "On this device"
-        case "resolving": return "Finding source"
-        case "ingesting": return "Adding to library"
-        case "packing": return "Building"
-        case "downloading": return "Downloading"
-        case "failed": return "Retry source"
-        default: return "Available"
+    // ------------------------------------------------------------------
+    // Caption vocabulary (v2.3): real catalogue name, never a range. A redundant "Volume N"
+    // name (the common case until BookWalker display names enrich the catalogue further)
+    // collapses to nothing rather than restating the number already printed above it.
+    // ------------------------------------------------------------------
+
+    function _escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") }
+
+    // Defensive on the row shape: the baked catalogue feeds `.name`; TankobanVolumes rows
+    // still carry the legacy `.title` field. Neither is invented here - an empty/missing
+    // field on both simply means no name shows.
+    function volumeNameFor(row) {
+        var raw = ""
+        if (row && row.name && String(row.name).length) raw = String(row.name)
+        else if (row && row.title && String(row.title).length) raw = String(row.title)
+        if (!raw.length) return ""
+        var trimmed = raw.trim()
+        var tok = Vol.volumeToken(row)
+        var redundant = new RegExp("^vol(ume)?\\.?\\s*0*" + root._escapeRegExp(tok) + "$", "i")
+        return redundant.test(trimmed) ? "" : trimmed
+    }
+
+    // The caption's third line: acquisition state, never a chapter word. Empty when the
+    // volume is simply available (Get) or already owned (Read) - those two live on the
+    // action bar/owned mark, not the caption.
+    function stateLineFor(row) {
+        var state = root.effectiveState(row)
+        if (state === "failed") return "failed"
+        if (root._inFlight(state)) {
+            var f = root.progressFraction(row)
+            return (f >= 0 ? (Math.round(f * 100) + "% | ") : "") + "downloading"
         }
-    }
-
-    function isContinue(row) {
-        return root.continueVolumeId.length > 0
-            && String(row && row.id) === root.continueVolumeId
-            && root.continueFraction > 0.005 && root.continueFraction < 0.995
-    }
-
-    // Kept for the resume contract (see stateWordFor above) - no longer rendered on a
-    // card caption by this file; the masthead's primary CTA still surfaces "Continue".
-    function volumeCaptionFor(row) {
-        var n = Vol.volumeToken(row)
-        if (root.isContinue(row)) return "Continue - p. " + root.continuePage
-        var f = root.progressFraction(row)
-        if (root._inFlight(root.effectiveState(row)) && f >= 0)
-            return "Downloading - " + Math.round(f * 100) + "%"
-        if (root.effectiveState(row) === "failed") return "Retry source"
-        if (root.effectiveState(row) === "ready") return "READ"
-        return "OPEN"
-    }
-
-    // Mock chip vocabulary (Owned / Failed — in-flight moved OFF the chip). The
-    // 2026-08-16 live-tile mock (colosseum-tankoban-series-volume-live-mock.html)
-    // gives an acquiring volume its own top-right status disc (ring + %) plus the
-    // gold caption, so the old top-left "Downloading" chip would duplicate it.
-    function chipTextFor(row) {
-        var state = root.effectiveState(row)
-        if (state === "ready") return "Owned"
-        if (state === "failed") return "Failed"
         return ""
-    }
-
-    // The live caption that REPLACES a tile's title while it acquires (approved
-    // mock): phase word first, the count once bytes move. Empty = not in flight.
-    function liveCaptionFor(row) {
-        var state = root.effectiveState(row)
-        if (!root._inFlight(state)) return ""
-        var f = root.progressFraction(row)
-        if (state === "resolving") return "Resolving…"
-        if (state === "packing") return "Building…"
-        if (state === "ingesting") return "Adding to library…"
-        return f >= 0 ? ("Downloading · " + Math.round(f * 100) + "%") : "Downloading…"
     }
 
     // ------------------------------------------------------------------
     // Covers (catalogue-independence Slice 3, 2026-08-20): no live thumb scraping, no
-    // qualified-vs-flat split, no bounded prefetch window - a row's cover is either
-    // already baked into it (TankobanCatalog, via MangaSeries.qml's _prepareTankoban)
-    // or, once the volume is on disk, its own first extracted page. Ladder: catalogue
-    // cover -> localPages() first page when ready (app-owned bytes) -> NO COVER glass
-    // (the delegate's own coverImage.status !== Ready branch).
+    // bounded prefetch window - a row's cover is either already baked into it
+    // (TankobanCatalog, via MangaSeries.qml's _prepareTankoban) or, once the volume is on
+    // disk, its own first extracted page. Ladder: catalogue cover -> localPages() first
+    // page when ready (app-owned bytes) -> NO COVER glass (the delegate's own
+    // coverImage.status !== Ready branch).
     // ------------------------------------------------------------------
 
     function coverFor(row) {
@@ -300,7 +300,7 @@ Item {
     }
 
     // ------------------------------------------------------------------
-    // Prefetch cursor + selection + actions
+    // Prefetch cursor + selection + actions (unchanged from the pre-arc baseline)
     // ------------------------------------------------------------------
 
     function initialFocusNumber() {
@@ -327,6 +327,7 @@ Item {
         root.focusToken = String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1))
         root.focusNumber = rows[idx].number !== undefined ? rows[idx].number : (idx + 1)
         root._landedIndex = idx
+        Qt.callLater(root.centreFlow)
     }
 
     function focusAtIndex(index) {
@@ -336,10 +337,10 @@ Item {
         root.focusAtNumber(String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1)))
     }
 
-    // Headless activation by index - not called by any tap in the new grid (a real
-    // pointer tap always goes straight to primaryAction, per the approved mock), but
-    // kept for the Select-mode batch contract that already had no visual entry point
-    // (see the `selecting` note above) and for programmatic/keyboard callers.
+    // Headless activation by index - a real pointer tap always goes straight to
+    // primaryAction (per the approved mock's "click a neighbour to centre it, click the
+    // centred book to act" rule), but this is kept for the Select-mode batch contract and
+    // for programmatic/keyboard callers.
     function pressVolume(index) {
         var rows = root.volumeRows || []
         var target = Math.max(0, Math.min(rows.length - 1, Math.round(index)))
@@ -419,8 +420,8 @@ Item {
         if (root.selectedNumbers.length) root.batchRequested(root.selectedNumbers.slice(), "Download selected")
     }
 
-    // Compatibility jump API: still the semantic target the cover-prefetch cursor
-    // reads, without any second visual index surface.
+    // Compatibility jump API: still the semantic target the centring cursor reads, without
+    // any second visual index surface.
     readonly property string currentJumpNumber: root.focusToken
     function jumpToNumber(number) { root.focusAtNumber(number) }
 
@@ -444,8 +445,7 @@ Item {
     }
 
     Component.onCompleted: {
-        root.refresh(); root.refreshResume()
-        root._autoLand()
+        root.refresh(); root.refreshResume(); root._autoLand()
     }
     onSeriesIdChanged: {
         root._resume = null
@@ -475,17 +475,9 @@ Item {
         function onSynopsisReady(volumeId) { root.refresh() }
     }
 
-    // ------------------------------------------------------------------
-    // The shelf - one continuous vertical scroll: grid header ("VOLUMES"), then the
-    // cover-card grid (no footer any more — Slice 5 removed the chapter tail).
-    // GridView.header keeps this to ONE Flickable so the grid stays properly
-    // virtualized (liveVolumeTiles stays < volumeRows.length even for a 115-volume
-    // series) while the header scrolls with it, matching the mock's single-page flow.
-    // ------------------------------------------------------------------
-
-    // Bridge automation surface (world-namespaced per the naming law). Plain scalars
-    // only, per the Lanista ledger's qml-get vocabulary — catalogue-independence
-    // Slice 3, 2026-08-20.
+    // Bridge automation surface (world-namespaced per the naming law). Plain scalars only,
+    // per the Lanista ledger's qml-get vocabulary — catalogue-independence Slice 3,
+    // 2026-08-20; preserved unchanged by the v2.3 flow adoption.
     Item {
         id: tankobanShelfState
         objectName: "tankobanShelfState"
@@ -499,254 +491,427 @@ Item {
         }
     }
 
-    GridView {
-        id: volumeGrid
-        objectName: "volumeShelfGrid"
-        anchors.fill: parent
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        cacheBuffer: 640
-        model: root.volumeRows
-        currentIndex: root.focusIndex
-        highlightFollowsCurrentItem: false
+    // ------------------------------------------------------------------
+    // Pages/Flow-derived Tankoban surface (v2.3). One continuous surface, no lanes, no
+    // dividers: a whisper "VOLUMES N" label, the horizontal flow, and a shallow action bar.
+    // The selected volume plus its caption always fits between them - never cropped, because
+    // bookHeight is derived from the measured space actually left over (POLISH-DELTA #10).
+    // ------------------------------------------------------------------
 
-        readonly property int columnGap: 14
-        readonly property int rowGap: 18
-        readonly property int captionHeight: 78
-        property int columns: Math.max(1, Math.floor((width + columnGap) / (150 + columnGap)))
-        cellWidth: width / Math.max(1, columns)
-        cellHeight: Math.round((cellWidth - columnGap) * 1.5) + rowGap + captionHeight
-
-        header: Component {
-            Item {
-                width: volumeGrid.width
-                height: root.volumeRows.length > 0 ? 44 : 0
-                Text {
-                    anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.bottomMargin: 14
-                    visible: root.volumeRows.length > 0
-                    text: "VOLUMES"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
-                }
-
-                // Select-mode entry point (Hemanth greenlit KEEP-IT, 2026-08-14 handoff): the
-                // rebuild dropped the old paneHeader that used to trigger batch download, but
-                // every batch function it drove (`selecting`, `selectedNumbers`,
-                // `downloadSelected`, `requestNextMissing`, the floating "N selected" bar) was
-                // kept alive untouched. This is the ONE sanctioned addition back onto the mock's
-                // otherwise-clean header: a plain gray text toggle, no glass, no border — reusing
-                // the preserved functions as-is, nothing new wired into native.
-                Row {
-                    id: selectRow
-                    anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 13
-                    visible: root.volumeRows.length > 0
-                    spacing: 16
-                    Text {
-                        objectName: "volumeDownloadNextAction"
-                        visible: root.selecting
-                        text: "Download next 10"
-                        color: nextMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
-                        MouseArea {
-                            id: nextMa
-                            anchors.fill: parent; anchors.margins: -6
-                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: root.requestNextMissing()
-                        }
-                    }
-                    Text {
-                        objectName: "volumeSelectToggle"
-                        text: root.selecting ? "Done" : "Select"
-                        color: selectMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
-                        MouseArea {
-                            id: selectMa
-                            anchors.fill: parent; anchors.margins: -6
-                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (root.selecting) root.clearSelection()
-                                else root.selecting = true
-                            }
-                        }
-                    }
-                }
-            }
+    readonly property int laneHeaderHeight: 44
+    readonly property int actionBarHeight: root.showVolumes ? 52 : 0
+    readonly property int captionHeight: 54
+    // The Cover-Flow current-item scale. Named so bookHeight's own budget and
+    // scaleForIndex's centre case read from one source instead of restating 1.10 twice.
+    readonly property real currentItemScale: 1.10
+    // v2.3's own rule (POLISH-DELTA #10): cover height is measured space, not a formula
+    // fudge. flowViewport.height already excludes the lane header and the action bar (it is
+    // anchored between them), so the only things this budget has to subtract are the
+    // caption block and a small breathing margin; the current-item scale divides the whole
+    // budget so the DRAWN size (height * currentItemScale) - not the base height - is what
+    // actually has to fit.
+    readonly property int bookHeight: Math.max(190, Math.min(276,
+        Math.floor((flowViewport.height - root.captionHeight - 16) / root.currentItemScale)))
+    readonly property int bookWidth: Math.round(root.bookHeight * 2 / 3)
+    readonly property var currentRow:
+        root.focusIndex >= 0 && root.focusIndex < root.volumeRows.length ? root.volumeRows[root.focusIndex] : null
+    readonly property string currentActionLabel: {
+        var row = root.currentRow
+        if (!row) return ""
+        var state = root.effectiveState(row)
+        if (state === "ready") return "Read"
+        if (root._inFlight(state)) {
+            var f = root.progressFraction(row)
+            return f >= 0 ? Math.round(f * 100) + "%" : "Working"
         }
+        return state === "failed" ? "Retry" : "Get"
+    }
+    readonly property real flowViewportHeight: flowViewport.height
+    readonly property real maxScaledVolumeHeight: (root.bookHeight + root.captionHeight) * root.currentItemScale
 
-        delegate: Item {
-            id: card
-            // world-namespaced per-volume name (catalogue-independence Slice 3, 2026-08-20;
-            // Slice 4 automation depends on this exact stem) — never the old bare "volumeTile".
-            objectName: "tankobanVolumeCard_" + Vol.volumeToken(card.modelData)
-            required property var modelData
-            required property int index
-            width: volumeGrid.cellWidth - volumeGrid.columnGap
-            height: volumeGrid.cellHeight - volumeGrid.rowGap
-            property string cardState: root.effectiveState(card.modelData)
-            property real fraction: root.progressFraction(card.modelData)
-            property string chipText: root.chipTextFor(card.modelData)
-            property string liveCaption: root.liveCaptionFor(card.modelData)
-            readonly property bool live: root._inFlight(card.cardState)
-
-            activeFocusOnTab: true
-            Accessible.role: Accessible.Button
-            Accessible.name: "Volume " + Vol.volumeToken(card.modelData)
-            Keys.onReturnPressed: root.primaryAction(card.modelData)
-            Keys.onEnterPressed: root.primaryAction(card.modelData)
-
-            Rectangle {
-                id: coverBox
-                width: parent.width
-                height: Math.round(width * 1.5)
-                radius: 6
-                clip: true
-                color: theme.glassTint
-                border.width: 1
-                border.color: cardMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.34) : theme.edge
-
-                Image {
-                    id: coverImage
-                    anchors.fill: parent
-                    source: root.coverFor(card.modelData)
-                    sourceSize: Qt.size(Math.ceil(width * 1.6), Math.ceil(height * 1.6))
-                    asynchronous: true; cache: true; retainWhileLoading: true
-                    fillMode: Image.PreserveAspectCrop
-                    visible: status === Image.Ready
-                }
-                Column {
-                    visible: coverImage.status !== Image.Ready
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: Vol.volumeToken(card.modelData)
-                        color: theme.inkDim; font.family: theme.display; font.pixelSize: 30
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "NO COVER"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.6
-                    }
-                }
-                Rectangle {
-                    visible: card.chipText.length > 0
-                    anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 7
-                    radius: 9; height: chipLabel.implicitHeight + 6; width: chipLabel.implicitWidth + 16
-                    color: Qt.rgba(0, 0, 0, 0.62); border.width: 1; border.color: theme.edge
-                    Text {
-                        id: chipLabel
-                        anchors.centerIn: parent
-                        text: card.chipText
-                        color: card.cardState === "ready" ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.2
-                    }
-                }
-                // ── the live status disc (approved mock 2026-08-16): top-right pill
-                // with a spinning ring while resolving/indeterminate, the gold %
-                // once bytes move. This is what makes an acquiring tile readable
-                // from across the shelf. ──
-                Rectangle {
-                    visible: card.live
-                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 7
-                    radius: 10; height: 20
-                    width: discRow.implicitWidth + 18
-                    color: Qt.rgba(0.04, 0.045, 0.06, 0.82)
-                    border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.55)
-                    Row {
-                        id: discRow
-                        anchors.centerIn: parent
-                        spacing: 4
-                        Canvas {
-                            id: discRing
-                            visible: card.fraction < 0
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 11; height: 11
-                            rotation: 0
-                            RotationAnimation on rotation {
-                                from: 0; to: 360; duration: 1150
-                                loops: Animation.Infinite; running: discRing.visible
-                            }
-                            onVisibleChanged: requestPaint()
-                            onPaint: {
-                                var ctx = getContext("2d")
-                                ctx.reset()
-                                ctx.lineWidth = 1.8
-                                ctx.strokeStyle = "#f0c44a"
-                                ctx.beginPath()
-                                ctx.arc(5.5, 5.5, 4, 0, Math.PI * 0.75)
-                                ctx.stroke()
-                            }
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: card.fraction >= 0 ? (Math.round(card.fraction * 100) + "%") : "···"
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 10
-                            font.weight: Font.DemiBold
-                        }
-                    }
-                }
-                // ── the breathing gold edge: an acquiring tile glows softly so the
-                // eye finds it without reading anything (mock's breathe). ──
-                Rectangle {
-                    id: liveGlow
-                    visible: card.live
-                    anchors.fill: parent
-                    radius: 6
-                    color: "transparent"
-                    border.width: 1
-                    border.color: Qt.rgba(0.94, 0.77, 0.29, 0.75)
-                    SequentialAnimation on opacity {
-                        running: liveGlow.visible
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 0.4; to: 1.0; duration: 1200; easing.type: Easing.InOutSine }
-                        NumberAnimation { from: 1.0; to: 0.4; duration: 1200; easing.type: Easing.InOutSine }
-                    }
-                }
-                Rectangle {
-                    visible: card.live
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 3; color: Qt.rgba(1, 1, 1, 0.13)
-                    Rectangle { width: Math.max(0, card.fraction) * parent.width; height: parent.height; color: theme.gold }
-                }
-            }
-
-            Column {
-                anchors.top: coverBox.bottom; anchors.topMargin: 8
-                anchors.left: parent.left; anchors.right: parent.right
-                spacing: 2
-                Text {
-                    text: "VOL " + Vol.volumeToken(card.modelData)
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.8
-                }
-                Text {
-                    width: parent.width
-                    // real title only — no range caption (catalogue-independence Slice 3):
-                    // TankobanCatalog's `name` overlay is empty for a synthesized (uncovered)
-                    // row, so this line is simply absent until the harvest lands one.
-                    text: card.liveCaption.length ? card.liveCaption : (card.modelData.title || "")
-                    visible: text.length > 0
-                    color: card.liveCaption.length ? theme.gold : theme.ink
-                    font.family: theme.ui; font.pixelSize: 13
-                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                }
-            }
-
-            MouseArea {
-                id: cardMouse
-                anchors.fill: parent
-                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onPressed: card.forceActiveFocus()
-                onClicked: root.primaryAction(card.modelData)
-            }
-
-            Component.onCompleted: root.liveVolumeTiles += 1
-            Component.onDestruction: root.liveVolumeTiles -= 1
-        }
-
+    function scaleForIndex(index) {
+        var d = Math.abs(Math.round(index) - root.focusIndex)
+        if (d === 0) return root.currentItemScale
+        if (d === 1) return 1.00
+        if (d === 2) return 0.95
+        if (d === 3) return 0.90
+        return 0.86
     }
 
-    // Select-mode floating action bar. Unreachable today (see the `selecting` note
-    // above - nothing in the new grid can ever flip it true), kept only so the
-    // batch-download contract has somewhere to land if a future entry point is added.
+    function centreFlow() {
+        if (!volumeFlow || root.focusIndex < 0 || volumeFlow.count <= 0) return
+        volumeFlow.currentIndex = root.focusIndex
+        volumeFlow.forceLayout()
+        volumeFlow.positionViewAtIndex(root.focusIndex, ListView.Center)
+        volumeFlow.forceLayout()
+        volumeFlow.positionViewAtIndex(root.focusIndex, ListView.Center)
+    }
+
+    function activateCurrent() {
+        if (!root.currentRow) return
+        root.primaryAction(root.currentRow)
+    }
+
+    // Long-series navigation (POLISH-DELTA #7): a 10-volume jump, clamped to the rails.
+    function jumpBy(step) { root.focusAtIndex(root.focusIndex + step) }
+
+    Item {
+        id: flowHead
+        objectName: "volumeFlowHead"
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: root.showVolumes ? root.laneHeaderHeight : 0
+        visible: root.showVolumes
+
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: theme.margin
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 10
+            spacing: 12
+            Text {
+                text: "VOLUMES"
+                color: theme.inkDimmer
+                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
+            }
+            Text {
+                text: String(root.volumeRows.length)
+                color: theme.ink
+                font.family: theme.display; font.pixelSize: 15
+            }
+        }
+
+        // Select-mode entry point (Hemanth greenlit KEEP-IT, 2026-08-14 handoff), transplanted
+        // onto the v2.3 flow's lane header — still-live, separately-approved work the arc's
+        // own candidate never saw. Every batch function it drives (`selecting`,
+        // `selectedNumbers`, `downloadSelected`, `requestNextMissing`, the floating
+        // "N selected" bar) is unchanged.
+        Row {
+            id: selectRow
+            anchors.right: parent.right
+            anchors.rightMargin: theme.margin
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 13
+            visible: root.volumeRows.length > 0
+            spacing: 16
+            Text {
+                objectName: "volumeDownloadNextAction"
+                visible: root.selecting
+                text: "Download next 10"
+                color: nextMa.containsMouse ? theme.ink : theme.inkDim
+                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                MouseArea {
+                    id: nextMa
+                    anchors.fill: parent; anchors.margins: -6
+                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: root.requestNextMissing()
+                }
+            }
+            Text {
+                objectName: "volumeSelectToggle"
+                text: root.selecting ? "Done" : "Select"
+                color: selectMa.containsMouse ? theme.ink : theme.inkDim
+                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                MouseArea {
+                    id: selectMa
+                    anchors.fill: parent; anchors.margins: -6
+                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (root.selecting) root.clearSelection()
+                        else root.selecting = true
+                    }
+                }
+            }
+        }
+    }
+
+    Item {
+        id: flowViewport
+        anchors.top: flowHead.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: actionBar.top
+        visible: root.showVolumes
+        clip: true
+
+        ListView {
+            id: volumeFlow
+            objectName: "volumeFlow"
+            anchors.fill: parent
+            orientation: ListView.Horizontal
+            spacing: 18
+            model: root.volumeRows
+            cacheBuffer: Math.max(root.bookWidth * 4, 720)
+            boundsBehavior: Flickable.StopAtBounds
+            highlightFollowsCurrentItem: false
+            clip: true
+            currentIndex: -1
+            Keys.onLeftPressed: root.focusAtIndex(root.focusIndex - 1)
+            Keys.onRightPressed: root.focusAtIndex(root.focusIndex + 1)
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_PageDown) { root.jumpBy(10); event.accepted = true }
+                else if (event.key === Qt.Key_PageUp) { root.jumpBy(-10); event.accepted = true }
+                else if (event.key === Qt.Key_Home) { root.focusAtIndex(0); event.accepted = true }
+                else if (event.key === Qt.Key_End) { root.focusAtIndex(root.volumeRows.length - 1); event.accepted = true }
+            }
+            onWidthChanged: Qt.callLater(root.centreFlow)
+
+            // ADOPTION RISK (STATUS.md #4, unresolved by this adoption — needs a real mouse
+            // to confirm): a WheelHandler with target:null layered on the Flickable-derived
+            // ListView, so a plain notch steps one volume and Shift+notch steps ten, per
+            // POLISH-DELTA #7 - instead of letting QQuickFlickable's own built-in wheel
+            // scrolling free-flick the content. Qt6 pointer handlers get first look at an
+            // event before an item's legacy wheelEvent(), which is the mechanism this relies
+            // on.
+            WheelHandler {
+                id: flowWheel
+                target: null
+                onWheel: (event) => {
+                    var step = (event.modifiers & Qt.ShiftModifier) ? 10 : 1
+                    var dy = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+                    if (dy < 0) root.jumpBy(step)
+                    else if (dy > 0) root.jumpBy(-step)
+                }
+            }
+
+            header: Item {
+                width: Math.max(0, volumeFlow.width / 2 - root.bookWidth / 2 - 9)
+                height: 1
+            }
+            footer: Item {
+                width: Math.max(0, volumeFlow.width / 2 - root.bookWidth / 2 - 9)
+                height: 1
+            }
+
+            delegate: Item {
+                id: card
+                // world-namespaced per-volume name (catalogue-independence Slice 3,
+                // 2026-08-20; the committed Lanista scenarios click this exact stem) - never
+                // the arc candidate's bare "volumeFlowTile".
+                objectName: "tankobanVolumeCard_" + Vol.volumeToken(card.modelData)
+                required property var modelData
+                required property int index
+                width: root.bookWidth + 18
+                height: root.bookHeight + root.captionHeight
+                y: Math.round((volumeFlow.height - height) / 2)
+                scale: root.scaleForIndex(card.index)
+                opacity: card.index === root.focusIndex ? 1.0 : 0.80
+                z: card.index === root.focusIndex ? 4 : Math.max(0, 3 - Math.abs(card.index - root.focusIndex))
+                transformOrigin: Item.Bottom
+                Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                Behavior on opacity { NumberAnimation { duration: 160 } }
+
+                readonly property string cardState: root.effectiveState(card.modelData)
+                readonly property real fraction: root.progressFraction(card.modelData)
+                readonly property bool live: root._inFlight(card.cardState)
+                readonly property string nameText: root.volumeNameFor(card.modelData)
+                readonly property string stateText: root.stateLineFor(card.modelData)
+
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "Volume " + Vol.volumeToken(card.modelData)
+                Keys.onReturnPressed: root.pressVolume(card.index)
+                Keys.onEnterPressed: root.pressVolume(card.index)
+
+                Rectangle {
+                    id: coverBox
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: root.bookWidth
+                    height: root.bookHeight
+                    radius: 6
+                    clip: true
+                    color: theme.glassTint
+                    border.width: card.index === root.focusIndex ? 2 : 1
+                    border.color: card.index === root.focusIndex ? theme.gold
+                        : (cardMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.34) : theme.edge)
+
+                    Image {
+                        id: coverImage
+                        anchors.fill: parent
+                        source: root.coverFor(card.modelData)
+                        sourceSize: Qt.size(Math.ceil(width * 1.6), Math.ceil(height * 1.6))
+                        asynchronous: true
+                        cache: true
+                        retainWhileLoading: true
+                        fillMode: Image.PreserveAspectCrop
+                        visible: status === Image.Ready
+                    }
+                    // NO COVER fallback (ruling #5): the app's existing glass language - a
+                    // centred Fraunces numeral over a small letterspaced whisper.
+                    Column {
+                        anchors.centerIn: parent
+                        visible: coverImage.status !== Image.Ready
+                        spacing: 8
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: Vol.volumeToken(card.modelData)
+                            color: theme.inkDimmer
+                            font.family: theme.display
+                            font.pixelSize: 30
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "NO COVER"
+                            color: theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
+                        }
+                    }
+
+                    // Owned mark (ruling #6): 2px gold on the cover's own bottom edge,
+                    // label-free, only when this card is not the one already carrying the
+                    // gold focus border.
+                    Rectangle {
+                        visible: card.cardState === "ready" && card.index !== root.focusIndex
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 2
+                        color: theme.gold
+                    }
+                    Rectangle {
+                        visible: card.live
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 3
+                        color: Qt.rgba(1, 1, 1, 0.13)
+                        Rectangle {
+                            width: card.fraction >= 0 ? parent.width * card.fraction : parent.width * 0.15
+                            height: parent.height
+                            color: theme.gold
+                        }
+                    }
+                }
+
+                // Caption: VOL N, the real volume name when the catalogue has one (never a
+                // redundant restatement of the number), and the acquisition state line.
+                Column {
+                    anchors.top: coverBox.bottom
+                    anchors.topMargin: 9
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: root.bookWidth
+                    spacing: 3
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "VOL " + Vol.volumeToken(card.modelData)
+                        color: card.index === root.focusIndex ? theme.gold : theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: 10
+                        font.letterSpacing: 1.8
+                    }
+                    Text {
+                        width: parent.width
+                        visible: card.nameText.length > 0
+                        height: visible ? implicitHeight : 0
+                        horizontalAlignment: Text.AlignHCenter
+                        text: card.nameText
+                        color: theme.inkDim
+                        font.family: theme.ui
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        width: parent.width
+                        height: 12
+                        horizontalAlignment: Text.AlignHCenter
+                        text: card.stateText
+                        color: card.live ? theme.gold : "#e6a3a3"
+                        font.family: theme.ui
+                        font.pixelSize: 10
+                    }
+                }
+
+                MouseArea {
+                    id: cardMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onPressed: card.forceActiveFocus()
+                    onClicked: root.pressVolume(card.index)
+                }
+
+                Component.onCompleted: root.liveVolumeTiles += 1
+                Component.onDestruction: root.liveVolumeTiles -= 1
+            }
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 120
+            z: 8
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "#050608" }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+        Rectangle {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 120
+            z: 8
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 1.0; color: "#050608" }
+            }
+        }
+    }
+
+    Rectangle {
+        id: actionBar
+        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        height: root.actionBarHeight
+        visible: height > 0
+        color: "transparent"
+        border.width: 0
+
+        Row {
+            anchors.left: parent.left; anchors.leftMargin: theme.margin
+            anchors.verticalCenter: parent.verticalCenter; spacing: 12
+            Text {
+                text: root.currentRow ? ("Vol. " + Vol.volumeToken(root.currentRow)) : ""
+                color: theme.ink; font.family: theme.display; font.pixelSize: 18
+            }
+            Text {
+                text: root.currentRow ? root.volumeNameFor(root.currentRow) : ""
+                visible: text.length > 0
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+            }
+        }
+
+        Rectangle {
+            anchors.right: parent.right; anchors.rightMargin: theme.margin
+            anchors.verticalCenter: parent.verticalCenter
+            width: actionBarText.implicitWidth + 36; height: 34; radius: 9
+            color: root.currentRow && root.effectiveState(root.currentRow) === "ready"
+                ? theme.glassTint : theme.gold
+            border.width: root.currentRow && root.effectiveState(root.currentRow) === "ready" ? 1 : 0
+            border.color: theme.edge
+            opacity: root.currentRow && root._inFlight(root.effectiveState(root.currentRow)) ? 0.58 : 1.0
+            Text {
+                id: actionBarText; anchors.centerIn: parent
+                text: root.currentActionLabel
+                color: root.currentRow && root.effectiveState(root.currentRow) === "ready" ? theme.ink : "#171205"
+                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+            }
+            MouseArea {
+                anchors.fill: parent
+                enabled: root.currentRow && !root._inFlight(root.effectiveState(root.currentRow))
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: root.activateCurrent()
+            }
+        }
+    }
+
+    // Select-mode floating action bar. Reachable via the lane header's Select toggle above;
+    // kept exactly as the pre-arc baseline had it.
     Rectangle {
         visible: root.selecting && root.selectedNumbers.length > 0
         z: 20; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 14

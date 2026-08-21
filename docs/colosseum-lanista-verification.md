@@ -1405,6 +1405,43 @@ verification.md`'s matching entry; this entry covers the Lanista/bridge-specific
 
 ---
 
+## Tankoban series volume-flow (arc-08 v2.3 adoption, 2026-08-21)
+
+Adopted the Hemanth-approved horizontal Pages/Flow volume continuum into
+`qml/MangaTankobanLibrary.qml`/`qml/MangaReadingRoom.qml` (full detail and reconciliation
+notes in `docs/colosseum-test-verification.md`'s matching entry). Status: **Bridge
+blocked** for the runtime layer, honestly, not `Runtime-validated`.
+
+- `qmllint` clean (exit 0, only inherited context-property warnings) and both QML harnesses
+  green via `qml.exe -platform offscreen` — neither touches `native/build-msvc`.
+- The three committed scenarios this adoption must keep green
+  (`tankoban_catalogue_smoke.json`, `tankoban_discover_depth.json`,
+  `tankoban_nyaa_dark_gate.json`) were **not replayed this pass**. At verification time
+  `native/build-msvc` had an active concurrent build in progress (`.ninja_lock` held,
+  `cl.exe`/`ninja.exe` running, real memory pressure on this RAM-constrained machine) —
+  running/rebuilding the app exe against a shared out/ directory another process is actively
+  linking into would violate the one-build-per-out-dir rule and risk colliding with whoever
+  is running it. No Lanista session was opened, no window grabs were taken, and no scenario
+  assertion is claimed passing or failing here — this is reported as open verification debt,
+  not papered over with an inferred or assumed result.
+- The adopted automation surface was designed specifically so those three scenarios' exact
+  steps still apply unchanged: `tankobanVolumeCard_<N>` keeps its Slice 3/4 naming stem on
+  the new flow delegate (was at risk of becoming the arc candidate's bare `volumeFlowTile`
+  — caught and fixed during adoption, before any runtime attempt), `tankobanShelfState`/
+  `tankobanSeriesMasthead`/`tankobanSeriesPrimaryAction`/`tankobanReadingRoomBack`/
+  `tankobanSourcesEnableRoute` all read the same objects with the same property shapes as
+  before. This is a structural argument for why the scenarios SHOULD still pass, not a
+  substitute for actually replaying them.
+- **Next action for whoever verifies this next:** once `native/build-msvc` is free (no
+  `.ninja_lock`, no `cl.exe`/`ninja.exe`/`link.exe` in the process list), run `ctest
+  --test-dir native/build-msvc -L unit` for the two new/changed QML gates
+  (`colosseum.manga_reading_room`, `colosseum.manga_volume_flow`) plus a fresh isolated-tag
+  Lanista replay of all three committed Tankoban scenarios (unique pipe, never the daily
+  default pipe), then take the One Piece / MHA / a shelf-less-series window grabs Hemanth
+  still needs to give his aesthetic verdict on the flow's actual look.
+
+---
+
 ## Status vocabulary (for plans and reports)
 
 `Runtime-validated` is the only status that closes a user-visible slice without qualification.

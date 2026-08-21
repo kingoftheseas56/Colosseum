@@ -1612,3 +1612,77 @@ colosseum.update_release_client --output-on-failure`, `ctest --test-dir native/b
 "colosseum-update-v1.json" --pattern "colosseum-update-v1.json.sig"`, `python -m unittest
 tests.update_release_tooling_test -v` (both against the dirty working tree and, separately,
 the restored committed baseline).
+
+## Tankoban series volume-flow (arc-08 v2.3 adoption, 2026-08-21)
+
+Adopted Preflight arc-08's Hemanth-approved ("perfect", 2026-08-20) horizontal Pages/Flow
+volume continuum into `qml/MangaTankobanLibrary.qml` (vertical `GridView` shelf ->
+horizontal `ListView` flow) and `qml/MangaReadingRoom.qml` (un-boxed masthead, 2-line
+synopsis with a glass MORE/LESS chip). The arc's own candidates were re-derived against a
+`reference/baseline/` that predated the LANDED catalogue-independence Slices 3-5 + R1 (the
+gate this arc was waiting on, per its own `STATUS.md` "Adoption risks" #1) — the transplant
+reconciled against the LIVE tree at adoption time, not the stale candidates verbatim:
+
+- `coverFor()` is the LIVE simple ladder (catalogue `row.cover` -> `localPages()` first page
+  when ready -> NO COVER), not the arc candidate's WC-thumb/`CuratedVolumeCovers.js` ladder
+  — that machinery was already fully deleted by Slice 3 before this adoption landed.
+  `chapters`, `curatedCovers`, `requestCovers`/`visibleRowsForCovers`/`visibleGridRows`/
+  `_firstChapterIdIn`/`_thumbWanted`/`coverByVolume` do not exist in the adopted file.
+- The delegate's automation name is `tankobanVolumeCard_<token>` (Slice 3/4's naming law,
+  what the committed Lanista scenarios click), not the arc candidate's bare `volumeFlowTile`.
+- `tankobanShelfState` (rowCount/coveredCount bridge scalars) is preserved unchanged.
+- The Select-mode header toggle (`volumeSelectToggle`/`volumeDownloadNextAction`, "Hemanth
+  greenlit KEEP-IT" 2026-08-14) is live, separately-approved work the arc candidate was never
+  briefed against — transplanted onto the new flow's lane header rather than dropped.
+- `MangaReadingRoom.qml` keeps the LIVE three-way `primaryAction`/`continueText` truth table
+  (`open`/`get`/`search`, catalogue-independence Slice 4) instead of the arc candidate's stale
+  two-way stand-in. The masthead's one contextual action now follows the shelf's own truth:
+  a shelved series (`library.showVolumes` true) carries no masthead CTA — the flow's own
+  action bar (Get/Read/Retry/percent) is the one contextual action; a shelf-less series
+  (`primaryAction === "search"`, no known catalogue count) reserves no action bar at all
+  (`actionBarHeight === 0`), so the masthead keeps `tankobanSeriesPrimaryAction` as the only
+  way to reach `primaryRequested()`. This split matches the committed
+  `tankoban-catalogue-smoke` scenario exactly: it presses `tankobanVolumeCard_1` for the
+  shelved series (One Piece) and `tankobanSeriesPrimaryAction` for the shelf-less one
+  (Berserk). `chapters`/`openChapterRequested`/`chapterDownloadRequested` do not exist on
+  `MangaReadingRoom` at all — Slice 5 had already deleted them before this adoption.
+- Fixed one real defect found only by running the harness: the arc candidate's synopsis text
+  used `font.pixelSize: 13.5` (a real, not int) — `qml.exe` throws
+  `Invalid property assignment: int expected` at construction. Corrected to `14`.
+
+`tests/manga_reading_room_harness.qml` updated for the flow shape: grid-shape assertions
+(`GridView` currentIndex, `stateWordFor`'s pre-v2.3 caption-word vocabulary) replaced with
+flow-shape ones (`ListView` `flowCurrentIndex`/`liveVolumeTiles`/`bookHeight` — all read
+inside a `Qt.callLater`, matching the flow's own deferred `centreFlow()`, since checking
+synchronously in the same call stack as construction races the deferred
+`positionViewAtIndex` and fails vacuously; `volumeNameFor`/`stateLineFor`'s v2.3 caption
+vocabulary; a new assertion that the masthead's `tankobanSeriesPrimaryAction` button is
+hidden for a shelved series and shown for a shelf-less one). Every zero-chapter/cover/
+fetchThumb-never assertion is unchanged. Negative controls: the pre-existing fixed-height
+and coveredCount ones, plus a new one on the flow's own centring
+(`flowCurrentIndex === focusIndex + 1` deliberately wrong -> throws -> restored). Green:
+`qml.exe -platform offscreen tests/manga_reading_room_harness.qml` -> `MANGA_READING_ROOM_OK`.
+
+New gate `tests/manga_volume_flow_harness.qml` (ported from the arc package's own harness of
+the same name, with the non-existent `chapters` construct property dropped) pins: resume
+centring onto volume 7, the dynamic 190-276px never-cropped cover clamp
+(`maxScaledVolumeHeight <= flowViewportHeight`), virtualization (`liveVolumeTiles` bounded),
+Get/Read/Retry/percent state vocabulary, the name-caption redundant-collapse rule,
+PageUp/PageDown/Home/End 10-volume jumps, first-click-centers/second-click-acts, and the
+zero-volume defensive floor (`actionBarHeight === 0`). Registered
+`colosseum.manga_volume_flow` (label `unit`) in `tests/CMakeLists.txt`, same
+qml.exe/offscreen/powershell-wrapper shape as `colosseum.manga_reading_room`. Green:
+`powershell -File tests/test_manga_volume_flow.ps1` -> `Tankoban series volume flow: OK`.
+
+`qmllint` on both adopted files: exit 0, only the pre-existing class of inherited
+context-property warnings (`TankobanVolumes`/`Progress`/`Downloads`/`WindowMode`/`Collection`
+singletons, `LibraryButton` — resolved only inside the real app).
+
+**Not run this pass:** `ctest -L unit` (the shared `native/build-msvc` out/ directory was
+under an active concurrent build — `.ninja_lock` held, `cl.exe`/`ninja.exe` running — at
+verification time; touching it would violate the one-build-per-out-dir rule and risk an OOM
+collision on this RAM-constrained machine). The two harnesses above were run directly via
+`qml.exe -platform offscreen`, which does not touch `build-msvc` and needed no rebuild (a
+QML-only change runs against the existing app exe/tooling). `ctest -L unit` registration and
+the full 71/72 (new count) regression pass are still owed once the concurrent build clears —
+tracked as open verification debt, not claimed here.

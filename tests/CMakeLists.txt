@@ -1019,6 +1019,18 @@ set_tests_properties(colosseum.manga_series_catalogue PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Tankoban series volume-flow (arc-08 v2.3 adoption, 2026-08-21): the horizontal
+# Pages/Flow continuum that replaced the vertical volume grid in MangaTankobanLibrary.qml.
+# Same qml.exe offscreen shape as colosseum.manga_reading_room above; fake service/progress/
+# downloader seams only, no live app or network.
+add_test(NAME colosseum.manga_volume_flow
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_volume_flow.ps1")
+set_tests_properties(colosseum.manga_volume_flow PROPERTIES
+    LABELS "unit"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Installed chronicle (installed-release chronicle plan, Slice 2, 2026-08-09)
 # InstalledChronicle loads + verifies the bundled signed manifest that seeds the
 # Update gallery with the installed release's chapters at rest. Pure QtCore +

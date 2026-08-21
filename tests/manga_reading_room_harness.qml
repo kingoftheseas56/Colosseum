@@ -1,13 +1,13 @@
-// RED/GREEN contract harness for the locked Tankoban Reading Room.
+// RED/GREEN contract harness for the Tankoban Reading Room.
 // It deliberately uses only fake service seams: no network, no live app state.
 //
 // Catalogue-independence Slice 3 (2026-08-20): fixtures are now catalogue-shaped rows
 // (number/cover/title, no chapterStart/chapterEnd — a baked TankobanCatalog row carries
 // no chapter range at all). The WC thumb-scrape machinery this harness used to pin
 // (bounded cover-request bursts, range captions) is gone from MangaTankobanLibrary; this
-// harness now proves the opposite contract — fetchThumb is NEVER called, and a card's
-// cover resolves off the catalogue-baked field or, once a volume is on disk, its own
-// first local page, else the honest NO COVER glass.
+// harness proves the opposite contract — fetchThumb is NEVER called, and a card's cover
+// resolves off the catalogue-baked field or, once a volume is on disk, its own first local
+// page, else the honest NO COVER glass.
 //
 // Catalogue-independence Slice 5 (2026-08-20): the old "chapter-only room" case (a
 // MangaReadingRoom seeded with a bare `chapters` array and asserted to render a chapter
@@ -15,6 +15,18 @@
 // Hemanth's lock. The room and its shelf no longer have any chapter-shaped property or
 // signal at all; a shelf-less series (no known volumes) now renders zero rows and the
 // chapter API surface is asserted fully absent (typeof undefined), not just unused.
+//
+// arc-08 v2.3 adoption (2026-08-21): the vertical GridView shelf is now a horizontal
+// Pages/Flow ListView continuum. Grid-shape assertions (columns/cellHeight/chip-word
+// captions) become flow-shape (bookHeight/bookWidth clamp, flowCurrentIndex, the
+// volumeNameFor/stateLineFor caption vocabulary). Every zero-chapter/cover/
+// fetchThumb-never assertion below is unchanged — those contracts did not move.
+// ListView layout (positionViewAtIndex/currentIndex settling, delegate realization) runs
+// on a deferred Qt.callLater the same way the flow's own centring does (see
+// MangaTankobanLibrary.qml's centreFlow()/focusAtNumber()), so every assertion that reads
+// flow-layout state is itself wrapped in a matching Qt.callLater — checking synchronously,
+// in the same call stack as object construction, would race the deferred layout and fail
+// vacuously.
 import QtQuick
 
 Item {
@@ -63,12 +75,18 @@ Item {
 
     FakeService { id: service }
     FakeProgress { id: progress }
+    // A separate no-resume progress fake for the shelf-less room below: FakeProgress.get()
+    // ignores its seriesId argument (a fixture shortcut, not production behaviour), so
+    // sharing `progress` would leak the "S" series' resume record onto the "C" series and
+    // mask the honest "Search nyaa" label behind a bogus "Continue" one.
+    FakeProgress { id: noResumeProgress; record: null }
     FakeDownloads { id: downloads }
 
     // Catalogue-shaped rows only: number (string), cover, title — no chapterStart/
     // chapterEnd. Volume "9" carries a baked catalogue cover+title (the harvest-covered
     // case); volume "2" carries no catalogue cover but is "ready" with a local first page
-    // (the on-disk case); every other row is deliberately bare (the NO COVER case).
+    // (the on-disk case); volume "12" carries a redundant "Volume 12" name (must collapse
+    // to nothing); every other row is deliberately bare (the NO COVER case).
     function volumes(count) {
         var out = []
         for (var i = 1; i <= count; i++) {
@@ -81,7 +99,7 @@ Item {
                        : "none"
             out.push({
                 "id": "v" + i, "seriesId": "S", "number": String(i),
-                "title": i === 9 ? "Real Volume Title" : "",
+                "title": i === 9 ? "Real Volume Title" : (i === 12 ? "Volume 12" : ""),
                 "cover": i === 9 ? "file:///fixtures/vol9-cover.jpg" : "",
                 "state": state
             })
@@ -112,6 +130,11 @@ Item {
         ck(caught, message)
     }
 
+    function fail(e) {
+        console.log("MANGA_READING_ROOM_FAIL: " + e.message)
+        Qt.exit(1)
+    }
+
     function runChecks() {
         try {
             service.volMap = ({ "S": volumes(115), "C": [] })
@@ -126,6 +149,7 @@ Item {
                 "width": 1320, "height": 720, "seriesId": "S",
                 "seriesTitle": "One Piece", "author": "Eiichiro Oda",
                 "status": "Ongoing", "year": 1997, "score": 9.2,
+                "primaryAction": "get",
                 "genres": ["Action", "Adventure", "Fantasy"],
                 "synopsis": "A long synopsis used to prove the rail's three-line floor.",
                 "service": service, "progress": progress, "downloader": downloads
@@ -148,11 +172,25 @@ Item {
             ck(lib.visibleContinuumCount === 9,
                "the desktop continuum must expose nine visible positions at this width")
             ck(lib.autoLandNumber === 74 && lib.autoLandIndex === 73,
-               "the grid must auto-land on the continue volume index")
-            ck(lib.flowCurrentIndex === lib.focusIndex,
-               "the reader-style flow must keep GridView currentIndex on the focused token")
-            ck(lib.liveVolumeTiles > 0 && lib.liveVolumeTiles < lib.volumeRows.length,
-               "the volume flow must virtualize a long canonical model, live " + lib.liveVolumeTiles)
+               "the flow must auto-land on the continue volume index")
+
+            // ── the masthead's one contextual action honours the shelf's own truth ──
+            // A shelved series (root.library.showVolumes true) carries no masthead CTA —
+            // the flow's own action bar is the one contextual action.
+            function findByName(item, name) {
+                if (!item) return null
+                if (item.objectName === name) return item
+                var kids = item.children || []
+                for (var k = 0; k < kids.length; k++) {
+                    var found2 = findByName(kids[k], name)
+                    if (found2) return found2
+                }
+                return null
+            }
+            var primaryBtn = findByName(room, "tankobanSeriesPrimaryAction")
+            if (!primaryBtn) throw new Error("tankobanSeriesPrimaryAction button not found in tree")
+            ck(primaryBtn.visible === false,
+               "a shelved series must not show a redundant masthead CTA — the flow's action bar owns it")
 
             // ── catalogue-independence Slice 3: no live thumb scraping, ever ──────────
             ck(downloads.asked.length === 0,
@@ -190,30 +228,23 @@ Item {
             ck(typeof lib.requestCovers === "undefined" && typeof lib.visibleRowsForCovers === "undefined"
                && typeof lib.visibleGridRows === "undefined" && typeof lib._firstChapterIdIn === "undefined",
                "the WC thumb-scrape machinery must be fully removed, not just unused")
+            ck(typeof lib.chapters === "undefined" && typeof lib.curatedCovers === "undefined",
+               "the chapters/curated-cover surfaces must be fully removed, not just unused")
+            ck(typeof lib.stateWordFor === "undefined" && typeof lib.chipTextFor === "undefined"
+               && typeof lib.liveCaptionFor === "undefined" && typeof lib.volumeCaptionFor === "undefined",
+               "the pre-v2.3 grid caption vocabulary must be fully removed, not just unused")
 
-            ck(lib.stateWordFor(lib.volumeRows[1]) === "On this device",
-               "ready volume state must be drawn as On this device")
-            ck(lib.stateWordFor(lib.volumeRows[2]) === "Finding source",
-               "resolving state must use the canon word")
-            ck(lib.effectiveState(lib.volumeRows[3]) === "ingesting",
-               "ingesting state must be present in the tile contract")
-            ck(lib.effectiveState(lib.volumeRows[4]) === "packing",
-               "packing state must be present in the tile contract")
-            ck(lib.effectiveState(lib.volumeRows[5]) === "downloading",
-               "downloading state must be present in the tile contract")
-            ck(lib.stateWordFor(lib.volumeRows[3]).indexOf("Adding") === 0,
-               "ingesting state must use the canon word")
-            ck(lib.stateWordFor(lib.volumeRows[4]).indexOf("Building") === 0,
-               "packing state must use the canon word")
-            ck(lib.stateWordFor(lib.volumeRows[5]).indexOf("Downloading") === 0,
-               "downloading state must use the canon word")
-            ck(lib.stateWordFor(lib.volumeRows[6]) === "Retry source",
-               "failed state must use the canon word")
-            var rejectedWrongState = false
-            try { ck(lib.effectiveState(lib.volumeRows[1]) === "failed", "negative state control") }
-            catch (negativeState) { rejectedWrongState = true }
-            ck(rejectedWrongState,
-               "the tile-state assertion must fail when a ready row is mislabeled")
+            // ── v2.3 caption vocabulary: real name, redundant-name collapse, state line ──
+            ck(lib.volumeNameFor(rowByNumber(lib.volumeRows, "9")) === "Real Volume Title",
+               "a genuine volume name must reach the caption")
+            ck(lib.volumeNameFor(rowByNumber(lib.volumeRows, "12")) === "",
+               "a redundant 'Volume N' name must collapse to nothing")
+            ck(lib.stateLineFor(rowByNumber(lib.volumeRows, "7")) === "failed",
+               "a failed volume's caption state line must read exactly 'failed'")
+            ck(lib.stateLineFor(rowByNumber(lib.volumeRows, "6")).indexOf("downloading") >= 0,
+               "an in-flight volume's caption state line must name downloading")
+            ck(lib.stateLineFor(rowByNumber(lib.volumeRows, "2")) === "",
+               "an owned (ready) volume's caption state line is empty — Read lives on the action bar")
 
             lib.selecting = true
             ck(lib.pressVolume(lib.focusIndex),
@@ -230,21 +261,33 @@ Item {
                "selected batch must contain exactly the selected canonical volume tokens")
             ck(lastBatch.label === "Download selected",
                "selected batch must carry the exact action label")
+            lib.selecting = false
+            lib.selectedNumbers = []
+            lib.focusAtNumber("74")
 
             // catalogue-independence Slice 5 (2026-08-20): chapters are gone completely.
             // A shelf-less series (no volumes known at all) renders an honest empty shelf
             // — no chapter tail, no chapter API surface anywhere, on the room or the
-            // library it owns.
+            // library it owns. It ALSO gets the masthead CTA back (search primary action,
+            // v2.3's own reconciliation) — the flow reserves no action bar with zero rows.
             var chapterOnlyComp = Qt.createComponent("../qml/MangaReadingRoom.qml")
             chapterOnlyRoom = chapterOnlyComp.createObject(harness, {
                 "width": 1000, "height": 720, "seriesId": "C",
-                "seriesTitle": "No Shelf",
-                "service": service, "progress": progress, "downloader": downloads
+                "seriesTitle": "No Shelf", "primaryAction": "search",
+                "service": service, "progress": noResumeProgress, "downloader": downloads
             })
             ck(chapterOnlyRoom.library.showVolumes === false,
                "a series with no known volumes must not expose a populated shelf")
             ck(chapterOnlyRoom.library.volumeRows.length === 0,
                "a series with no known volumes must render zero rows, never a chapter fallback")
+            ck(chapterOnlyRoom.library.actionBarHeight === 0,
+               "a series with no volumes must not reserve the flow's action bar")
+            ck(chapterOnlyRoom.continueText === "Search nyaa",
+               "the shelf-less honest primary label must read Search nyaa")
+            var shelflessBtn = findByName(chapterOnlyRoom, "tankobanSeriesPrimaryAction")
+            if (!shelflessBtn) throw new Error("tankobanSeriesPrimaryAction button not found on shelf-less room")
+            ck(shelflessBtn.visible === true,
+               "a shelf-less series must show the masthead CTA — it is the only way to reach primaryRequested")
             ck(typeof chapterOnlyRoom.chapters === "undefined"
                && typeof chapterOnlyRoom.chapterDisplayRows === "undefined"
                && typeof chapterOnlyRoom.openChapterRequested === "undefined"
@@ -256,8 +299,8 @@ Item {
                && typeof chapterOnlyRoom.library.chapterDownloadRequested === "undefined",
                "the shelf's chapter API (chapters/chapterRows/chapter signals) must be fully removed")
 
-            // Special canonical volume tokens must remain exact through focus
-            // and selection; they are not guaranteed to be integers.
+            // Special canonical volume tokens must remain exact through focus and
+            // selection; they are not guaranteed to be integers.
             service.volMap = ({ "S": service.volMap["S"], "C": service.volMap["C"],
                 "T": [
                     { "id": "v10p5", "seriesId": "T", "number": "10.5", "cover": "", "title": "", "state": "none" },
@@ -272,14 +315,36 @@ Item {
             tokenRoom.library.focusAtNumber("Extra")
             ck(tokenRoom.library.focusToken === "Extra" && tokenRoom.library.focusIndex === 1,
                "named volume tokens must remain the focused identity")
-            ck(tokenRoom.library.flowCurrentIndex === 1,
-               "named volume token focus must center its actual GridView row")
 
-            console.log("MANGA_READING_ROOM_OK")
-            Qt.exit(0)
+            // ── flow-layout-dependent checks (ListView currentIndex settling, delegate
+            // realization) run on the same deferred tick the flow's own centreFlow() uses,
+            // so they must be read after a Qt.callLater, never in this synchronous call
+            // stack — checking here would race the deferred positionViewAtIndex and either
+            // pass vacuously (stale -1) or fail spuriously. ──
+            Qt.callLater(function () {
+                try {
+                    ck(lib.flowCurrentIndex === lib.focusIndex,
+                       "the flow must keep ListView currentIndex on the focused token")
+                    ck(lib.liveVolumeTiles > 0 && lib.liveVolumeTiles < lib.volumeRows.length,
+                       "the volume flow must virtualize a long canonical model, live " + lib.liveVolumeTiles)
+                    ck(lib.bookHeight >= 190 && lib.bookHeight <= 276,
+                       "book height must stay in the normal Tankoban range, got " + lib.bookHeight)
+                    ckNegativeControl(function () {
+                        ck(lib.flowCurrentIndex === lib.focusIndex + 1, "negative control for flow centring")
+                    }, "the flow-centring assertion must fail when the current index is deliberately off by one")
+
+                    Qt.callLater(function () {
+                        try {
+                            ck(tokenRoom.library.flowCurrentIndex === 1,
+                               "named volume token focus must center its actual ListView row")
+                            console.log("MANGA_READING_ROOM_OK")
+                            Qt.exit(0)
+                        } catch (e3) { fail(e3) }
+                    })
+                } catch (e2) { fail(e2) }
+            })
         } catch (e) {
-            console.log("MANGA_READING_ROOM_FAIL: " + e.message)
-            Qt.exit(1)
+            fail(e)
         }
     }
 
