@@ -217,6 +217,7 @@ Item {
         contentWidth: width
         contentHeight: content.implicitHeight + 30
         boundsBehavior: Flickable.StopAtBounds
+        pixelAligned: false
         ScrollBar.vertical: HouseScrollBar { flick: scroll }
 
         Column {

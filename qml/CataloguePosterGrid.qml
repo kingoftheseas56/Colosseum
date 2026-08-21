@@ -26,6 +26,7 @@ GridView {
 
     clip: true
     interactive: true
+    pixelAligned: false
     boundsBehavior: Flickable.StopAtBounds
     focus: true
     keyNavigationEnabled: true
@@ -61,6 +62,14 @@ GridView {
             if (wall.currentIndex >= 0 && wall.currentIndex < wall.items.length)
                 wall.itemRequested(wall.items[wall.currentIndex])
             event.accepted = true
+        } else if (event.key === Qt.Key_PageUp) {
+            gridGlide.pageUp(); event.accepted = true
+        } else if (event.key === Qt.Key_PageDown) {
+            gridGlide.pageDown(); event.accepted = true
+        } else if (event.key === Qt.Key_Home) {
+            gridGlide.toTop(); event.accepted = true
+        } else if (event.key === Qt.Key_End) {
+            gridGlide.toBottom(); event.accepted = true
         }
     }
 
@@ -89,4 +98,8 @@ GridView {
         text: wall.emptyMessage
         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
     }
+
+    // Shared wheel controller — unifies the See-all grid's scroll feel with every landing page
+    // and Discover (fast accumulator drain, no double-scroll with GridView's default wheel).
+    ScrollGlide { id: gridGlide; flick: wall }
 }

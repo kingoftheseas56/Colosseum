@@ -313,6 +313,7 @@ Item {
         contentWidth: width
         contentHeight: pageCol.height
         clip: true
+        pixelAligned: false
         boundsBehavior: Flickable.StopAtBounds
         opacity: page.loading ? 0.0 : 1.0
         ScrollBar.vertical: HouseScrollBar { flick: flick }

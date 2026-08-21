@@ -650,6 +650,7 @@ Item {
                 ? Math.max(0, Math.ceil((parent.width - columnCount * cellWidth) / 2)) : 0
             clip: true
             interactive: true
+            pixelAligned: false
             boundsBehavior: Flickable.StopAtBounds
             focus: true
             keyNavigationEnabled: true
@@ -692,6 +693,14 @@ Item {
                     browser.keyboardMode = true
                     browser.activateIndex(wall.currentIndex)
                     event.accepted = true
+                } else if (event.key === Qt.Key_PageUp) {
+                    wallGlide.pageUp(); event.accepted = true
+                } else if (event.key === Qt.Key_PageDown) {
+                    wallGlide.pageDown(); event.accepted = true
+                } else if (event.key === Qt.Key_Home) {
+                    wallGlide.toTop(); event.accepted = true
+                } else if (event.key === Qt.Key_End) {
+                    wallGlide.toBottom(); event.accepted = true
                 }
             }
 
@@ -745,5 +754,9 @@ Item {
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
             }
         }
+
+        // Shared wheel controller — unifies the wall's scroll feel with every landing page and
+        // the See-all grids (fast accumulator drain, no double-scroll with GridView's wheel).
+        ScrollGlide { id: wallGlide; flick: wall }
     }
 }
