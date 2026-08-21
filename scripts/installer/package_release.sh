@@ -29,6 +29,7 @@ MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
 DIST="$REPO/dist"
 STAGE="$DIST/stage"
 OUT="$DIST/Colosseum-$VERSION-setup.exe"
+DATA_SRC="$REPO/data"
 
 if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=all)" ]; then
   echo "refusing to package dirty source tree"
@@ -57,13 +58,22 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
   exit 1
 fi
 
-echo "[1/6] clean stage -> $STAGE"
+# Catalogue-independence (2026-08-20) removed the last live fallbacks: qml/MangaSeries.qml
+# now names MalCatalog as the SOLE source of masthead facts (mangaById/matchByTitle), and
+# TankobanCatalog is the sole source of the volume shelf/covers. An installer without both
+# dbs staged renders an empty series page and an empty Discover on a fresh install — the
+# headline feature dead on arrival. Hold packaging here, before any staging work starts,
+# rather than discover the gap after makensis has already run.
+[ -f "$DATA_SRC/mal_catalog.db" ] || { echo "mal_catalog.db missing: $DATA_SRC"; exit 1; }
+[ -f "$DATA_SRC/tankoban_catalog.db" ] || { echo "tankoban_catalog.db missing: $DATA_SRC"; exit 1; }
+
+echo "[1/7] clean stage -> $STAGE"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 
-echo "[2/6] source tree at HEAD (tracked files)"
+echo "[2/7] source tree at HEAD (tracked files)"
 git -C "$REPO" archive --format=tar HEAD | tar -x -C "$STAGE"
 
-echo "[3/6] overlay windeployqt runtime from $BUILD_DIR"
+echo "[3/7] overlay windeployqt runtime from $BUILD_DIR"
 mkdir -p "$STAGE/native/build-msvc"
 cp -r "$BUILD_DIR/." "$STAGE/native/build-msvc/"
 # Felt-speed runtime sentinels: an installer without these files is not shippable.
@@ -75,13 +85,24 @@ for sentinel in \
   [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
 done
 
-echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, tools/, qml/, resources/, translations/)"
+echo "[4/7] overlay baked catalogue data (mal_catalog.db + tankoban_catalog.db) -> \$STAGE/data"
+# The app has no live fallback for these anymore (see catalogue-independence note above):
+# a release without them ships a dead Tankoban. comics_catalog.db / imdb_catalog.db are
+# deliberately NOT overlaid — those lanes keep their live-fallback shape unchanged.
+mkdir -p "$STAGE/data"
+cp "$DATA_SRC/mal_catalog.db" "$STAGE/data/mal_catalog.db"
+cp "$DATA_SRC/tankoban_catalog.db" "$STAGE/data/tankoban_catalog.db"
+for sentinel in "$STAGE/data/mal_catalog.db" "$STAGE/data/tankoban_catalog.db"; do
+  [ -f "$sentinel" ] || { echo "data sentinel missing: $sentinel"; exit 1; }
+done
+
+echo "[5/7] strip build intermediates (keeps ALL runtime: dlls, tools/, qml/, resources/, translations/)"
 ( cd "$STAGE/native/build-msvc"
   rm -rf CMakeFiles ./*_autogen
   rm -f ./*_harness.exe colosseum-prev-live.exe
   rm -f ./*.obj ./*.ilk ./*.pdb ./*.lib ./*.exp CMakeCache.txt cmake_install.cmake ./*.cmake Makefile CTestTestfile.cmake 2>/dev/null || true )
 
-echo "[5/6] bundle the Stremio stream-server next to the exe  <<< THE FIX"
+echo "[6/7] bundle the Stremio stream-server next to the exe  <<< THE FIX"
 DEST="$STAGE/native/build-msvc/stream_server"
 mkdir -p "$DEST"
 for f in stremio-runtime.exe server.js ffmpeg.exe ffprobe.exe \
@@ -98,7 +119,7 @@ Colosseum (MIT) and this GPL-2.0 component are separate programs communicating o
 localhost HTTP; they are an aggregate, and Colosseum's own license is unaffected.
 EOF
 
-echo "[6/6] makensis -> $OUT"
+echo "[7/7] makensis -> $OUT"
 # MSYS_NO_PATHCONV: stop Git Bash from rewriting the /D... define flags into bogus paths.
 MSYS_NO_PATHCONV=1 "$MAKENSIS" \
     "/DSTAGE=$(cygpath -w "$STAGE")" "/DVERSION=$VERSION" \

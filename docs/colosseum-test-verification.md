@@ -1516,3 +1516,99 @@ picker's honest empty state + route, the enable-via-Extensions path, and the liv
 result on the next open are all proven by direct live evidence and a passing committed
 scenario; unit + harness gates green with negative controls performed; ledgers updated in
 the same commit as the code.
+
+## Release 1.1.1 — post-publish hygiene + live verification (2026-08-21)
+
+Colosseum 1.1.1 published: https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.1
+(three assets: `Colosseum-1.1.1-setup.exe`, `colosseum-update-v1.json`,
+`colosseum-update-v1.json.sig`). This section is post-publish hygiene on the main tree, not
+a rebuild of the release itself — the published artifacts, tag, and release worktree are
+untouched.
+
+**Stale fixture, found and fixed.** `tests/update_release_client_harness.cpp:276` hardcoded
+`User-Agent: Colosseum/1.1.0` in its `require()` assertion — the production literal at
+`native/update/UpdateReleaseClient.cpp:107` was correctly bumped to `Colosseum/1.1.1` in
+`0630317`, but the matching test fixture was missed in that commit. Bumped the fixture
+string to match. Rebuilt `update_release_client_harness` (Ninja, MSVC 2022, Qt's bundled
+CMake at `C:/Qt/Tools/CMake_64/bin`), reran `ctest --test-dir native/build-msvc -R
+colosseum.update_release_client --output-on-failure` — green (0.90s). Full
+`ctest --test-dir native/build-msvc -L unit --output-on-failure`: **71/71 green**, 95.45s
+total (zero regressions from the fixture bump; label breakdown unchanged from the R1
+baseline above).
+
+**Packaging gap, found and fixed.** `scripts/installer/package_release.sh` — the tracked
+packaging script — never staged `data/mal_catalog.db` or `data/tankoban_catalog.db` into
+the installer (git history confirms `76cf5b6..1485d8c` never touch it; 7z-inspecting the
+shipped 1.1.0 installer confirms zero `data\*.db` entries). That was survivable for 1.1.0
+because Tankoban's consumers all had live Jikan/AniList fallbacks. Catalogue-independence
+(2026-08-20) removed those fallbacks — `qml/MangaSeries.qml` now names MalCatalog as the
+SOLE source of masthead facts and TankobanCatalog as the sole source of the volume shelf —
+so an installer without both dbs renders an empty series page and an empty Discover on a
+fresh install. The actual 1.1.1 installer that shipped was packaged with a one-off wrapper
+outside the repo (`package_release_with_data.sh`, Temp-scoped, so the release worktree
+never went dirty) that overlaid the two dbs; this pass ports that overlay INTO the tracked
+`package_release.sh` itself (new `[4/7]` step, existence-check-gated before staging starts)
+so the next release doesn't need a hand-maintained side wrapper. `comics_catalog.db` /
+`imdb_catalog.db` are deliberately not overlaid — those lanes keep their live-fallback
+shape. `bash -n` syntax-checked; both source dbs confirmed present at
+`data/mal_catalog.db` (41,381,888 bytes) and `data/tankoban_catalog.db` (2,928,640 bytes).
+Not run end-to-end (that would repackage a real installer outside this task's scope) — the
+existence-check gate and step ordering were verified by inspection against the working
+one-off wrapper's already-proven shape.
+
+**Live published-release verification (read-only against GitHub, 2026-08-21).**
+- `gh release view v1.1.1 --repo kingoftheseas56/Colosseum --json assets,tagName,name,publishedAt,isDraft,isPrerelease`
+  — 3 assets, `isDraft:false`, `isPrerelease:false`, tag `v1.1.1`.
+- Downloaded `colosseum-update-v1.json` + `.sig` via `gh release download v1.1.1`.
+- Reconstructed the production Ed25519 public key as a DER SPKI blob from the 32 raw bytes
+  embedded in `native/update/UpdatePublicKey.h` (`kUpdatePublicKey`) using the standard
+  Ed25519 SPKI prefix (`302a300506032b6570032100`); its SHA-256
+  (`7bbb3bc13cfdcd20f1c02e94da103c0be70b2ae09346897a1dc203dc660ca3fa`) matched the header's
+  own documented "DER SPKI SHA-256" comment exactly, confirming the reconstruction before
+  using it to verify anything.
+- Ran `scripts/update/verify_update_release.py`'s own `verify_signature()` and `verify()`
+  functions (imported directly, not reimplemented) against the downloaded manifest + sig +
+  reconstructed public key — **signature valid**. The installer digest step used the
+  GitHub-computed asset digest (`gh api`'s per-asset `digest` field —
+  `sha256:8bff57afcf60d800ab679b55934c2d2cf224f48c52c979256a29e993ed9bbcc7`, size
+  210927498) in place of downloading the 200MB installer, per the task's own
+  gh-api-or-download allowance; this exactly matches the manifest's declared
+  `installer.sha256`/`installer.size`. Result: `UPDATE_RELEASE_OK`,
+  `VERSION=1.1.1`, `INSTALLERBYTES=210927498`,
+  `INSTALLERSHA256=8bff57afcf60d800ab679b55934c2d2cf224f48c52c979256a29e993ed9bbcc7`.
+- Schema/tag/notesUrl acceptance (inside the same `verify()` call): `schemaVersion==1`,
+  `tag=="v1.1.1"`, `notesUrl=="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.1"`
+  — all pass.
+- `UpdateReleaseClient`'s own acceptance rules (read directly from
+  `native/update/UpdateReleaseClient.cpp`, not re-derived): rejects on `draft||prerelease`
+  (line ~230-234) — both false on the live release, accepted; expects asset names
+  `colosseum-update-v1.json` (`kManifestAsset`) and `colosseum-update-v1.json.sig`
+  (`kSignatureAsset`) — both present; the harness's own `"exact manifest/signature/installer
+  assets selected"` contract (`assetUrls.size()==3`) matches the live release's exact asset
+  count (3).
+
+**Release-tooling artwork staleness — confirmed, NOT fixed (out of scope, not this lane's
+file).** `tests/update_release_tooling_test.py` has 6 unittest cases; against the CURRENT
+working tree (which carries a foreign uncommitted WIP fix — a dirty
+`release/presentation/1.1.0.json` plus an untracked `release/presentation/artwork/` dir
+with all 5 PNGs) all 6 pass. Ground-truthed the COMMITTED baseline separately (temporarily
+swapped in `git show HEAD:release/presentation/1.1.0.json` and moved the artwork dir aside,
+reran, then restored both exactly — `diff` confirmed byte-identical restoration): against
+HEAD, **exactly 3 of 6 fail** —
+`test_generates_signed_bundle_with_five_verified_artwork`,
+`test_rejects_highlight_referencing_missing_artwork`, and
+`test_real_presentation_hashes_all_five_artwork_and_rejects_missing_reference` — all three
+because the committed `1.1.0.json` still has `"artwork": []` and highlights with no
+`artwork_assets`, while the tests expect the 5-image set. This is a 1.1.0-era gap (the
+presentation file was never finished/committed for its own release), unrelated to the
+1.1.1 fixture/packaging fixes above and outside this pass's ownership — named here per
+instruction, left for its owner to finish and commit.
+
+**Commands run, for the record:** `ninja -v update_release_client_harness` (via vcvars64 +
+Qt's bundled Ninja/cl.exe), `ctest --test-dir native/build-msvc -R
+colosseum.update_release_client --output-on-failure`, `ctest --test-dir native/build-msvc
+-L unit --output-on-failure`, `gh release view v1.1.1 --repo kingoftheseas56/Colosseum
+--json ...`, `gh release download v1.1.1 --repo kingoftheseas56/Colosseum --pattern
+"colosseum-update-v1.json" --pattern "colosseum-update-v1.json.sig"`, `python -m unittest
+tests.update_release_tooling_test -v` (both against the dirty working tree and, separately,
+the restored committed baseline).
