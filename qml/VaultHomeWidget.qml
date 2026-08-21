@@ -26,25 +26,23 @@ Glass {
     Text {
         id: vaultTitle
         objectName: "vaultHomeWidgetTitle"
-        anchors.left: parent.left
-        anchors.leftMargin: 42
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        anchors.topMargin: 26
+        anchors.topMargin: 28
         text: vault.heading
-        color: "#f2efe7"
+        color: theme.ink
         font.family: theme.display
-        font.pixelSize: 32
-        font.weight: Font.Normal
+        font.pixelSize: 33
     }
 
     Rectangle {
-        anchors.left: vaultTitle.right
-        anchors.leftMargin: 18
-        anchors.right: parent.right
-        anchors.rightMargin: 42
-        anchors.verticalCenter: vaultTitle.verticalCenter
-        height: 1
-        color: Qt.rgba(1, 1, 1, 0.14)
+        anchors.top: vaultTitle.bottom
+        anchors.topMargin: 10
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: 64
+        height: 2
+        radius: 1
+        color: theme.gold
     }
 
     Item {
@@ -366,15 +364,14 @@ Glass {
         id: machineLabel
         objectName: "vaultHomeWidgetLocationLabel"
         anchors.left: parent.left
-        anchors.leftMargin: 42
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 26
+        anchors.leftMargin: 46
+        anchors.top: parent.top
+        anchors.topMargin: 36
         text: "On this machine"
-        color: "#96958f"
-        font.family: theme.ui
-        font.pixelSize: 10
-        font.bold: true
-        font.letterSpacing: 1.2
+        color: theme.inkDim
+        font.family: theme.display
+        font.italic: true
+        font.pixelSize: 22
     }
 
     MouseArea {

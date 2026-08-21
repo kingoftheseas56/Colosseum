@@ -46,6 +46,7 @@ TestCase {
         var title = findChild(widget, "vaultHomeWidgetTitle")
         verify(title !== null)
         compare(title.text, "Vault")
+        verify(Math.abs((title.x + title.width / 2) - (widget.width / 2)) < 1)
         var location = findChild(widget, "vaultHomeWidgetLocationLabel")
         verify(location !== null)
         compare(location.text, "On this machine")
