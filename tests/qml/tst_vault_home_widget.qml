@@ -43,6 +43,12 @@ TestCase {
 
     function test_default_identity_and_data_independent_construction() {
         compare(widget.heading, "Vault")
+        var title = findChild(widget, "vaultHomeWidgetTitle")
+        verify(title !== null)
+        compare(title.text, "Vault")
+        var location = findChild(widget, "vaultHomeWidgetLocationLabel")
+        verify(location !== null)
+        compare(location.text, "On this machine")
     }
 
     function test_hover_state_responds_to_pointer() {

@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 
-// VaultHomeWidget - the Vault HOME mode-intro widget: a monumental mechanical vault portal.
+// VaultHomeWidget - the Vault HOME mode-intro widget: a solid mechanical archive hatch.
 // It is deliberately independent of Vault roots, scans, indexed rows, and local-media state.
 // The object represents the app itself, so an empty first-run Vault renders identically to a
 // populated one. Hover turns the handwheel, retracts the locking bars, and cracks the door open.
@@ -15,204 +15,311 @@ Glass {
     signal clicked()
 
     radius: 18
-    height: 400
+    height: 520
+    tint: 0.035
+    scrim: 0.24
 
     Theme { id: theme }
 
     readonly property bool hovered: hit.containsMouse
 
     Text {
-        anchors.top: parent.top; anchors.topMargin: 28
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: vault.heading; color: theme.ink
-        font.family: theme.display; font.pixelSize: 33
+        id: vaultTitle
+        objectName: "vaultHomeWidgetTitle"
+        anchors.left: parent.left
+        anchors.leftMargin: 42
+        anchors.top: parent.top
+        anchors.topMargin: 26
+        text: vault.heading
+        color: "#f2efe7"
+        font.family: theme.display
+        font.pixelSize: 32
+        font.weight: Font.Normal
     }
 
-    Text {
-        anchors.left: parent.left; anchors.leftMargin: 46
-        anchors.top: parent.top; anchors.topMargin: 36
-        text: "On this machine"; color: theme.inkDim
-        font.family: theme.display; font.italic: true; font.pixelSize: 22
+    Rectangle {
+        anchors.left: vaultTitle.right
+        anchors.leftMargin: 18
+        anchors.right: parent.right
+        anchors.rightMargin: 42
+        anchors.verticalCenter: vaultTitle.verticalCenter
+        height: 1
+        color: Qt.rgba(1, 1, 1, 0.14)
     }
 
     Item {
         id: portal
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 82
-        width: 820; height: 318
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: 78
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 54
 
-        // Ground shadow: two cheap plates instead of another blur/FBO.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 207
-            width: 560; height: 86; radius: 43
-            color: Qt.rgba(0, 0, 0, 0.30)
-        }
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 220
-            width: 440; height: 62; radius: 31
-            color: Qt.rgba(0, 0, 0, 0.22)
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 2
+            width: Math.min(parent.width - 96, 620)
+            height: 54
+            radius: 27
+            color: Qt.rgba(0, 0, 0, 0.42)
         }
 
-        // The permanent steel housing. No identity text is engraved into it.
         Rectangle {
-            id: frame
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: 520; height: 312; radius: 28
-            color: Qt.rgba(1, 1, 1, 0.045)
-            border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
+            id: cabinet
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 56, 760)
+            height: Math.min(parent.height - 8, 366)
+            radius: 12
+            clip: true
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#39444a" }
+                GradientStop { position: 0.18; color: "#1a2025" }
+                GradientStop { position: 0.72; color: "#252e34" }
+                GradientStop { position: 1.0; color: "#0d1215" }
+            }
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.20)
+
             Rectangle {
-                anchors.fill: parent; anchors.margins: 18; radius: 20
+                anchors.fill: parent
+                anchors.margins: 8
+                radius: 8
                 color: "transparent"
-                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.075)
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, 0.12)
             }
 
-            Repeater {
-                model: 4
-                Rectangle {
-                    required property int index
-                    width: 7; height: 7; radius: 3.5
-                    color: Qt.rgba(1, 1, 1, 0.10)
-                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.10)
-                    x: index % 2 === 0 ? 30 : frame.width - width - 30
-                    y: index < 2 ? 26 : frame.height - height - 24
+            Rectangle {
+                id: plate
+                anchors.fill: parent
+                anchors.margins: 20
+                radius: 7
+                clip: true
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#242c31" }
+                    GradientStop { position: 0.48; color: "#171d21" }
+                    GradientStop { position: 1.0; color: "#0e1316" }
                 }
-            }
+                border.width: 1
+                border.color: Qt.rgba(0, 0, 0, 0.72)
 
-            // Deep circular throat behind the slab. The gold seam only appears while opening.
-            Rectangle {
-                anchors.centerIn: parent
-                width: 282; height: 282; radius: 141
-                color: Qt.rgba(0, 0, 0, 0.56)
-                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.09)
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                width: 242; height: 242; radius: 121
-                color: Qt.rgba(0, 0, 0, 0.54)
-                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.055)
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                width: 222; height: 222; radius: 111
-                color: "transparent"
-                border.width: 2; border.color: theme.gold
-                opacity: vault.hovered ? 0.50 : 0
-                Behavior on opacity { NumberAnimation { duration: 180 } }
-            }
-
-            // Right-side hinge mass makes the object read as a real door, not floating circles.
-            Rectangle {
-                x: frame.width / 2 + 120; y: 54
-                width: 42; height: 206; radius: 10
-                color: Qt.rgba(1, 1, 1, 0.055)
-                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.10)
-            }
-            Repeater {
-                model: 3
                 Rectangle {
-                    required property int index
-                    x: frame.width / 2 + 42
-                    y: 70 + index * 73
-                    width: 112; height: 34; radius: 8
-                    color: Qt.rgba(1, 1, 1, 0.075)
-                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.13)
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.08)
+                }
+
+                Repeater {
+                    model: 4
                     Rectangle {
-                        anchors.right: parent.right; anchors.rightMargin: -11
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 24; height: 24; radius: 12
-                        color: Qt.rgba(1, 1, 1, 0.075)
-                        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.13)
+                        required property int index
+                        width: 18
+                        height: 18
+                        radius: 9
+                        x: index % 2 === 0 ? 20 : plate.width - width - 20
+                        y: index < 2 ? 20 : plate.height - height - 20
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#78838a" }
+                            GradientStop { position: 0.22; color: "#3a454b" }
+                            GradientStop { position: 0.78; color: "#111619" }
+                            GradientStop { position: 1.0; color: "#070a0c" }
+                        }
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.20)
                     }
                 }
-            }
-            Item {
-                id: doorStage
-                anchors.centerIn: parent
-                width: 254; height: 254
+
+                // Deep throat behind the door. The gold seam only appears while opening.
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: Math.min(312, plate.height - 26)
+                    height: width
+                    radius: width / 2
+                    color: "#080b0d"
+                    border.width: 9
+                    border.color: "#11171b"
+                }
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: Math.min(286, plate.height - 42)
+                    height: width
+                    radius: width / 2
+                    color: "#0b1013"
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.16)
+                }
+
+                // Hinge spine and three heavy hinge knuckles on the right edge.
+                Rectangle {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 28
+                    anchors.top: parent.top
+                    anchors.topMargin: 42
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 42
+                    width: 22
+                    radius: 4
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#0a0e10" }
+                        GradientStop { position: 0.34; color: "#68757c" }
+                        GradientStop { position: 0.66; color: "#1c2428" }
+                        GradientStop { position: 1.0; color: "#080b0d" }
+                    }
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.12)
+                }
+                Repeater {
+                    model: 3
+                    Rectangle {
+                        required property int index
+                        anchors.right: plate.right
+                        anchors.rightMargin: 18
+                        y: 50 + index * ((plate.height - 100) / 2)
+                        width: 34
+                        height: 56
+                        radius: 5
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#111619" }
+                            GradientStop { position: 0.36; color: "#6a777d" }
+                            GradientStop { position: 0.72; color: "#222b30" }
+                            GradientStop { position: 1.0; color: "#080b0d" }
+                        }
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.14)
+                    }
+                }
 
                 Item {
-                    id: slab
-                    anchors.fill: parent
+                    id: door
+                    anchors.centerIn: parent
+                    property real doorSize: Math.min(306, Math.max(188, Math.min(plate.height - 48, plate.width - 112)))
+                    width: doorSize
+                    height: doorSize
+                    z: 3
                     transform: [
                         Translate {
                             x: vault.hovered ? -8 : 0
-                            Behavior on x { NumberAnimation { duration: 520; easing.type: Easing.OutCubic } }
+                            Behavior on x { NumberAnimation { duration: 440; easing.type: Easing.OutCubic } }
                         },
                         Rotation {
-                            origin.x: slab.width; origin.y: slab.height / 2
+                            origin.x: door.width
+                            origin.y: door.height / 2
                             axis { x: 0; y: 1; z: 0 }
-                            angle: vault.hovered ? -16 : 0
-                            Behavior on angle { NumberAnimation { duration: 520; easing.type: Easing.OutCubic } }
+                            angle: vault.hovered ? -9 : 0
+                            Behavior on angle { NumberAnimation { duration: 440; easing.type: Easing.OutCubic } }
                         }
                     ]
 
                     Rectangle {
-                        x: -8; y: -8
-                        width: parent.width + 16; height: parent.height + 16; radius: width / 2
-                        color: Qt.rgba(0, 0, 0, 0.38)
-                        border.width: 8; border.color: Qt.rgba(0, 0, 0, 0.34)
+                        x: -11
+                        y: -11
+                        width: parent.width + 22
+                        height: parent.height + 22
+                        radius: width / 2
+                        color: Qt.rgba(0, 0, 0, 0.64)
+                        border.width: 8
+                        border.color: "#050708"
                     }
 
                     Rectangle {
-                        id: face
-                        anchors.fill: parent; radius: width / 2
-                        color: Qt.rgba(1, 1, 1, 0.065)
-                        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
+                        anchors.fill: parent
+                        radius: width / 2
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#4a565d" }
+                            GradientStop { position: 0.28; color: "#252e33" }
+                            GradientStop { position: 0.68; color: "#11171a" }
+                            GradientStop { position: 1.0; color: "#313b40" }
+                        }
+                        border.width: 8
+                        border.color: "#090c0e"
                     }
-                    // Machining rings: visible structure without typography or logo marks.
+
                     Repeater {
                         model: 3
                         Rectangle {
                             required property int index
-                            anchors.centerIn: face
-                            width: 220 - index * 38
-                            height: width; radius: width / 2
+                            anchors.centerIn: door
+                            width: door.width - 24 - index * 38
+                            height: width
+                            radius: width / 2
                             color: "transparent"
-                            border.width: 1
-                            border.color: Qt.rgba(1, 1, 1, 0.045 + index * 0.012)
+                            border.width: index === 0 ? 1 : 2
+                            border.color: Qt.rgba(1, 1, 1, 0.10 - index * 0.018)
                         }
                     }
 
-                    // Eight radial locking bars. Hover retracts every bar toward the centre.
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        radius: width / 2
+                        color: "transparent"
+                        border.width: 3
+                        border.color: theme.gold
+                        opacity: vault.hovered ? 0.88 : 0.08
+                        Behavior on opacity { NumberAnimation { duration: 220 } }
+                    }
+
+                    // Eight radial locking bars retract toward the centre on hover.
                     Repeater {
                         model: 8
                         Item {
                             required property int index
-                            readonly property real a: index * Math.PI / 4
-                            width: 26; height: 54
-                            x: face.width / 2 - width / 2 + Math.sin(a) * 103
-                            y: face.height / 2 - height / 2 - Math.cos(a) * 103
+                            readonly property real angle: index * Math.PI / 4
+                            width: 24
+                            height: 64
+                            x: door.width / 2 - width / 2 + Math.sin(angle) * (door.width / 2 - 30)
+                            y: door.height / 2 - height / 2 - Math.cos(angle) * (door.height / 2 - 30)
                             rotation: index * 45
 
                             Rectangle {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                y: vault.hovered ? 7 : -10
-                                width: 14; height: 38; radius: 4
-                                color: Qt.rgba(1, 1, 1, 0.105)
-                                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.13)
+                                y: vault.hovered ? 8 : -12
+                                width: 15
+                                height: 50
+                                radius: 4
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "#7d898e" }
+                                    GradientStop { position: 0.38; color: "#384349" }
+                                    GradientStop { position: 1.0; color: "#111619" }
+                                }
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.17)
                                 Behavior on y {
                                     NumberAnimation { duration: 270; easing.type: Easing.OutCubic }
                                 }
                             }
                         }
                     }
+
                     // Five-spoke handwheel. This is the primary hover tell before the slab moves.
                     Item {
                         id: wheel
                         anchors.centerIn: parent
-                        width: 116; height: 116
-                        rotation: vault.hovered ? 62 : 0
+                        width: Math.min(116, door.width * 0.44)
+                        height: width
+                        rotation: vault.hovered ? 68 : 0
                         Behavior on rotation {
                             NumberAnimation { duration: 380; easing.type: Easing.OutCubic }
                         }
 
                         Rectangle {
-                            anchors.centerIn: parent
-                            width: 82; height: 82; radius: 41
+                            anchors.fill: parent
+                            radius: width / 2
                             color: "transparent"
-                            border.width: 5; border.color: Qt.rgba(1, 1, 1, 0.11)
+                            border.width: 7
+                            border.color: "#4e5b61"
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: 6
+                                radius: width / 2
+                                color: "transparent"
+                                border.width: 4
+                                border.color: "#141b1f"
+                            }
                         }
 
                         Repeater {
@@ -220,51 +327,54 @@ Glass {
                             Rectangle {
                                 required property int index
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                y: 8
-                                width: 8; height: 54; radius: 4
+                                y: 9
+                                width: 9
+                                height: wheel.height * 0.46
+                                radius: 4
                                 transformOrigin: Item.Bottom
                                 rotation: index * 72
-                                color: Qt.rgba(1, 1, 1, 0.12)
-                                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "#8b969a" }
+                                    GradientStop { position: 0.32; color: "#48555b" }
+                                    GradientStop { position: 1.0; color: "#1a2226" }
+                                }
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.16)
                             }
                         }
 
                         Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            y: -1; width: 18; height: 18; radius: 9
-                            color: Qt.rgba(1, 1, 1, 0.13)
-                            border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
-                        }
-                        Rectangle {
                             anchors.centerIn: parent
-                            width: 34; height: 34; radius: 17
-                            color: Qt.rgba(1, 1, 1, 0.095)
-                            border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.17)
-                        }
-                    }
-
-                    Rectangle {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        y: face.height * 0.69
-                        width: 38; height: 16; radius: 8
-                        color: Qt.rgba(0, 0, 0, 0.12)
-                        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.09)
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: 4; height: 7; radius: 2
-                            color: Qt.rgba(1, 1, 1, 0.16)
+                            width: 32
+                            height: 32
+                            radius: 16
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#9aa3a4" }
+                                GradientStop { position: 0.35; color: "#4a565a" }
+                                GradientStop { position: 1.0; color: "#12181b" }
+                            }
+                            border.width: 3
+                            border.color: "#111619"
                         }
                     }
                 }
             }
-
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom; anchors.bottomMargin: 11
-                width: 330; height: 1
-                color: Qt.rgba(1, 1, 1, 0.055)
-            }
         }
+    }
+
+    Text {
+        id: machineLabel
+        objectName: "vaultHomeWidgetLocationLabel"
+        anchors.left: parent.left
+        anchors.leftMargin: 42
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 26
+        text: "On this machine"
+        color: "#96958f"
+        font.family: theme.ui
+        font.pixelSize: 10
+        font.bold: true
+        font.letterSpacing: 1.2
     }
 
     MouseArea {
