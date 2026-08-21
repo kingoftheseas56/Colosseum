@@ -805,7 +805,11 @@ Item {
                     Text {
                         width: parent.width
                         visible: card.nameText.length > 0
-                        height: visible ? implicitHeight : 0
+                        // A fixed height (not implicitHeight) avoids a layout binding loop:
+                        // Text's implicit height recomputes during the same pass an
+                        // elide-driven height change would trigger, oscillating forever.
+                        // 15px comfortably fits this font's single line.
+                        height: visible ? 15 : 0
                         horizontalAlignment: Text.AlignHCenter
                         text: card.nameText
                         color: theme.inkDim
