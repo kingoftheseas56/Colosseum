@@ -375,8 +375,10 @@ Item {
                             onPicked: (left) => panel.changed("justify", left)
                         }
                     }
-                    // Reading flow (2026-07-20, Hemanth: "there is no vertical scroll reading") —
-                    // Pages = the paginator's column flips; Scroll = one continuous vertical run.
+                    // Reading flow — Pages = the paginator's column flips; Scroll = one
+                    // continuous vertical run. (2026-08-01, Hemanth: scroll reading is back on,
+                    // as a CONSTRAINED column — the Line-width dial below stays live in scroll;
+                    // this supersedes the 2026-07-20 "no vertical scroll / edge-to-edge" ruling.)
                     Item {
                         width: parent.width
                         height: 34
@@ -404,8 +406,10 @@ Item {
                         width: parent.width
                         caption: "Line width"; minValue: 400; maxValue: 1600; stepSize: 50
                         value: panel.curMaxWidth; valueText: String(panel.curMaxWidth)
-                        opacity: panel.curScrolled ? 0.35 : 1.0      // Pages only — scrolled is edge-to-edge (2026-07-20 ruling)
-                        enabled: !panel.curScrolled
+                        // Live in BOTH flows now — constrained column applies to scroll too
+                        // (2026-08-01 ruling). Only spread mode ignores it (its columns self-measure).
+                        opacity: panel.curSpread ? 0.35 : 1.0
+                        enabled: !panel.curSpread
                         onMoved: (v) => panel.changed("maxLineWidthPx", Math.round(v))
                     }
                     Item {

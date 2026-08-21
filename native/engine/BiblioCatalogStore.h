@@ -20,10 +20,13 @@
 
 #include "BiblioCatalogTypes.h"
 
+#include <QByteArray>
 #include <QDateTime>
+#include <QHash>
 #include <QList>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -73,9 +76,11 @@ struct BiblioCatalogFacetRow {
 };
 
 // A computed ranking for one catalogue + work: the score and 1-based rank
-// position the ranking engine assigned. Persisted into `rankings`.
+// position the ranking engine assigned. Persisted into `rankings`. Only the
+// four chart catalogues carry computed scores; most-read/classics rows are
+// payload-ordered by the seeder and land here with rank = payload position.
 struct BiblioCatalogRanking {
-    QString catalogId;    // popular | top-rated | new-releases | trending
+    QString catalogId;    // popular | top-rated | new-releases | trending | most-read | classics
     QString canonicalId;
     double  score = 0.0;
     int     rank = 0;     // 1-based
@@ -89,9 +94,29 @@ struct BiblioCatalogHistory {
     double    demandScore = 0.0;
 };
 
+// One lazy-enrichment parking row (plan 2026-08-15 Slice 4): the raw
+// apple-search body fetched when a See-All grid first came into view, waiting
+// to fold into the NEXT daily publish. `workKey` is the enrichment candidate
+// identity the daily path already uses (normalizedTitle + '|' +
+// normalizedAuthor) — the folded record merges onto the right canonical work
+// by identity, so no explicit canonicalId mapping is persisted. `state`:
+//   "enriched"     — body carried usable record(s); folds into the next
+//                    publish, row cleared after that publish succeeds;
+//   "pending"      — request issued, reply not yet landed (crash-safe marker);
+//   "unavailable"  — apple-search carried no usable record (empty parse or
+//                    4xx); re-attempt gated to ≤1 per local day via
+//                    `lastAttempt`.
+struct BiblioPendingEnrichmentRow {
+    QString   workKey;
+    QByteArray body;      // raw apple-search response body (empty unless "enriched")
+    QString   state;      // "enriched" | "pending" | "unavailable"
+    QString   lastAttempt; // local ISO date (yyyy-MM-dd) of the recorded attempt
+};
+
 // The complete candidate snapshot Task 4's service produces and hands to
 // publish(). It bundles the canonical works + nested editions + per-field
 // provenance + controlled facet bindings + the four-catalogue computed rankings
+// + the payload-ordered most-read/classics ranking rows (seeding flip, Slice 3)
 // + the daily ranking-history readings + the capture timestamp. `explicitWorkIds`
 // is the set of source-confirmed sexually-explicit canonical ids (spec §14/DoD
 // #14: only those are gated by the global Explicit Content setting — Adult
@@ -116,9 +141,13 @@ public:
     BiblioCatalogStore &operator=(const BiblioCatalogStore &) = delete;
 
     // Open (creating if absent) the SQLite database at `path` and ensure the
-    // seven-table schema exists and is at the expected version. Returns false on
-    // any QSql error (the store stays closed; accessors return empty). Idempotent:
-    // reopening an existing db does not reset the schema or active snapshot.
+    // seven snapshot tables plus the lazy-enrichment parking table
+    // (biblio_pending_enrichment, Slice 4) exist and are at the expected
+    // version. Returns false on any QSql error (the store stays closed;
+    // accessors return empty). Idempotent: reopening an existing db does not
+    // reset the schema or active snapshot; `create table if not exists` means
+    // a database written before Slice 4 gains the pending table transparently
+    // on its next open.
     bool open(const QString &path);
 
     // Atomically publish a complete candidate snapshot. Writes the whole payload
@@ -170,6 +199,31 @@ public:
     // into `ranking_history` (the service reads Trending through rankings, not
     // here). Each entry is {canonicalId, capturedAt, demandScore}.
     QVariantList rankingHistoryFor(const QString &canonicalId) const;
+
+    // ── Lazy grid enrichment parking (plan 2026-08-15 Slice 4) ─────────────
+    // The only window into biblio_pending_enrichment. Rows land here from
+    // BiblioCatalog's lazy requestEnrichment path and fold into the NEXT
+    // daily publish from the coordinator — never into the published snapshot
+    // directly, so pending writes can never violate publish()'s atomicity
+    // (the table sits outside the snapshot_id scoping and the active-snapshot
+    // swap entirely).
+
+    // Insert-or-replace one pending row (see BiblioPendingEnrichmentRow for
+    // the state semantics). Returns false (with m_lastWarning set) on a SQL
+    // error or when the store is not open.
+    bool upsertPendingEnrichment(const QString &workKey, const QByteArray &body,
+                                 const QString &state, const QString &lastAttempt);
+
+    // The whole pending table keyed by work_key. The lazy path's population
+    // is bounded by its per-session burst cap, so one full read is cheap and
+    // keeps the caller's gate logic in one place. Empty on a closed store.
+    QHash<QString, BiblioPendingEnrichmentRow> pendingEnrichmentMap() const;
+
+    // Remove exactly the listed work_keys' rows — the ones a successful
+    // publish folded in. Rows not listed (the 'unavailable' ≤1/day gate rows,
+    // live 'pending' markers) are kept; unknown keys are not an error.
+    // Returns false (m_lastWarning set) on a SQL error or a closed store.
+    bool clearFoldedPending(const QStringList &workKeys);
 
 private:
     bool ensureSchema();

@@ -56,8 +56,10 @@ Rectangle {
             }
 
             delegate: Rectangle {
+                required property int index
                 required property string fileName
                 required property string filePath
+                objectName: "reader2HarnessBook_" + index
                 width: ListView.view.width
                 height: 44
                 color: hov.hovered ? "#1a1e26" : "transparent"

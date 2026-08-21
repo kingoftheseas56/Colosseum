@@ -374,14 +374,16 @@ const buildCss = (bg, fg) => {
     ${FONT_FACE_CSS}
     html { color: ${fg} !important; background-color: transparent !important; font-size: ${size}px !important; }
     body { background: none !important; padding: 0; }
-    /* READABLE MEASURE (2026-07-20, the Wool full-bleed finding): with max-column-count 1
-       the paginator sizes its one column to the whole viewport and ignores max-inline-size,
-       so an unconstrained body renders 1700px+ lines — and justify across a line that long
-       shreds word spacing. Centered max-width column is the OLD reader's ratified pattern.
-       PARITY (2026-07-24): the value is now the user's Max line width dial (default 960 ==
-       the old hardcoded clamp). PAGE MODE + SINGLE COLUMN ONLY — scrolled stays
-       edge-to-edge (Hemanth's 2026-07-20 ruling), and in spread mode the two columns
-       define the measure themselves. */
+    /* READABLE MEASURE (2026-07-20, the Wool full-bleed finding): in PAGE mode with
+       max-column-count 1 the paginator sizes its one column to the whole viewport (the
+       #container spans the full grid) and ignores max-inline-size, so an unconstrained body
+       renders 1700px+ lines — and justify across a line that long shreds word spacing.
+       Centered max-width column is the OLD reader's ratified pattern. PARITY (2026-07-24):
+       the value is the user's Max line width dial (default 960 == the old hardcoded clamp).
+       PAGE MODE ONLY here: SCROLL constrains its column a different way — foliate's own
+       scrolled() sets body max-width = the max-inline-size attribute INLINE (beats this
+       stylesheet rule), so we drive scroll's measure via that attribute in applyAppearance
+       (2026-08-01 constrained-column ruling). SPREAD self-measures via its two columns. */
     ${(appearance.flow === 'scrolled' || appearance.columns === 'spread') ? '' :
       `body { max-width: ${appearance.maxLineWidthPx ?? 960}px !important;
            margin-left: auto !important; margin-right: auto !important;
@@ -449,6 +451,17 @@ const applyAppearance = () => {
   r.setAttribute('gap', `${gapPct}%`)
   r.setAttribute('max-column-count',
     (appearance.columns === 'spread' && appearance.flow !== 'scrolled') ? '2' : '1')
+  // CONSTRAINED COLUMN IN SCROLL (2026-08-01, Hemanth — supersedes the 07-20 edge-to-edge
+  // ruling). In scrolled flow foliate's scrolled() sets the reading column's width from the
+  // max-inline-size attribute (as an INLINE body max-width, so it overrides our buildCss
+  // rule). Feed it the user's Line-width dial so scroll reads as a centered measure that the
+  // dial controls — instead of foliate's fixed 720px default. PAGE mode leaves this unset
+  // (its measure comes from the buildCss body-max-width hack), so paginated is byte-for-byte
+  // unchanged from before this ruling.
+  if (appearance.flow === 'scrolled')
+    r.setAttribute('max-inline-size', `${appearance.maxLineWidthPx ?? 960}px`)
+  else
+    r.removeAttribute('max-inline-size')
   r.removeAttribute('animated')                 // no-animation page turns
   r.setStyles?.(buildCss(bg, fg))
 }

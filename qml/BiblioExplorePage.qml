@@ -1,6 +1,7 @@
 // BiblioExplorePage — the deep Biblio "Explore" shelf page (plan
 // `2026-08-01-biblio-discover-explore.md`, Task 7). Top 10 first, extension preview rows
-// second, the four house rails (Popular/Top Rated/New Releases/Trending) next in fixed order,
+// second, the six house rails (Popular/Top Rated/New Releases/Trending/Most Read/Classics)
+// next in fixed order,
 // then the three fixed Fiction/Nonfiction/Audience mosaics LAST, always — the mosaics are never
 // part of shelf customization (BiblioExploreRules never emits a mosaic key at all). Everything
 // else (top-10 + extensions + house rails) is freely reorderable/hideable via
@@ -73,7 +74,8 @@ Item {
 
     readonly property var houseTitles: ({
         "popular": "Popular", "top-rated": "Top Rated",
-        "new-releases": "New Releases", "trending": "Trending"
+        "new-releases": "New Releases", "trending": "Trending",
+        "most-read": "Most Read", "classics": "Classics"
     })
 
     Theme { id: theme }
@@ -130,8 +132,13 @@ Item {
         if (!page.catalogSource || page.catalogSource.ready !== true) return out;
         var _dep = page.catalogSource.revision;
         var rows = page.catalogSource.exploreRows(page.limitPerShelf, page.showExplicit) || [];
-        for (var i = 0; i < rows.length; i++)
-            out[rows[i].catalogId] = page._normalizeHouseList(rows[i].items || []);
+        for (var i = 0; i < rows.length; i++) {
+            // per-rail attribution (spec 2026-08-15): the two Open Library catalogues carry the
+            // plain "Open Library" label; the Apple-seeded four keep the combined house label.
+            var label = (rows[i].catalogId === "most-read" || rows[i].catalogId === "classics")
+                ? "Open Library" : "Apple Books · Open Library";
+            out[rows[i].catalogId] = page._normalizeHouseList(rows[i].items || [], label);
+        }
         return out;
     }
     readonly property var top10Items: {
@@ -152,7 +159,7 @@ Item {
         return out;
     }
 
-    function _normalizeHouseItem(row) {
+    function _normalizeHouseItem(row, sourceLabel) {
         var r = row || {};
         var ratingObj = (r.rating && typeof r.rating === "object") ? r.rating : {};
         var avg = (ratingObj.average !== undefined && ratingObj.average !== null) ? Number(ratingObj.average) : 0;
@@ -162,16 +169,36 @@ Item {
             rating: avg > 0 ? avg.toFixed(1) : "",
             // the native store has no per-work provenance field (provenance lives in
             // work_sources, not exposed through page()); the catalogue-level attribution is
-            // constant and honest for every house/top-10 row.
-            source: "Apple Books · Open Library",
+            // constant and honest for every house/top-10 row, threaded in per rail — the two
+            // Open Library catalogues (most-read, classics) carry the plain Open Library label
+            // per the 2026-08-15 spec.
+            source: sourceLabel || "Apple Books · Open Library",
             raw: r
         };
     }
-    function _normalizeHouseList(list) {
+    function _normalizeHouseList(list, sourceLabel) {
         var out = [];
-        for (var i = 0; i < (list || []).length; i++) out.push(page._normalizeHouseItem(list[i]));
+        for (var i = 0; i < (list || []).length; i++) out.push(page._normalizeHouseItem(list[i], sourceLabel));
         return out;
     }
+    // ── Lanista automation reads (2026-08-15 OL-catalog smoke): the bridge's
+    // qml-get serializes QVariant conversions only — var-property JS arrays
+    // read back as null — so the six-rail flip exposes plain-type rollups
+    // instead. Production never reads these; the catalog-source smoke does
+    // (mirrors BiblioLibraryPage's rowCount/visibleCount contract).
+    readonly property string railKeysCsv: {
+        var _ = displayRows; // re-evaluate whenever the row inventory does
+        var keys = [];
+        for (var i = 0; i < displayRows.length; i++)
+            keys.push(displayRows[i] ? displayRows[i].key : "");
+        return keys.join(",");
+    }
+    readonly property int mostReadRailCount: (houseRowsMap["most-read"] || []).length
+    readonly property int classicsRailCount: (houseRowsMap["classics"] || []).length
+    readonly property string mostReadFirstSource: ((houseRowsMap["most-read"] || [])[0] || {}).source || ""
+    readonly property string classicsFirstSource: ((houseRowsMap["classics"] || [])[0] || {}).source || ""
+    readonly property string popularFirstSource: ((houseRowsMap["popular"] || [])[0] || {}).source || ""
+
     function _normalizeExtItem(meta, catalog) {
         var m = meta || {};
         return {
@@ -390,6 +417,7 @@ Item {
     // ═══════════════════════════════ visual tree ═══════════════════════════════
     Flickable {
         id: mainFlick
+        objectName: "biblioExploreFlick"
         anchors.fill: parent
         contentWidth: width
         contentHeight: content.height
@@ -405,6 +433,7 @@ Item {
             spacing: 28
 
             Item {
+                objectName: "biblioExploreHeaderStrip"
                 width: content.width
                 height: 30
                 Text {
@@ -524,7 +553,18 @@ Item {
                         loading: rowBlock.modelData.loading === true
                         showSeeAll: true
                         onItemActivated: (item) => page.itemRequested(item)
-                        onSeeAllActivated: page.discoverPinRequested(rowBlock.modelData.pin)
+                        onSeeAllActivated: {
+                            page.discoverPinRequested(rowBlock.modelData.pin)
+                            // spec 2026-08-15: the two Open Library catalogues enrich lazily at
+                            // See-All activation — native requestEnrichment() is idempotent per
+                            // session+catalog and burst-bounded, so firing on every activation is
+                            // the design. The guard keeps a catalogSource without the invokable
+                            // (an older native build, a pre-update harness fake) a silent no-op,
+                            // never a TypeError.
+                            if ((rowBlock.rowKey === "most-read" || rowBlock.rowKey === "classics")
+                                && page.catalogSource && page.catalogSource.requestEnrichment)
+                                page.catalogSource.requestEnrichment(rowBlock.rowKey)
+                        }
                     }
                 }
             }

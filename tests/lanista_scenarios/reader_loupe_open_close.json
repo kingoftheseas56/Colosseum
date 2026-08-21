@@ -1,0 +1,384 @@
+{
+  "name": "reader-loupe-open-close",
+  "comment": "UNCOMPILED / UNTESTED / UNEXECUTED / UNADOPTED / UNVERIFIED. Commission 2026-08-15, pinned source 57b69ea9b35fc2e04c51cbe1f888771541b87a0b. New reader-depth coverage on the existing tests/lanista_fixtures/journeys/open-manga-v1 disk-only chapter. The production ComicReaderInput L shortcut opens the loupe; readerLoupe.open is the authoritative lifecycle truth and loupeClose is a real declared objectName. This intentionally does NOT claim pointer tracking: Lanista has no mouse-move drive verb, so loupeTracker cannot be exercised honestly. The replay leg opens and closes the loupe a second time and re-proves that the underlying reader remains the same ready source.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "the journey session answers, drive gated on",
+      "expect": [
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "one visible window, isolated data root",
+      "expect": [
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the boot splash has left the screen",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the taskbar dock",
+      "payload": {
+        "target": "colosseumTaskbarHomeButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the dock's open-width animation has genuinely settled before Downloads is clicked",
+      "payload": {
+        "object": "taskbarDownloads",
+        "prop": "width",
+        "value": 46,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the Downloads page",
+      "payload": {
+        "target": "taskbarDownloads"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the seeded chapter's shelf card renders",
+      "payload": {
+        "object": "downloadsShelfCard_tankoban_manga:journey-manga-series-v1",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "expand the seeded series download ledger",
+      "payload": {
+        "target": "downloadsShelfCard_tankoban_manga:journey-manga-series-v1"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the seeded chapter's Read action renders",
+      "payload": {
+        "object": "downloadsReadAction_journey-manga-ch-1",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "read the seeded chapter",
+      "payload": {
+        "target": "downloadsReadAction_journey-manga-ch-1"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the production reader becomes visible",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "readerReady is true on the real rendered chapter",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "the reader is the expected disk-seeded chapter",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "readerPageCount",
+          "readerPageIndex",
+          "readerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "journey-manga-ch-1"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.readerPageIndex",
+          "op": "<=",
+          "value": "2"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "open the production loupe with the reader's L shortcut",
+      "payload": {
+        "key": "L"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the loupe reports itself open",
+      "payload": {
+        "object": "readerLoupe",
+        "prop": "open",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "authoritative loupe lifecycle state, with a paired visual exhibit",
+      "payload": {
+        "object": "readerLoupe",
+        "props": [
+          "open",
+          "magnification",
+          "pinned"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "props.open",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "close the loupe through its real close control",
+      "payload": {
+        "target": "loupeClose"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the loupe reports itself closed",
+      "payload": {
+        "object": "readerLoupe",
+        "prop": "open",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "closing the loupe did not disturb the chapter",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "readerPageCount",
+          "readerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "journey-manga-ch-1"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "regression: open the loupe a second time",
+      "payload": {
+        "key": "L"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "regression: the loupe opens again",
+      "payload": {
+        "object": "readerLoupe",
+        "prop": "open",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "regression: close the loupe again",
+      "payload": {
+        "target": "loupeClose"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "regression: the second close settles",
+      "payload": {
+        "object": "readerLoupe",
+        "prop": "open",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "regression: same source remains genuinely ready after the second lifecycle",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "readerPageCount",
+          "readerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "journey-manga-ch-1"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

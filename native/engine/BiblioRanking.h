@@ -17,8 +17,11 @@
 namespace BiblioRanking {
 
 // Rank `works` for a single Discover shelf.
-//   catalogId : one of "popular", "top-rated", "new-releases", "trending".
-//               Any other id (including "") returns an empty vector.
+//   catalogId : one of "popular", "top-rated", "new-releases", "trending",
+//               "most-read", "classics". Any other id (including "") returns
+//               an empty vector. "most-read"/"classics" keep any payload order
+//               the seeder attached (Open Library readinglog / year-gated
+//               search already rank them) instead of re-scoring locally.
 //   works     : the candidate population (also the source of returned rows).
 //   history   : dated demand snapshots; used only by "trending".
 //   nowUtc    : anchors the trailing-12-month ("new-releases") window.

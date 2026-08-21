@@ -22,6 +22,23 @@
 // BiblioCatalogStore::publish's own validation) leaves the previously
 // published snapshot fully intact — `ready` only ever goes true→false when
 // there was never a successful publish in the first place.
+//
+// Lazy grid enrichment (plan 2026-08-15 Slice 4): requestEnrichment(catalogId)
+// is the See-All grids' first-view hook. It pages the CURRENT published
+// ranking for that catalogue, picks the works whose artwork/rating evidence
+// is absent, and issues its OWN bounded apple-search burst
+// (kLazyEnrichmentBudget) through the transport — a separate reply handler
+// that only writes BiblioCatalogStore's biblio_pending_enrichment rows and
+// never touches the refresh generation machinery (m_records/m_queue/
+// m_generation, refreshing, ready, revision, or the daily jobs). Parked
+// outcomes: 'enriched' bodies wait raw to fold into the NEXT daily publish
+// (they merge onto the right canonical works by identity, and are cleared
+// once that publish succeeds), 'pending' is the crash-safe in-flight marker,
+// 'unavailable' re-attempts at most once per local day. The daily refresh
+// consults those rows too — covered works skip the apple-search half of the
+// enrichment fan-out so the daily pass stays preview-priority honest. The
+// published snapshot, its revision, and `ready` are never touched by the
+// lazy path; a burst is idempotent per (session, catalogue).
 
 #include "BiblioCanonicalizer.h"
 #include "BiblioCatalogStore.h"
@@ -155,8 +172,8 @@ public:
     Q_INVOKABLE QVariantList filterGroups(bool includeExplicit) const;
 
     // One row per house catalogue, in the fixed order [popular, top-rated,
-    // new-releases, trending]: {catalogId, items}. `limitPerShelf` caps each
-    // shelf (clamped to [1,100] by the store).
+    // new-releases, trending, most-read, classics]: {catalogId, items}.
+    // `limitPerShelf` caps each shelf (clamped to [1,100] by the store).
     Q_INVOKABLE QVariantList exploreRows(int limitPerShelf, bool includeExplicit) const;
 
     // Items for one mosaic, addressed by a controlled FACET KEY (e.g.
@@ -166,6 +183,21 @@ public:
     // internally and returns BiblioCatalogStore::page("popular", axis, key,
     // includeExplicit, 0, limit).items. An unknown key returns an empty list.
     Q_INVOKABLE QVariantList mosaic(const QString &facetKey, int limit, bool includeExplicit) const;
+
+    // Lazy grid enrichment (plan 2026-08-15 Slice 4): QML calls this once per
+    // catalogue grid on first view. Pages the CURRENT published ranking for
+    // `catalogId` and issues a bounded apple-search burst (at most
+    // kLazyEnrichmentBudget requests) for the works whose artwork/rating
+    // evidence is absent — skipping works already parked 'enriched'/'pending'
+    // and 'unavailable' ones already attempted today. Candidates beyond the
+    // burst cap are simply not requested (no 'pending' row is written for
+    // them — a marker without an in-flight request would block the next day
+    // for no reason). Idempotent per (session, catalogId): a second call for
+    // the same catalogue is a no-op. Results land in the store's
+    // biblio_pending_enrichment table and fold into the NEXT daily publish —
+    // the published snapshot, its revision, and `ready` are untouched. Safe
+    // to call while a daily refresh is running (fully separate machinery).
+    Q_INVOKABLE void requestEnrichment(const QString &catalogId);
 
 signals:
     void readyChanged();
@@ -184,7 +216,10 @@ private:
     struct FetchJob {
         QUrl url;
         QString kind;       // "apple-rss" | "apple-search" | "openlibrary"
-        QString facetAxis;  // optional facet hint carried by genre-tagged apple-rss feeds
+                            // | "openlibrary-trending" | "openlibrary-classics"
+                            // | "openlibrary-subject"
+        QString facetAxis;  // optional facet hint carried by genre-tagged
+                            // apple-rss feeds and openlibrary-subject jobs
         QString facetKey;
         int attempt = 0;
     };
@@ -199,10 +234,27 @@ private:
     void startRefresh();
     void enqueue(int generation, const QUrl &url, const QString &kind,
                 const QString &facetAxis = QString(), const QString &facetKey = QString());
+    // Bounded per-refresh enrichment fan-out for one freshly parsed record:
+    // dedupes by folded title+author (m_enrichedCandidates), decrements
+    // m_enrichmentRemaining, and enqueues an apple-search job. When
+    // alsoOpenLibrary is true (the apple-rss path — records that are NOT
+    // already Open Library data) it additionally enqueues the Open Library
+    // title/author search; the openlibrary-* branches pass false because the
+    // work already IS Open Library data — re-searching it would only burn one
+    // of the four concurrency slots.
+    void enqueueEnrichment(int generation, const BiblioSourceRecord &record,
+                          bool alsoOpenLibrary);
     void pumpQueue(int generation);
     void issueRequest(int generation, const FetchJob &job);
     void onReplyFinished(BiblioTransportReply *reply, int status, const QByteArray &body,
                         const QString &error);
+    // ── Lazy grid enrichment (Slice 4) ── fully separate from the refresh
+    // generation machinery above: no queue, no concurrency accounting, no
+    // retry — the burst is bounded by kLazyEnrichmentBudget and the replies
+    // only write biblio_pending_enrichment rows.
+    void issueLazyEnrichment(const QString &workKey, const QString &title);
+    void onLazyReplyFinished(BiblioTransportReply *reply, int status,
+                            const QByteArray &body, const QString &error);
     void handleSuccess(int generation, const FetchJob &job, const QByteArray &body);
     void scheduleRetry(int generation, FetchJob job);
     void cancelGeneration(int generation);
@@ -211,9 +263,20 @@ private:
     QString axisForFacetKey(const QString &key) const;
     // Reconciles the generation's accumulated records into a complete
     // candidate BiblioCatalogSnapshot: canonical works/editions/sources,
-    // derived + hinted facets, and the four house-catalogue rankings (reading
-    // prior ranking-history from m_store plus today's fresh demand reading).
-    BiblioCatalogSnapshot buildSnapshot(const QList<BiblioCanonicalWork> &canonical) const;
+    // derived + hinted facets, the four chart catalogues' rankings (reading
+    // prior ranking-history from m_store plus today's fresh demand reading),
+    // and — from Slice 3's seeding flip — the "most-read" / "classics" ranking
+    // rows. Those two come from the generation's payload-order sourceId lists
+    // (m_mostReadOrder / m_classicsOrder in the caller, passed by value so this
+    // stays const): each sourceId is mapped to its canonical work via the
+    // canonicalizer's fieldSources provenance, and rank/score follow payload
+    // position — NOT BiblioRanking over the merged pool, because
+    // openLibraryPopularity mixes incommensurable scales (trending payload
+    // index vs all-time readinglog counts) and a chart-pool work with a huge
+    // readinglog must never contaminate the daily list.
+    BiblioCatalogSnapshot buildSnapshot(const QList<BiblioCanonicalWork> &canonical,
+                                        const QStringList &mostReadOrder,
+                                        const QStringList &classicsOrder) const;
 
     BiblioCatalogStore m_store;
     IBiblioTransport *m_transport = nullptr;
@@ -238,8 +301,31 @@ private:
     int m_enrichmentRemaining = 0;
     QHash<BiblioTransportReply *, QPair<FetchJob, int>> m_inFlight; // reply -> (job, generation)
     QList<BiblioSourceRecord> m_records;  // accumulated for the in-flight generation
+    // Payload-order sourceIds of the generation's openlibrary-trending /
+    // openlibrary-classics records (the order the provider ranked them in —
+    // the only trustworthy ordering source for the two payload-ordered
+    // catalogues). Reset in startRefresh; consumed by buildSnapshot via
+    // finalizeGeneration.
+    QStringList m_mostReadOrder;
+    QStringList m_classicsOrder;
     // sourceId -> facet hints (axis,key) gathered from genre/audience-tagged
-    // RSS feeds; applied to whichever canonical work field-sources from it.
+    // RSS feeds and openlibrary-subject jobs; applied to whichever canonical
+    // work field-sources from it.
     QHash<QString, QList<QPair<QString, QString>>> m_facetHints;
     bool m_anySuccess = false;
+
+    // ── Lazy grid enrichment (plan 2026-08-15 Slice 4) ──
+    // One burst per (session, catalogue): requestEnrichment marks the
+    // catalogue here on entry, so repeat calls are a no-op.
+    QSet<QString> m_lazyEnrichedCatalogs;
+    // The lazy path's own in-flight replies (never mixed into m_inFlight —
+    // cancelGeneration must not reach them). Maps reply -> pending work_key.
+    QHash<BiblioTransportReply *, QString> m_lazyInFlight;
+    // Pending-enrichment rows as of THIS generation's start; the daily
+    // fan-out (enqueueEnrichment) consults the snapshot so works whose
+    // artwork is parked ('enriched') or in flight ('pending') skip the
+    // apple-search half and 'unavailable' works respect the ≤1/day gate.
+    // Refresh-generation state — reset in startRefresh, never touched by the
+    // lazy path (which always reads the store directly).
+    QHash<QString, BiblioPendingEnrichmentRow> m_pendingEnrichmentAtStart;
 };

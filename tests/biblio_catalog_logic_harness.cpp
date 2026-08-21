@@ -440,6 +440,63 @@ int main(int argc, char **argv)
                 "a work with flat momentum is not Trending");
     }
 
+    // ── Most-Read (spec 2026-08-15): Open Library worldwide daily reading
+    //    activity arrives in openLibraryPopularity; descending popularity with
+    //    canonical-id ascending as the tie-break, regardless of input order. ──
+    {
+        BiblioWork top = work(QStringLiteral("mr-top"));
+        top.openLibraryPopularity = 900.0;
+        BiblioWork midTieB = work(QStringLiteral("mr-tie-b"));
+        midTieB.openLibraryPopularity = 500.0;
+        BiblioWork midTieA = work(QStringLiteral("mr-tie-a"));
+        midTieA.openLibraryPopularity = 500.0; // exact tie with mr-tie-b
+        BiblioWork zero = work(QStringLiteral("mr-zero"));
+        zero.openLibraryPopularity = 0.0; // no readinglog evidence -> still ranked
+
+        const QList<BiblioWork> works{zero, midTieB, top, midTieA}; // deliberately unsorted input
+        const QVector<BiblioWork> ranked = BiblioRanking::rank("most-read", works, {}, now);
+        require(ids(ranked) == (QStringList{"mr-top", "mr-tie-a", "mr-tie-b", "mr-zero"}),
+                "Most-Read orders by descending Open Library popularity despite unsorted input");
+        require(ids(ranked).indexOf("mr-tie-a") < ids(ranked).indexOf("mr-tie-b"),
+                "equal Most-Read popularity ties break by canonicalId ascending");
+        require(ids(ranked).contains("mr-zero") && ids(ranked).last() == "mr-zero",
+                "a zero-popularity work still ranks on Most-Read (never dropped)");
+        require(BiblioRanking::rank("most-read", {}, {}, now).isEmpty(),
+                "an empty works list yields an empty Most-Read ranking");
+    }
+
+    // ── Classics (spec 2026-08-15): same formula as Most-Read — readinglog
+    //    popularity descending, canonicalId tiebreak. The noisy raw
+    //    first-publish year NEVER orders this shelf. ──
+    {
+        BiblioWork beloved = work(QStringLiteral("cl-beloved"));
+        beloved.openLibraryPopularity = 48000.0;
+        beloved.canonicalFirstPublished = QDate(1813, 1, 1);
+        BiblioWork another = work(QStringLiteral("cl-another"));
+        another.openLibraryPopularity = 29000.0;
+        another.canonicalFirstPublished = QDate(1846, 1, 1);
+        BiblioWork noisyYear = work(QStringLiteral("cl-noisy-year"));
+        noisyYear.openLibraryPopularity = 29000.0; // exact tie with cl-another
+        noisyYear.canonicalFirstPublished = QDate(1777, 1, 1); // noisy OL year
+        BiblioWork oldestQuiet = work(QStringLiteral("cl-oldest-quiet"));
+        oldestQuiet.openLibraryPopularity = 0.0; // no readinglog evidence -> still ranked
+        oldestQuiet.canonicalFirstPublished = QDate(1392, 1, 1); // by FAR the oldest work
+
+        const QList<BiblioWork> works{oldestQuiet, noisyYear, beloved, another}; // deliberately unsorted input
+        const QVector<BiblioWork> ranked = BiblioRanking::rank("classics", works, {}, now);
+        require(ids(ranked) == (QStringList{"cl-beloved", "cl-another", "cl-noisy-year",
+                                            "cl-oldest-quiet"}),
+                "Classics orders by descending readinglog popularity despite unsorted input");
+        require(ids(ranked).indexOf("cl-another") < ids(ranked).indexOf("cl-noisy-year"),
+                "equal Classics popularity ties break by canonicalId ascending");
+        require(ids(ranked).last() == "cl-oldest-quiet",
+                "the by-far-oldest work ranks LAST: the raw first-publish year never orders Classics");
+        require(ids(ranked).contains("cl-oldest-quiet"),
+                "a zero-popularity work still ranks on Classics (never dropped)");
+        require(BiblioRanking::rank("classics", {}, {}, now).isEmpty(),
+                "an empty works list yields an empty Classics ranking");
+    }
+
     // ════════════════════════════════════════════════════════════════════════
     // Task 2 — provider parsing (spec 6.1) and canonical work identity (spec 6.2)
     // ════════════════════════════════════════════════════════════════════════
@@ -515,6 +572,77 @@ int main(int argc, char **argv)
         require(olFrench->description.indexOf('<') < 0, "HTML is stripped from an object-form OL description");
         require(BiblioProviders::parseOpenLibrarySearch("garbage").isEmpty(), "garbage OL bytes yield no records");
 
+        // ── Open Library trending/daily (spec 2026-08-15): envelope, order proxy, defensiveness ──
+        const QList<BiblioSourceRecord> trend =
+            BiblioProviders::parseOpenLibraryTrending(fixture("openlibrary-trending.json"), observed);
+        require(trend.size() == 6, "one record per trending work");
+        require(trend.first().title == "Atomic Habits" && trend.last().title == "The Great Gatsby",
+                "trending payload order is preserved");
+        for (int i = 0; i < trend.size(); ++i) {
+            require(trend[i].source == "openlibrary", "trending records are sourced to openlibrary");
+            if (i > 0)
+                require(trend[i].openLibraryPopularity < trend[i - 1].openLibraryPopularity,
+                        "trending popularity proxy is strictly decreasing (order-stamped)");
+        }
+        {
+            const BiblioSourceRecord *noAuthor = nullptr, *noCover = nullptr, *zeroCover = nullptr, *noYear = nullptr;
+            for (const BiblioSourceRecord &r : trend) {
+                if (r.title == "1984") noAuthor = &r;
+                if (r.title == "Fourth Wing") noCover = &r;
+                if (r.title == "Le Petit Prince") zeroCover = &r;
+                if (r.title == "The Great Gatsby") noYear = &r;
+            }
+            require(noAuthor && noAuthor->author.isEmpty() && noAuthor->workKey == "/works/OL45804W",
+                    "a work with no author still parses with its work key");
+            require(noCover && noCover->artworkUrl.isEmpty(), "a work with no cover_i is artwork-less");
+            require(zeroCover && zeroCover->artworkUrl.isEmpty(), "cover_i 0 is treated as no cover");
+            require(noYear && noYear->firstPublishYear == 0, "a work with no first_publish_year carries year 0");
+        }
+        require(BiblioProviders::parseOpenLibraryTrending(QByteArrayLiteral("{\"query\":\"x\",\"works\":[]}")).isEmpty(),
+                "an empty trending works array yields no records");
+        require(BiblioProviders::parseOpenLibraryTrending("garbage").isEmpty(), "garbage trending bytes yield no records");
+
+        // ── Open Library classics (spec 2026-08-15): membership gate, noisy-year tolerance ──
+        const QList<BiblioSourceRecord> classics =
+            BiblioProviders::parseOpenLibraryClassics(fixture("openlibrary-classics.json"), observed);
+        require(classics.size() == 3, "only pre-1900 plausible-year works survive the classics gate");
+        require(classics[0].title == "Pride and Prejudice" && classics[1].title == "Wuthering Heights"
+                    && classics[2].title == "Lolita",
+                "classics payload (readinglog) order is preserved");
+        {
+            bool saw1900 = false, sawNoYear = false, saw1392 = false;
+            for (const BiblioSourceRecord &r : classics) {
+                if (r.title == "Lord Jim") saw1900 = true;
+                if (r.title == "The Ambassadors") sawNoYear = true;
+                if (r.title == "The Travels of Sir John Mandeville") saw1392 = true;
+            }
+            require(!saw1900, "a 1900 first-publication year is excluded (pre-1900 gate)");
+            require(!sawNoYear, "a missing first-publication year is excluded");
+            require(!saw1392, "an implausibly early year (1392) is excluded");
+            require(classics[2].firstPublishYear == 1777,
+                    "a noisy-but-in-range year is kept for membership (never ordering)");
+        }
+        require(classics[0].openLibraryPopularity > classics[1].openLibraryPopularity
+                    && classics[1].openLibraryPopularity > classics[2].openLibraryPopularity,
+                "classics records carry the readinglog popularity signal in payload order");
+        require(BiblioProviders::parseOpenLibraryClassics(QByteArrayLiteral("{\"numFound\":1,\"docs\":null}")).isEmpty(),
+                "a null docs array yields no classics records");
+        require(BiblioProviders::parseOpenLibraryClassics("garbage").isEmpty(), "garbage classics bytes yield no records");
+
+        // ── Open Library subject seeding (spec 2026-08-15): parse breadth fixture ──
+        const QList<BiblioSourceRecord> subject =
+            BiblioProviders::parseOpenLibrarySearch(fixture("openlibrary-subject-scifi.json"), observed);
+        require(subject.size() == 5, "one record per subject-seeded doc");
+        {
+            const BiblioSourceRecord *leGuin = nullptr;
+            for (const BiblioSourceRecord &r : subject)
+                if (r.title == "The Left Hand of Darkness") leGuin = &r;
+            require(leGuin && leGuin->authorKeys.size() == 2, "subject records carry authority author keys");
+        }
+        require(BiblioProviders::parseOpenLibrarySearch(QByteArrayLiteral("{\"docs\":[]}")).isEmpty(),
+                "an empty subject docs array yields no records");
+
+
         // ── Keyless URL builders: right endpoints, encoded terms, never a key ──
         const QString rssUrl = BiblioProviders::appleTopEbooksRssUrl("us", 100, 0).toString();
         require(rssUrl.contains("itunes.apple.com") && rssUrl.contains("topebooks"),
@@ -527,8 +655,29 @@ int main(int argc, char **argv)
         require(!searchUrl.contains(' '), "the Apple search term is URL-encoded");
         const QString olUrl = BiblioProviders::openLibrarySearchUrl("song of the deep", "camille rousseau").toString();
         require(olUrl.contains("openlibrary.org/search.json"), "the Open Library url targets search.json");
+
+        // ── Spec 2026-08-15 URL builders: trending, classics solr-clause, subject ──
+        const QString trendUrl = BiblioProviders::openLibraryTrendingDailyUrl(100).toString(QUrl::FullyEncoded);
+        require(trendUrl.contains("openlibrary.org/trending/daily.json") && trendUrl.contains("limit=100"),
+                "the trending url targets trending/daily.json with its limit");
+        const QString classicsUrl = BiblioProviders::openLibraryClassicsUrl(50).toString(QUrl::FullyEncoded);
+        require(classicsUrl.contains("openlibrary.org/search.json"), "the classics url targets search.json");
+        // Qt emits the clause with literal : [ ] and %20 spaces — this exact form
+        // was probed live against the endpoint (HTTP 200) on 2026-08-15.
+        require(classicsUrl.contains("q=first_publish_year:[*%20TO%201899]"),
+                QString("the classics year range rides inside q as a solr clause (the query-param form 422s): %1")
+                    .arg(classicsUrl)
+                    .toUtf8()
+                    .constData());
+        require(classicsUrl.contains("sort=readinglog"), "the classics url is readinglog-ordered");
+        require(!classicsUrl.contains("first_publish_year="), "no separate first_publish_year query param");
+        const QString subjectUrl = BiblioProviders::openLibrarySubjectUrl("science-fiction", 50).toString(QUrl::FullyEncoded);
+        require(subjectUrl.contains("subject=science-fiction") && subjectUrl.contains("sort=readinglog"),
+                "the subject url seeds one taxonomy facet key as the OL subject");
+
         require(!rssUrl.contains("key") && !searchUrl.contains("key") && !olUrl.contains("key")
-                    && !searchUrl.contains("token"),
+                    && !searchUrl.contains("token") && !trendUrl.contains("key") && !classicsUrl.contains("token")
+                    && !subjectUrl.contains("token"),
                 "no provider url carries an api key or token");
 
         // ── Canonicalization (spec 6.2): merge every record into canonical works ──

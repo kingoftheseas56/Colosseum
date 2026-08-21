@@ -67,7 +67,8 @@ Item {
             ready: true, revision: 1,
             exploreRows: function() { return [
                 { catalogId: "popular", items: rows }, { catalogId: "top-rated", items: rows },
-                { catalogId: "new-releases", items: rows }, { catalogId: "trending", items: rows }
+                { catalogId: "new-releases", items: rows }, { catalogId: "trending", items: rows },
+                { catalogId: "most-read", items: rows }, { catalogId: "classics", items: rows }
             ] },
             discoverPage: function() { return { items: rows } },
             mosaic: function() { return rows.slice(0, 5) }

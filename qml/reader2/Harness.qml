@@ -57,6 +57,7 @@ Window {
 
     ReaderShell {
         id: shell
+        objectName: "reader2HarnessShell"
         anchors.fill: parent
         visible: false
         readerDebug: true                     // standalone bench keeps the [shell]/[paper] event trace (Part C5)

@@ -19,6 +19,9 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
+#include <QSqlDatabase>
+#include <QSqlError>
+#include <QSqlQuery>
 #include <QString>
 #include <QStringList>
 #include <QTemporaryDir>
@@ -525,9 +528,19 @@ void testFilterGroupsAdvertiseControlledAxes()
     QSet<QString> axes;
     for (const QVariant &g : groups)
         axes.insert(g.toMap().value(QStringLiteral("axis")).toString());
-    require(axes.contains(QStringLiteral("genre")), "genre axis advertised");
-    require(axes.contains(QStringLiteral("audience")), "audience axis advertised");
-    require(axes.contains(QStringLiteral("length")), "length axis advertised");
+    // 2026-08-06 BIBLIO_DISCOVER_FILTERS_HONEST_ADVERTISE: axes are now
+    // advertised only when the snapshot populates at least one of their keys.
+    // eightWorkSnapshot binds ONLY genre/science-fiction, so only `genre`
+    // appears. Axes with no populated keys (audience, length, era, language,
+    // theme, setting, period) are intentionally omitted — that is the fix, not
+    // a regression. A snapshot with a broader facet set advertises more axes.
+    require(axes.contains(QStringLiteral("genre")), "genre axis advertised (populated)");
+    require(!axes.contains(QStringLiteral("audience")),
+            "audience axis omitted when no audience facet is populated");
+    require(!axes.contains(QStringLiteral("length")),
+            "length axis omitted when no length facet is populated");
+    require(!axes.contains(QStringLiteral("theme")),
+            "theme axis omitted when no theme facet is populated");
 
     // Each advertised non-publisher group must carry its controlled facet values.
     for (const QVariant &g : groups) {
@@ -537,6 +550,85 @@ void testFilterGroupsAdvertiseControlledAxes()
             require(!facets.empty(), "genre group carries controlled facet values");
         }
     }
+}
+
+// 2026-08-06 BIBLIO_DISCOVER_FILTERS_HONEST_ADVERTISE, Slice 1: the parity
+// test that the bug-shipping arc lacked. The filtered page() path is already
+// covered by testExactFacetFiltering above; what was NEVER asserted is that the
+// advertisement (filterGroups) mirrors what the active snapshot actually
+// populates. Against the current code this case FAILS RED — it is the
+// regression sentinel proving the advertisement is data-derived, not a static
+// vocabulary dump. Slice 2 turns it green by making filterGroups() query
+// work_facets for populated keys the way it already queries the works table
+// for publisher values.
+void testFilterGroupsMirrorSnapshotFacets()
+{
+    QTemporaryDir dir;
+    BiblioCatalogStore store;
+    require(store.open(dir.path() + QStringLiteral("/b.sqlite")), "open");
+
+    // eightWorkSnapshot binds genre/science-fiction to the four even-indexed
+    // works (line ~145). No other genre/audience/theme/setting/period keys are
+    // bound. This is the controlled fixture: exactly one populated non-publisher
+    // facet key.
+    require(store.publish(eightWorkSnapshot(utc(2026, 8, 1))), "publish");
+
+    // Collect the snapshot's own facet bindings as the oracle — the set of
+    // (axis,key) pairs the snapshot actually populated.
+    const BiblioCatalogSnapshot probe = eightWorkSnapshot(utc(2026, 8, 1));
+    QSet<QString> populatedPairs;
+    for (const auto &snapFacet : probe.facets)
+        populatedPairs.insert(snapFacet.facet.axis + QChar('/') + snapFacet.facet.key);
+
+    const QVariantList groups = store.filterGroups(true);
+    require(!groups.empty(), "filterGroups returns groups over a published snapshot");
+
+    // Every advertised (axis,key) pair must exist in the snapshot's populated
+    // set. Against the unmodified code this fails because filterGroups()
+    // advertises the full static vocabulary (Fantasy, Thriller, Horror, etc.)
+    // that the snapshot never bound.
+    for (const QVariant &g : groups) {
+        const QVariantMap gm = g.toMap();
+        const QString axis = gm.value(QStringLiteral("axis")).toString();
+        if (axis == QStringLiteral("publisher"))
+            continue; // publisher keys are data-derived from works.publisher, not work_facets
+        const QVariantList facets = gm.value(QStringLiteral("facets")).toList();
+        for (const QVariant &f : facets) {
+            const QString key = f.toMap().value(QStringLiteral("key")).toString();
+            const QString pair = axis + QChar('/') + key;
+            require(populatedPairs.contains(pair),
+                    QByteArray("advertised facet is populated in snapshot: ") + pair.toUtf8());
+        }
+    }
+
+    // Negative control: a key the taxonomy static table knows but this snapshot
+    // does NOT populate must not be advertised. "fantasy" is in BiblioTaxonomy's
+    // genre table (so the normalizer still recognizes it — A-arc readiness) but
+    // eightWorkSnapshot binds no work to genre/fantasy, so it must not appear.
+    for (const QVariant &g : groups) {
+        const QVariantMap gm = g.toMap();
+        const QString axis = gm.value(QStringLiteral("axis")).toString();
+        const QVariantList facets = gm.value(QStringLiteral("facets")).toList();
+        for (const QVariant &f : facets) {
+            const QString key = f.toMap().value(QStringLiteral("key")).toString();
+            require(!(axis == QStringLiteral("genre") && key == QStringLiteral("fantasy")),
+                    "genre/fantasy is not advertised when the snapshot has no fantasy evidence");
+        }
+    }
+
+    // Positive: the one populated key (genre/science-fiction) IS advertised.
+    bool sawScienceFiction = false;
+    for (const QVariant &g : groups) {
+        const QVariantMap gm = g.toMap();
+        if (gm.value(QStringLiteral("axis")).toString() != QStringLiteral("genre"))
+            continue;
+        for (const QVariant &f : gm.value(QStringLiteral("facets")).toList()) {
+            if (f.toMap().value(QStringLiteral("key")).toString() == QStringLiteral("science-fiction"))
+                sawScienceFiction = true;
+        }
+    }
+    require(sawScienceFiction,
+            "genre/science-fiction is advertised when the snapshot populates it");
 }
 
 void testPreviewRowsAndFreshness()
@@ -616,6 +708,96 @@ void testCatalogAllowlistRejectsUnknown()
     }
 }
 
+// 2026-08-15 Open Library catalogues (slice 2): the store's allowlist grew to
+// six house catalogues. "most-read" and "classics" must page with the exact
+// DiscoverBrowser shape, paginate across two calls, and filter by an existing
+// facet axis exactly the way "popular" does.
+void testMostReadAndClassicsPageLikeHouseCatalogues()
+{
+    QTemporaryDir dir;
+    BiblioCatalogStore store;
+    require(store.open(dir.path() + QStringLiteral("/b.sqlite")), "open");
+
+    // Eight works ranked under ALL SIX house catalogues, in id order so paging
+    // is deterministic; even-indexed works carry genre/science-fiction.
+    BiblioCatalogSnapshot snap;
+    snap.capturedAt = utc(2026, 8, 1);
+    for (int i = 0; i < 8; ++i) {
+        const QString id = QStringLiteral("work-%1").arg(i);
+        BiblioWork w = makeWork(id, QStringLiteral("Title %1").arg(i),
+                                QStringLiteral("Author %1").arg(i));
+        w.editions.append(makeEdition(id + QStringLiteral("-ed"), QStringLiteral("print"),
+                                      250, true));
+        snap.works.append(w);
+        if (i % 2 == 0)
+            snap.facets.append({id, makeFacet(QStringLiteral("genre"),
+                                              QStringLiteral("science-fiction"))});
+        for (const char *cat : {"popular", "top-rated", "new-releases", "trending",
+                                "most-read", "classics"}) {
+            snap.rankings.append(makeRanking(QString::fromLatin1(cat), id,
+                                             10.0 - double(i), i + 1));
+        }
+    }
+    require(store.publish(snap), "publish ranks all six house catalogues");
+
+    for (const char *cat : {"most-read", "classics"}) {
+        const QString catalog = QString::fromLatin1(cat);
+        const QString empty;
+        // Page size 5 over 8 ranked works: two calls tile everything.
+        const QVariantMap p1 = store.page(catalog, empty, empty, true, 0, 5);
+        require(p1.contains(QStringLiteral("items"))
+                    && p1.contains(QStringLiteral("nextOffset"))
+                    && p1.contains(QStringLiteral("exhausted"))
+                    && p1.contains(QStringLiteral("freshness"))
+                    && p1.contains(QStringLiteral("warning")),
+                "most-read/classics page carries the {items,nextOffset,exhausted,freshness,warning} shape");
+        require(p1.value(QStringLiteral("items")).toList().size() == 5,
+                "most-read/classics page 1 returns five items");
+        require(p1.value(QStringLiteral("nextOffset")).toInt() == 5,
+                "most-read/classics page 1 nextOffset == 5");
+        require(!p1.value(QStringLiteral("exhausted")).toBool(),
+                "most-read/classics page 1 is not exhausted");
+        const QVariantMap p2 = store.page(catalog, empty, empty, true, 5, 5);
+        require(p2.value(QStringLiteral("items")).toList().size() == 3,
+                "most-read/classics page 2 returns the remaining three items");
+        require(p2.value(QStringLiteral("exhausted")).toBool(),
+                "most-read/classics page 2 is exhausted");
+        // Ordering is the catalogue's ranking (work-0 first), same as "popular".
+        require(p1.value(QStringLiteral("items")).toList().first().toMap()
+                    .value(QStringLiteral("canonicalId")).toString()
+                    == QStringLiteral("work-0"),
+                "most-read/classics page 1 starts at rank 1 (work-0)");
+
+        // Facet filtering on an existing axis behaves exactly as for "popular":
+        // only the four even-indexed works carry genre/science-fiction.
+        const QVariantMap filtered = store.page(catalog, QStringLiteral("genre"),
+                                                QStringLiteral("science-fiction"),
+                                                true, 0, 100);
+        require(filtered.value(QStringLiteral("items")).toList().size() == 4,
+                "most-read/classics filter by genre/science-fiction like popular");
+    }
+}
+
+// The allowlist grew, it did not soften: a ranking row for a catalogue outside
+// the six still fails publish validation and leaves the prior snapshot intact.
+void testUnknownCatalogIdRejectedOnPublish()
+{
+    QTemporaryDir dir;
+    BiblioCatalogStore store;
+    require(store.open(dir.path() + QStringLiteral("/b.sqlite")), "open");
+
+    BiblioCatalogSnapshot prior = eightWorkSnapshot(utc(2026, 7, 30));
+    require(store.publish(prior), "prior snapshot publishes");
+
+    BiblioCatalogSnapshot bad = eightWorkSnapshot(utc(2026, 8, 1));
+    bad.rankings.append(makeRanking(QStringLiteral("award-winners"),
+                                    QStringLiteral("work-0"), 99.0, 1));
+    require(!store.publish(bad),
+            "a ranking row for a catalogue outside the six-entry allowlist is rejected");
+    require(store.lastSuccessUtc() == utc(2026, 7, 30),
+            "prior snapshot intact after unknown-catalogue rejection");
+}
+
 void testReopenPreservesSnapshot()
 {
     QTemporaryDir dir;
@@ -640,6 +822,145 @@ void testReopenPreservesSnapshot()
             "paged reads work after reopen");
 }
 
+// 2026-08-15 lazy grid enrichment (slice 4): pending rows round-trip through
+// the parking table. Three states go in; the map reads every field back
+// byte-exact; upsert replaces a row in place; clearFoldedPending deletes
+// EXACTLY the folded ('enriched') keys and keeps the others untouched.
+void testPendingEnrichmentRoundTrip()
+{
+    QTemporaryDir dir;
+    BiblioCatalogStore store;
+    require(store.open(dir.path() + QStringLiteral("/b.sqlite")), "open");
+
+    const QByteArray enrichedBody = QByteArrayLiteral(R"({"results":[{"trackName":"Round Trip"}]})");
+    require(store.upsertPendingEnrichment(QStringLiteral("enriched|key"),
+                                          enrichedBody,
+                                          QStringLiteral("enriched"),
+                                          QStringLiteral("2026-08-15")),
+            "upsert an enriched row (body parked raw)");
+    require(store.upsertPendingEnrichment(QStringLiteral("pending|key"),
+                                          QByteArray(),
+                                          QStringLiteral("pending"),
+                                          QStringLiteral("2026-08-15")),
+            "upsert a pending marker row");
+    require(store.upsertPendingEnrichment(QStringLiteral("unavailable|key"),
+                                          QByteArray(),
+                                          QStringLiteral("unavailable"),
+                                          QStringLiteral("2026-08-14")),
+            "upsert an unavailable row (yesterday's attempt)");
+
+    const QHash<QString, BiblioPendingEnrichmentRow> map = store.pendingEnrichmentMap();
+    require(map.size() == 3, "map reads back all three rows");
+    const BiblioPendingEnrichmentRow enriched =
+        map.value(QStringLiteral("enriched|key"));
+    require(enriched.workKey == QStringLiteral("enriched|key"), "enriched row keeps its work_key");
+    require(enriched.state == QStringLiteral("enriched"), "enriched row state round-trips");
+    require(enriched.body == enrichedBody, "enriched row body round-trips byte-exact");
+    require(enriched.lastAttempt == QStringLiteral("2026-08-15"),
+            "enriched row last_attempt round-trips");
+    const BiblioPendingEnrichmentRow pendingRow =
+        map.value(QStringLiteral("pending|key"));
+    require(pendingRow.state == QStringLiteral("pending"), "pending row state round-trips");
+    require(pendingRow.body.isEmpty(), "pending row carries no body");
+    const BiblioPendingEnrichmentRow unavailableRow =
+        map.value(QStringLiteral("unavailable|key"));
+    require(unavailableRow.state == QStringLiteral("unavailable"),
+            "unavailable row state round-trips");
+    require(unavailableRow.lastAttempt == QStringLiteral("2026-08-14"),
+            "unavailable row last_attempt round-trips (the gate's data)");
+
+    // Upsert REPLACES: flip the pending marker to enriched with a body, in place.
+    require(store.upsertPendingEnrichment(QStringLiteral("pending|key"),
+                                          enrichedBody,
+                                          QStringLiteral("enriched"),
+                                          QStringLiteral("2026-08-15")),
+            "upsert over an existing work_key replaces the row");
+    const QHash<QString, BiblioPendingEnrichmentRow> map2 = store.pendingEnrichmentMap();
+    require(map2.size() == 3, "replace does not grow the table");
+    require(map2.value(QStringLiteral("pending|key")).state == QStringLiteral("enriched")
+                && map2.value(QStringLiteral("pending|key")).body == enrichedBody,
+            "replaced row carries the new state and body");
+
+    // clearFoldedPending removes EXACTLY the folded enriched keys.
+    require(store.clearFoldedPending({QStringLiteral("enriched|key"),
+                                      QStringLiteral("pending|key")}),
+            "clearFoldedPending succeeds");
+    const QHash<QString, BiblioPendingEnrichmentRow> map3 = store.pendingEnrichmentMap();
+    require(map3.size() == 1, "only the folded rows were removed");
+    require(map3.contains(QStringLiteral("unavailable|key")),
+            "the unavailable gate row survives the fold-in clear");
+    require(map3.value(QStringLiteral("unavailable|key")).lastAttempt
+                == QStringLiteral("2026-08-14"),
+            "the surviving row's fields are untouched");
+
+    // Clearing unknown keys is a no-op, not an error.
+    require(store.clearFoldedPending({QStringLiteral("no-such-key")}),
+            "clearing an absent work_key succeeds");
+    require(store.pendingEnrichmentMap().size() == 1,
+            "clearing an absent work_key removes nothing");
+    require(store.clearFoldedPending({}), "clearing an empty list succeeds");
+    require(store.pendingEnrichmentMap().size() == 1,
+            "clearing an empty list removes nothing");
+}
+
+// 2026-08-15 lazy grid enrichment (slice 4): old-DB migration. A database
+// written BEFORE the pending table existed must gain it transparently on its
+// next open (the harness simulates the pre-slice schema by dropping the table
+// through a raw connection) — and the previously published snapshot must keep
+// paging unchanged beside it.
+void testPendingEnrichmentOldDbGainsTable()
+{
+    QTemporaryDir dir;
+    const QString path = dir.path() + QStringLiteral("/b.sqlite");
+    {
+        BiblioCatalogStore store;
+        require(store.open(path), "open");
+        require(store.publish(eightWorkSnapshot(utc(2026, 8, 1))),
+                "publish a snapshot the way a pre-slice db would carry one");
+    }
+
+    // Rewind the schema: a pre-Slice-4 database has no biblio_pending_enrichment.
+    {
+        QSqlDatabase shim = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"),
+                                                      QStringLiteral("pre-slice-shim"));
+        shim.setDatabaseName(path);
+        require(shim.open(), "raw shim opens the db");
+        QSqlQuery drop(shim);
+        require(drop.exec(QStringLiteral("drop table if exists biblio_pending_enrichment")),
+                "drop the pending table (simulate a pre-slice-4 schema)");
+        shim.close();
+        QSqlDatabase::removeDatabase(QStringLiteral("pre-slice-shim"));
+    }
+
+    // Reopen through the store: the CREATE IF NOT EXISTS idiom in open() must
+    // add the missing table, and everything must work through it.
+    BiblioCatalogStore store;
+    require(store.open(path), "reopen the pre-slice db");
+    require(store.pendingEnrichmentMap().isEmpty(),
+            "the gained pending table starts empty");
+    require(store.upsertPendingEnrichment(QStringLiteral("migrated|key"),
+                                          QByteArrayLiteral("{\"results\":[]}"),
+                                          QStringLiteral("pending"),
+                                          QStringLiteral("2026-08-15")),
+            "upsert works on the gained table");
+    const QHash<QString, BiblioPendingEnrichmentRow> map = store.pendingEnrichmentMap();
+    require(map.size() == 1
+                && map.value(QStringLiteral("migrated|key")).state
+                    == QStringLiteral("pending"),
+            "the gained table round-trips rows");
+
+    // The pre-existing snapshot is untouched by the migration.
+    require(store.hasSnapshot(), "the old snapshot survived the reopen");
+    require(store.lastSuccessUtc() == utc(2026, 8, 1), "lastSuccessUtc unchanged");
+    const QVariantMap p = store.page(QStringLiteral("popular"), QString(), QString(),
+                                     true, 0, 100);
+    require(p.value(QStringLiteral("items")).toList().size() == 8,
+            "the old snapshot still pages exactly as before");
+    require(store.clearFoldedPending({QStringLiteral("migrated|key")}),
+            "clearing the migrated row works");
+    require(store.pendingEnrichmentMap().isEmpty(), "migrated row cleared");
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -658,10 +979,15 @@ int main(int argc, char **argv)
     testSevenDayRetentionKeepsLastEight();
     testCachedTop10ReflectsLatestPublish();
     testFilterGroupsAdvertiseControlledAxes();
+    testFilterGroupsMirrorSnapshotFacets();
     testPreviewRowsAndFreshness();
     testBrokenCoverUrlHealedOnRead();
     testCatalogAllowlistRejectsUnknown();
+    testMostReadAndClassicsPageLikeHouseCatalogues();
+    testUnknownCatalogIdRejectedOnPublish();
     testReopenPreservesSnapshot();
+    testPendingEnrichmentRoundTrip();
+    testPendingEnrichmentOldDbGainsTable();
 
     if (g_failures == 0) {
         std::cout << "BIBLIO_CATALOG_STORE_OK\n";

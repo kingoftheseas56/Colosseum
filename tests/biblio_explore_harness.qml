@@ -37,6 +37,11 @@ Item {
 
     function makeFakeCatalog(opts) {
         opts = opts || {};
+        // Slice 5 (spec 2026-08-15): requestEnrichment recording stub — the page's See-All
+        // lazy-enrich trigger fires it for the two Open Library rails; the log lets the
+        // harness assert the exact key and call count. Dropping the property from a returned
+        // fake simulates a pre-update/older catalogSource for the no-method guard proof.
+        var enrichmentLog = [];
         return {
             ready: opts.ready !== undefined ? opts.ready : true,
             revision: opts.revision !== undefined ? opts.revision : 1,
@@ -45,7 +50,9 @@ Item {
                     { catalogId: "popular", items: opts.popularItems || [] },
                     { catalogId: "top-rated", items: opts.topRatedItems || [] },
                     { catalogId: "new-releases", items: opts.newReleasesItems || [] },
-                    { catalogId: "trending", items: opts.trendingItems || [] }
+                    { catalogId: "trending", items: opts.trendingItems || [] },
+                    { catalogId: "most-read", items: opts.mostReadItems || [] },
+                    { catalogId: "classics", items: opts.classicsItems || [] }
                 ];
             },
             discoverPage: function(catalogId, axis, key, includeExplicit, offset, limit) {
@@ -54,7 +61,9 @@ Item {
             mosaic: function(facetKey, limit, includeExplicit) {
                 var map = opts.mosaicByFacet || {};
                 return map[facetKey] || [];
-            }
+            },
+            requestEnrichment: function(id) { enrichmentLog.push(id); },
+            enrichmentLog: enrichmentLog
         };
     }
 
@@ -92,6 +101,23 @@ Item {
                 harness, "biblioExploreDelayTimer");
             t.triggered.connect(function() { done(metas); t.destroy(); });
         };
+    }
+
+    // collects the page's real BiblioBookRail instances by walking the visual tree — each
+    // rendered displayRow owns exactly one, so emitting seeAllActivated() on a found rail
+    // drives the PAGE's own onSeeAllActivated handler (no synthetic re-implementation).
+    function collectRails(item, out) {
+        if (!item) return out;
+        var kids = item.children || [];
+        for (var i = 0; i < kids.length; i++) {
+            if (String(kids[i]).indexOf("BiblioBookRail") !== -1) out.push(kids[i]);
+            harness.collectRails(kids[i], out);
+        }
+        return out;
+    }
+    function railByTitle(rails, title) {
+        for (var i = 0; i < rails.length; i++) if (rails[i].title === title) return rails[i];
+        return null;
     }
 
     readonly property var mosaicFixture: ({
@@ -160,6 +186,8 @@ Item {
             topRatedItems: [harness.bookRow("tr1", "Top Rated One", "Author T", "t1.png", 4.8)],
             newReleasesItems: [harness.bookRow("nr1", "New One", "Author N", "n1.png", 4.1)],
             trendingItems: [harness.bookRow("tn1", "Trending One", "Author G", "g1.png", 4.2)],
+            mostReadItems: [harness.bookRow("mr1", "Most Read One", "Author M", "m1.png", 4.3)],
+            classicsItems: [harness.bookRow("cl1", "Classic One", "Author C", "c1.png", 4.6)],
             top10Items: [harness.bookRow("top1", "Top10 One", "Author X", "x1.png", 4.9)],
             mosaicByFacet: harness.mosaicFixture
         });
@@ -176,14 +204,16 @@ Item {
             page1._prefs.reset();
 
             var rows = page1.displayRows;
-            harness.ok(rows.length === 6, "default displayRows: top-10 + 1 extension + 4 house rails, got " + rows.length);
+            harness.ok(rows.length === 8, "default displayRows: top-10 + 1 extension + 6 house rails, got " + rows.length);
             harness.ok(rows[0] && rows[0].key === "top-10" && rows[0].kind === "top10" && rows[0].ranked === true,
                        "Top 10 renders first, in ranked mode");
             harness.ok(rows[1] && rows[1].kind === "extension",
                        "extension preview row renders second (right after Top 10, before the house rails)");
-            var houseOrder = [rows[2], rows[3], rows[4], rows[5]].map(function(r) { return r && r.key; });
-            harness.ok(JSON.stringify(houseOrder) === JSON.stringify(["popular", "top-rated", "new-releases", "trending"]),
-                       "the four house rails render in fixed order, got " + JSON.stringify(houseOrder));
+            var houseOrder = [];
+            for (var hi = 2; hi < rows.length; hi++) houseOrder.push(rows[hi] ? rows[hi].key : null);
+            harness.ok(JSON.stringify(houseOrder) === JSON.stringify(
+                           ["popular", "top-rated", "new-releases", "trending", "most-read", "classics"]),
+                       "the six house rails render in fixed order, got " + JSON.stringify(houseOrder));
 
             var top10Pin = rows[0].pin;
             harness.ok(top10Pin.type === "book" && top10Pin.catalogId === "popular" && top10Pin.sourceKind === "builtin"
@@ -209,6 +239,83 @@ Item {
             var housePin = rows[2].pin;
             harness.ok(housePin.type === "book" && housePin.catalogId === "popular" && housePin.sourceKind === "builtin",
                        "a house rail's See-All pin carries its catalogId, got " + JSON.stringify(housePin));
+
+            // ── Slice 5 (spec 2026-08-15) per-rail attribution: the two Open Library rails
+            //    carry the plain "Open Library" label, the Apple-seeded four keep the combined
+            //    house label; Top 10 (discoverPage("popular")) keeps the default label too. ──
+            var popItem = (page1.houseRowsMap["popular"] || [])[0];
+            harness.ok(popItem && popItem.source === "Apple Books · Open Library",
+                       "a popular house item keeps the combined house attribution, got "
+                       + JSON.stringify(popItem && popItem.source));
+            var mrItem = (page1.houseRowsMap["most-read"] || [])[0];
+            harness.ok(mrItem && mrItem.source === "Open Library",
+                       "a most-read house item carries the Open Library attribution, got "
+                       + JSON.stringify(mrItem && mrItem.source));
+            var clItem = (page1.houseRowsMap["classics"] || [])[0];
+            harness.ok(clItem && clItem.source === "Open Library",
+                       "a classics house item carries the Open Library attribution, got "
+                       + JSON.stringify(clItem && clItem.source));
+            var top10SrcItem = (page1.top10Items || [])[0];
+            harness.ok(top10SrcItem && top10SrcItem.source === "Apple Books · Open Library",
+                       "a Top 10 item keeps the default house attribution, got "
+                       + JSON.stringify(top10SrcItem && top10SrcItem.source));
+
+            // ── Slice 5 See-All lazy-enrich trigger: activating See-All on the two Open
+            //    Library rails fires catalogSource.requestEnrichment exactly once with that
+            //    rail's key; the four Apple-seeded rails never fire it. Emitted on the REAL
+            //    delegate BiblioBookRail (found by title through the visual tree) so the
+            //    PAGE's own onSeeAllActivated handler is what runs. ──
+            var rails = harness.collectRails(page1, []);
+            harness.ok(rails.length === rows.length,
+                       "every displayRow renders exactly one BiblioBookRail, got " + rails.length);
+            var pinCount = 0;
+            page1.discoverPinRequested.connect(function() { pinCount++; });
+            var mrRail = harness.railByTitle(rails, "Most Read");
+            harness.ok(mrRail !== null, "the most-read rail is instantiated under its house title");
+            if (mrRail) {
+                mrRail.seeAllActivated();
+                harness.ok(cat.enrichmentLog.length === 1 && cat.enrichmentLog[0] === "most-read",
+                           "See-All on most-read fires requestEnrichment('most-read') exactly once, got "
+                           + JSON.stringify(cat.enrichmentLog));
+            }
+            var clRail = harness.railByTitle(rails, "Classics");
+            if (clRail) {
+                clRail.seeAllActivated();
+                harness.ok(cat.enrichmentLog.length === 2 && cat.enrichmentLog[1] === "classics",
+                           "See-All on classics fires requestEnrichment('classics') exactly once, got "
+                           + JSON.stringify(cat.enrichmentLog));
+            }
+            var popRail = harness.railByTitle(rails, "Popular");
+            if (popRail) {
+                popRail.seeAllActivated();
+                harness.ok(cat.enrichmentLog.length === 2,
+                           "See-All on popular (an Apple-seeded rail) fires NO enrichment, got "
+                           + JSON.stringify(cat.enrichmentLog));
+            }
+            var expectedPins = (mrRail ? 1 : 0) + (clRail ? 1 : 0) + (popRail ? 1 : 0);
+            harness.ok(pinCount === expectedPins,
+                       "each See-All activation still routes the discover pin first, got " + pinCount);
+
+            // the guard: a catalogSource WITHOUT requestEnrichment (an older native build or a
+            // pre-update fake) makes the same See-All activation a silent no-op, never a
+            // TypeError — the offscreen harness must never throw.
+            var bareCat = harness.makeFakeCatalog({ mosaicByFacet: harness.mosaicFixture });
+            delete bareCat.requestEnrichment;
+            var barePage = pageComp.createObject(harness, {
+                catalogSource: bareCat,
+                extensionsSource: harness.makeFakeExtensionsSource([]),
+                preferences: prefsComp.createObject(harness, { settingsLocation: harness.tempIni("page1bare") })
+            });
+            if (barePage) {
+                var bareRails = harness.collectRails(barePage, []);
+                var bareMrRail = harness.railByTitle(bareRails, "Most Read");
+                var guardThrew = false;
+                try { if (bareMrRail) bareMrRail.seeAllActivated(); }
+                catch (e) { guardThrew = true; }
+                harness.ok(guardThrew === false,
+                           "See-All with a catalogSource lacking requestEnrichment never throws");
+                barePage.destroy();
+            }
 
             harness.ok(page1.mosaicSpecs.length === 3, "exactly three fixed mosaics");
             var mosKeys = page1.mosaicSpecs.map(function(s) { return s.key; });
@@ -425,7 +532,8 @@ Item {
     function runRuleChecks() {
         // exact default order, no extensions installed
         var bare = Rules.defaultRows([]);
-        ok(JSON.stringify(bare) === JSON.stringify(["top-10", "popular", "top-rated", "new-releases", "trending"]),
+        ok(JSON.stringify(bare) === JSON.stringify(
+               ["top-10", "popular", "top-rated", "new-releases", "trending", "most-read", "classics"]),
            "default order with zero extensions, got " + JSON.stringify(bare));
 
         // empty extension-section collapse: no "ext:" keys present at all, not a present-but-empty marker
@@ -438,7 +546,7 @@ Item {
                                           { id: "com.example.annas", title: "Anna's Archive" }]);
         ok(JSON.stringify(withExt) === JSON.stringify([
             "top-10", "ext:com.example.libgen", "ext:com.example.annas",
-            "popular", "top-rated", "new-releases", "trending"
+            "popular", "top-rated", "new-releases", "trending", "most-read", "classics"
         ]), "extension keys ordered between top-10 and house rails, got " + JSON.stringify(withExt));
 
         // stable extension keys: derived from id, NOT the display title
@@ -454,7 +562,7 @@ Item {
 
         // duplicate stable id collapses to one key, not repeated
         var dup = Rules.defaultRows([{ id: "com.example.libgen" }, { id: "com.example.libgen" }]);
-        ok(dup.length === 6, "duplicate extension id collapses to a single key, got " + JSON.stringify(dup));
+        ok(dup.length === 8, "duplicate extension id collapses to a single key, got " + JSON.stringify(dup));
 
         // mosaics are never part of the row inventory at all
         var mosaicish = ["fiction", "nonfiction", "audience", "mosaic-fiction", "mosaic-nonfiction", "mosaic-audience"];
@@ -464,7 +572,7 @@ Item {
 
         // ── applyCustomization ──
         var rows = Rules.defaultRows([{ id: "ext-a" }, { id: "ext-b" }]);
-        // rows = [top-10, ext:ext-a, ext:ext-b, popular, top-rated, new-releases, trending]
+        // rows = [top-10, ext:ext-a, ext:ext-b, popular, top-rated, new-releases, trending, most-read, classics]
 
         // no customization -> identity order, nothing hidden
         var plain = Rules.applyCustomization(rows, { order: [], hidden: [] }, false);
@@ -479,13 +587,21 @@ Item {
            "saved order takes precedence (drag-equivalent move), got " + JSON.stringify(reorderedKeys));
         ok(reorderedKeys.length === rows.length, "reordering keeps every available row, none dropped");
 
-        // new-extension append: a row not present in the saved order is appended, not dropped
+        // new-extension append: a row not present in the saved order is appended, not dropped.
+        // Also the Slice 5 six-shelf flip case: a save from the OLD four-key-house world keeps
+        // its own relative order at the front while most-read/classics — unknown to that save —
+        // are appended safely behind it, never dropped and never resurrected out of order.
         var savedBeforeExt = ["trending", "top-10", "popular", "top-rated", "new-releases"]; // missing both ext keys
         var appended = Rules.applyCustomization(rows, { order: savedBeforeExt, hidden: [] }, false);
         var appendedKeys = appended.map(function(r) { return r.key; });
         ok(appendedKeys.indexOf("ext:ext-a") !== -1 && appendedKeys.indexOf("ext:ext-b") !== -1,
            "rows missing from saved order are appended safely, got " + JSON.stringify(appendedKeys));
         ok(appendedKeys.length === rows.length, "append does not drop or duplicate any row");
+        ok(JSON.stringify(appendedKeys.slice(0, savedBeforeExt.length)) === JSON.stringify(savedBeforeExt),
+           "an OLD four-key-house saved order keeps its relative order at the front, got "
+           + JSON.stringify(appendedKeys));
+        ok(appendedKeys.indexOf("most-read") !== -1 && appendedKeys.indexOf("classics") !== -1,
+           "the two new house keys are appended for an old four-key save, never dropped");
 
         // removed-key ignore: a saved order entry for a row no longer available is silently dropped
         var shrunkRows = Rules.defaultRows([{ id: "ext-a" }]); // ext-b no longer installed
@@ -614,7 +730,7 @@ Item {
             var raw = String(c.settingsStore ? c.settingsStore.orderJson : "");
             var persistedOrder = [];
             try { persistedOrder = JSON.parse(raw || "[]"); } catch (e) { persistedOrder = []; }
-            var stableKeyPattern = /^(top-10|ext:|popular|top-rated|new-releases|trending)/;
+            var stableKeyPattern = /^(top-10|ext:|popular|top-rated|new-releases|trending|most-read|classics)/;
             var allStableKeys = persistedOrder.length > 0
                 && persistedOrder.every(function(k) { return stableKeyPattern.test(k); });
             harness.ok(allStableKeys,

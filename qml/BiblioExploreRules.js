@@ -8,13 +8,13 @@
 .pragma library
 
 // ---------------------------------------------------------------------------
-// Stable row keys. `top-10` and the four house rails never move relative to each other
+// Stable row keys. `top-10` and the six house rails never move relative to each other
 // as a GROUP boundary (extensions always sit between Top 10 and the house rails), but
 // individual keys within the full list are freely reorderable/hideable via customization.
 // ---------------------------------------------------------------------------
 
 var TOP_TEN_KEY = "top-10";
-var HOUSE_RAIL_KEYS = ["popular", "top-rated", "new-releases", "trending"];
+var HOUSE_RAIL_KEYS = ["popular", "top-rated", "new-releases", "trending", "most-read", "classics"];
 var EXTENSION_PREFIX = "ext:";
 
 // A stable extension row key derived ONLY from the extension's stable id — never its

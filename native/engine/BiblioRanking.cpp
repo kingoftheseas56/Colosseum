@@ -190,6 +190,23 @@ QVector<BiblioWork> rankTrending(const QList<BiblioWork> &works,
     return orderByScore(scored);
 }
 
+// Most-Read / Classics (spec 2026-08-15): both shelves order by the work's
+// Open Library popularity signal, descending. The two catalogues differ only
+// in evidence source — Most-Read carries the daily trending index, Classics
+// the readinglog count — and both arrive in the same openLibraryPopularity
+// field, so they share this one scoring function. The raw first-publish year
+// NEVER orders Classics (Open Library year data is noisy; membership in the
+// catalogue was already decided by the provider's pre-1900 gate). A work with
+// no popularity evidence simply scores zero and still ranks at the tail.
+QVector<BiblioWork> rankByOpenLibraryPopularity(const QList<BiblioWork> &works)
+{
+    QVector<Scored> scored;
+    scored.reserve(works.size());
+    for (const BiblioWork &w : works)
+        scored.push_back({w, w.openLibraryPopularity});
+    return orderByScore(scored);
+}
+
 } // namespace
 
 QVector<BiblioWork> BiblioRanking::rank(const QString &catalogId,
@@ -201,5 +218,7 @@ QVector<BiblioWork> BiblioRanking::rank(const QString &catalogId,
     if (catalogId == QLatin1String("top-rated"))    return rankTopRated(works);
     if (catalogId == QLatin1String("new-releases")) return rankNewReleases(works, nowUtc);
     if (catalogId == QLatin1String("trending"))     return rankTrending(works, history);
+    if (catalogId == QLatin1String("most-read"))    return rankByOpenLibraryPopularity(works);
+    if (catalogId == QLatin1String("classics"))     return rankByOpenLibraryPopularity(works);
     return {}; // unknown shelf id
 }

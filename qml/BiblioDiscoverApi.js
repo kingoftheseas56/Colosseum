@@ -2,8 +2,9 @@
 //
 // The shell (DiscoverBrowser.qml) is WORLD-NEUTRAL: it speaks a small adapter contract
 // (types/catalogs/filters/defaultCatalog/resolvePin/fetchPage) and renders normalized cards.
-// This file IS the Biblio adapter — it owns the four house catalogue descriptors (Popular / Top
-// Rated / New Releases / Trending, backed by the native BiblioCatalog service), the controlled
+// This file IS the Biblio adapter — it owns the six house catalogue descriptors (Popular / Top
+// Rated / New Releases / Trending / Most Read / Classics — the last two Open Library-seeded per
+// the 2026-08-15 spec, backed by the native BiblioCatalog service), the controlled
 // filter shape (BiblioCatalog.filterGroups), normalization of native rows into the shell's card
 // shape (with `author`/`source` for Biblio's author-at-rest and source-on-reveal hooks), the
 // "From Your Extensions" book-catalogue seam riding the SAME Stremio-style extension transport
@@ -24,12 +25,15 @@
 var SOURCE = "biblio-discover-adapter";
 
 // --- catalogue descriptors ---
-// The four house catalogues BiblioCatalog computes, in native's fixed order (spec 2026-08-01).
+// The six house catalogues BiblioCatalog computes, in native's fixed order (spec 2026-08-01;
+// spec 2026-08-15 appends the two Open Library catalogues, most-read + classics).
 var BOOK_CATALOGS = [
     { key: "popular",      title: "Popular",      sourceKind: "builtin" },
     { key: "top-rated",    title: "Top Rated",    sourceKind: "builtin" },
     { key: "new-releases", title: "New Releases", sourceKind: "builtin" },
-    { key: "trending",     title: "Trending",     sourceKind: "builtin" }
+    { key: "trending",     title: "Trending",     sourceKind: "builtin" },
+    { key: "most-read",    title: "Most Read",    sourceKind: "builtin" },
+    { key: "classics",     title: "Classics",     sourceKind: "builtin" }
 ];
 var BUILTIN_SECTION = "Biblio";
 var BUILTIN_ATTRIBUTION = "Biblio built-in catalogue";

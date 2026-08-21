@@ -1,0 +1,68 @@
+{
+  "numFound": 2837448,
+  "start": 0,
+  "docs": [
+    {
+      "key": "/works/OL66554W",
+      "title": "Pride and Prejudice",
+      "author_name": ["Jane Austen"],
+      "author_key": ["OL21594A"],
+      "first_publish_year": 1813,
+      "cover_i": 14348537,
+      "edition_count": 1204,
+      "language": ["eng"],
+      "readinglog_count": 48000
+    },
+    {
+      "key": "/works/OL21177W",
+      "title": "Wuthering Heights",
+      "author_name": ["Emily Brontë"],
+      "author_key": ["OL43267A"],
+      "first_publish_year": 1846,
+      "cover_i": 12818862,
+      "edition_count": 988,
+      "language": ["eng"],
+      "readinglog_count": 31000
+    },
+    {
+      "key": "/works/OL627084W",
+      "title": "Lolita",
+      "author_name": ["Vladimir Nabokov"],
+      "author_key": ["OL17775A"],
+      "first_publish_year": 1777,
+      "cover_i": 12984540,
+      "edition_count": 402,
+      "language": ["eng", "rus"],
+      "readinglog_count": 29000
+    },
+    {
+      "key": "/works/OL1000001W",
+      "title": "Lord Jim",
+      "author_name": ["Joseph Conrad"],
+      "author_key": ["OL125335A"],
+      "first_publish_year": 1900,
+      "cover_i": 10000011,
+      "edition_count": 356,
+      "language": ["eng"]
+    },
+    {
+      "key": "/works/OL1000002W",
+      "title": "The Ambassadors",
+      "author_name": ["Henry James"],
+      "author_key": ["OL5699A"],
+      "cover_i": 10000022,
+      "edition_count": 210,
+      "language": ["eng"]
+    },
+    {
+      "key": "/works/OL1000003W",
+      "title": "The Travels of Sir John Mandeville",
+      "author_name": ["John Mandeville"],
+      "author_key": ["OL5000003A"],
+      "first_publish_year": 1392,
+      "cover_i": 10000033,
+      "edition_count": 94,
+      "language": ["enm"]
+    }
+  ]
+}

@@ -295,6 +295,85 @@ QList<BiblioSourceRecord> parseOpenLibrarySearch(const QByteArray &bytes, const 
     return out;
 }
 
+QList<BiblioSourceRecord> parseOpenLibraryTrending(const QByteArray &bytes, const QDateTime &observedAt)
+{
+    QList<BiblioSourceRecord> out;
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes);
+    if (!doc.isObject())
+        return out;
+    // The trending envelope is {query, works:[...]} — NOT search.json's `docs`.
+    const QJsonArray works = doc.object().value(QStringLiteral("works")).toArray();
+    const QDateTime observed = stampedNow(observedAt);
+
+    // Payload order IS the daily-reads ranking. The daily list does not carry
+    // per-work daily counts, so stamp a strictly decreasing index proxy into
+    // the popularity field — the rank survives canonicalization reordering and
+    // stays deterministic (spec 2026-08-15, "most-read").
+    double proxy = static_cast<double>(works.size());
+    for (const QJsonValue &v : works) {
+        const QJsonObject o = v.toObject();
+        const QString title = o.value(QStringLiteral("title")).toString();
+        const QString workKey = o.value(QStringLiteral("key")).toString();
+        if (title.isEmpty() && workKey.isEmpty())
+            continue; // no identity at all — drop
+
+        BiblioSourceRecord r;
+        r.source = QStringLiteral("openlibrary");
+        r.observedAt = observed;
+        r.workKey = workKey;
+        r.title = title;
+
+        const QJsonArray authors = o.value(QStringLiteral("author_name")).toArray();
+        if (!authors.isEmpty())
+            r.author = authors.first().toString();
+        for (const QJsonValue &ak : o.value(QStringLiteral("author_key")).toArray())
+            r.authorKeys << ak.toString();
+
+        r.normalizedTitle = foldTitleAuthor(r.title);
+        r.normalizedAuthor = foldTitleAuthor(r.author);
+        r.sourceId = workKey.isEmpty() ? (QStringLiteral("openlibrary:") + r.normalizedTitle + QLatin1Char('|') + r.normalizedAuthor)
+                                       : workKey;
+
+        r.firstPublishYear = o.value(QStringLiteral("first_publish_year")).toInt();
+        if (r.firstPublishYear > 0)
+            r.published = QDate(r.firstPublishYear, 1, 1);
+
+        const QJsonArray langs = o.value(QStringLiteral("language")).toArray();
+        if (!langs.isEmpty())
+            r.language = normalizeLanguage(langs.first().toString());
+        for (const QJsonValue &lv : langs)
+            if (normalizeLanguage(lv.toString()) == QLatin1String("en"))
+                r.englishReadable = true;
+
+        const int coverId = o.value(QStringLiteral("cover_i")).toInt();
+        if (coverId > 0)
+            r.artworkUrl = QStringLiteral("https://covers.openlibrary.org/b/id/%1-L.jpg").arg(coverId);
+
+        r.openLibraryPopularity = proxy; // order proxy — see comment above
+        proxy -= 1.0;
+
+        r.format = QStringLiteral("print");
+        out.append(r);
+    }
+    return out;
+}
+
+QList<BiblioSourceRecord> parseOpenLibraryClassics(const QByteArray &bytes, const QDateTime &observedAt)
+{
+    // Membership gate only (spec 2026-08-15): the payload is a readinglog-
+    // ordered search.json response, so parseOpenLibrarySearch already extracts
+    // every field in house form. Keep only works whose first-publication year
+    // is present and plausible: [1440 (printing press) .. 1899 (pre-1900)].
+    // A missing year excludes; a noisy-but-in-range year (Lolita "1777")
+    // admits — the year never orders, the payload order does.
+    QList<BiblioSourceRecord> out;
+    for (const BiblioSourceRecord &r : parseOpenLibrarySearch(bytes, observedAt)) {
+        if (r.firstPublishYear >= 1440 && r.firstPublishYear <= 1899)
+            out.append(r);
+    }
+    return out;
+}
+
 QUrl appleTopEbooksRssUrl(const QString &country, int limit, int genreId)
 {
     const int safeLimit = qBound(1, limit, 200);
@@ -327,6 +406,47 @@ QUrl openLibrarySearchUrl(const QString &title, const QString &author, int limit
     if (!author.isEmpty())
         q.addQueryItem(QStringLiteral("author"), author);
     q.addQueryItem(QStringLiteral("limit"), QString::number(qBound(1, limit, 100)));
+    url.setQuery(q);
+    return url;
+}
+
+QUrl openLibraryTrendingDailyUrl(int limit)
+{
+    QUrl url(QStringLiteral("https://openlibrary.org/trending/daily.json"));
+    QUrlQuery q;
+    q.addQueryItem(QStringLiteral("limit"), QString::number(qBound(1, limit, 100)));
+    url.setQuery(q);
+    return url;
+}
+
+QUrl openLibraryClassicsUrl(int limit)
+{
+    QUrl url(QStringLiteral("https://openlibrary.org/search.json"));
+    QUrlQuery q;
+    // Trap (probed live 2026-08-15): the year range rides inside `q` as a solr
+    // clause — as its own query param the endpoint returns HTTP 422.
+    // sort=readinglog makes payload order the classics ranking; the raw (noisy)
+    // year never ranks.
+    q.addQueryItem(QStringLiteral("q"), QStringLiteral("first_publish_year:[* TO 1899]"));
+    q.addQueryItem(QStringLiteral("sort"), QStringLiteral("readinglog"));
+    q.addQueryItem(QStringLiteral("limit"), QString::number(qBound(1, limit, 100)));
+    q.addQueryItem(QStringLiteral("fields"),
+                   QStringLiteral("key,title,author_name,author_key,first_publish_year,"
+                                  "cover_i,edition_count,language,readinglog_count"));
+    url.setQuery(q);
+    return url;
+}
+
+QUrl openLibrarySubjectUrl(const QString &facetKey, int limit)
+{
+    QUrl url(QStringLiteral("https://openlibrary.org/search.json"));
+    QUrlQuery q;
+    q.addQueryItem(QStringLiteral("subject"), facetKey);
+    q.addQueryItem(QStringLiteral("sort"), QStringLiteral("readinglog"));
+    q.addQueryItem(QStringLiteral("limit"), QString::number(qBound(1, limit, 100)));
+    q.addQueryItem(QStringLiteral("fields"),
+                   QStringLiteral("key,title,author_name,author_key,first_publish_year,"
+                                  "cover_i,edition_count,language,readinglog_count"));
     url.setQuery(q);
     return url;
 }

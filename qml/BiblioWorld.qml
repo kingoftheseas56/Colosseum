@@ -174,6 +174,10 @@ WorldPage {
     //    expression as Discover, not Theatre's Column-only shorthand. ──
     BiblioExplorePage {
         id: explorePage
+        // Automation identity (Lanista): the catalog-source smoke waits on this page's
+        // housesLoading flag and reads displayRows/houseRowsMap by name — the same
+        // addressability contract biblioDiscoverPage set (2026-08-15 OL-catalog arc).
+        objectName: "biblioExplorePage"
         visible: biblio.activeTab === "explore"
         width: parent.width
         height: visible ? Math.max(620, biblio.height - 200) : 0

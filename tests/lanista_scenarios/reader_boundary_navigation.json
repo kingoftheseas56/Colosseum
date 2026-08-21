@@ -1,0 +1,423 @@
+{
+  "name": "reader-boundary-navigation",
+  "comment": "UNCOMPILED / UNTESTED / UNEXECUTED / UNADOPTED / UNVERIFIED. Commission 2026-08-15, pinned source 57b69ea9b35fc2e04c51cbe1f888771541b87a0b. New TNK-15-adjacent reader navigation coverage on open-manga-v1. Home and End are real ComicReaderInput navigation commands and the fixture has exactly three pages, so comicReaderShell.readerPageIndex has deterministic boundary truth: 0 and 2. This is deliberately NOT labelled as filmstrip/grid/scrub coverage: the page thumbnail delegates are unnamed and Lanista cannot click arbitrary scrub coordinates. The replay leg returns Home then End again. AGENT-0 REVIEW FIX 2026-08-15: the End assertions originally demanded readerPageIndex==2 exactly. Ground-truthed against qml/comicreader/ComicReaderShell.qml: this fixture opens in paired_pages (Double Page), and goToPageIndex() snaps to the START of the containing unit in double_page mode (line 627, p=_unitBoundsForIndex(p-1)[0]+1), so End on a 3-page RTL chapter can legitimately report index 1 (the last two-page unit's start) rather than 2. The precedent journey_open_manga.json uses '<=' on this same property for exactly this reason. Relaxed to '>=1' — still proves End moved off the first page and re-settled, without going red on a healthy app. The runner does support >=/>/</!= (native/tools/lanista.cpp lines 183-196); the commission guide's 5-op list was under-inclusive.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "the journey session answers, drive gated on",
+      "expect": [
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "one visible window, isolated data root",
+      "expect": [
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the boot splash has left the screen",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the taskbar dock",
+      "payload": {
+        "target": "colosseumTaskbarHomeButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the dock's open-width animation has genuinely settled before Downloads is clicked",
+      "payload": {
+        "object": "taskbarDownloads",
+        "prop": "width",
+        "value": 46,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the Downloads page",
+      "payload": {
+        "target": "taskbarDownloads"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the seeded chapter's shelf card renders",
+      "payload": {
+        "object": "downloadsShelfCard_tankoban_manga:journey-manga-series-v1",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "expand the seeded series download ledger",
+      "payload": {
+        "target": "downloadsShelfCard_tankoban_manga:journey-manga-series-v1"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the seeded chapter's Read action renders",
+      "payload": {
+        "object": "downloadsReadAction_journey-manga-ch-1",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "read the seeded chapter",
+      "payload": {
+        "target": "downloadsReadAction_journey-manga-ch-1"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the production reader becomes visible",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "readerReady is true on the real rendered chapter",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "the reader is the expected disk-seeded chapter",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "readerPageCount",
+          "readerPageIndex",
+          "readerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "journey-manga-ch-1"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.readerPageIndex",
+          "op": "<=",
+          "value": "2"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "jump non-linearly to the first page with Home",
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the first-page unit is genuinely ready",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Home lands on the first page without changing source or page count",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerPageIndex",
+          "readerPageCount",
+          "readerSourceId",
+          "readerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.readerPageIndex",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "journey-manga-ch-1"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "jump non-linearly to the final page with End",
+      "payload": {
+        "key": "End"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the final-page unit is genuinely ready",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "End lands on the third and final page",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerPageIndex",
+          "readerPageCount",
+          "readerSourceId",
+          "readerReady"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "props.readerPageIndex",
+          "op": ">=",
+          "value": "1"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "journey-manga-ch-1"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "regression: jump back to the first page",
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "regression: first page re-settles",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "regression: Home still means page index zero",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerPageIndex",
+          "readerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.readerPageIndex",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "regression: jump to the final page again",
+      "payload": {
+        "key": "End"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "regression: final page re-settles",
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "regression: End still lands on the fixture's final paired unit",
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerPageIndex",
+          "readerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.readerPageIndex",
+          "op": ">=",
+          "value": "1"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

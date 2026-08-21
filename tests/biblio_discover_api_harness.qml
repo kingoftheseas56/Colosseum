@@ -92,9 +92,9 @@ Item {
         eq(types.length, 1, "adapter types: exactly one")
         eq(types[0].key, "book", "adapter types: book key")
 
-        // exactly FOUR built-ins, in fixed native order.
+        // exactly SIX built-ins, in fixed native order (spec 2026-08-15 appends most-read + classics).
         var cats = adapter.catalogs("book")
-        eq(cats.length, 4, "book catalogs: 4 built-ins (no extensions installed)")
+        eq(cats.length, 6, "book catalogs: 6 built-ins (no extensions installed)")
         eq(cats[0].key, "popular", "book catalogs: popular first")
         eq(cats[0].title, "Popular", "book catalogs: popular title")
         eq(cats[1].key, "top-rated", "book catalogs: top-rated second")
@@ -103,6 +103,10 @@ Item {
         eq(cats[2].title, "New Releases", "book catalogs: new-releases title")
         eq(cats[3].key, "trending", "book catalogs: trending fourth")
         eq(cats[3].title, "Trending", "book catalogs: trending title")
+        eq(cats[4].key, "most-read", "book catalogs: most-read fifth")
+        eq(cats[4].title, "Most Read", "book catalogs: most-read title")
+        eq(cats[5].key, "classics", "book catalogs: classics sixth")
+        eq(cats[5].title, "Classics", "book catalogs: classics title")
         for (var i = 0; i < cats.length; i++) {
             eq(cats[i].section, "Biblio", "built-in section is Biblio")
             eq(cats[i].attribution, "Biblio built-in catalogue", "built-in attribution")
@@ -156,12 +160,12 @@ Item {
         ]
         var extAdapter = Api.create(fakeBiblio, extensions, false)
         var extCats = extAdapter.catalogs("book")
-        eq(extCats.length, 5, "extension seam: 4 built-ins + exactly 1 legitimate extension catalogue")
-        eq(extCats[4].key, "https://bookhub.example/manifest.json|book|top", "extension key matches DiscoverApi's key format")
-        eq(extCats[4].title, "Top Books", "extension title preserved")
-        eq(extCats[4].sourceKind, "extension", "extension sourceKind")
-        eq(extCats[4].section, "From Your Extensions", "extension section is 'From Your Extensions'")
-        eq(extCats[4].attribution, "BookHub", "extension attribution is the manifest name")
+        eq(extCats.length, 7, "extension seam: 6 built-ins + exactly 1 legitimate extension catalogue")
+        eq(extCats[6].key, "https://bookhub.example/manifest.json|book|top", "extension key matches DiscoverApi's key format")
+        eq(extCats[6].title, "Top Books", "extension title preserved")
+        eq(extCats[6].sourceKind, "extension", "extension sourceKind")
+        eq(extCats[6].section, "From Your Extensions", "extension section is 'From Your Extensions'")
+        eq(extCats[6].attribution, "BookHub", "extension attribution is the manifest name")
         // none of the rejected entries leaked through under any section.
         for (var ci = 0; ci < extCats.length; ci++) {
             falsy(extCats[ci].attribution === "Downloader", "download-only well excluded")
@@ -189,7 +193,7 @@ Item {
         eq(stale.filterKey, "", "resolvePin stale filter: invalid filter key dropped")
 
         // missing-extension fallback: a pin naming a since-removed extension catalogue falls
-        // back to the Popular built-in (not "missing" — Biblio still has its 4 built-ins).
+        // back to the Popular built-in (not "missing" — Biblio still has its six built-ins).
         var staleCat = adapter.resolvePin({ type: "book", catalogId: "https://gone.example/manifest.json|book|old", filterGroup: "", filterKey: "" })
         falsy(staleCat.missing, "resolvePin stale catalogue: not missing (built-ins always exist)")
         eq(staleCat.type, "book", "resolvePin stale catalogue: type preserved")

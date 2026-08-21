@@ -101,6 +101,24 @@ QList<BiblioSourceRecord> parseAppleSearch(const QByteArray &bytes,
 QList<BiblioSourceRecord> parseOpenLibrarySearch(const QByteArray &bytes,
                                                  const QDateTime &observedAt = QDateTime());
 
+// Parse an Open Library trending/daily.json payload — worldwide daily reading
+// activity, the spec-2026-08-15 "most-read" catalogue. The envelope is
+// {query, works:[...]} (NOT search.json's `docs`) and the payload order IS the
+// daily-reads ranking, so the parser stamps a strictly decreasing popularity
+// proxy (payload index) that survives canonicalization reordering. Missing
+// fields are tolerated exactly like search.json.
+QList<BiblioSourceRecord> parseOpenLibraryTrending(const QByteArray &bytes,
+                                                   const QDateTime &observedAt = QDateTime());
+
+// Parse an Open Library classics search.json payload — the same `docs` envelope
+// as parseOpenLibrarySearch (reused verbatim), plus the classics membership
+// gate (spec 2026-08-15): keep only works with a first-publication year in
+// [1440, 1899]. OL's first_publish_year is noisy (it reports 1777 for Lolita),
+// so the year gates MEMBERSHIP only — ranking always follows the payload's
+// readinglog order, never the raw year.
+QList<BiblioSourceRecord> parseOpenLibraryClassics(const QByteArray &bytes,
+                                                   const QDateTime &observedAt = QDateTime());
+
 // ── Keyless request URL builders (no api_key/token/account ever) ──
 
 // Apple "top ebooks" chart RSS. genreId 0 => the global chart; a positive id
@@ -115,5 +133,20 @@ QUrl appleSearchUrl(const QString &term, const QString &media = QStringLiteral("
 // Open Library search.json URL for a title (and optional author).
 QUrl openLibrarySearchUrl(const QString &title, const QString &author = QString(),
                           int limit = 10);
+
+// Open Library trending/daily.json URL — worldwide daily reading activity (the
+// "most-read" catalogue seed, spec 2026-08-15). Response order is the ranking.
+QUrl openLibraryTrendingDailyUrl(int limit = 100);
+
+// Open Library classics search.json URL — first-publication before 1900,
+// readinglog-ordered. Trap (probed live 2026-08-15): the year range MUST ride
+// inside `q` as a solr clause; as its own query param the endpoint 422s.
+QUrl openLibraryClassicsUrl(int limit = 100);
+
+// Open Library subject-seeded search.json URL — breadth seeding for one
+// taxonomy facet key (spec 2026-08-15 seeding flip). `facetKey` is a
+// controlled BiblioTaxonomy key ("science-fiction", ...) used directly as the
+// OL subject; the caller owns which keys seed on a given day.
+QUrl openLibrarySubjectUrl(const QString &facetKey, int limit = 50);
 
 } // namespace BiblioProviders

@@ -1,0 +1,60 @@
+{
+  "numFound": 45211,
+  "start": 0,
+  "docs": [
+    {
+      "key": "/works/OL893415W",
+      "title": "Dune",
+      "author_name": ["Frank Herbert"],
+      "author_key": ["OL59087A"],
+      "first_publish_year": 1965,
+      "cover_i": 3409021,
+      "edition_count": 812,
+      "language": ["eng"],
+      "readinglog_count": 51000
+    },
+    {
+      "key": "/works/OL1168083W",
+      "title": "Foundation",
+      "author_name": ["Isaac Asimov"],
+      "author_key": ["OL34218A"],
+      "first_publish_year": 1951,
+      "cover_i": 3901002,
+      "edition_count": 455,
+      "language": ["eng"],
+      "readinglog_count": 33000
+    },
+    {
+      "key": "/works/OL1162219W",
+      "title": "Hyperion",
+      "author_name": ["Dan Simmons"],
+      "author_key": ["OL45673A"],
+      "first_publish_year": 1989,
+      "cover_i": 1122334,
+      "edition_count": 301,
+      "language": ["eng"],
+      "readinglog_count": 21000
+    },
+    {
+      "key": "/works/OL6955210W",
+      "title": "Project Hail Mary",
+      "author_name": ["Andy Weir"],
+      "author_key": ["OL6572333A"],
+      "first_publish_year": 2021,
+      "edition_count": 190,
+      "language": ["eng"],
+      "readinglog_count": 19000
+    },
+    {
+      "key": "/works/OL151317W",
+      "title": "The Left Hand of Darkness",
+      "author_name": ["Ursula K. Le Guin"],
+      "author_key": ["OL75211A",
+        "OL99999Z"],
+      "first_publish_year": 1969,
+      "edition_count": 388,
+      "language": ["eng"],
+      "readinglog_count": 17000
+    }
+  ]
+}

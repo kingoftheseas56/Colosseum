@@ -43,13 +43,15 @@ inline constexpr int kPageLimitMax = 100;
 // work — eight suffices for a seven-day delta (8 >= 7+1).
 inline constexpr int kHistoryRetention = 8;
 
-// The four allowlisted Biblio house catalogues (spec §4.2 / §7). Anything else
-// is rejected before it can reach SQL.
+// The six allowlisted Biblio house catalogues (spec §4.2 / §7; spec 2026-08-15
+// adds "most-read" and "classics"). Anything else is rejected before it can
+// reach SQL.
 const QSet<QString> &allowedCatalogs()
 {
     static const QSet<QString> s = {
         QStringLiteral("popular"), QStringLiteral("top-rated"),
-        QStringLiteral("new-releases"), QStringLiteral("trending")};
+        QStringLiteral("new-releases"), QStringLiteral("trending"),
+        QStringLiteral("most-read"), QStringLiteral("classics")};
     return s;
 }
 
@@ -169,8 +171,9 @@ bool BiblioCatalogStore::ensureSchema()
     if (!db.isOpen())
         return false;
 
-    // Seven tables (plan Task 3). snapshot_id scopes every data row so publish
-    // can stage a new snapshot, validate, and atomically flip the active id.
+    // The seven snapshot tables (plan Task 3). snapshot_id scopes every data
+    // row so publish can stage a new snapshot, validate, and atomically flip
+    // the active id.
     const QStringList ddl = {
         QStringLiteral(
             "create table if not exists sync_meta ("
@@ -248,6 +251,22 @@ bool BiblioCatalogStore::ensureSchema()
             "  captured_at text not null,"
             "  demand_score real not null,"
             "  primary key (canonical_id, captured_at))"),
+        // Lazy grid enrichment parking (plan 2026-08-15 Slice 4): raw
+        // apple-search bodies fetched on first grid view wait here to fold
+        // into the NEXT daily publish — never into the published snapshot, so
+        // this table sits OUTSIDE the snapshot_id scoping and the atomic
+        // active-snapshot swap entirely. `create table if not exists` means a
+        // database written before Slice 4 gains the table transparently on
+        // its next open. work_key is the enrichment candidate identity
+        // (normalizedTitle + '|' + normalizedAuthor); state is
+        // 'enriched' | 'pending' | 'unavailable'; last_attempt (local ISO
+        // date) gates the ≤1/day re-attempt for 'unavailable' rows.
+        QStringLiteral(
+            "create table if not exists biblio_pending_enrichment ("
+            "  work_key text primary key,"
+            "  body blob,"
+            "  state text not null,"
+            "  last_attempt text)"),
     };
 
     for (const QString &sql : ddl) {
@@ -800,45 +819,101 @@ QVariantList BiblioCatalogStore::filterGroups(bool includeExplicit) const
     if (!m_open)
         return out;
 
-    // The controlled axes/values come from the taxonomy (single source of truth).
-    // Publisher values are data-derived: advertise the curated set over the active
-    // snapshot (coverage-floored), so the filter UI never offers an empty axis.
-    for (const BiblioFilterGroup &g : BiblioTaxonomy::filterGroups()) {
-        QVariantMap gm;
-        gm.insert(QStringLiteral("axis"), g.axis);
-        gm.insert(QStringLiteral("label"), g.label);
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
 
+    // Resolve the active snapshot id once; with no published snapshot there is
+    // nothing honest to advertise (every axis would be empty).
+    QSqlQuery meta(db);
+    if (!meta.exec(QStringLiteral(
+            "select value from sync_meta where key='active_snapshot_id'"))
+        || !meta.next()) {
+        return out;
+    }
+    const qint64 snapshotId = meta.value(0).toLongLong();
+
+    // BIBLIO_DISCOVER_FILTERS_HONEST_ADVERTISE (2026-08-06): the controlled
+    // axes and their label/orderings come from the taxonomy (single source of
+    // truth for the vocabulary), but which facet VALUES are advertised is now
+    // data-derived from the active snapshot's work_facets table, the same way
+    // publisher values have always been data-derived from the works table.
+    //
+    // Why: the daily refresh's subject evidence is sparse. BiblioCatalog's
+    // genreFeeds() tags only a handful of Apple RSS charts (Sci-Fi, Mystery,
+    // Romance, Biography, Young Adult) with a facet hint; length/era/language
+    // are computed from real fields; theme/setting/period have NO evidence
+    // source today. Advertising the full static vocabulary therefore promised
+    // filters the data could not populate — every Themes/Settings/Period key,
+    // plus Fantasy/Thriller/Horror/Children/etc., returned "no books match".
+    //
+    // This narrows the ADVERTISEMENT only. The taxonomy vocabulary, the
+    // normalize() mapper, and the publish-time validation gate
+    // (controlledFacetPairs) are unchanged — they still know every key — so
+    // the moment a subject-evidence source lands (more Apple RSS genre feeds
+    // and/or a new keyword/subject source for theme/setting/period), the new
+    // keys populate work_facets and begin advertising here with no further
+    // code change. That re-expansion is tracked as a separate A-arc; this is
+    // the honest-now B-slice.
+    QSet<QString> populatedKeys;
+    {
+        QSqlQuery q(db);
+        q.prepare(QStringLiteral(
+            "select distinct axis, key from work_facets where snapshot_id = ?"));
+        q.addBindValue(snapshotId);
+        if (q.exec()) {
+            while (q.next()) {
+                populatedKeys.insert(q.value(0).toString() + QChar('/')
+                                     + q.value(1).toString());
+            }
+        }
+    }
+
+    for (const BiblioFilterGroup &g : BiblioTaxonomy::filterGroups()) {
         QVariantList facets;
+
         if (g.axis == QStringLiteral("publisher")) {
-            // Data-derived publisher values from the active snapshot.
-            QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
+            // Publisher values remain data-derived from the works table
+            // (coverage-floored), exactly as before.
             QSqlQuery q(db);
             q.prepare(QStringLiteral(
                 "select distinct publisher from works where publisher != ''"
                 " and snapshot_id = ? and (? = 1 or explicit = 0)"));
-            // Bind the active snapshot id.
-            QSqlQuery meta(db);
-            if (meta.exec(QStringLiteral(
-                    "select value from sync_meta where key='active_snapshot_id'"))
-                && meta.next()) {
-                q.addBindValue(meta.value(0).toLongLong());
-                q.addBindValue(includeExplicit ? 1 : 0);
-                if (q.exec()) {
-                    while (q.next()) {
-                        const QString pub = q.value(0).toString();
-                        facets.append(QVariantMap{
-                            {QStringLiteral("key"), pub},
-                            {QStringLiteral("label"), pub}});
-                    }
+            q.addBindValue(snapshotId);
+            q.addBindValue(includeExplicit ? 1 : 0);
+            if (q.exec()) {
+                while (q.next()) {
+                    const QString pub = q.value(0).toString();
+                    facets.append(QVariantMap{
+                        {QStringLiteral("key"), pub},
+                        {QStringLiteral("label"), pub}});
                 }
             }
         } else {
+            // For every other axis: emit only the taxonomy facets whose key is
+            // present in this snapshot's work_facets. Iterating the taxonomy's
+            // curated facets (not the DB) preserves the human label and the
+            // curated ordering — the UI still shows "Science Fiction", in the
+            // taxonomy's order, never the database's.
             for (const BiblioFacet &f : g.facets) {
-                facets.append(QVariantMap{
-                    {QStringLiteral("key"), f.key},
-                    {QStringLiteral("label"), f.label}});
+                if (populatedKeys.contains(g.axis + QChar('/') + f.key)) {
+                    facets.append(QVariantMap{
+                        {QStringLiteral("key"), f.key},
+                        {QStringLiteral("label"), f.label}});
+                }
             }
         }
+
+        // Omit an axis entirely when it has no populated values. The bug was a
+        // filter row offering choices that return empty; an empty Themes row is
+        // the same lie one zoom level up. (Publisher can still emit empty today
+        // — that is a pre-existing minor inconsistency this slice does not
+        // widen, but it is uncommon: publisher clears its coverage floor
+        // whenever the snapshot has real publisher data.)
+        if (facets.isEmpty())
+            continue;
+
+        QVariantMap gm;
+        gm.insert(QStringLiteral("axis"), g.axis);
+        gm.insert(QStringLiteral("label"), g.label);
         gm.insert(QStringLiteral("facets"), facets);
         out.append(gm);
     }
@@ -935,4 +1010,87 @@ QVariantList BiblioCatalogStore::rankingHistoryFor(const QString &canonicalId) c
             {QStringLiteral("demandScore"), q.value(2)}});
     }
     return out;
+}
+
+// ── Lazy grid enrichment parking (plan 2026-08-15 Slice 4) ───────────────────
+
+bool BiblioCatalogStore::upsertPendingEnrichment(const QString &workKey,
+                                                 const QByteArray &body,
+                                                 const QString &state,
+                                                 const QString &lastAttempt)
+{
+    if (!m_open) {
+        m_lastWarning = QStringLiteral("upsertPendingEnrichment: store is not open");
+        return false;
+    }
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
+    QSqlQuery q(db);
+    if (!q.prepare(QStringLiteral(
+            "insert into biblio_pending_enrichment(work_key, body, state, last_attempt)"
+            " values(?,?,?,?)"
+            " on conflict(work_key) do update set"
+            "  body=excluded.body, state=excluded.state,"
+            "  last_attempt=excluded.last_attempt"))) {
+        m_lastWarning = QStringLiteral("upsertPendingEnrichment: prepare failed: ")
+            + q.lastError().text();
+        return false;
+    }
+    q.addBindValue(bindStr(workKey));
+    q.addBindValue(body);
+    q.addBindValue(bindStr(state));
+    q.addBindValue(bindStr(lastAttempt));
+    if (!q.exec()) {
+        m_lastWarning = QStringLiteral("upsertPendingEnrichment: exec failed: ")
+            + q.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+QHash<QString, BiblioPendingEnrichmentRow> BiblioCatalogStore::pendingEnrichmentMap() const
+{
+    QHash<QString, BiblioPendingEnrichmentRow> out;
+    if (!m_open)
+        return out;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
+    QSqlQuery q(db);
+    if (!q.exec(QStringLiteral(
+            "select work_key, body, state, last_attempt from biblio_pending_enrichment")))
+        return out;
+    while (q.next()) {
+        BiblioPendingEnrichmentRow row;
+        row.workKey = q.value(0).toString();
+        row.body = q.value(1).toByteArray();
+        row.state = q.value(2).toString();
+        row.lastAttempt = q.value(3).toString();
+        out.insert(row.workKey, row);
+    }
+    return out;
+}
+
+bool BiblioCatalogStore::clearFoldedPending(const QStringList &workKeys)
+{
+    if (!m_open) {
+        m_lastWarning = QStringLiteral("clearFoldedPending: store is not open");
+        return false;
+    }
+    if (workKeys.isEmpty())
+        return true;
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
+    QSqlQuery q(db);
+    if (!q.prepare(QStringLiteral(
+            "delete from biblio_pending_enrichment where work_key = ?"))) {
+        m_lastWarning = QStringLiteral("clearFoldedPending: prepare failed: ")
+            + q.lastError().text();
+        return false;
+    }
+    for (const QString &key : workKeys) {
+        q.addBindValue(bindStr(key)); // BOUND — caller text never reaches SQL
+        if (!q.exec()) {
+            m_lastWarning = QStringLiteral("clearFoldedPending: exec failed for '%1': ")
+                    .arg(key) + q.lastError().text();
+            return false;
+        }
+    }
+    return true;
 }

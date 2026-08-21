@@ -115,6 +115,20 @@ Item {
     property alias keyboardMode: browser.keyboardMode
     property alias catalogMenuOpen: browser.catalogMenuOpen
     readonly property alias catalogMenuModel: browser.catalogMenuModel
+    // Lanista automation read (2026-08-15 OL-catalog smoke): qml-get serializes
+    // QVariant conversions only — the var-property menu model reads back as
+    // null — so the picker exposes a plain-type key rollup instead (mirrors
+    // the explore page's railKeysCsv and Library's rowCount contracts).
+    readonly property string catalogMenuKeysCsv: {
+        var _ = catalogMenuModel; // re-evaluate whenever the menu model does
+        var keys = [];
+        for (var i = 0; i < catalogMenuModel.length; i++) {
+            var e = catalogMenuModel[i];
+            if (e && e.key !== undefined && e.key !== "")
+                keys.push(e.key);
+        }
+        return keys.join(",");
+    }
     property alias items: browser.items
     property alias loading: browser.loading
     // Automation seam (Lanista pilot): "bundled" means the one-book built-in fallback wall;
