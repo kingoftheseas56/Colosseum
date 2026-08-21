@@ -1,0 +1,23 @@
+{
+  "name": "arc12_theatre_anime",
+  "comment": "Production Theatre Anime featured snap coverage.",
+  "steps": [
+    { "cmd": "ping", "expect": [{ "path": "gates.drive", "op": "==", "value": "true" }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "__runner_local_presentation__", "presentation_wait_ms": 1500, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "modePill_Tankoban", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "modePill_Theatre" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "theatreWorld", "prop": "visible", "value": true, "timeout_ms": 15000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "theatreDiscoverPage", "prop": "loading", "value": false, "timeout_ms": 30000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-scroll", "payload": { "target": "theatreWorldScroll", "dy": -650 }, "expect": [{ "path": "scrolled", "op": "==", "value": "theatreWorldScroll" }] },
+    { "cmd": "__runner_local_presentation__", "presentation_wait_ms": 1500, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "ui-click", "payload": { "target": "theatreTab_anime" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "theatreTab_anime", "prop": "activeState", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "theatreCatalogPage", "prop": "loading", "value": false, "timeout_ms": 30000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "capture", "capture": { "action": "start", "name": "arc12-theatre-anime-featured" }, "cmd": "__runner_local_presentation__", "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "__runner_local_presentation__", "presentation_hold_ms": 2200, "expect": [{ "path": "type", "op": "==", "value": "reply" }] },
+    { "cmd": "capture", "capture": { "action": "stop" }, "cmd": "__runner_local_presentation__", "expect": [{ "path": "type", "op": "==", "value": "reply" }] }
+  ]
+}

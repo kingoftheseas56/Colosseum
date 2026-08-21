@@ -5316,6 +5316,7 @@ Item {
                         onClicked: root.requestUserSeekStep(-root.seekBackSeconds)
                     }
                     RoundButton {
+                        objectName: "playerPlayPauseButton"
                         size: tight ? 46 : 48
                         icon: mpv.pause ? "play" : "pause"
                         hero: true

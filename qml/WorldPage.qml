@@ -79,12 +79,17 @@ Item {
     // ---- the widget board (scrolls vertically) ----
     Flickable {
         id: page
+        // Automation identity (Lanista): the production world board is the one vertical
+        // scroll owner. World-qualified naming keeps Theatre/Biblio/Tankoban journeys
+        // addressable without introducing a second scroller or a presentation shell.
+        objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
         y: 96
         height: world.height - 96
         contentWidth: width
         contentHeight: board.implicitHeight + 50
         clip: true
+        pixelAligned: false
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }

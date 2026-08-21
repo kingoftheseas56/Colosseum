@@ -42,6 +42,7 @@
 #include <QUuid>
 #include <iostream>
 
+#include "tools/LanistaCapture.h"
 #include "tools/LanistaHash.h"
 #include "tools/LanistaLayoutVerdict.h"
 
@@ -214,6 +215,7 @@ struct SessionSpec {
     QString qml = QStringLiteral("qml/Main.qml");
     QString tag;                 // COLOSSEUM_APPDATA_TAG value; defaults to the session id
     QString seedDir;             // optional fixture tree copied into the AppData root pre-launch
+    QStringList appArgs;         // optional arguments appended after the QML path
     bool drive = false;          // COLOSSEUM_LANISTA_DRIVE=1
     int readyMs = 30000;         // ping-until-ready deadline
 };
@@ -322,7 +324,9 @@ static void startSession(Session& s)
     s.proc.setStandardOutputFile(s.dir + QStringLiteral("/stdout.log"));
     s.proc.setStandardErrorFile(s.dir + QStringLiteral("/stderr.log"));
     s.proc.setProgram(s.spec.exe);
-    s.proc.setArguments({s.spec.qml});
+    QStringList childArgs{s.spec.qml};
+    childArgs.append(s.spec.appArgs);
+    s.proc.setArguments(childArgs);
 
     const QString launchedAt = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
     s.proc.start();
@@ -453,7 +457,8 @@ struct ScenarioRun {
 // default so gates stay terse.
 static bool g_verbose = false;
 
-static ScenarioRun runScenario(const QString& file, bool keepGoing)
+static ScenarioRun runScenario(const QString& file, bool keepGoing,
+                               lanista::CaptureController* capture = nullptr)
 {
     ScenarioRun out;
 
@@ -495,8 +500,41 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing)
         StepResult res{label, true, {}, {}};
         bool infraStop = false;
 
+        // Presentation capture steps are runner-local. They never cross the Lanista pipe.
+        if (step.contains(QStringLiteral("capture"))) {
+            if (!capture) {
+                res.pass = false;
+                res.detail = QStringLiteral("capture steps require `lanista session run`");
+            } else {
+                const QJsonObject cap = step.value(QStringLiteral("capture")).toObject();
+                const QString action = cap.value(QStringLiteral("action")).toString();
+                if (action == QStringLiteral("start"))
+                    res.pass = capture->start(cap.value(QStringLiteral("name")).toString(), &res.detail);
+                else if (action == QStringLiteral("stop"))
+                    res.pass = capture->stop(&res.detail);
+                else {
+                    res.pass = false;
+                    res.detail = QStringLiteral("capture action must be start or stop");
+                }
+            }
+        } else if (step.contains(QStringLiteral("presentation_hold_ms"))) {
+            const int holdMs = step.value(QStringLiteral("presentation_hold_ms")).toInt(-1);
+            if (!capture || !capture->isActive()) {
+                res.pass = false;
+                res.detail = QStringLiteral("presentation hold requires an active capture");
+            } else {
+                res.pass = capture->hold(holdMs, &res.detail);
+            }        } else if (step.contains(QStringLiteral("presentation_wait_ms"))) {
+            const int waitMs = step.value(QStringLiteral("presentation_wait_ms")).toInt(-1);
+            if (waitMs < 0 || waitMs > 20000) {
+                res.pass = false;
+                res.detail = QStringLiteral("presentation_wait_ms must be between 0 and 20000");
+            } else {
+                QThread::msleep(unsigned(waitMs));
+                res.detail = QStringLiteral("waited %1 ms off-camera").arg(waitMs);
+            }
         // expect_visual step: golden compare, no command needed
-        if (step.contains(QStringLiteral("expect_visual"))) {
+        } else if (step.contains(QStringLiteral("expect_visual"))) {
             const QJsonObject ev = step.value(QStringLiteral("expect_visual")).toObject();
             const QString target = ev.value(QStringLiteral("target")).toString();
             const QString golden = goldenDir() + QLatin1Char('/')
@@ -817,7 +855,38 @@ int main(int argc, char** argv)
                   << "\n  appData=" << s.appDataRoot.toStdString()
                   << "\n  cache=" << s.cacheRoot.toStdString() << "\n";
 
-        const ScenarioRun run = runScenario(scenario, keep);
+        int sceneGrabSeq = 910000;
+        lanista::CaptureController::FrameGrabber sceneGrabber = [&sceneGrabSeq](QString* why) -> QImage {
+            const QJsonObject grab{{QStringLiteral("target"), QStringLiteral("window")},
+                                   {QStringLiteral("format"), QStringLiteral("bmp")},
+                                   {QStringLiteral("timeoutMs"), 4000}};
+            const QJsonObject payload{{QStringLiteral("grab"), grab}};
+            const QJsonObject reply = call({{QStringLiteral("cmd"), QStringLiteral("get-state")},
+                                            {QStringLiteral("seq"), ++sceneGrabSeq},
+                                            {QStringLiteral("payload"), payload}}, 7000);
+            if (reply.value(QStringLiteral("type")).toString() != QStringLiteral("reply")) {
+                if (why) *why = reply.value(QStringLiteral("code")).toString()
+                                + QStringLiteral(": ")
+                                + reply.value(QStringLiteral("message")).toString();
+                return {};
+            }
+            const QString path = reply.value(QStringLiteral("grabPath")).toString();
+            QImage image(path);
+            QFile::remove(path);
+            if (image.isNull() && why)
+                *why = QStringLiteral("Lanista scene grab was unreadable: ") + path;
+            return image;
+        };
+        lanista::CaptureController capture(QStringLiteral("artifacts/reddit-captures"),
+                                            std::move(sceneGrabber));
+        const ScenarioRun run = runScenario(scenario, keep, &capture);
+        if (capture.isActive()) capture.abort();
+        if (!capture.artifacts().isEmpty()) {
+            QJsonArray assets;
+            for (const QString& path : capture.artifacts()) assets.append(path);
+            s.manifest.insert(QStringLiteral("presentationCaptures"), assets);
+            s.writeManifest();
+        }
         int failed = 0;
         for (const auto& r : run.steps) if (!r.pass) ++failed;
 

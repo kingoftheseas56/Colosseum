@@ -257,6 +257,7 @@ Item {
 
     Flickable {
         id: page
+        objectName: "extensionsPageScroll"
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight + 150

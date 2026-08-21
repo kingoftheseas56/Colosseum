@@ -7,6 +7,7 @@ import "WallpaperApi.js" as WallpaperApi
 
 Item {
     id: root
+    objectName: "wallpaperSearch"
 
     Theme { id: theme }
 
@@ -175,6 +176,7 @@ Item {
                 }
 
                 Text {
+                    objectName: "wallpaperSearchClose"
                     text: "x"
                     color: closeMa.containsMouse ? "#ffffff" : "#aaa7a0"
                     font.pixelSize: 20
@@ -294,6 +296,7 @@ Item {
             //      drives all the vertical scrolling. ----
             Flickable {
                 id: bodyFlick
+                objectName: "wallpaperSearchBody"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
@@ -313,6 +316,9 @@ Item {
                 Rectangle {
                     id: nativeTile
                     required property var modelData
+                    objectName: "wallpaperPick_"
+                                + String(nativeTile.modelData.source_id || nativeTile.modelData.title)
+                                  .replace(/[^A-Za-z0-9_]/g, "_")
                     width: 144
                     height: 92
                     radius: 8
@@ -676,6 +682,34 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // Lanista automation layer: the rendered apply buttons above remain the production
+    // controls. These transparent hit targets keep the two final actions addressable
+    // without changing the picker layout or its signal path.
+    Item {
+        objectName: "wallpaperApply_all"
+        visible: !!(root.selectedPick && root.selectedPick.image_url)
+        z: 60
+        x: root.width - 360 - 52 + 16
+        y: root.height - 142 - 52 + 72
+        width: 150; height: 40
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.applyRequested("all", root.targetWorld, root.selectedPick)
+        }
+    }
+    Item {
+        objectName: "wallpaperApply_world"
+        visible: !!(root.selectedPick && root.selectedPick.image_url)
+        z: 60
+        x: root.width - 360 - 52 + 176
+        y: root.height - 142 - 52 + 72
+        width: 150; height: 40
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.applyRequested("world", root.targetWorld, root.selectedPick)
         }
     }
 }

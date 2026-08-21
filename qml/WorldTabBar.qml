@@ -11,6 +11,13 @@ Item {
     required property Item backdrop
     property var tabModel: []            // [{ key, label }, …]
     property string currentTab: ""
+    // Stem for each pill's objectName: "<tabPrefix>_<key>". Defaults to the historical
+    // "worldTab" so existing consumers (Tankoban) are unchanged; a world with a tab key
+    // another world also uses (e.g. both Tankoban and Biblio have a "library" tab) MUST
+    // set its own prefix so resolveTarget's DFS objectName lookup can't hit the wrong
+    // world's hidden, pre-warmed pill first (colosseum pre-builds other worlds on a
+    // warming timer, and findItem walks them all regardless of visibility).
+    property string tabPrefix: "worldTab"
     signal tabRequested(string tab)
 
     width: parent ? parent.width : 900
@@ -38,6 +45,13 @@ Item {
                 delegate: Rectangle {
                     id: pill
                     required property var modelData
+                    // Per-tab stable identity for Lanista/harness addressing (additive — a name
+                    // changes no behavior). The stem is the owning world's tabPrefix so two worlds
+                    // that share a key (e.g. "library") can't collide under resolveTarget's DFS
+                    // lookup — a hidden pre-warmed world's pill would otherwise shadow the active
+                    // one (observed: Tankoban's worldTab_library ate Biblio's click 2026-08-06).
+                    objectName: tabs.tabPrefix + "_" + pill.modelData.key
+                    readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
                     width: (parent.width - 6 * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
                     height: parent.height

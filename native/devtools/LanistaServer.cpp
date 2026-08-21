@@ -1506,11 +1506,18 @@ void LanistaServer::attachGrab(const QJsonObject& payload, QJsonObject body, Rep
 
     const QJsonObject grabObj = payload.value(QStringLiteral("grab")).toObject();
     const QString target = grabObj.value(QStringLiteral("target")).toString();
+    // Presentation recording asks the window path for BMP: it avoids spending most of
+    // the hold interval PNG-compressing transient frames. Ordinary evidence grabs remain
+    // PNG, and item grabs deliberately keep their existing PNG contract.
+    const bool rawWindowFrame = target == QStringLiteral("window")
+        && grabObj.value(QStringLiteral("format")).toString().compare(
+               QStringLiteral("bmp"), Qt::CaseInsensitive) == 0;
     // Stamped now, not at save time: it names the instant the body describes,
     // and for an async item grab those are two different turns.
     const QString stamp = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
-    const QString file = QStringLiteral("/seq%1-%2.png")
-                             .arg(reply.seq()).arg(++m_grabCounter);
+    const QString file = QStringLiteral("/seq%1-%2.%3")
+                             .arg(reply.seq()).arg(++m_grabCounter)
+                             .arg(rawWindowFrame ? QStringLiteral("bmp") : QStringLiteral("png"));
 
     if (target.isEmpty()) {
         reply.fail("GRAB_TARGET_NOT_FOUND",

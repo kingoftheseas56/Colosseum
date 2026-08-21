@@ -162,6 +162,14 @@ Column {
             }
 
             CataloguePosterCard {
+                // Automation identity (Lanista): theatre catalogue cards keep the
+                // provider identity, so a production capture can open a real title
+                // without a presentation-only card shell.
+                objectName: (cell.modelData && (cell.modelData.id || cell.modelData.title))
+                            ? "theatreCatalogCard_"
+                              + String(cell.modelData.id || cell.modelData.title)
+                                .replace(/[^A-Za-z0-9_]/g, "_")
+                            : ""
                 width: rail.posterWidth
                 height: list.height
                 visualProfile: rail.visualProfile

@@ -14,6 +14,7 @@ import "VaultApi.js" as VaultApi
 
 WorldPage {
     id: theatre
+    objectName: "theatreWorld"
     medium: "Theatre"
 
     // Theatre carries the full tile object (Cinemeta id + type) up to Main for detail routing.
@@ -211,6 +212,7 @@ WorldPage {
 
     DiscoverPage {
         id: discoverPage
+        objectName: "theatreDiscoverPage"
         visible: theatre.activeTab === "discover"
         width: parent.width
         height: visible ? Math.max(620, theatre.height - 200) : 0
@@ -222,6 +224,7 @@ WorldPage {
 
     TheatreCatalogPage {
         id: theatreCatalog
+        objectName: "theatreCatalogPage"
         visible: theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime"
         height: visible ? implicitHeight : 0
         pageKey: (theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime")

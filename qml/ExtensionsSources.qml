@@ -242,6 +242,7 @@ Item {
                     height: 52
                     Text {
                         id: worldName
+                        objectName: "extensionSourceSection_" + section.modelData.key
                         anchors.left: parent.left
                         anchors.bottom: parent.bottom
                         anchors.bottomMargin: 12

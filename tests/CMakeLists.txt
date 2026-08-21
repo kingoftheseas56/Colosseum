@@ -127,6 +127,23 @@ set_tests_properties(colosseum.qttest.layout_verdict PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Lanista presentation capture contract: pure command construction for the
+# runner-local FFmpeg recorder used by deterministic Reddit/demo journeys.
+add_executable(tst_capture_runner auto/lanista/tst_capture_runner.cpp)
+target_include_directories(tst_capture_runner PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_capture_runner PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+set_target_properties(tst_capture_runner PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_capture_runner POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.capture_runner COMMAND tst_capture_runner)
+set_tests_properties(colosseum.qttest.capture_runner PROPERTIES
+    LABELS "unit;qttest;lanista"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
 # activeVolumeJobs() plus failed(id, reason), so the test drives the real
 # LocalDownloads retention path without constructing the network/torrent stack.

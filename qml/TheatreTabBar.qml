@@ -6,6 +6,7 @@ pragma ComponentBehavior: Bound
 
 Item {
     id: tabs
+    objectName: "theatreTabBar"
 
     required property Item backdrop
     property string currentTab: "discover"
@@ -71,6 +72,55 @@ Item {
 
                     Behavior on color { ColorAnimation { duration: 140 } }
                 }
+            }
+
+        }
+
+        // Lanista automation layer: the rendered Repeater above remains the production
+        // visual tree. These transparent, same-geometry hit targets keep each tab
+        // addressable when Repeater delegates are not exposed consistently by the
+        // structural walker, and forward to the same signal as the visible pills.
+        Row {
+            id: automationPills
+            anchors.fill: parent
+            anchors.margins: 6
+            spacing: 6
+            z: 100
+
+            Item {
+                objectName: "theatreTab_discover"
+                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                height: parent.height
+                readonly property bool activeState: tabs.currentTab === "discover"
+                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("discover") }
+            }
+            Item {
+                objectName: "theatreTab_movies"
+                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                height: parent.height
+                readonly property bool activeState: tabs.currentTab === "movies"
+                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("movies") }
+            }
+            Item {
+                objectName: "theatreTab_shows"
+                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                height: parent.height
+                readonly property bool activeState: tabs.currentTab === "shows"
+                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("shows") }
+            }
+            Item {
+                objectName: "theatreTab_anime"
+                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                height: parent.height
+                readonly property bool activeState: tabs.currentTab === "anime"
+                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("anime") }
+            }
+            Item {
+                objectName: "theatreTab_library"
+                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                height: parent.height
+                readonly property bool activeState: tabs.currentTab === "library"
+                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("library") }
             }
         }
     }
