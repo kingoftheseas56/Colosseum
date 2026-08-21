@@ -1177,6 +1177,31 @@ Window {
         // let the player fetch online subtitles for this exact title/episode.
         playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates || [], playbackContext || ({}))
     }
+
+    function openWatchPartyRoomSource() {
+        if (typeof WatchPartyUi === "undefined" || !WatchPartyUi.inRoom)
+            return false
+        var source = WatchPartyUi.roomSource || ({})
+        if (String(source.kind || "") !== "torrent")
+            return false
+        var hash = String(source.infoHash || "").toLowerCase()
+        var fileIdx = Number(source.fileIdx || 0)
+        if (hash.length !== 40 || !isFinite(fileIdx) || fileIdx < 0 || Math.floor(fileIdx) !== fileIdx)
+            return false
+        if (playerLayer.active && playerLayer.item
+                && playerLayer.item.watchPartySourceEligible
+                && playerLayer.item.watchPartySourceMatchesRoom) {
+            playerLayer.item.syncWatchPartyPlayerObservation()
+            return true
+        }
+        if (!playerLayer.active) playerLayer.active = true
+        if (!playerLayer.item) return false
+        win.playerOpen = true
+        var candidate = { "infoHash": hash, "fileIdx": fileIdx }
+        playerLayer.item.playTorrent(hash, fileIdx, "Watch Party", "", "", "",
+                                    [candidate], { "watchPartyJoin": true })
+        return true
+    }
     function closePlayer() {
         if (playerLayer.item) playerLayer.item.stop()
         win.playerOpen = false
@@ -1870,6 +1895,7 @@ Window {
     // ---- pinned top bar is above; everything below SCROLLS (vertical wheel/drag) ----
     Flickable {
         id: page
+        objectName: "homePageFlickable"
         z: 0
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         anchors.left: parent.left; anchors.right: parent.right
@@ -2098,7 +2124,12 @@ Window {
                 onClicked: win.openWorld("Biblio")
                 onGenrePicked: (name) => { win.openWorld("Biblio"); win.openBiblioGenre(name) }
             }
-
+            VaultHomeWidget {
+                backdrop: wall
+                track: page.contentY
+                width: parent.width
+                onClicked: win.openVaultPage()
+            }
             Item { width: 1; height: 16 }   // bottom breathing room
         }
     }
@@ -3045,6 +3076,15 @@ Window {
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
     // It joins room membership only; playback readiness remains false until Player 1
     // positively loads the authoritative room source.
+
+    Connections {
+        target: typeof WatchPartyUi !== "undefined" ? WatchPartyUi : null
+        function onRoomActivated(roomId) {
+            void roomId
+            win.openWatchPartyRoomSource()
+        }
+    }
+
     WatchPartyJoinSheet {
         id: watchPartyJoinSheet
         controller: typeof WatchPartyUi !== "undefined" ? WatchPartyUi : null

@@ -1,6 +1,7 @@
 #include "watchparty/WatchPartyUiController.h"
 
 #include "watchparty/WebSocketWatchPartyTransport.h"
+#include "watchparty/WatchPartySource.h"
 
 #include <QDateTime>
 #include <QMetaObject>
@@ -333,7 +334,8 @@ bool UiController::busy() const
 
 bool UiController::canInvite() const
 {
-    return m_inRoom && m_localIsHost && signedIn() && !m_inviteBusy;
+    return m_inRoom && m_localIsHost && signedIn() && !m_inviteBusy
+        && m_accountBridge && m_accountBridge->exactUsernameInviteAvailable();
 }
 
 bool UiController::canToggleControlMode() const
@@ -346,7 +348,7 @@ bool UiController::canEnd() const
     return m_inRoom && m_localIsHost;
 }
 
-bool UiController::startParty(const QVariantMap& sourceInfo)
+bool UiController::startParty(const QVariantMap& sourceCandidate)
 {
     clearFeedback();
 
@@ -369,8 +371,9 @@ bool UiController::startParty(const QVariantMap& sourceInfo)
         return false;
     }
 
-    SourceDescriptor source;
-    if (!sourceDescriptorFromInspection(sourceInfo, &source)) {
+    const SourceInspection inspection =
+        SourceInspector::inspectCandidate(sourceCandidate);
+    if (!inspection.eligible()) {
         setError(
             QStringLiteral("unsupportedSource"),
             QStringLiteral(
@@ -378,7 +381,9 @@ bool UiController::startParty(const QVariantMap& sourceInfo)
         return false;
     }
 
-    return beginPendingAction(PendingAction::Create, source);
+    return beginPendingAction(
+        PendingAction::Create,
+        inspection.descriptor.normalized());
 }
 
 bool UiController::joinRoom(const QString& requestedRoomId,
@@ -1129,53 +1134,6 @@ void UiController::resetPendingAction()
     m_pendingRoomId.clear();
     m_pendingGuestDisplayName.clear();
     Q_EMIT stateChanged();
-}
-
-bool UiController::sourceDescriptorFromInspection(
-    const QVariantMap& sourceInfo,
-    SourceDescriptor* descriptor)
-{
-    if (!descriptor
-        || !sourceInfo.value(QStringLiteral("eligible")).toBool()) {
-        return false;
-    }
-
-    const QVariantMap source =
-        sourceInfo.value(QStringLiteral("descriptor")).toMap();
-    if (source.isEmpty()
-        || source.contains(QStringLiteral("url"))
-        || source.contains(QStringLiteral("headers"))
-        || source.contains(QStringLiteral("cookie"))
-        || source.contains(QStringLiteral("token"))
-        || source.contains(QStringLiteral("authorization"))) {
-        return false;
-    }
-
-    const QString kindName =
-        source.value(QStringLiteral("kind")).toString();
-    SourceDescriptor parsed;
-    if (kindName == QStringLiteral("torrent")) {
-        bool fileIdxOk = false;
-        const int fileIdx =
-            source.value(QStringLiteral("fileIdx")).toInt(&fileIdxOk);
-        if (!fileIdxOk)
-            return false;
-        parsed = SourceDescriptor::torrent(
-            source.value(QStringLiteral("infoHash")).toString(),
-            fileIdx);
-    } else if (kindName == QStringLiteral("debrid")) {
-        parsed = SourceDescriptor::debrid(
-            source.value(QStringLiteral("providerId")).toString(),
-            source.value(QStringLiteral("providerSourceId")).toString());
-    } else {
-        return false;
-    }
-
-    if (!parsed.isValid())
-        return false;
-
-    *descriptor = parsed.normalized();
-    return true;
 }
 
 QVariantMap UiController::sourceDescriptorToVariant(

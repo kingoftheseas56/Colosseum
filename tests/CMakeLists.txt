@@ -343,8 +343,8 @@ set_tests_properties(colosseum.qttest.tankoban_catalog PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
-# -- Tankoban chapter migration (catalogue-independence Slice 5, 2026-08-20) --
-# TankobanChapterMigration -- the one-time WC-era chapter purge: chapter tree
+# ── Tankoban chapter migration (catalogue-independence Slice 5, 2026-08-20) ──
+# TankobanChapterMigration — the one-time WC-era chapter purge: chapter tree
 # deleted, manga-volumes/ intact, kind:"manga" progress purged, kind:"tankoban"/
 # "comic" intact, idempotent second run, marker written. QTemporaryDir fixture
 # (both the chapter tree and a ProgressStore backed by a temp ini), same
@@ -2030,7 +2030,9 @@ add_executable(tst_watchparty_source
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.cpp"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyProtocol.h"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.h")
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyServiceEndpoint.h")
 target_include_directories(tst_watchparty_source PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_watchparty_source PRIVATE Qt6::Core Qt6::Test)
 set_target_properties(tst_watchparty_source PROPERTIES
@@ -2171,6 +2173,8 @@ add_executable(tst_watchparty_ui
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.h"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.cpp"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.h"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.h")
 target_include_directories(tst_watchparty_ui PRIVATE "${COLOSSEUM_NATIVE_DIR}")
@@ -2216,6 +2220,8 @@ add_executable(tst_watchparty_lifecycle
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyIdentity.h"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.cpp"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyPlayerSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartySource.h"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.cpp"
     "${COLOSSEUM_NATIVE_DIR}/watchparty/WatchPartyUiController.h")
 target_include_directories(tst_watchparty_lifecycle PRIVATE "${COLOSSEUM_NATIVE_DIR}")

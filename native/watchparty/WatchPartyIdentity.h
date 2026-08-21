@@ -60,6 +60,8 @@ public:
     virtual std::optional<SignedInAccountIdentity>
     currentSignedInIdentity() const = 0;
 
+    virtual bool exactUsernameInviteAvailable() const { return false; }
+
     virtual void inviteExactUsername(
         const QString& roomId,
         const QString& exactUsername,

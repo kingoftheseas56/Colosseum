@@ -323,6 +323,7 @@ Popup {
             WatchPartyFactPill { kind: "lock"; label: "Private" }
             WatchPartyFactPill { kind: "people"; label: "2–12 people" }
             WatchPartyFactPill { kind: "play"; label: "Synced playback" }
+            WatchPartyFactPill { kind: "download"; label: "Fetches the room's source" }
         }
 
         Item { id: spacerBeforeDivider; width: parent.width; visible: !sheet.inRoom; height: spacerBeforeDivider.visible ? 22 : 0 }
@@ -628,6 +629,24 @@ Popup {
                 strokeColor: "transparent"
                 fillColor: glyphRoot.kind === "play" ? glyphRoot.strokeColor : "transparent"
                 PathSvg { path: "M8 5.8v12.4L18 12z" }
+            }
+
+            // download (fetches the room's source — arrow into tray)
+            ShapePath {
+                strokeColor: glyphRoot.kind === "download" ? glyphRoot.strokeColor : "transparent"
+                strokeWidth: glyphRoot.strokeWidth
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+                PathSvg { path: "M12 4v10m0 0l-4-4m4 4l4-4" }
+            }
+            ShapePath {
+                strokeColor: glyphRoot.kind === "download" ? glyphRoot.strokeColor : "transparent"
+                strokeWidth: glyphRoot.strokeWidth
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+                PathSvg { path: "M5 17h14" }
             }
 
             // info (status card)

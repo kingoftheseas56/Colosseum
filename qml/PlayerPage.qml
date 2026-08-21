@@ -1342,7 +1342,8 @@ Item {
         // resume-choice overlay (Feature 3) decides ask / seek / start-over. The
         // Continue-tile path still calls restoreState() after open — it just overwrites
         // this seed with the same-or-fresher value, so the two doors never fight.
-        var prog = (typeof Progress !== "undefined") ? Progress.get("video", root.mediaId) : ({})
+        var roomJoin = !!((playbackContext || ({})).watchPartyJoin)
+        var prog = (!roomJoin && typeof Progress !== "undefined") ? Progress.get("video", root.mediaId) : ({})
         var savedPos = Number(((prog || ({})).resume || ({})).position || 0)
         if (savedPos > 0)
             root.pendingSeekSec = savedPos
@@ -5371,6 +5372,7 @@ Item {
                         controller: typeof WatchPartyUi !== "undefined" ? WatchPartyUi : null
                         syncController: typeof WatchPartySync !== "undefined" ? WatchPartySync : null
                         sourceInfo: root.watchPartySource
+                        sourceCandidate: root.currentStreamCandidate()
                         localSourceMatches: root.watchPartySourceMatchesRoom
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()

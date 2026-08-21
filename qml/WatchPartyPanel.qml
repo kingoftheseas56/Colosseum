@@ -11,6 +11,7 @@ Item {
     property var controller: null
     property var syncController: null
     property var sourceInfo: ({})
+    property var sourceCandidate: ({})
     property Item overlayParent: null
     property bool panelOpen: false
     property bool localSourceMatches: true
@@ -233,7 +234,7 @@ Item {
 
     function runStart() {
         if (startAvailable)
-            controller.startParty(sourceInfo)
+            controller.startParty(sourceCandidate)
     }
 
     function runInvite() {

@@ -128,10 +128,9 @@ public:
     QVariantList chatMessages() const { return m_chatMessages; }
     QVariantList reactions() const { return m_reactions; }
 
-    // sourceInfo is the credential-free map produced by
-    // WatchPartySource.describeCandidate(). Unsupported rows are rejected here
-    // again so UI visibility cannot weaken the source authority boundary.
-    Q_INVOKABLE bool startParty(const QVariantMap& sourceInfo);
+    // sourceCandidate is Player 1's real current stream candidate. Native code
+    // re-runs SourceInspector so QML cannot forge eligibility/descriptor state.
+    Q_INVOKABLE bool startParty(const QVariantMap& sourceCandidate);
     Q_INVOKABLE bool joinRoom(const QString& requestedRoomId,
                               const QString& guestDisplayName = QString());
     Q_INVOKABLE bool setSharedControl(bool enabled);
@@ -228,8 +227,6 @@ private:
     void setNotice(const QString& text);
     void resetPendingAction();
 
-    static bool sourceDescriptorFromInspection(const QVariantMap& sourceInfo,
-                                               SourceDescriptor* descriptor);
     static QVariantMap sourceDescriptorToVariant(const SourceDescriptor& source);
     QVariantMap participantToVariant(const ParticipantState& participant) const;
     static QVariantMap chatToVariant(const ChatEvent& event);

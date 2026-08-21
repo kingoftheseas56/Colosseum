@@ -28,7 +28,28 @@ WatchParty::SourceDescriptor torrentSource()
         7);
 }
 
-QVariantMap eligibleTorrentInspection()
+QVariantMap eligibleTorrentCandidate()
+{
+    return {
+        {QStringLiteral("infoHash"),
+         QStringLiteral("0123456789abcdef0123456789abcdef01234567")},
+        {QStringLiteral("fileIdx"), 7},
+        {QStringLiteral("addonId"), QStringLiteral("com.example.torrent")}
+    };
+}
+
+QVariantMap unsupportedDirectCandidate()
+{
+    return {
+        {QStringLiteral("infoHash"),
+         QStringLiteral("0123456789abcdef0123456789abcdef01234567")},
+        {QStringLiteral("fileIdx"), 7},
+        {QStringLiteral("url"), QStringLiteral("https://cdn.example.test/video.mkv")},
+        {QStringLiteral("addonId"), QStringLiteral("com.example.direct")}
+    };
+}
+
+QVariantMap forgedEligibleWrapper()
 {
     return {
         {QStringLiteral("eligible"), true},
@@ -39,16 +60,6 @@ QVariantMap eligibleTorrentInspection()
              {QStringLiteral("infoHash"),
               QStringLiteral("0123456789abcdef0123456789abcdef01234567")},
              {QStringLiteral("fileIdx"), 7}}}
-    };
-}
-
-QVariantMap unsupportedDirectInspection()
-{
-    return {
-        {QStringLiteral("eligible"), false},
-        {QStringLiteral("eligibility"), QStringLiteral("unsupported")},
-        {QStringLiteral("reason"), QStringLiteral("direct_source_not_verified_debrid")},
-        {QStringLiteral("descriptor"), QVariantMap{}}
     };
 }
 
@@ -158,6 +169,8 @@ public:
         return identity;
     }
 
+    bool exactUsernameInviteAvailable() const override { return inviteAvailable; }
+
     void inviteExactUsername(
         const QString& roomId,
         const QString& exactUsername,
@@ -182,6 +195,7 @@ public:
     }
 
     std::optional<WatchParty::SignedInAccountIdentity> identity;
+    bool inviteAvailable = true;
     int inviteCount = 0;
     QString lastInviteRoomId;
     QString lastInviteUsername;
@@ -218,6 +232,7 @@ class tst_watchparty_ui final : public QObject
 
 private slots:
     void unsupported_direct_source_cannot_start_room();
+    void forged_qml_eligibility_cannot_start_room();
     void eligible_torrent_host_create_uses_existing_identity_transport_seam();
     void accountless_guest_join_requires_only_room_and_temporary_name();
     void room_membership_does_not_activate_player_sync_before_exact_source_ready();
@@ -240,7 +255,22 @@ void tst_watchparty_ui::unsupported_direct_source_cannot_start_room()
     // Non-vacuous negative control: the same signed-in/configured controller accepts the
     // eligible torrent in the next test. Weakening the source gate would open the transport
     // and emit CreateRoom here.
-    QVERIFY(!ui.startParty(unsupportedDirectInspection()));
+    QVERIFY(!ui.startParty(unsupportedDirectCandidate()));
+    QCOMPARE(ui.errorCategory(), QStringLiteral("unsupportedSource"));
+    QCOMPARE(transport.openCount(), 0);
+    QVERIFY(transport.sentMessages().isEmpty());
+}
+
+void tst_watchparty_ui::forged_qml_eligibility_cannot_start_room()
+{
+    WatchParty::FakeTransport transport(false);
+    WatchParty::PlayerSyncController sync;
+    FakeAccountBridge account;
+    account.signIn();
+    WatchParty::UiController ui(&transport, &sync, &account);
+
+    QVERIFY(ui.configureServiceUrl(QUrl(QStringLiteral("wss://party.example.test/v1"))));
+    QVERIFY(!ui.startParty(forgedEligibleWrapper()));
     QCOMPARE(ui.errorCategory(), QStringLiteral("unsupportedSource"));
     QCOMPARE(transport.openCount(), 0);
     QVERIFY(transport.sentMessages().isEmpty());
@@ -256,7 +286,7 @@ eligible_torrent_host_create_uses_existing_identity_transport_seam()
     WatchParty::UiController ui(&transport, &sync, &account);
 
     QVERIFY(ui.configureServiceUrl(QUrl(QStringLiteral("wss://party.example.test/v1"))));
-    QVERIFY(ui.startParty(eligibleTorrentInspection()));
+    QVERIFY(ui.startParty(eligibleTorrentCandidate()));
 
     QCOMPARE(transport.openCount(), 1);
     QCOMPARE(
@@ -369,7 +399,7 @@ exact_username_invite_remains_authoritative_host_only()
     WatchParty::UiController ui(&transport, &sync, &account);
 
     QVERIFY(ui.configureServiceUrl(QUrl(QStringLiteral("wss://party.example.test/v1"))));
-    QVERIFY(ui.startParty(eligibleTorrentInspection()));
+    QVERIFY(ui.startParty(eligibleTorrentCandidate()));
     establishRoom(
         &transport,
         QStringLiteral("participant-host"),
@@ -400,7 +430,7 @@ signed_in_session_account_identity_changed_closes_authenticated_session()
     QSignalSpy identityChanged(&ui, &WatchParty::UiController::identityChanged);
 
     QVERIFY(ui.configureServiceUrl(QUrl(QStringLiteral("wss://party.example.test/v1"))));
-    QVERIFY(ui.startParty(eligibleTorrentInspection()));
+    QVERIFY(ui.startParty(eligibleTorrentCandidate()));
     establishRoom(
         &transport,
         QStringLiteral("participant-host"),

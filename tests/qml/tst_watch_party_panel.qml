@@ -95,6 +95,21 @@ TestCase {
         }
     }
 
+    function eligibleTorrentCandidate() {
+        return {
+            "infoHash": "0123456789abcdef0123456789abcdef01234567",
+            "fileIdx": 7,
+            "addonId": "com.example.torrent"
+        }
+    }
+
+    function unsupportedDirectCandidate() {
+        return {
+            "url": "https://cdn.example.test/video.mkv",
+            "addonId": "com.example.direct"
+        }
+    }
+
     function unsupportedDirect() {
         return {
             "eligible": false,
@@ -251,7 +266,8 @@ TestCase {
             "syncController": syncController,
             "overlayParent": testWindow.contentItem,
             "panelOpen": true,
-            "sourceInfo": unsupportedDirect()
+            "sourceInfo": unsupportedDirect(),
+            "sourceCandidate": unsupportedDirectCandidate()
         })
         verify(panel !== null)
         wait(40)
@@ -542,6 +558,7 @@ TestCase {
 
     function test_eligible_torrent_enables_start() {
         panel.sourceInfo = eligibleTorrent()
+        panel.sourceCandidate = eligibleTorrentCandidate()
         wait(0)
 
         var start = findChild(testWindow.contentItem, "watchPartyStart")
@@ -552,8 +569,10 @@ TestCase {
 
         mouseClick(start)
         compare(controller.startCalls, 1)
-        compare(controller.lastStartSource.descriptor.kind, "torrent")
-        compare(controller.lastStartSource.descriptor.fileIdx, 7)
+        compare(controller.lastStartSource.infoHash,
+                "0123456789abcdef0123456789abcdef01234567")
+        compare(controller.lastStartSource.fileIdx, 7)
+        verify(controller.lastStartSource.descriptor === undefined)
     }
 
     function test_signed_out_or_unconfigured_host_cannot_start() {

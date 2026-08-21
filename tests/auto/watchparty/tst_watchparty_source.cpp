@@ -4,6 +4,7 @@
 
 #include "watchparty/WatchPartyProtocol.h"
 #include "watchparty/WatchPartySource.h"
+#include "watchparty/WatchPartyServiceEndpoint.h"
 
 #include <QJsonObject>
 #include <QtTest>
@@ -24,6 +25,8 @@ private slots:
     void protocol_round_trips_torrent_and_debrid_descriptors();
     void protocol_rejects_unknown_secret_bearing_fields();
     void serializer_rejects_url_shaped_debrid_reference();
+    void service_endpoint_uses_hosted_default_when_unset();
+    void service_endpoint_environment_override_wins();
 };
 
 void tst_watchparty_source::valid_torrent_candidate_is_eligible_and_normalized()
@@ -245,6 +248,34 @@ void tst_watchparty_source::serializer_rejects_url_shaped_debrid_reference()
 
     QVERIFY(!poisoned.isValid());
     QVERIFY(WatchParty::sourceDescriptorToJson(poisoned).isEmpty());
+}
+
+void tst_watchparty_source::service_endpoint_uses_hosted_default_when_unset()
+{
+    const QByteArray previous = qgetenv("COLOSSEUM_WATCH_PARTY_URL");
+    qunsetenv("COLOSSEUM_WATCH_PARTY_URL");
+
+    QCOMPARE(WatchParty::ServiceEndpoint::configuredUrl(),
+             QUrl(QStringLiteral("wss://colosseum-watchparty-relay.colosseum-watchparty-relay.workers.dev")));
+
+    if (previous.isNull())
+        qunsetenv("COLOSSEUM_WATCH_PARTY_URL");
+    else
+        qputenv("COLOSSEUM_WATCH_PARTY_URL", previous);
+}
+
+void tst_watchparty_source::service_endpoint_environment_override_wins()
+{
+    const QByteArray previous = qgetenv("COLOSSEUM_WATCH_PARTY_URL");
+    qputenv("COLOSSEUM_WATCH_PARTY_URL", QByteArrayLiteral("wss://party.example.test/v3"));
+
+    QCOMPARE(WatchParty::ServiceEndpoint::configuredUrl(),
+             QUrl(QStringLiteral("wss://party.example.test/v3")));
+
+    if (previous.isNull())
+        qunsetenv("COLOSSEUM_WATCH_PARTY_URL");
+    else
+        qputenv("COLOSSEUM_WATCH_PARTY_URL", previous);
 }
 
 QTEST_APPLESS_MAIN(tst_watchparty_source)

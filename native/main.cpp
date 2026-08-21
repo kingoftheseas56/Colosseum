@@ -107,6 +107,7 @@
 #include "player/roomstore.h"
 #include "watchparty/WatchPartyPlayerSync.h"
 #include "watchparty/WatchPartySource.h"
+#include "watchparty/WatchPartyServiceEndpoint.h"
 #include "watchparty/WatchPartyUiController.h"
 #include "player/streamserver.h"
 #include "player/windowmodestore.h"
@@ -583,12 +584,12 @@ int main(int argc, char *argv[]) {
     // nothing at runtime — the engine is only constructed if QML instantiates Player2Page.
     qmlRegisterType<Colosseum::Player2::Player2VideoItem>("Colosseum.Player2", 1, 0, "Player2VideoItem");
     qmlRegisterType<Colosseum::Player2::Player2Backend>("Colosseum.Player2", 1, 0, "Player2Backend");
+#endif
 
-    // "Your Colosseum" playback activity sampler (CPP-PORT-CONTRACT.md �8), reached from QML as
+    // "Your Colosseum" playback activity sampler (CPP-PORT-CONTRACT.md §8), reached from QML as
     // `import Colosseum.Activity`. One transient instance per lane (Player 1, Player 2, audiobook);
     // each binds its own `sink: ProfileActivity` (the profile-scoped ActivityStore context property).
     qmlRegisterType<ActivityPlaybackTracker>("Colosseum.Activity", 1, 0, "ActivityPlaybackTracker");
-#endif
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -1489,11 +1490,9 @@ int main(int argc, char *argv[]) {
     // and until then only the accountless guest flow exists. The service endpoint is
     // deployment configuration, never room/shared state.
     auto *watchPartyUi = new Colosseum::WatchParty::UiController(watchPartySync, &app);
-    if (qEnvironmentVariableIsSet("COLOSSEUM_WATCH_PARTY_URL")) {
-        const QUrl watchPartyUrl(qEnvironmentVariable("COLOSSEUM_WATCH_PARTY_URL"));
-        if (!watchPartyUi->configureServiceUrl(watchPartyUrl))
-            qWarning() << "[watch-party] ignored invalid service endpoint";
-    }
+    const QUrl watchPartyUrl = Colosseum::WatchParty::ServiceEndpoint::configuredUrl();
+    if (!watchPartyUi->configureServiceUrl(watchPartyUrl))
+        qWarning() << "[watch-party] ignored invalid service endpoint";
     engine.rootContext()->setContextProperty(QStringLiteral("WatchPartyUi"),
                                              watchPartyUi);
 
@@ -1547,7 +1546,7 @@ int main(int argc, char *argv[]) {
     // no store exists any earlier in main() to purge kind:"manga" records from.
     //
     // Boot always starts behind ProfileStoreRuntime's Sealed placeholder (a throwaway
-    // QTemporaryDir-backed store -- see ProfileStoreRuntime::createSealedStores); the
+    // QTemporaryDir-backed store — see ProfileStoreRuntime::createSealedStores); the
     // user's onboarding choice ("continue local" / sign in) or a restored remembered
     // session later rebinds it to the real, durable store. TankobanChapterMigration::run's
     // `progressStoreIsDurable` flag (ground-truthed by the closing sweep, 2026-08-21: the
@@ -1565,7 +1564,7 @@ int main(int argc, char *argv[]) {
     // BEFORE the replacement store exists. progressStore() returning null there is NOT
     // the disk-only "no store handed in" contract TankobanChapterMigration::run's null
     // parameter otherwise means (that contract is for a caller that deliberately never
-    // wants the progress step) -- it is a live boot mid-rebind, and calling run() on it
+    // wants the progress step) — it is a live boot mid-rebind, and calling run() on it
     // would purge nothing, write nothing, and (with a null progress arg) still burn the
     // marker on the disk-only path, exactly re-creating the bug one signal later. Skip
     // the call outright when there is no store yet; the very next storesChanged (once
@@ -1591,6 +1590,7 @@ int main(int argc, char *argv[]) {
                      watchPartyUi, &Colosseum::WatchParty::UiController::handleAccountIdentityChanged);
     QObject::connect(accountRuntime->controller(), &AccountController::signedOut,
                      watchPartyUi, &Colosseum::WatchParty::UiController::handleAccountIdentityChanged);
+
     auto *audioPairing = accountRuntime->profileStores()->audioPairingStore();
 
     // (Deleted 2026-08-07 with BookBridge: two setters that handed the retired bridge the

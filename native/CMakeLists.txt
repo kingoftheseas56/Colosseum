@@ -350,6 +350,8 @@ add_executable(colosseum
     watchparty/WatchPartyProtocol.h
     watchparty/WatchPartySource.cpp
     watchparty/WatchPartySource.h
+    watchparty/WatchPartyServiceEndpoint.cpp
+    watchparty/WatchPartyServiceEndpoint.h
     watchparty/WatchPartyPlayerSync.cpp
     watchparty/WatchPartyPlayerSync.h
     watchparty/WatchPartyTransport.cpp
