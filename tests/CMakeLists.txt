@@ -343,8 +343,8 @@ set_tests_properties(colosseum.qttest.tankoban_catalog PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
-# ── Tankoban chapter migration (catalogue-independence Slice 5, 2026-08-20) ──
-# TankobanChapterMigration — the one-time WC-era chapter purge: chapter tree
+# -- Tankoban chapter migration (catalogue-independence Slice 5, 2026-08-20) --
+# TankobanChapterMigration -- the one-time WC-era chapter purge: chapter tree
 # deleted, manga-volumes/ intact, kind:"manga" progress purged, kind:"tankoban"/
 # "comic" intact, idempotent second run, marker written. QTemporaryDir fixture
 # (both the chapter tree and a ProgressStore backed by a temp ini), same
