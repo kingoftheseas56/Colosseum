@@ -1,150 +1,664 @@
 {
-  "name": "journey-vault-browse",
-  "comment": "Visibility Phase 2, Slice J1-Vault. Proves the rebuilt Vault Browse face (Slice 5-10, landed) works ASSEMBLED: carousel, collapsed/expanded root rail, breadcrumb drill (two independent levels), virtualized media grid, and correct poster (2:3) vs wide (16:9) card shape by node type. Run against tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1 (--seed, an absolute path) — five synthetic physical shapes distinct from tests/fixtures/vault/browse-face-smoke (Slice 5-10's own fixture, never touched by this journey): three films (poster cards; 'Journey Film One/Two/Three'), one nested-season show ('Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]', 2 seasons, 3 episodes total — the same nested-season shape as the real Wire fixture, poster card at root, drills to 2 season poster cards), and one plain folder of two loose, non-episode-shaped clips ('Journey Clips' — a Folder at root; drilling in renders both as Clip nodes, i.e. wide/16:9 cards). Every wait targets a STABLE, pre-existing property (vaultPage.vaultState, vaultBrowseGrid.count, vaultBrowseRail.expanded, vaultBrowseCrumb.currentPath) — never a not-yet-materialized card, per the standing Lanista lesson that ui-wait-for cannot poll an object into existence. All five root object names, the nested-season show's key (no '::show::' sentinel — a bare-season-subdirectory show's key is simply its own folder path), and every nodeType/displayTitle/physicalFact value below were confirmed live via qml-get before this scenario was authored (artifacts/visibility-phase2/j1-vault-browse/discovery/run4.log, run5.log) — never asserted blind.",
-  "steps": [
-    { "cmd": "ping", "label": "the session answers, drive gated on",
-      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
-                  { "path": "gates.drive", "op": "==", "value": "true" } ] },
-    { "cmd": "get-state", "label": "one visible window, isolated data root",
-      "expect": [ { "path": "windows.0.visible", "op": "==", "value": "true" },
-                  { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" } ] },
-    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
-      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "ui-click", "label": "open the Vault via the taskbar folder door",
-      "payload": { "target": "taskbarVaultDoor" } },
-    { "cmd": "ui-wait-for", "label": "the seeded fixture root paints the populated Vault (stable pre-existing surface, waited before any card is addressed)",
-      "payload": { "object": "vaultPage", "prop": "vaultState", "value": "populated", "timeout_ms": 15000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "ui-wait-for", "label": "the Browse grid populates at the five-shape fixture's real root count (a grid PROPERTY, never a not-yet-materialized card)",
-      "payload": { "object": "vaultBrowseGrid", "prop": "count", "value": 5, "timeout_ms": 10000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-
-    { "cmd": "vault-forensics", "label": "F1 baseline: the live Vault agrees with the UI before any navigation",
-      "payload": { "scope": "summary", "limit": 10 },
-      "expect": [ { "path": "schema", "op": "==", "value": "colosseum.vault.forensics.v1" },
-                  { "path": "browseCount", "op": "==", "value": "5" },
-                  { "path": "roots.count", "op": "==", "value": "1" },
-                  { "path": "truncated", "op": "==", "value": "false" } ] },
-
-    { "label": "L2 root-level verdict: carousel, rail, toggle, breadcrumb, grid, five root cards do not overlap",
-      "layout_verdict": { "checkpoint": "tests/lanista_layout/journey_vault_browse.json",
-                   "out": "artifacts/visibility-phase2/j1-vault-browse/root-verdict.json" } },
-    { "cmd": "get-state", "label": "visual evidence: the carousel ('Just arrived')",
-      "payload": { "grab": { "target": "vaultBrowseCarousel", "timeoutMs": 4000 } },
-      "expect": [ { "path": "grabPath", "op": "exists" } ] },
-    { "cmd": "get-state", "label": "visual evidence: the populated root grid (poster cards: two films, one show, one folder)",
-      "payload": { "grab": { "target": "vaultBrowseGrid", "timeoutMs": 4000 } },
-      "expect": [ { "path": "grabPath", "op": "exists" } ] },
-
-    { "cmd": "qml-get", "label": "the rail is collapsed by default",
-      "payload": { "object": "vaultBrowseRail", "props": ["expanded"] },
-      "expect": [ { "path": "props.expanded", "op": "==", "value": "false" } ] },
-    { "cmd": "get-state", "label": "visual evidence: the collapsed rail",
-      "payload": { "grab": { "target": "vaultBrowseRail", "timeoutMs": 4000 } },
-      "expect": [ { "path": "grabPath", "op": "exists" } ] },
-    { "cmd": "ui-click", "label": "toggle the rail open",
-      "payload": { "target": "vaultBrowseRailToggle" } },
-    { "cmd": "ui-wait-for", "label": "the rail expands",
-      "payload": { "object": "vaultBrowseRail", "prop": "expanded", "value": true, "timeout_ms": 4000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "get-state", "label": "visual evidence: the expanded rail",
-      "payload": { "grab": { "target": "vaultBrowseRail", "timeoutMs": 4000 } },
-      "expect": [ { "path": "grabPath", "op": "exists" } ] },
-    { "cmd": "ui-click", "label": "toggle the rail closed again (restore default before drilling)",
-      "payload": { "target": "vaultBrowseRailToggle" } },
-    { "cmd": "ui-wait-for", "label": "the rail collapses",
-      "payload": { "object": "vaultBrowseRail", "prop": "expanded", "value": false, "timeout_ms": 4000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-
-    { "cmd": "ui-click", "label": "drill the nested-season show (a plain, non-clip, non-episode folder in the sense the plan asks for a genuine breadcrumb drill)",
-      "payload": { "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]_hitArea" } },
-    { "cmd": "ui-wait-for", "label": "the breadcrumb tracks the drill to the show's own path",
-      "payload": { "object": "vaultBrowseCrumb", "prop": "currentPath",
-                   "value": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]",
-                   "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "get-state", "label": "visual evidence: the breadcrumb after the first drill",
-      "payload": { "grab": { "target": "vaultBrowseCrumb", "timeoutMs": 4000 } },
-      "expect": [ { "path": "grabPath", "op": "exists" } ] },
-    { "cmd": "ui-wait-for", "label": "the seasons band holds exactly the two nested seasons on disk",
-      "payload": { "object": "vaultBrowseGrid", "prop": "count", "value": 2, "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "qml-get", "label": "Season 1 remains a 2:3 POSTER node one level deep (locked design: a season card is still a poster, not wide)",
-      "payload": { "object": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]/Season 1",
-                   "props": ["nodeType", "displayTitle", "physicalFact"] },
-      "expect": [ { "path": "props.nodeType", "op": "==", "value": "season" },
-                  { "path": "props.displayTitle", "op": "==", "value": "Season 1" },
-                  { "path": "props.physicalFact", "op": "==", "value": "2 episodes" } ] },
-
-    { "cmd": "vault-forensics", "label": "F1 node scope on the drilled show — the live Vault agrees with the settled UI, paired with the UI state above",
-      "payload": { "scope": "node",
-                   "key": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]",
-                   "limit": 10 },
-      "expect": [ { "path": "schema", "op": "==", "value": "colosseum.vault.forensics.v1" },
-                  { "path": "browse.count", "op": "==", "value": "2" },
-                  { "path": "node.key", "op": "==",
-                    "value": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]" },
-                  { "path": "browse.rows.0.nodeType", "op": "==", "value": "season" },
-                  { "path": "truncated", "op": "==", "value": "false" } ] },
-
-    { "cmd": "ui-click", "label": "return to root via the rail's own root entry",
-      "payload": { "target": "vaultBrowseRailRoot_0" } },
-    { "cmd": "ui-wait-for", "label": "the grid is back at the root's five nodes (leave/return persistence, first pass)",
-      "payload": { "object": "vaultBrowseGrid", "prop": "count", "value": 5, "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-
-    { "cmd": "ui-click", "label": "drill the plain folder of loose clips (the second, independent breadcrumb drill)",
-      "payload": { "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips_hitArea" } },
-    { "cmd": "ui-wait-for", "label": "the breadcrumb tracks the drill to Journey Clips",
-      "payload": { "object": "vaultBrowseCrumb", "prop": "currentPath",
-                   "value": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips",
-                   "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "ui-wait-for", "label": "the clip wall holds both loose files",
-      "payload": { "object": "vaultBrowseGrid", "prop": "count", "value": 2, "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "qml-get", "label": "Highlight One is a CLIP node — this is the card-type switch the design locks (episode/clip only, never a season)",
-      "payload": { "object": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips/Highlight One.mp4",
-                   "props": ["nodeType", "displayTitle"] },
-      "expect": [ { "path": "props.nodeType", "op": "==", "value": "clip" },
-                  { "path": "props.displayTitle", "op": "==", "value": "Highlight One" } ] },
-    { "label": "L2 wide-card verdict: the clip card's art is real, on-screen, 16:9-shaped geometry — the card-aspect contract (see the mandatory negative control for the same rule pointed at a poster viewport)",
-      "layout_verdict": { "checkpoint": "tests/lanista_layout/journey_vault_browse_clips.json",
-                   "out": "artifacts/visibility-phase2/j1-vault-browse/clips-verdict.json" } },
-    { "cmd": "get-state", "label": "visual evidence: the wide (16:9) clip wall",
-      "payload": { "grab": { "target": "vaultBrowseGrid", "timeoutMs": 4000 } },
-      "expect": [ { "path": "grabPath", "op": "exists" } ] },
-
-    { "cmd": "ui-scroll", "label": "exercise the grid's scroll surface (2 items — proves the wheel event is accepted without disturbing the level, not a virtualization proof; Slice 8/10 already own that at Gintama scale)",
-      "payload": { "target": "vaultBrowseGrid", "dy": -200 } },
-    { "cmd": "qml-get", "label": "the clip wall is unchanged by the scroll",
-      "payload": { "object": "vaultBrowseGrid", "props": ["count"] },
-      "expect": [ { "path": "props.count", "op": "==", "value": "2" } ] },
-
-    { "cmd": "ui-click", "label": "scroll away: leave the clips level via the rail's root entry",
-      "payload": { "target": "vaultBrowseRailRoot_0" } },
-    { "cmd": "ui-wait-for", "label": "the grid is back at the root's five nodes (leave/return persistence, second pass)",
-      "payload": { "object": "vaultBrowseGrid", "prop": "count", "value": 5, "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "ui-click", "label": "scroll back: redrill Journey Clips",
-      "payload": { "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips_hitArea" } },
-    { "cmd": "ui-wait-for", "label": "the redrill reaches the same clip wall (grid persistence across a full leave/return cycle)",
-      "payload": { "object": "vaultBrowseGrid", "prop": "count", "value": 2, "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "qml-get", "label": "Highlight One is still the same settled clip after the round trip",
-      "payload": { "object": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips/Highlight One.mp4",
-                   "props": ["nodeType", "state"] },
-      "expect": [ { "path": "props.nodeType", "op": "==", "value": "clip" } ] },
-
-    { "cmd": "ui-click", "label": "return to root, leaving the face in a clean state",
-      "payload": { "target": "vaultBrowseRailRoot_0" } },
-    { "cmd": "ui-wait-for", "label": "final state: back at the root's five nodes",
-      "payload": { "object": "vaultBrowseGrid", "prop": "count", "value": 5, "timeout_ms": 6000 },
-      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
-    { "cmd": "vault-forensics", "label": "F1 closing check: the live Vault still agrees after the full drill/return cycle",
-      "payload": { "scope": "summary", "limit": 10 },
-      "expect": [ { "path": "browseCount", "op": "==", "value": "5" },
-                  { "path": "roots.count", "op": "==", "value": "1" } ] }
-  ]
+ "name": "journey-vault-browse",
+ "comment": "Visibility Phase 2, Slice J1-Vault. Proves the rebuilt Vault Browse face (Slice 5-10, landed) works ASSEMBLED: carousel, collapsed/expanded root rail, breadcrumb drill (two independent levels), virtualized media grid, and correct poster (2:3) vs wide (16:9) card shape by node type. Run against tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1 (--seed, an absolute path) — five synthetic physical shapes distinct from tests/fixtures/vault/browse-face-smoke (Slice 5-10's own fixture, never touched by this journey): three films (poster cards; 'Journey Film One/Two/Three'), one nested-season show ('Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]', 2 seasons, 3 episodes total — the same nested-season shape as the real Wire fixture, poster card at root, drills to 2 season poster cards), and one plain folder of two loose, non-episode-shaped clips ('Journey Clips' — a Folder at root; drilling in renders both as Clip nodes, i.e. wide/16:9 cards). Every wait targets a STABLE, pre-existing property (vaultPage.vaultState, vaultBrowseGrid.count, vaultBrowseRail.expanded, vaultBrowseCrumb.currentPath) — never a not-yet-materialized card, per the standing Lanista lesson that ui-wait-for cannot poll an object into existence. All five root object names, the nested-season show's key (no '::show::' sentinel — a bare-season-subdirectory show's key is simply its own folder path), and every nodeType/displayTitle/physicalFact value below were confirmed live via qml-get before this scenario was authored (artifacts/visibility-phase2/j1-vault-browse/discovery/run4.log, run5.log) — never asserted blind.",
+ "steps": [
+  {
+   "cmd": "ping",
+   "label": "the session answers, drive gated on",
+   "expect": [
+    {
+     "path": "schema",
+     "op": "matches",
+     "value": "^colosseum\\.dev\\.v1"
+    },
+    {
+     "path": "gates.drive",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "one visible window, isolated data root",
+   "expect": [
+    {
+     "path": "windows.0.visible",
+     "op": "==",
+     "value": "true"
+    },
+    {
+     "path": "appDataRoot",
+     "op": "contains",
+     "value": "Colosseum-dltest"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the boot splash has left the screen",
+   "payload": {
+    "object": "bootSplash",
+    "prop": "visible",
+    "value": false,
+    "timeout_ms": 60000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "open the Vault via the taskbar folder door",
+   "payload": {
+    "target": "taskbarVaultDoor"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the seeded fixture root paints the populated Vault (stable pre-existing surface, waited before any card is addressed)",
+   "payload": {
+    "object": "vaultPage",
+    "prop": "vaultState",
+    "value": "populated",
+    "timeout_ms": 15000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the Browse grid populates at the five-shape fixture's real root count (a grid PROPERTY, never a not-yet-materialized card)",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "prop": "count",
+    "value": 5,
+    "timeout_ms": 10000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "vault-forensics",
+   "label": "F1 baseline: the live Vault agrees with the UI before any navigation",
+   "payload": {
+    "scope": "summary",
+    "limit": 10
+   },
+   "expect": [
+    {
+     "path": "schema",
+     "op": "==",
+     "value": "colosseum.vault.forensics.v1"
+    },
+    {
+     "path": "browseCount",
+     "op": "==",
+     "value": "5"
+    },
+    {
+     "path": "roots.count",
+     "op": "==",
+     "value": "1"
+    },
+    {
+     "path": "truncated",
+     "op": "==",
+     "value": "false"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "settle before the root-level verdict: the async carousel is on screen first (2026-08-16: four night-watch reds raced this verdict's dump against L2 content that had not landed yet - 0/9 reproductions in clean clones; the wait removes the race, the verdict's geometry assertions are unchanged)",
+   "payload": {
+    "object": "vaultBrowseCarousel",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 8000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "label": "L2 root-level verdict: carousel, rail, toggle, breadcrumb, grid, five root cards do not overlap",
+   "layout_verdict": {
+    "checkpoint": "tests/lanista_layout/journey_vault_browse.json",
+    "out": "artifacts/visibility-phase2/j1-vault-browse/root-verdict.json"
+   }
+  },
+  {
+   "cmd": "get-state",
+   "label": "visual evidence: the carousel ('Just arrived')",
+   "payload": {
+    "grab": {
+     "target": "vaultBrowseCarousel",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "visual evidence: the populated root grid (poster cards: two films, one show, one folder)",
+   "payload": {
+    "grab": {
+     "target": "vaultBrowseGrid",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "the rail is collapsed by default",
+   "payload": {
+    "object": "vaultBrowseRail",
+    "props": [
+     "expanded"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.expanded",
+     "op": "==",
+     "value": "false"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "visual evidence: the collapsed rail",
+   "payload": {
+    "grab": {
+     "target": "vaultBrowseRail",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "toggle the rail open",
+   "payload": {
+    "target": "vaultBrowseRailToggle"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the rail expands",
+   "payload": {
+    "object": "vaultBrowseRail",
+    "prop": "expanded",
+    "value": true,
+    "timeout_ms": 4000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "visual evidence: the expanded rail",
+   "payload": {
+    "grab": {
+     "target": "vaultBrowseRail",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "toggle the rail closed again (restore default before drilling)",
+   "payload": {
+    "target": "vaultBrowseRailToggle"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the rail collapses",
+   "payload": {
+    "object": "vaultBrowseRail",
+    "prop": "expanded",
+    "value": false,
+    "timeout_ms": 4000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "drill the nested-season show (a plain, non-clip, non-episode folder in the sense the plan asks for a genuine breadcrumb drill)",
+   "payload": {
+    "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]_hitArea"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the breadcrumb tracks the drill to the show's own path",
+   "payload": {
+    "object": "vaultBrowseCrumb",
+    "prop": "currentPath",
+    "value": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]",
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "get-state",
+   "label": "visual evidence: the breadcrumb after the first drill",
+   "payload": {
+    "grab": {
+     "target": "vaultBrowseCrumb",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the seasons band holds exactly the two nested seasons on disk",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "prop": "count",
+    "value": 2,
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "Season 1 remains a 2:3 POSTER node one level deep (locked design: a season card is still a poster, not wide)",
+   "payload": {
+    "object": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]/Season 1",
+    "props": [
+     "nodeType",
+     "displayTitle",
+     "physicalFact"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.nodeType",
+     "op": "==",
+     "value": "season"
+    },
+    {
+     "path": "props.displayTitle",
+     "op": "==",
+     "value": "Season 1"
+    },
+    {
+     "path": "props.physicalFact",
+     "op": "==",
+     "value": "2 episodes"
+    }
+   ]
+  },
+  {
+   "cmd": "vault-forensics",
+   "label": "F1 node scope on the drilled show — the live Vault agrees with the settled UI, paired with the UI state above",
+   "payload": {
+    "scope": "node",
+    "key": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]",
+    "limit": 10
+   },
+   "expect": [
+    {
+     "path": "schema",
+     "op": "==",
+     "value": "colosseum.vault.forensics.v1"
+    },
+    {
+     "path": "browse.count",
+     "op": "==",
+     "value": "2"
+    },
+    {
+     "path": "node.key",
+     "op": "==",
+     "value": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]"
+    },
+    {
+     "path": "browse.rows.0.nodeType",
+     "op": "==",
+     "value": "season"
+    },
+    {
+     "path": "truncated",
+     "op": "==",
+     "value": "false"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "return to root via the rail's own root entry",
+   "payload": {
+    "target": "vaultBrowseRailRoot_0"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the grid is back at the root's five nodes (leave/return persistence, first pass)",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "prop": "count",
+    "value": 5,
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "drill the plain folder of loose clips (the second, independent breadcrumb drill)",
+   "payload": {
+    "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips_hitArea"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the breadcrumb tracks the drill to Journey Clips",
+   "payload": {
+    "object": "vaultBrowseCrumb",
+    "prop": "currentPath",
+    "value": "C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips",
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the clip wall holds both loose files",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "prop": "count",
+    "value": 2,
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "Highlight One is a CLIP node — this is the card-type switch the design locks (episode/clip only, never a season)",
+   "payload": {
+    "object": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips/Highlight One.mp4",
+    "props": [
+     "nodeType",
+     "displayTitle"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.nodeType",
+     "op": "==",
+     "value": "clip"
+    },
+    {
+     "path": "props.displayTitle",
+     "op": "==",
+     "value": "Highlight One"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "settle before the wide-card verdict: the clip card under verdict is on screen first (same 2026-08-16 dump race as the root verdict - step 28's qml-get found the card while the verdict's own generation dump missed it)",
+   "payload": {
+    "object": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips/Highlight One.mp4",
+    "prop": "visible",
+    "value": true,
+    "timeout_ms": 8000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "label": "L2 wide-card verdict: the clip card's art is real, on-screen, 16:9-shaped geometry — the card-aspect contract (see the mandatory negative control for the same rule pointed at a poster viewport)",
+   "layout_verdict": {
+    "checkpoint": "tests/lanista_layout/journey_vault_browse_clips.json",
+    "out": "artifacts/visibility-phase2/j1-vault-browse/clips-verdict.json"
+   }
+  },
+  {
+   "cmd": "get-state",
+   "label": "visual evidence: the wide (16:9) clip wall",
+   "payload": {
+    "grab": {
+     "target": "vaultBrowseGrid",
+     "timeoutMs": 4000
+    }
+   },
+   "expect": [
+    {
+     "path": "grabPath",
+     "op": "exists"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-scroll",
+   "label": "exercise the grid's scroll surface (2 items — proves the wheel event is accepted without disturbing the level, not a virtualization proof; Slice 8/10 already own that at Gintama scale)",
+   "payload": {
+    "target": "vaultBrowseGrid",
+    "dy": -200
+   }
+  },
+  {
+   "cmd": "qml-get",
+   "label": "the clip wall is unchanged by the scroll",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "props": [
+     "count"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.count",
+     "op": "==",
+     "value": "2"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "scroll away: leave the clips level via the rail's root entry",
+   "payload": {
+    "target": "vaultBrowseRailRoot_0"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the grid is back at the root's five nodes (leave/return persistence, second pass)",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "prop": "count",
+    "value": 5,
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "scroll back: redrill Journey Clips",
+   "payload": {
+    "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips_hitArea"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "the redrill reaches the same clip wall (grid persistence across a full leave/return cycle)",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "prop": "count",
+    "value": 2,
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "qml-get",
+   "label": "Highlight One is still the same settled clip after the round trip",
+   "payload": {
+    "object": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips/Highlight One.mp4",
+    "props": [
+     "nodeType",
+     "state"
+    ]
+   },
+   "expect": [
+    {
+     "path": "props.nodeType",
+     "op": "==",
+     "value": "clip"
+    }
+   ]
+  },
+  {
+   "cmd": "ui-click",
+   "label": "return to root, leaving the face in a clean state",
+   "payload": {
+    "target": "vaultBrowseRailRoot_0"
+   }
+  },
+  {
+   "cmd": "ui-wait-for",
+   "label": "final state: back at the root's five nodes",
+   "payload": {
+    "object": "vaultBrowseGrid",
+    "prop": "count",
+    "value": 5,
+    "timeout_ms": 6000
+   },
+   "expect": [
+    {
+     "path": "matched",
+     "op": "==",
+     "value": "true"
+    }
+   ]
+  },
+  {
+   "cmd": "vault-forensics",
+   "label": "F1 closing check: the live Vault still agrees after the full drill/return cycle",
+   "payload": {
+    "scope": "summary",
+    "limit": 10
+   },
+   "expect": [
+    {
+     "path": "browseCount",
+     "op": "==",
+     "value": "5"
+    },
+    {
+     "path": "roots.count",
+     "op": "==",
+     "value": "1"
+    }
+   ]
+  }
+ ]
 }

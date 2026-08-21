@@ -94,10 +94,13 @@ private slots:
     void scanner_rename_reattaches_same_id_and_progress();
     // ── Slice 15: the live-shelf watcher (VaultWatcher) ──
     void watcher_touch_files_upserts_exact_arrival_set();
+    void watcher_deletion_removes_stale_row_and_preserves_unchanged_facts();
+    void watcher_same_path_material_replacement_keeps_one_physical_row();
     void watcher_nested_file_in_existing_subfolder_is_seen();
     void watcher_new_subfolder_is_watched_before_later_file_arrival();
     void watcher_create_then_fill_during_tree_walk_is_not_missed();
     void watcher_refresh_does_not_replay_active_tree_walk();
+    void watcher_probe_does_not_rewalk_completed_tree();
     void watcher_directory_cap_marks_root_degraded();
     void watcher_new_kind_raises_card_and_lands();
     void watcher_override_law_raises_card_for_known_kind_arrival();
@@ -527,6 +530,79 @@ void tst_vault_scanner::watcher_touch_files_upserts_exact_arrival_set()
     QCOMPARE(w.processRoot(root.path(), {}, {}).landedCount, 0);
 }
 
+void tst_vault_scanner::watcher_deletion_removes_stale_row_and_preserves_unchanged_facts()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString subtree = root.path() + QStringLiteral("/Series");
+    QVERIFY(QDir().mkpath(subtree));
+    const QString keepPath = writeMediaFile(subtree, QStringLiteral("Keep.cbz"));
+    const QString deletePath = writeMediaFile(subtree, QStringLiteral("Delete.cbz"));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    VaultWatcher w(&idx, &ident, &cfg);
+
+    const quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    QCOMPARE(idx.itemCount(), 2);
+    auto keepRows = idx.rowsForPath(keepPath);
+    QCOMPARE(keepRows.size(), 1);
+    keepRows[0].progressed = true;
+    keepRows[0].coverRef = QStringLiteral("001.jpg");
+    QVERIFY(idx.upsertMany(keepRows));
+
+    QVERIFY(QFile::remove(deletePath));
+    const auto landing = w.processRoot(root.path(), {}, {});
+    QCOMPARE(landing.landedCount, 0);
+    QCOMPARE(landing.removedCount, 1);
+    QCOMPARE(idx.itemCount(), 1);
+    keepRows = idx.rowsForPath(keepPath);
+    QCOMPARE(keepRows.size(), 1);
+    QVERIFY(keepRows.first().progressed);
+    QCOMPARE(keepRows.first().coverRef, QStringLiteral("001.jpg"));
+}
+
+void tst_vault_scanner::watcher_same_path_material_replacement_keeps_one_physical_row()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString subtree = root.path() + QStringLiteral("/Series");
+    QVERIFY(QDir().mkpath(subtree));
+    const QString path = writeMediaFile(subtree, QStringLiteral("Volume.cbz"));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    VaultWatcher w(&idx, &ident, &cfg);
+
+    const quint64 g = sc.nextGeneration();
+    sc.applyPublish({VaultScanner::buildScan(root.path(), {}, g, {})}, g);
+    const auto before = idx.rowsForPath(path);
+    QCOMPARE(before.size(), 1);
+    const QString oldId = before.first().id;
+
+    QFile replacement(path);
+    QVERIFY(replacement.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    QCOMPARE(replacement.write("materially-different-replacement-bytes"), qint64(38));
+    replacement.close();
+
+    const auto landing = w.processRoot(root.path(), {}, {});
+    QCOMPARE(landing.landedCount, 1);
+    QCOMPARE(landing.removedCount, 1);
+    const auto after = idx.rowsForPath(path);
+    QCOMPARE(after.size(), 1);
+    QVERIFY(after.first().id != oldId);
+    QCOMPARE(idx.itemCount(), 1);
+}
+
 void tst_vault_scanner::watcher_nested_file_in_existing_subfolder_is_seen()
 {
     QTemporaryDir root;
@@ -666,6 +742,33 @@ void tst_vault_scanner::watcher_refresh_does_not_replay_active_tree_walk()
 
     blocker.waitForFinished();
     pool->setMaxThreadCount(oldMaxThreadCount);
+}
+
+void tst_vault_scanner::watcher_probe_does_not_rewalk_completed_tree()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    QVERIFY(QDir().mkpath(root.path() + QStringLiteral("/Season 01")));
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultConfig cfg(tmp.path());
+    cfg.addRoot(root.path());
+    cfg.confirmRoot(root.path());
+    VaultWatcher w(&idx, &ident, &cfg);
+    QSignalSpy reconciled(&w, &VaultWatcher::watchTreeReconciled);
+
+    w.refresh();
+    QTRY_COMPARE_WITH_TIMEOUT(reconciled.count(), 1, 5000);
+    // Cross at least one 1-second probe tick. A healthy, already-registered tree must not
+    // recursively walk again just because availability was probed.
+    QTest::qWait(1250);
+    QCOMPARE(reconciled.count(), 1);
+    w.refresh();
+    QTest::qWait(250);
+    QCOMPARE(reconciled.count(), 1);
 }
 
 void tst_vault_scanner::watcher_directory_cap_marks_root_degraded()
