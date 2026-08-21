@@ -358,12 +358,7 @@ Window {
     }
 
     // Esc: close the series page if open, else leave a world page, else quit. Ctrl+Q always quits.
-    // The Living Guide (z:59) owns Escape while it floats: GuidePage carries its OWN Escape
-    // (ApplicationShortcut), and TWO Escape shortcuts active on one window are an ambiguous overload
-    // that Qt resolves by firing NEITHER (proven — Escape goes dead). So this shell Escape STANDS DOWN
-    // while Guide is open (enabled: !guideLayer.active); GuidePage's own Escape closes the Guide before
-    // the page it covers, and when Guide closes this shell resumes ownership of the surfaces below.
-    Shortcut { sequences: ["Escape"]; enabled: !guideLayer.active; onActivated: {
+    Shortcut { sequences: ["Escape"]; onActivated: {
         if (win.playerOpen) win.closePlayer()
         else if (bookReaderLayer.active) win.closeBookReader()
         // Taskbar full-pages sit at z:56, above every browsing/detail page — so back must
@@ -844,13 +839,13 @@ Window {
     // player page's error screen instead of swapping engines.
     readonly property bool usePlayer2: Player2Available === true
 
-    // Every reader/player surface that must suppress the OS-shell taskbar. There are THREE
-    // comic/manga reader lanes (all share the reader chrome — see minimizeComicReader):
-    // seriesLayer=manga, westernLayer=western comics, comicSeriesLayer=the LOCG catalogue.
-    // comicSeriesLayer was missing here, so the taskbar rode in front of that reader while
-    // the other two + book + player suppressed it correctly (Hemanth, 2026-07-16).
+    // Every immersive manga/comic/reader/player surface suppresses the OS-shell taskbar.
+    // A Tankoban series detail is itself an immersive Reading Room now: the fixed rail and
+    // volume pane own the whole window before a reader is opened, so the taskbar must not
+    // remain visible underneath that surface.
     readonly property bool immersiveSurfaceOpen: win.playerOpen
         || bookReaderLayer.active
+        || seriesLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
@@ -988,7 +983,6 @@ Window {
     // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
-        guideLayer.active = false      // a taskbar destination dismisses the floating Guide first
         extensionsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
@@ -1002,7 +996,6 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
-        guideLayer.active = false      // a taskbar destination dismisses the floating Guide first
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
@@ -1058,7 +1051,6 @@ Window {
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
-        guideLayer.active = false      // a taskbar destination dismisses the floating Guide first
         downloadsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
@@ -1071,7 +1063,6 @@ Window {
 
     // ---- Settings page: the global preferences gear, entered from the taskbar ----
     function openSettingsPage() {
-        guideLayer.active = false      // a taskbar destination dismisses the floating Guide first
         downloadsLayer.active = false
         extensionsLayer.active = false
         updateLayer.active = false
@@ -1083,7 +1074,6 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
-        guideLayer.active = false      // a taskbar destination dismisses the floating Guide first
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
@@ -1098,27 +1088,6 @@ Window {
             Updates.markSeen()
     }
     function closeUpdatePage() { updateLayer.active = false }
-
-    // ---- Living Guide: the offline codex FLOATS over the current surface (z:59). Opening it pins
-    // the expanded taskbar and leaves every underlying loader alive; closing just deactivates the
-    // layer and reveals whatever the user stood on. openGuidePage is also the seam House contextual
-    // links (Task 10) reach through the utility loaders' optional guideRequested signal.
-    function openGuidePage(lessonId, sectionId, originLabel) {
-        var wasActive = guideLayer.active
-        guideLayer.lessonId = lessonId || ""
-        guideLayer.sectionId = sectionId || ""
-        guideLayer.originLabel = originLabel || ""
-        guideLayer.active = true
-        if (wasActive) win.applyGuideTarget()   // already open (deep link) — push into the live page
-        taskbar.open = true                      // the Guide surface keeps the expanded taskbar pinned
-    }
-    function closeGuidePage() { guideLayer.active = false }
-    function applyGuideTarget() {
-        if (!guideLayer.item) return
-        guideLayer.item.originLabel = guideLayer.originLabel
-        if (guideLayer.lessonId) guideLayer.item.openLesson(guideLayer.lessonId)
-        else if (guideLayer.sectionId) guideLayer.item.openSection(guideLayer.sectionId)
-    }
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
         if (item.world === "theatre") {
@@ -1887,7 +1856,7 @@ Window {
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
-        onUpdateClicked: (guideLayer.active || !updateLayer.active) ? win.openUpdatePage() : win.closeUpdatePage()
+        onUpdateClicked: !updateLayer.active ? win.openUpdatePage() : win.closeUpdatePage()
     }
 
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
@@ -2839,8 +2808,6 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeDownloadsPage)
-            if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
-                item.guideRequested.connect(function(lessonId, originLabel) { win.openGuidePage(lessonId, "", originLabel) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
@@ -2868,8 +2835,6 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
-            if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
-                item.guideRequested.connect(function(lessonId, originLabel) { win.openGuidePage(lessonId, "", originLabel) })
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
@@ -2975,8 +2940,6 @@ Window {
             // flipping the Settings switch re-asks the registry without a relaunch.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeExtensionsPage)
-            if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
-                item.guideRequested.connect(function(lessonId, originLabel) { win.openGuidePage(lessonId, "", originLabel) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
@@ -2996,8 +2959,6 @@ Window {
             item.backdrop = wall
             item.preferences = contentPreferences
             item.backRequested.connect(win.closeSettingsPage)
-            if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
-                item.guideRequested.connect(function(lessonId, originLabel) { win.openGuidePage(lessonId, "", originLabel) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
@@ -3017,36 +2978,9 @@ Window {
             item.updates = typeof Updates !== "undefined" ? Updates : null
             item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.backRequested.connect(win.closeUpdatePage)
-            item.guideActive = Qt.binding(function() { return guideLayer.active })   // yield its Escape while Guide floats above
-            if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
-                item.guideRequested.connect(function(lessonId, originLabel) { win.openGuidePage(lessonId, "", originLabel) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
-        }
-    }
-
-    // ---- Living Guide: the offline in-app codex, opened from the taskbar Guide door. Unlike the
-    //      z:56 taskbar full-pages it FLOATS above them (z:59) and leaves every underlying loader
-    //      alive, so closing Guide reveals the exact surface the user stood on. It is NOT immersive
-    //      (the expanded taskbar stays pinned) — the in-reader Guide is Task 5's GuideOverlay, a
-    //      separate component. z:59 sits above the z:56 utility pages it covers; the immersive
-    //      reader/player surfaces (57/58/60) never coexist with a taskbar-launched Guide because the
-    //      taskbar is hidden while they own the screen. ----
-    Loader {
-        id: guideLayer
-        anchors.fill: parent
-        z: 59
-        active: false
-        visible: active
-        property string lessonId: ""
-        property string sectionId: ""
-        property string originLabel: ""
-        source: "guide/GuidePage.qml"
-        onLoaded: {
-            item.closeRequested.connect(win.closeGuidePage)
-            item.returnRequested.connect(win.closeGuidePage)
-            win.applyGuideTarget()
         }
     }
 
@@ -3098,21 +3032,14 @@ Window {
         watchPartyJoinErrorCategory: typeof WatchPartyUi !== "undefined"
                                      ? WatchPartyUi.errorCategory : "unavailable"
         downloadsBadge: win.totalActiveDownloads
-        // While the Living Guide floats above (z:59) only Guide carries the active underline; the
-        // underlying loaders stay alive, so closing Guide restores each utility's real state.
-        downloadsActive: downloadsLayer.active && !guideLayer.active
-        // While Guide floats, a taskbar destination ALWAYS routes through its open() (which dismisses
-        // Guide first, then reveals/switches to that destination) — never the raw close branch, or the
-        // same-underlay click would close the page the user meant to return to and leave Guide up.
-        onDownloadsClicked: (guideLayer.active || !downloadsLayer.active) ? win.openDownloadsPage() : win.closeDownloadsPage()
-        vaultActive: vaultLayer.active && !guideLayer.active
-        onVaultClicked: (guideLayer.active || !vaultLayer.active) ? win.openVaultPage() : win.closeVaultPage()
-        extensionsActive: extensionsLayer.active && !guideLayer.active
-        onExtensionsClicked: (guideLayer.active || !extensionsLayer.active) ? win.openExtensionsPage() : win.closeExtensionsPage()
-        settingsActive: settingsLayer.active && !guideLayer.active
-        onSettingsClicked: (guideLayer.active || !settingsLayer.active) ? win.openSettingsPage() : win.closeSettingsPage()
-        guideActive: guideLayer.active
-        onGuideClicked: guideLayer.active ? win.closeGuidePage() : win.openGuidePage("", "", "")
+        downloadsActive: downloadsLayer.active
+        onDownloadsClicked: !downloadsLayer.active ? win.openDownloadsPage() : win.closeDownloadsPage()
+        vaultActive: vaultLayer.active
+        onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
+        extensionsActive: extensionsLayer.active
+        onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
+        settingsActive: settingsLayer.active
+        onSettingsClicked: !settingsLayer.active ? win.openSettingsPage() : win.closeSettingsPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
@@ -3235,7 +3162,6 @@ Window {
 
         function refresh() { model = (typeof LocalLaunch !== "undefined") ? LocalLaunch.recentItems() : [] }
         function toggle() { open = !open }
-
         onOpenChanged: { if (open) refresh(); opacity = open ? 1 : 0 }
         Component.onCompleted: refresh()
         Connections {
@@ -3266,6 +3192,7 @@ Window {
         onOpenRequested: (index, entry) => win.openNextToOpen(index)
         onRemoveRequested: (index, entry) => win.removeNextToOpen(index)
     }
+
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.
     VaultIdentityCeremonyDialog {
         id: identityCeremonyDialog
@@ -3273,6 +3200,7 @@ Window {
         z: 960
         onChoiceMade: (relationship, choice) => win.decidePendingIdentity(choice)
     }
+
     // A quiet, no-color status pill for local-open feedback: a categorized rejection, or the
     // folder-drop explain with a "Select Media Files…" action. Grays/white only (house rule).
     Rectangle {

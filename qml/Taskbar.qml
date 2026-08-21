@@ -43,8 +43,6 @@ Item {
     property bool extensionsActive: false // the Extensions page is the front surface
     signal settingsClicked()
     property bool settingsActive: false   // the Settings page is the front surface
-    signal guideClicked()
-    property bool guideActive: false      // the Living Guide is the front surface
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -161,39 +159,19 @@ Item {
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
             //      ALWAYS visible (unlike the open-only page controls), so it rides in the closed
-            //      capsule beside the arch; the dock widens to closedWidth to hold both. Clones the
-            //      page-control hover + gold active-underline language; no badge. ----
-            Item {
-                objectName: "taskbarVaultDoor"
+            //      capsule beside the arch; the dock widens to closedWidth to hold both. The door's
+            //      alive state (Slice 15): quiet gold dot while a scan runs, ≥2s glow on a live-shelf
+            //      landing — painted from VaultLibrary.scanning + the arrivalTick clock, no counts
+            //      (spec §3). The component owns the doorState machine (tested by tst_vault_door). ----
+            VaultDoor {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 13
-                    color: vaultMa.containsMouse || bar.vaultActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                }
-                Image {
-                    anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "../assets/icons/vault-folder.svg"
-                    fillMode: Image.PreserveAspectFit
-                    opacity: bar.vaultActive ? 1 : 0.75
-                }
-                Rectangle {   // active-page underline, same gold language as session tiles
-                    visible: bar.vaultActive
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                    width: 20; height: 3; radius: 2
-                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
-                }
-                MouseArea {
-                    id: vaultMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.vaultClicked()
-                }
+                active: bar.vaultActive
+                scanning: (typeof VaultLibrary !== "undefined") ? VaultLibrary.scanning : false
+                arrivalTick: (typeof VaultLibrary !== "undefined")
+                             ? (VaultLibrary.liveArrival, VaultLibrary.arrivalTick) : 0
+                onClicked: bar.vaultClicked()
             }
 
             // ---- Open Media: hand the app a local file (Open Media…, Vault Slice 8) ----
@@ -386,46 +364,6 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.extensionsClicked()
-                }
-            }
-
-            // ---- Guide: the Living Guide door, beside the other app-wide utilities. Opens the
-            //      offline in-app codex over the current surface; the expanded taskbar stays
-            //      pinned (the in-reader Guide is Task 5's separate overlay). ----
-            Item {
-                objectName: "colosseumGuideTaskbarButton"
-                Layout.preferredWidth: 46
-                Layout.preferredHeight: 46
-                Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 13
-                    color: guideMa.containsMouse || bar.guideActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                }
-                Image {
-                    anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "../assets/icons/guide.svg"
-                    fillMode: Image.PreserveAspectFit
-                    opacity: bar.guideActive ? 1 : 0.75
-                }
-                Rectangle {   // active-page underline, monochrome silver — same language as the other utilities
-                    objectName: "colosseumGuideUnderline"
-                    visible: bar.guideActive
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                    width: 20; height: 3; radius: 2
-                    color: Qt.rgba(0.94, 0.95, 0.96, 0.95)
-                }
-                Accessible.role: Accessible.Button
-                Accessible.name: "Guide"
-                MouseArea {
-                    id: guideMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.guideClicked()
                 }
             }
 

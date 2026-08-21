@@ -49,7 +49,7 @@ if ($bar -match 'signal updateClicked|property bool updateActive|updatePresentat
 if ($bar -notmatch 'closedWidth:\s*130') { throw 'closed taskbar geometry changed outside scope' }
 
 # ---- Main.qml: home TopBar wired + taskbar has no update bindings ----
-if ($main -notmatch 'onUpdateClicked:\s*\(guideLayer\.active') {
+if ($main -notmatch 'onUpdateClicked:\s*!updateLayer\.active') {
     throw 'Main.qml does not wire the home TopBar Update glyph toggle'
 }
 if ($main -notmatch 'updateAvailable:\s*typeof Updates' -or
