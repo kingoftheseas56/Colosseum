@@ -1409,8 +1409,112 @@ verification.md`'s matching entry; this entry covers the Lanista/bridge-specific
 
 Adopted the Hemanth-approved horizontal Pages/Flow volume continuum into
 `qml/MangaTankobanLibrary.qml`/`qml/MangaReadingRoom.qml` (full detail and reconciliation
-notes in `docs/colosseum-test-verification.md`'s matching entry). Status: **Bridge
-blocked** for the runtime layer, honestly, not `Runtime-validated`.
+notes in `docs/colosseum-test-verification.md`'s matching entry). Status at adoption time:
+**Bridge blocked** for the runtime layer, honestly, not `Runtime-validated`.
+
+### Runtime-verification pass (2026-08-21, closing the debt above)
+
+Native gate closed (see the test ledger's matching entry: 72/72). Build slot claimed/released
+on `agents/chat.md` per standing discipline. All three committed scenarios replayed in fresh
+isolated windowed sessions (unique tag/pipe each, never the daily pipe; offscreen is documented
+elsewhere in this ledger as not viable for this app's Lanista-driven scenarios):
+
+- **`tankoban_catalogue_smoke.json`** — session `20260821-150503-d004f454` (plus a second,
+  deliberately UNMODIFIED literal replay in session `20260821-153445-cf852d97` to isolate one
+  finding below from my own exploratory deviations). Every existing assertion held: One Piece
+  masthead (`displayTitle`/`resolvedMalId`/`hasShelf`/`primaryAction` byte-identical to the
+  committed expectations), shelf `rowCount==113`, picker `hasCompileFallback==false` on both the
+  first and second card, world-tab-away/back regression (masthead re-renders genuinely, not
+  vacuously), Berserk shelf-less (`hasShelf==false`, `primaryAction=="search"`), series-mode
+  picker also `hasCompileFallback==false`. **`coveredCount` is now 111, not the ledger's prior
+  112** — re-read live from `data/tankoban_catalog.db` twice a few minutes apart during this
+  pass (112 then 111 for the same `mal_id=13` non-empty-`cover_url` count) — the parallel
+  arc-9-pass-2/data-heal activity documented on `agents/chat.md` this same window shifted it by
+  one row; 111 is the number the live app and a fresh db read now agree on, pinned here.
+  Added a 'flow proof' step block (keyboard `Right` advances `focusIndex`/`flowCurrentIndex` by
+  one; the action bar's `currentActionLabel` tracks the centred volume's state; click-to-centre
+  vs click-to-act on a non-centred card) — all reproduced cleanly, committed into the scenario
+  file itself.
+  **New finding, not previously documented:** a pristine, unmodified replay of this scenario's
+  own "regression: reopen the picker on a second card" step is timing-fragile under the v2.3
+  flow. After dismissing `tankobanSourcesSheet` (visible→false confirmed via `ui-wait-for`), the
+  volume flow's cards stop responding to synthesized clicks AND `WheelHandler` scroll for several
+  real seconds — 3 fast consecutive click/scroll attempts within about a second all left
+  `focusIndex` unchanged; the identical click succeeded immediately once ~6 real seconds had
+  elapsed since the dismiss. Confirmed NOT a general input freeze (`tankobanReadingRoomBack` and
+  world tab pills stayed responsive throughout) and confirmed NOT present on a freshly-opened
+  series page that never opened a picker (card clicks worked instantly, repeatably). Traces to
+  `qml/MangaTankobanSourcesPage.qml` (untouched by ffd1eaa/ddae7d5 — an absorbing
+  `MouseArea{anchors.fill:parent}` at line 470 plus several dismiss-path Timers are the leading
+  suspects) interacting with the new flow's WheelHandler/MouseArea surface — not root-caused by
+  instrumentation, per debugging discipline, so not blindly fixed here. Flagged as a follow-up
+  bug rather than silently patched or forced green; the scenario step itself is left unchanged
+  (no schema-level sleep primitive exists to encode a verified settle deterministically) with the
+  finding recorded in the scenario file's own `comment` field. This is why the earlier Slice-4
+  session and my own first (exploration-mixed) session both saw it pass — both had incidental
+  real-time gaps between the dismiss and the retry — while a fast literal replay does not,
+  reliably.
+- **`tankoban_discover_depth.json`** — session `20260821-152249-e916cce2`. Reproduced exactly as
+  scripted: rank-1 (Berserk) materializes pre-scroll, the two-stage scroll technique (page-level
+  scroll on `tankobanTabBar` clearing the banner dead zone, then wall-internal scroll handed off
+  to `mangaDiscoverCard_13`) reaches rank-18 (Spy x Family, malId 119161), whole-window grab taken.
+  No deviation from the committed script needed.
+- **`tankoban_nyaa_dark_gate.json`** — session `20260821-152614-bdef0e0d`. Reproduced exactly:
+  fresh-install dark gate (`sourcesEnabled==false`, `loading==false`, `complete==true`,
+  `hasCompileFallback==false`), `tankobanSourcesEnableRoute` visible, Extensions route lands on
+  Installed pane, `extensionToggle_colosseum.well.nyaa` starts `checked==false` and lands
+  `checked==true` on click, `Escape` returns to the still-live series page underneath (not a
+  replacement), and a fresh picker open post-toggle reads `sourcesEnabled==true` with no restart
+  — Slice R1's own completion signal, reconfirmed.
+
+### Warning gate — every session, known-noise classes cited by name
+
+All four sessions this pass (three scenario replays + the pristine isolation replay) were run
+through `warnings()`. Two classes surfaced, both PREVIOUSLY NAMED in this ledger (Slice 4,
+2026-08-20) — no new class this pass beyond one exception noted below:
+
+- `QIODevice::read (QSslSocket): device not open` (colosseum.log `[W]` + stderr.log,
+  ~14-25 occurrences per session) — the same class Slice 4 called "almost certainly incidental
+  network/SSL library noise from the live Nyaa RSS fetches", but this pass observed it in
+  session `20260821-153445-cf852d97` too, which never enabled Nyaa or opened Extensions at all —
+  broadening that attribution: the noise is NOT exclusively tied to live Nyaa fetches, some other
+  background network activity (unidentified this pass) also produces it. Still not root-caused;
+  recorded as the same named class, attribution note updated rather than assumed.
+- `TypeError: Cannot read property 'revision' of null` / `Cannot call method 'recent'/'items' of
+  null` (colosseum.log `[W]`, ~20 lines) — the exact Slice-4-named class (same files:
+  `Main.qml`, `TankobanWorld.qml`, `TankobanLibraryTab.qml`, `TheatreWorld.qml`, `BiblioWorld.qml`,
+  `LibraryPage.qml`, `BiblioLibraryPage.qml`), surfaced only in session
+  `20260821-152614-bdef0e0d` (not the other three) — consistent with Slice 4's own
+  characterization as an intermittent first-world-mode-entry construction race, not deterministic,
+  not attributable to this adoption's two files.
+- New, not previously named: `[tankoban-migration] chapter tree purge pass complete: ...marker
+  withheld, will retry once a real profile activates` (stderr.log, no level marker, every fresh
+  session this pass) — traced to `native/engine/TankobanChapterMigration.cpp` (catalogue-
+  independence Slice 5, native, unrelated file). One-time per-boot informational status line, not
+  a warning in substance; flagged here by name as instructed, not fixed (native, foreign file,
+  informational not a defect).
+
+### Visual evidence (Hemanth's aesthetic gate)
+
+Whole-window grabs saved under `artifacts/tankoban-independence/flow-adoption/` (gitignored,
+local-only, per this ledger's own precedent for session evidence):
+`one-piece-covered-flow-vol1-picker.png` (One Piece, malId 13, covered branch, vol.1 centred +
+sources picker open), `mha-covered-flow-malid75989.png` (My Hero Academia, malId 75989, 42/42
+covered, reached via the top-bar Search surface since it is not in the static "Top in Tankoban"
+rail), `berserk-shelfless-malid2.png` (Berserk, malId 2, TRUE current shelf-less state —
+re-checked live against `data/tankoban_catalog.db`: `volumes` table still has 0 rows for
+`mal_id=2`, `series.volume_count` still 0 — the data-heal pass did NOT give it a shelf),
+`discover-depth-rank1-18.png`, `nyaa-dark-gate-empty-state.png`, `nyaa-enabled-sources.png`.
+Awaiting Hemanth's own eyes-on verdict on the flow's look — not claimed here.
+
+### Status: Runtime-validated
+
+Native gate 72/72, all three committed scenarios replayed green in isolated windowed sessions
+with session ids above, warning gate run on every session with every class named (two known, one
+newly-named-and-attributed-to-a-foreign-file), visual evidence captured. The one open item is the
+post-picker input-freeze timing gap (new finding, ticketed as a follow-up, not blocking this
+adoption's own identity/data/visual correctness) — named honestly above and in the scenario file's
+own comment, not silently absorbed into a false "everything passes cleanly" claim.
 
 - `qmllint` clean (exit 0, only inherited context-property warnings) and both QML harnesses
   green via `qml.exe -platform offscreen` — neither touches `native/build-msvc`.

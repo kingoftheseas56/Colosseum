@@ -1686,3 +1686,13 @@ collision on this RAM-constrained machine). The two harnesses above were run dir
 QML-only change runs against the existing app exe/tooling). `ctest -L unit` registration and
 the full 71/72 (new count) regression pass are still owed once the concurrent build clears —
 tracked as open verification debt, not claimed here.
+
+**Native gate closed (runtime-verification pass, 2026-08-21).** The concurrent build cleared
+(`.ninja_lock` released, `colosseum.exe` rebuilt by its holder ~14:59); claimed a short window
+(`agents/chat.md`, posted+released), confirmed both new/changed registrations already at HEAD
+(`colosseum.manga_reading_room` #44, `colosseum.manga_volume_flow` #46 — no configure needed,
+both were already wired by ffd1eaa), then ran the full gate cleanly against the existing build:
+`ctest --test-dir native/build-msvc -L unit --output-on-failure` → **100% tests passed, 72/72**
+(`colosseum.manga_reading_room` 1.21s, `colosseum.manga_volume_flow` 1.01s). Full log basis:
+this session's own ctest run, no other test touched. This closes the debt this entry left open
+above — the 71/72 (new count) regression pass is done, not owed.
