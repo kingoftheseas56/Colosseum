@@ -18,6 +18,7 @@
 // from build-msvc/ where the app deployed it — the test target lands there.
 
 #include <QObject>
+#include <QSet>
 #include <QSqlDatabase>
 #include <QString>
 #include <QStringList>
@@ -104,6 +105,19 @@ public:
     // rows back without N read-model repaints. Rolls back on any row error.
     bool upsertMany(const QList<FileRow>& rows);
 
+    // Optimistic async-write guard. Every successful authoritative mutation advances revision().
+    // Async enrichment captures the revision it read from and may write back only if no scanner,
+    // watcher, away-state or other index mutation superseded that snapshot.
+    quint64 revision() const { return m_revision; }
+    bool upsertManyIfRevision(const QList<FileRow>& rows, quint64 expectedRevision);
+
+    // Atomically reconcile one healthy, present filesystem root. `currentIds` is the complete
+    // on-disk census for that root; `arrivals` contains only rows not already indexed. Obsolete
+    // physical rows are deleted in the SAME transaction as arrivals are inserted, while unchanged
+    // rows are left byte-for-byte intact so enrichment/progress/identity facts survive.
+    bool reconcileRoot(const QString& rootPath, const QSet<QString>& currentIds,
+                       const QList<FileRow>& arrivals, int* removedCount = nullptr);
+
     // Full rows for a kind, in natural order — the enrichment pass reads these on the GUI
     // thread, does its file I/O off-thread, then upsertMany()s the enriched rows back.
     QList<FileRow> rowsForKind(const QString& kind) const;
@@ -165,4 +179,5 @@ private:
 
     QString m_conn;
     QSqlDatabase m_db;
+    quint64 m_revision = 0; // process-local mutation clock for stale async-write rejection
 };

@@ -2,9 +2,10 @@
 // LocalLaunch — the launch router (Slice 7). Given one OS-readable file, decide
 // which surface opens it and whether it can be opened AT ALL, before any taskbar
 // session is created (Preflight §6/§18): classify by extension, then let the
-// destination backend validate — comics via CbzArchive, video via the decoded-
+// destination backend validate — CBZ comics via CbzArchive, video via the decoded-
 // frame admission probe, books by extension (Reader 2's backend stays
-// authoritative at open). An invalid file is rejected with a category and NO
+// authoritative at open). CBR stays classifiable for shelving but fails closed at launch until
+// the comic reader has a real CBR page backend. An invalid file is rejected with a category and NO
 // session; a valid one carries the vault content id its progress keys to.
 //
 // This is the pure decision layer. Wiring the doors themselves (ComicReader 2 /
@@ -48,10 +49,10 @@ public:
     static QString familyName(Family f);
     static QString rejectName(Reject r);
 
-    // Backend validation. Comic: CBZ via CbzArchive (CBR accepted by extension —
-    // Colosseum has no general in-place CBR reader yet; content validation +
-    // reading deferred). Video: the decoded-frame admission probe. Book: accepted
-    // by extension (Reader 2 validates at open).
+    // Backend validation. Comic: CBZ via CbzArchive; CBR deliberately fails closed until
+    // Colosseum has a real in-place CBR reader. Video: the decoded-frame admission probe.
+    // Book: accepted by extension here; the Arc 14 capability matrix must be runtime-verified
+    // against Reader 2 before AZW3/DJVU are treated as supported launch formats.
     static bool validateComic(const QString& path);
     static bool validateVideo(const QString& path);
     static bool validateBook(const QString& path);

@@ -1098,10 +1098,13 @@ int main(int argc, char *argv[]) {
     // SQLite), then write the enriched rows back in ONE batch on the GUI thread so the shelf
     // tiles paint real covers via the already-registered image://comiccover provider. Video
     // durations + book covers stay deferred (their art is a later slice) — enriching video
-    // here would run ffprobe on the GUI thread. A generation guard drops a stale enrichment
-    // whose publish was superseded, so it can never resurrect a row a newer publish dropped.
-    auto vaultEnrichGen = std::make_shared<quint64>(0);
-    auto runVaultCoverEnrichment = [vaultIndex, vaultEnrichGen]() {
+    // here would run ffprobe on the GUI thread. An index-revision guard drops stale enrichment
+    // after ANY superseding index mutation, so scanner and watcher changes cannot be resurrected.
+    auto runVaultCoverEnrichment = [vaultIndex]() {
+        // Capture the exact index snapshot this async work is derived from. Any successful
+        // scanner publish, watcher reconciliation, away-state change, or other mutation advances
+        // the revision and makes this worker's eventual write-back ineligible.
+        const quint64 baseRevision = vaultIndex->revision();
         // Only comics still missing a cover — so a re-publish or a re-launch of an already
         // enriched library does no redundant CBZ reads (this returns nothing after the first pass).
         QList<VaultIndex::FileRow> todo;
@@ -1123,17 +1126,16 @@ int main(int argc, char *argv[]) {
                 todo.append(r);
         }
         if (todo.isEmpty())
-            return;
-        const quint64 gen = ++(*vaultEnrichGen);
+            return; // a zero-work newer publication still advanced VaultIndex::revision()
         auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>();
         QObject::connect(
             watcher, &QFutureWatcher<QList<VaultIndex::FileRow>>::finished, vaultIndex,
-            [vaultIndex, watcher, vaultEnrichGen, gen]() {
+            [vaultIndex, watcher, baseRevision]() {
                 const QList<VaultIndex::FileRow> enriched = watcher->result();
                 watcher->deleteLater();
-                if (gen != *vaultEnrichGen)
-                    return; // a newer publish superseded this enrichment
-                vaultIndex->upsertMany(enriched);
+                // Conditional write-back is the resurrection barrier: stale workers cannot
+                // reinsert rows after a scanner publish OR a live watcher deletion/replacement.
+                vaultIndex->upsertManyIfRevision(enriched, baseRevision);
             });
         watcher->setFuture(QtConcurrent::run([todo]() {
             QList<VaultIndex::FileRow> out;

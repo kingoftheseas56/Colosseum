@@ -500,6 +500,7 @@ bool VaultIndex::publish(const QList<FileRow>& rows,
     if (!m_db.commit())
         return false;
 
+    ++m_revision;
     emit changed();
     return true;
 }
@@ -510,6 +511,7 @@ bool VaultIndex::upsert(const FileRow& row)
         return false;
     if (!insertRow(row))
         return false;
+    ++m_revision;
     emit changed();
     return true;
 }
@@ -532,7 +534,68 @@ bool VaultIndex::upsertMany(const QList<FileRow>& rows)
         m_db.rollback();
         return false;
     }
+    ++m_revision;
     emit changed(); // one repaint for the whole batch
+    return true;
+}
+
+bool VaultIndex::upsertManyIfRevision(const QList<FileRow>& rows, quint64 expectedRevision)
+{
+    if (expectedRevision != m_revision)
+        return false;
+    return upsertMany(rows);
+}
+
+bool VaultIndex::reconcileRoot(const QString& rootPath, const QSet<QString>& currentIds,
+                               const QList<FileRow>& arrivals, int* removedCount)
+{
+    if (removedCount)
+        *removedCount = 0;
+    if (!m_db.isOpen() || !m_db.transaction())
+        return false;
+
+    auto rollback = [this]() {
+        m_db.rollback();
+        return false;
+    };
+
+    QSqlQuery existing(m_db);
+    existing.prepare(QStringLiteral("SELECT id FROM files WHERE rootPath = ?"));
+    existing.addBindValue(rootPath);
+    if (!existing.exec())
+        return rollback();
+
+    QStringList obsolete;
+    while (existing.next()) {
+        const QString id = existing.value(0).toString();
+        if (!currentIds.contains(id))
+            obsolete.append(id);
+    }
+
+    QSqlQuery remove(m_db);
+    remove.prepare(QStringLiteral("DELETE FROM files WHERE id = ? AND rootPath = ?"));
+    for (const QString& id : obsolete) {
+        remove.bindValue(0, id);
+        remove.bindValue(1, rootPath);
+        if (!remove.exec())
+            return rollback();
+        remove.finish();
+    }
+
+    for (const FileRow& row : arrivals) {
+        if (!insertRow(row))
+            return rollback();
+    }
+
+    if (!m_db.commit())
+        return false;
+
+    if (removedCount)
+        *removedCount = obsolete.size();
+    if (!obsolete.isEmpty() || !arrivals.isEmpty()) {
+        ++m_revision;
+        emit changed();
+    }
     return true;
 }
 
@@ -846,6 +909,7 @@ bool VaultIndex::markRootAway(const QString& rootPath, bool away)
     q.addBindValue(away ? 1 : 0);
     if (!q.exec() || q.numRowsAffected() <= 0)
         return false;
+    ++m_revision;
     emit changed();
     return true;
 }

@@ -16,6 +16,8 @@
 #include <QVariantMap>
 #include <QtTest>
 
+#include <algorithm>
+
 class tst_vault_index : public QObject
 {
     Q_OBJECT
@@ -115,6 +117,9 @@ private slots:
     void publish_carries_admission_only_for_exact_identity_tuple();
     void publish_explicit_new_verdict_wins_over_carried_verdict();
     void admission_projection_is_video_only_and_omits_unprobed_rows();
+    // ── Arc 14: live reconciliation + stale async write barriers ──
+    void reconcile_root_removes_obsolete_and_preserves_unchanged_facts();
+    void stale_revision_write_cannot_resurrect_removed_row();
 };
 
 void tst_vault_index::publish_and_query_round_trip()
@@ -636,6 +641,56 @@ void tst_vault_index::admission_projection_is_video_only_and_omits_unprobed_rows
     QCOMPARE(map.value(QStringLiteral("vault:r")).toString(), QStringLiteral("RejectedNoVideo"));
     QVERIFY(!map.contains(QStringLiteral("vault:u")));
     QVERIFY(!map.contains(QStringLiteral("vault:c")));
+}
+
+void tst_vault_index::reconcile_root_removes_obsolete_and_preserves_unchanged_facts()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    auto keep = mk(QStringLiteral("vault:keep"), QStringLiteral("D:/lib/Series"),
+                   QStringLiteral("Series"), QStringLiteral("comic"), QStringLiteral("keep.cbz"));
+    keep.progressed = true;
+    keep.coverRef = QStringLiteral("001.jpg");
+    auto gone = mk(QStringLiteral("vault:gone"), QStringLiteral("D:/lib/Series"),
+                   QStringLiteral("Series"), QStringLiteral("comic"), QStringLiteral("gone.cbz"));
+    QVERIFY(idx.publish({keep, gone}));
+
+    auto arrival = mk(QStringLiteral("vault:new"), QStringLiteral("D:/lib/Series"),
+                      QStringLiteral("Series"), QStringLiteral("comic"), QStringLiteral("new.cbz"));
+    int removed = -1;
+    QVERIFY(idx.reconcileRoot(QStringLiteral("D:/lib"),
+                              QSet<QString>{keep.id, arrival.id}, {arrival}, &removed));
+    QCOMPARE(removed, 1);
+    QCOMPARE(idx.itemCount(), 2);
+    const auto rows = idx.rowsForRoot(QStringLiteral("D:/lib"));
+    const auto kept = std::find_if(rows.cbegin(), rows.cend(), [&](const auto& r) { return r.id == keep.id; });
+    QVERIFY(kept != rows.cend());
+    QVERIFY(kept->progressed);
+    QCOMPARE(kept->coverRef, QStringLiteral("001.jpg"));
+}
+
+void tst_vault_index::stale_revision_write_cannot_resurrect_removed_row()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+
+    auto row = mk(QStringLiteral("vault:old"), QStringLiteral("D:/lib/Series"),
+                  QStringLiteral("Series"), QStringLiteral("comic"), QStringLiteral("old.cbz"));
+    QVERIFY(idx.publish({row}));
+    const quint64 staleRevision = idx.revision();
+    row.coverRef = QStringLiteral("001.jpg"); // async enrichment result derived from stale snapshot
+
+    int removed = -1;
+    QVERIFY(idx.reconcileRoot(QStringLiteral("D:/lib"), {}, {}, &removed));
+    QCOMPARE(removed, 1);
+    QCOMPARE(idx.itemCount(), 0);
+    QVERIFY(!idx.upsertManyIfRevision({row}, staleRevision));
+    QCOMPARE(idx.itemCount(), 0);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_index)

@@ -60,6 +60,25 @@ int main(int argc, char** argv)
           "corrupt CBZ must be REJECTED as corrupt");
     check(corrupt.vaultId.isEmpty(), "rejected file must carry NO vault id (no session)");
 
+    // Arc 14: CBR remains a comic-classified shelf format, but the current page store has no
+    // CBR backend. Never create a reader session merely because the extension says CBR.
+    QTemporaryDir unsupportedComicDir;
+    check(unsupportedComicDir.isValid(), "CBR temporary directory must be valid");
+    if (unsupportedComicDir.isValid()) {
+        const QString cbrPath = unsupportedComicDir.filePath(QStringLiteral("sample.cbr"));
+        QFile cbr(cbrPath);
+        check(cbr.open(QIODevice::WriteOnly | QIODevice::Truncate), "must create CBR fixture");
+        if (cbr.isOpen()) {
+            cbr.write("rar-looking-but-unreadable");
+            cbr.close();
+        }
+        const auto cbrRoute = LocalLaunch::route(cbrPath);
+        check(cbrRoute.family == Family::Comic && !cbrRoute.accepted
+                  && cbrRoute.reject == Reject::Unsupported,
+              "CBR must fail closed as unsupported until a real CBR reader exists");
+        check(cbrRoute.vaultId.isEmpty(), "unsupported CBR must create NO vault session");
+    }
+
     const auto video = LocalLaunch::route(vx + QStringLiteral("/media/tiny.mp4"));
     check(video.family == Family::Video && video.accepted, "valid MP4 must route video + accepted");
 

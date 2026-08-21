@@ -45,8 +45,11 @@ QString LocalLaunch::rejectName(Reject r)
 bool LocalLaunch::validateComic(const QString& path)
 {
     const QString ext = QFileInfo(path).suffix().toLower();
-    if (ext == QLatin1String("cbr"))
-        return true; // no general in-place CBR reader yet — accept by extension
+    // VaultPageStore and the current comic reader can enumerate CBZ pages only. A CBR is still
+    // classified as comic by VaultKit for shelving, but launch must fail closed until a real CBR
+    // backend exists. Extension-only admission creates a session that cannot render a single page.
+    if (ext != QLatin1String("cbz"))
+        return false;
     QString err;
     return !MangaTankoban::CbzArchive::imageEntries(path, &err).isEmpty();
 }
@@ -74,10 +77,19 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
 
     r.family = classify(path);
     switch (r.family) {
-    case Family::Comic:
+    case Family::Comic: {
+        const QString ext = fi.suffix().toLower();
         r.accepted = validateComic(path);
-        r.reject = r.accepted ? Reject::None : Reject::Corrupt;
+        if (r.accepted) {
+            r.reject = Reject::None;
+        } else if (ext == QLatin1String("cbr")) {
+            r.reject = Reject::Unsupported;
+            r.detail = QStringLiteral("CBR reading is not available in the current comic reader");
+        } else {
+            r.reject = Reject::Corrupt;
+        }
         break;
+    }
     case Family::Book:
         r.accepted = validateBook(path);
         r.reject = r.accepted ? Reject::None : Reject::Unsupported;

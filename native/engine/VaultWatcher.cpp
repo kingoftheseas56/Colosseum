@@ -85,10 +85,14 @@ void VaultWatcher::refresh()
         if (QDir(path).exists()) {
             m_unavailable.remove(norm);
             watchRoot(path);
-            scheduleTreeWatch(path);
+            // The one-second probe is availability-only after initial registration. Recurse only
+            // for a newly confirmed/revived root or when a directory event explicitly requests it.
+            if (!m_treeInitialized.contains(norm))
+                scheduleTreeWatch(path);
         } else {
             m_unavailable.insert(norm);
             m_watched.remove(norm);
+            m_treeInitialized.remove(norm); // revival must rebuild recursive watches once
             m_degraded.insert(norm); // rescan-on-open still needs to revisit the missing root
         }
     }
@@ -108,6 +112,12 @@ void VaultWatcher::refresh()
         }
         if (!keep)
             m_watcher->removePath(watched);
+    }
+    for (auto it = m_treeInitialized.begin(); it != m_treeInitialized.end(); ) {
+        if (!configuredRoots.contains(*it))
+            it = m_treeInitialized.erase(it);
+        else
+            ++it;
     }
 
     // QFileSystemWatcher degradation (limits/network watch failure) is not filesystem absence.
@@ -192,6 +202,9 @@ void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
                     }
                 }
                 const bool complete = !capped && !registrationFailed;
+                // One probe-time recursive attempt is enough. A later directory event may request
+                // another walk; a missing/revived root clears this bit in refresh().
+                m_treeInitialized.insert(norm);
                 if (complete) {
                     m_treeDegraded.remove(norm);
                     m_degraded.remove(norm);
@@ -338,15 +351,18 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
                                                 const QVariantMap& kindOverrides)
 {
     Landing landing;
-    if (!m_index || !m_identity)
-        return landing;
+    if (!m_index || !m_identity || !QDir(root).exists())
+        return landing; // an away root is availability state, never an empty destructive census
 
     const QStringList needles = VaultKit::sanitizeIgnoreNeedles(scanIgnore);
     const auto groups = VaultKit::groupByFirstLevelSubdir(
         {root}, VaultKit::allMediaFilters(), nullptr, needles);
 
     // The ids already shelved under this root — everything else on disk is an arrival.
+    // `currentIds` is built from the COMPLETE healthy-root census, including unchanged rows,
+    // so reconcileRoot can delete only physical rows that truly disappeared or were replaced.
     const QSet<QString> existing = m_index->fileIdsInRoot(root);
+    QSet<QString> currentIds;
 
     QList<VaultIndex::FileRow> toUpsert;
     // normSubtree -> { kind -> { count, sampleTitles } } for the new-kind card slices.
@@ -375,8 +391,9 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
             const QFileInfo fi(f);
             const QString id = m_identity->idForFile(f, fi.size(),
                                                      fi.lastModified().toMSecsSinceEpoch());
+            currentIds.insert(id);
             if (existing.contains(id))
-                continue; // unchanged — already shelved (the exact-arrival-set diff)
+                continue; // unchanged — keep the stored row and all durable enrichment facts
 
             // Row construction mirrors VaultScanner::buildScan so a later full rescan
             // reproduces the same rows (the index is a rebuildable product).
@@ -411,11 +428,11 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
         }
     }
 
-    if (!toUpsert.isEmpty()) {
-        if (!m_index->upsertMany(toUpsert))
-            return landing; // a failed upsert is a failed pass; no signals, no card
-        landing.landedCount = toUpsert.size();
-    }
+    int removed = 0;
+    if (!m_index->reconcileRoot(root, currentIds, toUpsert, &removed))
+        return landing; // atomic failure: previous root truth remains intact
+    landing.landedCount = toUpsert.size();
+    landing.removedCount = removed;
 
     // One-slice card model per subtree with a new-kind arrival (S11 law: one card at a time —
     // VaultLibrary guards card-while-card/scanning).
