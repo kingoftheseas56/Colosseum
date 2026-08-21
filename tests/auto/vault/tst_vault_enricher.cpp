@@ -147,6 +147,7 @@ private slots:
     // ── vault-admission slice: probe off the owner thread, commit on it ──
     void video_admission_is_persisted_after_owner_thread_commit();
     void rejected_video_verdict_is_not_promoted();
+    void enrich_stale_writeback_is_dropped_after_index_mutation_supersedes_it();
     // ── local artwork adoption slice (browse-face execution plan Slice 3) ──
     void find_local_artwork_prefers_poster_then_folder_then_cover();
     void find_local_artwork_accepts_jpg_and_jpeg_variants();
@@ -434,6 +435,71 @@ void tst_vault_enricher::rejected_video_verdict_is_not_promoted()
     QVERIFY(!rows.first().admissionVerdict.isEmpty());
     QVERIFY(rows.first().admissionVerdict != QStringLiteral("Admitted"));
     QCOMPARE(rows.first().errorState, QStringLiteral("rejected"));
+}
+
+void tst_vault_enricher::enrich_stale_writeback_is_dropped_after_index_mutation_supersedes_it()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    QVERIFY(idx.isOpen());
+    VaultEnricher enricher(&idx, tmp.path());
+    QSignalSpy finished(&enricher, &VaultEnricher::enrichmentFinished);
+
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:stale-tiny");
+    row.rootPath = tmp.path();
+    row.subtreePath = tmp.path();
+    row.groupKey = tmp.path();
+    row.groupTitle = QStringLiteral("Tiny");
+    row.kind = QStringLiteral("comic");
+    row.path = tinyCbz();
+    row.realName = QStringLiteral("tiny-volume.cbz");
+    row.pages = -1; // unenriched
+    QVERIFY(idx.publish({row}));
+    QCOMPARE(idx.itemCount(), 1);
+
+    // Simulate a competing authoritative mutation (a scanner reconcile/watcher publish) landing
+    // WHILE this enrich() pass is still in flight on a worker thread: the row is deleted from
+    // the index entirely before the enrich job's write-back arrives — the exact stale-async-write
+    // shape d4eaaba fixed in main.cpp's inline cover enrichment, now exercised against
+    // VaultEnricher::enrich()/commitRowsOnIndexThread() directly. The reconcile runs on the
+    // index's OWNER thread (never called cross-thread) via a Qt::QueuedConnection hop off
+    // VaultEnricher::progress — both that hop and the eventual commit hop are posted, in that
+    // order, from the SAME worker thread onto the SAME main-thread queue, so the mutation is
+    // guaranteed to land before the write-back is evaluated.
+    int reconciledRemoved = -1;
+    QObject::connect(
+        &enricher, &VaultEnricher::progress, &idx,
+        [&idx, &reconciledRemoved, root = tmp.path()](int done, int total) {
+            Q_UNUSED(total);
+            if (done != 1)
+                return;
+            int removed = 0;
+            idx.reconcileRoot(root, QSet<QString>(), {}, &removed);
+            reconciledRemoved = removed;
+        },
+        Qt::QueuedConnection);
+
+    QThread worker;
+    QObject gate;
+    gate.moveToThread(&worker);
+    worker.start();
+
+    QMetaObject::invokeMethod(
+        &gate,
+        [&enricher, row]() { enricher.enrich({row}); },
+        Qt::QueuedConnection);
+
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 20000);
+    worker.quit();
+    QVERIFY(worker.wait(5000));
+
+    QCOMPARE(reconciledRemoved, 1); // the mutation genuinely landed before the assertion below
+    // The stale write-back must NOT resurrect the row the index has since moved past.
+    QCOMPARE(idx.itemCount(), 0);
+    QCOMPARE(idx.rowsForKind(QStringLiteral("comic")).size(), 0);
 }
 
 // ── local artwork adoption slice (browse-face execution plan Slice 3) ──

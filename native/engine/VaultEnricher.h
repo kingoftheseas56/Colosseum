@@ -86,8 +86,13 @@ signals:
 private:
     void loadDurationCache();
     // Commit the enriched batch on the VaultIndex OWNER thread (never a worker-thread QSqlDatabase
-    // write), then emit enrichmentFinished(). Same-thread callers commit inline.
-    void commitRowsOnIndexThread(QList<VaultIndex::FileRow> rows);
+    // write), then emit enrichmentFinished(). Same-thread callers commit inline. The write is
+    // conditional on `baseRevision` (VaultIndex::revision() captured when enrich() took its row
+    // snapshot) — the same resurrection barrier main.cpp's inline enrichment uses: any superseding
+    // index mutation (scanner publish, watcher reconciliation, reconcileRoot deletion) advances
+    // the revision and makes this batch's write-back a silent no-op instead of resurrecting a row
+    // the index has since moved past.
+    void commitRowsOnIndexThread(QList<VaultIndex::FileRow> rows, quint64 baseRevision);
 
     VaultIndex* m_index;
     QString m_cacheDir;

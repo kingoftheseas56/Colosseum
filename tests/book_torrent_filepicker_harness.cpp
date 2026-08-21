@@ -45,12 +45,13 @@ int main(){
     auto p6 = BookTorrentFilePicker::pick("Dune","",f);
     require(p6.idx==-1, "djvu excluded -> no pickable ebook");
 
-    // 7) azw3 is NOT wired into the reader → excluded (a lone azw3 = nothing pickable)
+    // 7) azw3 is wired into the reader (Arc 14 D6: KF8 via content-based MOBI dispatch) →
+    // a lone azw3 IS pickable, same as a lone mobi would be.
     QList<ManifestFile> g{ mf(0,"Dune.azw3") };
     auto p7 = BookTorrentFilePicker::pick("Dune","",g);
-    require(p7.idx==-1, "azw3 excluded -> no pickable ebook");
+    require(p7.idx==0 && p7.ext=="azw3", "azw3 picked when it's the only ebook present");
 
-    // 8) with both, the reader-renderable epub is picked over the azw3
+    // 8) with both, the higher-tier epub is picked over the azw3 (mobi/fb2/azw3 share a tier)
     QList<ManifestFile> h{ mf(0,"Dune.azw3"), mf(1,"Dune.epub") };
     auto p8 = BookTorrentFilePicker::pick("Dune","",h);
     require(p8.idx==1 && p8.ext=="epub", "epub picked over azw3");

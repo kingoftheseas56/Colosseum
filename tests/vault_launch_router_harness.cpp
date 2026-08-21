@@ -89,6 +89,45 @@ int main(int argc, char** argv)
     const auto book = LocalLaunch::route(vx + QStringLiteral("/mixed-root/Dune/Dune.epub"));
     check(book.family == Family::Book && book.accepted, "epub must route book + accepted");
 
+    // Arc 14 D6: AZW3 is KF8 in a PalmDB container — the vendored Reader 2 engine's mobi.js
+    // opens it by content (PalmDB magic), the exact same path as .mobi. It must route + accept,
+    // matching the ground-truthed engine capability matrix (see LocalLaunch::validateBook()).
+    QTemporaryDir azw3Dir;
+    check(azw3Dir.isValid(), "AZW3 temporary directory must be valid");
+    if (azw3Dir.isValid()) {
+        const QString azw3Path = azw3Dir.filePath(QStringLiteral("sample.azw3"));
+        QFile azw3(azw3Path);
+        check(azw3.open(QIODevice::WriteOnly | QIODevice::Truncate), "must create AZW3 fixture");
+        if (azw3.isOpen()) {
+            azw3.write("kf8-looking-placeholder-bytes");
+            azw3.close();
+        }
+        const auto azw3Route = LocalLaunch::route(azw3Path);
+        check(azw3Route.family == Family::Book && azw3Route.accepted && azw3Route.reject == Reject::None,
+              "AZW3 must route book + accepted (KF8-in-PalmDB renders via the same MOBI path)");
+        check(!azw3Route.vaultId.isEmpty(), "accepted AZW3 must carry a vault id");
+    }
+
+    // Arc 14 D6: DJVU has no path anywhere in the vendored engine — not zip, not '%PDF-', fails
+    // the MOBI PalmDB magic check, not FB2 by name/type — book.js's getView() throws "File type
+    // not supported". Admission must fail closed, mirroring the CBR pattern above.
+    QTemporaryDir djvuDir;
+    check(djvuDir.isValid(), "DJVU temporary directory must be valid");
+    if (djvuDir.isValid()) {
+        const QString djvuPath = djvuDir.filePath(QStringLiteral("sample.djvu"));
+        QFile djvu(djvuPath);
+        check(djvu.open(QIODevice::WriteOnly | QIODevice::Truncate), "must create DJVU fixture");
+        if (djvu.isOpen()) {
+            djvu.write("AT&TFORM-not-actually-djvu-but-right-magic-prefix");
+            djvu.close();
+        }
+        const auto djvuRoute = LocalLaunch::route(djvuPath);
+        check(djvuRoute.family == Family::Book && !djvuRoute.accepted
+                  && djvuRoute.reject == Reject::Unsupported,
+              "DJVU must fail closed as unsupported — no engine path exists for it");
+        check(djvuRoute.vaultId.isEmpty(), "unsupported DJVU must create NO vault session");
+    }
+
     const auto unknown = LocalLaunch::route(vx + QStringLiteral("/media/thumb.png"));
     check(unknown.family == Family::Unknown && !unknown.accepted && unknown.reject == Reject::Unsupported,
           "png must be unknown + unsupported");

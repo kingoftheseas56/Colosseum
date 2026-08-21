@@ -762,9 +762,12 @@ void tst_vault_scanner::watcher_probe_does_not_rewalk_completed_tree()
 
     w.refresh();
     QTRY_COMPARE_WITH_TIMEOUT(reconciled.count(), 1, 5000);
-    // Cross at least one 1-second probe tick. A healthy, already-registered tree must not
-    // recursively walk again just because availability was probed.
-    QTest::qWait(1250);
+    // Cross at least TWO 1-second probe ticks (m_probe->setInterval(1000)) — a single 1250ms
+    // wait is not a reliable proof the probe fired at all on a loaded machine (the tick could
+    // simply not have run yet, passing vacuously). 2500ms guarantees at least two ticks landed
+    // while keeping the case well under the 6s budget. A healthy, already-registered tree must
+    // not recursively walk again just because availability was probed.
+    QTest::qWait(2500);
     QCOMPARE(reconciled.count(), 1);
     w.refresh();
     QTest::qWait(250);
@@ -795,6 +798,17 @@ void tst_vault_scanner::watcher_directory_cap_marks_root_degraded()
     // A later refresh must not clear the cap state just because the root itself is watchable;
     // VaultLibrary needs to observe the preserved degraded flag and run its silent fallback.
     w.refresh();
+    QVERIFY(w.isRootDegraded(root.path()));
+
+    // A capped root must stay RE-WALKABLE — self-healing (a later relief of the watch budget,
+    // directories removed, etc.) can only be discovered by another attempt. A healthy completed
+    // walk sets m_treeInitialized and refresh()'s gate skips it forever; a capped/degraded walk
+    // must NOT set that bit, so a later refresh() re-triggers scheduleTreeWatch and fires another
+    // watchTreeReconciled — proving the root gets more than the "one walk attempt per session"
+    // regression this test guards against.
+    const int beforeRewalk = treeReady.count();
+    w.refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() > beforeRewalk, 5000);
     QVERIFY(w.isRootDegraded(root.path()));
 }
 

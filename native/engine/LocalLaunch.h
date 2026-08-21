@@ -51,8 +51,10 @@ public:
 
     // Backend validation. Comic: CBZ via CbzArchive; CBR deliberately fails closed until
     // Colosseum has a real in-place CBR reader. Video: the decoded-frame admission probe.
-    // Book: accepted by extension here; the Arc 14 capability matrix must be runtime-verified
-    // against Reader 2 before AZW3/DJVU are treated as supported launch formats.
+    // Book: ground-truthed against the vendored Reader 2 engine (Arc 14 D6) — epub/pdf/fb2/
+    // mobi/azw3 all dispatch into a real engine handler (AZW3 is KF8-in-PalmDB, opened by the
+    // same content-sniffed MOBI path as MOBI6); DJVU has no engine path anywhere and fails
+    // closed. See the verdict table in validateBook()'s definition.
     static bool validateComic(const QString& path);
     static bool validateVideo(const QString& path);
     static bool validateBook(const QString& path);

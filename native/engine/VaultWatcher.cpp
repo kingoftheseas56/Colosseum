@@ -202,10 +202,15 @@ void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
                     }
                 }
                 const bool complete = !capped && !registrationFailed;
-                // One probe-time recursive attempt is enough. A later directory event may request
-                // another walk; a missing/revived root clears this bit in refresh().
-                m_treeInitialized.insert(norm);
+                // A healthy completed walk is sticky — one probe-time recursive attempt is enough,
+                // and a missing/revived root clears this bit in refresh(). A capped or
+                // registration-failed walk must NOT set this bit: refresh()'s gate
+                // (`!m_treeInitialized.contains(norm)`) is the only thing that re-triggers
+                // scheduleTreeWatch, so a degraded root that stays marked initialized would get
+                // exactly one walk attempt per session — self-healing (cap relief, watch budget
+                // freed elsewhere) would never be revisited.
                 if (complete) {
+                    m_treeInitialized.insert(norm);
                     m_treeDegraded.remove(norm);
                     m_degraded.remove(norm);
                 } else {

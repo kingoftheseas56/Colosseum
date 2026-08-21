@@ -59,10 +59,39 @@ bool LocalLaunch::validateVideo(const QString& path)
     return MediaAdmissionProbe::isAdmitted(MediaAdmissionProbe::probe(path).verdict);
 }
 
-bool LocalLaunch::validateBook(const QString& /*path*/)
+bool LocalLaunch::validateBook(const QString& path)
 {
-    // Reader 2's backend is authoritative at open; a known book extension routes.
-    return true;
+    // Arc 14 D6 capability matrix — ground-truthed against the vendored Reader 2 engine
+    // (resources/reader2/vendor/foliate-anx/src/book.js + mobi.js), not assumed from extension:
+    //
+    //   ext   | verdict            | evidence
+    //   epub  | renders            | engine-dispatch: book.js isZip() -> new EPUB().init()
+    //   pdf   | renders            | engine-dispatch: book.js isPDF() magic '%PDF-' -> pdf.js makePDF
+    //   fb2   | renders            | engine-dispatch: book.js isFB2() -> fb2.js makeFB2
+    //   mobi  | renders            | engine-execution: mobi.js isMOBI() (PalmDB 'BOOKMOBI' magic,
+    //         |                    | content-based, NOT extension) -> MOBI.open() -> MOBI6; verified
+    //         |                    | live under Node against a synthetic PalmDOC fixture (real text
+    //         |                    | extracted end to end through the unmodified vendored module).
+    //   azw3  | renders            | engine-execution: AZW3 IS KF8-in-a-PalmDB container. The SAME
+    //         |                    | isMOBI() magic check admits it (extension irrelevant to the
+    //         |                    | engine); mobi.js's MOBI.open() reads MOBI_HEADER.version >= 8
+    //         |                    | and dispatches to the real KF8 class. Verified live under Node:
+    //         |                    | a synthetic KF8 fixture drove the unmodified KF8 class through
+    //         |                    | real FDST + INDX/TAGX skeleton+fragment table parsing and real
+    //         |                    | EXTH metadata parsing to a successful KF8.init() (no synthetic
+    //         |                    | content pages were authored, so no page render was attempted —
+    //         |                    | structural dispatch only, not full render).
+    //   djvu  | rejected-unsupported| No DJVU path exists anywhere in the engine: it is not a zip,
+    //         |                    | not '%PDF-', fails the MOBI PalmDB magic check, and is not FB2
+    //         |                    | by name/type, so book.js's getView() falls through every branch
+    //         |                    | and throws "File type not supported". Verified: a DJVU magic
+    //         |                    | ('AT&TFORM') fixture run through the real detection functions
+    //         |                    | hits every reject branch.
+    //
+    // Only DJVU is fail-closed here; the QML picker (qml/BiblioApi.js) mirrors this so a LibGen/
+    // torrent pick never lands a file the reader provably cannot open.
+    const QString ext = QFileInfo(path).suffix().toLower();
+    return ext != QLatin1String("djvu");
 }
 
 LocalLaunch::Route LocalLaunch::route(const QString& path)
@@ -90,10 +119,20 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
         }
         break;
     }
-    case Family::Book:
+    case Family::Book: {
+        const QString ext = fi.suffix().toLower();
         r.accepted = validateBook(path);
-        r.reject = r.accepted ? Reject::None : Reject::Unsupported;
+        if (r.accepted) {
+            r.reject = Reject::None;
+        } else {
+            r.reject = Reject::Unsupported;
+            if (ext == QLatin1String("djvu")) {
+                r.detail = QStringLiteral("DJVU reading is not available — no DJVU decoder exists "
+                                           "in the Reader 2 engine");
+            }
+        }
         break;
+    }
     case Family::Video:
         r.accepted = validateVideo(path);
         r.reject = r.accepted ? Reject::None : Reject::NoDecoder;

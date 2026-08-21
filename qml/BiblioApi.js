@@ -337,11 +337,15 @@ function cellsOf(rowHtml) {
     return cells;
 }
 
-// Format policy (shared): the reader renders epub/mobi/fb2/pdf (getEngineCandidates).
-// Preference is TTS-aware — reflowable + read-aloud-capable formats (epub, then mobi/fb2)
-// beat fixed-layout PDF, which the reader can't TTS. azw3/djvu/cbz and anything else the
-// reader can't open score 0 and are hidden. LibGen shows only the best-available tier.
-var LIBGEN_FORMAT_TIER = { epub: 3, mobi: 2, fb2: 2, pdf: 1 };   // absent = not renderable → hidden
+// Format policy (shared): the reader renders epub/mobi/fb2/azw3/pdf (getEngineCandidates).
+// Arc 14 D6 ground-truth (2026-08-21): AZW3 is KF8 in a PalmDB container — the vendored
+// engine's mobi.js detects it by content (PalmDB 'BOOKMOBI' magic, not extension) and opens
+// it through the same reflowable MOBI/KF8 path as .mobi, so it TTS's the same as mobi/fb2.
+// Preference is TTS-aware — reflowable + read-aloud-capable formats (epub, then mobi/fb2/azw3)
+// beat fixed-layout PDF, which the reader can't TTS. djvu/cbz and anything else the reader
+// can't open (no engine path exists for DJVU at all) score 0 and are hidden. LibGen shows
+// only the best-available tier.
+var LIBGEN_FORMAT_TIER = { epub: 3, mobi: 2, fb2: 2, azw3: 2, pdf: 1 };   // absent = not renderable → hidden
 function libgenFormatTier(fmt) { return LIBGEN_FORMAT_TIER[String(fmt || '').toLowerCase().trim()] || 0; }
 // Keep only the highest-preference tier present (epub → mobi/fb2 → pdf), dropping the rest
 // and every non-renderable format. Returns [] when nothing is readable.

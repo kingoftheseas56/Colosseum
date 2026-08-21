@@ -516,6 +516,13 @@ double VaultEnricher::probeDurationSec(const QString& path)
 void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
                            const VaultKit::CancellationToken* cancel)
 {
+    // Capture the exact index snapshot this row set is derived from, mirroring main.cpp's
+    // inline cover-enrichment guard: any successful scanner publish, watcher reconciliation,
+    // or other authoritative mutation that lands while this (possibly long-running, possibly
+    // off-thread) pass is in flight advances VaultIndex::revision() and makes the eventual
+    // write-back ineligible — the same stale-async-write shape main.cpp already closed.
+    const quint64 baseRevision = m_index ? m_index->revision() : 0;
+
     // Buffer the enriched rows and hand them to the owner thread in ONE batch at the end, instead
     // of an owner-thread DB write per file from this (possibly worker) thread.
     QList<VaultIndex::FileRow> enrichedRows;
@@ -599,17 +606,19 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
             saveDurationCache();
     }
     saveDurationCache();
-    commitRowsOnIndexThread(std::move(enrichedRows));
+    commitRowsOnIndexThread(std::move(enrichedRows), baseRevision);
 }
 
-void VaultEnricher::commitRowsOnIndexThread(QList<VaultIndex::FileRow> rows)
+void VaultEnricher::commitRowsOnIndexThread(QList<VaultIndex::FileRow> rows, quint64 baseRevision)
 {
     QPointer<VaultIndex> index(m_index);
     QPointer<VaultEnricher> self(this);
 
-    auto commit = [index, self, rows = std::move(rows)]() mutable {
+    auto commit = [index, self, rows = std::move(rows), baseRevision]() mutable {
+        // Conditional write-back: a stale worker (superseded by a newer publish/reconcile while
+        // this pass ran) cannot resurrect rows the index has since moved past.
         if (index && !rows.isEmpty())
-            index->upsertMany(rows);
+            index->upsertManyIfRevision(rows, baseRevision);
         if (self)
             emit self->enrichmentFinished();
     };
