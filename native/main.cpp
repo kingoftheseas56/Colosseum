@@ -668,7 +668,7 @@ int main(int argc, char *argv[]) {
             return;
         }
         QNetworkRequest request(url);
-        request.setRawHeader("User-Agent", "Colosseum/1.1.1");
+        request.setRawHeader("User-Agent", "Colosseum/1.1.2");
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::NoLessSafeRedirectPolicy);
         QNetworkReply *reply = updateNam->get(request);
