@@ -1,32 +1,17 @@
-// Colosseum Watch Party relay — bearer validation seam (Slice 3 of
-// docs/superpowers/plans/2026-08-20-watch-party-relay-plan.md).
+// Colosseum Watch Party relay — bearer validation.
 //
-// Fail-closed identity (plan "Standing constraints"): the DEV validator
-// (accept-configured-test-bearer) is env-gated (`RELAY_DEV_AUTH=1`) and
-// DEFAULT OFF. With no validator configured, signed-in connects are
-// REFUSED (typed error), guest connects still work. The dev validator must
-// never be enabled in a deployed configuration — wrangler.toml ships it
-// "0"; a deploy config must keep it "0" (or absent).
+// Production identity uses the account service's existing authenticated
+// GET /v1/profile contract. The bearer is forwarded only in the request header;
+// it is never written to room state, protocol payloads, logs, or durable storage.
 //
-// D3 (SERVER-PROTOCOL-CONTRACT.md "External adoption prerequisites" #3):
-// real account bearer issuer/validation is account-lane work outside this
-// plan (the account service only runs on 127.0.0.1:8080 today, with no
-// public bearer-introspection surface). This seam is where that real
-// validator plugs in later without touching room-do.ts's call site.
+// Local acceptance can opt into the explicit dev bearer map with
+// RELAY_DEV_AUTH=1. Deployed configuration must keep that switch off.
 
 export interface Env {
   ROOMS: DurableObjectNamespace;
-  /** "1" to enable the dev bearer map below; any other value (including
-   * unset) is the fail-closed default — no signed-in connect can ever
-   * authenticate. */
   RELAY_DEV_AUTH?: string;
-  /** JSON object: { "<bearer token>": "<username>" }. Only consulted when
-   * RELAY_DEV_AUTH === "1". */
   RELAY_DEV_BEARERS?: string;
-  /** Slice 4 ("Host disconnect grace and deterministic transfer"): host
-   * grace duration in milliseconds — "intentionally a server
-   * configuration/runtime choice ... not invented by this desktop slice."
-   * Unset or unparseable falls back to the 60000ms default in room-do.ts. */
+  RELAY_ACCOUNT_SERVICE_URL?: string;
   RELAY_HOST_GRACE_MS?: string;
 }
 
@@ -34,23 +19,11 @@ export interface BearerIdentity {
   username: string;
 }
 
-/**
- * Validates a bearer token against the currently configured identity
- * seam. Returns the authenticated identity, or null when the token is
- * absent/invalid/unrecognized OR (fail-closed) when no validator is
- * configured at all.
- */
-export function validateBearer(
+function validateDevBearer(
   env: Env,
-  token: string | null | undefined
+  token: string
 ): BearerIdentity | null {
-  if (!token) return null;
-
-  // Fail-closed: no validator configured -> every signed-in attempt is
-  // refused, never silently treated as guest-equivalent trust.
-  if (env.RELAY_DEV_AUTH !== "1") return null;
-
-  if (!env.RELAY_DEV_BEARERS) return null;
+  if (env.RELAY_DEV_AUTH !== "1" || !env.RELAY_DEV_BEARERS) return null;
 
   let bearerMap: unknown;
   try {
@@ -61,20 +34,61 @@ export function validateBearer(
   if (typeof bearerMap !== "object" || bearerMap === null) return null;
 
   const username = (bearerMap as Record<string, unknown>)[token];
-  if (typeof username !== "string" || username.trim().length === 0) {
-    return null;
-  }
-
+  if (typeof username !== "string" || username.trim().length === 0) return null;
   return { username: username.trim() };
 }
 
+function accountProfileUrl(env: Env): URL | null {
+  const configured = env.RELAY_ACCOUNT_SERVICE_URL?.trim();
+  if (!configured) return null;
+
+  try {
+    const base = new URL(configured);
+    if (base.protocol !== "https:" && base.protocol !== "http:") return null;
+    if (base.username || base.password || base.search || base.hash) return null;
+    return new URL("/v1/profile", base);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Extracts the bearer token from an `Authorization: Bearer <token>` header
- * value, mirroring the exact prefix the client sends
- * (WebSocketWatchPartyTransport.cpp: `"Bearer " + bearerToken`). Returns
- * null for a missing header, wrong scheme, or empty token — all of which
- * are guest-equivalent (no credential presented).
+ * Resolves the bearer to the account username. Any network error, non-2xx
+ * response, malformed body, or incomplete identity fails closed to null.
  */
+export async function validateBearer(
+  env: Env,
+  token: string | null | undefined
+): Promise<BearerIdentity | null> {
+  if (!token) return null;
+  if (env.RELAY_DEV_AUTH === "1") return validateDevBearer(env, token);
+
+  const profileUrl = accountProfileUrl(env);
+  if (!profileUrl) return null;
+
+  try {
+    const response = await fetch(profileUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+      redirect: "error",
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+
+    const body: unknown = await response.json();
+    if (typeof body !== "object" || body === null) return null;
+    const username = (body as Record<string, unknown>).username;
+    if (typeof username !== "string" || username.trim().length === 0) return null;
+    return { username: username.trim() };
+  } catch {
+    return null;
+  }
+}
+
+/** Extracts `Bearer <token>` exactly; other schemes are treated as absent. */
 export function extractBearerToken(
   authorizationHeader: string | null
 ): string | null {

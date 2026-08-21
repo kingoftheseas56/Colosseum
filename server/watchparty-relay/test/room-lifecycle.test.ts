@@ -26,7 +26,14 @@ const HOST_BEARER = "dev-token-host";
 const SECOND_SIGNED_IN_BEARER = "dev-token-guest-signed-in";
 
 function setDevAuth(on: boolean): void {
-  (env as unknown as Record<string, string>).RELAY_DEV_AUTH = on ? "1" : "0";
+  const relayEnv = env as unknown as Record<string, string>;
+  relayEnv.RELAY_DEV_AUTH = on ? "1" : "0";
+  relayEnv.RELAY_DEV_BEARERS = on
+    ? JSON.stringify({
+        [HOST_BEARER]: "SignedInHost",
+        [SECOND_SIGNED_IN_BEARER]: "SignedInGuest",
+      })
+    : "";
 }
 
 beforeEach(() => {

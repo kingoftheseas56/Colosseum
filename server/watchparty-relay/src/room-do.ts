@@ -187,7 +187,7 @@ export class RoomDO {
     const bearerToken = extractBearerToken(
       request.headers.get("Authorization")
     );
-    const identity = validateBearer(this.env, bearerToken);
+    const identity = await validateBearer(this.env, bearerToken);
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];

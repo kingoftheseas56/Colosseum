@@ -35,6 +35,13 @@ refused `unauthenticated` — proving `RELAY_DEV_AUTH` is off and dev tokens are
 production. Note: a freshly created workers.dev subdomain needs a few minutes for
 DNS/certificates (first probes read HTTP 000 — retry, don't diagnose).
 
+**Redeployed 2026-08-21** (arc 16 — account-service bearer validation seam + async
+fail-closed auth; version `0cc786fd-24fd-450b-acc3-7e1210481ece`). Same endpoint, no URL
+change. Live checks: `probe-handshake.mjs` 3/3 against the deployed URL; a bearer-carrying
+`createRoom` against the deployed relay answered `error`/`unauthenticated` — confirming
+`RELAY_ACCOUNT_SERVICE_URL` stays unset in deployed vars (see below) and signed-in connects
+are still refused fail-closed with the new async validator in place.
+
 Unset, the app ships fail-closed: the Join sheet states the service is not configured and
 nothing else changes — verified in acceptance (Slice 6 leg S, solo journey 33/33 with the
 feature dormant).
@@ -45,6 +52,17 @@ feature dormant).
   validator configured, signed-in connects are refused (typed error) and guest join works.
   Verify after every deploy: a signed-in connect against the deployed endpoint must be
   refused (the Slice 5 probe's refusal matrix, pointed at the deployed URL).
+- `RELAY_ACCOUNT_SERVICE_URL` — production bearer validator seam (arc 16, `src/auth.ts`).
+  When set, a signed-in connect's bearer is checked against `<value>/v1/profile` via an
+  authenticated `GET` (bearer only in the `Authorization` header, `cache: "no-store"`, no
+  redirects followed); any error, non-2xx, or malformed/missing `username` in the response
+  fails closed to an unauthenticated refusal — never a silent guest fallback. **Deliberately
+  left unset in deployed vars** (`wrangler.toml` and the live deploy) because the account
+  service only runs on `127.0.0.1:8080` today with no public surface for the relay to call —
+  setting this before the account service is itself publicly deployed would just make every
+  fetch fail closed anyway, so it stays absent until that dependency ships. Set it in
+  `wrangler.toml`'s `[vars]` (or `wrangler deploy --var`) once the account service has a
+  public URL.
 - `RELAY_HOST_GRACE_MS` — host-disconnect grace window; default 60000.
 - Rate ceiling ≤120 msgs/10s/connection and the 64 KiB frame cap are enforced in code.
 
