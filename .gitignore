@@ -74,3 +74,6 @@ tools/_s0.png
 
 # Internal code encyclopedia generated for agent context; keep local only.
 docs/encyclopedia/
+
+# Generated release/package output lives outside the checkout (Colosseum-Local\dist); net for accidents.
+dist/
