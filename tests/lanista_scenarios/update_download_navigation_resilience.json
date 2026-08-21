@@ -1,0 +1,321 @@
+{
+  "name": "update-download-navigation-resilience",
+  "comment": "UNCOMPILED / UNTESTED / UNEXECUTED / UNADOPTED / UNVERIFIED. Commission 2026-08-15, pinned source 57b69ea9b35fc2e04c51cbe1f888771541b87a0b. New updater coverage for leaving a mid-download chronicle through both Escape and the visible BackAction, then returning and proving the presentation state is coherent. This deliberately inherits the existing update-downloading fixture/tag precedent: appDataRoot and cacheRoot contain 'updater-downloading' rather than the generic Colosseum-dltest tag. colosseumUpdateEscape is a Shortcut, not a clickable QQuickItem, so the Escape leg correctly uses ui-keypress. The exact progressText and automationState are the truth on every return; no download mutation is performed by this scenario.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "the updater journey session answers, drive gated on",
+      "expect": [
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "one visible window, isolated updater test roots",
+      "expect": [
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "updater-downloading"
+        },
+        {
+          "path": "cacheRoot",
+          "op": "contains",
+          "value": "updater-downloading"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the boot splash has left the screen",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the home topbar Update glyph is visible",
+      "payload": {
+        "object": "colosseumTopbarUpdateButton",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the downloading chronicle",
+      "payload": {
+        "target": "colosseumTopbarUpdateButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the update page is on screen",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the update page reports Downloading",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "prop": "automationState",
+        "value": "Downloading",
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "baseline: exact progress before leaving the page",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "props": [
+          "automationState",
+          "progressText",
+          "primaryLabel",
+          "primaryVisible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.automationState",
+          "op": "==",
+          "value": "Downloading"
+        },
+        {
+          "path": "props.progressText",
+          "op": "==",
+          "value": "214 MB of 315 MB · 68%"
+        },
+        {
+          "path": "props.primaryLabel",
+          "op": "==",
+          "value": "Pause download"
+        },
+        {
+          "path": "props.primaryVisible",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "leave the mid-download chronicle through its production Escape shortcut",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Escape returns to the home surface where the Update glyph is visible again",
+      "payload": {
+        "object": "colosseumTopbarUpdateButton",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "reopen after Escape",
+      "payload": {
+        "target": "colosseumTopbarUpdateButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "the chronicle remounts after Escape",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "after Escape: state and exact progress remain coherent",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "props": [
+          "automationState",
+          "progressText",
+          "primaryLabel"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.automationState",
+          "op": "==",
+          "value": "Downloading"
+        },
+        {
+          "path": "props.progressText",
+          "op": "==",
+          "value": "214 MB of 315 MB · 68%"
+        },
+        {
+          "path": "props.primaryLabel",
+          "op": "==",
+          "value": "Pause download"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "regression: leave the same mid-download chronicle through its visible Back action",
+      "payload": {
+        "target": "colosseumUpdateBackAction"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Back returns to the home surface",
+      "payload": {
+        "object": "colosseumTopbarUpdateButton",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "regression: reopen after Back",
+      "payload": {
+        "target": "colosseumTopbarUpdateButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "regression: the chronicle remounts after Back",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "regression: state and exact progress remain coherent after the second route",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "props": [
+          "automationState",
+          "progressText",
+          "primaryLabel",
+          "primaryVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "props.automationState",
+          "op": "==",
+          "value": "Downloading"
+        },
+        {
+          "path": "props.progressText",
+          "op": "==",
+          "value": "214 MB of 315 MB · 68%"
+        },
+        {
+          "path": "props.primaryLabel",
+          "op": "==",
+          "value": "Pause download"
+        },
+        {
+          "path": "props.primaryVisible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    }
+  ]
+}

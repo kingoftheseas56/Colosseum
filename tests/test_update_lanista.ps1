@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "up-to-date")]
+    [ValidateSet("all", "up-to-date", "idle")]
     [string]$Scenario = "all"
 )
 
@@ -38,6 +38,48 @@ function Invoke-CMakeChecked([string[]]$arguments) {
 
 try {
     Push-Location $root
+
+    # Idle scenario (installed-release chronicle, Slice 4): runs on a SHIPPING
+    # build (COLOSSEUM_UPDATE_TESTING unset) with no update fixture and no test
+    # presentation state. The bundled production-signed chronicle in the qrc
+    # renders the installed 1.1.0 chapters at rest. This must NOT run under the
+    # test-key build (the production bundle verifies against the production key).
+    if ($Scenario -eq "idle") {
+        Remove-Item Env:COLOSSEUM_UPDATE_TESTING -ErrorAction SilentlyContinue
+        Remove-Item Env:COLOSSEUM_UPDATE_TEST_INSTALLED_VERSION -ErrorAction SilentlyContinue
+        Remove-Item Env:COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE -ErrorAction SilentlyContinue
+        Remove-Item Env:COLOSSEUM_UPDATE_TEST_RECEIVED_BYTES -ErrorAction SilentlyContinue
+        Remove-Item Env:COLOSSEUM_UPDATE_TEST_TOTAL_BYTES -ErrorAction SilentlyContinue
+        Invoke-CMakeChecked @(
+            "-S", $native, "-B", $build, "-G", "Ninja",
+            "-DCMAKE_MAKE_PROGRAM=$ninja", "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_PREFIX_PATH=$qtPrefix", "-DCOLOSSEUM_UPDATE_TESTING=OFF"
+        )
+        Invoke-CMakeChecked @("--build", $build, "--target", "colosseum", "lanista")
+        if (!(Test-Path -LiteralPath $exe) -or !(Test-Path -LiteralPath $lanista)) {
+            throw "shipping colosseum/lanista binaries are missing"
+        }
+        $sessionDir = Split-Path -Parent $sessionLog
+        New-Item -ItemType Directory -Force -Path $sessionDir | Out-Null
+        Remove-Item -LiteralPath $sessionLog -Force -ErrorAction SilentlyContinue
+        $runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $idleTag = "updater-idle-$runStamp"
+        $idleScenario = Join-Path $root "tests/lanista_scenarios/update_idle.json"
+        # No --seed: the idle scenario has no update fixture; the bundled qrc
+        # chronicle is the source. --drive for a real desktop session.
+        $output = & $lanista --verbose session run $idleScenario --exe $exe --tag $idleTag --drive 2>&1 | Tee-Object -Variable runOutput | Out-String
+        $code = $LASTEXITCODE
+        Add-Content -LiteralPath $sessionLog -Value $output
+        if ($code -ne 0) { throw "Lanista idle scenario failed: $idleScenario`n$output" }
+        $manifest = [regex]::Match($output, 'manifest:\s*(\S+/session\.json)').Groups[1].Value
+        if ([string]::IsNullOrWhiteSpace($manifest)) {
+            throw "Lanista idle scenario did not report its session manifest: $idleScenario"
+        }
+        Add-Content -LiteralPath $sessionLog -Value ("{0} => {1}" -f $idleTag, $manifest)
+        Write-Host "test_update_lanista: PASS (isolated idle shipping session; paths in $sessionLog)"
+        return
+    }
+
     $env:COLOSSEUM_UPDATE_TESTING = "ON"
     Invoke-CMakeChecked @(
         "-S", $native, "-B", $build, "-G", "Ninja",

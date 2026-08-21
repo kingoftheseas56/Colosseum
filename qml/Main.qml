@@ -38,6 +38,7 @@ Window {
 
     property string currentSurface: "Home"
     property var pendingIdentityRoute: null
+    property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
     // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
@@ -1088,8 +1089,11 @@ Window {
         settingsLayer.active = false
         vaultLayer.active = false
         updateLayer.active = true
-        taskbar.open = true
-        taskbar.autoRevealed = false
+        // Full-bleed: the chronicle owns the whole page. The taskbar closes like
+        // every other full-page destination (Downloads/Vault/Extensions/Settings)
+        // and still reveals on hover for session switching. The Update entry point
+        // is the home topbar glyph now — no launcher in the taskbar dock.
+        taskbar.open = false
         if (typeof Updates !== "undefined" && Updates.markSeen)
             Updates.markSeen()
     }
@@ -1878,6 +1882,12 @@ Window {
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: Qt.quit()
+        // Update glyph (home only, takes the retired search slot). Toggle mirrors
+        // the taskbar launcher: open when closed, close when already front.
+        updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
+        updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
+        reducedMotion: win.reducedMotion
+        onUpdateClicked: (guideLayer.active || !updateLayer.active) ? win.openUpdatePage() : win.closeUpdatePage()
     }
 
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
@@ -3005,6 +3015,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.updates = typeof Updates !== "undefined" ? Updates : null
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.backRequested.connect(win.closeUpdatePage)
             item.guideActive = Qt.binding(function() { return guideLayer.active })   // yield its Escape while Guide floats above
             if (item.guideRequested)                          // optional seam: House contextual links (Task 10)
@@ -3102,12 +3113,6 @@ Window {
         onSettingsClicked: (guideLayer.active || !settingsLayer.active) ? win.openSettingsPage() : win.closeSettingsPage()
         guideActive: guideLayer.active
         onGuideClicked: guideLayer.active ? win.closeGuidePage() : win.openGuidePage("", "", "")
-        updateActive: updateLayer.active && !guideLayer.active
-        updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
-        updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
-        updatePresentation: updateLayer.item ? updateLayer.item.taskbarPresentation : ({})
-        onUpdateClicked: (guideLayer.active || !updateLayer.active) ? win.openUpdatePage() : win.closeUpdatePage()
-        onUpdatePrimaryActionRequested: if (updateLayer.item) updateLayer.item.invokePrimaryAction()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.

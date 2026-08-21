@@ -133,6 +133,18 @@ Item {
 
     Theme { id: theme }
 
+    // Opaque base plate. The monochrome stage's opacity is bound to image
+    // readiness (1 when Ready, 0 while Loading after a source swap), and the
+    // directional scrims above it are semi-transparent by design. Without an
+    // opaque backing, the opacity dip during a chapter change would reveal the
+    // page stack / home wallpaper behind the gallery for ~one frame. This solid
+    // plate sits at the bottom of the z-stack so the dip reads as a brief
+    // crossfade dim instead of a flash of an unrelated page.
+    Rectangle {
+        anchors.fill: parent
+        color: "#000000"
+    }
+
     // This is the only art texture in the stage. The effect draws the monochrome copy; the source
     // image is kept hidden so the real screenshot is never duplicated or blurred.
     Image {

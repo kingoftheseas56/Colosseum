@@ -1,0 +1,17 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<!-- Bundled installed-release chronicle: the signed manifest + signature + five
+     verified screenshots for the installed 1.1.0 release. Produced by
+     scripts/update/generate_installed_chronicle.py (production-signed with the
+     private key held outside the repo) and committed by the maintainer step.
+     main.cpp extracts these to a cache subdir at launch; InstalledChronicle
+     re-verifies the signature before the gallery reads them. -->
+<qresource prefix="/installed-chronicle">
+    <file alias="installed-manifest.json">../resources/installed-chronicle/installed-manifest.json</file>
+    <file alias="installed-manifest.json.sig">../resources/installed-chronicle/installed-manifest.json.sig</file>
+    <file alias="artwork/colosseum-reader.png">../resources/installed-chronicle/artwork/colosseum-reader.png</file>
+    <file alias="artwork/colosseum-tankoban-discover.png">../resources/installed-chronicle/artwork/colosseum-tankoban-discover.png</file>
+    <file alias="artwork/colosseum-biblio.png">../resources/installed-chronicle/artwork/colosseum-biblio.png</file>
+    <file alias="artwork/colosseum-theatre.png">../resources/installed-chronicle/artwork/colosseum-theatre.png</file>
+    <file alias="artwork/colosseum-house.png">../resources/installed-chronicle/artwork/colosseum-house.png</file>
+</qresource>
+</RCC>

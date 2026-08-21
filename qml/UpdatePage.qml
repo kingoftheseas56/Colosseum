@@ -160,15 +160,117 @@ Item {
     Theme { id: theme }
 
     // The living gallery owns the full stage; window chrome stays above it and keeps the existing
-    // Back/Escape/minimize/fullscreen/close contracts.
+    // Back/Escape/minimize/fullscreen/close contracts. The bottom lane now clears the on-page
+    // status strip (no taskbar squatting on the bottom any more).
     UpdateUi.UpdateLivingGallery {
         id: livingGallery
         anchors.fill: parent
         release: root.releaseModel
         chapters: root.highlightModel
         reducedMotion: root.reducedMotion
-        taskbarSafeBottomLane: 96
+        taskbarSafeBottomLane: 152
         offeredReleaseToken: root.offeredReleaseToken
+    }
+
+    // ── On-page status strip (absorbed from the taskbar). The chronicle page is
+    //    full-bleed; the status text, metadata, progress bar, and primary action
+    //    live here now — one row resting on the bottom edge, above the gallery's
+    //    own chapter nav. objectNames match the old taskbar block so tests and
+    //    automation keep their anchors. ──
+    Item {
+        id: statusStrip
+        objectName: "colosseumUpdateStatusStrip"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 54
+        anchors.rightMargin: 54
+        anchors.bottomMargin: 90
+        height: 52
+        // Quiet unless there is something to say. The status text always shows
+        // a human sentence; the metadata and progress appear only when relevant.
+        Column {
+            id: statusColumn
+            spacing: 4
+            Text {
+                objectName: "colosseumUpdateStatusText"
+                text: root.statusCopy(updates ? updates.state : 0)
+                color: theme.ink
+                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
+            }
+            Text {
+                objectName: "colosseumUpdateStatusMetadata"
+                text: root.taskbarMetadata
+                visible: text.length > 0
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 12
+            }
+        }
+        // Progress column — shown only during Downloading / Paused.
+        Item {
+            id: progressColumn
+            objectName: "colosseumUpdateProgress"
+            visible: root.progressVisible
+            anchors.left: statusColumn.right
+            anchors.leftMargin: 28
+            anchors.verticalCenter: statusColumn.verticalCenter
+            width: 260; height: 34
+            Column {
+                spacing: 6
+                Text {
+                    objectName: "colosseumUpdateProgressText"
+                    text: root.progressText
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 12
+                }
+                Rectangle {
+                    objectName: "colosseumUpdateProgressTrack"
+                    width: progressColumn.width; height: 2; radius: 1
+                    color: Qt.rgba(1, 1, 1, 0.14)
+                    Rectangle {
+                        height: parent.height; radius: parent.radius
+                        width: parent.width * (root.progressIndeterminate ? 0
+                                                                          : Math.max(0, Math.min(1, root.progressValue)))
+                        color: theme.ink
+                        Behavior on width {
+                            enabled: root.progressVisible && !root.progressIndeterminate && !root.reducedMotion
+                            NumberAnimation { duration: 240; easing.type: Easing.InOutQuad }
+                        }
+                    }
+                }
+            }
+        }
+        // Primary action button — right-aligned in the strip.
+        Rectangle {
+            objectName: "colosseumUpdatePrimaryAction"
+            visible: root.primaryVisible
+            enabled: root.primaryVisible
+            anchors.right: parent.right
+            anchors.verticalCenter: statusColumn.verticalCenter
+            width: actionRow.implicitWidth + 36; height: 44; radius: 22
+            color: primaryActionMa.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07)
+            border.width: 1; border.color: Qt.rgba(1, 1, 1, primaryActionMa.containsMouse ? 0.38 : 0.24)
+            Row {
+                id: actionRow
+                anchors.centerIn: parent
+                spacing: 8
+                Text {
+                    text: root.primaryLabel
+                    color: theme.ink
+                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+            MouseArea {
+                id: primaryActionMa; anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.invokePrimaryAction()
+            }
+            Keys.onReturnPressed: root.invokePrimaryAction()
+            Keys.onSpacePressed: root.invokePrimaryAction()
+            Accessible.role: Accessible.Button
+            Accessible.name: root.primaryLabel
+        }
     }
 
     BackAction {

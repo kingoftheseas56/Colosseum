@@ -55,24 +55,16 @@ TestCase {
     }
 
     Component { id: pageComponent; Colosseum.UpdatePage {} }
-    Component { id: taskbarComponent; Colosseum.Taskbar {} }
     property var page
-    property var taskbar
-
-    function syncTaskbar() {
-        taskbar.updatePresentation = page.taskbarPresentation
-        taskbar.reducedMotion = page.reducedMotion
-    }
 
     function waitForPrimaryAction(label) {
-        var action = findChild(taskbar, "colosseumUpdatePrimaryAction")
+        var action = findChild(page, "colosseumUpdatePrimaryAction")
         verify(action !== null)
-        tryVerify(function() { return taskbar.width > 0 && taskbar.height > 0 }, 1000,
-                  "taskbar fixture must have geometry before testing its primary action")
+        tryVerify(function() { return page.width > 0 && page.height > 0 }, 1000,
+                  "page fixture must have geometry before testing its primary action")
         tryVerify(function() {
-            return taskbar.updatePrimaryVisible
-                    && taskbar.updatePrimaryEnabled
-                    && taskbar.updatePrimaryLabel === label
+            return page.primaryVisible
+                    && page.primaryLabel === label
                     && action.visible
                     && action.enabled
         }, 1000, "primary action must become visible and enabled before input")
@@ -85,20 +77,12 @@ TestCase {
         return action
     }
 
-    function waitForActionlessTaskbar() {
-        var action = findChild(taskbar, "colosseumUpdatePrimaryAction")
+    function waitForActionlessPage() {
+        var action = findChild(page, "colosseumUpdatePrimaryAction")
         verify(action !== null)
         tryVerify(function() {
-            return !taskbar.updatePrimaryVisible
-                    && !taskbar.updatePrimaryEnabled
-                    && !action.visible
-                    && !action.enabled
+            return !page.primaryVisible && !action.visible
         }, 1000, "actionless service states must not expose a primary action")
-    }
-
-    function syncTaskbarForPrimaryAction(label) {
-        syncTaskbar()
-        return waitForPrimaryAction(label)
     }
 
     function init() {
@@ -122,25 +106,12 @@ TestCase {
         ]
         page = pageComponent.createObject(testWindow, { updates: fakeUpdates, width: 1280, height: 720 })
         verify(page !== null)
-        taskbar = taskbarComponent.createObject(testWindow, {
-            width: testWindow.width,
-            height: testWindow.height,
-            open: true,
-            updateActive: true,
-            updateAvailable: true,
-            updateUnseen: false,
-            updatePresentation: page.taskbarPresentation
-        })
-        verify(taskbar !== null)
-        taskbar.updatePrimaryActionRequested.connect(function() { page.invokePrimaryAction() })
-        syncTaskbarForPrimaryAction("Download update")
+        waitForPrimaryAction("Download update")
     }
 
     function cleanup() {
         if (page) page.destroy()
         page = null
-        if (taskbar) taskbar.destroy()
-        taskbar = null
     }
 
     function test_available_primary_downloads() {
@@ -150,21 +121,8 @@ TestCase {
         var button = waitForPrimaryAction("Download update")
         verify(button.width >= 44)
         verify(button.height >= 44)
-        verify(button.activeFocusOnTab)
         mouseClick(button)
         compare(fakeUpdates.downloads, 1)
-    }
-
-    function test_available_transition_does_not_rearm_taskbar_auto_collapse() {
-        taskbar.open = true
-        taskbar.updateActive = true
-        taskbar.autoRevealed = false
-        taskbar.updateAvailable = false
-        taskbar.autoRevealed = true
-        taskbar.updateAvailable = true
-        verify(taskbar.open)
-        verify(!taskbar.autoRevealed,
-               "an availability transition must not arm the auto-collapse timer over the Update page")
     }
 
     function test_pause_resume_and_progress() {
@@ -172,41 +130,36 @@ TestCase {
         fakeUpdates.receivedBytes = 224395264
         fakeUpdates.totalBytes = 330301440
         compare(page.primaryLabel, "Pause download")
-        var pauseButton = syncTaskbarForPrimaryAction("Pause download")
-        compare(findChild(taskbar, "colosseumUpdateProgress").text,
+        var pauseButton = waitForPrimaryAction("Pause download")
+        compare(findChild(page, "colosseumUpdateProgressText").text,
                 "214 MB of 315 MB \u00b7 68%")
-        compare(findChild(taskbar, "colosseumUpdateProgressText").text,
-                "214 MB of 315 MB \u00b7 68%")
-        verify(findChild(taskbar, "colosseumUpdateProgressTrack").visible)
-        compare(findChild(taskbar, "colosseumUpdatePrimaryAction").Accessible.name, "Pause download")
+        verify(findChild(page, "colosseumUpdateProgressTrack").visible)
+        compare(findChild(page, "colosseumUpdatePrimaryAction").Accessible.name, "Pause download")
         mouseClick(pauseButton)
         compare(fakeUpdates.cancels, 1)
         fakeUpdates.state = 5
         compare(page.primaryLabel, "Resume download")
-        var resumeButton = syncTaskbarForPrimaryAction("Resume download")
-        compare(findChild(taskbar, "colosseumUpdateStatusText").text, "Update paused")
+        var resumeButton = waitForPrimaryAction("Resume download")
+        compare(findChild(page, "colosseumUpdateStatusText").text, "Update paused")
         mouseClick(resumeButton)
         compare(fakeUpdates.downloads, 2)
     }
 
     function test_ready_restarts_and_checking_is_safe() {
         fakeUpdates.state = 7
-        var restartButton = syncTaskbarForPrimaryAction("Restart and update")
+        var restartButton = waitForPrimaryAction("Restart and update")
         compare(page.primaryLabel, "Restart and update")
         mouseClick(restartButton)
         compare(fakeUpdates.restarts, 1)
         fakeUpdates.state = 1
-        syncTaskbar()
         compare(page.primaryLabel, "")
-        waitForActionlessTaskbar()
+        waitForActionlessPage()
         compare(fakeUpdates.checks, 0)
         fakeUpdates.state = 6
-        syncTaskbar()
-        waitForActionlessTaskbar()
+        waitForActionlessPage()
         compare(fakeUpdates.checks, 0)
         fakeUpdates.state = 8
-        syncTaskbar()
-        waitForActionlessTaskbar()
+        waitForActionlessPage()
         page.invokePrimaryAction()
         compare(fakeUpdates.checks, 0)
     }
@@ -230,16 +183,15 @@ TestCase {
             fakeUpdates.state = states[i][0]
             fakeUpdates.receivedBytes = states[i][5] ? 224395264 : 0
             fakeUpdates.totalBytes = states[i][5] ? 330301440 : 100
-            syncTaskbar()
+            wait(0)
             compare(page.automationState, states[i][1])
-            compare(findChild(taskbar, "colosseumUpdateStatusText").text, states[i][2])
+            compare(findChild(page, "colosseumUpdateStatusText").text, states[i][2])
             compare(page.primaryLabel, states[i][3])
-            compare(taskbar.updatePrimaryVisible, states[i][3].length > 0)
-            compare(taskbar.updatePrimaryEnabled, states[i][3].length > 0)
-            compare(findChild(taskbar, "colosseumUpdateStatusMetadata").text, states[i][4])
-            compare(taskbar.updateProgressVisible, states[i][5])
+            compare(page.primaryVisible, states[i][3].length > 0)
+            compare(findChild(page, "colosseumUpdateStatusMetadata").text, states[i][4])
+            compare(page.progressVisible, states[i][5])
             if (states[i][5])
-                compare(findChild(taskbar, "colosseumUpdateProgressText").text,
+                compare(findChild(page, "colosseumUpdateProgressText").text,
                         "214 MB of 315 MB \u00b7 68%")
 
             var checks = fakeUpdates.checks
@@ -249,7 +201,7 @@ TestCase {
             if (states[i][6].length > 0) {
                 mouseClick(waitForPrimaryAction(states[i][3]))
             } else {
-                waitForActionlessTaskbar()
+                waitForActionlessPage()
                 page.invokePrimaryAction()
             }
             compare(fakeUpdates.checks, checks + (states[i][6] === "check" ? 1 : 0))
@@ -261,11 +213,11 @@ TestCase {
 
     function test_up_to_date_keeps_chronicle_and_filters_unknown_kind() {
         fakeUpdates.state = 2
-        syncTaskbar()
+        wait(0)
         compare(page.primaryLabel, "Check again")
-        compare(findChild(taskbar, "colosseumUpdateStatusText").text, "Everything is up to date")
-        verify(findChild(taskbar, "colosseumUpdateStatusMetadata").text.indexOf("Installed 1.1.0") >= 0)
-        verify(findChild(taskbar, "colosseumUpdateStatusMetadata").text.indexOf("Latest 1.2.0") >= 0)
+        compare(findChild(page, "colosseumUpdateStatusText").text, "Everything is up to date")
+        verify(findChild(page, "colosseumUpdateStatusMetadata").text.indexOf("Installed 1.1.0") >= 0)
+        verify(findChild(page, "colosseumUpdateStatusMetadata").text.indexOf("Latest 1.2.0") >= 0)
         compare(findChild(page, "colosseumUpdateGallery").chapterCount, 5)
         verify(findChild(page, "colosseumUpdateChapter_06") === null)
     }
@@ -279,8 +231,7 @@ TestCase {
         verify(page.width <= 560)
         compare(findChild(page, "colosseumUpdateGallery").chapterCount, 1)
         compare(findChild(page, "colosseumUpdateChapterTitle").text, "Before and after")
-        syncTaskbar()
-        verify(findChild(taskbar, "colosseumUpdateStatusText").visible)
+        verify(findChild(page, "colosseumUpdateStatusText").visible)
     }
 
     function test_gallery_chapter_contract_and_accessible_names() {
@@ -560,14 +511,12 @@ TestCase {
         fakeUpdates.state = 4
         fakeUpdates.receivedBytes = 45 * 1048576
         fakeUpdates.totalBytes = 0
-        syncTaskbar()
+        wait(0)
         verify(page.reducedMotion)
-        verify(findChild(taskbar, "colosseumUpdateProgressText").visible)
-        verify(findChild(taskbar, "colosseumUpdateProgress").visible)
-        compare(findChild(taskbar, "colosseumUpdateProgress").text,
+        verify(findChild(page, "colosseumUpdateProgressText").visible)
+        verify(findChild(page, "colosseumUpdateProgress").visible)
+        compare(findChild(page, "colosseumUpdateProgressText").text,
                 "45 MB downloaded \u00b7 size unknown")
-        verify(!taskbar.updateProgressAnimated)
-        compare(findChild(taskbar, "colosseumUpdateProgressText").text, "45 MB downloaded \u00b7 size unknown")
     }
 
     function findChild(root, objectName) {

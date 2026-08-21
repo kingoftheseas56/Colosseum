@@ -195,6 +195,7 @@ add_executable(colosseum
     update/UpdateInstallBridge.h
     app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
+    installed_chronicle.qrc  # bundled installed-release chronicle (signed manifest + artwork)
     ClipboardHelper.h
     MangaEngine.h
     ProgressStore.h

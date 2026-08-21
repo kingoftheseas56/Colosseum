@@ -1,0 +1,26 @@
+{
+  "name": "update-idle-corrupt-sig",
+  "comment": "Installed-release chronicle Slice 4 NEGATIVE CONTROL: with a deliberately corrupted bundled signature, InstalledChronicle must reject the manifest and the gallery falls back to its single-chapter 'motion' chapter. Proves the runtime honors the trust gate (red), which the good-bundle Idle run proves green. Disposable shipping-build session; no fixture; no test state.",
+  "steps": [
+    { "cmd": "ping", "label": "the corrupt-sig control session answers",
+      "expect": [ { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" } ] },
+    { "cmd": "ui-wait-for", "label": "the boot splash has left the screen",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "the home topbar Update glyph is visible",
+      "payload": { "object": "colosseumTopbarUpdateButton", "prop": "visible", "value": true, "timeout_ms": 30000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "open the update page from the topbar glyph",
+      "payload": { "target": "colosseumTopbarUpdateButton" } },
+    { "cmd": "ui-wait-for", "label": "the update page is on screen",
+      "payload": { "object": "colosseumUpdatePage", "prop": "visible", "value": true, "timeout_ms": 8000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "the page reports the idle state at rest",
+      "payload": { "object": "colosseumUpdatePage", "prop": "automationState", "value": "Idle", "timeout_ms": 8000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "qml-get", "label": "the corrupted bundle falls back to a single chapter",
+      "payload": { "object": "colosseumUpdateGallery", "props": ["chapterCount", "currentIndex"] },
+      "expect": [ { "path": "props.chapterCount", "op": "==", "value": 1 },
+                  { "path": "props.currentIndex", "op": "==", "value": 0 } ] }
+  ]
+}

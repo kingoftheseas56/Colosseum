@@ -45,29 +45,6 @@ Item {
     property bool settingsActive: false   // the Settings page is the front surface
     signal guideClicked()
     property bool guideActive: false      // the Living Guide is the front surface
-    signal updateClicked()
-    property bool updateActive: false      // the Update page is the front surface
-    property bool updateAvailable: false   // a verified newer release exists
-    property bool updateUnseen: false      // the user has not opened its chronicle yet
-    property var updatePresentation: ({})  // one projection from UpdatePage; Taskbar paints it
-    readonly property string updateStatusText: String((updatePresentation && updatePresentation.statusText) || "")
-    readonly property string updateMetadataText: String((updatePresentation && updatePresentation.metadataText) || "")
-    readonly property string updateProgressText: String((updatePresentation && updatePresentation.progressText) || "")
-    readonly property real updateProgress: Math.max(0, Math.min(1,
-        Number((updatePresentation && updatePresentation.progress) || 0)))
-    readonly property bool updateProgressVisible: Boolean(updatePresentation && updatePresentation.progressVisible)
-    readonly property bool updateProgressIndeterminate: Boolean(updatePresentation && updatePresentation.progressIndeterminate)
-    readonly property string updatePrimaryLabel: String((updatePresentation && updatePresentation.primaryLabel) || "")
-    readonly property bool updatePrimaryVisible: Boolean(updatePresentation && updatePresentation.primaryVisible)
-    readonly property bool updatePrimaryEnabled: Boolean(updatePresentation && updatePresentation.primaryEnabled)
-    readonly property bool updateProgressAnimated: updateProgressVisible && !updateProgressIndeterminate
-                                               && !(updatePresentation && updatePresentation.reducedMotion)
-    signal updatePrimaryActionRequested()
-
-    // A verified release is a taskbar event, not a silent state change.  Reveal the
-    // dock once so the update affordance is visible without requiring the user to
-    // discover the closed-shell hit target first.
-    onUpdateAvailableChanged: if (updateAvailable) reveal()
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -77,23 +54,13 @@ Item {
     property bool autoRevealed: false
     function reveal() {
         open = true
-        if (updateActive) {
-            autoRevealed = false
-            idleTimer.stop()
-        } else {
-            autoRevealed = true
-            idleTimer.restart()
-        }
+        autoRevealed = true
+        idleTimer.restart()
     }
     Timer {
         id: idleTimer
         interval: 15000
         onTriggered: {
-            if (bar.updateActive) {
-                bar.open = true
-                bar.autoRevealed = false
-                return
-            }
             if (dockHover.hovered || fanHover.hovered) { restart(); return }   // still engaged
             if (bar.autoRevealed) { bar.open = false; bar.autoRevealed = false }
         }
@@ -498,189 +465,12 @@ Item {
                 }
             }
 
-            // ---- Update: a quiet release bell beside Settings. The gold dot persists while
-            // a verified release is available; only the unseen flag is allowed to animate.
-            Item {
-                id: updateButton
-                objectName: "colosseumUpdateTaskbarButton"
-                property alias updateAvailable: bar.updateAvailable
-                property alias updateUnseen: bar.updateUnseen
-                Layout.preferredWidth: 46
-                Layout.preferredHeight: 46
-                Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 13
-                    color: updateMa.containsMouse || bar.updateActive
-                           ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                }
-                Image {
-                    anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "../assets/icons/update.svg"
-                    fillMode: Image.PreserveAspectFit
-                    opacity: bar.updateActive ? 1 : 0.75
-                }
-                Rectangle {
-                    visible: bar.updateActive
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
-                    width: 20; height: 3; radius: 2
-                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
-                }
-                Rectangle {
-                    id: updateBadge
-                    objectName: "colosseumUpdateBadge"
-                    visible: bar.updateAvailable
-                    anchors.top: parent.top; anchors.right: parent.right
-                    anchors.topMargin: 2; anchors.rightMargin: 2
-                    width: 12; height: 12; radius: 6
-                    color: "#f0c44a"
-                    border.width: 1
-                    border.color: Qt.rgba(0.08, 0.07, 0.03, 0.88)
-
-                    SequentialAnimation on scale {
-                        running: bar.updateUnseen
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 1.0; to: 1.18; duration: 600; easing.type: Easing.InOutSine }
-                        NumberAnimation { from: 1.18; to: 1.0; duration: 600; easing.type: Easing.InOutSine }
-                        PauseAnimation { duration: 1200 }
-                    }
-                }
-                Accessible.role: Accessible.Button
-                Accessible.name: bar.updateAvailable ? "Update available" : "Updates"
-                MouseArea {
-                    id: updateMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.updateClicked()
-                }
-            }
-
-            Rectangle {
-                visible: bar.updateActive
-                Layout.preferredWidth: visible ? 1 : 0
-                Layout.preferredHeight: 30
-                Layout.alignment: Qt.AlignVCenter
-                color: Qt.rgba(1, 1, 1, 0.16)
-            }
-
-            Item {
-                id: updateStatus
-                visible: bar.updateActive
-                Layout.fillWidth: visible
-                Layout.minimumWidth: visible ? 300 : 0
-                Layout.preferredHeight: 46
-                Layout.alignment: Qt.AlignVCenter
-
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 16
-
-                    ColumnLayout {
-                        Layout.minimumWidth: 176
-                        Layout.preferredWidth: 230
-                        Layout.maximumWidth: 300
-                        Layout.alignment: Qt.AlignVCenter
-                        spacing: 2
-
-                        Text {
-                            objectName: "colosseumUpdateStatusText"
-                            Layout.fillWidth: true
-                            text: bar.updateStatusText
-                            color: Qt.rgba(1, 1, 1, 0.94)
-                            font.pixelSize: 11
-                            font.weight: Font.DemiBold
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            objectName: "colosseumUpdateStatusMetadata"
-                            Layout.fillWidth: true
-                            visible: text.length > 0
-                            text: bar.updateMetadataText
-                            color: Qt.rgba(1, 1, 1, 0.54)
-                            font.pixelSize: 9
-                            font.letterSpacing: 0.8
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    ColumnLayout {
-                        objectName: "colosseumUpdateProgress"
-                        property string text: bar.updateProgressText
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 120
-                        Layout.alignment: Qt.AlignVCenter
-                        visible: bar.updateProgressVisible
-                        spacing: 5
-
-                        Text {
-                            objectName: "colosseumUpdateProgressText"
-                            Layout.fillWidth: true
-                            text: bar.updateProgressText
-                            color: Qt.rgba(1, 1, 1, 0.78)
-                            font.pixelSize: 10
-                            elide: Text.ElideRight
-                        }
-                        Rectangle {
-                            objectName: "colosseumUpdateProgressTrack"
-                            Layout.fillWidth: true
-                            height: 2
-                            color: Qt.rgba(1, 1, 1, 0.20)
-                            Rectangle {
-                                width: parent.width * (bar.updateProgressIndeterminate ? 0 : bar.updateProgress)
-                                height: parent.height
-                                color: Qt.rgba(1, 1, 1, 0.88)
-                                Behavior on width {
-                                    enabled: bar.updateProgressAnimated
-                                    NumberAnimation { duration: 220; easing.type: Easing.InOutQuad }
-                                }
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        objectName: "colosseumUpdatePrimaryAction"
-                        visible: bar.updatePrimaryVisible
-                        enabled: bar.updatePrimaryEnabled
-                        Layout.preferredWidth: Math.max(138, actionText.implicitWidth + 28)
-                        Layout.preferredHeight: 44
-                        Layout.alignment: Qt.AlignVCenter
-                        radius: 22
-                        color: enabled ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.16)
-                        focus: visible && enabled
-                        activeFocusOnTab: visible && enabled
-                        Accessible.role: Accessible.Button
-                        Accessible.name: bar.updatePrimaryLabel
-                        Text {
-                            id: actionText
-                            anchors.centerIn: parent
-                            text: bar.updatePrimaryLabel
-                            color: parent.enabled ? "#121212" : Qt.rgba(1, 1, 1, 0.58)
-                            font.pixelSize: 10
-                            font.weight: Font.DemiBold
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            enabled: parent.enabled
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: bar.updatePrimaryActionRequested()
-                        }
-                        Keys.onReturnPressed: if (enabled) bar.updatePrimaryActionRequested()
-                        Keys.onSpacePressed: if (enabled) bar.updatePrimaryActionRequested()
-                    }
-                }
-            }
-
+            // Session tiles — the dock's fill-width content.
             Row {
-                visible: !bar.updateActive
-                Layout.fillWidth: visible
+                Layout.fillWidth: true
                 spacing: 10
-                opacity: bar.open && visible ? 1 : 0
-                enabled: bar.open && visible
+                opacity: bar.open ? 1 : 0
+                enabled: bar.open
 
                 Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 

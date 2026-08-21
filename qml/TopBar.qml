@@ -24,6 +24,14 @@ Item {
     signal fullscreenClicked()
     signal minimizeClicked()
     signal powerClicked()
+    signal updateClicked()
+
+    // Update availability flags (home only): drive the silver badge on the home
+    // Update glyph the same way the taskbar badge pulses on updateUnseen. Bound
+    // from Main.qml's Updates singleton; inert on worlds (the glyph is hidden).
+    property bool updateAvailable: false
+    property bool updateUnseen: false
+    property bool reducedMotion: false
 
     // Glyph state only — the toggle ACTION stays with the host (Main.qml drives
     // WindowMode.toggleShellMode, the same authority as A5's F11 door). Reading
@@ -174,10 +182,51 @@ Item {
     }
 
     // ---- right: system icons ----
+    // Universal search is retired on home; the slot belongs to the Update glyph
+    // there (the release chronicle entry, with a silver availability badge).
+    // Worlds keep search — it is wired and functional in WorldPage.qml. The two
+    // are gated on activeMedium, the same home/world discriminator BackAction
+    // uses above, so only one is ever present in the slot.
     Row {
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: 20
         SysIcon { objectName: "topBarSearch"; source: "../assets/icons/search.svg";   onClicked: bar.searchClicked(); visible: bar.activeMedium !== "" }
+        // Update — home only. Takes search's throne; the silver badge signals an
+        // available release (pulse on unseen, steady once seen).
+        Item {
+            width: 22; height: 22
+            visible: bar.activeMedium === ""
+            opacity: updateMa.containsMouse ? 1.0 : 0.92
+            objectName: "colosseumTopbarUpdateButton"
+            Accessible.role: Accessible.Button
+            Accessible.name: bar.updateAvailable ? "Update available" : "Updates"
+            Image {
+                anchors.fill: parent
+                source: "../assets/icons/update.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+            }
+            Rectangle {
+                objectName: "colosseumTopbarUpdateBadge"
+                visible: bar.updateAvailable
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: -2; anchors.rightMargin: -2
+                width: 9; height: 9; radius: 4.5
+                color: "#f2f2ef"; border.width: 1; border.color: "#15151a"
+                SequentialAnimation on scale {
+                    running: bar.updateUnseen && bar.updateAvailable && !bar.reducedMotion
+                    loops: Animation.Infinite
+                    alwaysRunToEnd: true
+                    NumberAnimation { to: 1.22; duration: 700; easing.type: Easing.InOutQuad }
+                    NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutQuad }
+                    PauseAnimation { duration: 900 }
+                }
+            }
+            MouseArea {
+                id: updateMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: bar.updateClicked()
+            }
+        }
         SysIcon { objectName: "topBarWallpaperButton"; source: "../assets/icons/settings.svg"; onClicked: bar.wallpaperClicked() }
         SysIcon { source: "../assets/icons/minimize.svg"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar

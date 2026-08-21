@@ -339,6 +339,17 @@ void UpdateService::rebuildPresentation()
     // When a verified newer release is offered, render its chapters; otherwise
     // render the installed chronicle's (the bundled signed seed). The selector
     // is the single authority — the renderer never branches on version identity.
+    //
+    // Third branch — the loaded-manifest fallback: if a chronicle is loaded
+    // (m_hasChronicle) but no installed chronicle verified AND no newer release
+    // is offered, still render the loaded manifest's release metadata. This
+    // covers two real cases without special-casing either: (1) a test-key build
+    // where the production-signed installed chronicle cannot verify, so the
+    // gallery would otherwise drop to its empty JS fallback and lose the
+    // fixture's release title/summary/chapters; (2) any shipping build where
+    // the installed seed is absent or unreadable but a fetched manifest is
+    // present. Restores the pre-installed-chronicle behavior of using m_manifest
+    // directly whenever no better authority is available.
     const bool offerNewer = newerReleaseOffered();
     const Manifest* active = nullptr;
     QString artworkRoot;
@@ -348,6 +359,9 @@ void UpdateService::rebuildPresentation()
     } else if (m_installedChronicle) {
         active = &m_installedChronicle->manifest;
         artworkRoot = m_installedChronicle->artworkRoot;
+    } else if (m_hasChronicle) {
+        active = &m_manifest;
+        artworkRoot = QDir(m_cacheRoot).filePath(QStringLiteral("artwork"));
     }
 
     m_release.clear();

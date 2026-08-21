@@ -742,14 +742,14 @@ int main(int argc, char *argv[]) {
                 return false;
             return out.write(src.readAll()) == src.size();
         };
-        if (extract(QStringLiteral("manifest.json"), QStringLiteral("manifest.json"), chronicleCacheDir)
-            && extract(QStringLiteral("manifest.sig"), QStringLiteral("manifest.sig"), chronicleCacheDir)) {
+        if (extract(QStringLiteral("installed-manifest.json"), QStringLiteral("installed-manifest.json"), chronicleCacheDir)
+            && extract(QStringLiteral("installed-manifest.json.sig"), QStringLiteral("installed-manifest.json.sig"), chronicleCacheDir)) {
             // Extract each artwork asset. The manifest lists them; we extract by
             // scanning the qrc artwork prefix (the manifest is already on disk).
             updateHooks.installedChronicleManifestPath =
-                QDir(chronicleCacheDir).filePath(QStringLiteral("manifest.json"));
+                QDir(chronicleCacheDir).filePath(QStringLiteral("installed-manifest.json"));
             updateHooks.installedChronicleSignaturePath =
-                QDir(chronicleCacheDir).filePath(QStringLiteral("manifest.sig"));
+                QDir(chronicleCacheDir).filePath(QStringLiteral("installed-manifest.json.sig"));
             updateHooks.installedChronicleArtworkRoot = artworkCacheDir;
             // Extract artwork assets named in the manifest.
             QFile manifestFile(updateHooks.installedChronicleManifestPath);
