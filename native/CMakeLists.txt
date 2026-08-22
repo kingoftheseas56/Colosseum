@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon (Windows-only, harmless elsewhere)
 # C = the vendored third_party/miniz/miniz.c (gunzip for the Jikan Accept-Encoding workaround).
-project(colosseum VERSION 1.1.2 LANGUAGES C CXX RC)
+project(colosseum VERSION 1.1.3 LANGUAGES C CXX RC)
 
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"

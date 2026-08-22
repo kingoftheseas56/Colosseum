@@ -1,0 +1,72 @@
+{
+  "eyebrow": "THE HOUSE OPENS AGAIN",
+  "title": "Colosseum 1.1.3",
+  "summary": "Restores the withdrawn 1.1.2 release: the app opens again, launches no longer flash a console window, post-update relaunch no longer exits instantly, and the installer is a fraction of 1.1.2's size.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.3",
+  "highlights": [
+    {
+      "kind": "fix",
+      "section": "LAUNCH",
+      "title": "The app opens again",
+      "body": "Colosseum.Activity is registered unconditionally instead of living inside a compile guard that dropped it from release builds and made the window never appear.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "fix",
+      "section": "SHELL",
+      "title": "No console window",
+      "body": "colosseum.exe now builds as a GUI-subsystem app. The console flash behind every launch, a defect since 0.1, is gone.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "fix",
+      "section": "UPDATER",
+      "title": "Relaunch after update works",
+      "body": "The updater's relaunch flags were being read as a QML file path and crashing the app instantly. They now reach the code that consumes them.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "fix",
+      "section": "INSTALLER",
+      "title": "Slimmed down",
+      "body": "The release packager strips dev and test artifacts from the stage and refuses to publish an installer over 300MB.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "VAULT",
+      "title": "Hardened, with a home portal",
+      "body": "Live deletion and replacement reconcile instantly, stale enrichment can no longer overwrite newer data, and CBR fails closed. A new home portal opens Vault from Colosseum's home screen.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "WATCH PARTY",
+      "title": "On by default",
+      "body": "Watch Party points at a hosted relay out of the box. Joining a room now fetches that room's exact source automatically.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "TANKOBAN",
+      "title": "Library tab",
+      "body": "A fourth tab, Library, gives the volumes you already own a dedicated home next to Discover.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "BIBLIO",
+      "title": "Catalogue overhaul",
+      "body": "New Open Library providers, expanded ranking, and a reworked catalogue store sit underneath Discover and Explore.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "SHELL",
+      "title": "ScrollGlide and the chronicle",
+      "body": "Grid surfaces carry scroll momentum instead of snapping, and the Update page's chronicle view moved to the top bar, full-bleed.",
+      "artwork_assets": []
+    }
+  ],
+  "artwork": []
+}
