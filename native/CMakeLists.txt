@@ -510,6 +510,11 @@ target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     advapi32 user32
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
+if(WIN32)
+    # colosseum.exe must be a GUI-subsystem binary: without this, every installed launch
+    # opens a console window alongside the Qt GUI (shipped defect since 0.1).
+    set_target_properties(colosseum PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
 
 
 add_executable(update_version_harness
