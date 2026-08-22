@@ -14,7 +14,14 @@
 
 class MalCatalog final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
+    // No Q_PROPERTY(ready) here on purpose (data-vault Slice 4, 2026-08-22 fix): a
+    // Q_PROPERTY and a Q_INVOKABLE sharing the name "ready" collide in QML's property
+    // lookup — `.ready()` resolves to the property's bool VALUE first, then throws
+    // "not a function" trying to call it. Nothing in qml/ ever read a bare `.ready`
+    // property (grep-verified) — every call site uses `.ready()` — so the property
+    // declaration was pure dead weight that broke its own callers. readyChanged stays
+    // a plain signal; Connections-based listeners (see qml/Main.qml's catalogVaultState)
+    // still work off it exactly as before.
 public:
     explicit MalCatalog(const QString& dbPath, QObject* parent = nullptr);
     ~MalCatalog() override;

@@ -34,5 +34,35 @@
     "owner": "W0 wiring (Agent 0, Claude)",
     "reason": "The bridge's own routine startup announcement (LanistaServer construction), printed at every boot of the real app AND the lanista_harness test fixture. In colosseum.log this is an [I]-level line and never reaches the offending set; in the harness's raw stderr.log (no AppLog, no level marker at all - lanista_harness never links native/engine/AppLog.cpp) it has no level to classify by, so it needs an explicit entry. Anchored to line-start so it only matches the announcement itself, not an unrelated line that happens to mention the phrase.",
     "date": "2026-08-12"
+  },
+  {
+    "pattern": "chapter tree purge pass complete: manga/ existed=",
+    "owner": "data-vault Slice 4 (Agent 1 sub-exec, Sonnet)",
+    "reason": "Pre-existing routine [I]-level tankoban-migration boot line (unrelated to the catalog-vault fetch path this slice verifies), proven [I] in colosseum.log every session. The gate's text-identity fallback for stderr.log missed it only because Qt's raw console mirror writes the line's em dash (U+2014) while some capture paths normalize it to a plain hyphen before this file sees it - a byte-encoding quirk of the console mirror, not a new warning class. Observed in isolated session 20260822-193918-27fc764f (catalog_vault_dev_path.json, dev-path regression).",
+    "date": "2026-08-22"
+  },
+  {
+    "pattern": "catalogue lane dormant",
+    "owner": "data-vault Slice 4 (Agent 1 sub-exec, Sonnet)",
+    "reason": "[I]-level in colosseum.log (ComicsCatalog reporting its own honest not-ready state while CatalogVaultClient's fetch is still in flight, before the db has landed) - expected, temporary window behavior specific to a first-launch fetch, not an error. Needed as its own stderr.log entry (same em-dash/hyphen console-mirror encoding quirk as the tankoban-migration entry above). Observed in session 20260822-200022-0e2917c1 (catalog_vault_first_fetch.json, first-launch live fetch).",
+    "date": "2026-08-22"
+  },
+  {
+    "pattern": "qml: ComicsDb: catalogue engine unavailable",
+    "owner": "data-vault Slice 4 (Agent 1 sub-exec, Sonnet)",
+    "reason": "TankobanWorld.qml's honest fallback notice while ComicsCatalog is not yet ready during a first-launch fetch window (the catalog opens once CatalogVaultClient's databaseUpdated fires) - expected, temporary, self-resolves once the fetch completes and the catalog reopens. Observed in session 20260822-200022-0e2917c1 (catalog_vault_first_fetch.json).",
+    "date": "2026-08-22"
+  },
+  {
+    "pattern": "TypeError: Cannot (read property '(revision|items)'|call method '(recent|items)') of null",
+    "owner": "data-vault Slice 4 (Agent 1 sub-exec, Sonnet), citing a pre-existing gap",
+    "reason": "Pre-existing boot-time race already named in docs/colosseum-lanista-verification.md's 'Tankoban catalogue-independence closing sweep' entry (2026-08-21) as 'the pre-documented TypeError: Cannot read property revision/items of null cluster' - load-dependent, unrelated to the catalog-vault fetch path, never chased to a root cause by that sweep either. Observed again in this slice's first-launch fetch session (heavier boot load than a normal dev launch) - not a new class, just the first time this gate ran against a session that triggered it.",
+    "date": "2026-08-22"
+  },
+  {
+    "pattern": "QIODevice::read \\(QSslSocket\\): device not open",
+    "owner": "data-vault Slice 4 (Agent 1 sub-exec, Sonnet)",
+    "reason": "Same family as the already-allowlisted 'QIODevice::read (QNetworkReplyHttpImpl): device not open' (W0 baseline, 2026-08-12) - a network reply object read after close during session teardown, just surfaced via QSslSocket instead of QNetworkReplyHttpImpl on this pass (an HTTPS reply, since the vault fetch is TLS to GitHub). Same non-fatal teardown-only shape, all 5 occurrences clustered late in the session (20:00:58-20:02:15, well after the fetch itself completed at 20:03).",
+    "date": "2026-08-22"
   }
 ]

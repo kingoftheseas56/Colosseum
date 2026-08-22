@@ -12,7 +12,9 @@
 
 class ImdbCatalog final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
+    // No Q_PROPERTY(ready) here on purpose — see MalCatalog.h for the full note
+    // (data-vault Slice 4, 2026-08-22 fix): it collided with the Q_INVOKABLE of the
+    // same name and broke every `.ready()` call site in QML.
 public:
     explicit ImdbCatalog(const QString& dbPath, QObject* parent = nullptr);
     ~ImdbCatalog() override;

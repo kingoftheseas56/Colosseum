@@ -272,13 +272,14 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
 
 - **Scenario inventory correction.** The "Existing scenarios" line below (Scenario runner section)
   names only `self_smoke.json`, `self_visual.json`, `app_home.json` — that list predates the Vault
-  and Biblio slices. As of 2026-08-12 there are **18** scenario JSONs under
-  `tests/lanista_scenarios/`: `app_home`, `biblio_covers_pilot`, `biblio_library_empty`,
-  `seed_zoo_smoke` (this slice), `self_smoke`, `self_visual`, 6 × `update_*` (`available`,
-  `downloading`, `idle`, `idle_chapter_nav`, `idle_corrupt_sig`, `up_to_date`), and `vault_door`,
-  `vault_identify`, `vault_launch_baseline`, `vault_launch_smoke`, `vault_open_recent`,
-  `vault_shelves`. Maintain this count in the same commit as any scenario add/remove — it drifts
-  fast.
+  and Biblio slices. As of 2026-08-12 there were 18 scenario JSONs; many slices since then (Vault
+  browse/churn, updater, Tankoban catalogue-independence, data-vault) landed more without updating
+  this count each time, so it drifted well past 18. **As of 2026-08-22 (data-vault Slice 4) there
+  are 50 scenario JSONs under `tests/lanista_scenarios/`** (`ls tests/lanista_scenarios/*.json | wc
+  -l`, the ground truth for this count going forward) — including this slice's own
+  `catalog_vault_dev_path.json` and `catalog_vault_first_fetch.json`. Maintain this count in the
+  same commit as any scenario add/remove — it drifts fast; re-count from disk rather than trusting
+  the running list of names, which has fallen behind every time so far.
 - **`tests/lanista-seeds/`** is the versioned fixture zoo: one folder per real-bug seed, each
   carrying a `seed.json` manifest (`{name, version, provenance, placement, expectedOnBoot}` — see
   `tests/lanista-seeds/README.md` for the full journey contract). A seed is admitted only when a

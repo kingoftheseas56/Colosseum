@@ -1333,7 +1333,17 @@ int main(int argc, char *argv[]) {
     if (!tankobanRes.devOverridden) catalogManagedNames << QStringLiteral("tankoban_catalog.db");
     if (!imdbRes.devOverridden) catalogManagedNames << QStringLiteral("imdb_catalog.db");
 
-    auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir, {}, &app);
+    // Data-vault Slice 4 (2026-08-22) fix: this used to pass {} for apiBaseUrl, which
+    // is an EXPLICIT empty QString, not "omitted" -- C++ default arguments only apply when
+    // the parameter is left out entirely, so the header's real default
+    // (https://api.github.com/repos/kingoftheseas56/Colosseum-Data, CatalogVaultClient.h)
+    // was silently discarded and every fetchManifest() request hit a bare "/releases/latest"
+    // URL. On a dev machine (all four data/*.db present) this never showed: checkAndFetch()
+    // takes the zero-network devOverridden branch before ever building a request. Caught
+    // live in Slice 4's first-launch runtime session (an empty AppData + no reachable
+    // data/ never fetched at all -- WAIT_TIMEOUT on catalogVaultState.fetching==true).
+    auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir,
+        QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum-Data"), &app);
     catalogVaultClient->setManagedNames(catalogManagedNames);
     engine.rootContext()->setContextProperty(QStringLiteral("CatalogVault"), catalogVaultClient);
 
