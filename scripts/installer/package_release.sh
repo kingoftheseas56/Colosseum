@@ -29,7 +29,6 @@ MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
 DIST="$REPO/dist"
 STAGE="$DIST/stage"
 OUT="$DIST/Colosseum-$VERSION-setup.exe"
-DATA_SRC="$REPO/data"
 
 if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=all)" ]; then
   echo "refusing to package dirty source tree"
@@ -58,22 +57,18 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
   exit 1
 fi
 
-# Catalogue-independence (2026-08-20) removed the last live fallbacks: qml/MangaSeries.qml
-# now names MalCatalog as the SOLE source of masthead facts (mangaById/matchByTitle), and
-# TankobanCatalog is the sole source of the volume shelf/covers. An installer without both
-# dbs staged renders an empty series page and an empty Discover on a fresh install — the
-# headline feature dead on arrival. Hold packaging here, before any staging work starts,
-# rather than discover the gap after makensis has already run.
-[ -f "$DATA_SRC/mal_catalog.db" ] || { echo "mal_catalog.db missing: $DATA_SRC"; exit 1; }
-[ -f "$DATA_SRC/tankoban_catalog.db" ] || { echo "tankoban_catalog.db missing: $DATA_SRC"; exit 1; }
+# Data-vault adoption (2026-08-22): the app now fetches all four catalogue dbs
+# (mal, tankoban, comics, imdb) from the public kingoftheseas56/Colosseum-Data GitHub
+# release into AppData on first launch (CatalogVaultClient). The installer no longer
+# carries any catalogue db — nothing to guard or overlay here.
 
-echo "[1/7] clean stage -> $STAGE"
+echo "[1/6] clean stage -> $STAGE"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 
-echo "[2/7] source tree at HEAD (tracked files)"
+echo "[2/6] source tree at HEAD (tracked files)"
 git -C "$REPO" archive --format=tar HEAD | tar -x -C "$STAGE"
 
-echo "[3/7] overlay windeployqt runtime from $BUILD_DIR"
+echo "[3/6] overlay windeployqt runtime from $BUILD_DIR"
 mkdir -p "$STAGE/native/build-msvc"
 cp -r "$BUILD_DIR/." "$STAGE/native/build-msvc/"
 # Felt-speed runtime sentinels: an installer without these files is not shippable.
@@ -85,18 +80,7 @@ for sentinel in \
   [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
 done
 
-echo "[4/7] overlay baked catalogue data (mal_catalog.db + tankoban_catalog.db) -> \$STAGE/data"
-# The app has no live fallback for these anymore (see catalogue-independence note above):
-# a release without them ships a dead Tankoban. comics_catalog.db / imdb_catalog.db are
-# deliberately NOT overlaid — those lanes keep their live-fallback shape unchanged.
-mkdir -p "$STAGE/data"
-cp "$DATA_SRC/mal_catalog.db" "$STAGE/data/mal_catalog.db"
-cp "$DATA_SRC/tankoban_catalog.db" "$STAGE/data/tankoban_catalog.db"
-for sentinel in "$STAGE/data/mal_catalog.db" "$STAGE/data/tankoban_catalog.db"; do
-  [ -f "$sentinel" ] || { echo "data sentinel missing: $sentinel"; exit 1; }
-done
-
-echo "[5/7] strip build intermediates (keeps ALL runtime: dlls, platforms/, imageformats/, tls/, translations/, resources/, qml/, tools/, QtWebEngineProcess.exe, stream_server/)"
+echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, platforms/, imageformats/, tls/, translations/, resources/, qml/, tools/, QtWebEngineProcess.exe, stream_server/)"
 ( cd "$STAGE/native/build-msvc"
   rm -rf CMakeFiles Testing artifacts
   rm -rf ./*_autogen
@@ -105,7 +89,7 @@ echo "[5/7] strip build intermediates (keeps ALL runtime: dlls, platforms/, imag
   rm -f ./*.ninja_log ./*.ninja_deps ./*.ninja*
   rm -f ./*.obj ./*.ilk ./*.pdb ./*.lib ./*.exp CMakeCache.txt cmake_install.cmake ./*.cmake Makefile CTestTestfile.cmake 2>/dev/null || true )
 
-echo "[5b/7] prune source-tree dirs the installed app never reads at runtime"
+echo "[4b/6] prune source-tree dirs the installed app never reads at runtime"
 # The installed exe's own resource root is $STAGE itself (main.cpp cdUp()s twice off
 # applicationDirPath to native/build-msvc/../.. and treats that as cwd for qml/, data/).
 # Grepped native/*.cpp + qml/**/*.qml,js for hardcoded "tests/", "docs/", "agents/",
@@ -117,7 +101,7 @@ echo "[5b/7] prune source-tree dirs the installed app never reads at runtime"
 rm -rf "$STAGE/tests" "$STAGE/docs" "$STAGE/agents" \
        "$STAGE/scripts/comics_brain" "$STAGE/release/presentation"
 
-echo "[6/7] bundle the Stremio stream-server next to the exe  <<< THE FIX"
+echo "[5/6] bundle the Stremio stream-server next to the exe  <<< THE FIX"
 DEST="$STAGE/native/build-msvc/stream_server"
 mkdir -p "$DEST"
 for f in stremio-runtime.exe server.js ffmpeg.exe ffprobe.exe \
@@ -134,10 +118,10 @@ Colosseum (MIT) and this GPL-2.0 component are separate programs communicating o
 localhost HTTP; they are an aggregate, and Colosseum's own license is unaffected.
 EOF
 
-echo "[6b/7] stage weight (top-level, before makensis) -- watch this for future bloat"
+echo "[5b/6] stage weight (top-level, before makensis) -- watch this for future bloat"
 du -sh "$STAGE"/*/ "$STAGE"/* 2>/dev/null | sort -rh | head -20 || true
 
-echo "[7/7] makensis -> $OUT"
+echo "[6/6] makensis -> $OUT"
 # MSYS_NO_PATHCONV: stop Git Bash from rewriting the /D... define flags into bogus paths.
 MSYS_NO_PATHCONV=1 "$MAKENSIS" \
     "/DSTAGE=$(cygpath -w "$STAGE")" "/DVERSION=$VERSION" \

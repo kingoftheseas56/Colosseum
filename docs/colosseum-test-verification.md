@@ -1903,3 +1903,22 @@ becomes "stays unresolved after the ready flip", which is false) → exactly
 Status: **Test-reported.** The scenario (fresh-install cold-boot with the vault mid-download,
 watching the Tankoban wall and a MangaSeries page wake as each catalogue lands) has not been
 runtime-replayed this slice — that live-download session is Slice 4's territory per the brief.
+
+## Data-vault Slice 5 (2026-08-22): installer stops shipping catalogue dbs
+
+Final slice of the arc. `scripts/installer/package_release.sh` no longer bundles
+`mal_catalog.db`/`tankoban_catalog.db` into the installer stage, now that Slices 1-4 (runtime-
+validated 2026-08-22, including a real ~155MB live fetch session against
+`kingoftheseas56/Colosseum-Data`) proved the app fetches all four catalogue dbs into AppData on
+first launch. Removed the two pre-flight guards that failed the build when either db was absent
+from the repo's local `data/` dir, and the `[4/7]` overlay step that copied them into
+`$STAGE/data`; the six remaining steps renumbered `[1/6]`..`[6/6]`. This is a packaging-script
+change with no registered harness — per this ledger's own conventions, release packaging scripts
+sit outside the test estate (no `ctest`/Lanista target exercises `package_release.sh` itself).
+Verification instead: `bash -n` syntax check (clean), a grep sweep confirming zero remaining
+`data/`-staging or `catalog.db` references in the script, and a staged replication of the
+script's steps `[1/6]`-`[2/6]` (`git archive HEAD` into a scratch dir) showing the resulting
+stage tree has no `data/` directory — full transcript at
+`Colosseum/artifacts/data-vault/slice5/staging_proof.txt` (gitignored, on disk). No release was
+cut to produce this evidence (v1.1.3 already shipped under the prior packager; this edit is
+dormant until the next release).
