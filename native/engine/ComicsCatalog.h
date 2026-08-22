@@ -13,10 +13,16 @@
 
 class ComicsCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
 public:
     explicit ComicsCatalog(const QString& dbPath, QObject* parent = nullptr);
     ~ComicsCatalog() override;
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Data-vault Slice 2 (2026-08-22): reopen at a fresh path — see MalCatalog.
+    // Unlike the other three seams, ComicsCatalog has no ../../ dev fallback
+    // ladder — the caller (main.cpp) resolves the full path first.
+    Q_INVOKABLE bool reopen(const QString& dbPath);
+    Q_INVOKABLE void closeForSwap();
     // {gcdId,title,year,yearEnded,issueCount,publisher,cover,synopsis,downloads,kinds,latestPost} or {}
     Q_INVOKABLE QVariantMap series(int gcdId) const;
     // ranked: exact-title class first, then prefix, then contains; downloads DESC within class
@@ -87,7 +93,12 @@ public:
     // all join series_stats, downloads DESC then year DESC, LIMIT limit.
     // unknown kind or !ready() -> empty.
     Q_INVOKABLE QVariantList shelf(const QString& kind, const QString& arg, int limit) const;
+signals:
+    void readyChanged();
+
 private:
+    bool openAt(const QString& dbPath);
+
     QSqlDatabase m_db;
     QString m_conn;
     bool m_ok = false;

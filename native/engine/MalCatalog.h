@@ -14,11 +14,20 @@
 
 class MalCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
 public:
     explicit MalCatalog(const QString& dbPath, QObject* parent = nullptr);
     ~MalCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Data-vault Slice 2 (2026-08-22): reopen at a fresh path (e.g. after
+    // CatalogVaultClient lands a new download over this db) — closes any
+    // existing connection first. Returns the new ready() state.
+    Q_INVOKABLE bool reopen(const QString& dbPath);
+    // Close the connection ahead of a vault swap so Windows can rename over
+    // the file (CatalogVaultClient::aboutToReplace's contract). ready()
+    // becomes false until the next reopen().
+    Q_INVOKABLE void closeForSwap();
     // medium: "anime" | "manga"; order: "members" | "score". Jikan-shaped maps.
     Q_INVOKABLE QVariantList genreEntries(const QString& medium, const QString& genre,
                                           const QString& order, int limit = 24) const;
@@ -71,7 +80,12 @@ public:
                                          bool includeExplicit,
                                          int offset, int limit) const;
 
+signals:
+    void readyChanged();
+
 private:
+    bool openAt(const QString& dbPath);
+
     QSqlDatabase m_db;
     bool m_ok = false;
     QString m_conn;

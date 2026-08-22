@@ -252,6 +252,8 @@ add_executable(colosseum
     engine/TankobanChapterMigration.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
+    engine/CatalogVaultClient.cpp  # data-vault adoption, Slice 1/2 (2026-08-22)
+    engine/CatalogVaultClient.h
     engine/LocalDownloads.cpp
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp

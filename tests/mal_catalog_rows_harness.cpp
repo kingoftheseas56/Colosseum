@@ -317,8 +317,45 @@ int main(int argc, char** argv)
         require(notReady.mangaById(1).isEmpty(), "mangaById on a not-ready db returns an empty map");
     }
 
+    // ── Data-vault Slice 2 (2026-08-22): ready/reopen()/closeForSwap() contract. ──
+    // TankobanCatalog, ComicsCatalog, and ImdbCatalog share this exact openAt/reopen/
+    // closeForSwap shape (verified by inspection — same constructor ladder, same
+    // reopen()/closeForSwap() bodies modulo type names; ComicsCatalog additionally has no
+    // ../../ dev fallback and a per-instance connection name, neither of which changes
+    // this contract), so this single suite stands in for all four seams.
+    {
+        // construct at a missing path -> not ready, no crash
+        MalCatalog swapCat(QDir::temp().filePath(QStringLiteral("mal_catalog_rows_fixture_absent.db")));
+        require(!swapCat.ready(), "reopen-contract: fresh catalog at a missing path is not ready");
+
+        int readyChangedCount = 0;
+        QObject::connect(&swapCat, &MalCatalog::readyChanged, [&] { ++readyChangedCount; });
+
+        // reopen(realFixture) -> ready flips true, signal fires once, queries answer
+        const bool reopened = swapCat.reopen(dbPath);
+        require(reopened, "reopen-contract: reopen(valid path) returns true");
+        require(swapCat.ready(), "reopen-contract: ready() reflects the reopen");
+        require(readyChangedCount == 1, "reopen-contract: readyChanged fired exactly once on the flip to ready");
+        const QVariantMap row = swapCat.mangaById(1);
+        require(!row.isEmpty() && row.value("title").toString() == QStringLiteral("Monster"),
+                "reopen-contract: queries answer correctly after reopen");
+
+        // closeForSwap() -> ready flips false, signal fires again
+        swapCat.closeForSwap();
+        require(!swapCat.ready(), "reopen-contract: closeForSwap() flips ready() to false");
+        require(readyChangedCount == 2, "reopen-contract: readyChanged fired again on closeForSwap");
+        require(swapCat.mangaById(1).isEmpty(), "reopen-contract: queries return empty after closeForSwap");
+
+        // reopen again -> recovers cleanly
+        require(swapCat.reopen(dbPath), "reopen-contract: reopen() after closeForSwap recovers");
+        require(swapCat.ready(), "reopen-contract: ready() is true again after the second reopen");
+        require(readyChangedCount == 3, "reopen-contract: readyChanged fired a third time on recovery");
+        require(!swapCat.mangaById(1).isEmpty(), "reopen-contract: queries answer again after recovery");
+    }
+
     QFile::remove(dbPath);
     std::cout << "PASS MalCatalog::animeCatalog allowlisted paged query contract\n";
     std::cout << "PASS MalCatalog::mangaById single-row identity lookup contract\n";
+    std::cout << "PASS MalCatalog ready/reopen()/closeForSwap() vault-reopen contract\n";
     return 0;
 }

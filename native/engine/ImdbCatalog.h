@@ -12,11 +12,15 @@
 
 class ImdbCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
 public:
     explicit ImdbCatalog(const QString& dbPath, QObject* parent = nullptr);
     ~ImdbCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Data-vault Slice 2 (2026-08-22): reopen at a fresh path — see MalCatalog.
+    Q_INVOKABLE bool reopen(const QString& dbPath);
+    Q_INVOKABLE void closeForSwap();
     // query allowlist: type(movie|series|mini), order(rating|votes|year|episodes),
     // ratingMin, votesMin, votesMax, yearFrom, yearTo, runtimeMax, genre, lang,
     // notLang, excludeAnime, episodesMin. Unknown key/order -> empty. "series"
@@ -33,7 +37,12 @@ public:
     // batch facts for live-row filtering: {tt: {rating, votes, isAnime}}
     Q_INVOKABLE QVariantMap titleFacts(const QStringList& ids) const;
 
+signals:
+    void readyChanged();
+
 private:
+    bool openAt(const QString& dbPath);
+
     QSqlDatabase m_db;
     bool m_ok = false;
     QString m_conn;

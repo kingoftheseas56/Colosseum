@@ -15,11 +15,15 @@
 
 class TankobanCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
 public:
     explicit TankobanCatalog(const QString& dbPath, QObject* parent = nullptr);
     ~TankobanCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Data-vault Slice 2 (2026-08-22): reopen at a fresh path — see MalCatalog.
+    Q_INVOKABLE bool reopen(const QString& dbPath);
+    Q_INVOKABLE void closeForSwap();
 
     // {volumeCount:int, countBasis:string} — countBasis is "mal" or
     // "bookwalker". Empty map when the db is missing or malId is unknown.
@@ -33,7 +37,12 @@ public:
     // known count nor any baked volume rows.
     Q_INVOKABLE QVariantList volumes(int malId) const;
 
+signals:
+    void readyChanged();
+
 private:
+    bool openAt(const QString& dbPath);
+
     QSqlDatabase m_db;
     bool m_ok = false;
     QString m_conn;

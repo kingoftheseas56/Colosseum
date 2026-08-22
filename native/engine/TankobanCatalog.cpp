@@ -44,8 +44,7 @@ QString numericAwareKey(const QString& s)
 
 } // namespace
 
-TankobanCatalog::TankobanCatalog(const QString& dbPath, QObject* parent)
-    : QObject(parent), m_conn(QStringLiteral("tankoban_catalog"))
+bool TankobanCatalog::openAt(const QString& dbPath)
 {
     // resolve beside the exe first (deployed), then the repo layout (dev run) — MalCatalog's ladder
     QString path = dbPath;
@@ -55,18 +54,52 @@ TankobanCatalog::TankobanCatalog(const QString& dbPath, QObject* parent)
         if (QFileInfo::exists(beside)) path = beside;
     }
     if (!QFileInfo::exists(path))
-        return;                                  // no catalog — callers fall through honestly
+        return false;                             // no catalog — callers fall through honestly
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_conn);
     m_db.setDatabaseName(path);
     m_db.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
-    m_ok = m_db.open();
+    return m_db.open();
+}
+
+TankobanCatalog::TankobanCatalog(const QString& dbPath, QObject* parent)
+    : QObject(parent), m_conn(QStringLiteral("tankoban_catalog"))
+{
+    m_ok = openAt(dbPath);
 }
 
 TankobanCatalog::~TankobanCatalog()
 {
     if (m_db.isOpen()) m_db.close();
     m_db = QSqlDatabase();
-    QSqlDatabase::removeDatabase(m_conn);
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+}
+
+bool TankobanCatalog::reopen(const QString& dbPath)
+{
+    const bool wasOk = m_ok;
+    if (m_db.isOpen())
+        m_db.close();
+    m_db = QSqlDatabase();
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+    m_ok = openAt(dbPath);
+    if (m_ok != wasOk || m_ok)
+        emit readyChanged();
+    return m_ok;
+}
+
+void TankobanCatalog::closeForSwap()
+{
+    if (m_db.isOpen())
+        m_db.close();
+    m_db = QSqlDatabase();
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+    const bool wasOk = m_ok;
+    m_ok = false;
+    if (wasOk)
+        emit readyChanged();
 }
 
 QVariantMap TankobanCatalog::seriesInfo(int malId) const

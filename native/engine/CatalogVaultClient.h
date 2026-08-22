@@ -40,10 +40,17 @@ public:
     bool isFetching() const { return m_fetching; }
     QString currentTag() const { return m_currentTag; }
 
-    // Entry point. Throttled: if state.json's fetchedAt is under 24h old AND all four db
-    // files exist on disk, emits allFresh(tag) immediately with zero network. Otherwise
+    // Entry point. Throttled: if state.json's fetchedAt is under 24h old AND every MANAGED
+    // db file exists on disk, emits allFresh(tag) immediately with zero network. Otherwise
     // checks the release manifest and downloads only what changed or is missing.
     Q_INVOKABLE void checkAndFetch();
+
+    // Data-vault Slice 2 (2026-08-22): restrict which of the four known assets this
+    // client will ever fetch — a catalog whose dev-machine override already resolved to a
+    // local `data/*.db` file has no business being vault-managed. Unknown names are
+    // ignored; an empty/never-called call manages all four (the Slice-1 default). Call
+    // BEFORE checkAndFetch(); changing it mid-fetch does not affect an in-flight pass.
+    Q_INVOKABLE void setManagedNames(const QStringList& names);
 
 signals:
     void databaseUpdated(QString name, QString path);
@@ -63,6 +70,7 @@ private:
     void setFetching(bool value);
     void setCurrentTag(const QString& tag);
 
+    QStringList managedAssetNames() const;
     bool allFourFilesPresent() const;
     bool readState(QString* tag, QDateTime* fetchedAt, QHash<QString, qint64>* sizes) const;
     void writeState(const QString& tag, const QHash<QString, qint64>& sizes) const;
@@ -80,6 +88,8 @@ private:
     QString m_apiBaseUrl;
     bool m_fetching = false;
     QString m_currentTag;
+    QStringList m_managedNames; // meaningful only when m_managedNamesSet is true
+    bool m_managedNamesSet = false; // false == manage all four (Slice-1 default, setManagedNames never called)
 
     // In-flight download-plan state for the current checkAndFetch() pass.
     QString m_pendingTag;

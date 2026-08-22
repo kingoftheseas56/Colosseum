@@ -50,9 +50,25 @@ void CatalogVaultClient::setCurrentTag(const QString& tag)
     emit tagChanged();
 }
 
+void CatalogVaultClient::setManagedNames(const QStringList& names)
+{
+    QStringList filtered;
+    for (const QString& name : names) {
+        if (knownAssets().contains(name) && !filtered.contains(name))
+            filtered.append(name);
+    }
+    m_managedNames = filtered;
+    m_managedNamesSet = true;
+}
+
+QStringList CatalogVaultClient::managedAssetNames() const
+{
+    return m_managedNamesSet ? m_managedNames : knownAssets();
+}
+
 bool CatalogVaultClient::allFourFilesPresent() const
 {
-    for (const QString& name : knownAssets()) {
+    for (const QString& name : managedAssetNames()) {
         if (!QFile::exists(m_vaultDir + QLatin1Char('/') + name))
             return false;
     }
@@ -107,6 +123,12 @@ void CatalogVaultClient::writeState(const QString& tag, const QHash<QString, qin
 
 void CatalogVaultClient::checkAndFetch()
 {
+    if (managedAssetNames().isEmpty()) {
+        // Every asset the caller cares about resolved to a local dev override —
+        // nothing for this client to manage. Zero network, zero work.
+        emit allFresh(m_currentTag);
+        return;
+    }
     QString tag;
     QDateTime fetchedAt;
     QHash<QString, qint64> sizes;
@@ -189,7 +211,7 @@ void CatalogVaultClient::onManifestReply(QNetworkReply* reply)
 
     QVector<AssetInfo> toDownload;
     QHash<QString, qint64> finalSizes;
-    for (const QString& name : knownAssets()) {
+    for (const QString& name : managedAssetNames()) {
         const QString path = m_vaultDir + QLatin1Char('/') + name;
         const bool existsLocally = QFile::exists(path);
         finalSizes.insert(name, existsLocally ? QFileInfo(path).size() : 0);

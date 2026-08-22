@@ -1752,3 +1752,86 @@ sub-exec pass that stashed/rebuilt/popped the same 6-file tracked WIP set mid-ed
 building (`agents/chat.md` carries both the original and resume claims). No foreign hunks in
 either CMakeLists.txt were touched by this slice's own edits, verified via `git diff` on each
 file immediately before commit.
+
+## Data-vault adoption Slice 2 — catalog reopen + main.cpp vault wiring (2026-08-22)
+
+**ready/reopen()/closeForSwap() contract, all four catalogue seams.** `MalCatalog`,
+`TankobanCatalog`, `ImdbCatalog`, and `ComicsCatalog` each gained `Q_PROPERTY(bool ready READ
+ready NOTIFY readyChanged)`, `Q_INVOKABLE bool reopen(const QString& dbPath)`, and
+`Q_INVOKABLE void closeForSwap()`. Each constructor's inline open logic was refactored into a
+shared private `openAt(path)` helper (byte-identical behavior — same dev-path ladder, same
+`QSQLITE_OPEN_READONLY` connect options) so the constructor and `reopen()` share one code path.
+`reopen()` closes any existing connection (`QSqlDatabase::close()` + `removeDatabase()`, object
+out of scope first — the standard Qt pattern, now guarded everywhere with `contains()` before
+`removeDatabase()`, including the destructors), reopens at the new path, and emits
+`readyChanged()` when the ready state flips or a reopen while already-ready succeeds (a
+conservative superset of "flipped OR path changed" — harmless extra signal, no missed one).
+`closeForSwap()` closes the connection, forces `ready()` false, and emits `readyChanged()` if it
+was previously ready — this is what `CatalogVaultClient::aboutToReplace`'s slot calls so Windows
+can rename over the file. `ComicsCatalog` keeps its per-instance connection name and its lack of
+a `../../` dev fallback ladder (both pre-existing, unchanged); the other three keep MalCatalog's
+exact ladder.
+
+**CatalogVaultClient gained `setManagedNames(QStringList)`** (Q_INVOKABLE, filters against the
+existing `knownAssets()` list, unknown names ignored) plus an internal `m_managedNamesSet` flag
+so "never called" (manage all four, Slice-1 default) is distinguishable from "called with an
+empty list" (manage nothing — `checkAndFetch()` now short-circuits to `emit
+allFresh(m_currentTag)` with zero network in that case, since main.cpp calls this whenever every
+catalog resolved via its dev override).
+
+**main.cpp wiring.** A `resolveCatalogPath` lambda, run once per catalog before construction,
+tries the existing relative dev path then the `applicationDirPath()/../../` ladder (MalCatalog's
+constructor logic, now lifted to the caller) and falls back to
+`QStandardPaths::AppDataLocation + "/catalog-vault/" + assetName` only if neither dev path
+exists — so a dev machine with all four `data/*.db` files present is byte-identical to before
+this slice. The four catalogs construct at their resolved paths; `CatalogVaultClient` constructs
+with the existing `updateNam` (line ~602, already alive at this point in boot) and the AppData
+vault directory, then `setManagedNames()` is called with only the non-dev-overridden asset
+names. `aboutToReplace(name)`/`databaseUpdated(name, path)` are connected by name to the matching
+catalog's `closeForSwap()`/`reopen(path)`. `CatalogVault` is exposed as a QML context property
+(for Slice 3). A `QTimer::singleShot(0, ...)` kicks `checkAndFetch()` once, off the cold-launch
+critical path.
+
+**Build-graph gap found and fixed:** Slice 1 registered `CatalogVaultClient.{h,cpp}` only in the
+`catalog_vault_client_harness` target's own source list — the `colosseum` app target's source
+list (`native/CMakeLists.txt`, the `add_executable(colosseum ...)` block) never got the file, so
+the harness and unit gate were green while the real app would not link. Caught by this slice's
+own app relink (`LNK2019: unresolved external symbol CatalogVaultClient::...` x6, `LNK1120`
+fatal). Fixed by adding `engine/CatalogVaultClient.cpp`/`.h` next to the other catalog entries in
+that block; the app then linked clean.
+
+**Harness coverage.** `tests/mal_catalog_rows_harness.cpp` gained a "reopen-contract" case
+(documented as standing in for all four seams, since TankobanCatalog/ComicsCatalog/ImdbCatalog
+share the identical `openAt`/`reopen`/`closeForSwap` shape by inspection): construct at a missing
+path → not ready; `reopen(realFixture)` → ready true, `readyChanged` fired exactly once, a real
+query (`mangaById`) answers correctly; `closeForSwap()` → ready false, `readyChanged` fired again,
+queries return empty; `reopen()` again → recovers, `readyChanged` fires a third time, queries
+answer again. `tests/catalog_vault_client_harness.cpp` gained two cases for `setManagedNames`:
+**(g)** a 2-of-4 managed subset downloads only those two names (request-and-file-presence
+checked for all four); **(h)** an explicitly empty managed set makes zero network requests and
+emits `allFresh` immediately.
+
+Both harnesses: all cases **PASS + sentinel**
+(`PASS MalCatalog ready/reopen()/closeForSwap() vault-reopen contract` /
+`CATALOG_VAULT_CLIENT_OK`, 8 cases (a)-(h) in the vault-client harness, all PASS).
+
+**Negative control performed:** flipped `mal_catalog_rows_harness.cpp`'s post-reopen
+`require(swapCat.ready(), ...)` to `require(!swapCat.ready(), ...)`, rebuilt — exactly
+`FAIL: reopen-contract: ready() reflects the reopen` red, nothing else. Restored, rebuilt — all
+three PASS lines again (`animeCatalog`, `mangaById`, and the new reopen-contract line).
+
+**Full gate:** `ctest --test-dir native/build-msvc -L unit --output-on-failure` →
+**100% tests passed, 73/73** (the previously-flaky `profile_activity_isolation` ran clean this
+pass — no rerun needed).
+
+**App relink:** `colosseum` target rebuilt clean after the CMakeLists.txt fix above
+(`[4/4] Linking CXX executable colosseum.exe`, no errors).
+
+**Dev-override status on this machine:** all four `data/*.db` files are present under the repo
+root, so all four catalogs resolved via the dev ladder (`devOverridden == true` for all) and
+`CatalogVaultClient::setManagedNames({})` was called — `checkAndFetch()`'s post-boot kick is a
+zero-network no-op here, matching the comment left in `main.cpp`.
+
+Evidence logs (gitignored, left on disk): `Colosseum/artifacts/data-vault/slice2/` — build logs
+for both harnesses and the app relink, both harness run logs, the negative-control red + restored
+logs, and the full `ctest` log.

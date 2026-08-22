@@ -12,30 +12,60 @@
 #include <utility>
 #include <vector>
 
-ComicsCatalog::ComicsCatalog(const QString& dbPath, QObject* parent) : QObject(parent) {
-    m_conn = QStringLiteral("comics_catalog_%1").arg(reinterpret_cast<quintptr>(this));
+bool ComicsCatalog::openAt(const QString& dbPath) {
     if (!QFileInfo::exists(dbPath)) {
         qInfo("[comics-catalog] no db at %s — catalogue lane dormant", qUtf8Printable(dbPath));
-        return;
+        return false;
     }
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_conn);
     m_db.setDatabaseName(dbPath);
     m_db.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
     if (!m_db.open()) {
         qInfo("[comics-catalog] open failed: %s", qUtf8Printable(m_db.lastError().text()));
-        return;
+        return false;
     }
     QSqlQuery probe(m_db);   // schema sanity: the three catalogue tables must exist
-    m_ok = probe.exec(QStringLiteral(
-        "select 1 from series limit 1"));
-    if (!m_ok) qInfo("[comics-catalog] db present but series table missing — dormant");
+    const bool ok = probe.exec(QStringLiteral("select 1 from series limit 1"));
+    if (!ok) qInfo("[comics-catalog] db present but series table missing — dormant");
     else qInfo("[comics-catalog] ready (%s)", qUtf8Printable(dbPath));
+    return ok;
+}
+
+ComicsCatalog::ComicsCatalog(const QString& dbPath, QObject* parent) : QObject(parent) {
+    m_conn = QStringLiteral("comics_catalog_%1").arg(reinterpret_cast<quintptr>(this));
+    m_ok = openAt(dbPath);
 }
 
 ComicsCatalog::~ComicsCatalog() {
     if (m_db.isOpen()) m_db.close();
     m_db = QSqlDatabase();                     // release handle before removal
-    QSqlDatabase::removeDatabase(m_conn);
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+}
+
+bool ComicsCatalog::reopen(const QString& dbPath) {
+    const bool wasOk = m_ok;
+    if (m_db.isOpen())
+        m_db.close();
+    m_db = QSqlDatabase();
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+    m_ok = openAt(dbPath);
+    if (m_ok != wasOk || m_ok)
+        emit readyChanged();
+    return m_ok;
+}
+
+void ComicsCatalog::closeForSwap() {
+    if (m_db.isOpen())
+        m_db.close();
+    m_db = QSqlDatabase();
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+    const bool wasOk = m_ok;
+    m_ok = false;
+    if (wasOk)
+        emit readyChanged();
 }
 
 static QString likeEscape(const QString& s) {

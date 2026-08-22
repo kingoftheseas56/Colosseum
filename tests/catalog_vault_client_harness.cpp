@@ -7,6 +7,11 @@
 // fetchFailed on manifest failure with an empty vault, and clean `.downloading` temp cleanup
 // on a truncated download.
 //
+// Slice 2 (2026-08-22) added setManagedNames(): cases (g)/(h) prove a managed-names filter
+// downloads only the named subset, and an explicitly-empty managed set is a total no-op
+// (zero network, immediate allFresh) — the shape main.cpp relies on when every catalog
+// resolves via its dev-machine override.
+//
 // House convention: require() prints "FAIL: <msg>" and exits 1; one PASS line per case;
 // sentinel CATALOG_VAULT_CLIENT_OK on success.
 #include "engine/CatalogVaultClient.h"
@@ -160,10 +165,12 @@ struct RunResult {
     QList<bool> fetchingSequence;
 };
 
-RunResult run(QNetworkAccessManager& nam, const QString& vaultDir, const QString& apiBase,
-             int idleTimeoutMs = 1200)
+RunResult runWithManaged(QNetworkAccessManager& nam, const QString& vaultDir, const QString& apiBase,
+                         const QStringList* managedNames, int idleTimeoutMs = 1200)
 {
     CatalogVaultClient client(&nam, vaultDir, apiBase);
+    if (managedNames)
+        client.setManagedNames(*managedNames);
     RunResult r;
     QObject::connect(&client, &CatalogVaultClient::allFresh, [&](QString tag) {
         r.allFreshCalled = true;
@@ -194,6 +201,12 @@ RunResult run(QNetworkAccessManager& nam, const QString& vaultDir, const QString
         loop.exec();
 
     return r;
+}
+
+RunResult run(QNetworkAccessManager& nam, const QString& vaultDir, const QString& apiBase,
+             int idleTimeoutMs = 1200)
+{
+    return runWithManaged(nam, vaultDir, apiBase, nullptr, idleTimeoutMs);
 }
 
 void writeFile(const QString& path, const QByteArray& bytes)
@@ -359,6 +372,42 @@ int main(int argc, char** argv)
             "(f) state.json left unwritten after a mid-pass failure");
     server.truncateName.clear();
     pass("(f) truncated download cleans up and fails loudly");
+
+    // ── (g) setManagedNames filters which assets are ever fetched (Slice 2, 2026-08-22) ─
+    // server is still listening from (f) — no re-listen needed here.
+    QTemporaryDir dirG;
+    require(dirG.isValid(), "temp vault dir G created");
+    server.tag = QStringLiteral("v4.0.0");
+    server.assetBytes = fixtureBytesFor(server.tag);
+    server.requestCount = 0;
+    const QStringList managed{QStringLiteral("mal_catalog.db"), QStringLiteral("imdb_catalog.db")};
+    const RunResult g = runWithManaged(nam, dirG.path(), server.baseUrl(), &managed);
+    require(g.allFreshCalled && g.allFreshTag == QStringLiteral("v4.0.0"),
+            "(g) allFresh emitted for the managed-subset fetch");
+    int updatedCountG = 0;
+    for (const QString& e : g.events)
+        if (e.startsWith(QStringLiteral("updated:")))
+            ++updatedCountG;
+    require(updatedCountG == 2, "(g) only the two managed names were downloaded");
+    require(QFile::exists(dirG.path() + QStringLiteral("/mal_catalog.db")),
+            "(g) managed name mal_catalog.db landed on disk");
+    require(QFile::exists(dirG.path() + QStringLiteral("/imdb_catalog.db")),
+            "(g) managed name imdb_catalog.db landed on disk");
+    require(!QFile::exists(dirG.path() + QStringLiteral("/tankoban_catalog.db")),
+            "(g) unmanaged name tankoban_catalog.db was never fetched");
+    require(!QFile::exists(dirG.path() + QStringLiteral("/comics_catalog.db")),
+            "(g) unmanaged name comics_catalog.db was never fetched");
+    pass("(g) setManagedNames restricts the fetch to a named subset");
+
+    // ── (h) setManagedNames({}) manages nothing — zero network, immediate allFresh ─────
+    QTemporaryDir dirH;
+    require(dirH.isValid(), "temp vault dir H created");
+    server.requestCount = 0;
+    const QStringList none;
+    const RunResult h = runWithManaged(nam, dirH.path(), server.baseUrl(), &none, 600);
+    require(h.allFreshCalled, "(h) allFresh emitted immediately with an empty managed set");
+    require(server.requestCount == 0, "(h) empty managed set makes zero network requests");
+    pass("(h) setManagedNames({}) is a total no-op fetch");
 
     std::cout << "CATALOG_VAULT_CLIENT_OK\n";
     return 0;

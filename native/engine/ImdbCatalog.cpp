@@ -12,8 +12,7 @@
 
 #include <algorithm>
 
-ImdbCatalog::ImdbCatalog(const QString& dbPath, QObject* parent)
-    : QObject(parent), m_conn(QStringLiteral("imdb_catalog"))
+bool ImdbCatalog::openAt(const QString& dbPath)
 {
     QString path = dbPath;
     if (!QFileInfo::exists(path)) {
@@ -22,18 +21,52 @@ ImdbCatalog::ImdbCatalog(const QString& dbPath, QObject* parent)
         if (QFileInfo::exists(beside)) path = beside;
     }
     if (!QFileInfo::exists(path))
-        return;                          // shelves omit honestly without the index
+        return false;                    // shelves omit honestly without the index
     m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_conn);
     m_db.setDatabaseName(path);
     m_db.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
-    m_ok = m_db.open();
+    return m_db.open();
+}
+
+ImdbCatalog::ImdbCatalog(const QString& dbPath, QObject* parent)
+    : QObject(parent), m_conn(QStringLiteral("imdb_catalog"))
+{
+    m_ok = openAt(dbPath);
 }
 
 ImdbCatalog::~ImdbCatalog()
 {
     if (m_db.isOpen()) m_db.close();
     m_db = QSqlDatabase();
-    QSqlDatabase::removeDatabase(m_conn);
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+}
+
+bool ImdbCatalog::reopen(const QString& dbPath)
+{
+    const bool wasOk = m_ok;
+    if (m_db.isOpen())
+        m_db.close();
+    m_db = QSqlDatabase();
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+    m_ok = openAt(dbPath);
+    if (m_ok != wasOk || m_ok)
+        emit readyChanged();
+    return m_ok;
+}
+
+void ImdbCatalog::closeForSwap()
+{
+    if (m_db.isOpen())
+        m_db.close();
+    m_db = QSqlDatabase();
+    if (QSqlDatabase::contains(m_conn))
+        QSqlDatabase::removeDatabase(m_conn);
+    const bool wasOk = m_ok;
+    m_ok = false;
+    if (wasOk)
+        emit readyChanged();
 }
 
 QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int limit) const

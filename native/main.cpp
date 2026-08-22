@@ -61,6 +61,7 @@
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
+#include "engine/CatalogVaultClient.h"
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
 #include "engine/TankobanCatalog.h"
@@ -1263,25 +1264,99 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariableIsSet("COLOSSEUM_COMIC_DLTEST"))
         comics->selfTest(qEnvironmentVariable("COLOSSEUM_COMIC_DLTEST"));
 
+    // Data-vault adoption Slice 2 (2026-08-22): each of the four catalogue seams below
+    // resolves its db through the SAME ladder MalCatalog's constructor always used —
+    // relative dev path, then applicationDirPath()/../../ — before falling back to the
+    // per-user AppData vault directory that CatalogVaultClient (Slice 1, 085c1b0) keeps
+    // fresh from the public Colosseum-Data GitHub release. A name that resolves via the
+    // dev ladder is "dev-overridden": CatalogVaultClient never fetches it (see
+    // setManagedNames below), so a dev machine with all four data/*.db files present
+    // behaves byte-identically to before this slice — the vault client does no network
+    // work at all in that case.
+    const QString catalogVaultDir =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/catalog-vault");
+    struct CatalogPathResolution { QString path; bool devOverridden; };
+    auto resolveCatalogPath = [&catalogVaultDir](const QString& relDevPath,
+                                                  const QString& assetName) {
+        QString path = relDevPath;
+        bool exists = QFileInfo::exists(path);
+        if (!exists) {
+            const QString beside = QCoreApplication::applicationDirPath()
+                                   + QStringLiteral("/../../") + relDevPath;
+            if (QFileInfo::exists(beside)) { path = beside; exists = true; }
+        }
+        if (exists)
+            return CatalogPathResolution{path, true};
+        return CatalogPathResolution{catalogVaultDir + QLatin1Char('/') + assetName, false};
+    };
+
+    const CatalogPathResolution comicsRes =
+        resolveCatalogPath(QStringLiteral("data/comics_catalog.db"), QStringLiteral("comics_catalog.db"));
+    const CatalogPathResolution malRes =
+        resolveCatalogPath(QStringLiteral("data/mal_catalog.db"), QStringLiteral("mal_catalog.db"));
+    const CatalogPathResolution tankobanRes =
+        resolveCatalogPath(QStringLiteral("data/tankoban_catalog.db"), QStringLiteral("tankoban_catalog.db"));
+    const CatalogPathResolution imdbRes =
+        resolveCatalogPath(QStringLiteral("data/imdb_catalog.db"), QStringLiteral("imdb_catalog.db"));
+
     // Availability-first SQLite catalogue (spec 2026-07-17): read-only seam; the db
-    // is pipeline-deployed to data/ (cwd = repo root), dormant when absent.
-    auto *comicsCatalog = new ComicsCatalog(QStringLiteral("data/comics_catalog.db"), &app);
+    // is pipeline-deployed to data/ (cwd = repo root) on dev machines, vault-fed elsewhere.
+    auto *comicsCatalog = new ComicsCatalog(comicsRes.path, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("ComicsCatalog"), comicsCatalog);
 
     // Baked MyAnimeList catalog (genre-page revival 2026-07-18): same doctrine —
     // read-only seam, script-built db in data/, dormant when absent (live ladder runs).
-    auto *malCatalog = new MalCatalog(QStringLiteral("data/mal_catalog.db"), &app);
+    auto *malCatalog = new MalCatalog(malRes.path, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
 
     // Baked Tankoban volume catalogue (catalogue-independence Slice 1, 2026-08-20): same
     // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
-    auto *tankobanCatalog = new TankobanCatalog(QStringLiteral("data/tankoban_catalog.db"), &app);
+    auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
-    auto* imdbCatalog = new ImdbCatalog(QStringLiteral("data/imdb_catalog.db"), &app);
+    auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
     auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
                                                  imdbCatalog, &app);
     vaultLibrary->setIdentifier(vaultIdentifier);
+
+    // CatalogVaultClient (Slice 1) only manages the names that did NOT resolve via a
+    // dev-machine override above. On Hemanth's dev machine, all four data/*.db files are
+    // present, so this list — and the client's network work — is empty.
+    QStringList catalogManagedNames;
+    if (!comicsRes.devOverridden) catalogManagedNames << QStringLiteral("comics_catalog.db");
+    if (!malRes.devOverridden) catalogManagedNames << QStringLiteral("mal_catalog.db");
+    if (!tankobanRes.devOverridden) catalogManagedNames << QStringLiteral("tankoban_catalog.db");
+    if (!imdbRes.devOverridden) catalogManagedNames << QStringLiteral("imdb_catalog.db");
+
+    auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir, {}, &app);
+    catalogVaultClient->setManagedNames(catalogManagedNames);
+    engine.rootContext()->setContextProperty(QStringLiteral("CatalogVault"), catalogVaultClient);
+
+    // aboutToReplace fires synchronously right before a fresh download is renamed over an
+    // existing target — the matching catalog closes its SQLite handle in that instant so
+    // the Windows rename can succeed. databaseUpdated fires right after, so the catalog
+    // reopens at the (now current) path and starts answering queries again. Both are
+    // effectively no-ops for a dev-overridden catalog, since CatalogVaultClient never
+    // fetches that name (excluded from setManagedNames above).
+    QObject::connect(catalogVaultClient, &CatalogVaultClient::aboutToReplace, &app,
+                     [comicsCatalog, malCatalog, tankobanCatalog, imdbCatalog](const QString& name) {
+        if (name == QStringLiteral("comics_catalog.db")) comicsCatalog->closeForSwap();
+        else if (name == QStringLiteral("mal_catalog.db")) malCatalog->closeForSwap();
+        else if (name == QStringLiteral("tankoban_catalog.db")) tankobanCatalog->closeForSwap();
+        else if (name == QStringLiteral("imdb_catalog.db")) imdbCatalog->closeForSwap();
+    });
+    QObject::connect(catalogVaultClient, &CatalogVaultClient::databaseUpdated, &app,
+                     [comicsCatalog, malCatalog, tankobanCatalog, imdbCatalog](const QString& name, const QString& path) {
+        if (name == QStringLiteral("comics_catalog.db")) comicsCatalog->reopen(path);
+        else if (name == QStringLiteral("mal_catalog.db")) malCatalog->reopen(path);
+        else if (name == QStringLiteral("tankoban_catalog.db")) tankobanCatalog->reopen(path);
+        else if (name == QStringLiteral("imdb_catalog.db")) imdbCatalog->reopen(path);
+    });
+
+    // Kick once, off the cold-launch critical path — never blocks boot. A no-op (zero
+    // network) when every catalog is dev-overridden, per the comment above.
+    QTimer::singleShot(0, catalogVaultClient, [catalogVaultClient] { catalogVaultClient->checkAndFetch(); });
 
     // Agent Visibility Phase 2, Slice F1-Bridge: the live, app-owned Vault forensic
     // projection (F1-Core). Composes vaultLibrary only (F0's named safe seam,
