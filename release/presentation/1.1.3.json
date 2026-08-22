@@ -5,14 +5,14 @@
   "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.3",
   "highlights": [
     {
-      "kind": "fix",
+      "kind": "feature",
       "section": "LAUNCH",
       "title": "The app opens again, cleanly",
       "body": "Colosseum.Activity is registered unconditionally instead of living inside a compile guard that dropped it from release builds and made the window never appear. colosseum.exe now also builds as a GUI-subsystem app, so the console flash behind every launch is gone, and the updater's relaunch flags are read correctly instead of crashing the app instantly after an update.",
       "artwork_assets": []
     },
     {
-      "kind": "fix",
+      "kind": "feature",
       "section": "INSTALLER",
       "title": "Slimmed down",
       "body": "The release packager strips dev and test artifacts from the stage and refuses to publish an installer over 300MB.",
