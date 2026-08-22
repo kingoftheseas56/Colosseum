@@ -96,11 +96,26 @@ for sentinel in "$STAGE/data/mal_catalog.db" "$STAGE/data/tankoban_catalog.db"; 
   [ -f "$sentinel" ] || { echo "data sentinel missing: $sentinel"; exit 1; }
 done
 
-echo "[5/7] strip build intermediates (keeps ALL runtime: dlls, tools/, qml/, resources/, translations/)"
+echo "[5/7] strip build intermediates (keeps ALL runtime: dlls, platforms/, imageformats/, tls/, translations/, resources/, qml/, tools/, QtWebEngineProcess.exe, stream_server/)"
 ( cd "$STAGE/native/build-msvc"
-  rm -rf CMakeFiles ./*_autogen
-  rm -f ./*_harness.exe colosseum-prev-live.exe
+  rm -rf CMakeFiles Testing artifacts
+  rm -rf ./*_autogen
+  rm -f ./*_harness.exe ./*harness*.exe tst_*.exe ./*_test*.exe colosseum-capture.exe colosseum-prev-live.exe
+  rm -f ./_a0_* ./_slice* ./_engine_harness* ./*.log
+  rm -f ./*.ninja_log ./*.ninja_deps ./*.ninja*
   rm -f ./*.obj ./*.ilk ./*.pdb ./*.lib ./*.exp CMakeCache.txt cmake_install.cmake ./*.cmake Makefile CTestTestfile.cmake 2>/dev/null || true )
+
+echo "[5b/7] prune source-tree dirs the installed app never reads at runtime"
+# The installed exe's own resource root is $STAGE itself (main.cpp cdUp()s twice off
+# applicationDirPath to native/build-msvc/../.. and treats that as cwd for qml/, data/).
+# Grepped native/*.cpp + qml/**/*.qml,js for hardcoded "tests/", "docs/", "agents/",
+# "scripts/comics_brain", "release/presentation" references: the only hits are in
+# native/tools/lanista.cpp (the standalone `lanista` dev CLI, never linked into the
+# `colosseum` target — see native/CMakeLists.txt) and a doc-comment string literal in
+# VaultForensics.cpp that is never opened as a path. Nothing in the shipped app reads
+# these trees at runtime, so they are safe to drop from the stage.
+rm -rf "$STAGE/tests" "$STAGE/docs" "$STAGE/agents" \
+       "$STAGE/scripts/comics_brain" "$STAGE/release/presentation"
 
 echo "[6/7] bundle the Stremio stream-server next to the exe  <<< THE FIX"
 DEST="$STAGE/native/build-msvc/stream_server"
@@ -119,6 +134,9 @@ Colosseum (MIT) and this GPL-2.0 component are separate programs communicating o
 localhost HTTP; they are an aggregate, and Colosseum's own license is unaffected.
 EOF
 
+echo "[6b/7] stage weight (top-level, before makensis) -- watch this for future bloat"
+du -sh "$STAGE"/*/ "$STAGE"/* 2>/dev/null | sort -rh | head -20 || true
+
 echo "[7/7] makensis -> $OUT"
 # MSYS_NO_PATHCONV: stop Git Bash from rewriting the /D... define flags into bogus paths.
 MSYS_NO_PATHCONV=1 "$MAKENSIS" \
@@ -130,6 +148,13 @@ EXPECTED_NAME="Colosseum-$VERSION-setup.exe"
 [ "$(basename "$OUT")" = "$EXPECTED_NAME" ] || { echo "installer filename drift: $OUT"; exit 1; }
 [ -f "$OUT" ] || { echo "installer output missing: $OUT"; exit 1; }
 INSTALLER_BYTES="$(wc -c < "$OUT" | tr -d '[:space:]')"
+# Size gate (1.1.2 lesson): that release shipped 647MB of build garbage vs 1.1.1's 211MB.
+# Refuse loudly rather than publish a bloated installer nobody eyeballed.
+MAX_INSTALLER_BYTES=$((300 * 1024 * 1024))
+if [ "$INSTALLER_BYTES" -gt "$MAX_INSTALLER_BYTES" ]; then
+  echo "refusing oversized installer: $INSTALLER_BYTES bytes (limit $MAX_INSTALLER_BYTES)"
+  exit 1
+fi
 INSTALLER_SHA256="$(sha256sum "$OUT" | awk '{print $1}')"
 printf 'INSTALLER_PATH=%s\nINSTALLER_BYTES=%s\nINSTALLER_SHA256=%s\n' \
   "$OUT" "$INSTALLER_BYTES" "$INSTALLER_SHA256"
