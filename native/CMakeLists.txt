@@ -557,6 +557,16 @@ target_include_directories(update_release_client_harness PRIVATE ${CMAKE_CURRENT
 target_compile_definitions(update_release_client_harness PRIVATE COLOSSEUM_UPDATE_TESTING=1)
 target_link_libraries(update_release_client_harness PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
 
+# CatalogVaultClient (data-vault adoption, Slice 1, 2026-08-22): keeps the four
+# Colosseum-Data catalogue dbs fresh in AppData. Local QTcpServer fixture, no live network.
+add_executable(catalog_vault_client_harness
+    ../tests/catalog_vault_client_harness.cpp
+    engine/CatalogVaultClient.cpp
+    engine/CatalogVaultClient.h
+)
+target_include_directories(catalog_vault_client_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(catalog_vault_client_harness PRIVATE Qt6::Core Qt6::Network)
+
 add_executable(update_download_harness
     ../tests/update_download_harness.cpp
     update/UpdateVersion.cpp

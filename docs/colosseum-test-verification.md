@@ -1696,3 +1696,59 @@ both were already wired by ffd1eaa), then ran the full gate cleanly against the 
 (`colosseum.manga_reading_room` 1.21s, `colosseum.manga_volume_flow` 1.01s). Full log basis:
 this session's own ctest run, no other test touched. This closes the debt this entry left open
 above — the 71/72 (new count) regression pass is done, not owed.
+
+## Data-vault adoption Slice 1 — CatalogVaultClient (2026-08-22)
+
+New class: `native/engine/CatalogVaultClient.{h,cpp}` — a QObject service that keeps the four
+Colosseum-Data catalogue dbs (`mal_catalog.db`, `tankoban_catalog.db`, `comics_catalog.db`,
+`imdb_catalog.db`) fresh in AppData from the public `kingoftheseas56/Colosseum-Data` GitHub
+release (follows on from Hemanth's own slice-0 commit `8799772`, which extended
+`publish_release.py`/`pull_data.py` to all four assets). `checkAndFetch()` throttles to zero
+network when `state.json`'s `fetchedAt` is under 24h old and all four files are present;
+otherwise it fetches `GET /releases/latest`, downloads only what's missing or tag-changed
+(serial, one asset at a time — this machine is RAM/IO constrained), and lands each file via a
+temp-then-rename swap. The rename is gated by a synchronous `aboutToReplace(name)` signal fired
+before any pre-existing target is touched — the live-swap hook the next slice's hot-reload will
+use to close a SQLite handle before Windows refuses to rename over an open file.
+
+New harness: `tests/catalog_vault_client_harness.cpp`, registered as
+`colosseum.catalog_vault_client_harness` (bare C++ harness, same shape as
+`colosseum.update_release_client_harness` — no `.ps1` wrapper). A local `QTcpServer` fixture
+stands in for the GitHub release API and asset downloads; the harness never touches the live
+network. Six cases, all PASS + sentinel `CATALOG_VAULT_CLIENT_OK`:
+
+- **(a) empty vault** — all four databases downloaded, bytes match the fixture, `state.json`
+  carries the fetched tag, `allFresh` emitted, `fetching` flips true→false exactly once each.
+- **(b) fresh state + files present** — zero network requests (request counter stays 0),
+  `allFresh` emitted from cache, `fetching` never toggles.
+- **(c) new upstream tag past the 24h throttle** — all four re-downloaded; `aboutToReplace(name)`
+  fires before each pre-existing target's replacement (checked per-name, by event order); no
+  `.downloading` residue left behind.
+- **(d) manifest unreachable + full local cache** — no `fetchFailed`, cached files byte-for-byte
+  untouched (the documented silent cache-keep path).
+- **(e) manifest unreachable + empty vault** — `fetchFailed("manifest", ...)` emitted, no
+  `state.json` written.
+- **(f) truncated download mid-stream** — the truncated target is never landed, its
+  `.downloading` temp is cleaned up, `fetchFailed` emitted for that asset, `state.json` left
+  unwritten for the pass.
+
+**Negative control performed:** flipped case (b)'s assertion to
+`require(server.requestCount != 0, ...)`, rebuilt (`build-target.bat
+catalog_vault_client_harness`, zero `error C`/`ninja: build stopped`), reran the harness —
+exactly `FAIL: (b) NEGATIVE CONTROL — expect nonzero request count` red, case (a) still green
+before it, cases (c)–(f) never reached (harness exits on first FAIL). Restored the real
+assertion, rebuilt, reran — all six PASS + sentinel again.
+
+**Full gate:** `ctest --test-dir native/build-msvc -L unit --output-on-failure` →
+**72/73 clean, 1 flake** (`colosseum.qttest.profile_activity_isolation`, a known pre-existing
+flake per this ledger's own prior entries — reran it alone via `ctest -R
+profile_activity_isolation`, green in isolation, confirming it is unrelated to this change).
+`colosseum.catalog_vault_client_harness` itself: green, 0.92s. Baseline was 72; this
+registration brings the total to 73.
+
+Build-slot note: this slice's CMakeLists.txt edits collided once with a concurrent Agent 0
+sub-exec pass that stashed/rebuilt/popped the same 6-file tracked WIP set mid-edit — the
+`native/CMakeLists.txt` hunk was swept out during that race and had to be re-applied before
+building (`agents/chat.md` carries both the original and resume claims). No foreign hunks in
+either CMakeLists.txt were touched by this slice's own edits, verified via `git diff` on each
+file immediately before commit.
