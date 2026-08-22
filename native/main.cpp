@@ -805,10 +805,18 @@ int main(int argc, char *argv[]) {
 #endif
     if (!installedUpdateEligible && !updateTestingBuild)
         qInfo("[update] automatic checks disabled (source/dev build or missing installed layout)");
-    // ---- the user lane (argless launch: double-click / shortcut / Colosseum.bat) ----
-    // With a QML-path argument (dev.bat, test harnesses) NONE of this runs — that lane
-    // is byte-for-byte the old behavior: relative path, no network, no CWD change.
-    if (argc <= 1) {
+    // argv[1] is a QML-path override only for the dev/test-harness lane (dev.bat,
+    // colosseum.exe path/to/Main.qml). The NSIS updater relaunches the installed app
+    // with flags like --update-result=success --update-from=... --update-backup=... —
+    // those are NOT a QML-path override, so the cwd-anchor/self-update lane below must
+    // still run for them. Computed here (ahead of its other use further down) so the
+    // gate below can key off it instead of raw argc.
+    const bool hasQmlOverride = argc > 1 && !QString::fromLocal8Bit(argv[1]).startsWith(QLatin1Char('-'));
+    // ---- the user lane (argless launch, or flag-only launch: double-click / shortcut /
+    // Colosseum.bat / NSIS post-update relaunch) ----
+    // With a real QML-path argument (dev.bat, test harnesses) NONE of this runs — that
+    // lane is byte-for-byte the old behavior: relative path, no network, no CWD change.
+    if (!hasQmlOverride) {
         // 1) self-locate: exe lives at <repo>/native/build-msvc/colosseum.exe. Anchor the
         //    working directory on the repo root so every relative path (live qml/ tree,
         //    disk cache, assets) behaves exactly as under Colosseum.bat's `cd /d %~dp0`.
@@ -843,15 +851,11 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    // argv[1] is a QML-path override only for the dev/test-harness lane (dev.bat,
-    // colosseum.exe path/to/Main.qml). The NSIS updater relaunches the installed app
-    // with flags like --update-result=success --update-from=... --update-backup=... —
-    // treating those as a literal QML file path made engine.load() fail and the app
-    // exit -1 on every post-update relaunch. UpdateInstallBridge::acknowledgeHealthyBoot
+    // hasQmlOverride is computed above (ahead of the cwd-anchor gate it also feeds).
+    // treating --update-* flags as a literal QML file path made engine.load() fail and
+    // the app exit -1 on every post-update relaunch. UpdateInstallBridge::acknowledgeHealthyBoot
     // already consumes --update-* above; it just never got the chance to matter once
-    // the bogus qmlPath tanked engine.load(). Guard: only a bare, non-flag argument
-    // counts as a QML-path override.
-    const bool hasQmlOverride = argc > 1 && !QString::fromLocal8Bit(argv[1]).startsWith(QLatin1Char('-'));
+    // the bogus qmlPath tanked engine.load().
     const QString qmlPath = hasQmlOverride ? QString::fromLocal8Bit(argv[1])
                                             : QStringLiteral("qml/Main.qml");
     const QStringList pinnedHosts = {
