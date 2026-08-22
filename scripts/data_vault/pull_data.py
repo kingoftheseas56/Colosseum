@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import sys
+import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -45,16 +46,25 @@ def main() -> int:
 
     host = os.environ.get("COLOSSEUM_VAULT_HOST", "").strip().rstrip("/")
     if host:                                   # R2/S3-style flat host (the 2 GB day)
-        for name in ("comics_catalog.db", "mal_catalog.db"):
+        for name in ("comics_catalog.db", "mal_catalog.db", "tankoban_catalog.db",
+                     "imdb_catalog.db"):
             print("pulling", name, "from", host)
             fetch_to(f"{host}/{name}", os.path.join(data_dir, name), {})
             print("  ok")
         return 0
 
-    token = resolve_token()
+    # repo is public: try the plain browser_download_url with no auth first,
+    # only reaching for a token if the anonymous fetch is rejected (403/404) —
+    # e.g. a private fork or a rate-limited anonymous client.
+    anon_headers = {"User-Agent": "colosseum-vault"}
+    token = None
     path = (f"/repos/{OWNER_REPO}/releases/tags/{tag}" if tag
             else f"/repos/{OWNER_REPO}/releases/latest")
-    rel = gh(path, token)
+    try:
+        rel = gh(path, None, anonymous=True)
+    except Exception:
+        token = resolve_token()
+        rel = gh(path, token)
     assets = rel.get("assets", [])
     if not assets:
         print("release", rel.get("tag_name"), "has no assets")
@@ -63,11 +73,20 @@ def main() -> int:
     for a in assets:
         name = a["name"]
         print(f"pulling {name} ({a['size'] / 1048576:.1f} MB)...")
-        # asset download: the API asset url + octet-stream Accept follows to the blob
-        fetch_to(a["url"], os.path.join(data_dir, name),
-                 {"Authorization": "token " + token,
-                  "Accept": "application/octet-stream",
-                  "User-Agent": "colosseum-vault"})
+        try:
+            fetch_to(a["browser_download_url"], os.path.join(data_dir, name),
+                     anon_headers)
+        except urllib.error.HTTPError as e:
+            if e.code not in (403, 404):
+                raise
+            print(f"  anonymous fetch failed ({e.code}), retrying with token...")
+            if token is None:
+                token = resolve_token()
+            # asset download: the API asset url + octet-stream Accept follows to the blob
+            fetch_to(a["url"], os.path.join(data_dir, name),
+                     {"Authorization": "token " + token,
+                      "Accept": "application/octet-stream",
+                      "User-Agent": "colosseum-vault"})
         print("  ok ->", os.path.join("data", name))
     return 0
 

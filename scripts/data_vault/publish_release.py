@@ -15,7 +15,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vault_common import OWNER_REPO, REPO_ROOT, gh, resolve_token
 
-ARTIFACTS = ["comics_catalog.db", "mal_catalog.db"]
+ARTIFACTS = ["comics_catalog.db", "mal_catalog.db", "tankoban_catalog.db",
+             "imdb_catalog.db"]
 
 
 def main() -> int:

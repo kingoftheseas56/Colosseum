@@ -46,13 +46,14 @@ def resolve_token() -> str:
                      "github.com, or place data/vault_token.txt")
 
 
-def gh(path: str, token: str, payload=None, method=None, raw_url=None,
-       content_type="application/json", data=None):
+def gh(path: str, token: str | None, payload=None, method=None, raw_url=None,
+       content_type="application/json", data=None, anonymous=False):
     url = raw_url or (API + path)
     body = data if data is not None else (
         json.dumps(payload).encode() if payload is not None else None)
     req = urllib.request.Request(url, data=body, method=method)
-    req.add_header("Authorization", "token " + token)
+    if not anonymous:
+        req.add_header("Authorization", "token " + token)
     req.add_header("User-Agent", "colosseum-vault")
     req.add_header("Accept", "application/vnd.github+json")
     if body is not None:
