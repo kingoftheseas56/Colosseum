@@ -21,6 +21,7 @@ Item {
     signal searchClicked()
     signal settingsClicked()
     signal wallpaperClicked()
+    signal accountClicked()
     signal fullscreenClicked()
     signal minimizeClicked()
     signal powerClicked()
@@ -190,7 +191,13 @@ Item {
     Row {
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: 20
-        SysIcon { objectName: "topBarSearch"; source: "../assets/icons/search.svg";   onClicked: bar.searchClicked(); visible: bar.activeMedium !== "" }
+        // Search — worlds only.
+        SysIcon {
+            objectName: "topBarSearch"
+            source: "../assets/icons/search.svg"
+            onClicked: bar.searchClicked()
+            visible: bar.activeMedium !== ""
+        }
         // Update — home only. Takes search's throne; the silver badge signals an
         // available release (pulse on unseen, steady once seen).
         Item {
@@ -227,7 +234,79 @@ Item {
                 onClicked: bar.updateClicked()
             }
         }
-        SysIcon { objectName: "topBarWallpaperButton"; source: "../assets/icons/settings.svg"; onClicked: bar.wallpaperClicked() }
+        // Account identity (Bundle 8C first-light): gold-ringed initial when
+        // signed in, quiet outline when not. Sits beside Update + Wallpapers.
+        Item {
+            width: 22; height: 22
+            objectName: "colosseumTopbarAccountButton"
+            opacity: accountMa.containsMouse ? 1.0 : 0.92
+            Accessible.role: Accessible.Button
+            Accessible.name: (typeof AccountController !== "undefined"
+                              && AccountController
+                              && AccountController.mode === "signedIn")
+                             ? ("Account: " + AccountController.username)
+                             : "Account"
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                readonly property bool signedIn:
+                    typeof AccountController !== "undefined"
+                    && AccountController
+                    && AccountController.mode === "signedIn"
+                color: signedIn ? Qt.rgba(0.94, 0.77, 0.29, 0.16) : "transparent"
+                border.width: 1.5
+                border.color: signedIn
+                    ? Qt.rgba(0.94, 0.77, 0.29, 0.8)
+                    : Qt.rgba(1, 1, 1, 0.38)
+                Item {
+                    anchors.centerIn: parent
+                    width: 14; height: 14
+                    visible: !parent.signedIn
+                    opacity: 0.82
+                    Rectangle {
+                        width: 5; height: 5; radius: 2.5
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: 1
+                        color: "#ffffff"
+                    }
+                    Rectangle {
+                        width: 10; height: 6; radius: 3
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: 7
+                        color: "#ffffff"
+                    }
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: parent.signedIn
+                    text: {
+                        const who = (typeof AccountController !== "undefined"
+                                     && AccountController)
+                                    ? AccountController.username : "";
+                        return who.length > 0 ? who.charAt(0).toUpperCase() : "?";
+                    }
+                    color: "#f0df9a"
+                    font.family: "Inter"
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+            }
+            MouseArea {
+                id: accountMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: bar.accountClicked()
+            }
+        }
+        // Automation identity (Lanista): the wallpaper control is a production shell
+        // action, so capture journeys address this button directly instead of replacing
+        // the top bar with a harness-only presentation.
+        SysIcon {
+            objectName: "topBarWallpaperButton"
+            source: "../assets/icons/settings.svg"
+            onClicked: bar.wallpaperClicked()
+        }
         SysIcon { source: "../assets/icons/minimize.svg"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
         // rule): glyph shows the ACTION — expand while windowed, contract while
