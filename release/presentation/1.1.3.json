@@ -7,22 +7,8 @@
     {
       "kind": "fix",
       "section": "LAUNCH",
-      "title": "The app opens again",
-      "body": "Colosseum.Activity is registered unconditionally instead of living inside a compile guard that dropped it from release builds and made the window never appear.",
-      "artwork_assets": []
-    },
-    {
-      "kind": "fix",
-      "section": "SHELL",
-      "title": "No console window",
-      "body": "colosseum.exe now builds as a GUI-subsystem app. The console flash behind every launch, a defect since 0.1, is gone.",
-      "artwork_assets": []
-    },
-    {
-      "kind": "fix",
-      "section": "UPDATER",
-      "title": "Relaunch after update works",
-      "body": "The updater's relaunch flags were being read as a QML file path and crashing the app instantly. They now reach the code that consumes them.",
+      "title": "The app opens again, cleanly",
+      "body": "Colosseum.Activity is registered unconditionally instead of living inside a compile guard that dropped it from release builds and made the window never appear. colosseum.exe now also builds as a GUI-subsystem app, so the console flash behind every launch is gone, and the updater's relaunch flags are read correctly instead of crashing the app instantly after an update.",
       "artwork_assets": []
     },
     {
