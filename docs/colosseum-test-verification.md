@@ -1835,3 +1835,71 @@ zero-network no-op here, matching the comment left in `main.cpp`.
 Evidence logs (gitignored, left on disk): `Colosseum/artifacts/data-vault/slice2/` — build logs
 for both harnesses and the app relink, both harness run logs, the negative-control red + restored
 logs, and the full `ctest` log.
+
+## Data-vault Slice 3 (2026-08-22): downloading truth line + wake-on-ready + catalogVaultState
+
+QML-only slice (no C++/rebuild needed — the four `ready` Q_PROPERTYs and `CatalogVaultClient`'s
+`fetching`/`currentTag` all landed in Slice 2). Makes the app tell the truth while the catalogue
+downloads and wakes the affected surfaces the moment it lands.
+
+**`catalogVaultState` automation scalar** (`qml/Main.qml`, beside `vaultState`): invisible
+`Item { objectName: "catalogVaultState" }` with `fetching` (bound to `CatalogVault.fetching`),
+`tag` (bound to `CatalogVault.currentTag`), and `readyCount` (0-4, one per catalog). `ready` is a
+`Q_INVOKABLE` method shadowing the `Q_PROPERTY` of the same name on all four catalogs (house
+pattern, confirmed by grep — every existing call site reads `.ready()`, never bare `.ready`),
+so a plain binding on `.ready()` would freeze at its first-evaluated value and never notice a
+later `readyChanged`. `readyCount` is instead driven by four `Connections` blocks (one per
+catalog) that bump a private `_readyRev` counter on `onReadyChanged`, forcing the count to
+re-derive.
+
+**The downloading line.** Ground-truthed both honest empty states named in the brief: the
+Tankoban Discover wall (`qml/TankobanDiscoverPage.qml` wrapping the world-neutral
+`qml/DiscoverBrowser.qml`) and the comics wall (same shell, `comics` type — `ComicsCatalog` is
+already the same wrapper's second catalog, so (a) and (b) collapse to one surface). Added a
+world-neutral `catalogueDownloading: false` seam to `DiscoverBrowser.qml` (default false — a
+wrapper that never sets it renders byte-identical to before this slice); its one empty-state
+`Text` (font/color unchanged: `theme.inkDim`, `theme.ui`, 14px) now reads
+`browser.catalogueDownloading ? "Catalogue downloading…" : browser.emptyMessage`.
+`TankobanDiscoverPage.qml` computes `_catalogueDownloading` = `CatalogVault.fetching` AND
+(current type's own catalog is not ready) and wires it through. **Skipped, with reasons:**
+`qml/TankobanComicsTab.qml` (a one-time `ComicsCatalog.shelf` compute + `GcApi.explore` cache
+with no shared reload path — tangled, not cheap); Theatre's `ImdbCatalog` usage
+(`TheatreWorld.qml`/`TheatreApi.js`/`VaultIdentifyDialog.qml`) is identification-only, never a
+Discover-wall data source, so there is no comics/imdb-fed browse surface beyond the Tankoban
+wall already covered.
+
+**Wake-on-ready.**
+- `qml/MangaSeries.qml`: a `Connections { target: page.malCatalogRef; function onReadyChanged() {...} }`
+  calls `page.resolve()` when `resolvedMalId === 0 && seriesTitle.length` — guarded so an
+  already-resolved page never re-resolves. Targets the ref (not the bare context property) so
+  the harness's fake exercises the identical path.
+- The Discover wall: `TankobanDiscoverPage.qml` adds two `Connections` (`MalCatalog`,
+  `ComicsCatalog`), each calling `browser.reloadCurrent()` (the existing unconditional-refetch
+  API) when the matching type is current AND `browser.items.length === 0` — a populated wall
+  never reloads under the user.
+
+**Harness coverage** (`tests/manga_series_catalogue_harness.qml`, `colosseum.manga_series_catalogue`).
+`FakeMalCatalog` gained `readyVal`/`setReady()`/`readyChanged` (mirroring the real
+`Q_PROPERTY...NOTIFY readyChanged`) and a `mangaByIdCalls` counter. New cases:
+- **7a** — catalog not-ready: `malId`-open stays honestly unresolved (`resolvedMalId===0`,
+  `seriesId===""`, `hasShelf===false`, page still reveals, `loading===false`).
+- **7b** — `setReady(true)` (flips `readyVal` and emits `readyChanged`) → the page re-resolves
+  to `resolvedMalId===1`/`seriesId==="mal:1"`, and `mangaByIdCalls` actually increased (proves
+  `resolve()` really re-ran, not just inferred from page state).
+- **8** — an already-resolved page (`p7` from case 7b) receives a further `readyChanged` pulse →
+  `mangaByIdCalls` unchanged (resolve() did NOT re-run).
+
+**Negative control performed:** flipped `_negControlFlipWake` to `true` (case 7b's expectation
+becomes "stays unresolved after the ready flip", which is false) → exactly
+`case7b: flipping ready must re-resolve to malId 0, got 1` red, nothing else. Restored to
+`false`, reran — green again.
+
+**Gate results:**
+- `ctest --test-dir native/build-msvc -R manga_series_catalogue --output-on-failure`: green
+  (before, negative-control red, and restored-green — three runs, verbatim above).
+- Full `ctest --test-dir native/build-msvc -L unit --output-on-failure`: **100% tests passed,
+  73/73** — `profile_activity_isolation` ran clean this pass, no rerun needed.
+
+Status: **Test-reported.** The scenario (fresh-install cold-boot with the vault mid-download,
+watching the Tankoban wall and a MangaSeries page wake as each catalogue lands) has not been
+runtime-replayed this slice — that live-download session is Slice 4's territory per the brief.

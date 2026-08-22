@@ -3134,6 +3134,49 @@ Window {
         property string lastAddedFolder: ""
     }
 
+    // Data-vault Slice 3 (2026-08-22): catalogVaultState is the invisible automation surface for
+    // CatalogVaultClient's fetch progress + the four catalogs' live ready state. On a dev machine
+    // every catalog resolves locally so CatalogVault never fetches and readyCount sits at 4 from
+    // boot; on a fresh install fetching flips true and readyCount climbs from 0 to 4 as each db
+    // lands. readyCount is wired through Connections (not a plain binding) because ready() is a
+    // Q_INVOKABLE method shadowing the Q_PROPERTY of the same name — calling it in a binding
+    // expression does NOT register as a live dependency, so a bare `MalCatalog.ready()` read would
+    // freeze at its first value and never notice a later readyChanged (see MangaSeries.qml's
+    // resolve() for the same house convention: reads call .ready(), reactivity rides Connections).
+    Item {
+        id: catalogVaultState
+        objectName: "catalogVaultState"
+        visible: false
+        property bool fetching: (typeof CatalogVault !== "undefined") ? CatalogVault.fetching : false
+        property string tag: (typeof CatalogVault !== "undefined") ? CatalogVault.currentTag : ""
+        property int _readyRev: 0
+        readonly property int readyCount: {
+            var _rev = catalogVaultState._readyRev
+            var n = 0
+            if (typeof MalCatalog !== "undefined" && MalCatalog && MalCatalog.ready()) n++
+            if (typeof TankobanCatalog !== "undefined" && TankobanCatalog && TankobanCatalog.ready()) n++
+            if (typeof ComicsCatalog !== "undefined" && ComicsCatalog && ComicsCatalog.ready()) n++
+            if (typeof ImdbCatalog !== "undefined" && ImdbCatalog && ImdbCatalog.ready()) n++
+            return n
+        }
+        Connections {
+            target: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+            function onReadyChanged() { catalogVaultState._readyRev++ }
+        }
+        Connections {
+            target: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
+            function onReadyChanged() { catalogVaultState._readyRev++ }
+        }
+        Connections {
+            target: (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null
+            function onReadyChanged() { catalogVaultState._readyRev++ }
+        }
+        Connections {
+            target: (typeof ImdbCatalog !== "undefined") ? ImdbCatalog : null
+            function onReadyChanged() { catalogVaultState._readyRev++ }
+        }
+    }
+
     FolderDialog {
         id: vaultFolderDialog
         title: "Add a folder to your Vault"

@@ -16,12 +16,25 @@ Item {
         property bool readyVal: true
         property var rows: ({})       // malId(string) -> Jikan-shaped manga row
         property var titleMap: ({})   // title -> [malId, ...] (matchByTitle candidates)
+        // Data-vault Slice 3 (2026-08-22) wake-on-ready seam: readyChanged mirrors the real
+        // MalCatalog's Q_PROPERTY NOTIFY signal of the same name — the page's Connections
+        // block listens for exactly this name. setReady() is the harness's own emit path
+        // (a plain property write on readyVal does NOT auto-fire a differently-named signal).
+        signal readyChanged()
+        function setReady(v) { readyVal = v; readyChanged() }
+        // Call instrumentation for case 7/8 (wake-on-ready): mangaByIdCalls proves resolve()
+        // actually re-ran (case 7b) or did NOT re-run (case 8), never just inferred from the
+        // page's own state.
+        property int mangaByIdCalls: 0
         function ready() { return readyVal }
         function mangaById(id) {
+            mangaByIdCalls++
+            if (!readyVal) return ({})
             var r = rows[String(id)]
             return r !== undefined ? r : ({})
         }
         function matchByTitle(title, year, medium) {
+            if (!readyVal) return []
             var ids = titleMap[title] || []
             var out = []
             for (var i = 0; i < ids.length; i++) out.push({ "mal_id": ids[i] })
@@ -97,6 +110,12 @@ Item {
     // Case 4's sub-cases live behind one flag so the negative control (flip the "get"
     // expectation) touches exactly one line and is trivially revertible.
     property bool _negControlFlipGet: false
+
+    // Case 7's negative control (data-vault Slice 3, wake-on-ready): flip to true, rerun,
+    // confirm exactly case 7b reds (it expects the page to stay unresolved after ready
+    // flips true, which is false — the page DOES re-resolve), then flip back and restore
+    // green.
+    property bool _negControlFlipWake: false
 
     function runChecks() {
         try {
@@ -213,6 +232,39 @@ Item {
             p6.sourcesPage.show({ "volumeId": "vol-1", "seriesTitle": "Monster" })
             ck(p6.sourcesPage.sourcesEnabled === true,
                "case6b: sourcesEnabled must be true once the nyaa well is enabled")
+
+            // ── Case 7 (data-vault Slice 3, 2026-08-22): wake-on-ready ──
+            // 7a: the catalog starts not-ready — malId-open must stay honestly unresolved,
+            // never a guess (mirrors resolve()'s existing "id>0 but no row found" path).
+            malCatalog.setReady(false)
+            malCatalog.rows = ({ "1": monsterRow })
+            malCatalog.titleMap = ({})
+            tankCatalog.infoMap = ({ "1": { "volumeCount": 18, "countBasis": "mal" } })
+            volService.volMap = ({ "mal:1": [] })
+            var p7 = makePage("1", "Monster")
+            ck(p7.resolvedMalId === 0, "case7a: a not-ready catalog must leave resolvedMalId 0")
+            ck(p7.seriesId === "", "case7a: a not-ready catalog must leave seriesId empty")
+            ck(p7.hasShelf === false, "case7a: a not-ready catalog must show no shelf")
+            ck(p7.loading === false, "case7a: the page must still reveal (never hang) while not-ready")
+
+            // 7b: flip ready true and emit readyChanged (the exact signal MangaSeries.qml's
+            // Connections listens for) -> the page re-resolves EXACTLY once and renders the row.
+            var callsBeforeWake = malCatalog.mangaByIdCalls
+            malCatalog.setReady(true)
+            var expectResolvedAfterWake = harness._negControlFlipWake ? 0 : 1
+            ck(p7.resolvedMalId === expectResolvedAfterWake,
+               "case7b: flipping ready must re-resolve to malId " + expectResolvedAfterWake +
+               ", got " + p7.resolvedMalId)
+            ck(p7.seriesId === (expectResolvedAfterWake ? "mal:1" : ""),
+               "case7b: flipping ready must set seriesId accordingly, got " + p7.seriesId)
+            ck(malCatalog.mangaByIdCalls > callsBeforeWake,
+               "case7b: resolve() must have actually re-run mangaById after the ready flip")
+
+            // ── Case 8: an already-resolved page must NOT re-resolve on a further pulse ──
+            var callsAfterWake = malCatalog.mangaByIdCalls
+            malCatalog.readyChanged()   // pulse again — p7 is already resolved
+            ck(malCatalog.mangaByIdCalls === callsAfterWake,
+               "case8: an already-resolved page must not re-run resolve() on a further readyChanged pulse")
 
             console.log("MANGA_SERIES_CATALOGUE_OK")
             Qt.exit(0)

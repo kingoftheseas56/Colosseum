@@ -375,6 +375,21 @@ Item {
     onSeriesTitleChanged: resolve()
     Component.onCompleted: if (seriesTitle.length) resolve()
 
+    // Data-vault Slice 3 (2026-08-22): wake-on-ready. A fresh install can open this page
+    // before MalCatalog's download lands (id>0/title given but the db not open yet), leaving
+    // the honest shelf-less page (resolvedMalId stays 0). The moment malCatalogRef flips
+    // ready, re-run resolve() so the page catches up without the user backing out and
+    // reopening it. Targets the REF (not the bare MalCatalog context property) so a harness
+    // driving a fake catalog through malCatalogRef exercises the same path production does.
+    // Guarded on resolvedMalId === 0 so an already-resolved page NEVER re-resolves — a second
+    // readyChanged pulse (or a page opened after the catalog was already ready) is a no-op.
+    Connections {
+        target: page.malCatalogRef
+        function onReadyChanged() {
+            if (page.resolvedMalId === 0 && page.seriesTitle.length) page.resolve()
+        }
+    }
+
     // Applies a mangaById()-shaped Jikan row to the masthead facts. The SOLE source of
     // masthead data now (Slice 2, amended) — both the malId-primary path and the
     // title-resolved-to-a-single-candidate path call this after finding the row, so the

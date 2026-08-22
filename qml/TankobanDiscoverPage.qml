@@ -71,6 +71,37 @@ Item {
     onExtensionsChanged: _rebuildAdapter()
     onShowExplicitContentChanged: _rebuildAdapter()
 
+    // Data-vault Slice 3 (2026-08-22): the wall is empty-because-downloading only when its
+    // CURRENT type's own catalog is the one still landing. malCatalog/comicsCatalog are
+    // typeof-guarded (both null-safe by contract, per the file header) and each carries a
+    // Q_INVOKABLE ready() (not a plain-bindable property — see Main.qml's catalogVaultState
+    // comment), so this reads it directly rather than through a Connections rev counter: the
+    // wake-on-ready Connections below already forces a reload (and therefore a re-render) the
+    // moment readiness flips, which is the only time this expression's answer can change.
+    readonly property bool _catalogueDownloading:
+        (typeof CatalogVault !== "undefined" && CatalogVault && CatalogVault.fetching) &&
+        ((browser.currentType === "manga" && malCatalog && !malCatalog.ready()) ||
+         (browser.currentType === "comics" && comicsCatalog && !comicsCatalog.ready()))
+
+    // Wake-on-ready: a fresh install boots with an empty wall while the vault download is
+    // still in flight. The moment the backing catalog flips ready, re-run the initial page
+    // fetch so the wall paints without the user having to switch types or reopen the page.
+    // Guarded on items.length === 0 so a wall that is already populated (dev machine, or a
+    // catalog that flips ready a second time for an unrelated reason) never reloads under
+    // the user's hand.
+    Connections {
+        target: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+        function onReadyChanged() {
+            if (browser.currentType === "manga" && browser.items.length === 0) browser.reloadCurrent()
+        }
+    }
+    Connections {
+        target: (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null
+        function onReadyChanged() {
+            if (browser.currentType === "comics" && browser.items.length === 0) browser.reloadCurrent()
+        }
+    }
+
     DiscoverBrowser {
         id: browser
         anchors.fill: parent
@@ -81,6 +112,7 @@ Item {
         // publisher stay in the Discover filters, never on the card. The 2:3 crop is identical to the
         // classic card (both use ratio 1.5), so gallery introduces no NEW cover cropping.
         posterVisualProfile: "gallery"
+        catalogueDownloading: root._catalogueDownloading
         // Tankoban copy — the wall's empty-state wording.
         textNoCatalogue: "Nothing to browse here yet."
         textCatalogueEmpty: "This catalogue answered with nothing."

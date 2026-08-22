@@ -85,6 +85,14 @@ Item {
     property string noticeMissingFormat: "%1 is no longer available — showing the built-in catalogue instead."
     property string offlineWarning: "Showing offline catalogue"
 
+    // Data-vault Slice 3 (2026-08-22): world-neutral seam a wrapper sets true when the wall is
+    // empty ONLY because its backing catalogue db has not landed yet (CatalogVault still
+    // fetching). Default false — a wrapper that never sets it renders byte-identical to before
+    // this slice. When true, the honest empty state below shows this ONE quiet line instead of
+    // the normal empty-catalogue copy; nothing else about the wall changes.
+    property bool catalogueDownloading: false
+    readonly property string _downloadingText: "Catalogue downloading…"
+
     readonly property string _filterSep: "|"   // encodes group+key in one picker option key
 
     signal itemOpenRequested(var item)       // a click / Enter on a poster opens the detail page
@@ -746,11 +754,14 @@ Item {
                 }
             }
 
-            // honest empty state (skeletons now live in-grid, reserving exact cells)
+            // honest empty state (skeletons now live in-grid, reserving exact cells). Data-vault
+            // Slice 3: when the wall is empty because its catalogue db is still downloading, the
+            // one quiet downloading line replaces the normal empty copy — same font/color, no
+            // other visual change.
             Text {
                 visible: !browser.loading && browser.items.length === 0
                 anchors.centerIn: parent
-                text: browser.emptyMessage
+                text: browser.catalogueDownloading ? browser._downloadingText : browser.emptyMessage
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
             }
         }
