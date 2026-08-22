@@ -37,34 +37,31 @@ so reading and listening can continue offline.
 > [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for a per-user install —
 > no administrator required. Building from source is documented below.
 
-## What's new in 1.1.1
+## What's new in 1.1.2
 
-- **Tankoban no longer needs a live manga catalogue to draw a series page.** The browse path
-  resolves from the bundled MAL catalogue, while `TankobanCatalog` supplies local volume counts
-  and shelf art. The 1.1.1 data set covers 10,000 manga series and 28,856 BookWalker volume
-  covers; uncovered volumes render an explicit **NO COVER** tile instead of invented artwork.
-- **Tankoban is volume-only.** Chapter browsing/downloading and the old WeebCentral-backed chapter
-  lane are no longer routed in the UI. On first launch, a one-time migration removes the obsolete
-  chapter tree and `manga` progress records; downloaded Tankoban volumes are left alone. Nyaa is
-  now the volume-source extension and starts disabled, with the source sheet routing to Extensions
-  instead of silently enabling it.
-- **Account Centre now has six pages with real backend wiring.** Profile supports username/avatar changes;
-  Security handles protected sign-ins, approvals, password changes, and sign-out-everywhere;
-  Devices can refresh and revoke; Recovery can replace a recovery key; **Your Colosseum** projects
-  monthly watch and reading activity. Local search/activity clear actions are wired; data export,
-  account deletion, and the privacy-policy switches remain explicit boundaries.
-- **Watch Party landed as a configurable Player 1 preview.** The taskbar Join sheet and player
-  panel cover room membership, guest/signed-in identity, rosters, chat/reactions, host/shared
-  control, reconnect/grace/end flows, source readiness, drift/catch-up, and timeline commands.
-  Exact torrent identity is supported; generic direct URLs are deliberately not. The desktop
-  remains fail-closed until a Watch Party service URL is configured.
-- **The updater can now hand off cleanly to the installer.** After a verified installer launches,
-  1.1.1 persists the Installing state and requests Colosseum shutdown so the installer's
-  `/WAITPID` handoff can continue. The public 1.1.1 release also includes the signed update
-  manifest and signature. 1.1.0 users need one manual 1.1.1 install because the 1.1.0 release did
-  not ship those assets.
+- **Vault is tougher on disk changes and now has a permanent Home portal.** Live deletion and
+  same-path replacement reconcile the library instead of leaving stale rows behind, enrichment
+  writes carry a revision guard, and unreadable CBR archives fail closed instead of opening an
+  empty reader session. The Home hatch is always present and does not depend on having Vault roots.
+- **Watch Party works out of the box.** The desktop now defaults to the hosted protocol-v3 relay,
+  while `COLOSSEUM_WATCH_PARTY_URL` remains an override for self-hosting and testing. Joining a
+  room can fetch that room's exact torrent source automatically instead of requiring the joiner to
+  already have it locally.
+- **Tankoban adds a Library tab and keeps the approved volume-flow series view.** Library gives
+  downloaded/owned volumes their own world surface, while series pages use the fixed-height
+  horizontal volume continuum adopted after the 1.1.1 catalogue-independence work.
+- **Biblio's catalogue stack was rebuilt.** Discover and Explore now use expanded ranking, a
+  reworked catalogue store, and Open Library lanes for most-read titles, classics, and subjects
+  alongside the existing Apple Books path.
+- **Scrolling and updates received a shell-level polish pass.** ScrollGlide adds momentum-based
+  wheel and keyboard scrolling across the reader and major grid surfaces. Updates moved from the
+  taskbar to the top bar; the chronicle is full-bleed and can render the bundled,
+  signature-verified history for the release already installed.
+- **The Living Guide is gone, and unsupported book formats fail more honestly.** Its overlay,
+  taskbar entry, content pages, and shell arbitration were removed. AZW3 books now route correctly;
+  DJVU remains unsupported and fails closed with a clear error.
 
-Full release notes: [docs/release-notes/v1.1.1.md](docs/release-notes/v1.1.1.md).
+Full release notes: [docs/release-notes/v1.1.2.md](docs/release-notes/v1.1.2.md).
 
 ## Highlights
 
@@ -77,9 +74,9 @@ Full release notes: [docs/release-notes/v1.1.1.md](docs/release-notes/v1.1.1.md)
 - **Local media is first-class.** Vault indexes folders in place, watches confirmed roots for
   arrivals, keeps a recent-arrivals view, preserves unavailable roots, and routes supported local
   files back into the same readers and player used elsewhere in Colosseum.
-- **Deep catalogues that work offline.** Theatre shelves ranked by a local IMDb index; Tankoban
-  discovery and series pages from bundled MAL/Tankoban catalogues; Apple Books charts for Biblio,
-  with live rows layered on top when the network is there.
+- **Deep catalogues with offline backbones.** Theatre shelves are ranked by a local IMDb index;
+  Tankoban discovery and series pages use bundled MAL/Tankoban catalogues; Biblio blends Apple
+  Books with Open Library most-read, classics, and subject discovery.
 - **Stremio-compatible extensions.** World-aware Sources, community/curated Browse, Installed
   management, configured manifests, and direct/torrent Theatre stream results. NoTorrent ships
   by default and is removable like any extension.
@@ -114,7 +111,7 @@ Full release notes: [docs/release-notes/v1.1.1.md](docs/release-notes/v1.1.1.md)
 | World | For | Built-in sources |
 |---|---|---|
 | **Tankoban** | manga and western comics | bundled MAL + Tankoban catalogues; AniList metadata; Nyaa volume source (off by default); GetComics + local comic catalog |
-| **Biblio** | ebooks and audiobooks | Apple Books discovery, LibGen, AudioBookBay |
+| **Biblio** | ebooks and audiobooks | Apple Books + Open Library discovery, LibGen, AudioBookBay |
 | **Theatre** | movies, shows, anime | Cinemeta + offline IMDb catalogue, Jikan/AniList/Kitsu; installed Stremio extensions |
 
 ## Vault
@@ -123,10 +120,14 @@ Full release notes: [docs/release-notes/v1.1.1.md](docs/release-notes/v1.1.1.md)
 Downloads screen: Vault can index ordinary folders anywhere you choose, while Downloads continues
 to track media acquired by Colosseum's own backends.
 
-Add one or more roots and Colosseum scans them without relocating the originals. The Browse face
-has recent arrivals, a root rail, breadcrumbs, nested folder navigation, media-shaped cards, and
-in-place identity correction. Confirmed roots are watched for new files, while disconnected or
-missing roots remain represented as **away** instead of making your library silently shrink.
+Vault has a permanent Home portal in 1.1.2, so the local-library door is present even on a fresh
+install with no roots configured. Add one or more roots and Colosseum scans them without relocating
+the originals. The Browse face has recent arrivals, a root rail, breadcrumbs, nested folder
+navigation, media-shaped cards, and in-place identity correction. Confirmed roots are watched for
+new files, while disconnected or missing roots remain represented as **away** instead of making your
+library silently shrink. In
+1.1.2, deleting or replacing files is also reconciled live, and stale background enrichment is
+revision-guarded so older work cannot overwrite a newer file identity.
 
 Artwork follows the media rather than one generic poster rule. Comics and books can reuse covers
 inside their files; recognized movies and shows can receive locally cached canonical posters;
@@ -149,23 +150,23 @@ moving the underlying download data.
 
 ## Watch Party
 
-Colosseum 1.1.1 includes the Player 1 Watch Party client and the protocol-v3 relay package. A Join
-action lives on the taskbar; room controls live inside Player 1. The client supports guest and
-signed-in identity, participant rosters, chat and reactions, host/shared control, reconnect and host
-grace, kick/rejoin, room end, local source readiness, sync status, catch-up, and room timeline
-commands.
+Colosseum 1.1.2 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
+relay, so creating or joining a room no longer requires endpoint configuration. A Join action lives
+on the taskbar; room controls live inside Player 1. The client supports guest and signed-in identity,
+participant rosters, chat and reactions, host/shared control, reconnect and host grace, kick/rejoin,
+room end, source readiness, sync status, catch-up, and room timeline commands.
 
-Source portability is intentionally strict. The current UI can prove torrent identity from
-`infoHash + fileIdx`, so those sources can be shared exactly. Generic direct-stream URLs are not
-eligible, and the verified-debrid seam is not inferred from ordinary QML rows.
+Source portability is intentionally strict. The UI proves torrent identity from `infoHash + fileIdx`,
+so exact torrent sources can be shared and a joiner can fetch the room's source automatically.
+Generic direct-stream URLs are not eligible, and the verified-debrid seam is not inferred from
+ordinary QML rows.
 
-The feature only activates when `COLOSSEUM_WATCH_PARTY_URL` is configured. With it unset, Join is
-fail-closed and solo playback is unchanged. The repository includes a Cloudflare Worker + Durable
-Object relay and self-hosting/deployment notes in
+`COLOSSEUM_WATCH_PARTY_URL` remains an override for self-hosting and testing. The repository
+includes the Cloudflare Worker + Durable Object relay and deployment notes in
 [`server/watchparty-relay/DEPLOYMENT.md`](server/watchparty-relay/DEPLOYMENT.md). Guest room flows
 are accountless; public signed-in hosting still depends on account-service bearer authority.
-Multi-client room membership/chat/kick/rejoin/grace/end behavior was runtime-validated for 1.1.1;
-final in-app synced-playback acceptance remains a field-testing boundary.
+Multi-client room membership/chat/kick/rejoin/grace/end behavior has runtime coverage; final
+in-app synced-playback acceptance remains a field-testing boundary.
 
 ## Extensions
 
@@ -195,7 +196,7 @@ direct manifest installation and community Browse use the same gate so the two p
 
 ## Accounts and sync
 
-Colosseum 1.1.1 has account onboarding, remembered-session restore, an account medallion/flyout,
+Colosseum 1.1.2 has account onboarding, remembered-session restore, an account medallion/flyout,
 and a six-page Account Centre: **Profile**, **Your Colosseum**, **Security**, **Devices**,
 **Recovery**, and **Data & privacy**.
 
@@ -237,9 +238,11 @@ administrator needed — and runs on Windows 10/11.
 ### Automatic updates
 
 Colosseum's installed updater checks the stable GitHub Releases channel and shows a quiet
-**Update** icon when a newer signed release is available. The Update page can show the release
-chronicle, download into a resumable cache, verify the signed manifest and installer hash, and then
-launch the side-by-side installer.
+**Update** control in the Home top bar when a newer signed release is available. The Update page can
+show a full-bleed release chronicle, download into a resumable cache, verify the signed manifest and
+installer hash, and then launch the side-by-side installer. In 1.1.2, the installed release also
+ships with a bundled, signature-verified chronicle so the page has trustworthy history before any
+network check completes.
 
 1.1.1 closes the installer handoff that was incomplete in 1.1.0: once the verified installer has
 successfully launched, Colosseum persists the Installing state and requests its own orderly
@@ -304,16 +307,19 @@ repair into `master`. This is development infrastructure, not part of the instal
 ## Known boundaries
 
 - Home-wide cross-world search is not implemented (per-world search is).
-- Tankoban is volume-only in 1.1.1. The old chapter browser/downloader is unrouted, and first launch
+- Tankoban remains volume-only. The old chapter browser/downloader is unrouted, and first launch
   removes the obsolete chapter tree plus `manga` progress. Downloaded Tankoban volumes are kept.
+- After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a
+  few seconds before recovering. This is a known 1.1.2 issue targeted for 1.1.3.
 - Tankoban and Biblio can consume compatible extension catalogues for discovery, but their native
   acquisition paths are not generic Stremio stream consumers. Theatre is the world with generic
   torrent/direct-stream playback from compatible add-ons.
 - Account/cloud sync requires a configured account-service endpoint. Profile, Security, Devices,
   Recovery, and Your Colosseum are live surfaces; Data & privacy policy switches, data export, and
   the account-deletion flow still lack authoritative service wiring.
-- Watch Party requires a configured service URL. Exact torrents are eligible; generic direct URLs
-  are deliberately not, public signed-in relay hosting still depends on account-service bearer
+- Watch Party uses the hosted relay by default; `COLOSSEUM_WATCH_PARTY_URL` is only an override.
+  Exact torrents are eligible and can be fetched automatically by joiners; generic direct URLs are
+  deliberately not. Public signed-in relay hosting still depends on account-service bearer
   authority, and final in-app synced-playback acceptance remains a field-testing boundary.
 - The calendar implementation is banked but has no live navigation route.
 - Player 2 is integrated but opt-in and Windows / D3D11-oriented; mpv remains the default.
