@@ -842,8 +842,17 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    const QString qmlPath = (argc > 1) ? QString::fromLocal8Bit(argv[1])
-                                       : QStringLiteral("qml/Main.qml");
+    // argv[1] is a QML-path override only for the dev/test-harness lane (dev.bat,
+    // colosseum.exe path/to/Main.qml). The NSIS updater relaunches the installed app
+    // with flags like --update-result=success --update-from=... --update-backup=... —
+    // treating those as a literal QML file path made engine.load() fail and the app
+    // exit -1 on every post-update relaunch. UpdateInstallBridge::acknowledgeHealthyBoot
+    // already consumes --update-* above; it just never got the chance to matter once
+    // the bogus qmlPath tanked engine.load(). Guard: only a bare, non-flag argument
+    // counts as a QML-path override.
+    const bool hasQmlOverride = argc > 1 && !QString::fromLocal8Bit(argv[1]).startsWith(QLatin1Char('-'));
+    const QString qmlPath = hasQmlOverride ? QString::fromLocal8Bit(argv[1])
+                                            : QStringLiteral("qml/Main.qml");
     const QStringList pinnedHosts = {
         QStringLiteral("live.metahub.space"),
         QStringLiteral("images.metahub.space"),
