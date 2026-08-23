@@ -45,6 +45,8 @@ public:
     // rows (id ASC) each {title,displayTitle,format,collects,isbn,pages,published,chid,
     // cover,available,getcomicsPost,creators,description}. {} when missing.
     Q_INVOKABLE QVariantMap curatedSeries(const QString& locgId) const;
+    // Arc 21 exact acquisition/coverage summary or {} on an older catalogue.
+    Q_INVOKABLE QVariantMap curatedCoverage(const QString& locgId) const;
     // lowest-rank curated_series with norm_title = normTitle -> {locgId,title,cover,publisher} or {}
     Q_INVOKABLE QVariantMap curatedByNorm(const QString& normTitle) const;
     // per genre: {name,count,covers} covers = up to maxCovers cover urls ordered by rank
@@ -55,8 +57,8 @@ public:
 
     // --- Tankoban Discover (spec 2026-08-01): paged, allowlisted, fully-bound
     //     discovery + house ranking over the curated (locg_id) catalogue. ---
-    // axis: "genre" (groups curated_genre.genre) | "publisher" (groups
-    // curated_series.publisher, blank publisher EXCLUDED). Returns {key,label,count}
+    // axis: "genre" | "publisher" | "format" | "availability". Availability
+    // is derived from Arc 21 exact coverage when present. Returns {key,label,count}
     // ordered count DESC then label ASC. includeExplicit is accepted for interface
     // parity with the manga (MalCatalog) / Task-9 lanes but is a deliberate NO-OP
     // here: the curated comics catalogue carries NO adult/explicit classification
@@ -64,8 +66,9 @@ public:
     // ever gated and results are identical whether it is true or false. Any other
     // axis returns an empty list.
     Q_INVOKABLE QVariantList discoverFilters(const QString& axis, bool includeExplicit) const;
-    // catalogId ∈ {popular, new-releases, most-stocked, all}; filterAxis ∈
-    // {genre, publisher, ""}. filterKey is BOUND (never concatenated). offset is
+    // catalogId ∈ {popular, new-releases, most-stocked, all, recently-available,
+    // complete-runs, near-complete, community-collections}; filterAxis ∈
+    // {genre, publisher, format, availability, ""}. filterKey is BOUND (never concatenated). offset is
     // clamped >= 0, limit to [1,100]. Returns {items, nextOffset, exhausted,
     // freshness:"bundled"}. Each item carries {locgId, title, year, publisher, cover,
     // genres, availability(bool), houseScore, houseComponents, explicit:false}.

@@ -1922,3 +1922,113 @@ stage tree has no `data/` directory — full transcript at
 `Colosseum/artifacts/data-vault/slice5/staging_proof.txt` (gitignored, on disk). No release was
 cut to produce this evidence (v1.1.3 already shipped under the prior packager; this edit is
 dormant until the next release).
+
+## Arc 21 Slice 3 (2026-08-23): comics catalogue intelligence — engine + shelves + ledger adopted
+
+Adopted the arc-21 comics-catalogue-intelligence engine/adapter/shelves/ledger layer from
+`Preflight-Architect/arcs/21-comics-getcomics-catalogue-intelligence/reference-code/Colosseum/`
+(candidate base commit `39d76ec`, self-labelled UNCOMPILED/UNTESTED) into the live tree at HEAD
+`346c858`. Per-file adoption verdicts (brotherhood-receiving-prefetched-code discipline, each
+verdict earned by diffing the complete live file against the candidate, not assumed):
+
+- **`native/engine/ComicsCatalog.h` / `.cpp`** — **ADOPT** (clean copy). `git log 39d76ec..HEAD --
+  native/engine/ComicsCatalog.*` returned empty: zero live drift since the candidate's base. Adds
+  `catalogTableExists()`, `curatedCoverage()`, curated-source read paths inside `curatedSeries()`,
+  format/availability `discoverFilters` axes, and four new coverage catalogs
+  (`recently-available`, `complete-runs`, `near-complete`, `community-collections`) in
+  `discoverPage()`, all additive over the existing `series`/`search`/`shelf`/`discoverPage`
+  surface. Copied verbatim; post-copy diff against candidate confirmed byte-identical.
+- **`qml/TankobanDiscoverApi.js`, `qml/TankobanComicsTab.qml`, `qml/TankobanWorld.qml`,
+  `qml/ComicDbLedger.qml`, `qml/ComicsDb.js`** — **ADOPT** (clean copy). Same zero-drift result
+  (`git log 39d76ec..HEAD` empty for all five, none present in `git status` dirt at claim time).
+  Copied verbatim; each confirmed byte-identical to candidate post-copy.
+- **`tests/comics_catalog_arc21_harness.cpp`** — **ADOPT + extend.** New file (no live
+  counterpart). Candidate's 149-line harness covers curated-source reads, format/availability
+  facets, and the four new coverage catalogs against a populated fixture db, but carried no
+  stale-db degradation case (candidate gate C absent, contra the packet's stated coverage) —
+  added one: a second fixture db built with only the pre-Arc-21 tables (no `curated_source`,
+  `curated_series_coverage`), asserting `curatedCoverage()` returns `{}`, edition `sources` stay
+  empty, `discoverFilters("availability")` returns empty (format facets still derive from
+  `curated_edition` alone and DO surface), all four coverage catalogs and the availability-filtered
+  page degrade to empty, `curatedHasDownloadable()` still resolves via its legacy
+  `getcomics_post`-fallback path, and the pre-existing `popular` catalog still returns the row.
+- **`tests/tankoban_discover_api_harness.qml`** — **ADOPT** (REPLACE-kind, clean copy). Rewrites
+  the existing live harness of the same name in place (adds `formatFacets`/`availabilityFacets` to
+  the fake `ComicsCatalog`, asserts the comics catalog set grows from 4 to 8 built-ins with the
+  four new coverage catalogs, and the filter groups grow from 2 to 4 with Formats/Availability).
+  Confirmed still driven through the exact same house runner: gate 9 of
+  `tests/test_tankoban_discover.ps1` (`qml.exe -platform offscreen -I qml
+  tests/tankoban_discover_api_harness.qml`, sentinel `TANKOBAN_DISCOVER_API_OK`) — registration
+  unchanged, no new wiring needed.
+- **`native/CMakeLists.txt`** — surgical addition (finding F1 discharged). Added
+  `comics_catalog_arc21_harness` as an `add_executable` block immediately after the existing
+  `comics_catalog_engine_harness` target, mirroring its exact shape (`ComicsCatalog.cpp` +
+  `Qt6::Core`/`Qt6::Sql`, no extra link libs needed — same house pattern as the
+  `update_release_client_harness` neighbor named in the brief). Pre-existing dirt in this file
+  (none at claim time) not touched.
+- **`tests/CMakeLists.txt`** — surgical addition. Appended
+  `colosseum_register_harness(comics_catalog_arc21_harness unit)` immediately after
+  `catalog_vault_client_harness`'s registration (line ~42). The candidate's own
+  `tests/CMakeLists.txt` and `tests/CMakeLists.arc21.txt` (a standalone CMake project) were
+  not copied — doing so would have replaced the live 2,245-line registration-only file and
+  deleted every other harness's registration. Pre-existing dirt in this file (an unrelated
+  comment-dash cleanup around the Tankoban chapter migration block, lines ~344-348) left
+  untouched — confirmed no line-range overlap with this slice's addition.
+
+**Route-ownership trace (review finding F5).** Traced before touching `ComicDbLedger.qml`:
+`qml/Main.qml`'s `comicSeriesLayer` Loader (`z: 50`, `source: "ComicSeriesPage.qml"`, wired at
+`Main.qml:2498`) is the live route owner for the LOCG-catalogue comic series page — a peer of the
+`westernLayer` Loader (`source: "ComicSeries.qml"`, GetComics-shelf identity) at `Main.qml:2450`.
+`ComicDbLedger.qml` is not itself a route: it is a child component `ComicSeriesPage.qml`
+instantiates directly at `ComicSeriesPage.qml:262` (comment there: "step 3 of the comics-brain
+wiring"). No mismatch found — this matches the brief's framing exactly (`ComicSeriesPage.qml`
+stays untouched/context-only; `ComicDbLedger.qml` is the adoptable sub-component within it), so
+adoption proceeded as planned. `qml/ComicSeries.qml` (arc-19 rewrite, `a79ce0d`) was not touched
+and no candidate hunk in this slice overlapped it.
+
+**Dual-session note (honest disclosure).** A background sub-agent was independently spawned
+earlier in this slice's execution and, unknown to the foreground session, began executing the
+identical brief concurrently against the same live files. The collision was caught mid-flight (a
+live file-content mismatch on `tests/comics_catalog_arc21_harness.cpp` during the foreground
+session's own negative-control cycle), the background session was signalled to stand down, and it
+confirmed stopping with zero commits, zero chat.md writes, and both mutated files restored to
+clean state. The foreground session re-verified the full adopted set byte-for-byte against the
+candidate post-collision (all 8 clean-adopt files identical; the 9th, the harness with the added
+gate-C case, hand-inspected clean) before proceeding, then independently reran both harnesses,
+both negative controls, and the full gate itself — nothing in this record is credited from the
+background session's own claimed results.
+
+**Harness results (this session's own runs, post-reconciliation):**
+- `comics_catalog_arc21_harness.exe` (`native/build-msvc/`): `Arc 21 ComicsCatalog harness: OK`,
+  exit 0.
+- `tankoban_discover_api_harness.qml` via `qml.exe -platform offscreen -I qml`:
+  `TANKOBAN_DISCOVER_API_OK`, exit 0.
+
+**Negative controls (both performed by this session, both restored and reverified green):**
+- C++: flipped the `complete-runs` assertion's expected `locgId` from `"saga"` to a bogus string
+  → `FAIL: complete-runs catalogue`, exit 1 (only that case). Restored → `Arc 21 ComicsCatalog
+  harness: OK`, exit 0.
+- QML: flipped the format-facet key expectation from `"omnibus"` to a bogus string →
+  `FAIL: comics format facet key stable lower-case (got "omnibus", want "NEGATIVE-CONTROL-WRONG-KEY")`,
+  `TANKOBAN_DISCOVER_API_FAIL: 1 failure(s)`, exit 1 (only that case). Restored →
+  `TANKOBAN_DISCOVER_API_OK`, exit 0.
+
+**Build:** `-j1` throughout (RAM-starved machine). `comics_catalog_arc21_harness` target build
+clean (no `error C`/`ninja: build stopped` in log). `colosseum` app target relinked clean after
+the engine-file adoption (benign Qt AutoMoc license-service warning during the run, not a build
+failure — link succeeded, `TARGET_BUILD_OK`).
+
+**Full gate:** `ctest --test-dir native/build-msvc -L unit --output-on-failure` — 100% tests
+passed, 74/74 (baseline 73 + this slice's new `colosseum.comics_catalog_arc21_harness`
+registration). `profile_activity_isolation` (the known flake) passed clean on this run, no rerun
+needed.
+
+Evidence on disk (gitignored): `Colosseum/artifacts/arc21-adoption/slice3/` — configure log, both
+harness build logs, both harness run logs (green), both negative-control red logs, the app relink
+log, and the full ctest transcript.
+
+Status: **Adopted → Configured → Compiled → Linked → QML-loaded → Test-reported.** Not yet
+Runtime-validated against the live app UI (today's real `comics_catalog.db` has the five new
+tables schema-only/empty per Slice 2 — new coverage shelves will render empty in the running app
+until upstream enrichment runs; this is expected, not a defect, and was not eyes-on verified this
+slice).

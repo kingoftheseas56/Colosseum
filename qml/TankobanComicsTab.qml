@@ -61,15 +61,21 @@ Column {
             required property var modelData
             title: modelData.label
             // Most Stocked and the three publishers are pinnable; everything else is not.
-            navigable: modelData.kind === "stocked" || modelData.kind === "publisher"
+            navigable: !!modelData.catalogId || modelData.kind === "stocked" || modelData.kind === "publisher"
             items: modelData.rows
             visible: modelData.rows.length > 0
             onItemClicked: (i) => {
                 var it = modelData.rows[i]
-                if (it) comicsTab.gcdSeriesRequested({ gcd: true, gcdId: it.gcdId, title: it.title, cover: it.cover })
+                if (!it) return
+                if (it.locgId) comicsTab.comicSeriesRequested({ id: it.locgId, title: it.title, cover: it.cover })
+                else comicsTab.gcdSeriesRequested({ gcd: true, gcdId: it.gcdId, title: it.title, cover: it.cover })
             }
             onExploreClicked: {
-                if (modelData.kind === "stocked")
+                if (modelData.catalogId)
+                    comicsTab.discoverPinRequested({ type: "comics", catalogId: modelData.catalogId,
+                                                    filterGroup: modelData.filterGroup || "",
+                                                    filterKey: String(modelData.filterKey || "").toLowerCase() })
+                else if (modelData.kind === "stocked")
                     comicsTab.discoverPinRequested({ type: "comics", catalogId: "most-stocked",
                                                     filterGroup: "", filterKey: "" })
                 else if (modelData.kind === "publisher")
@@ -85,6 +91,10 @@ Column {
         genres: comicsTab.comicBoxes
         covers: comicsTab.comicCovers
         navigable: false
-        onGenreClicked: (i) => comicsTab.westernExploreRequested(comicsTab.comicBoxes[i])
+        onGenreClicked: (i) => {
+            var box = comicsTab.comicBoxes[i]
+            if (box) comicsTab.discoverPinRequested({ type: "comics", catalogId: "popular",
+                filterGroup: "genre", filterKey: String(box.name || "").toLowerCase() })
+        }
     }
 }

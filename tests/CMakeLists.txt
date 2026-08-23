@@ -40,6 +40,9 @@ colosseum_register_harness(update_version_harness unit)
 colosseum_register_harness(update_manifest_trust_harness unit)
 colosseum_register_harness(update_release_client_harness unit)
 colosseum_register_harness(catalog_vault_client_harness unit)
+# Arc 21 comics catalogue intelligence (curated_source/coverage layer, 2026-08-23):
+# fixture-only SQLite, no net, stale-db degradation covered — house sentinel+exit contract.
+colosseum_register_harness(comics_catalog_arc21_harness unit)
 colosseum_register_harness(update_download_harness unit)
 colosseum_register_harness(update_service_harness unit)
 colosseum_register_harness(update_install_bridge_harness unit;windows)

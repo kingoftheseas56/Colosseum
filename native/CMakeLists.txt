@@ -1726,6 +1726,16 @@ add_executable(comics_catalog_engine_harness
 target_include_directories(comics_catalog_engine_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql)
 
+# Arc 21 comics catalogue intelligence (curated_source/coverage layer, 2026-08-23):
+# curated acquisition/coverage reads, format+availability discover facets, four new
+# coverage catalogues in discoverPage, and stale-db (pre-Arc-21) degradation.
+add_executable(comics_catalog_arc21_harness
+    ../tests/comics_catalog_arc21_harness.cpp
+    engine/ComicsCatalog.cpp
+    engine/ComicsCatalog.h)
+target_include_directories(comics_catalog_arc21_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comics_catalog_arc21_harness PRIVATE Qt6::Core Qt6::Sql)
+
 # ── Deep Theatre catalogue (spec 2026-08-01): paged offline anime query contract ──
 add_executable(mal_catalog_rows_harness
     ../tests/mal_catalog_rows_harness.cpp

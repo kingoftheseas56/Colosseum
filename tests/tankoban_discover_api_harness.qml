@@ -92,16 +92,22 @@ Item {
             { key: "DC", label: "DC", count: 40 },
             { key: "Image", label: "Image", count: 30 }
         ]
+        property var formatFacets: [{ key: "Omnibus", label: "Omnibus", count: 12 }]
+        property var availabilityFacets: [{ key: "complete", label: "Complete", count: 8 }]
         function discoverFilters(axis, includeExplicit) {
             if (axis === "genre") return genreFacets
             if (axis === "publisher") return publisherFacets
+            if (axis === "format") return formatFacets
+            if (axis === "availability") return availabilityFacets
             return []
         }
         function discoverPage(cat, fAxis, fKey, inclExp, off, lim) {
             pageCalls++
             var rows = [
                 { locgId: "locg1", title: "Invincible", year: 2003, publisher: "Image",
-                  cover: "https://c/inv.jpg", genres: "Superhero", availability: true,
+                  cover: "https://c/inv.jpg", genres: "Superhero", format: "Omnibus", availability: true,
+                  availabilityState: "complete", coverageRatio: 1.0, latestSourceDate: "2026-08-20",
+                  sourceDepth: 3, officialSourceCount: 2, communitySourceCount: 1,
                   houseScore: 0.8, houseComponents: {popularity:0.6,availability:0.1,recency:0.05,metadata:0.05}, explicit: false },
                 { locgId: "locg2", title: "Saga", year: 2012, publisher: "Image",
                   cover: "https://c/saga.jpg", genres: "Science Fiction", availability: false,
@@ -169,7 +175,10 @@ Item {
         eq(inv.type, "comics", "normalizeComic type")
         eq(inv.publisher, "Image", "normalizeComic publisher preserved")
         truthy(inv.availability, "normalizeComic availability true when house says so")
-        eq(inv.format, "", "normalizeComic has no format (comics carry no manga-style type)")
+        eq(inv.format, "Omnibus", "normalizeComic preserves canonical edition format")
+        eq(inv.availabilityState, "complete", "normalizeComic preserves exact availability state")
+        eq(inv.coverageRatio, 1.0, "normalizeComic preserves coverage ratio")
+        eq(inv.communitySourceCount, 1, "normalizeComic preserves community depth")
         falsy(inv.raw.locgId === undefined, "normalizeComic keeps raw")
 
         // mergeByIdentity: live MAL-id rows replace bundled; non-stable-id rows are dropped.
@@ -203,13 +212,17 @@ Item {
             eq(mc[i].attribution, "Tankoban built-in catalogue", "manga built-in attribution")
             eq(mc[i].sourceKind, "builtin", "manga built-in sourceKind")
         }
-        // Comics launch set: Popular, New Releases, Most Stocked, All Series.
+        // Arc 21 comics set: canonical discovery plus source/coverage views.
         var cc = adapter.catalogs("comics")
-        eq(cc.length, 4, "comics catalogs: 4 built-ins")
+        eq(cc.length, 8, "comics catalogs: 8 built-ins")
         eq(cc[0].key, "popular", "comics catalogs: popular first")
         eq(cc[1].key, "new-releases", "comics catalogs: new-releases second")
-        eq(cc[2].key, "most-stocked", "comics catalogs: most-stocked third")
-        eq(cc[3].key, "all", "comics catalogs: all fourth")
+        eq(cc[2].key, "recently-available", "comics catalogs: recently available third")
+        eq(cc[3].key, "complete-runs", "comics catalogs: complete runs fourth")
+        eq(cc[4].key, "near-complete", "comics catalogs: near complete fifth")
+        eq(cc[5].key, "most-stocked", "comics catalogs: most stocked sixth")
+        eq(cc[6].key, "community-collections", "comics catalogs: community collections seventh")
+        eq(cc[7].key, "all", "comics catalogs: all last")
 
         // defaultCatalog: always the FIRST built-in for the type (Popular for both at launch;
         // Manga's Trending is a Popular-fallback until comparable snapshots exist, but the
@@ -227,10 +240,14 @@ Item {
         eq(mf[0].options[0].key, "action", "manga genre facet key is stable lower-case")
         eq(mf[0].options[0].label, "Action", "manga genre facet label preserved")
         var cf = adapter.filters("comics", "popular")
-        eq(cf.length, 2, "comics filters: 2 groups")
+        eq(cf.length, 4, "comics filters: 4 groups")
         eq(cf[0].group, "Genres", "comics filter group: Genres")
         eq(cf[1].group, "Publishers", "comics filter group: Publishers")
+        eq(cf[2].group, "Formats", "comics filter group: Formats")
+        eq(cf[3].group, "Availability", "comics filter group: Availability")
         eq(cf[1].options[0].key, "marvel", "comics publisher facet key stable lower-case")
+        eq(cf[2].options[0].key, "omnibus", "comics format facet key stable lower-case")
+        eq(cf[3].options[0].key, "complete", "comics availability facet key stable lower-case")
 
         // resolvePin: valid type/catalogue passes filter through.
         var rp = adapter.resolvePin({type:"manga", catalogId:"popular", filterGroup:"Genres", filterKey:"action"})
@@ -322,10 +339,10 @@ Item {
                           catalogs: [{ type: "comics", id: "dl", name: "Downloads" }] } }   // not discoverable
         ], showExplicit, makeFakeXhr)
         var extCats = extAdapter.catalogs("comics")
-        // 4 built-ins + 1 extension (Metron), NOT the download-only source
-        eq(extCats.length, 5, "extension seam: download-only source rejected; discovery extension appended")
-        eq(extCats[4].section, "Extensions", "extension seam: appended under Extensions section")
-        eq(extCats[4].attribution, "Metron", "extension seam: attribution is the manifest name")
+        // 8 built-ins + 1 extension (Metron), NOT the download-only source
+        eq(extCats.length, 9, "extension seam: download-only source rejected; discovery extension appended")
+        eq(extCats[8].section, "Extensions", "extension seam: appended under Extensions section")
+        eq(extCats[8].attribution, "Metron", "extension seam: attribution is the manifest name")
 
         // ── showExplicit=true surfaces the explicit manga row ──
         var expAdapter = Api.create(fakeMal, fakeComics, [], true, makeFakeXhr)

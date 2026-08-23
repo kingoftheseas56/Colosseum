@@ -206,13 +206,15 @@ function series(locgId) {
                 available: !!e.available,
                 getcomics_post: e.getcomicsPost || "",
                 creators: e.creators || "",
-                description: e.description || ""
+                description: e.description || "",
+                sources: e.sources || []
             });
         }
         return {
             title: m.title || "", year: m.year || 0, slug: m.slug || "",
             locg_id: m.locgId, publisher: m.publisher || "", cover: m.cover || "",
-            synopsis: m.synopsis || "", editions: mappedEds
+            synopsis: m.synopsis || "", editions: mappedEds,
+            coverage: m.coverage || {}
         };
     }
     var id = String(locgId || "").replace(/^locg:/, "");
@@ -225,9 +227,26 @@ function series(locgId) {
 // verified at fold time. [] if none. (Distinct from the per-edition torrent
 // picker in ComicTorrentSourcesPage — this is series-level GetComics downloads.)
 function sources(locgId) {
-    if (_engine) return [];   // rail is dead post-teardown; not migrated to curated_*
     var s = series(locgId);
-    return (s && s.sources) ? s.sources : [];
+    if (!s) return [];
+    if (!_engine) return s.sources || [];
+    var out = [];
+    var eds = s.editions || [];
+    for (var i = 0; i < eds.length; i++) {
+        var rows = eds[i].sources || [];
+        for (var j = 0; j < rows.length; j++) {
+            var source = rows[j];
+            source.editionId = eds[i].locg_comic_id || "";
+            source.editionTitle = eds[i].display_title || eds[i].title || "";
+            out.push(source);
+        }
+    }
+    return out;
+}
+
+function coverage(locgId) {
+    var s = series(locgId);
+    return (s && s.coverage) ? s.coverage : {};
 }
 
 // The downloadable GetComics post URL for an edition, or null. The app re-parses the signed /dls/

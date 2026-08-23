@@ -53,6 +53,17 @@ Item {
     // series-level hints (the DB is per-edition): synopsis from the first enriched edition,
     // byline = every distinct creator across editions (a run spans authors — Batman is King + Tynion)
     readonly property string heroCreators: distinctCreators()
+    readonly property var seriesCoverage: dbSeries && dbSeries.coverage ? dbSeries.coverage : ({})
+    function coverageLabel() {
+        var state = String(seriesCoverage.availabilityState || "")
+        if (state === "complete") return "Complete run"
+        if (state === "near_complete") return "Near complete"
+        if (state === "partial") return "Partial run"
+        if (state === "collected_only") return "Collected editions available"
+        if (state === "bibliography_only") return "Bibliography only"
+        if (state === "unknown") return "Coverage unknown"
+        return ""
+    }
     // Series-level synopsis (Wikipedia lead via the Wikidata P3589 join) wins;
     // the first edition's PRH back-cover copy remains the fallback.
     readonly property string heroSynopsis: (dbSeries && dbSeries.synopsis)
@@ -134,6 +145,7 @@ Item {
                         if (dbSeries && dbSeries.publisher) b.push(dbSeries.publisher)
                         var n = dbSeries && dbSeries.editions ? dbSeries.editions.length : 0
                         b.push(n + " collected edition" + (n === 1 ? "" : "s"))
+                        if (coverageLabel().length) b.push(coverageLabel())
                         return b.join("   ·   ")
                     }
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
@@ -178,11 +190,18 @@ Item {
                         id: ed
                         required property var modelData
                         width: col.width
-                        height: 156 + 36
+                        height: 192 + sourceRail.implicitHeight
 
                         property string chId: String(ed.modelData.locg_comic_id || ed.modelData.slug || "")
-                        property string postUrl: ed.modelData.getcomics_post || ""
-                        property bool   hasSource: !!ed.modelData.available && postUrl.length > 0
+                        property var sourceRows: ed.modelData.sources || []
+                        readonly property var officialSources: sourceRows.filter(function(s) {
+                            return !s.fanMade && s.available !== false
+                                   && (s.confidenceClass === "exact" || s.confidenceClass === "strong")
+                        })
+                        readonly property var communitySources: sourceRows.filter(function(s) { return !!s.fanMade })
+                        readonly property var primarySource: officialSources.length ? officialSources[0] : null
+                        property string postUrl: primarySource ? (primarySource.postUrl || "") : (ed.modelData.getcomics_post || "")
+                        property bool   hasSource: officialSources.length > 0 || (!!ed.modelData.available && postUrl.length > 0)
                         readonly property bool canAcquire: chId.length > 0 && (hasSource || dlState === "done")
                         property string dlState: "none"     // none|resolving|queued|downloading|extracting|done|error|dead
                         property real   dlDone: 0
@@ -230,7 +249,7 @@ Item {
                         Rectangle {                          // LARGE edition cover
                             id: edCover
                             anchors.left: parent.left; anchors.leftMargin: 4
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.top: parent.top; anchors.topMargin: 18
                             width: 104; height: 156; radius: 7
                             color: "#15171f"
                             border.width: 1
@@ -258,7 +277,7 @@ Item {
                         Column {                             // title · spec · blurb
                             anchors.left: edCover.right; anchors.leftMargin: 20
                             anchors.right: ed.canAlternate ? altBtn.left : edState.left; anchors.rightMargin: 16
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenter: edCover.verticalCenter
                             spacing: 7
                             Text { width: parent.width; text: ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
                                 color: edMa.containsMouse && ed.canAcquire ? theme.gold : theme.ink
@@ -287,12 +306,51 @@ Item {
                                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; lineHeight: 1.3 }
                         }
 
+                        Column {
+                            id: sourceRail
+                            anchors.left: edCover.right; anchors.leftMargin: 20
+                            anchors.right: parent.right; anchors.rightMargin: 8
+                            anchors.top: edCover.bottom; anchors.topMargin: 10
+                            spacing: 4
+                            visible: ed.officialSources.length > 0 || ed.communitySources.length > 0
+
+                            Text {
+                                visible: ed.officialSources.length > 0
+                                text: ed.officialSources.length + " verified source" + (ed.officialSources.length === 1 ? "" : "s")
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                            }
+                            Repeater {
+                                model: ed.officialSources
+                                delegate: Row {
+                                    required property var modelData
+                                    width: sourceRail.width; height: 22; spacing: 10
+                                    Text { text: modelData.format || modelData.kind || "GetComics"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11 }
+                                    Text { text: modelData.date || ""; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
+                                    Text { width: parent.width - x; text: modelData.title || ""; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; elide: Text.ElideRight }
+                                }
+                            }
+                            Text {
+                                visible: ed.communitySources.length > 0
+                                text: "Community Collections · " + ed.communitySources.length
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; topPadding: 3
+                            }
+                            Repeater {
+                                model: ed.communitySources
+                                delegate: Text {
+                                    required property var modelData
+                                    width: sourceRail.width
+                                    text: (modelData.format || modelData.kind || "Community") + " · " + (modelData.title || "")
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; elide: Text.ElideRight
+                                }
+                            }
+                        }
+
                         // download-state symbol: read (done) · % (in flight) · GetComics download.
                         // Unavailable editions stay visible as bibliography with no action glyph.
                         Item {
                             id: edState
                             anchors.right: parent.right; anchors.rightMargin: 8
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenter: edCover.verticalCenter
                             width: 40; height: 40
                             Image {                          // read (downloaded)
                                 anchors.centerIn: parent; visible: ed.dlState === "done"
@@ -320,7 +378,7 @@ Item {
                             id: altBtn
                             visible: ed.canAlternate
                             anchors.right: edState.left; anchors.rightMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenter: edCover.verticalCenter
                             width: 38; height: 38; radius: 19
                             color: altMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05)
                             border.width: 1

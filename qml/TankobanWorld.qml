@@ -6,13 +6,12 @@
 // The board (Hemanth-locked 2026-06-25) — personal surfaces BLENDED, discovery surfaces SPLIT:
 //   1. Featured (blended) · 2. Continue (blended) · 3. Top in Tankoban — Manga
 //   4. Top in Tankoban — Comics (curated) · 5. Explore Genre — Manga
-//   6. Explore Comics (GetComics' own tag taxonomy, inline)
+//   6. Explore Comics (canonical curated genre taxonomy, inline)
 // The catalogue's needs override the doctrine's ~2-row cap: comics and manga are two real
 // sub-catalogues, so the split IS the need (not a lazy row-wall).
 
 import QtQuick
 import "Catalog.js" as Catalog
-import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
 import "NextUp.js" as NextUp
 
@@ -129,18 +128,36 @@ WorldPage {
                     })
                 }
             }).filter(function(s) { return s.rows.length > 0 })
+            var arc21 = [
+                {label:"Recently Available", catalogId:"recently-available", group:"", key:""},
+                {label:"Complete Runs", catalogId:"complete-runs", group:"", key:""},
+                {label:"Near Complete", catalogId:"near-complete", group:"", key:""},
+                {label:"Omnibuses", catalogId:"popular", group:"format", key:"omnibus"},
+                {label:"Deluxe Editions", catalogId:"popular", group:"format", key:"deluxe"},
+                {label:"Graphic Novels", catalogId:"popular", group:"format", key:"graphic novel"},
+                {label:"Community Collections", catalogId:"community-collections", group:"", key:""}
+            ].map(function(spec) {
+                var page=ComicsCatalog.discoverPage(spec.catalogId,spec.group,spec.key,false,0,24)||({})
+                return {label:spec.label,catalogId:spec.catalogId,filterGroup:spec.group,filterKey:spec.key,
+                    rows:(page.items||[]).map(function(r){return {caption:r.title+(r.year?" ("+r.year+")":""),cover:r.cover||"",locgId:"locg:"+r.locgId,title:r.title}})}
+            }).filter(function(s){return s.rows.length>0})
+            tanko.comicShelves = arc21.concat(tanko.comicShelves)
         } else {
             tanko.comicShelves = []
         }
-        GcApi.explore(function(boxes) {
-            tanko.comicBoxes = (boxes || []).map(function(b, i) {
-                var pal = tanko._genrePalette[i % tanko._genrePalette.length];
-                return { name: b.name, tag: b.tag, tagId: b.tagId, count: b.count,
-                         c1: pal[0], c2: pal[1] };
-            });
-            tanko.comicCovers = (boxes || []).map(function(b) { return b.cover; })
-                .filter(function(c) { return c && c.length > 0; });
-        });
+        if (catalogOk) {
+            var genres = ComicsDb.genreShelves(8)
+            tanko.comicBoxes = genres.map(function(g, i) {
+                var pal = tanko._genrePalette[i % tanko._genrePalette.length]
+                return { name: g.name, count: g.count, c1: pal[0], c2: pal[1] }
+            })
+            var genreCovers = []
+            genres.forEach(function(g) { (g.covers || []).forEach(function(c) { if (c) genreCovers.push(c) }) })
+            tanko.comicCovers = genreCovers
+        } else {
+            tanko.comicBoxes = []
+            tanko.comicCovers = []
+        }
     }
 
     property string activeTab: "discover"

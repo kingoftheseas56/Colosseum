@@ -30,10 +30,14 @@ var MANGA_CATALOGS = [
     { key: "new-releases", title: "New Releases",  sourceKind: "builtin" }
 ];
 var COMICS_CATALOGS = [
-    { key: "popular",       title: "Popular",       sourceKind: "builtin" },
-    { key: "new-releases",  title: "New Releases",  sourceKind: "builtin" },
-    { key: "most-stocked",  title: "Most Stocked",  sourceKind: "builtin" },
-    { key: "all",           title: "All Series",    sourceKind: "builtin" }
+    { key: "popular",               title: "Popular",               sourceKind: "builtin" },
+    { key: "new-releases",          title: "New Releases",          sourceKind: "builtin" },
+    { key: "recently-available",    title: "Recently Available",    sourceKind: "builtin" },
+    { key: "complete-runs",         title: "Complete Runs",         sourceKind: "builtin" },
+    { key: "near-complete",         title: "Near Complete",         sourceKind: "builtin" },
+    { key: "most-stocked",          title: "Most Stocked",          sourceKind: "builtin" },
+    { key: "community-collections", title: "Community Collections", sourceKind: "builtin" },
+    { key: "all",                   title: "All Series",            sourceKind: "builtin" }
 ];
 var BUILTIN_SECTION = "Tankoban";
 var BUILTIN_ATTRIBUTION = "Tankoban built-in catalogue";
@@ -103,9 +107,15 @@ function normalizeComic(row) {
         cover: r.cover || "",
         year: r.year || 0,
         rating: 0,                          // house ranking is never a public rating (spec 5.1)
-        format: "",
+        format: r.format || "",
         publisher: r.publisher || "",
         availability: r.availability === true,
+        availabilityState: r.availabilityState || "",
+        coverageRatio: r.coverageRatio || 0,
+        latestSourceDate: r.latestSourceDate || "",
+        sourceDepth: r.sourceDepth || 0,
+        officialSourceCount: r.officialSourceCount || 0,
+        communitySourceCount: r.communitySourceCount || 0,
         explicit: r.explicit === true,
         raw: r
     };
@@ -189,8 +199,10 @@ function filtersForType(type, catalog, malCatalog, comicsCatalog, showExplicit) 
     if (type === "comics") {
         if (!comicsCatalog) return [];
         return [
-            { group: "Genres",     options: buildFilterOptions(comicsCatalog.discoverFilters("genre", showExplicit)) },
-            { group: "Publishers", options: buildFilterOptions(comicsCatalog.discoverFilters("publisher", showExplicit)) }
+            { group: "Genres",       options: buildFilterOptions(comicsCatalog.discoverFilters("genre", showExplicit)) },
+            { group: "Publishers",   options: buildFilterOptions(comicsCatalog.discoverFilters("publisher", showExplicit)) },
+            { group: "Formats",      options: buildFilterOptions(comicsCatalog.discoverFilters("format", showExplicit)) },
+            { group: "Availability", options: buildFilterOptions(comicsCatalog.discoverFilters("availability", showExplicit)) }
         ].filter(function(g){ return g.options.length > 0 });
     }
     return [];
@@ -261,6 +273,8 @@ function canonicalFilterGroup(type, group) {
     } else if (type === "comics") {
         if (g === "genre" || g === "genres") return "Genres";
         if (g === "publisher" || g === "publishers") return "Publishers";
+        if (g === "format" || g === "formats") return "Formats";
+        if (g === "availability") return "Availability";
     }
     return "";
 }
@@ -279,7 +293,10 @@ function validateFilterKey(type, filterGroup, filterKey, malCatalog, comicsCatal
         axis = (canonical === "Genres") ? "genre" : (canonical === "Demographics") ? "demographic" : "";
         source = malCatalog;
     } else if (type === "comics" && comicsCatalog) {
-        axis = (canonical === "Genres") ? "genre" : (canonical === "Publishers") ? "publisher" : "";
+        axis = (canonical === "Genres") ? "genre"
+             : (canonical === "Publishers") ? "publisher"
+             : (canonical === "Formats") ? "format"
+             : (canonical === "Availability") ? "availability" : "";
         source = comicsCatalog;
     }
     if (!axis || !source) return false;
@@ -325,6 +342,8 @@ function comicsAxis(filterGroup) {
     var c = canonicalFilterGroup("comics", filterGroup);
     if (c === "Genres") return "genre";
     if (c === "Publishers") return "publisher";
+    if (c === "Formats") return "format";
+    if (c === "Availability") return "availability";
     return "";
 }
 
