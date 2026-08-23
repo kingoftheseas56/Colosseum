@@ -34,6 +34,11 @@ Item {
     //      mode wins over live (tagSlug) and catalogue (gcdId): packSeriesId is set BEFORE
     //      openChapterId so ComicReaderShell mounts with a stable progress key (df003eb).
     property string packSeriesId: ""       // pack-injection mode: the downloads-backed series identity
+
+    // Arc 19: injectable service seams preserve production defaults while letting the
+    // consume-vs-acquire contract run deterministically in an offscreen harness.
+    property var comicsRef: (typeof Comics !== "undefined") ? Comics : null
+    property var progressRef: (typeof Progress !== "undefined") ? Progress : null
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -59,6 +64,21 @@ Item {
     readonly property string seriesId: packSeriesId.length > 0 ? packSeriesId
                                      : bakedReleases !== null ? "gcd:" + gcdId
                                      : "gc:" + tagSlug
+
+    // Foreground consumption intent is ephemeral. Download state remains entirely
+    // owned by ComicDownloader and survives navigation/cancellation independently.
+    property int _readIntentGeneration: 0
+    property string pendingReadReleaseId: ""
+    property string pendingReadSeriesId: ""
+    property var pendingReadRelease: null
+    readonly property bool pendingReadActive: page.pendingReadReleaseId.length > 0
+    readonly property int _progressRevision:
+        page.progressRef && page.progressRef.revision !== undefined ? Number(page.progressRef.revision) : 0
+    readonly property var resumeRec: {
+        var revisionDependency = page._progressRevision
+        return page.progressRef && page.seriesId.length
+            ? page.progressRef.get("comic", page.seriesId) : ({})
+    }
 
     // --- shelf navigation: filter + sort (big series run to hundreds of releases).
     // View-only — the reader's chapter list stays date-newest-first so its
@@ -127,7 +147,9 @@ Item {
     Theme { id: theme }
 
     onTagSlugChanged: resolve()
+    onSeriesIdChanged: page._invalidateReadIntent()
     Component.onCompleted: if (tagSlug.length || seriesTitle.length) resolve()
+    Component.onDestruction: page._invalidateReadIntent()
 
     onBakedReleasesChanged: {
         if (bakedReleases === null) return               // switching back to live: resolve() owns it
@@ -233,6 +255,173 @@ Item {
         return mb >= 1024 ? (mb / 1024).toFixed(1) + " GB" : mb + " MB"
     }
 
+    // ===================== consumption intent (Arc 19) =====================
+    function _releaseSnapshot(release) {
+        if (!release) return null
+        return { "id": String(release.id || ""), "name": String(release.name || ""),
+                 "url": String(release.url || ""), "sizeMB": Number(release.sizeMB || 0),
+                 "packRole": String(release.packRole || "") }
+    }
+
+    function _stateOf(releaseId) {
+        var service = page.comicsRef
+        if (!service || !service.statusOf) return "none"
+        var status = service.statusOf(String(releaseId || "")) || ({})
+        return String(status.state || "none")
+    }
+
+    function _inFlightState(state) {
+        return state === "resolving" || state === "queued"
+            || state === "downloading" || state === "extracting"
+    }
+
+    function _clearReadIntent() {
+        page.pendingReadReleaseId = ""
+        page.pendingReadSeriesId = ""
+        page.pendingReadRelease = null
+    }
+
+    function _invalidateReadIntent() {
+        page._readIntentGeneration += 1
+        page._clearReadIntent()
+    }
+
+    function _beginReadIntent(release) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length) return 0
+        page._readIntentGeneration += 1
+        page.pendingReadReleaseId = snap.id
+        page.pendingReadSeriesId = page.seriesId
+        page.pendingReadRelease = snap
+        return page._readIntentGeneration
+    }
+
+    function _readIntentMatches(releaseId, generation) {
+        return page.pendingReadActive
+            && String(releaseId) === page.pendingReadReleaseId
+            && Number(generation) === page._readIntentGeneration
+            && page.pendingReadSeriesId === page.seriesId
+    }
+
+    function _openRelease(release) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length) return false
+        if (snap.packRole === "extra")
+            page.soloChapters = [ { "id": snap.id, "name": snap.name } ]
+        else
+            page.soloChapters = null
+        page.openChapterId = snap.id
+        page.openChapterLabel = snap.name
+        return true
+    }
+
+    function _completePendingRead(releaseId, generation) {
+        var id = String(releaseId || "")
+        if (!page._readIntentMatches(id, generation)) return false
+        if (page._stateOf(id) !== "done") return false
+        var service = page.comicsRef
+        var pages = service && service.localPages ? (service.localPages(id) || []) : []
+        if (!pages.length) return false
+        var release = page.pendingReadRelease
+        page._clearReadIntent()
+        return page._openRelease(release)
+    }
+
+    function _startDownload(release) {
+        var snap = page._releaseSnapshot(release)
+        var service = page.comicsRef
+        if (!snap || !snap.id.length || !service || !service.downloadIssue) return false
+        service.downloadIssue(snap.id, snap.url, page.seriesId, page.seriesTitle, snap.name,
+                              snap.sizeMB * 1024 * 1024)
+        if (typeof Collection !== "undefined")
+            Collection.add("tankoban", page.collectionEntry())
+        return true
+    }
+
+    function readRelease(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length || String(stateHint || "") === "dead") return false
+        var state = page._stateOf(snap.id)
+        if (state === "done") {
+            page._invalidateReadIntent()
+            return page._openRelease(snap)
+        }
+        var generation = page._beginReadIntent(snap)
+        if (!generation) return false
+        if (page._inFlightState(state)) return true
+        if (page._startDownload(snap)) return true
+        if (page._readIntentMatches(snap.id, generation)) page._invalidateReadIntent()
+        return false
+    }
+
+    function downloadRelease(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length || String(stateHint || "") === "dead") return false
+        var state = page._stateOf(snap.id)
+        if (state === "done" || page._inFlightState(state)) return false
+        return page._startDownload(snap)
+    }
+
+    function _resumeFor(releaseId) {
+        var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
+        return r && String(r.chapterId || "") === String(releaseId || "") ? r : null
+    }
+
+    function readingPercent(releaseId) {
+        var r = page._resumeFor(releaseId)
+        if (!r || !page.resumeRec) return -1
+        var value = Number(page.resumeRec.progress)
+        if (!isFinite(value)) return -1
+        return Math.round(Math.max(0, Math.min(1, value)) * 100)
+    }
+
+    function readActionLabel(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length) return "Read"
+        var hint = String(stateHint || "")
+        if (hint === "dead") return "Unavailable"
+        var state = page._stateOf(snap.id)
+        if (page.pendingReadReleaseId === snap.id && page._inFlightState(state))
+            return "Reading when ready"
+        if (state === "done") {
+            var r = page._resumeFor(snap.id)
+            if (r && r.finished !== true) {
+                var pct = page.readingPercent(snap.id)
+                return pct > 0 ? ("Continue · " + pct + "%") : "Continue"
+            }
+        }
+        if (hint === "error") return "Retry Read"
+        if (page._inFlightState(state)) return "Read when ready"
+        return "Read"
+    }
+
+    function readStatusLine(release, stateHint) {
+        var snap = page._releaseSnapshot(release)
+        if (!snap || !snap.id.length || String(stateHint || "") !== "done") return ""
+        var r = page._resumeFor(snap.id)
+        if (!r) return ""
+        if (r.finished === true) return "Finished"
+        var pct = page.readingPercent(snap.id)
+        return pct >= 0 ? (pct + "% read") : ""
+    }
+
+    Connections {
+        target: page.comicsRef
+        ignoreUnknownSignals: true
+        function onFinished(releaseId) {
+            if (!page.pendingReadActive || String(releaseId) !== page.pendingReadReleaseId) return
+            page._completePendingRead(String(releaseId), page._readIntentGeneration)
+        }
+        function onFailed(releaseId, reason) {
+            if (page.pendingReadActive && String(releaseId) === page.pendingReadReleaseId)
+                page._invalidateReadIntent()
+        }
+        function onRemoved(releaseId) {
+            if (page.pendingReadActive && String(releaseId) === page.pendingReadReleaseId)
+                page._invalidateReadIntent()
+        }
+    }
+
     // ===================== visual tree =====================
     MouseArea { anchors.fill: parent }                      // absorb clicks from the world below
 
@@ -259,7 +448,7 @@ Item {
     BackAction {
         id: backBtn
         x: theme.margin; y: 28; z: 20
-        onTriggered: page.backRequested()
+        onTriggered: { page._invalidateReadIntent(); page.backRequested() }
     }
 
     // ---- window controls (minimize / power) ----
@@ -273,7 +462,7 @@ Item {
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.minimizeRequested() }
+                onClicked: { page._invalidateReadIntent(); page.minimizeRequested() } }
         }
         Item {
             width: 22
@@ -302,7 +491,7 @@ Item {
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.closeRequested() }
+                onClicked: { page._invalidateReadIntent(); page.closeRequested() } }
         }
     }
 
@@ -536,6 +725,7 @@ Item {
                                     delegate: Item {
                                         id: row
                                         required property var modelData
+                                        objectName: "comicReleaseRow_" + String(row.modelData.id || "")
                                         width: tableInner.width; height: 96
 
                                         property string relId: String(row.modelData.id || "")
@@ -545,7 +735,10 @@ Item {
                                         readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
                                                                        || dlState === "resolving" || dlState === "extracting"
                                         function statusLine() {
-                                            if (dlState === "done") return "● Downloaded"
+                                            if (dlState === "done") {
+                                                var reading = page.readStatusLine(row.modelData, dlState)
+                                                return reading.length ? reading : "● Downloaded"
+                                            }
                                             if (dlState === "resolving") return "Resolving link…"
                                             if (dlState === "queued") return "Queued…"
                                             if (dlState === "extracting") return "Extracting pages…"
@@ -553,45 +746,31 @@ Item {
                                                 return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%")
                                                                    : "Downloading…"
                                             if (dlState === "dead") return "Not available from this source"
-                                            if (dlState === "error") return "⚠ Failed — tap to retry"
+                                            if (dlState === "error") return "⚠ Failed — Read to retry"
                                             var bits = []
                                             if (row.modelData.year) bits.push(row.modelData.year)
                                             if (row.modelData.sizeMB) bits.push(page.fmtMB(row.modelData.sizeMB))
                                             return bits.join(" · ")
                                         }
-                                        function openReader() {
-                                            // Pack extras open SOLO (single-entry chapters array —
-                                            // no crossing into/from an extra). Mains clear solo so
-                                            // the reader binds the full mains-descending chain.
-                                            if (String(row.modelData.packRole || "") === "extra")
-                                                page.soloChapters = [ { id: row.relId, name: row.modelData.name } ]
-                                            else
-                                                page.soloChapters = null
-                                            page.openChapterId = row.relId
-                                            page.openChapterLabel = row.modelData.name
-                                        }
-                                        function startDownload() {
-                                            if (typeof Comics === "undefined" || !row.relId.length) return
-                                            row.dlState = "queued"
-                                            Comics.downloadIssue(row.relId, row.modelData.url, page.seriesId,
-                                                                 page.seriesTitle, row.modelData.name,
-                                                                 (row.modelData.sizeMB || 0) * 1024 * 1024)
-                                            Collection.add("tankoban", page.collectionEntry())
-                                        }
-                                        // download-fed: tap reads what's on disk, else downloads it
                                         function primary() {
-                                            if (row.dlState === "dead") return   // no usable source — retry can't win
-                                            if (row.dlState === "done") row.openReader()
-                                            else if (!row.inFlight) row.startDownload()
+                                            if (row.dlState === "dead") return
+                                            page.readRelease(row.modelData, row.dlState)
+                                            Qt.callLater(row.refreshDl)
+                                        }
+                                        function downloadOnly() {
+                                            if (page.downloadRelease(row.modelData, row.dlState))
+                                                Qt.callLater(row.refreshDl)
                                         }
                                         function refreshDl() {
-                                            if (typeof Comics === "undefined") return
-                                            var st = Comics.statusOf(row.relId)
-                                            row.dlState = st.state; row.dlDone = st.done; row.dlTotal = st.total
+                                            var service = page.comicsRef
+                                            if (!service || !service.statusOf) return
+                                            var st = service.statusOf(row.relId) || ({})
+                                            row.dlState = String(st.state || "none")
+                                            row.dlDone = Number(st.done || 0); row.dlTotal = Number(st.total || 0)
                                         }
                                         Component.onCompleted: refreshDl()
                                         Connections {
-                                            target: typeof Comics !== "undefined" ? Comics : null
+                                            target: page.comicsRef
                                             function onProgress(cid, done, total) {
                                                 if (cid !== row.relId) return
                                                 row.dlState = "downloading"; row.dlDone = done; row.dlTotal = total
@@ -641,7 +820,7 @@ Item {
 
                                         Column {
                                             anchors.left: thumb.right; anchors.leftMargin: 16
-                                            anchors.right: trailing.left; anchors.rightMargin: 14
+                                            anchors.right: readAction.left; anchors.rightMargin: 14
                                             anchors.verticalCenter: parent.verticalCenter; spacing: 4
                                             Text { width: parent.width; text: row.modelData.name
                                                 color: rowMa.containsMouse ? theme.gold : theme.ink
@@ -652,9 +831,39 @@ Item {
                                                 font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
                                         }
 
-                                        // trailing control: ✓→✕ delete · ✕ cancel · ↓/↻ download/retry
+                                        // Stable consume verb: the row and this control always mean Read.
+                                        // Transport state may change the helper text, never the user's intent.
+                                        Item {
+                                            id: readAction
+                                            objectName: "comicReadAction_" + row.relId
+                                            anchors.right: trailing.left; anchors.rightMargin: 10
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: Math.max(86, readText.implicitWidth + 28); height: 36
+                                            Rectangle {
+                                                anchors.fill: parent; radius: 9
+                                                color: page.pendingReadReleaseId === row.relId ? theme.glassTint : theme.gold
+                                                border.width: page.pendingReadReleaseId === row.relId ? 1 : 0
+                                                border.color: Qt.rgba(0.94, 0.77, 0.29, 0.55)
+                                                opacity: row.dlState === "dead" ? 0.45 : 1.0
+                                            }
+                                            Text {
+                                                id: readText; anchors.centerIn: parent
+                                                text: page.readActionLabel(row.modelData, row.dlState)
+                                                color: page.pendingReadReleaseId === row.relId ? theme.gold : "#171205"
+                                                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent; z: 5
+                                                enabled: row.dlState !== "dead"
+                                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                                onClicked: row.primary()
+                                            }
+                                        }
+
+                                        // trailing acquire-only utility: ✓→✕ delete · ✕ cancel · ↓/↻ download/retry
                                         Item {
                                             id: trailing
+                                            objectName: "comicDownloadAction_" + row.relId
                                             anchors.right: parent.right; anchors.rightMargin: 22
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: 36; height: 36
@@ -677,10 +886,11 @@ Item {
                                                 enabled: row.dlState !== "dead"   // no usable source — no verb
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
-                                                    if (typeof Comics === "undefined") return
-                                                    if (row.dlState === "done") Comics.deleteIssue(row.relId)
-                                                    else if (row.inFlight) Comics.cancelDownload(row.relId)
-                                                    else row.startDownload()
+                                                    var service = page.comicsRef
+                                                    if (!service) return
+                                                    if (row.dlState === "done" && service.deleteIssue) service.deleteIssue(row.relId)
+                                                    else if (row.inFlight && service.cancelDownload) service.cancelDownload(row.relId)
+                                                    else row.downloadOnly()
                                                 }
                                             }
                                         }
@@ -798,7 +1008,7 @@ Item {
     property string openChapterId: ""
     property string openChapterLabel: ""
     // Transient: when non-null, the reader binds THIS as its chapters array instead of
-    // chaptersModel. Set by openReader() when an extra is clicked (single-entry — no crossing).
+    // chaptersModel. Set by _openRelease() when an extra is clicked (single-entry — no crossing).
     // Cleared (null) when a main is clicked, restoring the full mains-descending chain.
     property var soloChapters: null
     MangaReader {
