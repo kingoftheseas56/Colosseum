@@ -3,8 +3,8 @@
 // "Editions" panel. Opens as a layer over the Biblio world (Main.qml bookLayer). `book` is a full
 // Apple object from BiblioApi.fullBook.
 //
-// The Editions rows are a STUB until the libgen "delivery" layer is ported (TB2 had it; Colosseum
-// doesn't yet). Metadata + layout are real; the download list is a preview.
+// Editions are live acquisition surfaces: tracked LibGen files download in-app, while page-only
+// sources remain explicit external links. Arc 19 keeps those power-user controls acquire-only.
 
 import QtQuick
 import QtQuick.Controls
@@ -23,6 +23,28 @@ Item {
     property bool torLoading: false
     property bool torExpanded: false     // "See more" toggle — collapsed to torCap by default
     property int torCap: 5               // rows shown before "See more"
+
+    // Arc 19: injectable service seams preserve production defaults while letting the
+    // foreground Read contract run deterministically in an offscreen harness.
+    property var booksRef: (typeof Books !== "undefined") ? Books : null
+    property var bookTorrentsRef: (typeof BookTorrents !== "undefined") ? BookTorrents : null
+    property var collectionRef: (typeof Collection !== "undefined") ? Collection : null
+    property var progressRef: (typeof Progress !== "undefined") ? Progress : null
+
+    // Foreground consumption intent is page-local and ephemeral. The download engines remain
+    // the durable acquisition authorities and keep running when this intent is abandoned.
+    property int pendingReadGeneration: 0
+    property string pendingReadTransport: ""     // "lookup" | "choice" | "books" | "torrent"
+    property string pendingReadAcquisitionId: "" // md5 or infoHash
+    property string pendingReadBookIdentity: ""  // pairKey at the instant Read was asserted
+    property string pendingReadState: ""
+    property real pendingReadReceived: 0
+    property real pendingReadTotal: 0
+    property string readError: ""
+    property bool readChoiceOpen: false
+    property var readChoiceRows: []
+    property int sourceGeneration: 0
+    readonly property bool pendingReadActive: detail.pendingReadTransport.length > 0
 
     signal backRequested()
     signal minimizeRequested()
@@ -65,20 +87,31 @@ Item {
     }
 
     // ── editions: live LibGen search for this book (recreates TB2's scraper) ──
-    onBookChanged: detail.loadEditions()
+    onBookChanged: {
+        detail._invalidateReadIntent()
+        detail.readChoiceOpen = false
+        detail.readChoiceRows = []
+        detail.readError = ""
+        detail.localPath = ""                 // never expose the previous book's ready path
+        detail.loadEditions()
+    }
     function loadEditions() {
         if (!detail.book || !detail.book.title) return
+        var gen = ++detail.sourceGeneration
         detail.edLoading = true
         detail.editions = []
         BiblioApi.searchLibgen(detail.book.title, detail.book.author, function(eds) {
+            if (gen !== detail.sourceGeneration) return
             detail.editions = eds
             detail.edLoading = false
             detail.refreshLocal()
+            detail._resolvePendingLookup(detail.pendingReadGeneration)
         })
         // audiobook lane: is one already downloaded? then find one to download.
         detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
         detail.abLoading = true; detail.abRows = []
         Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
+            if (gen !== detail.sourceGeneration) return
             detail.abRows = (res && res.rows) ? res.rows : []
             detail.abLoading = false
             // Pre-warm the stream engine on the top match while the user reads: a COLD engine
@@ -96,16 +129,30 @@ Item {
 
     // ── torrents: live federated indexer search for this book (BookTorrents facade) ──
     function loadTorrents() {
-        if (typeof BookTorrents === 'undefined' || !detail.book || !detail.book.title) return
+        var service = detail.bookTorrentsRef
         detail.torrents = []
         detail.torExpanded = false       // a new book collapses the shelf back to the top matches
+        if (!service || !detail.book || !detail.book.title) {
+            detail.torLoading = false
+            detail._resolvePendingLookup(detail.pendingReadGeneration)
+            return
+        }
         detail.torLoading = true
-        BookTorrents.search(detail.book.title, detail.book.author || "")
+        service.search(detail.book.title, detail.book.author || "")
     }
     Connections {
-        target: (typeof BookTorrents !== 'undefined') ? BookTorrents : null
-        function onResultsReady(rows) { detail.torrents = rows; detail.torLoading = false; detail.refreshLocal() }
-        function onSearchFinished()   { detail.torLoading = false }
+        target: detail.bookTorrentsRef
+        ignoreUnknownSignals: true
+        function onResultsReady(rows) {
+            detail.torrents = rows || []
+            detail.torLoading = false
+            detail.refreshLocal()
+            detail._resolvePendingLookup(detail.pendingReadGeneration)
+        }
+        function onSearchFinished() {
+            detail.torLoading = false
+            detail._resolvePendingLookup(detail.pendingReadGeneration)
+        }
     }
     function edMeta(ed) {
         var p = []
@@ -136,59 +183,407 @@ Item {
         for (var i = 0; i < detail.editions.length; i++) if (detail.editions[i].best) return detail.editions[i]
         return detail.editions.length ? detail.editions[0] : null
     }
-    // One copy per book: before any new download, drop the previous copy — LibGen edition
-    // OR torrent — so a fresh pick REPLACES the old one instead of piling up on disk.
+    // One copy per book: before any NEW acquisition, drop the previous copy so a fresh
+    // pick replaces it instead of piling up on disk. Adopting an existing job never calls this.
     function clearExistingCopies() {
-        if (typeof Books !== 'undefined')
-            for (var i = 0; i < detail.editions.length; i++)
-                if (Books.isDownloaded(detail.editions[i].md5)) Books.deleteBook(detail.editions[i].md5)
-        if (typeof BookTorrents !== 'undefined')
-            for (var j = 0; j < detail.torrents.length; j++)
-                if (BookTorrents.isDownloaded(detail.torrents[j].infoHash)) BookTorrents.deleteDownload(detail.torrents[j].infoHash)
+        var books = detail.booksRef
+        if (books)
+            for (var i = 0; i < detail.editions.length; i++) {
+                var md5 = String(detail.editions[i].md5 || "")
+                if (md5.length && books.isDownloaded(md5)) books.deleteBook(md5)
+            }
+        var torrents = detail.bookTorrentsRef
+        if (torrents)
+            for (var j = 0; j < detail.torrents.length; j++) {
+                var hash = String(detail.torrents[j].infoHash || "")
+                if (hash.length && torrents.isDownloaded(hash)) torrents.deleteDownload(hash)
+            }
     }
     function collectionEntry() {
         return { "id": detail.pairKey, "type": "book",
                  "title": detail.book.title || "", "cover": detail.book.cover || "",
                  "payload": ({ "book": detail.book }) }
     }
-    function startDownload(ed) {
-        if (!ed) return
-        Collection.add("biblio", detail.collectionEntry())
-        detail.clearExistingCopies()   // replace, don't accumulate
-        // LibGen rows carry an md5 the native engine pulls in-app; page-URL sources (e.g.
-        // OceanofPDF, when it lands) open the page to grab the file until native fetch arrives.
-        if (ed.md5 && typeof Books !== 'undefined')
-            Books.downloadBook(ed.md5, detail.dlName(ed),
-                               (detail.book && detail.book.title) ? detail.book.title : "", 0,
-                               (detail.book && detail.book.author) ? detail.book.author : "")
-        else if (ed.url)
-            Qt.openUrlExternally(ed.url)
+    function collectBook() {
+        if (detail.collectionRef && detail.collectionRef.add)
+            detail.collectionRef.add("biblio", detail.collectionEntry())
     }
-    // "Do I have a readable copy?" — ONE book-level question across BOTH sources
-    // (LibGen edition on disk, or a downloaded torrent). Either answers "Ready to read".
+    function _bookIdentity() { return String(detail.pairKey || "") }
+    function _progressIdentity() {
+        if (detail.book && detail.book.id !== undefined && String(detail.book.id).length)
+            return String(detail.book.id)
+        return detail.localPath || ""
+    }
+    function readingProgress() {
+        var id = detail._progressIdentity()
+        if (!id.length || !detail.progressRef || !detail.progressRef.get) return -1
+        var rec = detail.progressRef.get("book", id) || ({})
+        var value = Number(rec.progress)
+        if (!isFinite(value)) return -1
+        return Math.max(0, Math.min(1, value))
+    }
+    function primaryReadLabel() {
+        if (detail.pendingReadTransport === "books" || detail.pendingReadTransport === "torrent")
+            return "Read when ready"
+        if (detail.localPath.length) {
+            var p = detail.readingProgress()
+            if (p > 0 && p < 1) return "Continue"
+        }
+        return "Read"
+    }
+    function primaryReadStatus() {
+        if (detail.readError.length) return detail.readError
+        if (detail.localPath.length) {
+            var p = detail.readingProgress()
+            return (p > 0 && p < 1) ? (Math.round(p * 100) + "% read · Ready on this device")
+                                    : "Ready on this device"
+        }
+        if (detail.pendingReadTransport === "lookup") return "Finding a readable edition…"
+        if (detail.pendingReadTransport === "choice") return "Choose an edition to continue"
+        if (detail.pendingReadTransport === "books" || detail.pendingReadTransport === "torrent") {
+            if (detail.pendingReadState === "resolving") return "Preparing your edition…"
+            if (detail.pendingReadState === "queued") return "Queued · your Read will open when ready"
+            if (detail.pendingReadTotal > 0)
+                return "Your Read is attached · " + Math.round(detail.pendingReadReceived / detail.pendingReadTotal * 100) + "%"
+            return "Your Read is attached · downloading"
+        }
+        var best = detail.bestEdition()
+        if (best && best.md5 && detail.booksRef)
+            return "Preferred " + detail.fmtLabel(best) + " will be prepared if needed"
+        if (detail.edLoading || detail.torLoading) return "Sources are loading"
+        if (detail.editions.length || detail.torrents.length) return "Read will choose a tracked edition"
+        return "No tracked readable source yet"
+    }
+    function _clearReadIntent() {
+        detail.pendingReadTransport = ""
+        detail.pendingReadAcquisitionId = ""
+        detail.pendingReadBookIdentity = ""
+        detail.pendingReadState = ""
+        detail.pendingReadReceived = 0
+        detail.pendingReadTotal = 0
+        detail.readChoiceOpen = false
+        detail.readChoiceRows = []
+    }
+    function _invalidateReadIntent() {
+        detail.pendingReadGeneration += 1
+        detail._clearReadIntent()
+    }
+    function _beginReadIntent() {
+        detail.pendingReadGeneration += 1
+        detail.pendingReadBookIdentity = detail._bookIdentity()
+        detail.pendingReadTransport = "lookup"
+        detail.pendingReadAcquisitionId = ""
+        detail.pendingReadState = "finding"
+        detail.pendingReadReceived = 0
+        detail.pendingReadTotal = 0
+        detail.readError = ""
+        return detail.pendingReadGeneration
+    }
+    function _readIntentCurrent(gen) {
+        return detail.pendingReadActive
+            && Number(gen) === detail.pendingReadGeneration
+            && detail.pendingReadBookIdentity === detail._bookIdentity()
+    }
+    function _inFlight(state) {
+        return state === "resolving" || state === "queued" || state === "downloading"
+    }
+    function _status(service, id) {
+        if (!service || !service.statusOf || !id) return ({ state: "none", received: 0, total: 0 })
+        return service.statusOf(id) || ({ state: "none", received: 0, total: 0 })
+    }
+    function _candidate(transport, id, label, meta, payload) {
+        return { transport: transport, id: String(id || ""), label: String(label || ""),
+                 meta: String(meta || ""), payload: payload || ({}) }
+    }
+    function _activeReadCandidates() {
+        var out = []
+        var books = detail.booksRef
+        if (books) {
+            for (var i = 0; i < detail.editions.length; i++) {
+                var ed = detail.editions[i]
+                var md5 = String(ed.md5 || "")
+                if (!md5.length) continue
+                var bs = detail._status(books, md5)
+                if (detail._inFlight(String(bs.state || "")))
+                    out.push(detail._candidate("books", md5, detail.fmtLabel(ed), detail.edMeta(ed), ed))
+            }
+        }
+        var torrents = detail.bookTorrentsRef
+        if (torrents) {
+            for (var j = 0; j < detail.torrents.length; j++) {
+                var tor = detail.torrents[j]
+                var hash = String(tor.infoHash || "").toLowerCase()
+                if (!hash.length) continue
+                var ts = detail._status(torrents, hash)
+                if (detail._inFlight(String(ts.state || "")))
+                    out.push(detail._candidate("torrent", hash, tor.format || "EBOOK",
+                                               tor.title || "Torrent", tor))
+            }
+        }
+        return out
+    }
+    function _trackedReadChoices() {
+        var out = []
+        if (detail.booksRef) {
+            for (var i = 0; i < detail.editions.length; i++) {
+                var ed = detail.editions[i]
+                if (!ed.md5) continue
+                out.push(detail._candidate("books", ed.md5, detail.fmtLabel(ed), detail.edMeta(ed), ed))
+            }
+        }
+        if (detail.bookTorrentsRef) {
+            var cap = Math.min(detail.torrents.length, detail.torCap)
+            for (var j = 0; j < cap; j++) {
+                var tor = detail.torrents[j]
+                if (!tor.infoHash) continue
+                out.push(detail._candidate("torrent", String(tor.infoHash).toLowerCase(),
+                                           tor.format || "EBOOK", tor.title || "Torrent", tor))
+            }
+        }
+        return out
+    }
+    function _openReadChoice(rows, gen) {
+        if (!detail._readIntentCurrent(gen)) return false
+        detail.readChoiceRows = rows || []
+        if (!detail.readChoiceRows.length) return false
+        detail.pendingReadTransport = "choice"
+        detail.pendingReadAcquisitionId = ""
+        detail.pendingReadState = "choice"
+        detail.readChoiceOpen = true
+        return true
+    }
+    function _targetReadCandidate(candidate, gen) {
+        if (!candidate || !candidate.id || !detail._readIntentCurrent(gen)) return false
+        var transport = String(candidate.transport || "")
+        var service = transport === "books" ? detail.booksRef : detail.bookTorrentsRef
+        if (!service) return false
+        var id = String(candidate.id || "")
+        if (transport === "torrent") id = id.toLowerCase()
+        var state = detail._status(service, id)
+        var stateName = String(state.state || "none")
+        detail.pendingReadTransport = transport
+        detail.pendingReadAcquisitionId = id
+        detail.pendingReadState = stateName
+        detail.pendingReadReceived = Number(state.received || 0)
+        detail.pendingReadTotal = Number(state.total || 0)
+        detail.readChoiceOpen = false
+        detail.readChoiceRows = []
+        if (stateName === "done") return detail._finishRead(transport, id, gen)
+        if (detail._inFlight(stateName)) return true
+
+        detail.clearExistingCopies()
+        detail.collectBook()
+        if (transport === "books") {
+            var ed = candidate.payload || ({})
+            service.downloadBook(id, detail.dlName(ed),
+                                 (detail.book && detail.book.title) ? detail.book.title : "", 0,
+                                 (detail.book && detail.book.author) ? detail.book.author : "")
+        } else {
+            service.download(id, detail.book.title || "", detail.book.author || "")
+        }
+        var fresh = detail._status(service, id)
+        detail.pendingReadState = String(fresh.state || "resolving")
+        detail.pendingReadReceived = Number(fresh.received || 0)
+        detail.pendingReadTotal = Number(fresh.total || 0)
+        return true
+    }
+    function chooseReadSource(candidate) {
+        var gen = detail.pendingReadGeneration
+        if (detail.pendingReadTransport !== "choice" || !detail._readIntentCurrent(gen)) return
+        detail._targetReadCandidate(candidate, gen)
+    }
+    function cancelReadChoice() {
+        detail._invalidateReadIntent()
+        detail.readError = ""
+    }
+    function _finishRead(transport, id, gen) {
+        if (!detail._readIntentCurrent(gen)
+                || detail.pendingReadTransport !== transport
+                || detail.pendingReadAcquisitionId !== String(id)) return false
+        var service = transport === "books" ? detail.booksRef : detail.bookTorrentsRef
+        var state = detail._status(service, id)
+        if (String(state.state || "") !== "done") return false
+        var path = transport === "books" ? service.localBook(id) : service.localFile(id)
+        if (!path) return false
+        detail.localPath = path
+        detail._clearReadIntent()
+        detail.readError = ""
+        detail.readRequested(path, detail.book)
+        return true
+    }
+    function _failRead(transport, id, reason) {
+        if (detail.pendingReadTransport !== transport
+                || detail.pendingReadAcquisitionId !== String(id)
+                || detail.pendingReadBookIdentity !== detail._bookIdentity()) return
+        detail._invalidateReadIntent()
+        detail.readError = reason && String(reason).length ? ("Read failed · " + reason) : "Read failed · try again"
+    }
+    function _resolvePendingLookup(gen) {
+        if (!detail._readIntentCurrent(gen) || detail.pendingReadTransport !== "lookup") return false
+        detail.refreshLocal()
+        if (detail.localPath.length) {
+            var path = detail.localPath
+            detail._clearReadIntent()
+            detail.readRequested(path, detail.book)
+            return true
+        }
+
+        var active = detail._activeReadCandidates()
+        if (active.length === 1) return detail._targetReadCandidate(active[0], gen)
+        if (active.length > 1) return detail._openReadChoice(active, gen)
+
+        // Source inventories must settle before choosing a NEW acquisition. An already-known
+        // active job above may be adopted immediately, but otherwise waiting preserves the
+        // "adopt what is already arriving" precedence when the other transport returns later.
+        if (detail.edLoading || detail.torLoading) {
+            detail.pendingReadState = "finding"
+            return true
+        }
+        var best = detail.bestEdition()
+        if (best && best.md5 && detail.booksRef)
+            return detail._targetReadCandidate(
+                detail._candidate("books", best.md5, detail.fmtLabel(best), detail.edMeta(best), best), gen)
+
+        // A page-only "best" edition cannot carry a tracked Read through completion.
+        // Ask the user to choose among tracked alternatives instead of silently substituting
+        // a different edition behind the source they were shown as preferred.
+        if (best) {
+            var choices = detail._trackedReadChoices()
+            if (detail._openReadChoice(choices, gen)) return true
+            detail._invalidateReadIntent()
+            detail.readError = "This book only has external editions right now · use Editions"
+            return false
+        }
+
+        // No LibGen edition exists. The torrent list is already ranked by BookTorrentRanker,
+        // so its first row is the current product policy rather than a new QML heuristic.
+        if (detail.bookTorrentsRef && detail.torrents.length) {
+            var tor = detail.torrents[0]
+            return detail._targetReadCandidate(
+                detail._candidate("torrent", String(tor.infoHash || "").toLowerCase(),
+                                  tor.format || "EBOOK", tor.title || "Torrent", tor), gen)
+        }
+        var fallbackChoices = detail._trackedReadChoices()
+        if (detail._openReadChoice(fallbackChoices, gen)) return true
+        detail._invalidateReadIntent()
+        detail.readError = "No tracked readable source yet"
+        return false
+    }
+    function readBook() {
+        detail.refreshLocal()
+        if (detail.localPath.length) {
+            detail._invalidateReadIntent()
+            detail.readError = ""
+            detail.readRequested(detail.localPath, detail.book)
+            return
+        }
+        var gen = detail._beginReadIntent()
+        detail._resolvePendingLookup(gen)
+    }
+    // Explicit Editions/Torrents actions are acquire-only. They deliberately invalidate any
+    // foreground Read before starting, so their completion can only stop at Ready.
+    function downloadEdition(ed) {
+        if (!ed) return
+        detail._invalidateReadIntent()
+        detail.readError = ""
+        if (ed.md5 && detail.booksRef) {
+            var st = detail._status(detail.booksRef, String(ed.md5))
+            if (String(st.state || "") === "done" || detail._inFlight(String(st.state || ""))) return
+            detail.clearExistingCopies()
+            detail.collectBook()
+            detail.booksRef.downloadBook(ed.md5, detail.dlName(ed),
+                                         detail.book.title || "", 0, detail.book.author || "")
+        } else if (ed.url) {
+            // External pages cannot participate in auto-open because Colosseum has no exact
+            // completion signal for them. Preserve the existing explicit external-source lane.
+            Qt.openUrlExternally(ed.url)
+        }
+    }
+    function downloadTorrent(row) {
+        if (!row || !row.infoHash || !detail.bookTorrentsRef) return
+        detail._invalidateReadIntent()
+        detail.readError = ""
+        var hash = String(row.infoHash).toLowerCase()
+        var st = detail._status(detail.bookTorrentsRef, hash)
+        if (String(st.state || "") === "done" || detail._inFlight(String(st.state || ""))) return
+        detail.clearExistingCopies()
+        detail.collectBook()
+        detail.bookTorrentsRef.download(hash, detail.book.title || "", detail.book.author || "")
+    }
+
+    // "Do I have a readable copy?" remains one book-level question across BOTH transports.
     function refreshLocal() {
         var p = ""
-        if (typeof Books !== 'undefined')
+        var books = detail.booksRef
+        if (books)
             for (var i = 0; i < detail.editions.length; i++) {
-                var lp = Books.localBook(detail.editions[i].md5)
+                var md5 = String(detail.editions[i].md5 || "")
+                if (!md5.length) continue
+                var lp = books.localBook(md5)
                 if (lp) { p = lp; break }
             }
-        if (!p && typeof BookTorrents !== 'undefined')
+        var torrents = detail.bookTorrentsRef
+        if (!p && torrents)
             for (var j = 0; j < detail.torrents.length; j++) {
-                var lf = BookTorrents.localFile(detail.torrents[j].infoHash)
+                var hash = String(detail.torrents[j].infoHash || "").toLowerCase()
+                if (!hash.length) continue
+                var lf = torrents.localFile(hash)
                 if (lf) { p = lf; break }
             }
         detail.localPath = p
     }
     Connections {
-        target: (typeof Books !== 'undefined') ? Books : null
-        function onFinished(md5, path) { detail.refreshLocal() }
-        function onRemoved(md5) { detail.refreshLocal() }
+        target: detail.booksRef
+        ignoreUnknownSignals: true
+        function onResolving(md5) {
+            if (detail.pendingReadTransport === "books" && String(md5) === detail.pendingReadAcquisitionId) {
+                detail.pendingReadState = "resolving"; detail.pendingReadReceived = 0; detail.pendingReadTotal = 0
+            }
+        }
+        function onProgress(md5, received, total) {
+            if (detail.pendingReadTransport === "books" && String(md5) === detail.pendingReadAcquisitionId) {
+                detail.pendingReadState = "downloading"
+                detail.pendingReadReceived = Number(received || 0); detail.pendingReadTotal = Number(total || 0)
+            }
+        }
+        function onFinished(md5, path) {
+            detail.refreshLocal()
+            detail._finishRead("books", String(md5), detail.pendingReadGeneration)
+        }
+        function onFailed(md5, reason) { detail._failRead("books", String(md5), reason) }
+        function onRemoved(md5) {
+            detail.refreshLocal()
+            if (detail.pendingReadTransport === "books" && String(md5) === detail.pendingReadAcquisitionId)
+                detail._failRead("books", String(md5), "edition removed")
+        }
     }
     Connections {
-        target: (typeof BookTorrents !== 'undefined') ? BookTorrents : null
-        function onFinished(h, path) { detail.refreshLocal() }
-        function onRemoved(h) { detail.refreshLocal() }
+        target: detail.bookTorrentsRef
+        ignoreUnknownSignals: true
+        function onResolving(hash) {
+            var id = String(hash).toLowerCase()
+            if (detail.pendingReadTransport === "torrent" && id === detail.pendingReadAcquisitionId) {
+                detail.pendingReadState = "resolving"; detail.pendingReadReceived = 0; detail.pendingReadTotal = 0
+            }
+        }
+        function onProgress(hash, received, total) {
+            var id = String(hash).toLowerCase()
+            if (detail.pendingReadTransport === "torrent" && id === detail.pendingReadAcquisitionId) {
+                detail.pendingReadState = "downloading"
+                detail.pendingReadReceived = Number(received || 0); detail.pendingReadTotal = Number(total || 0)
+            }
+        }
+        function onFinished(hash, path) {
+            detail.refreshLocal()
+            detail._finishRead("torrent", String(hash).toLowerCase(), detail.pendingReadGeneration)
+        }
+        function onFailed(hash, reason) { detail._failRead("torrent", String(hash).toLowerCase(), reason) }
+        function onRemoved(hash) {
+            detail.refreshLocal()
+            var id = String(hash).toLowerCase()
+            if (detail.pendingReadTransport === "torrent" && id === detail.pendingReadAcquisitionId)
+                detail._failRead("torrent", id, "edition removed")
+        }
     }
 
     // ── top bar ────────────────────────────────────────────────────────────
@@ -209,7 +604,7 @@ Item {
                 idleColor: theme.inkDim
                 hoverColor: theme.ink
                 anchors.verticalCenter: parent.verticalCenter
-                onTriggered: detail.backRequested()
+                onTriggered: { detail._invalidateReadIntent(); detail.backRequested() }
             }
             Text {
                 text: "Biblio"; color: theme.ink; font.family: theme.display; font.pixelSize: 20
@@ -312,23 +707,33 @@ Item {
                 Column {                              // actions
                     width: 268; spacing: 12
                     Rectangle {
-                        id: primaryCta            // one CTA, TB2-style: Get the book → Read (never a browser)
+                        id: primaryCta
+                        objectName: "biblioPrimaryRead"
                         width: parent.width; height: 50; radius: 13; color: theme.gold
-                        property bool ready: detail.localPath !== ""
+                        opacity: enabled ? 1.0 : 0.5
+                        enabled: detail.localPath.length > 0 || detail.pendingReadActive
+                                 || detail.edLoading || detail.torLoading
+                                 || detail.editions.length > 0 || detail.torrents.length > 0
                         Text {
                             anchors.centerIn: parent
-                            text: primaryCta.ready ? "Read"
-                                  : (detail.editions.length ? "Get the book" : "Find the book")
+                            text: detail.primaryReadLabel()
                             color: "#241a05"
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                         }
                         MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (primaryCta.ready) detail.readRequested(detail.localPath, detail.book)
-                                else detail.startDownload(detail.bestEdition())
-                            }
+                            anchors.fill: parent; enabled: primaryCta.enabled
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: detail.readBook()
                         }
+                    }
+                    Text {
+                        objectName: "biblioPrimaryReadStatus"
+                        width: parent.width
+                        text: detail.primaryReadStatus()
+                        color: detail.readError.length ? "#e6a3a3" : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
                     }
                     LibraryButton {
                         width: parent.width
@@ -429,11 +834,15 @@ Item {
                                 required property var modelData
                                 required property int index
                                 width: parent.width; height: 64
-                                property string dlState:
-                                    (typeof BookTorrents !== 'undefined' && BookTorrents.isDownloaded(modelData.infoHash)) ? "done" : "idle"
-                                property real dlPct: 0
+                                readonly property var initialStatus: detail._status(
+                                    detail.bookTorrentsRef, String(modelData.infoHash || "").toLowerCase())
+                                property string dlState: String(initialStatus.state || "none") === "none"
+                                                         ? "idle" : String(initialStatus.state || "idle")
+                                property real dlPct: Number(initialStatus.total || 0) > 0
+                                                     ? Number(initialStatus.received || 0) / Number(initialStatus.total) : 0
                                 Connections {
-                                    target: (typeof BookTorrents !== 'undefined') ? BookTorrents : null
+                                    target: detail.bookTorrentsRef
+                                    ignoreUnknownSignals: true
                                     function onResolving(h) { if (h === torRow.modelData.infoHash) torRow.dlState = "resolving" }
                                     function onProgress(h, rcv, tot) { if (h === torRow.modelData.infoHash) { torRow.dlState = "downloading"; torRow.dlPct = tot > 0 ? rcv / tot : 0 } }
                                     function onFinished(h, path) { if (h === torRow.modelData.infoHash) { torRow.dlState = "done"; torRow.dlPct = 1 } }
@@ -478,18 +887,12 @@ Item {
                                     font.family: theme.ui
                                     font.pixelSize: (torRow.dlState === "downloading" || torRow.dlState === "failed") ? 12 : 16
                                 }
-                                MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true
+                                    cursorShape: torRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
                                     onClicked: {
-                                        if (torRow.dlState === "done") {
-                                            var lf = BookTorrents.localFile(torRow.modelData.infoHash)
-                                            if (lf) { detail.readRequested(lf, detail.book); return }
-                                            torRow.dlState = "idle"   // file vanished from disk since page opened — re-derive, fall through to re-download
-                                        }
-                                        if (torRow.dlState !== "downloading" && torRow.dlState !== "resolving") {
-                                            detail.clearExistingCopies()   // replace any previous copy of this book
-                                            BookTorrents.download(torRow.modelData.infoHash, detail.book.title, detail.book.author || "")
-                                            Collection.add("biblio", detail.collectionEntry())
-                                        }
+                                        if (torRow.dlState === "done" || torRow.dlState === "downloading"
+                                                || torRow.dlState === "resolving") return
+                                        detail.downloadTorrent(torRow.modelData)
                                     }
                                 }
                             }
@@ -546,11 +949,15 @@ Item {
                                 required property var modelData
                                 required property int index
                                 width: parent.width; height: 52
-                                // download-fed state for THIS edition, reactive via the native Books signals
-                                property string dlState: (typeof Books !== 'undefined' && Books.isDownloaded(modelData.md5)) ? "done" : "idle"
-                                property real dlPct: 0
+                                // Explicit edition rows are acquisition controls; Read lives at the hero.
+                                readonly property var initialStatus: detail._status(detail.booksRef, String(modelData.md5 || ""))
+                                property string dlState: String(initialStatus.state || "none") === "none"
+                                                         ? "idle" : String(initialStatus.state || "idle")
+                                property real dlPct: Number(initialStatus.total || 0) > 0
+                                                     ? Number(initialStatus.received || 0) / Number(initialStatus.total) : 0
                                 Connections {
-                                    target: (typeof Books !== 'undefined') ? Books : null
+                                    target: detail.booksRef
+                                    ignoreUnknownSignals: true
                                     function onResolving(md5) { if (md5 === edRow.modelData.md5) edRow.dlState = "resolving" }
                                     function onProgress(md5, rcv, tot) { if (md5 === edRow.modelData.md5) { edRow.dlState = "downloading"; edRow.dlPct = tot > 0 ? rcv / tot : 0 } }
                                     function onFinished(md5, path) { if (md5 === edRow.modelData.md5) { edRow.dlState = "done"; edRow.dlPct = 1 } }
@@ -592,14 +999,12 @@ Item {
                                     font.family: theme.ui
                                     font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed") ? 12 : 16
                                 }
-                                MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true
+                                    cursorShape: edRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
                                     onClicked: {
-                                        if (edRow.dlState === "done") {
-                                            var lf = Books.localBook(edRow.modelData.md5)
-                                            if (lf) { detail.readRequested(lf, detail.book); return }
-                                            edRow.dlState = "idle"   // file vanished since page opened — re-derive, fall through to re-download
-                                        }
-                                        if (edRow.dlState !== "downloading" && edRow.dlState !== "resolving") detail.startDownload(edRow.modelData)
+                                        if (edRow.dlState === "done" || edRow.dlState === "downloading"
+                                                || edRow.dlState === "resolving") return
+                                        detail.downloadEdition(edRow.modelData)
                                     }
                                 }
                             }
@@ -607,7 +1012,7 @@ Item {
                     }
                 }
 
-                // ── Audiobook — paired from AudioBookBay; download → Listen (Option A) ──
+                // ── Audiobook — paired from AudioBookBay; acquisition remains orthogonal to ebook Read ──
                 Item { width: 1; height: 30 }
                 Text {
                     text: "AUDIOBOOK" + (detail.abLoading ? "  ·  SEARCHING…"
@@ -734,6 +1139,76 @@ Item {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Read-originated source choice. This is dependency UI inside the SAME foreground
+    // consumption intent, not a separate acquisition command. Only tracked sources appear here.
+    Rectangle {
+        id: readChoiceShade
+        anchors.fill: parent; z: 80
+        visible: detail.readChoiceOpen
+        color: Qt.rgba(0, 0, 0, 0.72)
+        MouseArea { anchors.fill: parent }   // swallow the book page while the choice is active
+
+        Glass {
+            id: readChoiceCard
+            anchors.centerIn: parent
+            width: Math.min(620, detail.width - theme.margin * 2)
+            height: Math.min(detail.height - 120, readChoiceCol.implicitHeight + 48)
+            radius: 18
+            backdrop: detail.backdrop
+
+            Column {
+                id: readChoiceCol
+                x: 24; y: 24
+                width: parent.width - 48
+                spacing: 14
+                Text {
+                    text: "Choose an edition"
+                    color: theme.ink; font.family: theme.display; font.pixelSize: 28
+                }
+                Text {
+                    width: parent.width
+                    text: "Read will continue into Reader2 when this exact edition is ready."
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+                Repeater {
+                    model: detail.readChoiceRows
+                    delegate: Rectangle {
+                        id: readChoiceRow
+                        required property var modelData
+                        width: readChoiceCol.width; height: 58; radius: 10
+                        color: readChoiceMa.containsMouse ? Qt.rgba(1,1,1,0.08) : Qt.rgba(1,1,1,0.035)
+                        border.width: 1; border.color: theme.edge
+                        Column {
+                            anchors.left: parent.left; anchors.leftMargin: 16
+                            anchors.right: readChoiceVerb.left; anchors.rightMargin: 14
+                            anchors.verticalCenter: parent.verticalCenter; spacing: 3
+                            Text { width: parent.width; text: modelData.label || "Edition"
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                elide: Text.ElideRight }
+                            Text { width: parent.width; text: modelData.meta || ""
+                                textFormat: Text.AutoText; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                elide: Text.ElideRight }
+                        }
+                        Text { id: readChoiceVerb; anchors.right: parent.right; anchors.rightMargin: 16
+                            anchors.verticalCenter: parent.verticalCenter; text: "Read"
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                        MouseArea { id: readChoiceMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor; onClicked: detail.chooseReadSource(modelData) }
+                    }
+                }
+                Rectangle {
+                    width: readChoiceCol.width; height: 42; radius: 10; color: "transparent"
+                    border.width: 1; border.color: theme.edge
+                    Text { anchors.centerIn: parent; text: "Cancel"; color: theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 13 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: detail.cancelReadChoice() }
                 }
             }
         }
