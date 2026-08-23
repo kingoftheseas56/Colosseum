@@ -64,5 +64,11 @@
     "owner": "data-vault Slice 4 (Agent 1 sub-exec, Sonnet)",
     "reason": "Same family as the already-allowlisted 'QIODevice::read (QNetworkReplyHttpImpl): device not open' (W0 baseline, 2026-08-12) - a network reply object read after close during session teardown, just surfaced via QSslSocket instead of QNetworkReplyHttpImpl on this pass (an HTTPS reply, since the vault fetch is TLS to GitHub). Same non-fatal teardown-only shape, all 5 occurrences clustered late in the session (20:00:58-20:02:15, well after the fetch itself completed at 20:03).",
     "date": "2026-08-22"
+  },
+  {
+    "pattern": "QQuickImage\\*: Error transferring https://i0\\.wp\\.com/getcomics\\.org/.*server replied with status code 429",
+    "owner": "arc-21 Slice 4 (Agent 1 sub-exec, Sonnet)",
+    "reason": "Live-network image-loading warning from qml/PortraitTile.qml (an existing cover-art loader, untouched by arc-21) - the getcomics.org/i0.wp.com CDN mirror is rate-limiting this machine (HTTP 429) after many agents' Lanista sessions loaded comics cover art in quick succession today. Same family as the already-allowlisted live.metahub.space 404 (Vault Slice 7, 2026-08-13) and the QSslSocket teardown entry above - an external, unrelated live-network fact, not a defect in the arc-21 engine/QML this slice proves. Observed in session 20260823-203714-a7a2bacf (comics_catalogue_intelligence_smoke.json, Comics tab grab).",
+    "date": "2026-08-23"
   }
 ]

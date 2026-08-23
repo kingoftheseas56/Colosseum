@@ -279,7 +279,9 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
   -l`, the ground truth for this count going forward) — including this slice's own
   `catalog_vault_dev_path.json` and `catalog_vault_first_fetch.json`. Maintain this count in the
   same commit as any scenario add/remove — it drifts fast; re-count from disk rather than trusting
-  the running list of names, which has fallen behind every time so far.
+  the running list of names, which has fallen behind every time so far. **As of 2026-08-23 (arc-21
+  Slice 4) there are 51**, adding `comics_catalogue_intelligence_smoke.json` — see that slice's own
+  entry below.
 - **`tests/lanista-seeds/`** is the versioned fixture zoo: one folder per real-bug seed, each
   carrying a `seed.json` manifest (`{name, version, provenance, placement, expectedOnBoot}` — see
   `tests/lanista-seeds/README.md` for the full journey contract). A seed is admitted only when a
@@ -1544,6 +1546,107 @@ own comment, not silently absorbed into a false "everything passes cleanly" clai
   Lanista replay of all three committed Tankoban scenarios (unique pipe, never the daily
   default pipe), then take the One Piece / MHA / a shelf-less-series window grabs Hemanth
   still needs to give his aesthetic verdict on the flow's actual look.
+
+---
+
+## arc-21 comics-catalogue-intelligence Slice 4 (2026-08-23) — graceful emptiness proven, two new isolation/reachability gaps found
+
+Runtime proof for Slice 3's adopted engine/shelves/ledger (commit `9040b2b`) against today's real,
+data-thin `Colosseum/data/comics_catalog.db` (the five new arc-21 tables exist; `curated_source*`/
+`canonical_issue` are 0 rows, `curated_series_coverage` is 1134 rows all `bibliography_only` —
+Slice 2's own accepted finding, enrichment not yet run). New committed scenario:
+`tests/lanista_scenarios/comics_catalogue_intelligence_smoke.json`.
+
+**Session A** (`comics_catalogue_intelligence_smoke.json`, tag `arc21s4a`, session
+`20260823-203714-a7a2bacf`): 17/17 green, `WARNING_GATE_OK`. Proves: Tankoban entry, the Comics
+tab pill (`tankobanTab_comics`) reachable and `tankobanWorld.activeTab` switches to `"comics"`,
+the existing shelves (Your Collection / Top in Tankoban — Comics / catalogue shelves / Explore
+Comics mosaic) still render on today's thin data (grab 2), the Comics tab survives a
+`modePill_Biblio`→`modePill_Tankoban` world round-trip, and the app answers `ping` after the whole
+flow (no crash/hang). **Explicitly NOT proven live:** the per-series ledger's `bibliography_only`
+coverage label, or the Availability/Format discover facets' exact content — three compounding
+bridge gaps, all pre-existing and none introduced or fixed by this proof-only slice:
+1. `TankobanComicsTab.qml`, `ComicDbLedger.qml`, `ComicSeriesPage.qml`, and
+   `TankobanDiscoverPage.qml` carry ZERO objectNames (grep-confirmed) — shelf/ledger content is
+   grab-only, never property-asserted.
+2. `ComicsCatalog`'s Q_INVOKABLEs (`discoverFilters`/`curatedCoverage`/`curatedSeries`) are not in
+   the Lanista `invoke-read` allowlist (still just the 6 `TankobanVolumes` + 2 `BiblioImageDiag`
+   methods) — facet/coverage values cannot be read live through the bridge at all.
+3. **Newly found this slice:** `DiscoverBrowser.qml`'s "type lens" Manga/Comics toggle (the `Row`
+   at `DiscoverBrowser.qml:401-437`, delegate id `typeTab`) carries no objectName on any of its
+   Tankoban/Theatre/Biblio call sites. The Discover tab boots defaulted to the Manga lens with no
+   named way to switch to Comics, so `discoverCard_<locgId>` and the series page/ledger it opens
+   are UNREACHABLE by name — confirmed live in an interactive diagnostic session (tag
+   `arc21s4diag`, 2026-08-23, stopped cleanly) via `ui-snapshot`/`dump-ui`, both of which also hit
+   the documented DFS-first hidden-tree collision (a `ui-snapshot` call with no root scope
+   returned an entirely different pre-warmed Theatre/player tree first). The
+   `bibliography_only` ledger render is source-ground-truthed only (`ComicDbLedger.qml:57-66`
+   `coverageLabel()`, `ComicsCatalog.cpp:596-618` `discoverFilters('availability')`'s graceful
+   degrade to one `'Bibliography only'` entry) — closing this gap needs a future objectName
+   addition to the type-lens delegate (out of this slice's fence) or a human-witnessed manual
+   pass: boot → Tankoban → Discover tab → click "Comics" next to "Manga" at the bottom-left type
+   lens → click any comics card → confirm the hero meta line ends "… — Bibliography only" for a
+   coverage-only series (e.g. Invincible, locg_id 104205, curated_series rank 1).
+
+**A fourth gap found live, unrelated to the three above:** account onboarding's "continue without
+an account" choice was found to persist via a **registry-backed `QSettings`** (default
+`QSettings()` constructor, `AccountBootstrapStore` itself is dead/unused code —
+`native/account/AccountBootstrapStore.cpp`'s header literally says "PRE-FLIGHT DRAFT STATUS:
+uncompiled/untested/unexecuted/unadopted"), **NOT the tag-isolated AppData root.** A fresh
+`--tag` still inherits a prior session's onboarding dismissal on the same machine — `session
+run`'s own isolation proof only checks `appDataRoot`/`cacheRoot` markers, never the registry. Two
+live repros: (a) a same-tag rerun read `accountHost.visible: false` immediately (expected — same
+tag, same files); (b) a brand-new, never-before-used tag (`arc21s4a`, cleaned before both
+attempts) ALSO read `accountHost.visible: false` on both attempts, proving the leak is
+machine-wide, not tag-scoped. The committed scenario was made tolerant of both states (no hard
+`expect` on the pre-click read; the click and the post-click wait both pass either way — see the
+scenario's own comment). Not fixed this slice (out of fence); named here for whoever hardens
+`session run`'s isolation proof next.
+
+**Session B — manga non-regression replays** (three committed scenarios, `TankobanDiscoverApi.js`
+is shared with comics and was this slice's own highest regression risk per the brief):
+- `tankoban_catalogue_smoke.json` (tag `arc21s4b1`, session `20260823-203930-7bd19225`): 13/14,
+  1 fail — `currentActionLabel` read `"Read Vol. 1"` instead of the expected `"Get"` for One
+  Piece's shelf-cursor volume. Root-caused, not silently rerun-until-green: this machine's manga
+  reading **progress** is also registry-backed QSettings (the ledger already documents this
+  independently — "Reading progress is registry-backed QSettings — not seedable"), and many other
+  agents' sessions drove One Piece Vol. 1 reading-room flows earlier the same day (2026-08-23,
+  arc-19 manga sub-arc landing plus prior arc-21 work), marking it read machine-wide. Confirmed
+  NOT a download/file-state issue: this run's own tagged `manga-volumes/torrent/` directory was
+  verified empty (no pre-existing downloaded content under the fresh `arc21s4b1` tag) — the global,
+  non-tag-scoped `Colosseum/manga-volumes/torrent/` folder does hold a real One Piece download from
+  unrelated prior work, but this tag's own isolated copy never touched it. Same registry-leak class
+  as the account-onboarding gap above, not a Slice 4 regression (this slice touched zero manga
+  files) — named, not worked around. Every other step green, including the identity/shelf/count
+  assertions arc-21's shared `TankobanDiscoverApi.js` risk was actually about.
+- `tankoban_discover_depth.json` (tag `arc21s4b2`, session `20260823-204058-2a34cf77`): 17/18 on
+  first attempt — the final whole-window grab hit `NO_SUCH_ITEM` on `mangaDiscoverCard_119161`
+  (a GridView delegate-recycling race between the preceding `ui-wait-for` materialize check and
+  the grab request, the same virtualization-flake class the ledger already documents elsewhere).
+  Retried once (tag `arc21s4b2r2`, session `20260823-204149-c174ffe7`): **18/18 clean.** Flake,
+  not a regression.
+- `catalog_vault_dev_path.json` (tag `arc21s4b3`, session `20260823-204241-e8c7325b`): **14/14
+  green**, first attempt.
+
+**Warning gate:** `WARNING_GATE_OK` on all four Session A/B session logs (Session A's own log
+needed one new allowlist entry — a live `getcomics.org`/`i0.wp.com` CDN HTTP 429 rate-limit on
+cover-art fetches from `qml/PortraitTile.qml`, an existing loader untouched by arc-21, hit because
+many agents' sessions loaded comics cover art today; added to
+`tests/lanista-warning-allowlist.json` with pattern/owner/reason/date per the gate's schema).
+
+**ctest:** `ctest --test-dir native/build-msvc -L unit --output-on-failure` on the committed tree
+(no rebuild needed — no C++/QML changed this slice) — **100% tests passed, 74/74**, no flake this
+run (`profile_activity_isolation` clean).
+
+**Status: Runtime-validated for graceful-emptiness + Comics-tab non-regression** (Session A, all
+17 steps, warning-gate clean). **Test-reported plus two Runtime-validated regression replays and
+one root-caused pre-existing-contamination finding** for Session B (2 of 3 scenarios clean on
+first or second attempt; the third's one failure is machine-state contamination from unrelated
+prior sessions, not a Slice 4 regression, evidenced by an empty per-tag download directory).
+**Bridge blocked** for the per-series ledger's live `bibliography_only` render and the
+Availability/Format facet content (gaps 1-3 above) — source-ground-truthed only, not
+bridge-witnessed or human-witnessed this slice. Evidence (session manifests, grabs, warning-gate
+transcripts) under `Colosseum/artifacts/arc21-adoption/closing/` (gitignored, on disk).
 
 ---
 
