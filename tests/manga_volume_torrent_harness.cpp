@@ -474,6 +474,185 @@ int main(int argc, char** argv)
         require(ledger.active().size() == 2, "both volumes active after revive");
     }
 
+    // ── Arc 18 M6: indexed-identity expectation revalidation ─────────────────
+    // A request carrying a persisted (fileIndex, path) must re-confirm EXACTLY
+    // that file against live metadata — match proceeds, mismatch fails closed
+    // with expectationViolated, and the expectation survives a restart replay.
+    {
+        // (a) live metadata matches → priorities + start exactly as today.
+        {
+            QTemporaryDir dir;
+            const QString ledgerPath = dir.filePath(QStringLiteral("ledger.json"));
+            FakeEngine engine;
+            MangaVolumeTorrentDownloader downloader(&engine, ledgerPath,
+                                                    dir.filePath(QStringLiteral("dl")));
+            int violated = 0;
+            QObject::connect(&downloader,
+                             &MangaVolumeTorrentDownloader::expectationViolated, &app,
+                             [&](const QString&, const QString&, int) { ++violated; });
+
+            MangaVolumeExpectation expect;
+            expect.fileIndex = 1;
+            expect.filePath  = QStringLiteral("Series v02.cbz");
+            downloader.download(v2, candidate, expect);
+            engine.emitMetadata(hash, files);
+            require(violated == 0, "a matching expectation raises no violation");
+            require(engine.priorities == QVector<int>({0, 7, 0}),
+                    "a matched expectation sets the exact file's priorities");
+            require(engine.startedHashes.count(hash) == 1,
+                    "a matched expectation starts the payload as today");
+        }
+
+        // (b) live metadata differs (index now holds a different file) → fail
+        //     closed, violation raised, no payload, no fallback pick.
+        {
+            QTemporaryDir dir;
+            const QString ledgerPath = dir.filePath(QStringLiteral("ledger.json"));
+            FakeEngine engine;
+            MangaVolumeTorrentDownloader downloader(&engine, ledgerPath,
+                                                    dir.filePath(QStringLiteral("dl")));
+            int violated = 0;
+            QString violatedId, violatedHash;
+            int violatedIndex = -2;
+            QStringList failedIds;
+            QObject::connect(&downloader,
+                             &MangaVolumeTorrentDownloader::expectationViolated, &app,
+                             [&](const QString& id, const QString& h, int idx) {
+                                 ++violated; violatedId = id; violatedHash = h;
+                                 violatedIndex = idx;
+                             });
+            QObject::connect(&downloader, &MangaVolumeTorrentDownloader::failed, &app,
+                             [&](const QString& id, const QString&) { failedIds << id; });
+
+            // The pack's index 1 is v02 in the INDEX but v05 live — the identity
+            // row no longer describes this torrent. (v02 still exists elsewhere
+            // in the torrent: index 2 — the fallback the transport must refuse.)
+            QJsonArray swapped;
+            const char* names[] = {"Series v01.cbz", "Series v05.cbz", "Series v02.cbz"};
+            for (int i = 0; i < 3; ++i) {
+                QJsonObject o;
+                o[QStringLiteral("index")] = i;
+                o[QStringLiteral("name")]  = QString::fromLatin1(names[i]);
+                o[QStringLiteral("size")]  = static_cast<qint64>(48 * 1024 * 1024);
+                swapped.append(o);
+            }
+
+            MangaVolumeExpectation expect;
+            expect.fileIndex = 1;
+            expect.filePath  = QStringLiteral("Series v02.cbz");
+            downloader.download(v2, candidate, expect);
+            engine.emitMetadata(hash, swapped);
+            require(violated == 1, "a mismatched expectation raises one violation");
+            require(violatedId == v2.id && violatedHash == hash && violatedIndex == 1,
+                    "the violation names the volume, hash, and expected index");
+            require(failedIds == QStringList{v2.id}, "the mismatched intent fails closed");
+            require(engine.startedHashes.isEmpty(),
+                    "no payload starts for a contradicted identity");
+            require(engine.priorities.isEmpty(),
+                    "the picker never falls back to the same torrent's other file");
+            require(engine.removedHash(hash, true),
+                    "the contradicted torrent is discarded");
+
+            MangaVolumeRequestLedger ledger(ledgerPath);
+            require(ledger.row(v2.id).state == QStringLiteral("failed"),
+                    "the violated intent is journaled failed");
+        }
+
+        // (c) restart replay: the expectation persisted in the ledger is
+        //     re-checked after resume — match proceeds, mismatch violates again.
+        {
+            QTemporaryDir dir;
+            const QString ledgerPath = dir.filePath(QStringLiteral("ledger.json"));
+            const QString saveRoot = dir.filePath(QStringLiteral("dl"));
+
+            MangaVolumeExpectation expect;
+            expect.fileIndex = 1;
+            expect.filePath  = QStringLiteral("Series v02.cbz");
+
+            FakeEngine engine1;
+            MangaVolumeTorrentDownloader d1(&engine1, ledgerPath, saveRoot);
+            d1.download(v2, candidate, expect);   // awaiting_metadata, journaled
+            MangaVolumeRequestLedger before(ledgerPath);
+            require(before.row(v2.id).expectedFileIndex == 1
+                        && before.row(v2.id).expectedFilePath
+                               == QStringLiteral("Series v02.cbz"),
+                    "the expectation persists in the ledger for the restart");
+
+            // Restart: fresh engine + downloader replay the row PAUSED with the
+            // persisted expectation; matching metadata proceeds.
+            FakeEngine engine2;
+            MangaVolumeTorrentDownloader d2(&engine2, ledgerPath, saveRoot);
+            require(engine2.addMagnetCount == 1 && engine2.lastPaused,
+                    "replay re-adds the persisted torrent paused");
+            engine2.emitMetadata(hash, files);
+            require(engine2.priorities == QVector<int>({0, 7, 0}),
+                    "a resumed expectation that matches proceeds to priorities + start");
+            require(d2.statusOf(v2.id).value(QStringLiteral("state")).toString()
+                        == QStringLiteral("downloading"),
+                    "the resumed intent downloads after re-confirmation");
+        }
+        {
+            // (d) restart into CONTRADICTED metadata: the replay re-checks and
+            //     violates again — a stale expectation never rides through.
+            QTemporaryDir dir;
+            const QString ledgerPath = dir.filePath(QStringLiteral("ledger.json"));
+            const QString saveRoot = dir.filePath(QStringLiteral("dl"));
+
+            MangaVolumeExpectation expect;
+            expect.fileIndex = 1;
+            expect.filePath  = QStringLiteral("Series v02.cbz");
+
+            FakeEngine engine1;
+            MangaVolumeTorrentDownloader d1(&engine1, ledgerPath, saveRoot);
+            d1.download(v2, candidate, expect);
+
+            QJsonArray combined;
+            {
+                QJsonObject o;
+                o[QStringLiteral("index")] = 0;
+                o[QStringLiteral("name")]  = QStringLiteral("Series Volumes 1-3.cbz");
+                o[QStringLiteral("size")]  = static_cast<qint64>(120 * 1024 * 1024);
+                combined.append(o);
+            }
+
+            FakeEngine engine2;
+            MangaVolumeTorrentDownloader d2(&engine2, ledgerPath, saveRoot);
+            int violated = 0;
+            QObject::connect(&d2, &MangaVolumeTorrentDownloader::expectationViolated, &app,
+                             [&](const QString&, const QString&, int) { ++violated; });
+            engine2.emitMetadata(hash, combined);
+            require(violated == 1,
+                    "a resumed expectation against contradicting metadata violates again");
+            require(engine2.startedHashes.isEmpty(),
+                    "the contradicted resume never starts its payload");
+        }
+
+        // (e) one infoHash, many volume intents — an expectation on one intent
+        //     leaves its sibling's ordinary pick untouched.
+        {
+            QTemporaryDir dir;
+            const QString ledgerPath = dir.filePath(QStringLiteral("ledger.json"));
+            FakeEngine engine;
+            MangaVolumeTorrentDownloader downloader(&engine, ledgerPath,
+                                                    dir.filePath(QStringLiteral("dl")));
+            QStringList failedIds;
+            QObject::connect(&downloader, &MangaVolumeTorrentDownloader::failed, &app,
+                             [&](const QString& id, const QString&) { failedIds << id; });
+
+            MangaVolumeExpectation expect;
+            expect.fileIndex = 2;
+            expect.filePath  = QStringLiteral("Series v03.cbz");
+            downloader.download(v2, candidate);           // ordinary pick → index 1
+            downloader.download(v3, candidate, expect);   // expectation → index 2
+            engine.emitMetadata(hash, files);
+            require(failedIds.isEmpty(), "both intents resolve cleanly");
+            require(engine.priorities == QVector<int>({0, 7, 7}),
+                    "the union is unchanged by an expectation riding along");
+            require(engine.addMagnetCount == 1,
+                    "one job per infoHash is unchanged by expectations");
+        }
+    }
+
     std::cout << "MANGA_VOLUME_TORRENT_OK\n";
     return 0;
 }

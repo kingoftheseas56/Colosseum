@@ -8,10 +8,10 @@
 // archive present, the target is absent, two candidates match equally, or the
 // only match is an inseparable multi-volume combined archive.
 //
-// Self-contained by design (spec: do NOT couple to MangaNyaaSource). The volume
-// coverage grammar mirrors the Nyaa source's detectCoverage() — explicit
-// v / vol / volume markers plus inclusive ranges — reimplemented locally so this
-// picker owns its own parsing.
+// Self-contained by design (spec: do NOT couple to MangaNyaaSource). Since Arc
+// 18 M1 the volume-coverage grammar itself lives in ONE shared owner,
+// MangaVolumeIdentity, so search-time and runtime file identity can never
+// drift apart; this picker keeps only the tiering/refusal policy on top of it.
 
 #include <QJsonArray>
 #include <QString>

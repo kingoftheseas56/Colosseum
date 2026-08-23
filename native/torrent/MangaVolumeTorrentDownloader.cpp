@@ -78,6 +78,10 @@ void MangaVolumeTorrentDownloader::replayActive()
         intent.volumeId     = row.volumeId;
         intent.volumeNumber = row.volumeNumber;
         intent.seriesId     = row.seriesId;
+        // Arc 18 M6: a persisted expectation rides the replay, so a resumed
+        // download re-confirms the indexed identity against fresh metadata.
+        intent.expectIndex  = row.expectedFileIndex;
+        intent.expectPath   = row.expectedFilePath;
         job->intents.append(intent);
         m_hashByVolume.insert(row.volumeId, row.infoHash);
         m_ledger.setState(row.volumeId, QStringLiteral("awaiting_metadata"));
@@ -90,7 +94,8 @@ void MangaVolumeTorrentDownloader::replayActive()
 }
 
 void MangaVolumeTorrentDownloader::writeLedgerRow(Job* job, const VolumeRecord& volume,
-                                                  const QString& state)
+                                                  const QString& state,
+                                                  const MangaVolumeExpectation& expectation)
 {
     VolumeRequestRow row;
     row.volumeId        = volume.id;
@@ -100,20 +105,25 @@ void MangaVolumeTorrentDownloader::writeLedgerRow(Job* job, const VolumeRecord& 
     row.volumeNumber    = volume.number;
     row.savePath        = job->saveDir;
     row.pickedFileIndex = -1;
+    row.expectedFileIndex = expectation.fileIndex;
+    row.expectedFilePath  = expectation.filePath;
     row.state           = state;
     m_ledger.upsert(row);
 }
 
 void MangaVolumeTorrentDownloader::addIntent(Job* job, const VolumeRecord& volume,
-                                             const QString& state)
+                                             const QString& state,
+                                             const MangaVolumeExpectation& expectation)
 {
     Intent intent;
     intent.volumeId     = volume.id;
     intent.volumeNumber = volume.number;
     intent.seriesId     = volume.seriesId;
+    intent.expectIndex  = expectation.fileIndex;
+    intent.expectPath   = expectation.filePath;
     job->intents.append(intent);
     m_hashByVolume.insert(volume.id, job->infoHash);
-    writeLedgerRow(job, volume, state);
+    writeLedgerRow(job, volume, state, expectation);
 }
 
 MangaVolumeTorrentDownloader::Intent*
@@ -126,7 +136,8 @@ MangaVolumeTorrentDownloader::intentFor(Job* job, const QString& volumeId) const
 }
 
 void MangaVolumeTorrentDownloader::download(const VolumeRecord& volume,
-                                            const MangaNyaaCandidate& candidate)
+                                            const MangaNyaaCandidate& candidate,
+                                            const MangaVolumeExpectation& expectation)
 {
     const QString volumeId = volume.id;
     const QString hash = candidate.infoHash.trimmed().toLower();
@@ -155,7 +166,7 @@ void MangaVolumeTorrentDownloader::download(const VolumeRecord& volume,
 
         QDir().mkpath(job->saveDir);
         m_engine->addMagnet(candidate.magnetUri, job->saveDir, /*paused=*/true);
-        addIntent(job, volume, QStringLiteral("awaiting_metadata"));
+        addIntent(job, volume, QStringLiteral("awaiting_metadata"), expectation);
         emit resolving(volumeId);
 
         // Mirror ComicTorrent: if the engine already holds metadata (e.g. a
@@ -183,15 +194,17 @@ void MangaVolumeTorrentDownloader::download(const VolumeRecord& volume,
         existing->fileSize         = 0;
         existing->received         = 0;
         existing->lastProgressEmit = 0;
+        existing->expectIndex      = expectation.fileIndex;
+        existing->expectPath       = expectation.filePath;
         m_hashByVolume.insert(volumeId, job->infoHash);
-        writeLedgerRow(job, volume, QStringLiteral("awaiting_metadata")); // deliberate revive
+        writeLedgerRow(job, volume, QStringLiteral("awaiting_metadata"), expectation); // deliberate revive
         emit resolving(volumeId);
         if (job->metadataKnown)
             resolveJob(job);
         return;
     }
 
-    addIntent(job, volume, QStringLiteral("awaiting_metadata"));
+    addIntent(job, volume, QStringLiteral("awaiting_metadata"), expectation);
     emit resolving(volumeId);
     if (job->metadataKnown)
         resolveJob(job);
@@ -206,6 +219,36 @@ void MangaVolumeTorrentDownloader::resolveJob(Job* job)
             continue;
         if (intent.pickedIndex >= 0) {   // already resolved on a prior pass
             picked.append(intent.pickedIndex);
+            continue;
+        }
+        // Arc 18 M6: an indexed intent re-resolves the canonical volume with the
+        // live metadata and must land on EXACTLY the persisted file. A pick
+        // failure, a different index, or a different path is an identity
+        // contradiction: fail closed, flag the store row for revalidation, and
+        // NEVER fall back to a different archive of the same torrent.
+        if (intent.expectIndex >= 0) {
+            QString expectedPath = intent.expectPath;
+            expectedPath.replace(QLatin1Char('\\'), QLatin1Char('/'));
+            const MangaVolumeFilePicker::MangaVolumePick p =
+                MangaVolumeFilePicker::pick(intent.volumeNumber, job->files);
+            QString livePath = p.path;
+            livePath.replace(QLatin1Char('\\'), QLatin1Char('/'));
+            const bool confirmed =
+                p.index == intent.expectIndex
+                && p.failure == MangaVolumeFilePicker::PickFailure::None
+                && livePath == expectedPath;
+            if (!confirmed) {
+                emit expectationViolated(intent.volumeId, job->infoHash, intent.expectIndex);
+                failIntent(intent, QStringLiteral(
+                    "indexed file expectation no longer matches this torrent — "
+                    "marked for revalidation"));
+                continue;
+            }
+            intent.pickedIndex = p.index;
+            intent.pickedName  = livePath;
+            intent.fileSize    = p.size;
+            picked.append(p.index);
+            m_ledger.markDownloading(intent.volumeId, p.index);
             continue;
         }
         const MangaVolumeFilePicker::MangaVolumePick p =

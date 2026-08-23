@@ -88,6 +88,28 @@ int main()
     require(unionPriorities({1}, 3) == QVector<int>({0, 7, 0}),
             "single pick sets exactly one max priority");
 
+    // ── Arc 18 M1: string-safe identity through the shared grammar ──────────
+    // The old picker converted the target with toInt(), so a canonical "10.5"
+    // volume could never be isolated even when the file named it exactly.
+    require(pick("10.5", files({"Series v10.cbz", "Series Vol 10.5.cbz"})).index == 1,
+            "fractional volume isolated by exact filename");
+    require(pick("1.5", files({"Series v1.5.cbz"})).index == 0,
+            "fractional single-file pick");
+    require(pick("10.50", files({"Series v10.5.cbz"})).index == 0,
+            "zero-padded fractional target matches by value");
+    require(pick("10.5", files({"Series v10.5.cbz", "Series Volume 10.5.cbr"})).failure
+                == PickFailure::Ambiguous,
+            "two equal fractional candidates stay ambiguous");
+    // Named volumes: exact textual evidence only, fail closed otherwise.
+    require(pick("Special", files({"Series Volume Special.cbz"})).index == 0,
+            "named volume isolated by exact filename");
+    require(pick("Special", files({"Series v02.cbz"})).failure == PickFailure::TargetMissing,
+            "named target absent -> TargetMissing, never coerced to a number");
+    // Fractional target inside an integer range is still a combined blob.
+    require(pick("2.5", files({"Series Volumes 1-3.cbz"})).failure
+                == PickFailure::CombinedArchive,
+            "fractional target vs combined archive -> CombinedArchive");
+
     std::cout << "MANGA_VOLUME_FILEPICKER_OK\n";
     return 0;
 }

@@ -55,6 +55,17 @@ signals:
     void torrentError(const QString& infoHash, const QString& message);
 };
 
+// ── Arc 18 M6: indexed-identity expectation ──────────────────────────────────
+// When a request's source is a VERIFIED index mapping, the transport carries
+// the persisted identity (exact fileIndex + path) into the paused-metadata
+// flow. Live engine metadata must re-confirm THAT EXACT FILE before payload
+// starts; anything else fails closed (expectationViolated) — the transport
+// never silently falls back to a different archive of the same torrent.
+struct MangaVolumeExpectation {
+    int     fileIndex = -1;  // -1 = no expectation (ordinary discovery request)
+    QString filePath;        // torrent-relative, '/'-normalized
+};
+
 class MangaVolumeTorrentDownloader : public QObject {
     Q_OBJECT
 public:
@@ -69,8 +80,12 @@ public:
 
     // Request `volume` from `candidate`. If the candidate's torrent is already
     // in flight this joins the existing job and grows its priority union.
+    // `expectation` (Arc 18 M6): when set, live metadata must resolve to exactly
+    // this file or the intent fails closed. Persisted to the ledger so a resumed
+    // download performs the same check after restart.
     void download(const MangaTankoban::VolumeRecord& volume,
-                  const MangaTankoban::MangaNyaaCandidate& candidate);
+                  const MangaTankoban::MangaNyaaCandidate& candidate,
+                  const MangaVolumeExpectation& expectation = MangaVolumeExpectation{});
     // Drop one volume's intent. If it was the last live intent on its torrent,
     // the torrent is removed (files deleted); otherwise the torrent keeps serving
     // the remaining volumes.
@@ -88,6 +103,11 @@ signals:
     void progress(const QString& volumeId, double received, double total);
     void finished(const QString& volumeId, const QString& archivePath);
     void failed(const QString& volumeId, const QString& reason);
+    // Arc 18 M6: live metadata contradicted a persisted index identity for this
+    // volume. Emitted BEFORE `failed`. The store owner (the façade) demotes the
+    // mapping to NeedsRevalidation; the transport itself never touches the index.
+    void expectationViolated(const QString& volumeId, const QString& infoHash,
+                             int expectedFileIndex);
 
 private:
     struct Intent {
@@ -100,6 +120,9 @@ private:
         qint64  received = 0;
         qint64  lastProgressEmit = 0;
         bool    terminal = false; // completed / failed / cancelled
+        // Arc 18 M6 indexed-identity expectation (-1 = none).
+        int     expectIndex = -1;
+        QString expectPath;
     };
     struct Job {
         QString infoHash;
@@ -119,8 +142,10 @@ private:
     void onError(const QString& infoHash, const QString& message);
 
     void replayActive();
-    void addIntent(Job* job, const MangaTankoban::VolumeRecord& volume, const QString& state);
-    void writeLedgerRow(Job* job, const MangaTankoban::VolumeRecord& volume, const QString& state);
+    void addIntent(Job* job, const MangaTankoban::VolumeRecord& volume, const QString& state,
+                   const MangaVolumeExpectation& expectation = MangaVolumeExpectation{});
+    void writeLedgerRow(Job* job, const MangaTankoban::VolumeRecord& volume, const QString& state,
+                        const MangaVolumeExpectation& expectation = MangaVolumeExpectation{});
     Intent* intentFor(Job* job, const QString& volumeId) const;
     void resolveJob(Job* job);
     void failIntent(Intent& intent, const QString& reason);

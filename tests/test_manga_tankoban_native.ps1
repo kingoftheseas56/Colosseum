@@ -23,11 +23,15 @@ $env:PATH = "$qtBin;$env:PATH"
 
 $harnesses = @(
     @{ Exe = "manga_tankoban_logic_harness.exe";   Sentinel = "MANGA_TANKOBAN_LOGIC_OK" },
+    @{ Exe = "manga_volume_identity_harness.exe";  Sentinel = "MANGA_VOLUME_IDENTITY_OK" },
     @{ Exe = "manga_volume_filepicker_harness.exe"; Sentinel = "MANGA_VOLUME_FILEPICKER_OK" },
     @{ Exe = "manga_volume_index_harness.exe";      Sentinel = "MANGA_VOLUME_INDEX_OK" },
     @{ Exe = "manga_volume_torrent_harness.exe";    Sentinel = "MANGA_VOLUME_TORRENT_OK" },
     @{ Exe = "manga_volume_packer_harness.exe";     Sentinel = "MANGA_VOLUME_PACKER_OK" },
-    @{ Exe = "manga_tankoban_service_harness.exe";  Sentinel = "MANGA_TANKOBAN_SERVICE_OK" }
+    @{ Exe = "manga_tankoban_service_harness.exe";  Sentinel = "MANGA_TANKOBAN_SERVICE_OK" },
+    @{ Exe = "manga_torrent_metainfo_resolver_harness.exe"; Sentinel = "MANGA_TORRENT_METAINFO_RESOLVER_OK" },
+    @{ Exe = "manga_torrent_index_harness.exe";     Sentinel = "MANGA_TORRENT_INDEX_OK" },
+    @{ Exe = "manga_torrent_indexer_harness.exe";   Sentinel = "MANGA_TORRENT_INDEXER_OK" }
 )
 
 foreach ($h in $harnesses) {

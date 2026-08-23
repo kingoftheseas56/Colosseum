@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-# RC = compile the Windows .rc that carries the app/exe icon (Windows-only, harmless elsewhere)
 # C = the vendored third_party/miniz/miniz.c (gunzip for the Jikan Accept-Encoding workaround).
-project(colosseum VERSION 1.1.3 LANGUAGES C CXX RC)
+# RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
+# enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
+# declaration (arc-17 Linux port, first configure pass).
+project(colosseum VERSION 1.1.3 LANGUAGES C CXX)
+if(WIN32)
+    enable_language(RC)
+endif()
 
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
@@ -19,20 +24,40 @@ find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick We
 # Toolchain-aware: MSVC (Qt WebEngine path, homeward-foundry) consumes the msvc
 # MpvQt build + mpv.lib; MinGW the original build + libmpv.dll.a. Same source tree
 # builds under either kit. Override MPVQT_PREFIX on the command line to vendor later.
-if(MSVC)
-    set(_MPVQT_DEFAULT "C:/tools/mpvqt-feasibility/mpvqt-msvc-install")
-    set(_LIBMPV_IMPLIB "mpv.lib")
+if(WIN32)
+    if(MSVC)
+        set(_MPVQT_DEFAULT "C:/tools/mpvqt-feasibility/mpvqt-msvc-install")
+        set(_LIBMPV_IMPLIB "mpv.lib")
+    else()
+        set(_MPVQT_DEFAULT "C:/tools/mpvqt-feasibility/mpvqt-install")
+        set(_LIBMPV_IMPLIB "libmpv.dll.a")
+    endif()
+    set(MPVQT_PREFIX  "${_MPVQT_DEFAULT}" CACHE PATH "MpvQt install prefix")
+    set(LIBMPV_PREFIX "C:/tools/mpvqt-feasibility/libmpv-prefix" CACHE PATH "libmpv dev prefix")
+    list(PREPEND CMAKE_PREFIX_PATH "${MPVQT_PREFIX}")
+    # Pre-seed libmpv so MpvQt's bundled FindLibmpv (pkg-config based) succeeds on Windows.
+    set(Libmpv_INCLUDE_DIRS "${LIBMPV_PREFIX}/include" CACHE PATH "" FORCE)
+    set(Libmpv_LIBRARIES    "${LIBMPV_PREFIX}/lib/${_LIBMPV_IMPLIB}" CACHE FILEPATH "" FORCE)
 else()
-    set(_MPVQT_DEFAULT "C:/tools/mpvqt-feasibility/mpvqt-install")
-    set(_LIBMPV_IMPLIB "libmpv.dll.a")
+    # Linux (arc-17 WSL-first build): no libmpvqt-dev apt candidate, so MpvQt is source-built
+    # into a controlled prefix (see Preflight-Architect/arcs/17-linux-build/guides/WSL-FIRST-BUILD.md).
+    # Default matches that guide's prefix; override MPVQT_PREFIX on the command line if vendored
+    # elsewhere. Ubuntu's libmpv-dev provides real pkg-config metadata, so no Libmpv_* pre-seed
+    # is needed here — MpvQt's bundled FindLibmpv.cmake resolves it directly via pkg-config.
+    set(MPVQT_PREFIX "$ENV{HOME}/.local/colosseum-deps" CACHE PATH "MpvQt install prefix (Linux)")
+    if(MPVQT_PREFIX)
+        list(PREPEND CMAKE_PREFIX_PATH "${MPVQT_PREFIX}")
+    endif()
 endif()
-set(MPVQT_PREFIX  "${_MPVQT_DEFAULT}" CACHE PATH "MpvQt install prefix")
-set(LIBMPV_PREFIX "C:/tools/mpvqt-feasibility/libmpv-prefix" CACHE PATH "libmpv dev prefix")
-list(PREPEND CMAKE_PREFIX_PATH "${MPVQT_PREFIX}")
-# Pre-seed libmpv so MpvQt's bundled FindLibmpv (pkg-config based) succeeds on Windows.
-set(Libmpv_INCLUDE_DIRS "${LIBMPV_PREFIX}/include" CACHE PATH "" FORCE)
-set(Libmpv_LIBRARIES    "${LIBMPV_PREFIX}/lib/${_LIBMPV_IMPLIB}" CACHE FILEPATH "" FORCE)
 find_package(MpvQt REQUIRED)
+if(NOT WIN32 AND (NOT Libmpv_LIBRARIES OR NOT Libmpv_INCLUDE_DIRS))
+    # MpvQt's own FindLibmpv already populated these when it found libmpv-dev; fall back to a
+    # direct pkg-config probe only if that didn't happen, so MediaAdmissionProbe.cpp's raw
+    # <mpv/client.h> include/link (below) still resolves.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(Libmpv REQUIRED IMPORTED_TARGET mpv)
+    set(Libmpv_LIBRARIES PkgConfig::Libmpv)
+endif()
 
 # ── libtorrent-rasterbar (tankorent engine core) ─────────────────────────────
 # Ported from TB2 CMakeLists.txt (TANKORENT_DOWNLOAD_FLOW_FIX lineage):
@@ -47,12 +72,30 @@ find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
 find_package(OpenSSL QUIET)
 if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
     message(STATUS "libtorrent + Boost + OpenSSL found via find_package")
-    target_compile_definitions(colosseum_libtorrent INTERFACE
-        HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL BOOST_ALL_NO_LIB _WIN32_WINNT=0x0A00)
     target_link_libraries(colosseum_libtorrent INTERFACE
-        LibtorrentRasterbar::torrent-rasterbar Boost::system Boost::filesystem
-        OpenSSL::SSL OpenSSL::Crypto ws2_32 mswsock crypt32 iphlpapi bcrypt)
-else()
+        LibtorrentRasterbar::torrent-rasterbar Boost::filesystem
+        OpenSSL::SSL OpenSSL::Crypto)
+    if(TARGET Boost::system)
+        # Boost::system is a real compiled-library target on the Windows Boost 1.84 install this
+        # project was built against. Ubuntu 26.04 packages Boost 1.90, where boost_system has been
+        # header-only (no compiled library, no CMake component target) since ~1.85; guard instead
+        # of hard-requiring the target so the Linux configure does not fail on an artifact that
+        # version no longer ships (arc-17 Linux port, first-configure discovery).
+        target_link_libraries(colosseum_libtorrent INTERFACE Boost::system)
+    endif()
+    if(WIN32)
+        # WinSock/crypto system libs and the Windows-targeted _WIN32_WINNT/BOOST_ALL_NO_LIB
+        # defines are Windows-only; Linux's apt libtorrent-rasterbar-dev/libboost-all-dev/
+        # libssl-dev need neither (arc-17 Linux port).
+        target_compile_definitions(colosseum_libtorrent INTERFACE
+            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL BOOST_ALL_NO_LIB _WIN32_WINNT=0x0A00)
+        target_link_libraries(colosseum_libtorrent INTERFACE
+            ws2_32 mswsock crypt32 iphlpapi bcrypt)
+    else()
+        target_compile_definitions(colosseum_libtorrent INTERFACE
+            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL)
+    endif()
+elseif(WIN32)
     set(LIBTORRENT_ROOT "C:/tools/libtorrent-2.0-msvc" CACHE PATH "libtorrent MSVC install")
     set(BOOST_ROOT "C:/tools/boost-1.84.0" CACHE PATH "Boost headers")
     set(OPENSSL_MSVC_ROOT "C:/tools/openssl-msvc" CACHE PATH "OpenSSL MSVC install")
@@ -73,6 +116,11 @@ else()
     else()
         message(FATAL_ERROR "libtorrent NOT found (find_package or C:/tools/libtorrent-2.0-msvc) — the tankorent engine requires it. See TB2 CMakeLists TANKORENT_DOWNLOAD_FLOW_FIX comment.")
     endif()
+else()
+    # Linux: no C:/tools fallback exists off Windows. apt's libtorrent-rasterbar-dev/
+    # libboost-all-dev/libssl-dev should satisfy find_package above; a failure here is a
+    # genuine missing-dependency on this machine, not a build-system gap (arc-17 Linux port).
+    message(FATAL_ERROR "libtorrent + Boost + OpenSSL NOT found via find_package on this platform — install libtorrent-rasterbar-dev, libboost-all-dev and libssl-dev (see guides/WSL-FIRST-BUILD.md).")
 endif()
 
 add_library(colosseum_update_crypto INTERFACE)
@@ -193,7 +241,6 @@ add_executable(colosseum
     update/UpdateService.h
     update/UpdateInstallBridge.cpp
     update/UpdateInstallBridge.h
-    app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
     installed_chronicle.qrc  # bundled installed-release chronicle (signed manifest + artwork)
     ClipboardHelper.h
@@ -433,6 +480,18 @@ add_executable(colosseum
     torrent/MangaNyaaSource.h
     engine/MangaSynopsisEnricher.cpp
     engine/MangaSynopsisEnricher.h
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeIdentity.h
+    # ── Arc 18 (2026-08-23): Torrentio-style volume identity + durable index ──
+    torrent/MangaTorrentDiscovery.cpp
+    torrent/MangaTorrentDiscovery.h
+    torrent/IMangaTorrentMetainfoResolver.h
+    torrent/MangaTorrentMetainfoResolver.cpp
+    torrent/MangaTorrentMetainfoResolver.h
+    torrent/MangaTorrentIndex.cpp
+    torrent/MangaTorrentIndex.h
+    torrent/MangaTorrentIndexer.cpp
+    torrent/MangaTorrentIndexer.h
     torrent/MangaVolumeFilePicker.cpp
     torrent/MangaVolumeFilePicker.h
     engine/MangaVolumeIndex.cpp
@@ -510,11 +569,12 @@ endif()
 target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
-    advapi32 user32
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
 if(WIN32)
-    # colosseum.exe must be a GUI-subsystem binary: without this, every installed launch
-    # opens a console window alongside the Qt GUI (shipped defect since 0.1).
+    # Windows exe/taskbar icon (colosseum.ico) + Windows-only system libs (arc-17 Linux port:
+    # both are meaningless off Windows, so they move here instead of the shared source/link list).
+    target_sources(colosseum PRIVATE app_icon.rc)
+    target_link_libraries(colosseum PRIVATE advapi32 user32)
     set_target_properties(colosseum PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
@@ -1257,9 +1317,22 @@ add_executable(book_torrent_magnet_harness
 target_include_directories(book_torrent_magnet_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(book_torrent_magnet_harness PRIVATE Qt6::Core)
 
+# Arc 18 M1 — the ONE shared volume-identity grammar every search/runtime path
+# must call instead of a private regex (contract: VOLUME-IDENTITY-AND-INDEX-
+# CONTRACT §2). Pure Qt Core: canonical decimal strings, never int/double.
+add_executable(manga_volume_identity_harness
+    ../tests/manga_volume_identity_harness.cpp
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeIdentity.h
+)
+target_include_directories(manga_volume_identity_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_volume_identity_harness PRIVATE Qt6::Core)
+
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp
     torrent/MangaVolumeFilePicker.cpp
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeIdentity.h
 )
 target_include_directories(manga_volume_filepicker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manga_volume_filepicker_harness PRIVATE Qt6::Core)
@@ -1269,6 +1342,10 @@ add_executable(manga_tankoban_logic_harness
     engine/MangaTankobanLogic.cpp
     engine/MangaSynopsisEnricher.cpp
     torrent/MangaNyaaSource.cpp
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeIdentity.h
+    torrent/MangaTorrentDiscovery.cpp
+    torrent/MangaTorrentDiscovery.h
 )
 target_include_directories(manga_tankoban_logic_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_tankoban_logic_harness PRIVATE
@@ -1361,6 +1438,8 @@ add_executable(manga_volume_torrent_harness
     torrent/MangaVolumeTorrentDownloader.cpp
     torrent/MangaVolumeRequestLedger.cpp
     torrent/MangaVolumeFilePicker.cpp
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeIdentity.h
 )
 target_include_directories(manga_volume_torrent_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manga_volume_torrent_harness PRIVATE Qt6::Core)
@@ -1386,15 +1465,67 @@ add_executable(manga_tankoban_service_harness
     engine/MangaVolumePacker.cpp
     engine/MangaScraper.h
     torrent/MangaNyaaSource.cpp
+    torrent/MangaTorrentDiscovery.cpp
+    torrent/MangaTorrentDiscovery.h
     torrent/MangaVolumeTorrentDownloader.cpp
     torrent/MangaVolumeRequestLedger.cpp
     torrent/MangaVolumeFilePicker.cpp
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeIdentity.h
+    torrent/MangaTorrentIndex.cpp
+    torrent/MangaTorrentIndex.h
+    torrent/MangaTorrentIndexer.cpp
+    torrent/MangaTorrentIndexer.h
+    torrent/IMangaTorrentMetainfoResolver.h
     third_party/miniz/miniz.c
 )
 target_include_directories(manga_tankoban_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_tankoban_service_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
-target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network)
+target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql)
+
+# Arc 18 M2 — production metainfo resolver harness. Builds a REAL .torrent
+# offline via libtorrent's create_torrent, then proves enumeration-without-
+# payload, raw-index parity with the engine's metadata JSON, and the fail-closed
+# candidate↔metainfo infoHash bridge. Needs colosseum_libtorrent — the same
+# single engine dependency TorrentEngine uses.
+add_executable(manga_torrent_metainfo_resolver_harness
+    ../tests/manga_torrent_metainfo_resolver_harness.cpp
+    torrent/MangaTorrentMetainfoResolver.cpp
+    torrent/MangaTorrentMetainfoResolver.h
+    torrent/IMangaTorrentMetainfoResolver.h
+)
+target_include_directories(manga_torrent_metainfo_resolver_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_torrent_metainfo_resolver_harness PRIVATE Qt6::Core colosseum_libtorrent)
+
+# Arc 18 M3 — durable identity store harness. Pure QtSql, fully offline: a
+# warm store persists pack/file/mapping rows, a COLD second instance rereads
+# them, and outage/error paths prove identity survives while availability
+# stales. No libtorrent — the store never touches torrents, only rows.
+add_executable(manga_torrent_index_harness
+    ../tests/manga_torrent_index_harness.cpp
+    torrent/MangaTorrentIndex.cpp
+    torrent/MangaTorrentIndex.h
+)
+target_include_directories(manga_torrent_index_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_torrent_index_harness PRIVATE Qt6::Core Qt6::Sql)
+
+# Arc 18 M4 — indexing-coordinator harness. Real libtorrent-built .torrents
+# through the REAL resolver + REAL SQLite store, fully offline: one pack → many
+# verified mappings, combined/ambiguous/title-claim/named refusals, infoHash
+# mismatch fail-closed. The indexer consumes the MangaNyaaCandidate aggregate
+# header-only (no Nyaa source symbols needed), so no Qt6::Network here.
+add_executable(manga_torrent_indexer_harness
+    ../tests/manga_torrent_indexer_harness.cpp
+    torrent/MangaTorrentIndexer.cpp
+    torrent/MangaTorrentIndex.cpp
+    torrent/MangaTorrentMetainfoResolver.cpp
+    torrent/MangaVolumeIdentity.cpp
+    engine/MangaTankobanLogic.cpp
+)
+target_include_directories(manga_torrent_indexer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_torrent_indexer_harness PRIVATE
+    Qt6::Core Qt6::Sql colosseum_libtorrent)
 
 # ── lanista bridge harness ─────────────────────────────────────────────────
 # Boots a real QQmlApplicationEngine over tests/lanista_harness_scene.qml,
@@ -1639,7 +1770,10 @@ target_include_directories(audiobook_engine_probe PRIVATE ${CMAKE_CURRENT_SOURCE
 target_link_libraries(audiobook_engine_probe PRIVATE Qt6::Core Qt6::Network)
 
 option(COLOSSEUM_BUILD_PLAYER2 "Build the isolated Player 2 laboratory" OFF)
-if(COLOSSEUM_BUILD_PLAYER2)
+if(COLOSSEUM_BUILD_PLAYER2 AND NOT WIN32)
+    message(FATAL_ERROR "COLOSSEUM_BUILD_PLAYER2 is Windows-only (D3D11/WASAPI) — Player 2 is not ported to Linux (arc-17). Leave it OFF on this platform.")
+endif()
+if(COLOSSEUM_BUILD_PLAYER2 AND WIN32)
     add_subdirectory(player2)
 endif()
 
@@ -1658,7 +1792,10 @@ endif()
 # its CTest suite stay in the tree, opt-in, for the day player 1 hits a wall it cannot solve.
 # Flipping this ON restores the old wiring intact (link + COLOSSEUM_PLAYER2 def + FFmpeg-62 copies).
 option(COLOSSEUM_PLAYER2_IN_APP "Link the Player 2 backend into the app (default engine)" OFF)
-if(COLOSSEUM_PLAYER2_IN_APP)
+if(COLOSSEUM_PLAYER2_IN_APP AND NOT WIN32)
+    message(FATAL_ERROR "COLOSSEUM_PLAYER2_IN_APP is Windows-only (D3D11/WASAPI) — Player 2 is not ported to Linux (arc-17). Player 1/MpvQt is the Linux player. Leave it OFF on this platform.")
+endif()
+if(COLOSSEUM_PLAYER2_IN_APP AND WIN32)
     if(NOT TARGET player2_core)
         add_subdirectory(player2)
     endif()

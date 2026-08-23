@@ -33,6 +33,7 @@
 #include "torrent/MangaVolumeTorrentDownloader.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QEventLoop>
 #include <QFile>
@@ -42,6 +43,8 @@
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QSettings>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QString>
 #include <QStringList>
 #include <QTemporaryDir>
@@ -161,6 +164,8 @@ public:
         emit metadataReady(hash, QStringLiteral("torrent"), 0, files);
     }
     void emitFinished(const QString& hash) { emit torrentFinished(hash); }
+    void emitProgress(const QString& hash, float fraction)
+    { emit torrentProgress(hash, fraction, 0, 0, 0, 0); }
 
     bool lastPaused = false;
     QString lastMagnet, lastSavePath;
@@ -178,6 +183,13 @@ public:
     using IMangaNyaaSearch::IMangaNyaaSearch;
     void search(const SeriesSnapshot& series, const QString& targetVolume) override
     {
+        ++calls;
+        if (failNext) {
+            failNext = false;
+            emit searchFailed(volumeId(series.seriesId, targetVolume),
+                              QStringLiteral("provider down (fake)"));
+            return;
+        }
         emit searchSucceeded(volumeId(series.seriesId, targetVolume), next);
     }
     // Series-level search (catalogue-independence Slice 4): the façade passes its
@@ -185,9 +197,12 @@ public:
     // MangaNyaaSource does.
     void searchSeries(const SeriesSnapshot& series) override
     {
+        ++calls;
         emit searchSucceeded(series.seriesId, next);
     }
     QList<MangaNyaaCandidate> next;
+    int calls = 0;
+    bool failNext = false;
 };
 
 // ── Fake WeebCentral scraper — replays weeb-pages.json as file:// JPEG pages ───
@@ -257,6 +272,82 @@ MangaNyaaCandidate makeCandidate(const QString& hash)
     c.coverageHi = QStringLiteral("3");
     c.seeders    = 40;
     return c;
+}
+
+// ── Arc 18 M5 fakes: metainfo fetcher + resolver ────────────────────────────
+// The fetcher "downloads" a .torrent by emitting its URL as the bytes; the
+// resolver "decodes" those bytes by looking the URL up in a registered table.
+// Together they drive the REAL service→indexer→store path deterministically.
+class FakeMetaFetcher : public IMangaTorrentMetainfoFetcher {
+    Q_OBJECT
+public:
+    using IMangaTorrentMetainfoFetcher::IMangaTorrentMetainfoFetcher;
+    void fetch(const QString& url, const QString& requestKey) override
+    {
+        ++calls;
+        if (failAll) {
+            emit fetchFailed(requestKey, QStringLiteral("metainfo host unreachable (fake)"));
+            return;
+        }
+        emit fetched(requestKey, url.toUtf8());
+    }
+    int calls = 0;
+    bool failAll = false;
+};
+
+class FakeResolver : public MangaTankoban::IMangaTorrentMetainfoResolver {
+public:
+    bool resolve(const QByteArray& torrentBytes, MangaTankoban::TorrentMetainfo& out) override
+    {
+        const QString key = QString::fromUtf8(torrentBytes);
+        if (!metas.contains(key))
+            return false;
+        out = metas.value(key);
+        return true;
+    }
+    QHash<QString, MangaTankoban::TorrentMetainfo> metas;
+};
+
+MangaTankoban::TorrentMetainfo makeMeta(const QString& hash, std::initializer_list<QString> paths)
+{
+    MangaTankoban::TorrentMetainfo m;
+    m.infoHash = hash;
+    m.name = QStringLiteral("pack");
+    int i = 0;
+    for (const QString& p : paths) {
+        MangaTankoban::TorrentMetainfoFile f;
+        f.index = i++;
+        f.path = p;
+        f.size = 48 * 1024 * 1024;
+        m.totalSize += f.size;
+        m.files.append(f);
+    }
+    return m;
+}
+
+// Backdate a search key's freshness clock past the identity TTL — BOTH the
+// search_state success stamp AND the volume's verified mappings — so the next
+// lookup sees stale identity. The STORE API stamps "now" only; tests bend time
+// in SQL, production never does. Own connection so it can run beside the
+// service's open store (WAL).
+void backdateLastSuccess(const QString& dbPath, const QString& searchKey, qint64 atMs)
+{
+    QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"),
+                                                QStringLiteral("backdate_%1").arg(atMs));
+    db.setDatabaseName(dbPath);
+    require(db.open(), "backdate connection opens the identity db");
+    QSqlQuery q(db);
+    q.prepare(QStringLiteral("UPDATE search_state SET last_success_at = ? WHERE search_key = ?"));
+    q.addBindValue(atMs);
+    q.addBindValue(searchKey);
+    require(q.exec() && q.numRowsAffected() == 1, "backdate touched the search_state row");
+    QSqlQuery m(db);
+    m.prepare(QStringLiteral("UPDATE volume_mappings SET verified_at = ? WHERE volume_id = ?"));
+    m.addBindValue(atMs);
+    m.addBindValue(searchKey);
+    require(m.exec() && m.numRowsAffected() >= 1, "backdate touched the mapping rows");
+    db.close();
+    QSqlDatabase::removeDatabase(db.connectionName());
 }
 
 } // namespace
@@ -781,6 +872,315 @@ int main(int argc, char** argv)
                 "the chapterless-seeded volume reaches ready through the ordinary Nyaa path");
         require(dService.localPages(d1).size() == 3,
                 "the ready chapterless volume exposes its three extracted pages");
+    }
+
+    // ── Arc 18 M5: index-first lookup over a REAL store (trio-wired instance) ──
+    // The service above runs WITHOUT the trio and behaved exactly as before —
+    // this block wires the trio and proves the Torrentio behaviors end to end
+    // through the REAL indexer + REAL SQLite store.
+    {
+        QTemporaryDir m5IndexRoot, m5DlRoot, m5TindexRoot;
+        FakeEngine m5Engine;
+        MangaVolumeTorrentDownloader m5Transport(
+            &m5Engine, m5DlRoot.filePath(QStringLiteral("ledger.json")),
+            m5DlRoot.filePath(QStringLiteral("dl")));
+        MangaVolumeIndex m5Index(m5IndexRoot.path());
+        MangaVolumeArchiveIngestor m5Ingestor(&m5Index);
+        MangaSynopsisEnricher m5Enricher(nullptr, m5IndexRoot.filePath(QStringLiteral("syn.json")));
+        FakeNyaaSearch m5Search;
+        FakeResolver m5Resolver;
+        FakeMetaFetcher m5Fetcher;
+        const QString m5Db = m5TindexRoot.filePath(QStringLiteral("torrent-identity.db"));
+        MangaTankoban::MangaTorrentIndex m5Tindex;
+        require(m5Tindex.open(m5Db), "M5 identity store opens");
+        MangaTankobanService m5Service(&m5Search, &m5Transport, &m5Index, &m5Ingestor,
+                                       &m5Enricher, nullptr, &m5Resolver, &m5Fetcher,
+                                       &m5Tindex);
+        QHash<QString, QVariantList> m5Sources;
+        QStringList m5Failures, m5FinishedIds;
+        QObject::connect(&m5Service, &MangaTankobanService::sourcesReady, &app,
+            [&](const QString& vid, const QVariantList& results) { m5Sources.insert(vid, results); });
+        QObject::connect(&m5Service, &MangaTankobanService::failed, &app,
+            [&](const QString& id, const QString& reason) { m5Failures << (id + QLatin1Char('|') + reason); });
+        QObject::connect(&m5Service, &MangaTankobanService::finished, &app,
+            [&](const QString& id) { m5FinishedIds << id; });
+
+        const QVariantMap m5Desc{{QStringLiteral("seriesId"), QStringLiteral("s6")},
+                                 {QStringLiteral("title"), QStringLiteral("Indexed Series")}};
+        const QVariantList m5Vols{
+            QVariantMap{{QStringLiteral("number"), QStringLiteral("1")}},
+            QVariantMap{{QStringLiteral("number"), QStringLiteral("2")}},
+            QVariantMap{{QStringLiteral("number"), QStringLiteral("3")}},
+        };
+        m5Service.prepareSeries(m5Desc, m5Vols, QVariantList{});
+        const QString s6v1 = volumeId(QStringLiteral("s6"), QStringLiteral("1"));
+        const QString s6v2 = volumeId(QStringLiteral("s6"), QStringLiteral("2"));
+        const QString s6v3 = volumeId(QStringLiteral("s6"), QStringLiteral("3"));
+
+        // 1) Cold volume: the first lookup refreshes THROUGH the index —
+        //    discovery → metainfo fetch → verified mapping → merged cards.
+        const QString packHash(40, QLatin1Char('b'));
+        const QString packUrl = QStringLiteral("https://nyaa.fake/download/pack.torrent");
+        MangaNyaaCandidate packCand = makeCandidate(packHash);
+        packCand.torrentUrl = packUrl;
+        m5Search.next = {packCand};
+        m5Resolver.metas.insert(packUrl,
+            makeMeta(packHash, {QStringLiteral("Indexed Series v01.cbz"),
+                                QStringLiteral("Indexed Series v02.cbz")}));
+        m5Service.searchSources(s6v1);
+        {
+            const QVariantList cards = m5Sources.value(s6v1);
+            require(cards.size() == 2, "merged card set: one STRONG card plus the fallback");
+            const QVariantMap strong = cards.first().toMap();
+            require(strong.value(QStringLiteral("kind")).toString() == QStringLiteral("nyaa"),
+                    "the STRONG card is a nyaa card");
+            require(strong.value(QStringLiteral("indexed")).toBool(),
+                    "the cold refresh produced an indexed card");
+            require(strong.value(QStringLiteral("confidence")).toString() == QStringLiteral("STRONG"),
+                    "file-verified identity renders as STRONG");
+            require(strong.value(QStringLiteral("fileIndex")).toInt() == 0,
+                    "the STRONG card carries the verified fileIndex");
+            require(strong.value(QStringLiteral("filePath")).toString()
+                        == QStringLiteral("Indexed Series v01.cbz"),
+                    "the STRONG card carries the verified filePath");
+            require(cards.last().toMap().value(QStringLiteral("kind")).toString()
+                        == QStringLiteral("weebcentral"),
+                    "the fallback stays last after a merged refresh");
+        }
+        require(m5Search.calls == 1 && m5Fetcher.calls == 1,
+                "the cold lookup ran exactly one discovery and one metainfo fetch");
+
+        // 2) Verified identity answers with ZERO provider queries.
+        m5Search.calls = 0;
+        m5Fetcher.calls = 0;
+        m5Search.next = {};
+        m5Sources.remove(s6v1);
+        m5Service.searchSources(s6v1);
+        {
+            const QVariantList cards = m5Sources.value(s6v1);
+            require(cards.size() == 2
+                        && cards.first().toMap().value(QStringLiteral("confidence")).toString()
+                               == QStringLiteral("STRONG"),
+                    "a fresh verified identity answers instantly from the index");
+        }
+        require(m5Search.calls == 0 && m5Fetcher.calls == 0,
+                "fresh verified identity costs zero Nyaa queries and zero fetches");
+
+        // 3) Stale identity: instant cards first, ONE background refresh, and a
+        //    failed refresh keeps the verified cards with no failed signal.
+        backdateLastSuccess(m5Db, s6v1,
+                            QDateTime::currentMSecsSinceEpoch() - 8 * 24 * 60 * 60 * 1000LL);
+        m5Search.failNext = true;
+        m5Sources.remove(s6v1);
+        m5Service.searchSources(s6v1);
+        require(m5Sources.value(s6v1).first().toMap().value(QStringLiteral("confidence")).toString()
+                    == QStringLiteral("STRONG"),
+                "stale identity still answers instantly from the index");
+        require(m5Search.calls == 1, "stale identity fired exactly one background refresh");
+        require(m5Failures.isEmpty(), "a failed refresh raises NO failed signal");
+        require(m5Sources.value(s6v1).first().toMap().value(QStringLiteral("confidence")).toString()
+                    == QStringLiteral("STRONG"),
+                "verified cards survive the failed refresh untouched");
+
+        // 4) No identity: a provider ERROR is never negative-cached; a
+        //    successful EMPTY answer is (briefly).
+        m5Search.calls = 0;
+        m5Search.failNext = true;                       // lookup 1: provider error
+        m5Service.searchSources(s6v3);
+        require(m5Sources.value(s6v3).size() == 1
+                    && m5Sources.value(s6v3).first().toMap().value(QStringLiteral("kind")).toString()
+                           == QStringLiteral("weebcentral"),
+                "a provider error with nothing indexed yields the fallback card only");
+        m5Search.failNext = false;
+        m5Search.next = {};
+        m5Service.searchSources(s6v3);                  // lookup 2: allowed to retry
+        require(m5Search.calls == 2,
+                "a provider error was NOT negative-cached — the next lookup retried");
+        m5Search.calls = 0;
+        m5Service.searchSources(s6v3);                  // lookup 3: inside the negative TTL
+        require(m5Search.calls == 0,
+                "a successful empty answer IS negative-cached — no re-query inside the TTL");
+
+        // 5) A title claim alone is NEVER STRONG: series s7's release title says
+        //    v01-03 but the torrent's only archive is v01 — v2 must render the
+        //    discovery card unverified.
+        {
+            const QVariantMap s7Desc{{QStringLiteral("seriesId"), QStringLiteral("s7")},
+                                     {QStringLiteral("title"), QStringLiteral("Series Seven")}};
+            m5Service.prepareSeries(s7Desc,
+                {QVariantMap{{QStringLiteral("number"), QStringLiteral("1")}},
+                 QVariantMap{{QStringLiteral("number"), QStringLiteral("2")}}},
+                QVariantList{});
+            const QString s7v2 = volumeId(QStringLiteral("s7"), QStringLiteral("2"));
+            const QString s7Hash(40, QLatin1Char('e'));
+            const QString s7Url = QStringLiteral("https://nyaa.fake/download/s7.torrent");
+            MangaNyaaCandidate s7Cand = makeCandidate(s7Hash);   // title claims v01-03
+            s7Cand.torrentUrl = s7Url;
+            m5Search.next = {s7Cand};
+            m5Resolver.metas.insert(s7Url,
+                makeMeta(s7Hash, {QStringLiteral("Series Seven v01.cbz")}));
+            m5Service.searchSources(s7v2);
+            const QVariantList cards = m5Sources.value(s7v2);
+            require(cards.size() == 2, "v2 renders the discovery card plus the fallback");
+            const QVariantMap nyaa = cards.first().toMap();
+            require(nyaa.value(QStringLiteral("kind")).toString() == QStringLiteral("nyaa"),
+                    "the unverified discovery card is present");
+            require(!nyaa.value(QStringLiteral("indexed")).toBool(),
+                    "a title-claim-only candidate is not marked indexed");
+            require(!nyaa.contains(QStringLiteral("confidence"))
+                        || nyaa.value(QStringLiteral("confidence")).toString()
+                               != QStringLiteral("STRONG"),
+                    "a title claim alone never renders as STRONG");
+        }
+
+        // 6) The arbitrary-infoHash guard still holds under the index pipeline.
+        const QString rogueHash(40, QLatin1Char('c'));
+        m5Service.downloadNyaa(s6v2, rogueHash);
+        require(m5Failures.size() == 1 && m5Failures.first().startsWith(s6v2 + QLatin1Char('|')),
+                "an infoHash outside the candidate cache is still refused");
+
+        // 7) An INDEX-cached hash validates with zero live search and downloads
+        //    through the ordinary transport (m5Search.next is EMPTY here). v2's
+        //    mapping came from the pack via v1's refresh — its own lookup is the
+        //    instant verified answer, no discovery of its own.
+        m5FinishedIds.clear();
+        m5Search.calls = 0;
+        m5Service.searchSources(s6v2);
+        require(m5Search.calls == 0
+                    && m5Sources.value(s6v2).first().toMap().value(QStringLiteral("confidence")).toString()
+                           == QStringLiteral("STRONG"),
+                "a sibling volume mapped by the pack answers from the index with no search");
+        m5Service.downloadNyaa(s6v2, packHash);
+        require(m5Failures.size() == 1, "the indexed candidate passed the cache guard");
+        m5Engine.emitMetadata(packHash,
+            {QJsonObject{{QStringLiteral("index"), 0},
+                         {QStringLiteral("name"), QStringLiteral("Indexed Series v01.cbz")},
+                         {QStringLiteral("size"), 48 * 1024 * 1024}},
+             QJsonObject{{QStringLiteral("index"), 1},
+                         {QStringLiteral("name"), QStringLiteral("Indexed Series v02.cbz")},
+                         {QStringLiteral("size"), 48 * 1024 * 1024}}});
+        require(m5Engine.startedHashes.count(packHash) == 1,
+                "the indexed torrent starts after metadata resolves");
+        const QString m5SaveDir = m5DlRoot.filePath(QStringLiteral("dl")) + QLatin1Char('/')
+                              + packHash;
+        require(QDir().mkpath(m5SaveDir), "M5 save dir created");
+        require(QFile::copy(fixturePath(QStringLiteral("tiny-volume.cbz")),
+                            m5SaveDir + QStringLiteral("/Indexed Series v02.cbz")),
+                "the verified v02 archive materialises");
+        m5Engine.emitFinished(packHash);
+        require(waitFor(&m5Service, &MangaTankobanService::finished, 30000),
+                "an index-cached source downloads to a ready volume");
+        require(m5Service.statusOf(s6v2).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("ready"),
+                "the index-sourced volume reaches ready");
+        require(m5Service.localPages(s6v2).size() == 3,
+                "the index-sourced volume exposes its extracted pages");
+
+        // 8) M6 end-to-end: live metadata CONTRADICTS the indexed identity →
+        //    the intent fails closed, the mapping is demoted to
+        //    NeedsRevalidation, and the next lookup no longer trusts it.
+        const QVariantMap s8Desc{{QStringLiteral("seriesId"), QStringLiteral("s8")},
+                                 {QStringLiteral("title"), QStringLiteral("Series Eight")}};
+        m5Service.prepareSeries(s8Desc,
+            {QVariantMap{{QStringLiteral("number"), QStringLiteral("1")}}}, QVariantList{});
+        const QString s8v1 = volumeId(QStringLiteral("s8"), QStringLiteral("1"));
+        const QString s8Hash(40, QLatin1Char('f'));
+        const QString s8Url = QStringLiteral("https://nyaa.fake/download/s8.torrent");
+        MangaNyaaCandidate s8Cand = makeCandidate(s8Hash);
+        s8Cand.torrentUrl = s8Url;
+        m5Search.next = {s8Cand};
+        m5Resolver.metas.insert(s8Url,
+            makeMeta(s8Hash, {QStringLiteral("Series Eight v01.cbz")}));
+        m5Service.searchSources(s8v1);   // indexes + verifies v1 at fileIndex 0
+        require(m5Sources.value(s8v1).first().toMap().value(QStringLiteral("confidence")).toString()
+                    == QStringLiteral("STRONG"),
+                "s8 v1 verifies through the index first");
+
+        const int failuresBefore = m5Failures.size();
+        m5Service.downloadNyaa(s8v1, s8Hash);
+        // The live swarm's metadata does NOT contain the indexed file anymore.
+        m5Engine.emitMetadata(s8Hash,
+            {QJsonObject{{QStringLiteral("index"), 0},
+                         {QStringLiteral("name"), QStringLiteral("Series Eight v05.cbz")},
+                         {QStringLiteral("size"), 48 * 1024 * 1024}}});
+        require(m5Failures.size() == failuresBefore + 1,
+                "the contradicted intent fails closed at the service level");
+        {
+            const QList<MangaTankoban::VolumeMapping> rows = m5Tindex.mappingsForVolume(s8v1);
+            require(!rows.isEmpty()
+                        && rows.first().status
+                               == MangaTankoban::MappingStatus::NeedsRevalidation,
+                    "the contradicted mapping is demoted to needs_revalidation");
+        }
+        m5Search.next = {};
+        m5Sources.remove(s8v1);
+        m5Service.searchSources(s8v1);
+        {
+            const QVariantList cards = m5Sources.value(s8v1);
+            bool anyStrong = false;
+            for (const QVariant& v : cards)
+                anyStrong = anyStrong
+                    || v.toMap().value(QStringLiteral("confidence")).toString()
+                           == QStringLiteral("STRONG");
+            require(!anyStrong,
+                    "a demoted mapping never renders as STRONG on the next lookup");
+        }
+
+        // 9) M7: batch eligibility is the indexed FILE SET. The s9 pack's title
+        //    claims v01-03, but its indexed files cover only v01+v02 — a batch
+        //    within the verified set proceeds; a batch asking for v03 is
+        //    refused WHOLE, title claim notwithstanding.
+        const QVariantMap s9Desc{{QStringLiteral("seriesId"), QStringLiteral("s9")},
+                                 {QStringLiteral("title"), QStringLiteral("Series Nine")}};
+        m5Service.prepareSeries(s9Desc,
+            {QVariantMap{{QStringLiteral("number"), QStringLiteral("1")}},
+             QVariantMap{{QStringLiteral("number"), QStringLiteral("2")}},
+             QVariantMap{{QStringLiteral("number"), QStringLiteral("3")}}},
+            QVariantList{});
+        const QString s9v1 = volumeId(QStringLiteral("s9"), QStringLiteral("1"));
+        const QString s9v2 = volumeId(QStringLiteral("s9"), QStringLiteral("2"));
+        const QString s9v3 = volumeId(QStringLiteral("s9"), QStringLiteral("3"));
+        const QString s9Hash(40, QLatin1Char('1'));
+        const QString s9Url = QStringLiteral("https://nyaa.fake/download/s9.torrent");
+        MangaNyaaCandidate s9Cand = makeCandidate(s9Hash);   // title: "(v01-03)"
+        s9Cand.torrentUrl = s9Url;
+        m5Search.next = {s9Cand};
+        m5Resolver.metas.insert(s9Url,
+            makeMeta(s9Hash, {QStringLiteral("Series Nine v01.cbz"),
+                              QStringLiteral("Series Nine v02.cbz")}));
+        m5Service.searchSources(s9v1);   // indexes + verifies v1 AND v2
+
+        const int m7FailuresBefore = m5Failures.size();
+        m5Service.downloadNyaaBatch({s9v1, s9v2}, s9Hash);
+        require(m5Failures.size() == m7FailuresBefore,
+                "a batch inside the verified file set is accepted");
+        m5Engine.emitMetadata(s9Hash,
+            {QJsonObject{{QStringLiteral("index"), 0},
+                         {QStringLiteral("name"), QStringLiteral("Series Nine v01.cbz")},
+                         {QStringLiteral("size"), 48 * 1024 * 1024}},
+             QJsonObject{{QStringLiteral("index"), 1},
+                         {QStringLiteral("name"), QStringLiteral("Series Nine v02.cbz")},
+                         {QStringLiteral("size"), 48 * 1024 * 1024}}});
+        m5Engine.emitProgress(s9Hash, 0.5f);   // first tick turns both "downloading"
+        require(m5Service.statusOf(s9v1).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("downloading")
+                    && m5Service.statusOf(s9v2).value(QStringLiteral("state")).toString()
+                           == QStringLiteral("downloading"),
+                "the eligible batch downloads both volumes from the one torrent");
+        require(m5Engine.addMagnetCount == 3,
+                "three packs added total (s6, s8, s9) — the s9 batch rides ONE add");
+
+        m5Service.downloadNyaaBatch({s9v1, s9v2, s9v3}, s9Hash);
+        require(m5Failures.size() == m7FailuresBefore + 3,
+                "a batch beyond the verified file set refuses every requested volume");
+        {
+            int refusals = 0;
+            for (const QString& f : m5Failures.mid(m7FailuresBefore))
+                if (f.contains(QStringLiteral("Batch refused")))
+                    ++refusals;
+            require(refusals == 3,
+                    "each refused volume carries the batch-refusal reason");
+        }
     }
 
     std::cout << "MANGA_TANKOBAN_SERVICE_OK\n";

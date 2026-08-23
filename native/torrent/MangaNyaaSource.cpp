@@ -3,6 +3,10 @@
 
 #include "engine/MangaTankobanLogic.h" // MangaTankoban::volumeId
 #include "torrent/BookTorrentMagnet.h" // buildMagnet() — tracker-bearing magnet for a bare infohash
+#include "torrent/MangaTorrentDiscovery.h" // Arc 18 M2 alias-aware bounded query family
+#include "torrent/MangaVolumeIdentity.h" // the ONE shared volume-identity grammar (Arc 18 M1)
+
+#include <QDateTime>
 
 #include <QFile>
 #include <QJsonArray>
@@ -64,37 +68,14 @@ qint64 parseSize(const QString& raw)
     return static_cast<qint64>(value * mult);
 }
 
-// Detect volume coverage from a title using ONLY explicit v / vol / volume
-// markers followed by a number — never a bare number. That is precisely how a
-// "Chapter 2" is kept out of the volume model: no v-marker, no coverage. An
-// inclusive range (v01-12 / Vol 1-12 / Volumes 1-12) wins over a single volume.
-// Numbers are zero-stripped into canonical decimal strings.
-bool detectCoverage(const QString& title, QString& lo, QString& hi)
-{
-    // The second bound may itself carry a v / vol / volume prefix ("v01-v12",
-    // "Vol 1 - Vol 12", "Volume 1 - Volume 12"): make that prefix optional so such
-    // packs read as an inclusive range instead of falling through to a single volume.
-    static const QRegularExpression range(
-        QStringLiteral(R"((?:\bv|\bvol\.?|\bvolumes?)\s*0*([0-9]+)\s*-\s*(?:v|vol\.?|volume)?\s*0*([0-9]+))"),
-        QRegularExpression::CaseInsensitiveOption);
-    const auto rm = range.match(title);
-    if (rm.hasMatch()) {
-        lo = QString::number(rm.captured(1).toInt());
-        hi = QString::number(rm.captured(2).toInt());
-        return true;
-    }
-    static const QRegularExpression single(
-        QStringLiteral(R"((?:\bv|\bvol\.?\s*|\bvolume\s*)0*([0-9]+))"),
-        QRegularExpression::CaseInsensitiveOption);
-    const auto sm = single.match(title);
-    if (sm.hasMatch()) {
-        lo = hi = QString::number(sm.captured(1).toInt());
-        return true;
-    }
-    lo.clear();
-    hi.clear();
-    return false;
-}
+// Volume-coverage detection for release titles lives in the ONE shared owner,
+// MangaVolumeIdentity (Arc 18 M1) — the local integer-era grammar this file
+// used to carry is gone so search-time and file-time identity cannot drift.
+// The shared grammar keeps every pinned rule: explicit v / vol / volume /
+// volumes markers only (a bare number is never coverage, which is what keeps
+// "Chapter 2" out of the volume model), inclusive ranges with an optional
+// repeated prefix on the upper bound, zero-stripped canonical decimal strings —
+// now extended to fractional forms ("v1.5") the int grammar could not see.
 
 bool titleHasDigitalHint(const QString& title)
 {
@@ -155,19 +136,28 @@ bool strongSeriesMatch(const QString& title, const SeriesSnapshot& series)
     return false;
 }
 
-// Does the [lo,hi] coverage include the exact target volume? Compared numerically
-// so an inclusive range covers every volume between its bounds.
+// Does the [lo,hi] coverage include the exact target volume? Rebuilt as a
+// VolumeCoverage and answered by the shared grammar: exact decimal-string
+// comparison for singles (numeric by value, named by folded text — never a
+// double round-trip) and inclusive numeric bounds for ranges.
 bool coverageIncludesTarget(const QString& lo, const QString& hi, const QString& target)
 {
     if (lo.isEmpty() || hi.isEmpty())
         return false;
-    bool okL = false, okH = false, okT = false;
-    const double l = lo.toDouble(&okL);
-    const double h = hi.toDouble(&okH);
-    const double t = target.trimmed().toDouble(&okT);
-    if (!okL || !okH || !okT)
-        return false;
-    return l <= t && t <= h;
+    MangaVolumeIdentity::VolumeCoverage coverage;
+    coverage.lo = MangaVolumeIdentity::makeLabel(lo);
+    coverage.hi = MangaVolumeIdentity::makeLabel(hi);
+    if (!coverage.lo.isNumeric() || !coverage.hi.isNumeric()) {
+        // Named coverage (lo == hi textual): only an exact named match covers.
+        coverage.kind = MangaVolumeIdentity::CoverageKind::Single;
+        return coverage.lo.isNamed() && coverage.lo.canonical == coverage.hi.canonical
+            && MangaVolumeIdentity::coversTarget(coverage, target);
+    }
+    coverage.kind = (MangaVolumeIdentity::numericCompare(coverage.lo.canonical,
+                                                         coverage.hi.canonical) == 0)
+        ? MangaVolumeIdentity::CoverageKind::Single
+        : MangaVolumeIdentity::CoverageKind::Range;
+    return MangaVolumeIdentity::coversTarget(coverage, target);
 }
 
 int tierForUploader(const QString& uploader, const TrustTable& trust)
@@ -243,11 +233,12 @@ QList<MangaNyaaCandidate> MangaNyaaSource::parseRss(const QByteArray& payload)
         } else if (t == QXmlStreamReader::EndElement) {
             if (xml.name() == QStringLiteral("item") && inItem) {
                 cur.sizeBytes = parseSize(sizeText);
-                QString lo, hi;
-                if (detectCoverage(cur.title, lo, hi)) {
-                    cur.coverageLo = lo;
-                    cur.coverageHi = hi;
-                    cur.standalone = (lo == hi);
+                const auto coverage = MangaVolumeIdentity::detectCoverage(
+                    cur.title, MangaVolumeIdentity::EvidenceSource::ReleaseTitle);
+                if (coverage.has()) {
+                    cur.coverageLo = coverage.lo.canonical;
+                    cur.coverageHi = coverage.hi.canonical;
+                    cur.standalone = coverage.isSingle();
                 }
                 cur.digitalHint = titleHasDigitalHint(cur.title);
                 out.append(cur);
@@ -278,6 +269,12 @@ QList<MangaNyaaCandidate> MangaNyaaSource::parseRss(const QByteArray& payload)
                 // First-write-wins preserves the preferred value.
                 if (cur.uploader.isEmpty())
                     cur.uploader = text.trimmed();
+            } else if (tag == QStringLiteral("link")) {
+                // Nyaa's RSS <link> is the .torrent metainfo URL, not a magnet.
+                // Retained (Arc 18 M2) so the indexer can enumerate real file
+                // identity without payload bytes; first-write-wins.
+                if (cur.torrentUrl.isEmpty())
+                    cur.torrentUrl = text.trimmed();
             }
         }
     }
@@ -402,10 +399,13 @@ void MangaNyaaSource::startSearch(const QString& vid, const SeriesSnapshot& seri
     // ignore the duplicate call.
     if (m_pending.contains(vid))
         return;
-    // Series mode reuses queryVariants/parseRss UNCHANGED (plan directive): an
-    // empty target volume naturally falls to the bare-title query family inside
-    // queryVariants — no separate query builder needed.
-    const QStringList queries = queryVariants(series.title, targetVolume);
+    // Arc 18 M2: the query family is planned by MangaTorrentDiscovery —
+    // canonical-title variants first (byte-identical to the pre-Arc-18
+    // queryVariants family when a series has no aliases), then alias variants,
+    // deduped and capped so aliases are now discovery INPUTS, not just
+    // validation needles.
+    const QStringList queries =
+        MangaTorrentDiscovery::queryFamily(series, targetVolume);
     PendingSearch pending;
     pending.volumeId = vid;
     pending.series = series;
@@ -424,7 +424,14 @@ void MangaNyaaSource::startSearch(const QString& vid, const SeriesSnapshot& seri
         q.addQueryItem(QStringLiteral("q"), query);
         url.setQuery(q);
 
-        auto* reply = m_nam->get(QNetworkRequest(url));
+        // Bounded network (Arc 18 M2): a dead/stalled query must not hang the
+        // whole merged search — one transfer deadline per request, then it
+        // lands in the batch's error list while sibling results survive.
+        // (Qt 6 follows same-scheme redirects by default; no attribute needed.)
+        QNetworkRequest request(url);
+        request.setTransferTimeout(15000);
+
+        auto* reply = m_nam->get(request);
         reply->setProperty("nyaa_volumeId", vid);
         reply->setProperty("nyaa_query", query);
         connect(reply, &QNetworkReply::finished, this, &MangaNyaaSource::onReplyFinished);
@@ -451,7 +458,19 @@ void MangaNyaaSource::finishReply(QNetworkReply* reply)
         it->errors.append(QStringLiteral("%1: %2")
                               .arg(reply->property("nyaa_query").toString(), reply->errorString()));
     } else {
-        it->parsed.append(parseRss(reply->readAll()));
+        // Stamp provenance (Arc 18 M2): which query found each candidate and
+        // when, so the indexer can explain and audit its discovery evidence.
+        // parseRss stays pure; the stamp happens at merge time.
+        const QString query = reply->property("nyaa_query").toString();
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        QList<MangaNyaaCandidate> batch = parseRss(reply->readAll());
+        for (MangaNyaaCandidate& c : batch) {
+            if (c.query.isEmpty())
+                c.query = query;
+            if (c.discoveredAt == 0)
+                c.discoveredAt = now;
+        }
+        it->parsed.append(batch);
     }
 
     if (--it->pendingReplies > 0)

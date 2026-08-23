@@ -6,6 +6,7 @@
 #include "engine/MangaTankobanLogic.h"
 #include "torrent/BookTorrentMagnet.h"
 #include "torrent/MangaNyaaSource.h"
+#include "torrent/MangaTorrentDiscovery.h"
 
 #include <QByteArray>
 #include <QDir>
@@ -256,6 +257,67 @@ int main()
             if (c.infoHash == ranked[0].infoHash)
                 ++hashHits;
         require(hashHits == 1, "duplicate infohash deduped to a single survivor");
+    }
+
+    // ── Arc 18 M2: alias-aware bounded discovery family ─────────────────────
+    {
+        const SeriesSnapshot noAliases{"s1", "Grand Blue Dreaming", "Kenji Inoue", {}, {}};
+        const QStringList legacy = queryVariants(QStringLiteral("Grand Blue Dreaming"),
+                                                 QStringLiteral("2"));
+        const QStringList plain = MangaTorrentDiscovery::queryFamily(noAliases,
+                                                                     QStringLiteral("2"));
+        require(plain == legacy,
+                "no-alias family stays byte-identical to the Tankoban 2 family");
+
+        const SeriesSnapshot aliased{"s1", "Grand Blue Dreaming", "Kenji Inoue",
+                                     {QStringLiteral("Grand Blue")}, {}};
+        const QStringList family = MangaTorrentDiscovery::queryFamily(aliased,
+                                                                      QStringLiteral("2"));
+        require(family.size() > legacy.size(),
+                "alias variants extend the family (aliases are discovery inputs now)");
+        require(family.indexOf(QStringLiteral("Grand Blue Dreaming 2")) == 0
+                    && family.indexOf(QStringLiteral("Grand Blue 2")) == legacy.size(),
+                "canonical-title variants are queried before alias variants");
+        require(family.contains(QStringLiteral("Grand Blue 2")),
+                "alias carries the volume-aware query forms");
+        require(family.size() <= MangaTorrentDiscovery::kMaxQueries,
+                "family respects the request cap");
+        require(!family.contains(QStringLiteral("Grand Blue Vol 2")),
+                "cap trims the alias tail after 8 queries");
+        for (const QString& q : family)
+            require(family.count(q) == 1, "family is deduplicated");
+
+        // The cap trims the alias tail, never the canonical head: with a 1-entry
+        // cap only the first canonical variant survives.
+        const QStringList capped =
+            MangaTorrentDiscovery::queryFamily(aliased, QStringLiteral("2"), 1);
+        require(capped == QStringList{legacy.front()},
+                "cap keeps the highest-confidence canonical query first");
+
+        // Empty volume number → bare-title families (series-wide indexing shape).
+        const QStringList seriesWide =
+            MangaTorrentDiscovery::queryFamily(aliased, QString());
+        require(seriesWide.contains(QStringLiteral("Grand Blue Dreaming"))
+                    && seriesWide.contains(QStringLiteral("Grand Blue")),
+                "series-wide family searches bare title and bare alias");
+    }
+
+    // ── Arc 18 M2: RSS link retention + provenance stamping seam ────────────
+    {
+        // parseRss itself stays pure (no timestamps inside); the .torrent URL is
+        // the one field it now retains from Nyaa's <link>.
+        const QByteArray rss = QByteArray(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            "<rss version=\"2.0\" xmlns:nyaa=\"https://nyaa.si/xmlns/nyaa\">"
+            "<channel><item><title>GB Vol 2</title>"
+            "<link>https://nyaa.si/download/abc.torrent</link>"
+            "<nyaa:infoHash>a1b2c3d4e5f60718293a4b5c6d7e8f9012345678</nyaa:infoHash>"
+            "</item></channel></rss>");
+        const QList<MangaNyaaCandidate> parsed = MangaNyaaSource::parseRss(rss);
+        require(parsed.size() == 1, "inline link item parses");
+        require(parsed.front().torrentUrl
+                    == QStringLiteral("https://nyaa.si/download/abc.torrent"),
+                "Nyaa RSS link retained as the .torrent metainfo URL");
     }
 
     // ── Ranking: digital/official edition wins an otherwise-equal tie ─────

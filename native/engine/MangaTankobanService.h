@@ -26,7 +26,9 @@
 
 #include "engine/MangaTankobanTypes.h"                 // VolumeRecord, SeriesSnapshot
 #include "engine/MangaVolumeIndex.h"                   // MangaVolumeIndex, VolumeProvenance
+#include "torrent/IMangaTorrentMetainfoResolver.h"     // TorrentMetainfo (Arc 18 seam)
 #include "torrent/MangaNyaaSource.h"                   // MangaNyaaCandidate, MangaNyaaSource
+#include "torrent/MangaTorrentIndex.h"                 // durable volume identity (Arc 18 M3)
 #include "torrent/MangaVolumeTorrentDownloader.h"      // IMangaTorrentEngine, MangaVolumeTorrentDownloader
 
 #include <QHash>
@@ -44,6 +46,7 @@ namespace MangaTankoban {
 class MangaVolumeArchiveIngestor;
 class MangaSynopsisEnricher;
 class MangaVolumePacker;
+class MangaTorrentIndexer;
 }
 
 // ── Nyaa-search seam ─────────────────────────────────────────────────────────
@@ -79,6 +82,34 @@ private:
     MangaTankoban::MangaNyaaSource* m_source = nullptr;
 };
 
+// ── Metainfo fetch seam (Arc 18 M5) ──────────────────────────────────────────
+// Pulls one .torrent's BYTES for indexing — the only new network verb Arc 18
+// adds. The service's indexer turns fetched bytes + a discovered candidate into
+// verified volume mappings; without this seam the whole index-first path is off
+// and the façade behaves exactly as before. `requestKey` groups results per
+// search so concurrent volumes never cross wires.
+class IMangaTorrentMetainfoFetcher : public QObject {
+    Q_OBJECT
+public:
+    using QObject::QObject;
+    ~IMangaTorrentMetainfoFetcher() override = default;
+    virtual void fetch(const QString& url, const QString& requestKey) = 0;
+signals:
+    void fetched(const QString& requestKey, const QByteArray& torrentBytes);
+    void fetchFailed(const QString& requestKey, const QString& reason);
+};
+
+// Real fetcher: one bounded GET (15 s transfer deadline) over a QNAM.
+class MangaTorrentMetainfoFetcher : public IMangaTorrentMetainfoFetcher {
+    Q_OBJECT
+public:
+    explicit MangaTorrentMetainfoFetcher(QNetworkAccessManager* nam,
+                                         QObject* parent = nullptr);
+    void fetch(const QString& url, const QString& requestKey) override;
+private:
+    QNetworkAccessManager* m_nam = nullptr;
+};
+
 #ifdef HAS_LIBTORRENT
 // Real torrent-engine seam: wraps the concrete, non-virtual TorrentEngine and
 // forwards addMagnet/setFilePriorities/startTorrent/removeTorrent/torrentFiles,
@@ -109,16 +140,26 @@ public:
                          TorrentEngine* torrentEngine,
                          const QString& rootDir = QString(),
                          QObject* parent = nullptr);
+    ~MangaTankobanService() override;   // frees the owned (non-QObject) indexer
 
     // Dependency-injected (tests): the caller owns every collaborator; the
     // façade only wires their signals and drives them. `packer` may be null when
     // the caller never exercises the WeebCentral fallback.
+    //
+    // Arc 18 M5 index-first trio (all optional, all-or-nothing): `metaResolver`
+    // + `metaFetcher` + `torrentIndex` switch on Torrentio-style lookup —
+    // verified mappings answer searchSources instantly, misses refresh through
+    // discovery→metainfo→indexer→merged cards. Any of the three null keeps the
+    // façade byte-identical to its pre-Arc-18 behavior.
     MangaTankobanService(IMangaNyaaSearch* search,
                          MangaVolumeTorrentDownloader* transport,
                          MangaTankoban::MangaVolumeIndex* index,
                          MangaTankoban::MangaVolumeArchiveIngestor* ingestor,
                          MangaTankoban::MangaSynopsisEnricher* enricher,
                          MangaTankoban::MangaVolumePacker* packer,
+                         MangaTankoban::IMangaTorrentMetainfoResolver* metaResolver = nullptr,
+                         IMangaTorrentMetainfoFetcher* metaFetcher = nullptr,
+                         MangaTankoban::MangaTorrentIndex* torrentIndex = nullptr,
                          QObject* parent = nullptr);
 
     // ── QML API ─────────────────────────────────────────────────────────────
@@ -195,6 +236,46 @@ private:
     MangaTankoban::VolumeProvenance provenanceFor(const MangaTankoban::VolumeRecord& volume,
                                                   const MangaTankoban::MangaNyaaCandidate& candidate) const;
 
+    // ── Arc 18 M5 index-first lookup ─────────────────────────────────────────
+    // Per-volume metainfo fetches during a refresh. Declared before the methods
+    // that take its iterator.
+    struct MetaFetch {
+        MangaTankoban::SeriesSnapshot series;
+        QList<MangaTankoban::MangaNyaaCandidate> rows;
+        int pending = 0;
+        // fetch requestKey ("volumeId#n") -> torrentUrl it was issued for, so a
+        // fetched(bytes) callback can find ITS discovery row across concurrent
+        // volume refreshes (the fetched signal carries only the key + bytes).
+        QHash<QString, QString> urlByKey;
+    };
+
+    // True when the full trio (resolver + fetcher + open store) is live.
+    bool indexPipelineActive() const;
+    // The persisted file identity (fileIndex + path) of this volume's Verified
+    // mapping under `normalizedHash` — the M6 transport expectation. Default
+    // (fileIndex -1) when no verified row matches.
+    MangaVolumeExpectation expectationFor(const QString& volumeId,
+                                          const QString& normalizedHash) const;
+    // A verified mapping rendered as a source card; STRONG means file-level
+    // verified identity (never trusted-uploader/title evidence).
+    QVariantMap indexedSourceCard(const MangaTankoban::VolumeMapping& mapping) const;
+    // Cache verified mappings' candidates so downloadNyaa's arbitrary-infoHash
+    // guard validates an indexed hash without a live Nyaa search.
+    void cacheIndexedCandidates(const QString& volumeId,
+                                const QList<MangaTankoban::VolumeMapping>& verified);
+    // Emit `rows`-merged cards after a discovery refresh: indexed STRONG cards
+    // first, then the discovery cards, then the WeebCentral fallback.
+    void emitMergedSources(const QString& volumeId,
+                           const QList<MangaTankoban::MangaNyaaCandidate>& rows);
+    void onMetaFetched(const QString& requestKey, const QByteArray& torrentBytes);
+    void onMetaFetchFailed(const QString& requestKey, const QString& reason);
+    // Last fetch of a refresh resolved: record the provider answer and emit the
+    // merged card set. Shared by the fetched/failed callbacks.
+    void settleMetaFetch(QHash<QString, MetaFetch>::iterator it);
+    // Identity freshness: verified rows older than this trigger ONE coalesced
+    // background refresh on the next lookup (cards still answer instantly).
+    static constexpr qint64 kIdentityTtlMs = 7 * 24 * 60 * 60 * 1000LL;
+
     // Collaborators. Parented to `this` in the production ctor; borrowed (not
     // owned) in the DI ctor.
     IMangaNyaaSearch* m_search = nullptr;
@@ -204,6 +285,12 @@ private:
     MangaTankoban::MangaSynopsisEnricher* m_enricher = nullptr;
     MangaTankoban::MangaVolumePacker* m_packer = nullptr;
 
+    // Arc 18 index-first trio (borrowed in both ctors; indexer owned).
+    MangaTankoban::IMangaTorrentMetainfoResolver* m_metaResolver = nullptr;
+    IMangaTorrentMetainfoFetcher* m_metaFetcher = nullptr;
+    MangaTankoban::MangaTorrentIndex* m_tindex = nullptr;
+    MangaTankoban::MangaTorrentIndexer* m_indexer = nullptr; // built when the trio is live
+
     // Canonical model + acquisition bookkeeping, all keyed by the same ids.
     QHash<QString, MangaTankoban::SeriesSnapshot> m_series;                     // seriesId -> snapshot
     QHash<QString, MangaTankoban::VolumeRecord> m_volumes;                      // volumeId -> record
@@ -211,4 +298,8 @@ private:
     QHash<QString, MangaTankoban::MangaNyaaCandidate> m_chosen;                 // volumeId -> chosen candidate
     QHash<QString, QVariantMap> m_acq;                                          // volumeId -> in-flight status
     QSet<QString> m_tornDown;   // volumeIds explicitly cancelled/removed — never resurrect as ready
+
+    // Arc 18 M5 refresh bookkeeping.
+    QSet<QString> m_indexRefreshPending;   // volumeIds with a discovery/index refresh in flight
+    QHash<QString, MetaFetch> m_metaFetches;
 };

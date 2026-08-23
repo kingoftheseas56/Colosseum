@@ -23,6 +23,8 @@ VolumeRequestRow fromJson(const QJsonObject& o)
     r.volumeNumber    = o.value(QStringLiteral("volumeNumber")).toString();
     r.savePath        = o.value(QStringLiteral("savePath")).toString();
     r.pickedFileIndex = o.value(QStringLiteral("pickedFileIndex")).toInt(-1);
+    r.expectedFileIndex = o.value(QStringLiteral("expectedFileIndex")).toInt(-1);
+    r.expectedFilePath  = o.value(QStringLiteral("expectedFilePath")).toString();
     r.state           = o.value(QStringLiteral("state")).toString();
     return r;
 }
@@ -37,6 +39,8 @@ QJsonObject toJson(const VolumeRequestRow& r)
     o[QStringLiteral("volumeNumber")]    = r.volumeNumber;
     o[QStringLiteral("savePath")]        = r.savePath;
     o[QStringLiteral("pickedFileIndex")] = r.pickedFileIndex;
+    o[QStringLiteral("expectedFileIndex")] = r.expectedFileIndex;
+    o[QStringLiteral("expectedFilePath")]  = r.expectedFilePath;
     o[QStringLiteral("state")]           = r.state;
     return o;
 }

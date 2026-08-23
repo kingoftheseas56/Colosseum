@@ -9,9 +9,13 @@
 #include "engine/MangaVolumePacker.h"
 #include "torrent/ComicTorrentMagnet.h"         // infoHash() — extract a canonical hash from a magnet-or-hash
 #include "torrent/BookTorrentMagnet.h"          // buildMagnet() — tracker-bearing magnet for a bare infohash
+#include "torrent/MangaTorrentIndexer.h"        // Arc 18 M4 coordinator (seam-driven, libtorrent-free)
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStringList>
@@ -20,6 +24,7 @@
 
 #ifdef HAS_LIBTORRENT
 #include "engine/WeebCentralScraper.h"
+#include "torrent/MangaTorrentMetainfoResolver.h" // Arc 18 M2 real decode (needs libtorrent link)
 #include "torrent/engine/TorrentEngine.h"
 #endif
 
@@ -44,6 +49,33 @@ void MangaNyaaSearchAdapter::search(const SeriesSnapshot& series, const QString&
 void MangaNyaaSearchAdapter::searchSeries(const SeriesSnapshot& series)
 {
     m_source->searchSeries(series);
+}
+
+// ── MangaTorrentMetainfoFetcher (Arc 18 M5) ──────────────────────────────────
+
+MangaTorrentMetainfoFetcher::MangaTorrentMetainfoFetcher(QNetworkAccessManager* nam,
+                                                         QObject* parent)
+    : IMangaTorrentMetainfoFetcher(parent), m_nam(nam)
+{
+}
+
+void MangaTorrentMetainfoFetcher::fetch(const QString& url, const QString& requestKey)
+{
+    if (!m_nam || url.isEmpty()) {
+        emit fetchFailed(requestKey, QStringLiteral("no fetcher network / empty url"));
+        return;
+    }
+    QNetworkRequest request{QUrl(url)}; // braces: paren form hits the vexing parse
+    request.setTransferTimeout(15000); // bounded: one dead host must not stall the merge
+    QNetworkReply* reply = m_nam->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, requestKey]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit fetchFailed(requestKey, reply->errorString());
+            return;
+        }
+        emit fetched(requestKey, reply->readAll());
+    });
 }
 
 // ── MangaTorrentEngineAdapter (real engine, HAS_LIBTORRENT only) ──────────────
@@ -118,6 +150,14 @@ QJsonArray MangaTorrentEngineAdapter::torrentFiles(const QString& infoHash) cons
 
 // ── MangaTankobanService ─────────────────────────────────────────────────────
 
+MangaTankobanService::~MangaTankobanService()
+{
+    // The indexer is a plain class (no QObject parent) — free it explicitly.
+    // Borrowed trio members (DI ctor) and QObject-parented production
+    // collaborators clean themselves up through Qt ownership.
+    delete m_indexer;
+}
+
 #ifdef HAS_LIBTORRENT
 MangaTankobanService::MangaTankobanService(QNetworkAccessManager* searchNam,
                                            QNetworkAccessManager* dlNam,
@@ -156,6 +196,18 @@ MangaTankobanService::MangaTankobanService(QNetworkAccessManager* searchNam,
     auto* scraper = new WeebCentralScraper(dlNam, this);
     m_packer   = new MangaVolumePacker(scraper, dlNam, m_index, mv + QStringLiteral("/staging"), this);
 
+    // Arc 18 M5 index-first trio: durable volume identity beside the local
+    // volume index. The resolver needs libtorrent, so the trio only builds in
+    // engine-enabled builds; without it the façade keeps its legacy behavior.
+    // The trio lives for the process lifetime (single production service).
+    m_metaResolver = new MangaTorrentMetainfoResolver();
+    m_metaFetcher  = new MangaTorrentMetainfoFetcher(dlNam, this);
+    m_tindex       = new MangaTorrentIndex(this);
+    if (m_tindex->open(mv + QStringLiteral("/torrent-identity.db")))
+        m_indexer = new MangaTorrentIndexer(m_metaResolver, m_tindex);
+    else
+        qWarning() << "[tankoban] torrent identity store failed to open — index-first lookup off";
+
     wireSignals();
 }
 #endif // HAS_LIBTORRENT
@@ -166,11 +218,19 @@ MangaTankobanService::MangaTankobanService(IMangaNyaaSearch* search,
                                            MangaVolumeArchiveIngestor* ingestor,
                                            MangaSynopsisEnricher* enricher,
                                            MangaVolumePacker* packer,
+                                           IMangaTorrentMetainfoResolver* metaResolver,
+                                           IMangaTorrentMetainfoFetcher* metaFetcher,
+                                           MangaTorrentIndex* torrentIndex,
                                            QObject* parent)
     : QObject(parent),
       m_search(search), m_transport(transport), m_index(index),
-      m_ingestor(ingestor), m_enricher(enricher), m_packer(packer)
+      m_ingestor(ingestor), m_enricher(enricher), m_packer(packer),
+      m_metaResolver(metaResolver), m_metaFetcher(metaFetcher), m_tindex(torrentIndex)
 {
+    // All-or-nothing: a partial trio cannot index, so it stays fully off and
+    // the façade behaves exactly as before Arc 18.
+    if (m_metaResolver && m_metaFetcher && m_tindex && m_tindex->isOpen())
+        m_indexer = new MangaTorrentIndexer(m_metaResolver, m_tindex);
     wireSignals();
 }
 
@@ -181,7 +241,21 @@ void MangaTankobanService::wireSignals()
                 onSourcesFound(volId, rows);
             });
     connect(m_search, &IMangaNyaaSearch::searchFailed, this,
-            [this](const QString& volId, const QString&) {
+            [this](const QString& volId, const QString& reason) {
+                if (indexPipelineActive()) {
+                    // Arc 18 M5: a provider ERROR is recorded as an error class
+                    // (never negative-cached) and must NOT delete verified
+                    // identity — stale verified cards simply stay as they are.
+                    m_indexRefreshPending.remove(volId);
+                    m_tindex->recordSearchError(volId, QDateTime::currentMSecsSinceEpoch());
+                    const QList<VolumeMapping> rows = m_tindex->mappingsForVolume(volId);
+                    bool hasVerified = false;
+                    for (const VolumeMapping& m : rows)
+                        hasVerified = hasVerified || m.status == MappingStatus::Verified;
+                    if (!hasVerified)
+                        onSourcesFound(volId, {}); // nothing durable → WeebCentral card as before
+                    return;
+                }
                 onSourcesFound(volId, {}); // Nyaa returned nothing → still a WeebCentral card
             });
 
@@ -202,6 +276,17 @@ void MangaTankobanService::wireSignals()
             });
     connect(m_transport, &MangaVolumeTorrentDownloader::failed, this,
             [this](const QString& volId, const QString& reason) { onFailed(volId, reason); });
+
+    // Arc 18 M6: live metadata contradicted a persisted identity — demote the
+    // mapping so the next lookup re-derives it instead of trusting a stale row.
+    if (m_tindex) {
+        connect(m_transport, &MangaVolumeTorrentDownloader::expectationViolated, this,
+                [this](const QString& volId, const QString& hash, int fileIndex) {
+                    m_tindex->updateMappingStatus(volId, hash, fileIndex,
+                                                  MappingStatus::NeedsRevalidation,
+                                                  QDateTime::currentMSecsSinceEpoch());
+                });
+    }
 
     connect(m_ingestor, &MangaVolumeArchiveIngestor::finished, this,
             [this](const QString& volId) { onAcquired(volId); });
@@ -228,6 +313,17 @@ void MangaTankobanService::wireSignals()
                     emit synopsisReady(volId);
                     if (m_volumes.contains(volId))
                         emit volumesChanged(m_volumes.value(volId).seriesId);
+                });
+    }
+
+    if (m_indexer) {
+        connect(m_metaFetcher, &IMangaTorrentMetainfoFetcher::fetched, this,
+                [this](const QString& key, const QByteArray& bytes) {
+                    onMetaFetched(key, bytes);
+                });
+        connect(m_metaFetcher, &IMangaTorrentMetainfoFetcher::fetchFailed, this,
+                [this](const QString& key, const QString& reason) {
+                    onMetaFetchFailed(key, reason);
                 });
     }
 }
@@ -283,6 +379,54 @@ void MangaTankobanService::searchSources(QString volumeId)
         return; // nothing to search for an unknown volume
     const VolumeRecord vol = m_volumes.value(volumeId);
     const SeriesSnapshot series = m_series.value(vol.seriesId);
+
+    // ── Index-first (Arc 18 M5): identity answers before any network ─────────
+    if (indexPipelineActive()) {
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        QList<VolumeMapping> verified;
+        for (const VolumeMapping& m : m_tindex->mappingsForVolume(volumeId)) {
+            if (m.status == MappingStatus::Verified)
+                verified.append(m);
+        }
+        if (!verified.isEmpty()) {
+            // Instant Torrentio-style answer: STRONG cards now, zero network.
+            cacheIndexedCandidates(volumeId, verified);
+            QVariantList cards;
+            cards.reserve(verified.size() + 1);
+            for (const VolumeMapping& m : verified)
+                cards.append(indexedSourceCard(m));
+            cards.append(weebCardFor(volumeId));
+            emit sourcesReady(volumeId, cards);
+            // Stale identity fires ONE coalesced background refresh; fresh
+            // identity stays fully offline. The freshness clock is when identity
+            // was LAST CONFIRMED for this key: the newest mapping's verifiedAt
+            // or the last successful discovery refresh, whichever is newer — a
+            // sibling volume mapped by a fresh pack is fresh, even though its
+            // own search key was never probed.
+            const IndexedSearchState st = m_tindex->searchState(volumeId);
+            qint64 identityAt = st.lastSuccessAt;
+            for (const VolumeMapping& m : verified)
+                identityAt = qMax<qint64>(identityAt, m.verifiedAt);
+            const bool fresh = identityAt > 0 && now - identityAt < kIdentityTtlMs;
+            if (!fresh && !m_indexRefreshPending.contains(volumeId)) {
+                m_indexRefreshPending.insert(volumeId);
+                m_search->search(series, vol.number);
+            }
+            return;
+        }
+        // No verified identity yet. A recent successful-EMPTY provider answer
+        // is briefly trusted (negative TTL); a provider ERROR never is.
+        if (!m_tindex->searchNegativeCached(volumeId, now)
+            && !m_indexRefreshPending.contains(volumeId)) {
+            m_indexRefreshPending.insert(volumeId);
+            m_search->search(series, vol.number);
+            return; // cards land after discovery + metainfo indexing merge
+        }
+        QVariantList justWeeb{weebCardFor(volumeId)};
+        emit sourcesReady(volumeId, justWeeb);
+        return;
+    }
+
     m_search->search(series, vol.number);
 }
 
@@ -318,13 +462,19 @@ void MangaTankobanService::downloadNyaa(QString volumeId, QString infoHash)
             m_tornDown.remove(volumeId);   // a fresh attempt clears any prior tombstone
             m_chosen[volumeId] = c;
             m_acq[volumeId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("resolving")}};
+            // Arc 18 M6: a verified mapping for this exact hash carries its
+            // persisted file identity (fileIndex + path) into the transport so
+            // live metadata is held to it before any payload starts.
+            const MangaVolumeExpectation expectation =
+                indexPipelineActive() ? expectationFor(volumeId, wanted)
+                                      : MangaVolumeExpectation{};
             // Announce the acquisition the instant it starts (done=total=0 reads as
             // "just began, indeterminate"). Every QML surface — the sources sheet's
             // row disc, the shelf tile, the header count — keys live state off
             // `progress`, and without this tick nothing paints until the first real
             // byte: the invisible-download bug (2026-08-16).
             emit progress(volumeId, 0, 0);
-            m_transport->download(m_volumes.value(volumeId), c);
+            m_transport->download(m_volumes.value(volumeId), c, expectation);
             return;
         }
     }
@@ -361,6 +511,33 @@ void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString info
         return;
     }
 
+    // ── Arc 18 M7: batch truth is the INDEXED FILE SET, not the release title.
+    // With the pipeline live, every requested volume must hold a VERIFIED
+    // mapping under this exact infoHash, each to a distinct isolable file. A
+    // title that says "Vols 1-12" is discovery evidence, never batch proof —
+    // this closes the first-volume-probe weakness. Partial eligibility refuses
+    // the whole batch: "some of your volumes, from a pack that does not cover
+    // the set you asked for" is not an honest answer to a set request.
+    if (indexPipelineActive()) {
+        QSet<int> usedFiles;
+        bool fullyCovered = true;
+        for (const QString& volumeId : volumeIds) {
+            const MangaVolumeExpectation e = expectationFor(volumeId, wanted);
+            if (e.fileIndex < 0 || usedFiles.contains(e.fileIndex)) {
+                fullyCovered = false;
+                break;
+            }
+            usedFiles.insert(e.fileIndex);
+        }
+        if (!fullyCovered) {
+            for (const QString& volumeId : volumeIds)
+                emit failed(volumeId, QStringLiteral(
+                    "Batch refused — the indexed file set does not verify every "
+                    "requested volume for this torrent."));
+            return;
+        }
+    }
+
     // A BATCH IS NOT A TRANSACTION (design 2026-07-30 §3): each volume keeps its
     // own state, so one that is unknown or already acquiring reports its own
     // reason and the rest still go. Per-volume bookkeeping is byte-identical to
@@ -378,7 +555,12 @@ void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString info
         m_chosen[volumeId] = chosen;
         m_acq[volumeId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("resolving")}};
         emit progress(volumeId, 0, 0);   // same start-tick as downloadNyaa
-        m_transport->download(m_volumes.value(volumeId), chosen);
+        // M6 expectations ride each intent of the batch exactly like the
+        // single-volume path (no-op expectation when the pipeline is off).
+        m_transport->download(m_volumes.value(volumeId), chosen,
+                              indexPipelineActive()
+                                  ? expectationFor(volumeId, wanted)
+                                  : MangaVolumeExpectation{});
     }
 }
 
@@ -618,6 +800,49 @@ void MangaTankobanService::runDownloadSelfTest(const QString& spec)
 void MangaTankobanService::onSourcesFound(const QString& volumeId,
                                           const QList<MangaNyaaCandidate>& rows)
 {
+    // ── Index refresh diversion (Arc 18 M5): a discovery that runs while an
+    // index refresh is pending feeds the INDEXER, not QML. Cards land only after
+    // every metainfo fetch settles (emitMergedSources merges indexed + discovery).
+    if (indexPipelineActive() && m_indexRefreshPending.contains(volumeId)) {
+        m_indexRefreshPending.remove(volumeId);
+        MetaFetch mf;
+        if (m_volumes.contains(volumeId)) {
+            const VolumeRecord vol = m_volumes.value(volumeId);
+            mf.series = m_series.value(vol.seriesId);
+        }
+        mf.rows = rows;
+        // Candidates worth indexing: only ones whose .torrent we can actually
+        // fetch, capped so one lookup can never fan into an unbounded fetch
+        // storm. Cap-first keeps the pending count stable under synchronous
+        // fetcher emission.
+        QList<MangaNyaaCandidate> fetchable;
+        for (const MangaNyaaCandidate& c : rows) {
+            if (c.torrentUrl.isEmpty())
+                continue;
+            fetchable.append(c);
+            if (fetchable.size() >= 4)
+                break;
+        }
+        mf.pending = fetchable.size();
+        for (int i = 0; i < fetchable.size(); ++i)
+            mf.urlByKey.insert(QStringLiteral("%1#%2").arg(volumeId).arg(i),
+                               fetchable.at(i).torrentUrl);
+        m_metaFetches.insert(volumeId, mf);
+        if (mf.pending == 0) {
+            // Nothing fetchable: this WAS the provider's answer — record it
+            // (0 rows → negative-TTL'd empty) and show what we already have.
+            m_metaFetches.remove(volumeId);
+            m_tindex->recordSearchSuccess(volumeId, rows.size(),
+                                          QDateTime::currentMSecsSinceEpoch());
+            emitMergedSources(volumeId, rows);
+            return;
+        }
+        for (int i = 0; i < fetchable.size(); ++i)
+            m_metaFetcher->fetch(fetchable.at(i).torrentUrl,
+                                 QStringLiteral("%1#%2").arg(volumeId).arg(i));
+        return;
+    }
+
     m_candidates[volumeId] = rows;
     QVariantList maps;
     maps.reserve(rows.size() + 1);
@@ -795,4 +1020,199 @@ VolumeProvenance MangaTankobanService::provenanceFor(const VolumeRecord& volume,
     p.uploader     = candidate.uploader;
     p.infoHash     = candidate.infoHash;
     return p;
+}
+
+// ── Arc 18 M5 index-first helpers ─────────────────────────────────────────────
+
+bool MangaTankobanService::indexPipelineActive() const
+{
+    return m_indexer && m_tindex && m_tindex->isOpen() && m_metaFetcher && m_metaResolver;
+}
+
+MangaVolumeExpectation MangaTankobanService::expectationFor(const QString& volumeId,
+                                                            const QString& normalizedHash) const
+{
+    MangaVolumeExpectation e;
+    if (!m_tindex || !m_tindex->isOpen())
+        return e;
+    for (const VolumeMapping& m : m_tindex->mappingsForVolume(volumeId)) {
+        if (m.status != MappingStatus::Verified || m.infoHash.toLower() != normalizedHash)
+            continue;
+        e.fileIndex = m.fileIndex;
+        for (const IndexedFile& f : m_tindex->filesForTorrent(m.infoHash)) {
+            if (f.fileIndex == m.fileIndex) {
+                e.filePath = f.path;
+                break;
+            }
+        }
+        break;
+    }
+    return e;
+}
+
+QVariantMap MangaTankobanService::indexedSourceCard(const VolumeMapping& mapping) const
+{
+    // A verified mapping rendered as a card. STRONG means FILE-LEVEL verified
+    // identity (the indexer proved this exact fileIndex is this exact volume) —
+    // never a trusted-uploader or release-title claim, which stay ordinary
+    // discovery cards.
+    const IndexedTorrent t = m_tindex->torrentRow(mapping.infoHash);
+    QString filePath;
+    for (const IndexedFile& f : m_tindex->filesForTorrent(mapping.infoHash)) {
+        if (f.fileIndex == mapping.fileIndex) {
+            filePath = f.path;
+            break;
+        }
+    }
+    QString evidence;
+    switch (mapping.evidence) {
+    case MappingEvidence::MetainfoExactFilename:
+        evidence = QStringLiteral("metainfo_exact_filename"); break;
+    case MappingEvidence::MetainfoExactDirectory:
+        evidence = QStringLiteral("metainfo_exact_directory"); break;
+    case MappingEvidence::RuntimeRevalidated:
+        evidence = QStringLiteral("runtime_revalidated"); break;
+    case MappingEvidence::ReleaseOnly:
+        break; // a verified row never carries release_only; omit the field
+    }
+    QVariantMap card{
+        {QStringLiteral("kind"), QStringLiteral("nyaa")},
+        {QStringLiteral("infoHash"), mapping.infoHash},
+        {QStringLiteral("releaseTitle"), t.releaseTitle},
+        {QStringLiteral("uploader"), t.uploader},
+        {QStringLiteral("sizeBytes"), QVariant::fromValue<qlonglong>(t.totalSize)},
+        {QStringLiteral("seeders"), t.seeders},
+        {QStringLiteral("leechers"), t.leechers},
+        {QStringLiteral("enabled"), true},
+        // ── index card extras (QML renders these as the verified row) ──
+        {QStringLiteral("indexed"), true},
+        {QStringLiteral("confidence"), QStringLiteral("STRONG")},
+        {QStringLiteral("fileIndex"), mapping.fileIndex},
+        {QStringLiteral("filePath"), filePath},
+        {QStringLiteral("verifiedAt"), QVariant::fromValue<qlonglong>(mapping.verifiedAt)},
+        {QStringLiteral("parserVersion"), mapping.parserVersion},
+    };
+    if (!evidence.isEmpty())
+        card[QStringLiteral("evidence")] = evidence;
+    return card;
+}
+
+void MangaTankobanService::cacheIndexedCandidates(
+    const QString& volumeId, const QList<VolumeMapping>& verified)
+{
+    // Merge one synthesized candidate per verified mapping into the volume's
+    // candidate cache so downloadNyaa's arbitrary-infoHash guard VALIDATES an
+    // indexed hash without a live Nyaa search. The magnet is rebuilt from the
+    // hash alone (trackers live in the engine config, not the index).
+    QList<MangaNyaaCandidate>& cache = m_candidates[volumeId];
+    QSet<QString> known;
+    for (const MangaNyaaCandidate& c : cache)
+        known.insert(c.infoHash.toLower());
+    for (const VolumeMapping& m : verified) {
+        if (known.contains(m.infoHash.toLower()))
+            continue;
+        const IndexedTorrent t = m_tindex->torrentRow(m.infoHash);
+        MangaNyaaCandidate c;
+        c.title      = t.releaseTitle;
+        c.uploader   = t.uploader;
+        c.magnetUri  = BookTorrentMagnet::buildMagnet(m.infoHash);
+        c.infoHash   = m.infoHash;
+        c.sizeBytes  = t.totalSize;
+        c.seeders    = t.seeders;
+        c.leechers   = t.leechers;
+        c.discoveredAt = t.discoveredAt;
+        cache.append(c);
+        known.insert(m.infoHash.toLower());
+    }
+}
+
+void MangaTankobanService::emitMergedSources(const QString& volumeId,
+                                             const QList<MangaNyaaCandidate>& rows)
+{
+    // Post-refresh card set: indexed STRONG cards first (file-verified truth),
+    // then any freshly discovered candidates the index could NOT verify (they
+    // keep their ordinary tier labels — never STRONG), then the WeebCentral
+    // fallback, always last.
+    QVariantList cards;
+    QList<VolumeMapping> verified;
+    for (const VolumeMapping& m : m_tindex->mappingsForVolume(volumeId)) {
+        if (m.status == MappingStatus::Verified)
+            verified.append(m);
+    }
+    QSet<QString> indexedHashes;
+    for (const VolumeMapping& m : verified) {
+        cards.append(indexedSourceCard(m));
+        indexedHashes.insert(m.infoHash.toLower());
+    }
+    // Discovery rows replace the cache, THEN verified mappings' synthesized
+    // candidates merge back in (append-only, hash-deduped) so downloadNyaa's
+    // arbitrary-infoHash guard validates an indexed hash post-refresh too.
+    m_candidates[volumeId] = rows;
+    cacheIndexedCandidates(volumeId, verified);
+    for (const MangaNyaaCandidate& c : rows) {
+        if (indexedHashes.contains(c.infoHash.toLower()))
+            continue;
+        QVariantMap card = sourceCard(c);
+        card[QStringLiteral("indexed")] = false;
+        cards.append(card);
+    }
+    cards.append(weebCardFor(volumeId));
+    emit sourcesReady(volumeId, cards);
+}
+
+void MangaTankobanService::settleMetaFetch(QHash<QString, MetaFetch>::iterator it)
+{
+    // The discovery provider DID answer this key (individual .torrent fetches
+    // failing never demotes that), so the refresh records a success — result
+    // count 0 among fetchable-less rows earns the negative TTL; anything else
+    // leaves the key retryable — then emits whatever truth now exists.
+    const QString volumeId = it.key();
+    const QList<MangaNyaaCandidate> rows = it->rows;
+    m_metaFetches.erase(it);
+    m_tindex->recordSearchSuccess(volumeId, rows.size(),
+                                  QDateTime::currentMSecsSinceEpoch());
+    emitMergedSources(volumeId, rows);
+}
+
+void MangaTankobanService::onMetaFetched(const QString& requestKey, const QByteArray& torrentBytes)
+{
+    // One .torrent landed. Route it to its discovery row via urlByKey, index
+    // it, and settle the refresh when the last fetch resolves.
+    auto it = m_metaFetches.begin();
+    while (it != m_metaFetches.end() && !it->urlByKey.contains(requestKey))
+        ++it;
+    if (it == m_metaFetches.end())
+        return;
+    const QString url = it->urlByKey.take(requestKey);
+    const MangaNyaaCandidate* row = nullptr;
+    for (const MangaNyaaCandidate& c : it->rows) {
+        if (c.torrentUrl == url) {
+            row = &c;
+            break;
+        }
+    }
+    if (row && !torrentBytes.isEmpty()) {
+        // Verdicts land in the store; a refusal (combined/ambiguous/lying
+        // infoHash) is an audit diagnostic, never a mapping row.
+        m_indexer->indexCandidate(it->series, *row, torrentBytes,
+                                  QDateTime::currentMSecsSinceEpoch());
+    }
+    if (--it->pending <= 0)
+        settleMetaFetch(it);
+}
+
+void MangaTankobanService::onMetaFetchFailed(const QString& requestKey, const QString& reason)
+{
+    // A failed metainfo fetch never fails the LOOKUP: verified cards stay
+    // visible, discovery cards still render, and no failed() signal fires.
+    // The discovery itself succeeded, so the refresh settles normally.
+    Q_UNUSED(reason)
+    auto it = m_metaFetches.begin();
+    while (it != m_metaFetches.end() && !it->urlByKey.contains(requestKey))
+        ++it;
+    if (it == m_metaFetches.end())
+        return;
+    it->urlByKey.take(requestKey);
+    if (--it->pending <= 0)
+        settleMetaFetch(it);
 }

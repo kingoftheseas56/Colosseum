@@ -62,6 +62,10 @@ struct MangaNyaaCandidate {
     int     tier        = 99;    // 1 / 2 / 99 (untrusted); set in filterAndRank
     bool    standalone  = false; // coverageLo == coverageHi (a single volume)
     bool    digitalHint = false; // title advertises a digital/official edition
+    // ── Arc 18 M2 discovery provenance (identity/indexing inputs) ──
+    QString torrentUrl;   // Nyaa RSS <link> — the .torrent metainfo URL when exposed
+    QString query;        // which query variant found this candidate
+    qint64  discoveredAt = 0;    // epoch ms when discovery merged this row
 };
 
 // Lower-cased uploader trust sets. The harness builds one inline; the instance

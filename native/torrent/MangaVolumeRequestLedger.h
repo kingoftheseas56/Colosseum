@@ -29,6 +29,12 @@ struct VolumeRequestRow {
     QString volumeNumber;
     QString savePath;
     int     pickedFileIndex = -1;
+    // Arc 18 M6: when the request came from a verified index mapping, the
+    // persisted identity expectation (exact fileIndex + path) the resume must
+    // re-confirm against live metadata before any payload resumes. -1/empty =
+    // an ordinary discovery request with no expectation.
+    int     expectedFileIndex = -1;
+    QString expectedFilePath;
     QString state;  // awaiting_metadata / downloading / validating / completed / failed / cancelled
 };
 
