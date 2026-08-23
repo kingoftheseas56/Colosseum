@@ -64,6 +64,8 @@ Item {
     property var service: null
     property var progress: null
     property var downloader: null
+    // Arc 19: page-owned foreground intent mirrored into the volume action bar.
+    property string pendingReadVolumeId: ""
     property bool synopsisExpanded: false
     readonly property real contentHeight: root.height
 
@@ -72,7 +74,7 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal primaryRequested()
-    signal openVolumeRequested(string volumeId)
+    signal readVolumeRequested(string volumeId)
     signal sourcesRequested(var context)
     signal batchRequested(var numbers, string label)
 
@@ -307,7 +309,8 @@ Item {
             anchors.fill: parent
             seriesId: root.seriesId; seriesTitle: root.seriesTitle
             service: root.service; progress: root.progress; downloader: root.downloader
-            onOpenVolumeRequested: (volumeId) => root.openVolumeRequested(volumeId)
+            pendingReadVolumeId: root.pendingReadVolumeId
+            onReadVolumeRequested: (volumeId) => root.readVolumeRequested(volumeId)
             onSourcesRequested: (ctx) => root.sourcesRequested(ctx)
             onBatchRequested: (numbers, label) => root.batchRequested(numbers, label)
         }
@@ -333,7 +336,7 @@ Item {
         // shelf-less honest fallback. Chapters are gone entirely (catalogue-independence
         // Slice 5, 2026-08-20) so the only unmodeled case left is a not-yet-resolved page,
         // where "Open volume 1" is still the honest eventual promise.
-        if (root.primaryAction === "get") return "Get volume 1"
+        if (root.primaryAction === "get") return "Read volume 1"
         if (root.primaryAction === "search") return "Search nyaa"
         return "Open volume 1"
     }

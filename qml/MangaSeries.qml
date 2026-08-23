@@ -46,6 +46,14 @@ Item {
     property var tankobanCatalogRef: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
     property var tankobanVolumesRef: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
 
+    // Arc 19: a Read that needs transport stays a foreground consumption intent until
+    // this exact series/volume becomes readable, the user leaves, or a newer Read wins.
+    property int _readIntentGeneration: 0
+    property string pendingReadVolumeId: ""
+    property string pendingReadSeriesId: ""
+    property bool _pendingReadViaSources: false
+    readonly property bool pendingReadActive: page.pendingReadVolumeId.length > 0
+
     // --- resolved state ---
     property string malId: ""    // Slice C: Discover card's MAL id, when the series was opened from one
     // The catalogue-resolved numeric identity (0 = unresolved). seriesId below is derived
@@ -109,6 +117,7 @@ Item {
     // for the new series, or it would keep the old series' volumes. Reset the prepare
     // latch + the reader's volume model whenever the id changes.
     onSeriesIdChanged: {
+        page._invalidateReadIntent()
         page._tankobanPrepared = false
         page.tankobanReaderEntries = []
     }
@@ -231,6 +240,10 @@ Item {
     // The ONE path that raises the source picker — a single tile and a batch both
     // come through here, so the series identity is merged in exactly one place.
     function _openSources(ctx) {
+        ctx.intent = String(ctx.intent || "acquire")
+        if (ctx.intent !== "consume" && page.pendingReadActive
+                && String(ctx.volumeId || "") !== page.pendingReadVolumeId)
+            page._invalidateReadIntent()
         ctx.seriesId = page.seriesId
         ctx.seriesTitle = page.seriesTitle
         ctx.volumeNumber = ctx.number
@@ -241,6 +254,90 @@ Item {
         // so the hero is never blank when the series itself has one.
         ctx.synopsis = page._volumeSynopsis(ctx.volumeId) || page.synopsis
         sourcesPage.show(ctx)
+    }
+
+    function _volumeRow(volumeId) {
+        var rows = readingRoom.library.volumeRows || []
+        var id = String(volumeId)
+        for (var i = 0; i < rows.length; i++)
+            if (String(rows[i].id) === id) return rows[i]
+        return null
+    }
+
+    function _volumeState(volumeId) {
+        var id = String(volumeId)
+        var service = page.tankobanVolumesRef
+        if (service && service.statusOf) {
+            var status = service.statusOf(id) || ({})
+            var state = String(status.state || "none")
+            if (state !== "none") return state
+        }
+        var row = page._volumeRow(id)
+        return row ? readingRoom.library.effectiveState(row) : "none"
+    }
+
+    function _inFlightVolumeState(state) {
+        return state === "resolving" || state === "downloading"
+            || state === "ingesting" || state === "packing"
+    }
+
+    function _clearReadIntent() {
+        page.pendingReadVolumeId = ""
+        page.pendingReadSeriesId = ""
+        page._pendingReadViaSources = false
+    }
+
+    function _invalidateReadIntent() {
+        page._readIntentGeneration += 1
+        page._clearReadIntent()
+    }
+
+    function _beginReadIntent(volumeId, viaSources) {
+        page._readIntentGeneration += 1
+        page.pendingReadVolumeId = String(volumeId)
+        page.pendingReadSeriesId = page.seriesId
+        page._pendingReadViaSources = viaSources === true
+        return page._readIntentGeneration
+    }
+
+    function _readIntentMatches(volumeId, generation) {
+        return page.pendingReadActive
+            && String(volumeId) === page.pendingReadVolumeId
+            && Number(generation) === page._readIntentGeneration
+            && page.pendingReadSeriesId === page.seriesId
+    }
+
+    function _completePendingRead(volumeId, generation) {
+        var id = String(volumeId)
+        if (!page._readIntentMatches(id, generation)) return false
+        if (page._volumeState(id) !== "ready") return false
+        var service = page.tankobanVolumesRef
+        var pages = service && service.localPages ? (service.localPages(id) || []) : []
+        if (!pages.length) return false
+        page._clearReadIntent()
+        page._openVolume(id)
+        return true
+    }
+
+    function _readVolume(volumeId) {
+        var id = String(volumeId || "")
+        if (!id.length) return
+        var state = page._volumeState(id)
+        if (state === "ready") {
+            page._invalidateReadIntent()
+            page._openVolume(id)
+            return
+        }
+
+        var generation = page._beginReadIntent(id, false)
+        if (page._inFlightVolumeState(state)) return
+
+        var row = page._volumeRow(id)
+        if (!row) { page._invalidateReadIntent(); return }
+        page._pendingReadViaSources = true
+        var ctx = readingRoom.library.sourceContext(id, "consume")
+        ctx.intentGeneration = generation
+        page._openSources(ctx)
     }
 
     // Looks up a volume's accepted per-volume synopsis off the live canonical model
@@ -297,7 +394,7 @@ Item {
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
-        readingRoom.library.chooseSource(String(entryId))
+        page._readVolume(String(entryId))
     }
     // Continue/session resume of a saved tankoban record: open the saved volume through
     // the shared reader. Mode is DERIVED now — a resumable tankoban record implies a
@@ -310,9 +407,22 @@ Item {
 
     // Keep the reader's descending volume model current as the service learns more.
     Connections {
-        target: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
+        target: page.tankobanVolumesRef
         ignoreUnknownSignals: true
         function onVolumesChanged(sid) { if (sid === page.seriesId) page._rebuildTankobanEntries() }
+        function onFinished(volumeId) {
+            if (!page.pendingReadActive || page._pendingReadViaSources) return
+            if (String(volumeId) !== page.pendingReadVolumeId) return
+            page._completePendingRead(String(volumeId), page._readIntentGeneration)
+        }
+        function onFailed(volumeId, reason) {
+            if (!page.pendingReadActive || page._pendingReadViaSources) return
+            if (String(volumeId) === page.pendingReadVolumeId) page._invalidateReadIntent()
+        }
+        function onRemoved(volumeId) {
+            if (page.pendingReadActive && String(volumeId) === page.pendingReadVolumeId)
+                page._invalidateReadIntent()
+        }
     }
 
     // --- volumes (Comick volume DB via MangaVolumes.js; complete ranges or none — gated) ---
@@ -349,11 +459,11 @@ Item {
     }
     function readPrimary() {
         // resume beats everything — it is the only target the user already chose
-        if (readingRoom.library.continueVolumeId.length) { page._openVolume(readingRoom.library.continueVolumeId); return }
+        if (readingRoom.library.continueVolumeId.length) { page._readVolume(readingRoom.library.continueVolumeId); return }
         var rows = readingRoom.library.volumeRows || []
         for (var i = 0; i < rows.length; i++)                    // first book on disk
-            if (String(rows[i].state) === "ready") { page._openVolume(String(rows[i].id)); return }
-        if (rows.length) { readingRoom.library.chooseSource(String(rows[0].id)); return }   // fetch volume 1
+            if (String(rows[i].state) === "ready") { page._readVolume(String(rows[i].id)); return }
+        if (rows.length) { page._readVolume(String(rows[0].id)); return }
         // No known shelf at all (catalogue-independence Slice 4, 2026-08-20):
         // primaryAction === "search" — open the series-level nyaa picker. Chapters are
         // gone entirely (catalogue-independence Slice 5, 2026-08-20, purity law) so
@@ -596,13 +706,14 @@ Item {
         genres: page.genres
         score: page.score
         service: page.tankobanVolumesRef
+        pendingReadVolumeId: page.pendingReadVolumeId
         collectionEntry: page.collectionEntry()
-        onBackRequested: page.backRequested()
-        onMinimizeRequested: page.minimizeRequested()
+        onBackRequested: { page._invalidateReadIntent(); page.backRequested() }
+        onMinimizeRequested: { page._invalidateReadIntent(); page.minimizeRequested() }
         onFullscreenRequested: page.fullscreenRequested()
-        onCloseRequested: page.closeRequested()
+        onCloseRequested: { page._invalidateReadIntent(); page.closeRequested() }
         onPrimaryRequested: page.readPrimary()
-        onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
+        onReadVolumeRequested: (volumeId) => page._readVolume(volumeId)
         onSourcesRequested: (ctx) => page._openSources(ctx)
         onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
     }
@@ -688,5 +799,9 @@ Item {
         z: 70
         backdrop: page.backdrop
         onOpenExtensionsRequested: page.openExtensionsRequested()
+        onConsumeReady: (volumeId, generation) => page._completePendingRead(volumeId, generation)
+        onConsumeAbandoned: (volumeId, generation) => {
+            if (page._readIntentMatches(volumeId, generation)) page._invalidateReadIntent()
+        }
     }
 }

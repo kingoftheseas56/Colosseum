@@ -109,11 +109,16 @@ Item {
     property int liveVolumeTiles: 0
     readonly property int flowCurrentIndex: volumeFlow ? volumeFlow.currentIndex : -1
 
+    // Arc 19: foreground Read intent is owned one level up by MangaSeries.
+    // The library only mirrors the exact pending volume so the action bar can
+    // tell a Read-adopted in-flight job from an ordinary background download.
+    property string pendingReadVolumeId: ""
+
     implicitWidth: 640
     implicitHeight: 480
 
     signal batchRequested(var numbers, string label)
-    signal openVolumeRequested(string volumeId)
+    signal readVolumeRequested(string volumeId)
     signal sourcesRequested(var context)
 
     Theme { id: theme }
@@ -351,23 +356,32 @@ Item {
         return true
     }
 
-    function chooseSource(volumeId) {
+    function sourceContext(volumeId, intent) {
         var rows = root.volumeRows || []
         for (var i = 0; i < rows.length; i++) {
-            if (String(rows[i].id) === String(volumeId)) {
-                root.sourcesRequested({ "volumeId": String(volumeId), "number": rows[i].number,
-                                        "title": rows[i].title || "", "cover": rows[i].cover || "" })
-                return
-            }
+            if (String(rows[i].id) === String(volumeId))
+                return { "volumeId": String(volumeId), "number": rows[i].number,
+                         "title": rows[i].title || "", "cover": rows[i].cover || "",
+                         "intent": String(intent || "acquire") }
         }
-        root.sourcesRequested({ "volumeId": String(volumeId), "number": "", "title": "", "cover": "" })
+        return { "volumeId": String(volumeId), "number": "", "title": "", "cover": "",
+                 "intent": String(intent || "acquire") }
+    }
+
+    function chooseSource(volumeId, intent) {
+        root.sourcesRequested(root.sourceContext(volumeId, intent || "acquire"))
     }
 
     function primaryAction(row) {
+        if (!row) return
+        root.readVolumeRequested(String(row.id))
+    }
+
+    function downloadAction(row) {
+        if (!row) return
         var state = root.effectiveState(row)
-        if (state === "ready") { root.openVolumeRequested(String(row.id)); return }
-        if (root._inFlight(state)) return
-        root.chooseSource(String(row.id))
+        if (state === "ready" || root._inFlight(state)) return
+        root.chooseSource(String(row.id), "acquire")
     }
 
     function unownedIn(rows) {
@@ -515,16 +529,27 @@ Item {
     readonly property int bookWidth: Math.round(root.bookHeight * 2 / 3)
     readonly property var currentRow:
         root.focusIndex >= 0 && root.focusIndex < root.volumeRows.length ? root.volumeRows[root.focusIndex] : null
+    readonly property bool currentReadIntentActive:
+        root.currentRow && String(root.currentRow.id) === root.pendingReadVolumeId
     readonly property string currentActionLabel: {
         var row = root.currentRow
         if (!row) return ""
         var state = root.effectiveState(row)
-        if (state === "ready") return "Read"
-        if (root._inFlight(state)) {
-            var f = root.progressFraction(row)
-            return f >= 0 ? Math.round(f * 100) + "%" : "Working"
-        }
-        return state === "failed" ? "Retry" : "Get"
+        if (root.currentReadIntentActive && root._inFlight(state)) return "Reading when ready"
+        if (state === "failed") return "Retry Read"
+        if (state === "ready" && String(row.id) === root.continueVolumeId)
+            return "Continue Vol. " + Vol.volumeToken(row)
+        return "Read Vol. " + Vol.volumeToken(row)
+    }
+    readonly property string currentIntentProgressLabel: {
+        if (!root.currentReadIntentActive || !root.currentRow) return ""
+        var f = root.progressFraction(root.currentRow)
+        return f >= 0 ? Math.round(f * 100) + "%" : ""
+    }
+    readonly property bool currentDownloadEnabled: {
+        if (!root.currentRow) return false
+        var state = root.effectiveState(root.currentRow)
+        return state !== "ready" && !root._inFlight(state)
     }
     readonly property real flowViewportHeight: flowViewport.height
     readonly property real maxScaledVolumeHeight: (root.bookHeight + root.captionHeight) * root.currentItemScale
@@ -890,26 +915,65 @@ Item {
             }
         }
 
-        Rectangle {
+        Row {
             anchors.right: parent.right; anchors.rightMargin: theme.margin
             anchors.verticalCenter: parent.verticalCenter
-            width: actionBarText.implicitWidth + 36; height: 34; radius: 9
-            color: root.currentRow && root.effectiveState(root.currentRow) === "ready"
-                ? theme.glassTint : theme.gold
-            border.width: root.currentRow && root.effectiveState(root.currentRow) === "ready" ? 1 : 0
-            border.color: theme.edge
-            opacity: root.currentRow && root._inFlight(root.effectiveState(root.currentRow)) ? 0.58 : 1.0
+            spacing: 9
+
             Text {
-                id: actionBarText; anchors.centerIn: parent
-                text: root.currentActionLabel
-                color: root.currentRow && root.effectiveState(root.currentRow) === "ready" ? theme.ink : "#171205"
-                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.currentIntentProgressLabel.length > 0
+                text: root.currentIntentProgressLabel
+                color: theme.gold
+                font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold
             }
-            MouseArea {
-                anchors.fill: parent
-                enabled: root.currentRow && !root._inFlight(root.effectiveState(root.currentRow))
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: root.activateCurrent()
+
+            Rectangle {
+                width: downloadLabel.implicitWidth + 42; height: 34; radius: 9
+                color: theme.glassTint
+                border.width: 1; border.color: theme.edge
+                opacity: root.currentDownloadEnabled ? 1.0 : 0.45
+                Row {
+                    anchors.centerIn: parent; spacing: 7
+                    Image {
+                        width: 13; height: 13; anchors.verticalCenter: parent.verticalCenter
+                        source: "../assets/icons/download.svg"
+                        sourceSize.width: 13; sourceSize.height: 13; fillMode: Image.PreserveAspectFit
+                        opacity: 0.86
+                    }
+                    Text {
+                        id: downloadLabel
+                        text: "Download"
+                        color: theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: root.currentDownloadEnabled
+                    hoverEnabled: true
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.downloadAction(root.currentRow)
+                }
+            }
+
+            Rectangle {
+                width: actionBarText.implicitWidth + 36; height: 34; radius: 9
+                color: root.currentReadIntentActive ? theme.glassTint : theme.gold
+                border.width: root.currentReadIntentActive ? 1 : 0
+                border.color: root.currentReadIntentActive ? Qt.rgba(0.94, 0.77, 0.29, 0.5) : theme.gold
+                Text {
+                    id: actionBarText; anchors.centerIn: parent
+                    text: root.currentActionLabel
+                    color: root.currentReadIntentActive ? theme.gold : "#171205"
+                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: root.currentRow !== null
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.activateCurrent()
+                }
             }
         }
     }

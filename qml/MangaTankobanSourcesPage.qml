@@ -25,8 +25,9 @@
 //
 // Belongs to MangaSeries (a sibling of the reader; mutually-exclusive overlays). All
 // acquisition rides the native TankobanVolumes service under the original volumeId
-// (or, in series mode, a "series:"-prefixed opaque key) — this page emits NO reader
-// signal; it only kicks a native download then hides.
+// (or, in series mode, a "series:"-prefixed opaque key). Arc 19 keeps reader ownership
+// in MangaSeries: this page emits only semantic consume-ready/abandoned signals after
+// kicking the native download; it never reaches into MangaReader itself.
 import QtQuick
 import QtQuick.Controls
 
@@ -149,6 +150,10 @@ Item {
     }
 
     signal closed()
+    // Arc 19: a consume-originated pick hands its exact identity back to MangaSeries;
+    // user dismissal cancels only the auto-open intent, never the native acquisition.
+    signal consumeReady(string volumeId, int intentGeneration)
+    signal consumeAbandoned(string volumeId, int intentGeneration)
     // Empty-state route (R1): this page never opens Extensions itself — it only
     // asks, forwarded up the same way backRequested/minimizeRequested already are
     // (MangaSeries.qml -> Main.qml -> win.openExtensionsPage()).
@@ -219,12 +224,16 @@ Item {
             s.searchSources(context.volumeId)
         }
     }
-    function hide() {
+    function hide(userInitiated) {
+        var abandonConsume = userInitiated === true && String(context.intent || "") === "consume"
+        var volumeId = String(context.volumeId || "")
+        var generation = Number(context.intentGeneration || 0)
         open = false
         rows = []
         loading = false; complete = false; failureText = ""
         _resetLive()
         closed()
+        if (abandonConsume && volumeId.length) consumeAbandoned(volumeId, generation)
     }
 
     function _resetLive() {
@@ -276,7 +285,9 @@ Item {
 
     // The status line under the picked release: phase word first, % once bytes move.
     function statusText() {
-        if (livePhase === "done") return "Done — added to your shelf"
+        if (livePhase === "done")
+            return String(context.intent || "") === "consume"
+                ? "Ready — opening reader" : "Done — added to your shelf"
         if (livePhase === "failed") return "Failed — pick another source"
         var s = sheet.serviceObject
         var resolving = false, packing = false, ingesting = false
@@ -324,8 +335,12 @@ Item {
         if (live.length === 1) {
             var n = (context.volumeNumber !== undefined && String(context.volumeNumber).length)
                     ? String(context.volumeNumber) : ""
-            toast(n.length ? ("Vol. " + n + " is downloading — follow it on the volume shelf")
-                           : "Downloading — follow it on the volume shelf", false)
+            var consuming = String(context.intent || "") === "consume"
+            toast(n.length
+                  ? ("Vol. " + n + (consuming ? " is downloading — it will open when ready"
+                                                   : " is downloading — follow it on the volume shelf"))
+                  : (consuming ? "Downloading — it will open when ready"
+                               : "Downloading — follow it on the volume shelf"), false)
         } else {
             toast(live.length + " volumes are downloading — follow the shelf", false)
         }
@@ -356,7 +371,7 @@ Item {
     // no auto-fallback here.
     function pickNyaa(modelData) {
         var s = sheet.serviceObject
-        if (!s || !modelData || !modelData.infoHash) { hide(); return }
+        if (!s || !modelData || !modelData.infoHash) { hide(true); return }
         pickedHash = String(modelData.infoHash)
         if (sheet.isBatch) {
             // A batch acquires every volume from the ONE chosen torrent. The
@@ -440,7 +455,14 @@ Item {
     Timer {
         id: _liveCloseTimer
         interval: 1400
-        onTriggered: { if (sheet.livePhase === "done") sheet.hide() }
+        onTriggered: {
+            if (sheet.livePhase !== "done") return
+            var consume = String(sheet.context.intent || "") === "consume"
+            var volumeId = String(sheet.context.volumeId || "")
+            var generation = Number(sheet.context.intentGeneration || 0)
+            sheet.hide(false)
+            if (consume && volumeId.length) sheet.consumeReady(volumeId, generation)
+        }
     }
     // The "!" beat before the rows come back for another pick.
     Timer {
@@ -573,7 +595,7 @@ Item {
         // without knowing pixel coordinates. Mirrors tankobanReadingRoomBack.
         objectName: "tankobanSourcesBack"
         x: theme.margin; y: 30; z: 20
-        onTriggered: sheet.hide()
+        onTriggered: sheet.hide(true)
     }
 
     // ── title block + volume identity rail, pinned to the bottom of the banner ──

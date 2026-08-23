@@ -1,6 +1,7 @@
 // manga_volume_flow_harness.qml — deterministic gate for the v2.3 MangaTankobanLibrary flow
 // (arc-08, adopted 2026-08-21). Pins: flow centring/resume, the dynamic cover clamp (never
-// cropped), virtualization, Get/Read/Retry/percent state vocabulary, the name-caption rule
+// cropped), virtualization, stable Read/Retry Read/Reading-when-ready vocabulary plus a
+// separate acquire-only Download action, the name-caption rule
 // (a redundant "Volume N" name collapses to nothing), long-series keyboard step mapping
 // (PageUp/PageDown/Home/End), and that a zero-volume series reserves no action bar.
 //
@@ -54,7 +55,8 @@ Window {
 
     property var library: null
     property int sourceSignals: 0
-    property int openSignals: 0
+    property int readSignals: 0
+    property var lastSourceContext: null
 
     function ck(value, message) {
         if (!value) throw new Error(message)
@@ -88,8 +90,11 @@ Window {
                 "service": service, "progress": progress, "downloader": downloads
             })
             if (!library) throw new Error("candidate library did not instantiate")
-            library.sourcesRequested.connect(function(ctx) { harness.sourceSignals += 1 })
-            library.openVolumeRequested.connect(function(volumeId) { harness.openSignals += 1 })
+            library.sourcesRequested.connect(function(ctx) {
+                harness.sourceSignals += 1
+                harness.lastSourceContext = ctx
+            })
+            library.readVolumeRequested.connect(function(volumeId) { harness.readSignals += 1 })
 
             Qt.callLater(function() {
                 try {
@@ -102,7 +107,8 @@ Window {
                        "the selected volume plus caption must fit the flow viewport at its drawn (scaled) size — never cropped")
                     ck(library.liveVolumeTiles > 0 && library.liveVolumeTiles < library.volumeRows.length,
                        "long series must stay virtualized")
-                    ck(library.currentActionLabel === "Get", "unowned selected volume must expose only Get")
+                    ck(library.currentActionLabel === "Read Vol. 7",
+                       "an unowned selected volume must keep the stable Read verb")
 
                     // caption vocabulary (POLISH-DELTA ruling #1): the real name reaches the
                     // caption, a redundant "Volume N" name collapses to nothing, and no range
@@ -121,12 +127,20 @@ Window {
                     // state vocabulary: Get / Read / Retry / percent, and the caption's own state
                     // line for a failed volume.
                     library.focusAtIndex(10)   // volume 11, seeded "failed"
-                    ck(library.currentActionLabel === "Retry", "a failed selected volume must expose Retry")
+                    ck(library.currentActionLabel === "Retry Read",
+                       "a failed selected volume must preserve the Read intent in its retry label")
                     ck(library.stateLineFor(library.volumeRows[10]) === "failed",
                        "a failed volume's caption state line must read exactly 'failed'")
                     library.focusAtIndex(4)    // volume 5, seeded "downloading"
-                    ck(library.currentActionLabel === "Working" || /%$/.test(library.currentActionLabel),
-                       "an in-flight selected volume must expose live progress, never Get/Read/Retry")
+                    ck(library.currentActionLabel === "Read Vol. 5",
+                       "a background in-flight volume still means Read until the user adopts it")
+                    library.pendingReadVolumeId = "v5"
+                    service.progress("v5", 62, 100)
+                    ck(library.currentActionLabel === "Reading when ready",
+                       "a Read-adopted in-flight volume must expose the waiting intent")
+                    ck(library.currentIntentProgressLabel === "62%",
+                       "a Read-adopted in-flight volume must keep its live progress beside the verb")
+                    library.pendingReadVolumeId = ""
 
                     // long-series keyboard/wheel-equivalent step mapping (POLISH-DELTA ruling #7):
                     // PageUp/PageDown and Shift+wheel both route through jumpBy(10); Home/End
@@ -145,19 +159,28 @@ Window {
 
                     library.focusAtIndex(6)
                     var beforeSrc = sourceSignals
+                    var beforeRead = readSignals
                     library.pressVolume(7)
-                    ck(library.focusIndex === 7 && sourceSignals === beforeSrc,
+                    ck(library.focusIndex === 7 && sourceSignals === beforeSrc && readSignals === beforeRead,
                        "first click on a neighbour must only focus it")
                     library.pressVolume(7)
+                    ck(readSignals === beforeRead + 1 && sourceSignals === beforeSrc,
+                       "second click on the focused unowned volume must express Read, not Download")
+                    library.downloadAction(library.currentRow)
                     ck(sourceSignals === beforeSrc + 1,
-                       "second click on the focused unowned volume must request acquisition")
+                       "the separate Download action must be the acquisition-only source route")
+                    ck(lastSourceContext && lastSourceContext.intent === "acquire",
+                       "Download must carry explicit acquire intent into the source picker")
 
                     library.focusAtIndex(2)
                     Qt.callLater(function() {
                         try {
-                            ck(library.currentActionLabel === "Read", "ready volume must expose only Read")
+                            ck(library.currentActionLabel === "Read Vol. 3",
+                               "ready volume must keep the same stable Read verb")
+                            var readyBefore = readSignals
                             library.activateCurrent()
-                            ck(openSignals === 1, "Read must emit exactly one open-volume request")
+                            ck(readSignals === readyBefore + 1,
+                               "Read must emit exactly one semantic read-volume request")
 
                             // A series with no catalogued volumes never shows "VOLUMES 0" and
                             // never reserves the action bar — the honest shelf-less page lives one
