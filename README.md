@@ -37,31 +37,24 @@ so reading and listening can continue offline.
 > [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for a per-user install —
 > no administrator required. Building from source is documented below.
 
-## What's new in 1.1.2
+## What's new in 1.1.3
 
-- **Vault is tougher on disk changes and now has a permanent Home portal.** Live deletion and
-  same-path replacement reconcile the library instead of leaving stale rows behind, enrichment
-  writes carry a revision guard, and unreadable CBR archives fail closed instead of opening an
-  empty reader session. The Home hatch is always present and does not depend on having Vault roots.
-- **Watch Party works out of the box.** The desktop now defaults to the hosted protocol-v3 relay,
-  while `COLOSSEUM_WATCH_PARTY_URL` remains an override for self-hosting and testing. Joining a
-  room can fetch that room's exact torrent source automatically instead of requiring the joiner to
-  already have it locally.
-- **Tankoban adds a Library tab and keeps the approved volume-flow series view.** Library gives
-  downloaded/owned volumes their own world surface, while series pages use the fixed-height
-  horizontal volume continuum adopted after the 1.1.1 catalogue-independence work.
-- **Biblio's catalogue stack was rebuilt.** Discover and Explore now use expanded ranking, a
-  reworked catalogue store, and Open Library lanes for most-read titles, classics, and subjects
-  alongside the existing Apple Books path.
-- **Scrolling and updates received a shell-level polish pass.** ScrollGlide adds momentum-based
-  wheel and keyboard scrolling across the reader and major grid surfaces. Updates moved from the
-  taskbar to the top bar; the chronicle is full-bleed and can render the bundled,
-  signature-verified history for the release already installed.
-- **The Living Guide is gone, and unsupported book formats fail more honestly.** Its overlay,
-  taskbar entry, content pages, and shell arbitration were removed. AZW3 books now route correctly;
-  DJVU remains unsupported and fails closed with a clear error.
+- **1.1.3 restores the release that 1.1.2 was meant to be.** 1.1.2 was pulled after a QML type
+  registration ended up behind the Player 2 compile guard, causing release builds to exit before a
+  window appeared. `Colosseum.Activity` is now registered unconditionally, so the app launches normally.
+- **Installed launches are cleaner.** `colosseum.exe` now uses the Windows GUI subsystem, removing
+  the console window that had appeared behind the app since the earliest releases.
+- **Post-update relaunch works again.** Updater result flags are no longer mistaken for a QML file
+  path, so the app can reopen after an in-app update instead of silently exiting during relaunch.
+- **Release packaging is substantially leaner.** The installer stage now strips build intermediates,
+  test harnesses, and source trees the installed app never reads, and packaging refuses any installer
+  over 300 MB. This closes the packaging failure that made 1.1.2 balloon to 647 MB.
+- **The intended 1.1.2 feature set is carried forward intact.** That includes Vault hardening and
+  its permanent Home portal, hosted-default Watch Party with join-side exact-torrent fetching,
+  Tankoban's Library tab and volume-flow view, the Biblio catalogue overhaul, ScrollGlide, the
+  top-bar update chronicle, Living Guide removal, AZW3 support, and truthful DJVU/CBR failure paths.
 
-Full release notes: [docs/release-notes/v1.1.2.md](docs/release-notes/v1.1.2.md).
+Full release notes: [docs/release-notes/v1.1.3.md](docs/release-notes/v1.1.3.md).
 
 ## Highlights
 
@@ -75,7 +68,7 @@ Full release notes: [docs/release-notes/v1.1.2.md](docs/release-notes/v1.1.2.md)
   arrivals, keeps a recent-arrivals view, preserves unavailable roots, and routes supported local
   files back into the same readers and player used elsewhere in Colosseum.
 - **Deep catalogues with offline backbones.** Theatre shelves are ranked by a local IMDb index;
-  Tankoban discovery and series pages use bundled MAL/Tankoban catalogues; Biblio blends Apple
+  Tankoban discovery and series pages use local MAL/Tankoban catalogues; Biblio blends Apple
   Books with Open Library most-read, classics, and subject discovery.
 - **Stremio-compatible extensions.** World-aware Sources, community/curated Browse, Installed
   management, configured manifests, and direct/torrent Theatre stream results. NoTorrent ships
@@ -110,7 +103,7 @@ Full release notes: [docs/release-notes/v1.1.2.md](docs/release-notes/v1.1.2.md)
 
 | World | For | Built-in sources |
 |---|---|---|
-| **Tankoban** | manga and western comics | bundled MAL + Tankoban catalogues; AniList metadata; Nyaa volume source (off by default); GetComics + local comic catalog |
+| **Tankoban** | manga and western comics | local/managed MAL + Tankoban catalogues; AniList metadata; Nyaa volume source (off by default); GetComics + local comic catalog |
 | **Biblio** | ebooks and audiobooks | Apple Books + Open Library discovery, LibGen, AudioBookBay |
 | **Theatre** | movies, shows, anime | Cinemeta + offline IMDb catalogue, Jikan/AniList/Kitsu; installed Stremio extensions |
 
@@ -120,14 +113,13 @@ Full release notes: [docs/release-notes/v1.1.2.md](docs/release-notes/v1.1.2.md)
 Downloads screen: Vault can index ordinary folders anywhere you choose, while Downloads continues
 to track media acquired by Colosseum's own backends.
 
-Vault has a permanent Home portal in 1.1.2, so the local-library door is present even on a fresh
+Vault has a permanent Home portal, so the local-library door is present even on a fresh
 install with no roots configured. Add one or more roots and Colosseum scans them without relocating
 the originals. The Browse face has recent arrivals, a root rail, breadcrumbs, nested folder
 navigation, media-shaped cards, and in-place identity correction. Confirmed roots are watched for
 new files, while disconnected or missing roots remain represented as **away** instead of making your
-library silently shrink. In
-1.1.2, deleting or replacing files is also reconciled live, and stale background enrichment is
-revision-guarded so older work cannot overwrite a newer file identity.
+library silently shrink. Deleting or replacing files is also reconciled live, and stale background
+enrichment is revision-guarded so older work cannot overwrite a newer file identity.
 
 Artwork follows the media rather than one generic poster rule. Comics and books can reuse covers
 inside their files; recognized movies and shows can receive locally cached canonical posters;
@@ -150,7 +142,7 @@ moving the underlying download data.
 
 ## Watch Party
 
-Colosseum 1.1.2 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
+Colosseum 1.1.3 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
 relay, so creating or joining a room no longer requires endpoint configuration. A Join action lives
 on the taskbar; room controls live inside Player 1. The client supports guest and signed-in identity,
 participant rosters, chat and reactions, host/shared control, reconnect and host grace, kick/rejoin,
@@ -196,7 +188,7 @@ direct manifest installation and community Browse use the same gate so the two p
 
 ## Accounts and sync
 
-Colosseum 1.1.2 has account onboarding, remembered-session restore, an account medallion/flyout,
+Colosseum 1.1.3 has account onboarding, remembered-session restore, an account medallion/flyout,
 and a six-page Account Centre: **Profile**, **Your Colosseum**, **Security**, **Devices**,
 **Recovery**, and **Data & privacy**.
 
@@ -240,9 +232,10 @@ administrator needed — and runs on Windows 10/11.
 Colosseum's installed updater checks the stable GitHub Releases channel and shows a quiet
 **Update** control in the Home top bar when a newer signed release is available. The Update page can
 show a full-bleed release chronicle, download into a resumable cache, verify the signed manifest and
-installer hash, and then launch the side-by-side installer. In 1.1.2, the installed release also
-ships with a bundled, signature-verified chronicle so the page has trustworthy history before any
-network check completes.
+installer hash, and then launch the side-by-side installer. The installed release also ships with a
+bundled, signature-verified chronicle so the page has trustworthy history before any network check
+completes. In 1.1.3, updater result flags also survive the relaunch path instead of being mistaken for
+a QML file override.
 
 1.1.1 closes the installer handoff that was incomplete in 1.1.0: once the verified installer has
 successfully launched, Colosseum persists the Installing state and requests its own orderly
@@ -264,9 +257,10 @@ Requirements: Windows 10 or 11, Visual Studio 2022 C++ Build Tools, CMake 3.16+,
 MSVC 2022 64-bit (with Quick, QML, Network, GUI, SQL, Concurrent, WebEngineQuick, WebChannel,
 WebSockets), MpvQt + libmpv, libtorrent-rasterbar with Boost and OpenSSL, the bundled Stremio
 stream-server runtime, and ffmpeg. Python 3 is only needed to rebuild catalogue databases or run
-the repository's Python verification tooling. The catalogue databases are deployment artifacts rather than ordinary Git
-source; a source build needs the relevant files under `data/` for the corresponding offline
-catalogue surfaces to populate.
+the repository's Python verification tooling. The catalogue databases are deployment artifacts
+rather than ordinary Git source. Current source builds resolve local `data/*.db` files first; when a
+catalogue is absent, `CatalogVaultClient` can fetch the published database into per-user AppData
+without blocking startup, then wake the corresponding catalogue surface when it becomes ready.
 
 ```bat
 cmake -S native -B native/build-msvc -G Ninja ^
@@ -310,7 +304,7 @@ repair into `master`. This is development infrastructure, not part of the instal
 - Tankoban remains volume-only. The old chapter browser/downloader is unrouted, and first launch
   removes the obsolete chapter tree plus `manga` progress. Downloaded Tankoban volumes are kept.
 - After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a
-  few seconds before recovering. This is a known 1.1.2 issue targeted for 1.1.3.
+  few seconds before recovering. This is a known 1.1.3 issue targeted for 1.1.4.
 - Tankoban and Biblio can consume compatible extension catalogues for discovery, but their native
   acquisition paths are not generic Stremio stream consumers. Theatre is the world with generic
   torrent/direct-stream playback from compatible add-ons.
@@ -326,8 +320,9 @@ repair into `master`. This is development infrastructure, not part of the instal
 - Vinyl is visible as a coming-soon world, not yet implemented.
 - Catalogue databases such as `data/comics_catalog.db`, `data/mal_catalog.db`,
   `data/tankoban_catalog.db`, and `data/imdb_catalog.db` are pipeline/deployment artifacts rather
-  than normal Git source. A source checkout without the relevant database keeps its dependent
-  offline catalogue surface dormant instead of downloading source dumps at runtime.
+  than normal Git source. Current source builds prefer local copies and otherwise use the catalogue
+  vault to fetch published databases into AppData; they do not download or rebuild raw source dumps
+  at runtime.
 - Casting and live TV / DVR remain less mature than core playback.
 
 ## Design principles
