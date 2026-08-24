@@ -48,8 +48,8 @@ jobs:
       # reports success, so a green run would prove nothing.
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/colosseum_account_test?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26.6"
           cache: true
