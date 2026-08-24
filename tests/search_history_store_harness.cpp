@@ -85,6 +85,37 @@ void runSuite()
     SearchHistoryStore sanitized(path);
     requireList(sanitized.list("tankoban"), {"Batman", "One", "Two", "Three", "Four", "Five"},
                 "type-valid persisted data is trimmed, deduplicated, and capped safely");
+
+    // Account Centre "Clear search history" (E2): the aggregate clear over an explicit
+    // scope list. Isolated temp dir/path so this doesn't disturb the shared `path`
+    // fixture's ordering above.
+    {
+        QTemporaryDir aggregateTemporary;
+        require(aggregateTemporary.isValid(), "aggregate clear temporary QSettings directory exists");
+        const QString aggregatePath = aggregateTemporary.filePath("aggregate-history.ini");
+
+        SearchHistoryStore store(aggregatePath);
+        store.record("biblio", "Aggregate Biblio");
+        store.record("tankoban", "Aggregate Tankoban");
+        store.record("theatre", "Aggregate Theatre");
+        store.record("world", "Untouched World");
+
+        store.clearAllScopes({"biblio", "tankoban", "theatre"});
+        requireList(store.list("biblio"), {}, "clearAllScopes clears the biblio scope");
+        requireList(store.list("tankoban"), {}, "clearAllScopes clears the tankoban scope");
+        requireList(store.list("theatre"), {}, "clearAllScopes clears the theatre scope");
+        requireList(store.list("world"), {"Untouched World"},
+                    "clearAllScopes leaves a scope absent from its argument list untouched");
+
+        // A separate process re-reading the same file sees the aggregate clear too — it
+        // is a real disk write, not an in-memory-only mutation.
+        SearchHistoryStore reopened(aggregatePath);
+        requireList(reopened.list("biblio"), {}, "aggregate clear persists across reconstruction (biblio)");
+        requireList(reopened.list("tankoban"), {}, "aggregate clear persists across reconstruction (tankoban)");
+        requireList(reopened.list("theatre"), {}, "aggregate clear persists across reconstruction (theatre)");
+        requireList(reopened.list("world"), {"Untouched World"},
+                    "aggregate clear persists across reconstruction (world untouched)");
+    }
 }
 
 } // namespace

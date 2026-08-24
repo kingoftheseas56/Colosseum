@@ -75,14 +75,31 @@ if ($main -notmatch 'item\.minimized\.connect\(win\.minimizeBookReader\)[\s\S]{0
 }
 
 $mangaReader = Get-Content (Join-Path $root 'qml/MangaReader.qml') -Raw
-if ($mangaReader -notmatch 'signal fullscreenRequested\(\)') {
-    throw 'MangaReader lost fullscreenRequested()'
+if ($mangaReader -notmatch 'import\s+"comicreader"') {
+    throw 'MangaReader no longer delegates to the canonical comic reader module'
 }
-if ($mangaReader -notmatch 'reader\.shellWindowed\s*\?\s*"\.\./assets/icons/fullscreen\.svg"[\s\S]{0,100}"\.\./assets/icons/fullscreen-exit\.svg"') {
-    throw 'MangaReader does not swap the house fullscreen action icon'
+if ($mangaReader -notmatch 'ComicReaderShell\s*\{[\s\S]{0,240}objectName:\s*"comicReaderShell"') {
+    throw 'MangaReader does not expose the canonical ComicReaderShell identity'
 }
-if ($mangaReader -notmatch 'onClicked:\s*reader\.fullscreenRequested\(\)') {
-    throw 'MangaReader fullscreen button does not emit the semantic request'
+$readerShell = Get-Content (Join-Path $root 'qml/comicreader/ComicReaderShell.qml') -Raw
+if ($readerShell -notmatch 'signal fullscreenRequested\(\)') {
+    throw 'ComicReaderShell lost fullscreenRequested()'
+}
+if ($readerShell -notmatch 'onToggleFullscreen:\s*reader\.fullscreenRequested\(\)') {
+    throw 'ComicReaderShell does not forward the input fullscreen request'
+}
+if ($readerShell -notmatch 'onFullscreenRequested:\s*reader\.fullscreenRequested\(\)') {
+    throw 'ComicReaderShell does not forward the HUD fullscreen request'
+}
+$readerHud = Get-Content (Join-Path $root 'qml/comicreader/ComicReaderHud.qml') -Raw
+if ($readerHud -notmatch 'signal fullscreenRequested\(\)') {
+    throw 'ComicReaderHud lost fullscreenRequested()'
+}
+if ($readerHud -notmatch 'objectName:\s*"hudFullscreenButton"') {
+    throw 'ComicReaderHud lost its fullscreen button identity'
+}
+if ($readerHud -notmatch 'onTapped:\s*hud\.fullscreenRequested\(\)') {
+    throw 'ComicReaderHud fullscreen button does not emit the semantic request'
 }
 foreach ($hostName in @('MangaSeries.qml', 'ComicSeries.qml', 'ComicSeriesPage.qml')) {
     $hostText = Get-Content (Join-Path $root "qml/$hostName") -Raw

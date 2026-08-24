@@ -31,6 +31,11 @@ colosseum_register_harness(progress_store_harness        unit)
 colosseum_register_harness(collection_store_harness      unit)
 colosseum_register_harness(cbz_archive_harness           unit)
 colosseum_register_harness(poster_scoreboard_harness     unit)
+colosseum_register_harness(loopback_pin_proxy_harness    unit;network)
+colosseum_register_harness(pin_proxy_factory_harness     unit;network)
+colosseum_register_harness(startup_layout_harness        unit;bootstrap)
+colosseum_register_harness(app_data_migration_harness    unit;bootstrap)
+colosseum_register_harness(ipv4_pin_store_harness        unit;bootstrap;network)
 colosseum_register_harness(comicreader_cache_harness     unit)
 colosseum_register_harness(biblio_catalog_logic_harness  unit)
 # Multi-volume pack demux (Slice 1): parser table + Entry round-trip. No net,
@@ -347,8 +352,8 @@ set_tests_properties(colosseum.qttest.tankoban_catalog PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
-# -- Tankoban chapter migration (catalogue-independence Slice 5, 2026-08-20) --
-# TankobanChapterMigration -- the one-time WC-era chapter purge: chapter tree
+# ── Tankoban chapter migration (catalogue-independence Slice 5, 2026-08-20) ──
+# TankobanChapterMigration — the one-time WC-era chapter purge: chapter tree
 # deleted, manga-volumes/ intact, kind:"manga" progress purged, kind:"tankoban"/
 # "comic" intact, idempotent second run, marker written. QTemporaryDir fixture
 # (both the chapter tree and a ProgressStore backed by a temp ini), same

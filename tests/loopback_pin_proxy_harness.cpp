@@ -1,12 +1,16 @@
 // loopback_pin_proxy_harness.cpp — proves the CONNECT tunnel: client → proxy →
-// (pinned IPv4) upstream, bytes relayed both ways. Event-loop driven; a QTimer
-// failsafe quits so a hang can't wedge CI.
+// a live pin from Ipv4PinStore → upstream, with bytes relayed both ways.
 #include "../native/net/LoopbackPinProxy.h"
+#include "../native/net/Ipv4PinStore.h"
+
 #include <QCoreApplication>
+#include <QDir>
+#include <QHostAddress>
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QHostAddress>
+#include <QTemporaryDir>
 #include <QTimer>
+
 #include <cstdio>
 
 static int fails = 0;
@@ -14,31 +18,36 @@ static int fails = 0;
 
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    QTemporaryDir temp;
+    CHECK(temp.isValid(), "temporary root created");
 
-    // A large blob that spans many TCP segments — on "PING" the upstream sends it
-    // ALL then IMMEDIATELY closes. The old eager-delete teardown truncated the tail
-    // (unflushed client-write bytes discarded); the drain teardown must deliver every
-    // byte. This is the regression guard for "Unsupported image format" (2026-07-24).
     const QByteArray BLOB(262144, 'A');
-
-    // fake upstream: on "PING", write the blob then disconnect right away
     QTcpServer upstream;
-    upstream.listen(QHostAddress(QStringLiteral("127.0.0.1")), 0);
+    CHECK(upstream.listen(QHostAddress(QStringLiteral("127.0.0.1")), 0), "upstream started");
     const quint16 upPort = upstream.serverPort();
     QObject::connect(&upstream, &QTcpServer::newConnection, [&]{
         QTcpSocket* s = upstream.nextPendingConnection();
         QObject::connect(s, &QTcpSocket::readyRead, [s, &BLOB]{
-            if (s->readAll().contains("PING")) { s->write(BLOB); s->disconnectFromHost(); }
+            if (s->readAll().contains("PING")) {
+                s->write(BLOB);
+                s->disconnectFromHost();
+            }
         });
     });
 
-    // proxy maps our fake host → 127.0.0.1 (stands in for the pinned IPv4)
-    QHash<QString,QString> pins; pins.insert(QStringLiteral("fake.metahub"), QStringLiteral("127.0.0.1"));
-    LoopbackPinProxy proxy(pins);
+    Ipv4PinStore pinStore(QDir(temp.path()).filePath(QStringLiteral("pins.json")),
+        [](const QString& host, Ipv4PinStore::LookupDone done) {
+            done(host == QStringLiteral("fake.metahub")
+                     ? QStringLiteral("127.0.0.1") : QString());
+        });
+    pinStore.refresh({QStringLiteral("fake.metahub")});
+    CHECK(pinStore.pinForHost(QStringLiteral("fake.metahub")) == QStringLiteral("127.0.0.1"),
+          "test pin is live before CONNECT");
+
+    LoopbackPinProxy proxy(&pinStore);
     CHECK(proxy.start(), "proxy started");
     const quint16 pxPort = proxy.port();
 
-    // client: CONNECT, then PING, then accumulate the whole blob through the tunnel
     QTcpSocket client;
     QByteArray hdr, payload;
     bool established = false;
@@ -48,20 +57,26 @@ int main(int argc, char** argv) {
             const int end = hdr.indexOf("\r\n\r\n");
             if (hdr.contains("200") && end >= 0) {
                 established = true;
-                payload = hdr.mid(end + 4);   // any blob bytes that rode in after the 200
+                payload = hdr.mid(end + 4);
                 client.write("PING");
             }
             return;
         }
         payload += client.readAll();
-        if (payload.size() >= BLOB.size()) qApp->quit();
+        if (payload.size() >= BLOB.size())
+            qApp->quit();
     });
     QObject::connect(&client, &QTcpSocket::connected, [&]{
-        client.write("CONNECT fake.metahub:" + QByteArray::number(upPort) + " HTTP/1.1\r\n\r\n");
+        client.write("CONNECT fake.metahub:" + QByteArray::number(upPort)
+                     + " HTTP/1.1\r\n\r\n");
     });
     client.connectToHost(QHostAddress(QStringLiteral("127.0.0.1")), pxPort);
 
-    QTimer::singleShot(6000, [&]{ ++fails; std::printf("FAIL: tunnel timed out\n"); qApp->quit(); });
+    QTimer::singleShot(6000, [&]{
+        ++fails;
+        std::printf("FAIL: tunnel timed out\n");
+        qApp->quit();
+    });
     app.exec();
 
     CHECK(established, "CONNECT got 200 Established");

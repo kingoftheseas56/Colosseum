@@ -1,5 +1,5 @@
-// Colosseum native launcher. Runs the live qml/ tree with an on-disk HTTP cache
-// and the same Metahub IPv4 pin Tankoban-3 uses for instant poster loading.
+// Colosseum native launcher. Normal launches require the live qml/ tree to match the
+// fingerprint emitted by the native build; explicit dev QML overrides remain opt-in.
 
 #include <QDir>
 #include <QGuiApplication>
@@ -7,7 +7,6 @@
 #include <QHostAddress>
 #include <QIcon>
 #include <QImageReader>
-#include <QHostInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -16,7 +15,6 @@
 #include <QNetworkProxy>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
 #include <QtWebEngineQuick/QtWebEngineQuick>
@@ -70,6 +68,8 @@
 #include "engine/BiblioCatalog.h"
 #include "engine/LocalDownloads.h"
 #include "engine/AppLog.h"
+#include "bootstrap/AppDataMigration.h"
+#include "bootstrap/StartupLayout.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
 #include "engine/LocalLaunch.h"
@@ -85,6 +85,7 @@
 #include "engine/VaultForensics.h"
 #include "player/MediaAdmissionProbe.h"
 #include "net/LoopbackPinProxy.h"
+#include "net/Ipv4PinStore.h"
 #include "net/PinProxyFactory.h"
 #include "net/PosterScoreboard.h"
 #include "net/BiblioImageDiag.h"
@@ -229,13 +230,13 @@ class CachingNam : public QNetworkAccessManager {
 public:
     // useCache=false gives a pin+UA NAM with NO disk cache / no PreferCache — for live
     // lanes (torrent search) where a stale cached response would freeze seeder counts.
-    CachingNam(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
+    CachingNam(QStringList pinnedHosts, Ipv4PinStore *pinStore,
                QObject *parent = nullptr, bool useCache = true,
                PosterScoreboard *scoreboard = nullptr,
                BiblioImageDiag *imageDiag = nullptr)
         : QNetworkAccessManager(parent),
           m_pinnedHosts(std::move(pinnedHosts)),
-          m_ipv4ByHost(std::move(ipv4ByHost)),
+          m_pinStore(pinStore),
           m_useCache(useCache),
           m_scoreboard(scoreboard),
           m_imageDiag(imageDiag) {
@@ -268,7 +269,7 @@ protected:
             // the JSON hosts and the concierge-unavailable fallback only.
             r.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
-            const QString ipv4 = m_ipv4ByHost.value(host);
+            const QString ipv4 = m_pinStore ? m_pinStore->pinForHost(host) : QString();
             if (!ipv4.isEmpty()) {
                 u.setHost(ipv4);
                 r.setUrl(u);
@@ -315,7 +316,7 @@ protected:
 
 private:
     QStringList m_pinnedHosts;
-    QHash<QString, QString> m_ipv4ByHost;
+    Ipv4PinStore *m_pinStore = nullptr;
     bool m_useCache = true;
     PosterScoreboard *m_scoreboard = nullptr;
     BiblioImageDiag *m_imageDiag = nullptr;
@@ -379,42 +380,24 @@ private:
 
 class CachingNamFactory : public QQmlNetworkAccessManagerFactory {
 public:
-    CachingNamFactory(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
+    CachingNamFactory(QStringList pinnedHosts, Ipv4PinStore *pinStore,
                       PosterScoreboard *scoreboard, BiblioImageDiag *imageDiag = nullptr)
         : m_pinnedHosts(std::move(pinnedHosts)),
-          m_ipv4ByHost(std::move(ipv4ByHost)),
+          m_pinStore(pinStore),
           m_scoreboard(scoreboard),
           m_imageDiag(imageDiag) {}
 
     QNetworkAccessManager *create(QObject *parent) override {
-        return new CachingNam(m_pinnedHosts, m_ipv4ByHost, parent, /*useCache=*/true,
+        return new CachingNam(m_pinnedHosts, m_pinStore, parent, /*useCache=*/true,
                               m_scoreboard, m_imageDiag);
     }
 
 private:
     QStringList m_pinnedHosts;
-    QHash<QString, QString> m_ipv4ByHost;
+    Ipv4PinStore *m_pinStore = nullptr;
     PosterScoreboard *m_scoreboard = nullptr;   // owned by the app, outlives every NAM
     BiblioImageDiag *m_imageDiag = nullptr;     // same ownership contract as the scoreboard
 };
-
-// Resolve a host's IPv4, retrying briefly on a miss. The pin is computed ONCE at
-// boot; a transient DNS race at startup would otherwise leave the host UNPINNED
-// for the whole session, sending every request to it into the dead-AAAA IPv6
-// stall (the 2026-07-13 Jikan scar — genre index / Jump registry / Theatre anime
-// all silently emptied). A short backoff-retry makes a cold-DNS boot survivable.
-static QString resolveIpv4(const QString &host) {
-    for (int attempt = 1; attempt <= 4; ++attempt) {
-        const QHostInfo info = QHostInfo::fromName(host);
-        for (const QHostAddress &address : info.addresses()) {
-            if (address.protocol() == QAbstractSocket::IPv4Protocol)
-                return address.toString();
-        }
-        if (attempt < 4)
-            QThread::msleep(250);  // DNS can be momentarily cold at boot; give it a beat
-    }
-    return {};
-}
 
 // Dev-only QML live-reloader: watches the qml/ tree and reloads the root window
 // on save, so editing QML feels like Electron's `npm run dev`. Constructed ONLY
@@ -543,39 +526,29 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName(QStringLiteral("Brotherhood"));
     app.setOrganizationDomain(QStringLiteral("colosseum.brotherhood"));
     const QString newAppData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (oldAppData != newAppData && QDir(oldAppData).exists() && !QDir(newAppData).exists()) {
-        QDir().mkpath(QFileInfo(newAppData).absolutePath());
-        if (QDir().rename(oldAppData, newAppData))
-            qInfo("[migrate] app data %s -> %s (org-name change)",
-                  qUtf8Printable(oldAppData), qUtf8Printable(newAppData));
-        else
-            qWarning("[migrate] FAILED to move app data %s -> %s; downloads may appear missing",
-                     qUtf8Printable(oldAppData), qUtf8Printable(newAppData));
-    }
-
-    // Test-only AppData isolation (Task 11, COLOSSEUM_COMIC_PACK_DLTEST gate).
-    // Qt's Windows QStandardPaths backend reads AppDataLocation from the
-    // registry (SHGetKnownFolderPath), NOT the $env:APPDATA process variable —
-    // verified empirically (a probe with $env:APPDATA overridden still
-    // resolved the real Roaming path). QStandardPaths DOES re-resolve from the
-    // CURRENT applicationName on every call, so a per-run name suffix reliably
-    // redirects every AppData-backed store (comics index, the pack transport's
-    // ledger/staging/torrent dirs, QSettings, ...) to a disposable sibling
-    // folder — never the real Roaming/Brotherhood/Colosseum tree a brother's
-    // real downloads live in. Applied AFTER the migration above so that
-    // one-time logic is never confused by a suffixed name. Runs ONLY when the
-    // env var is set — an ordinary launch is byte-for-byte unaffected.
-    if (qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG")) {
+    const bool isolatedAppData = qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG");
+    if (isolatedAppData) {
         app.setApplicationName(QStringLiteral("Colosseum-dltest-")
             + qEnvironmentVariable("COLOSSEUM_APPDATA_TAG"));
     }
 
-    // Always-on rolling log (2026-08-05). Hemanth hit a Downloads cancel that
-    // did nothing and printed nothing; the launcher he double-clicks discards
-    // stderr, so there was no evidence to read afterwards. Installed HERE —
-    // after the app identity and the dltest AppData tag are settled — so the
-    // log follows the same isolation every other AppData-backed store gets.
+    // Install the rolling log after final identity selection so test launches write only
+    // inside their disposable AppData sibling. Real launches reconcile the legacy root
+    // afterwards, which makes any migration warning durable instead of stderr-only.
     AppLog::install();
+
+    AppDataMigrationResult appDataMigration;
+    if (!isolatedAppData)
+        appDataMigration = reconcileAppData(oldAppData, newAppData);
+    if (!appDataMigration.complete) {
+        qWarning("[migrate] AppData reconciliation incomplete: %s (journal: %s)",
+                 qUtf8Printable(appDataMigration.error),
+                 qUtf8Printable(appDataMigration.logPath));
+    } else if (appDataMigration.movedEntries > 0 || appDataMigration.conflicts > 0) {
+        qInfo("[migrate] AppData reconciliation complete: moved=%d conflicts=%d journal=%s",
+              appDataMigration.movedEntries, appDataMigration.conflicts,
+              qUtf8Printable(appDataMigration.logPath));
+    }
 
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
@@ -669,7 +642,7 @@ int main(int argc, char *argv[]) {
             return;
         }
         QNetworkRequest request(url);
-        request.setRawHeader("User-Agent", "Colosseum/1.1.3");
+        request.setRawHeader("User-Agent", "Colosseum/1.1.1");
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::NoLessSafeRedirectPolicy);
         QNetworkReply *reply = updateNam->get(request);
@@ -795,7 +768,6 @@ int main(int argc, char *argv[]) {
             qWarning("[update] ignored invalid test presentation byte counts");
     }
 #endif
-    updateBridge->acknowledgeHealthyBoot(QCoreApplication::arguments());
     engine.rootContext()->setContextProperty(QStringLiteral("Updates"), updates);
     const bool installedUpdateEligible = updateBridge->installedBuildEligible();
 #ifdef COLOSSEUM_UPDATE_TESTING
@@ -805,59 +777,17 @@ int main(int argc, char *argv[]) {
 #endif
     if (!installedUpdateEligible && !updateTestingBuild)
         qInfo("[update] automatic checks disabled (source/dev build or missing installed layout)");
-    // argv[1] is a QML-path override only for the dev/test-harness lane (dev.bat,
-    // colosseum.exe path/to/Main.qml). The NSIS updater relaunches the installed app
-    // with flags like --update-result=success --update-from=... --update-backup=... —
-    // those are NOT a QML-path override, so the cwd-anchor/self-update lane below must
-    // still run for them. Computed here (ahead of its other use further down) so the
-    // gate below can key off it instead of raw argc.
-    const bool hasQmlOverride = argc > 1 && !QString::fromLocal8Bit(argv[1]).startsWith(QLatin1Char('-'));
-    // ---- the user lane (argless launch, or flag-only launch: double-click / shortcut /
-    // Colosseum.bat / NSIS post-update relaunch) ----
-    // With a real QML-path argument (dev.bat, test harnesses) NONE of this runs — that
-    // lane is byte-for-byte the old behavior: relative path, no network, no CWD change.
-    if (!hasQmlOverride) {
-        // 1) self-locate: exe lives at <repo>/native/build-msvc/colosseum.exe. Anchor the
-        //    working directory on the repo root so every relative path (live qml/ tree,
-        //    disk cache, assets) behaves exactly as under Colosseum.bat's `cd /d %~dp0`.
-        QDir root(QCoreApplication::applicationDirPath());
-        if (root.cdUp() && root.cdUp() && root.exists(QStringLiteral("qml/Main.qml"))) {
-            QDir::setCurrent(root.absolutePath());
-            // 2) self-update: pull the latest before the engine reads the QML tree — the
-            //    tree is loaded live from disk, so whatever lands here IS this boot.
-            //    --ff-only + hard timeout: offline / dirty / diverged → one honest line,
-            //    boot as-is. Never stash, never force — a brother's uncommitted work is
-            //    sacred. Core (native/) changes need a rebuild — log-only (ratified).
-            QProcess pull;
-            pull.start(QStringLiteral("git"),
-                       { QStringLiteral("-C"), root.absolutePath(),
-                         QStringLiteral("pull"), QStringLiteral("--ff-only") });
-            if (!pull.waitForFinished(8000)) {
-                pull.kill();
-                qInfo("[self-update] skipped (git timed out — offline or slow remote)");
-            } else if (pull.exitCode() != 0) {
-                qInfo("[self-update] skipped (%s)",
-                      pull.readAllStandardError().simplified().constData());
-            } else {
-                const QByteArray out = pull.readAllStandardOutput();
-                if (out.contains("Already up to date"))
-                    qInfo("[self-update] already current");
-                else {
-                    qInfo("[self-update] pulled:\n%s", out.trimmed().constData());
-                    if (out.contains(" native/"))
-                        qInfo("[self-update] core update pulled — rebuild pending "
-                              "(engine changes are not live until a brother rebuilds)");
-                }
-            }
-        }
+    QString startupLayoutError;
+    const auto startupLayout = resolveStartupLayout(
+        QCoreApplication::arguments(), QCoreApplication::applicationDirPath(), &startupLayoutError);
+    if (!startupLayout) {
+        qCritical("[boot] startup layout rejected: %s", qUtf8Printable(startupLayoutError));
+        return -1;
     }
-    // hasQmlOverride is computed above (ahead of the cwd-anchor gate it also feeds).
-    // treating --update-* flags as a literal QML file path made engine.load() fail and
-    // the app exit -1 on every post-update relaunch. UpdateInstallBridge::acknowledgeHealthyBoot
-    // already consumes --update-* above; it just never got the chance to matter once
-    // the bogus qmlPath tanked engine.load().
-    const QString qmlPath = hasQmlOverride ? QString::fromLocal8Bit(argv[1])
-                                            : QStringLiteral("qml/Main.qml");
+    if (!startupLayout->resourceRoot.isEmpty())
+        QDir::setCurrent(startupLayout->resourceRoot);
+    const QString qmlPath = startupLayout->qmlPath;
+    const bool hasQmlOverride = startupLayout->qmlOverride;
     const QStringList pinnedHosts = {
         QStringLiteral("live.metahub.space"),
         QStringLiteral("images.metahub.space"),
@@ -910,20 +840,11 @@ int main(int argc, char *argv[]) {
         // captured-motion asset (humbled-current recap 2026-07-24). Same scar, same fix.
         QStringLiteral("wsrv.nl")
     };
-    QHash<QString, QString> ipv4ByHost;
-    for (const QString &host : pinnedHosts) {
-        const QString ipv4 = resolveIpv4(host);
-        if (!ipv4.isEmpty()) {
-            ipv4ByHost.insert(host, ipv4);
-            qInfo("[net] IPv4-pinned %s -> %s", qUtf8Printable(host), qUtf8Printable(ipv4));
-        } else {
-            // A pinned host with no IPv4 falls through to normal DNS -> the IPv6
-            // stall. Never let that be silent again: this WARNING is the smoking
-            // gun for an emptied Jikan/MangaDex/Apple surface.
-            qWarning("[net] NO IPv4 for %s after retries -> its requests ride the IPv6 stall",
-                     qUtf8Printable(host));
-        }
-    }
+    auto *pinStore = new Ipv4PinStore(QString(), Ipv4PinStore::Lookup(), &app);
+    const QHash<QString, QString> initialPins = pinStore->snapshot();
+    for (auto it = initialPins.constBegin(); it != initialPins.constEnd(); ++it)
+        qInfo("[net] cached IPv4 pin %s -> %s", qUtf8Printable(it.key()), qUtf8Printable(it.value()));
+
     // Instant posters (spec 2026-07-23): keep the hostname in metahub requests so
     // HTTP/2 negotiates (SNI / cert / :authority all correct → the whole poster wall
     // multiplexes over ONE connection), while a loopback CONNECT concierge pins the
@@ -933,14 +854,15 @@ int main(int argc, char *argv[]) {
     const QSet<QString> metahubHosts = {
         QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space")
     };
-    auto *concierge = new LoopbackPinProxy(ipv4ByHost, &app);
+    auto *concierge = new LoopbackPinProxy(pinStore, &app);
     const bool conciergeOk = concierge->start();
     if (conciergeOk)
         qInfo("[net] connection concierge on 127.0.0.1:%u (metahub -> HTTP/2)", concierge->port());
     else
         qWarning("[net] concierge could not bind -> metahub falls back to URL-pin + HTTP/1.1");
     QNetworkProxyFactory::setApplicationProxyFactory(
-        new PinProxyFactory(metahubHosts, conciergeOk ? concierge->port() : quint16(0), conciergeOk));
+        new PinProxyFactory(metahubHosts, pinStore,
+                            conciergeOk ? concierge->port() : quint16(0), conciergeOk));
 
     // When the concierge is up, metahub leaves the URL-rewrite pin set (its URL keeps
     // the hostname, h2 stays on, the proxy carries the connection). Everything else —
@@ -996,7 +918,7 @@ int main(int argc, char *argv[]) {
     // brief 2026-08-06 §4) — same lifetime contract as the scoreboard beside it.
     auto *imageDiag = new BiblioImageDiag(&app);
     engine.setNetworkAccessManagerFactory(
-        new CachingNamFactory(namPinnedHosts, ipv4ByHost, scoreboard, imageDiag));
+        new CachingNamFactory(namPinnedHosts, pinStore, scoreboard, imageDiag));
     engine.rootContext()->setContextProperty(QStringLiteral("NetScoreboard"), scoreboard);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioImageDiag"), imageDiag);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, scoreboard, [scoreboard] {
@@ -1008,7 +930,7 @@ int main(int argc, char *argv[]) {
 
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
     auto *manga = new MangaEngine(&app);
-    manga->setIpv4Pins(ipv4ByHost);   // art-lane hosts ride the same IPv4 pins
+    manga->setIpv4Pins(initialPins);   // cached pins are available before async refresh
     engine.rootContext()->setContextProperty(QStringLiteral("Manga"), manga);
 
     // Download-fed reading backbone exposed to QML as `Downloads`. Reading is never
@@ -1016,7 +938,12 @@ int main(int argc, char *argv[]) {
     // reader reads those offline. Own plain NAM (no cache) — it persists to disk itself.
     auto *dlNam = new QNetworkAccessManager(&app);
     auto *downloads = new MangaDownloader(dlNam, &app);
-    downloads->setIpv4Pins(ipv4ByHost);   // WeebCentral page-image downloads ride the same pins
+    downloads->setIpv4Pins(initialPins);   // cached pins are available before async refresh
+    pinStore->setPinChangedCallback([manga, downloads, pinStore](const QString&, const QString&) {
+        const QHash<QString, QString> pins = pinStore->snapshot();
+        manga->setIpv4Pins(pins);
+        downloads->setIpv4Pins(pins);
+    });
     engine.rootContext()->setContextProperty(QStringLiteral("Downloads"), downloads);
     if (qEnvironmentVariableIsSet("COLOSSEUM_DL_SELFTEST"))
         downloads->selfTest(qEnvironmentVariable("COLOSSEUM_DL_SELFTEST"));
@@ -1259,7 +1186,7 @@ int main(int argc, char *argv[]) {
     // searchNam = pinned + UA-stamped + UNCACHED CachingNam (live seeder counts, no stale
     // cache); torrentEngine carries the download bytes. pinnedHosts/ipv4ByHost include the
     // 3 indexers.
-    auto *searchNam = new CachingNam(pinnedHosts, ipv4ByHost, &app, /*useCache=*/false);
+    auto *searchNam = new CachingNam(pinnedHosts, pinStore, &app, /*useCache=*/false);
 
     // Comics keeps one public reader/download identity (`Comics`) while privately
     // composing torrent search + archive download with its proven extraction/index.
@@ -1333,15 +1260,15 @@ int main(int argc, char *argv[]) {
     if (!tankobanRes.devOverridden) catalogManagedNames << QStringLiteral("tankoban_catalog.db");
     if (!imdbRes.devOverridden) catalogManagedNames << QStringLiteral("imdb_catalog.db");
 
-    // Data-vault Slice 4 (2026-08-22) fix: this used to pass {} for apiBaseUrl, which
-    // is an EXPLICIT empty QString, not "omitted" -- C++ default arguments only apply when
+    // Data-vault Slice 4 (2026-08-22) fix: this used to pass `{}` for apiBaseUrl, which
+    // is an EXPLICIT empty QString, not "omitted" — C++ default arguments only apply when
     // the parameter is left out entirely, so the header's real default
     // (https://api.github.com/repos/kingoftheseas56/Colosseum-Data, CatalogVaultClient.h)
     // was silently discarded and every fetchManifest() request hit a bare "/releases/latest"
     // URL. On a dev machine (all four data/*.db present) this never showed: checkAndFetch()
     // takes the zero-network devOverridden branch before ever building a request. Caught
     // live in Slice 4's first-launch runtime session (an empty AppData + no reachable
-    // data/ never fetched at all -- WAIT_TIMEOUT on catalogVaultState.fetching==true).
+    // data/ never fetched at all — WAIT_TIMEOUT on catalogVaultState.fetching==true).
     auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir,
         QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum-Data"), &app);
     catalogVaultClient->setManagedNames(catalogManagedNames);
@@ -1439,7 +1366,7 @@ int main(int argc, char *argv[]) {
     // UA-stamped + UNCACHED NAM production uses, so a slow-but-alive indexer isn't
     // falsely declared dead by an unpinned IPv6 stall. Ends on searchFinished.
     if (qEnvironmentVariableIsSet("COLOSSEUM_TORRENT_SEARCHTEST")) {
-        auto *smokeNam = new CachingNam(pinnedHosts, ipv4ByHost, &app, /*useCache=*/false);
+        auto *smokeNam = new CachingNam(pinnedHosts, pinStore, &app, /*useCache=*/false);
         auto *svc = new TankorentSearchService(smokeNam, &app);
         svc->selfTest(qEnvironmentVariable("COLOSSEUM_TORRENT_SEARCHTEST"));
         QTimer::singleShot(45000, &app, &QCoreApplication::quit);   // hard backstop only
@@ -1644,7 +1571,7 @@ int main(int argc, char *argv[]) {
     // no store exists any earlier in main() to purge kind:"manga" records from.
     //
     // Boot always starts behind ProfileStoreRuntime's Sealed placeholder (a throwaway
-    // QTemporaryDir-backed store -- see ProfileStoreRuntime::createSealedStores); the
+    // QTemporaryDir-backed store — see ProfileStoreRuntime::createSealedStores); the
     // user's onboarding choice ("continue local" / sign in) or a restored remembered
     // session later rebinds it to the real, durable store. TankobanChapterMigration::run's
     // `progressStoreIsDurable` flag (ground-truthed by the closing sweep, 2026-08-21: the
@@ -1662,7 +1589,7 @@ int main(int argc, char *argv[]) {
     // BEFORE the replacement store exists. progressStore() returning null there is NOT
     // the disk-only "no store handed in" contract TankobanChapterMigration::run's null
     // parameter otherwise means (that contract is for a caller that deliberately never
-    // wants the progress step) -- it is a live boot mid-rebind, and calling run() on it
+    // wants the progress step) — it is a live boot mid-rebind, and calling run() on it
     // would purge nothing, write nothing, and (with a null progress arg) still burn the
     // marker on the disk-only path, exactly re-creating the bug one signal later. Skip
     // the call outright when there is no store yet; the very next storesChanged (once
@@ -1688,6 +1615,7 @@ int main(int argc, char *argv[]) {
                      watchPartyUi, &Colosseum::WatchParty::UiController::handleAccountIdentityChanged);
     QObject::connect(accountRuntime->controller(), &AccountController::signedOut,
                      watchPartyUi, &Colosseum::WatchParty::UiController::handleAccountIdentityChanged);
+
     auto *audioPairing = accountRuntime->profileStores()->audioPairingStore();
 
     // (Deleted 2026-08-07 with BookBridge: two setters that handed the retired bridge the
@@ -1722,6 +1650,26 @@ int main(int argc, char *argv[]) {
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
+
+    if (!hasQmlOverride) {
+        QTimer::singleShot(0, pinStore, [pinStore, pinnedHosts] {
+            pinStore->refresh(pinnedHosts);
+        });
+    }
+
+    const QStringList launchArguments = QCoreApplication::arguments();
+    QObject* rootObject = engine.rootObjects().constFirst();
+    if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
+        QObject::connect(rootWindow, &QQuickWindow::frameSwapped, updateBridge,
+                         [updateBridge, launchArguments] {
+            updateBridge->acknowledgeHealthyBoot(launchArguments);
+        }, Qt::SingleShotConnection);
+    } else {
+        QTimer::singleShot(0, updateBridge, [updateBridge, launchArguments] {
+            updateBridge->acknowledgeHealthyBoot(launchArguments);
+        });
+    }
+
     if (installedUpdateEligible && !updateTestingBuild)
         QTimer::singleShot(0, updates, &Colosseum::Update::UpdateService::startAutomaticChecks);
 

@@ -74,11 +74,26 @@ cp -r "$BUILD_DIR/." "$STAGE/native/build-msvc/"
 # Felt-speed runtime sentinels: an installer without these files is not shippable.
 for sentinel in \
   "$STAGE/native/build-msvc/colosseum.exe" \
+  "$STAGE/native/build-msvc/qml-build.manifest" \
   "$STAGE/native/build-msvc/imageformats/qwebp.dll" \
   "$STAGE/native/build-msvc/platforms/qwindows.dll" \
   "$STAGE/native/build-msvc/Qt6Core.dll"; do
   [ -f "$sentinel" ] || { echo "runtime sentinel missing: $sentinel"; exit 1; }
 done
+
+# Function 0001 bootstrap integrity: the executable's build manifest must describe
+# the exact qml/ tree staged from the release tag. This catches a clean native build
+# accidentally packaged with QML from a different commit before NSIS can ship it.
+STAGE_QML_MANIFEST="$STAGE/.qml-stage.manifest"
+cmake "-DQML_ROOT=$STAGE/qml" \
+      "-DOUTPUT_FILE=$STAGE_QML_MANIFEST" \
+      -P "$STAGE/native/bootstrap/write_qml_build_manifest.cmake"
+if ! cmp -s "$STAGE/native/build-msvc/qml-build.manifest" "$STAGE_QML_MANIFEST"; then
+  echo "refusing native/QML build mismatch: qml-build.manifest does not match staged qml/"
+  diff -u "$STAGE/native/build-msvc/qml-build.manifest" "$STAGE_QML_MANIFEST" || true
+  exit 1
+fi
+rm -f "$STAGE_QML_MANIFEST"
 
 echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, platforms/, imageformats/, tls/, translations/, resources/, qml/, tools/, QtWebEngineProcess.exe, stream_server/)"
 ( cd "$STAGE/native/build-msvc"

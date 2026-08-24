@@ -254,6 +254,12 @@ add_executable(colosseum
     work/BackgroundWorkCoordinator.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
+    bootstrap/AppDataMigration.cpp
+    bootstrap/AppDataMigration.h
+    bootstrap/StartupLayout.cpp
+    bootstrap/StartupLayout.h
+    net/Ipv4PinStore.cpp
+    net/Ipv4PinStore.h
     net/LoopbackPinProxy.cpp       # instant posters: pin the connection, keep the hostname (HTTP/2)
     net/LoopbackPinProxy.h
     net/PinProxyFactory.h
@@ -570,6 +576,15 @@ target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
+# Function 0001 bootstrap contract: bind the native executable to the exact QML
+# tree present when it was built. Normal startup refuses a live QML tree whose
+# fingerprint differs; explicit dev/test QML overrides bypass this production gate.
+add_custom_command(TARGET colosseum POST_BUILD
+    COMMAND ${CMAKE_COMMAND}
+            "-DQML_ROOT=${CMAKE_CURRENT_SOURCE_DIR}/../qml"
+            "-DOUTPUT_FILE=$<TARGET_FILE_DIR:colosseum>/qml-build.manifest"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/bootstrap/write_qml_build_manifest.cmake"
+    VERBATIM)
 if(WIN32)
     # Windows exe/taskbar icon (colosseum.ico) + Windows-only system libs (arc-17 Linux port:
     # both are meaningless off Windows, so they move here instead of the shared source/link list).
@@ -793,6 +808,8 @@ target_link_libraries(collection_store_harness PRIVATE Qt6::Core)
 
 add_executable(loopback_pin_proxy_harness
     ../tests/loopback_pin_proxy_harness.cpp
+    net/Ipv4PinStore.cpp
+    net/Ipv4PinStore.h
     net/LoopbackPinProxy.cpp
     net/LoopbackPinProxy.h
 )
@@ -801,10 +818,36 @@ target_link_libraries(loopback_pin_proxy_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(pin_proxy_factory_harness
     ../tests/pin_proxy_factory_harness.cpp
+    net/Ipv4PinStore.cpp
+    net/Ipv4PinStore.h
     net/PinProxyFactory.h
 )
 target_include_directories(pin_proxy_factory_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pin_proxy_factory_harness PRIVATE Qt6::Core Qt6::Network)
+
+add_executable(startup_layout_harness
+    ../tests/startup_layout_harness.cpp
+    bootstrap/StartupLayout.cpp
+    bootstrap/StartupLayout.h
+)
+target_include_directories(startup_layout_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(startup_layout_harness PRIVATE Qt6::Core)
+
+add_executable(app_data_migration_harness
+    ../tests/app_data_migration_harness.cpp
+    bootstrap/AppDataMigration.cpp
+    bootstrap/AppDataMigration.h
+)
+target_include_directories(app_data_migration_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(app_data_migration_harness PRIVATE Qt6::Core)
+
+add_executable(ipv4_pin_store_harness
+    ../tests/ipv4_pin_store_harness.cpp
+    net/Ipv4PinStore.cpp
+    net/Ipv4PinStore.h
+)
+target_include_directories(ipv4_pin_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ipv4_pin_store_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(poster_scoreboard_harness
     ../tests/poster_scoreboard_harness.cpp

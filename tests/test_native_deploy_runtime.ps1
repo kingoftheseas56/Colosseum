@@ -2,22 +2,27 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $cmake = Get-Content (Join-Path $root "native/CMakeLists.txt") -Raw
+$mainCpp = Get-Content (Join-Path $root "native/main.cpp") -Raw
+$layoutCpp = Get-Content (Join-Path $root "native/bootstrap/StartupLayout.cpp") -Raw
+$package = Get-Content (Join-Path $root "scripts/installer/package_release.sh") -Raw
 
 if ($cmake -notlike '*Qt6Sql.dll*') {
     throw "Native deployment must copy Qt6Sql.dll so colosseum.exe launches without a developer PATH."
 }
-
-# --- standalone exe + self-updating launch (spec 2026-07-10) ---
-$mainCpp = Get-Content (Join-Path $root "native/main.cpp") -Raw
-if ($mainCpp -notlike '*self-update*') {
-    throw "Argless launch must self-update (git pull --ff-only) before the engine loads."
+if ($mainCpp -match 'git\s+pull|pull\s+--ff-only') {
+    throw "Startup must never mutate or fast-forward the live source tree."
 }
-if ($mainCpp -notlike '*applicationDirPath*') {
-    throw "Argless launch must self-locate the repo from the exe position."
+if ($mainCpp -notlike '*resolveStartupLayout*') {
+    throw "main.cpp must resolve the build-aligned startup layout."
 }
-$bat = Get-Content (Join-Path $root "Colosseum.bat") -Raw
-if ($bat -like '*colosseum.exe" "qml*') {
-    throw "Colosseum.bat must launch argless (the user lane) - the exe self-locates now."
+if ($layoutCpp -notlike '*qml-build.manifest*' -or $layoutCpp -notlike '*qml_build_mismatch*') {
+    throw "StartupLayout must enforce the QML build manifest and fail closed on mismatch."
+}
+if ($cmake -notlike '*write_qml_build_manifest.cmake*') {
+    throw "The native target must emit qml-build.manifest after every successful build."
+}
+if ($package -notlike '*qml-build.manifest*' -or $package -notlike '*cmp -s*') {
+    throw "Release packaging must reject a staged QML tree that disagrees with the native manifest."
 }
 if (!(Test-Path (Join-Path $root "native/deploy-runtime.bat"))) {
     throw "MISSING: native/deploy-runtime.bat (the standalone-runtime deploy)."
