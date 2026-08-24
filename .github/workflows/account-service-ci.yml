@@ -1,11 +1,30 @@
-name: ci
+# Account service CI.
+#
+# This lives at the repository root because GitHub Actions only reads
+# .github/workflows from the root of a repository. The service ships its own
+# copy of this recipe at server/account-service/README.md for anyone running it
+# by hand; a nested .github/ directory there would never execute.
+#
+# The paths filter keeps it off every unrelated Colosseum push: the desktop app,
+# QML, and the watch-party relay do not trigger it.
+name: account-service
 
 on:
   push:
+    paths:
+      - "server/account-service/**"
+      - ".github/workflows/account-service-ci.yml"
   pull_request:
+    paths:
+      - "server/account-service/**"
+      - ".github/workflows/account-service-ci.yml"
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: server/account-service
 
 jobs:
   test:
@@ -25,6 +44,8 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     env:
+      # Without this the database-backed suites skip silently and the job still
+      # reports success, so a green run would prove nothing.
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/colosseum_account_test?sslmode=disable
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +53,7 @@ jobs:
         with:
           go-version: "1.26.6"
           cache: true
+          cache-dependency-path: server/account-service/go.sum
       - run: go mod download
       - run: go mod tidy
       # go.sum is committed: fail if tidy would change it OR if either file is

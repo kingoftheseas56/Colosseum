@@ -168,6 +168,10 @@ docker build --tag colosseum-account-service:test .
 
 The destructive integration-test helper refuses a database whose name does not end in `_test`.
 
+Without `TEST_DATABASE_URL` the database-backed suites skip and the run still reports `ok`, so a green result proves nothing unless that variable is set.
+
+The same gate runs in CI from `.github/workflows/account-service-ci.yml` at the repository root, filtered to `server/account-service/**`. GitHub Actions reads workflows only from the repository root, so this directory deliberately holds no `.github/` of its own.
+
 ## Runtime configuration
 
 Required:
