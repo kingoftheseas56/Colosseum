@@ -141,6 +141,12 @@ Section "Colosseum"
                    "Publisher" "Colosseum"
     WriteRegStr HKCU "${COLOSSEUM_REGKEY}" \
                    "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
+    ; QuietUninstallString: an NSIS uninstaller removes silently with /S, but a
+    ; package manager only invokes that when the ARP entry advertises it here.
+    ; Without this, `winget uninstall Colosseum.Colosseum` pops the interactive
+    ; uninstaller instead of removing quietly. Same quoted exe, plus /S.
+    WriteRegStr HKCU "${COLOSSEUM_REGKEY}" \
+                   "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
     WriteRegStr HKCU "${COLOSSEUM_REGKEY}" \
                    "InstallLocation" "$INSTDIR"
   ${EndIf}
@@ -172,6 +178,8 @@ Function UpdateFinish
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "${COLOSSEUM_REGKEY}" "DisplayVersion" "$UpdateTarget"
+  ; keep QuietUninstallString fresh so a self-update also heals silent uninstall
+  WriteRegStr HKCU "${COLOSSEUM_REGKEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
   WriteRegStr HKCU "${COLOSSEUM_REGKEY}" "InstallLocation" "$INSTDIR"
   CreateShortCut "${COLOSSEUM_DESKTOP_LINK}" "$INSTDIR\native\build-msvc\colosseum.exe" "" "" 0
   CreateShortCut "${COLOSSEUM_START_LINK}" "$INSTDIR\native\build-msvc\colosseum.exe" "" "" 0
