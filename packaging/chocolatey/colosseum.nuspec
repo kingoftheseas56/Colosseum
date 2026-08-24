@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chocolatey Community Repository package for Colosseum.
+     Do not embed the installer: it is fetched at install time from the official
+     GitHub release and verified by checksum (see tools\chocolateyinstall.ps1). -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>colosseum</id>
+    <version>1.1.3</version>
+    <packageSourceUrl>https://github.com/kingoftheseas56/Colosseum/tree/master/packaging/chocolatey</packageSourceUrl>
+    <owners>kingoftheseas56</owners>
+
+    <title>Colosseum</title>
+    <authors>Hemanth Ganneni</authors>
+    <projectUrl>https://github.com/kingoftheseas56/Colosseum</projectUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/kingoftheseas56/Colosseum@v1.1.3/assets/icons/colosseum.svg</iconUrl>
+    <copyright>2026 Hemanth Ganneni</copyright>
+    <licenseUrl>https://github.com/kingoftheseas56/Colosseum/blob/v1.1.3/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/kingoftheseas56/Colosseum</projectSourceUrl>
+    <docsUrl>https://github.com/kingoftheseas56/Colosseum/blob/v1.1.3/README.md</docsUrl>
+    <bugTrackerUrl>https://github.com/kingoftheseas56/Colosseum/issues</bugTrackerUrl>
+    <tags>colosseum media manga comics books audiobooks movies tv anime reader video-player ebook qt desktop foss</tags>
+    <summary>One native desktop home for your manga and comics, books and audiobooks, movies, shows, and anime.</summary>
+    <description><![CDATA[
+## Colosseum
+
+**A native desktop media environment for manga and comics, books and audiobooks, movies, shows, and anime.**
+
+Your media library usually lives in five different apps: one for manga, one for comics, one for
+books, one for audiobooks, one for film and TV. Each has its own catalogue, its own reader or
+player, its own idea of progress — and none of them talk to each other.
+
+Colosseum is one fullscreen home for all of it. Three worlds share a single shell:
+
+- **Tankoban** — manga and western comics, with a real comic reader.
+- **Biblio** — ebooks and audiobooks, with a real book reader and audiobook read-along.
+- **Theatre** — movies, shows, and anime, with a real video player.
+
+They share one Continue row across every medium, one Collection, one Downloads surface, one taskbar
+of open sessions, and **Vault**, a local-media library for files you already own. Browsing is
+catalogue-first and discovery-rich; downloaded media stays local so reading and listening continue
+offline.
+
+### Install notes
+
+- **Per-user install, no administrator required.** Colosseum installs into
+  `%LOCALAPPDATA%\Programs\Colosseum` for the account that runs the installer, because the app
+  writes its catalogs, download index, and cache beside itself. When Chocolatey runs elevated, the
+  install therefore lands under the elevated account's profile — run `choco install colosseum` from
+  the shell of the user who will actually use the app if that matters for your setup.
+- **Windows 10/11 desktop only.**
+- Desktop and Start-menu shortcuts are created automatically.
+- Uninstalling removes the whole Colosseum folder, **including downloaded media and reading
+  progress** (this is by design — the library lives inside the install folder in this release).
+
+### Verification
+
+The installer is downloaded directly from the official GitHub release and verified by SHA-256
+checksum. See `tools\VERIFICATION.txt` in the package for details.
+]]></description>
+    <releaseNotes>https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.3</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

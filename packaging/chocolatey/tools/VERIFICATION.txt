@@ -1,0 +1,32 @@
+VERIFICATION
+
+Verification is intended to assist the Chocolatey moderators and any user in verifying
+that this package's contents are authentic.
+
+This package downloads the installer at install time (it does not embed the binary). The
+installer is the official release asset published by the software author on GitHub.
+
+Package software author / vendor: Hemanth Ganneni
+Project / source: https://github.com/kingoftheseas56/Colosseum
+
+Installer downloaded by this package:
+  URL:    https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.3/Colosseum-1.1.3-setup.exe
+  Size:   269338695 bytes
+  SHA256: 140cefc39a47b932558cabb15adfacd7e991fda7e1762c2681c48a0be9272ee7
+
+To verify the checksum yourself:
+
+  PowerShell:
+    Get-FileHash -Algorithm SHA256 .\Colosseum-1.1.3-setup.exe
+
+  Chocolatey:
+    checksum.exe -t sha256 -f .\Colosseum-1.1.3-setup.exe
+
+The value it prints must equal the SHA256 above (and the value embedded in
+tools\chocolateyinstall.ps1).
+
+LICENSE
+
+Colosseum is licensed under the MIT License. A copy of the license text is included in
+this package as tools\LICENSE.txt and is published at:
+  https://github.com/kingoftheseas56/Colosseum/blob/v1.1.3/LICENSE
