@@ -159,7 +159,8 @@ ordinary QML rows.
 `COLOSSEUM_WATCH_PARTY_URL` remains an override for self-hosting and testing. The repository
 includes the Cloudflare Worker + Durable Object relay and deployment notes in
 [`server/watchparty-relay/DEPLOYMENT.md`](server/watchparty-relay/DEPLOYMENT.md). Guest room flows
-are accountless; public signed-in hosting still depends on account-service bearer authority.
+are accountless and work today; public signed-in hosting does not, because it needs bearer
+authority from the account service, which is not deployed (see **Accounts and sync**).
 Multi-client room membership/chat/kick/rejoin/grace/end behavior has runtime coverage; final
 in-app synced-playback acceptance remains a field-testing boundary.
 
@@ -191,9 +192,19 @@ direct manifest installation and community Browse use the same gate so the two p
 
 ## Accounts and sync
 
-Colosseum 1.1.4 has account onboarding, remembered-session restore, an account medallion/flyout,
-and a six-page Account Centre: **Profile**, **Your Colosseum**, **Security**, **Devices**,
-**Recovery**, and **Data & privacy**.
+**Not wired up yet — you cannot sign in.** There is no account service running, so account
+creation, sign-in, and cloud sync do not work in any released build, and every attempt reports
+that the account service configuration is invalid. Everything Colosseum does with your library
+works fully offline and is unaffected; accounts are an unfinished addition, not a dependency.
+
+What exists today is the desktop half: onboarding, remembered-session restore, an account
+medallion/flyout, and a six-page Account Centre — **Profile**, **Your Colosseum**, **Security**,
+**Devices**, **Recovery**, and **Data & privacy** — plus the server that answers them, which
+lives in this repository at [`server/account-service`](server/account-service) but is not
+deployed anywhere. See [its deployment runbook](server/account-service/DEPLOYMENT.md) for what
+closing that gap requires.
+
+The rest of this section describes what those surfaces do once a service is running.
 
 Profile can rename the account and choose a built-in avatar. Security owns new-device protection,
 pending sign-in approvals, password changes, and sign-out-everywhere. Devices can refresh and
@@ -207,8 +218,12 @@ media files, window state, search history, and the raw Your Colosseum activity l
 The Data & privacy page can clear local search history and activity history; its policy switches,
 data export, and account-deletion flow do not yet have authoritative service wiring.
 
-The account service endpoint is configurable rather than hard-coded into the public desktop source.
-A build or runtime needs a configured account service before cloud sign-in/sync can function.
+The account service endpoint is configurable rather than hard-coded into the public desktop source:
+a build sets it with `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>`, and the
+`COLOSSEUM_ACCOUNT_SERVICE_URL` environment variable overrides it at runtime. Released builds set
+neither, which is why sign-in is unavailable. To exercise the surfaces locally, run
+[`tests/mock-account-service`](tests/mock-account-service) and point the environment variable at
+it.
 
 ## Wallpapers
 
@@ -312,13 +327,16 @@ repair into `master`. This is development infrastructure, not part of the instal
 - Tankoban and Biblio can consume compatible extension catalogues for discovery, but their native
   acquisition paths are not generic Stremio stream consumers. Theatre is the world with generic
   torrent/direct-stream playback from compatible add-ons.
-- Account/cloud sync requires a configured account-service endpoint. Profile, Security, Devices,
-  Recovery, and Your Colosseum are live surfaces; Data & privacy policy switches, data export, and
-  the account-deletion flow still lack authoritative service wiring.
+- Accounts and cloud sync do not work: no account service is deployed, so sign-in fails in every
+  released build. The desktop surfaces and the service implementation both exist — Profile,
+  Security, Devices, Recovery, and Your Colosseum are built out — but nothing hosts them yet.
+  Separately, and even once a service is running, the Data & privacy policy switches, data export,
+  and the account-deletion flow still lack authoritative service wiring.
 - Watch Party uses the hosted relay by default; `COLOSSEUM_WATCH_PARTY_URL` is only an override.
   Exact torrents are eligible and can be fetched automatically by joiners; generic direct URLs are
-  deliberately not. Public signed-in relay hosting still depends on account-service bearer
-  authority, and final in-app synced-playback acceptance remains a field-testing boundary.
+  deliberately not. Guest rooms work; public signed-in hosting does not, because it needs bearer
+  authority from the account service that is not deployed. Final in-app synced-playback acceptance
+  remains a field-testing boundary.
 - The calendar implementation is banked but has no live navigation route.
 - Player 2 is integrated but opt-in and Windows / D3D11-oriented; mpv remains the default.
 - Vinyl is visible as a coming-soon world, not yet implemented.
