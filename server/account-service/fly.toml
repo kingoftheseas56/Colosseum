@@ -1,0 +1,26 @@
+kill_signal = "SIGINT"
+kill_timeout = "10s"
+
+[env]
+  COLOSSEUM_ACCOUNT_ENV = "production"
+  HTTP_ADDR = ":8080"
+  DATABASE_MAX_CONNECTIONS = "8"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "15s"
+  method = "GET"
+  timeout = "2s"
+  path = "/readyz"
+  headers = { X-Forwarded-Proto = "https" }
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16.15
+        env:
+          POSTGRES_DB: colosseum_account_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d colosseum_account_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/colosseum_account_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.6"
+          cache: true
+      - run: go mod download
+      - run: go mod tidy
+      # go.sum is committed: fail if tidy would change it OR if either file is
+      # missing/untracked (git diff alone cannot see an absent go.sum).
+      - run: |
+          git add -N go.mod go.sum
+          git diff --exit-code -- go.mod go.sum
+          test -f go.sum
+      - run: go vet ./...
+      - run: go test -p 1 -race ./...
+      - run: go build ./...
+      - run: docker build --tag colosseum-account-service:test .
