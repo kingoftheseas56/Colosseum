@@ -1,0 +1,58 @@
+{
+  "eyebrow": "READ COMES FIRST",
+  "title": "Colosseum 1.1.4",
+  "summary": "Read now, download later across every world; catalogues that fetch themselves on first launch; a real comics catalogue engine; and silent install and uninstall through WinGet and Chocolatey.",
+  "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.4",
+  "highlights": [
+    {
+      "kind": "feature",
+      "section": "WORLDS",
+      "title": "Read now, download later",
+      "body": "Read opens the reader as soon as the content can open, guarded against stale requests. Download acquires and stops at Ready. The split runs through comics, Tankoban volumes, and both of Biblio's transports, so the two intents mean the same thing everywhere.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "CATALOGUES",
+      "title": "They fetch themselves",
+      "body": "The installer no longer ships catalogue databases. On first launch Colosseum downloads all four — anime/manga, Tankoban volumes, comics, and the IMDb index — from the public Colosseum-Data release, and shelves wake live as each one lands.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "COMICS",
+      "title": "Catalogue intelligence",
+      "body": "A real catalogue engine drives new Discover shelves and a per-series ledger, and an empty or still-downloading catalogue renders an honest empty state instead of a broken wall.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "TANKOBAN",
+      "title": "Volume identity",
+      "body": "A Torrentio-style identity pipeline gives the source picker and file picker one shared volume grammar — better matches, fewer misfiled downloads.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "THEATRE",
+      "title": "One scroll surface",
+      "body": "The series episode list scrolls as one surface — masthead and episodes move together instead of trapping the wheel in a nested list.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "RUNTIME",
+      "title": "Composition hardening",
+      "body": "Pause/resume authority lives in the native session coordinator, Watch Party and the update cache are owned services, startup gains an explicit bootstrap, and pinned-host networking retries through a durable IPv4 pin store.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "milestone",
+      "section": "DISTRIBUTION",
+      "title": "WinGet and Chocolatey",
+      "body": "Colosseum is submitted to the WinGet community repository as Colosseum.Colosseum, a Chocolatey package lives in-tree, and the installer now registers a quiet uninstall command so silent managers can remove it cleanly.",
+      "artwork_assets": []
+    }
+  ],
+  "artwork": []
+}

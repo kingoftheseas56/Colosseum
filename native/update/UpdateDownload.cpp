@@ -109,7 +109,7 @@ void UpdateDownload::requestNetwork(bool resume)
     QNetworkRequest request(m_request.url);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
-    request.setRawHeader("User-Agent", "Colosseum/1.1.3");
+    request.setRawHeader("User-Agent", "Colosseum/1.1.4");
     if (resume) {
         request.setRawHeader("Range", QByteArray("bytes=") + QByteArray::number(m_requestOffset)
             + "-");

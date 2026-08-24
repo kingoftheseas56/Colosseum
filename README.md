@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/release-1.1.3-111111?style=flat-square" alt="1.1.3" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/release-1.1.4-111111?style=flat-square" alt="1.1.4" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-777777?style=flat-square" alt="MIT License" /></a>
 </p>
 
@@ -33,28 +33,31 @@ real video player. Browsing is catalogue-first and discovery-rich; downloaded me
 so reading and listening can continue offline.
 
 > [!IMPORTANT]
-> Colosseum 1.1.3 is the current Windows 10/11 desktop release. Download the installer from
+> Colosseum 1.1.4 is the current Windows 10/11 desktop release. Download the installer from
 > [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for a per-user install —
 > no administrator required. Building from source is documented below.
 
-## What's new in 1.1.3
+## What's new in 1.1.4
 
-- **1.1.3 restores the release that 1.1.2 was meant to be.** 1.1.2 was pulled after a QML type
-  registration ended up behind the Player 2 compile guard, causing release builds to exit before a
-  window appeared. `Colosseum.Activity` is now registered unconditionally, so the app launches normally.
-- **Installed launches are cleaner.** `colosseum.exe` now uses the Windows GUI subsystem, removing
-  the console window that had appeared behind the app since the earliest releases.
-- **Post-update relaunch works again.** Updater result flags are no longer mistaken for a QML file
-  path, so the app can reopen after an in-app update instead of silently exiting during relaunch.
-- **Release packaging is substantially leaner.** The installer stage now strips build intermediates,
-  test harnesses, and source trees the installed app never reads, and packaging refuses any installer
-  over 300 MB. This closes the packaging failure that made 1.1.2 balloon to 647 MB.
-- **The intended 1.1.2 feature set is carried forward intact.** That includes Vault hardening and
-  its permanent Home portal, hosted-default Watch Party with join-side exact-torrent fetching,
-  Tankoban's Library tab and volume-flow view, the Biblio catalogue overhaul, ScrollGlide, the
-  top-bar update chronicle, Living Guide removal, AZW3 support, and truthful DJVU/CBR failure paths.
+- **Read now, download later — everywhere.** Comics, Tankoban volumes, and Biblio books share one
+  consumption-first split: **Read** opens the reader as soon as the content can open, guarded against
+  stale requests, while **Download** acquires the content and stops at Ready instead of flipping into
+  the reader on its own.
+- **The catalogues fetch themselves.** The installer no longer ships catalogue databases. On first
+  launch, Colosseum downloads all four — anime/manga, Tankoban volumes, comics, and the IMDb index —
+  from the public Colosseum-Data release, and shelves wake live as each one lands.
+- **Comics catalogue intelligence.** A real catalogue engine drives new Discover shelves and a
+  per-series ledger, with honest empty states while a catalogue is absent or still downloading.
+- **Tankoban volume identity.** A Torrentio-style identity pipeline gives the source picker and file
+  picker one shared volume grammar — better matches, fewer misfiled downloads.
+- **Theatre and runtime polish.** Series episode lists scroll as a single surface; pause/resume
+  authority, the Watch Party bridge, and the update cache moved into owned native services; startup
+  gains an explicit bootstrap; pinned-host networking retries through a durable IPv4 pin store.
+- **Quieter installs, more channels.** The installer registers a quiet uninstall command for silent
+  managers, Colosseum is submitted to WinGet as `Colosseum.Colosseum`, and a Chocolatey package
+  definition lives in-tree.
 
-Full release notes: [docs/release-notes/v1.1.3.md](docs/release-notes/v1.1.3.md).
+Full release notes: [docs/release-notes/v1.1.4.md](docs/release-notes/v1.1.4.md).
 
 ## Highlights
 
@@ -142,7 +145,7 @@ moving the underlying download data.
 
 ## Watch Party
 
-Colosseum 1.1.3 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
+Colosseum 1.1.4 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
 relay, so creating or joining a room no longer requires endpoint configuration. A Join action lives
 on the taskbar; room controls live inside Player 1. The client supports guest and signed-in identity,
 participant rosters, chat and reactions, host/shared control, reconnect and host grace, kick/rejoin,
@@ -188,7 +191,7 @@ direct manifest installation and community Browse use the same gate so the two p
 
 ## Accounts and sync
 
-Colosseum 1.1.3 has account onboarding, remembered-session restore, an account medallion/flyout,
+Colosseum 1.1.4 has account onboarding, remembered-session restore, an account medallion/flyout,
 and a six-page Account Centre: **Profile**, **Your Colosseum**, **Security**, **Devices**,
 **Recovery**, and **Data & privacy**.
 
@@ -304,7 +307,8 @@ repair into `master`. This is development infrastructure, not part of the instal
 - Tankoban remains volume-only. The old chapter browser/downloader is unrouted, and first launch
   removes the obsolete chapter tree plus `manga` progress. Downloaded Tankoban volumes are kept.
 - After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a
-  few seconds before recovering. This is a known 1.1.3 issue targeted for 1.1.4.
+  few seconds before recovering. Known since 1.1.3; the picker flow was reworked in 1.1.4 but this
+  issue has not been re-verified as fixed.
 - Tankoban and Biblio can consume compatible extension catalogues for discovery, but their native
   acquisition paths are not generic Stremio stream consumers. Theatre is the world with generic
   torrent/direct-stream playback from compatible add-ons.
