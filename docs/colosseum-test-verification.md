@@ -853,7 +853,9 @@ the repo). Everything else is stdout sentinel + exit code.
 lowest-risk first registrations): `window_state_policy_harness`,
 `search_history_store_harness`, `progress_store_harness`, `collection_store_harness`,
 `cbz_archive_harness`, `poster_scoreboard_harness`, `comicreader_cache_harness`,
-`biblio_catalog_logic_harness` (fixture-dir baked, still deterministic).
+`biblio_catalog_logic_harness` (fixture-dir baked, still deterministic), plus Function 0002's
+`background_work_coordinator_harness`, `background_activity_registry_harness`, and
+`background_work_composition_harness` (`unit;composition` for the end-to-end seam).
 
 **Qt Test conversion pilot:** `tests/window_state_policy_harness.cpp` — deterministic,
 already QTemporaryDir + isolated QSettings, naturally splits into test functions, and its

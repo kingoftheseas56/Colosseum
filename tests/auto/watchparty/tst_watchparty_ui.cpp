@@ -15,6 +15,7 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include <memory>
 #include <optional>
 
 namespace WatchParty = Colosseum::WatchParty;
@@ -163,6 +164,12 @@ WatchParty::ProtocolMessage snapshotMessage(
 class FakeAccountBridge final : public WatchParty::IWatchPartyAccountBridge
 {
 public:
+    ~FakeAccountBridge() override
+    {
+        if (destructionCount)
+            ++*destructionCount;
+    }
+
     std::optional<WatchParty::SignedInAccountIdentity>
     currentSignedInIdentity() const override
     {
@@ -195,6 +202,7 @@ public:
     }
 
     std::optional<WatchParty::SignedInAccountIdentity> identity;
+    int* destructionCount = nullptr;
     bool inviteAvailable = true;
     int inviteCount = 0;
     QString lastInviteRoomId;
@@ -240,6 +248,7 @@ private slots:
     void exact_username_invite_remains_authoritative_host_only();
     void signed_in_session_account_identity_changed_closes_authenticated_session();
     void guest_session_account_identity_changed_preserves_guest_session();
+    void owned_account_bridge_lifetime_matches_ui_controller();
 };
 
 void tst_watchparty_ui::unsupported_direct_source_cannot_start_room()
@@ -482,6 +491,26 @@ guest_session_account_identity_changed_preserves_guest_session()
     QCOMPARE(ui.phase(), phaseBefore);
     QCOMPARE(transport.state(), WatchParty::TransportState::Connected);
     QVERIFY(identityChanged.count() >= 1);
+}
+
+
+void tst_watchparty_ui::owned_account_bridge_lifetime_matches_ui_controller()
+{
+    int destroyed = 0;
+    {
+        WatchParty::FakeTransport transport(false);
+        WatchParty::PlayerSyncController sync;
+        WatchParty::UiController ui(&transport, &sync, nullptr);
+
+        auto account = std::make_unique<FakeAccountBridge>();
+        account->destructionCount = &destroyed;
+        account->signIn();
+        QVERIFY(ui.setOwnedAccountBridge(std::move(account)));
+        QCOMPARE(destroyed, 0);
+        QCOMPARE(ui.signedInUsername(), QStringLiteral("SignedInHost"));
+    }
+
+    QCOMPARE(destroyed, 1);
 }
 
 QTEST_GUILESS_MAIN(tst_watchparty_ui)

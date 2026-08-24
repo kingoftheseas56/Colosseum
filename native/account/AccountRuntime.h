@@ -1,7 +1,5 @@
 #pragma once
 
-// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
-
 #include "AccountBootstrapStore.h"
 #include "AccountClient.h"
 #include "AccountController.h"

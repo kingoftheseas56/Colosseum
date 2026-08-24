@@ -574,9 +574,11 @@ int main(int argc, char *argv[]) {
     // cache, and installer bridge so release traffic never shares a catalogue lane
     // and no check can block construction of the QML tree.
     auto *updateNam = new QNetworkAccessManager(&app);
-    auto *updateCache = new Colosseum::Update::UpdateCache(
+    auto updateCacheOwner = std::make_unique<Colosseum::Update::UpdateCache>(
         Colosseum::Update::UpdateCache::productionRoot());
-    auto *updateDownloader = new Colosseum::Update::UpdateDownload(updateNam, updateCache, &app);
+    auto *updateCache = updateCacheOwner.get();
+    auto *updateDownloader = new Colosseum::Update::UpdateDownload(
+        updateNam, std::move(updateCacheOwner), &app);
     Colosseum::Update::ReleaseClientConfig updateConfig;
     updateConfig.latestReleaseUrl = QUrl(
         QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest"));
@@ -1482,11 +1484,12 @@ int main(int argc, char *argv[]) {
     auto *live = new LiveStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Live"), live);
 
-    // Shared background-work spine: ONE coordinator (one worker) for offline-analysis
-    // domains. Kept as the unified activity surface QML reads via `BackgroundActivity`.
+    // Shared background-work spine: ONE coordinator (one worker) for every adopted
+    // offline-analysis producer. The registry is the QML-facing activity/control surface
+    // and is bound to the same scheduler so pause/resume cannot terminate in presentation.
     auto *backgroundWork = new work::BackgroundWorkCoordinator(1, &app);
-    Q_UNUSED(backgroundWork);
     auto *backgroundActivity = new work::BackgroundActivityRegistry(&app);
+    backgroundActivity->setCoordinator(backgroundWork);
     engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
                                              backgroundActivity);
 
@@ -1510,9 +1513,9 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("WatchPartySync"),
                                              watchPartySync);
 
-    // Watch Party Slice 6: QML-facing room/UI coordinator. Account ownership stays outside
-    // this object; the real account bridge is bound after AccountRuntime construction below,
-    // and until then only the accountless guest flow exists. The service endpoint is
+    // Watch Party Slice 6: QML-facing room/UI coordinator. The production account bridge
+    // is created after AccountRuntime and ownership is transferred into this controller;
+    // until then only the accountless guest flow exists. The service endpoint is
     // deployment configuration, never room/shared state.
     auto *watchPartyUi = new Colosseum::WatchParty::UiController(watchPartySync, &app);
     const QUrl watchPartyUrl = Colosseum::WatchParty::ServiceEndpoint::configuredUrl();
@@ -1608,9 +1611,9 @@ int main(int argc, char *argv[]) {
                      &app, runTankobanChapterMigration);
 
     // Watch Party account bridge (arc 03): signed-in identity + bearer stay native.
-    // Sign-out or identity replacement tears down any authenticated party session.
-    auto watchPartyAccountBridge = accountRuntime->createWatchPartyAccountBridge();
-    watchPartyUi->setAccountBridge(watchPartyAccountBridge.get());
+    // UiController owns the bridge it dereferences, so its teardown cannot outlive
+    // a shorter-lived local unique_ptr. Identity changes still close authenticated sessions.
+    watchPartyUi->setOwnedAccountBridge(accountRuntime->createWatchPartyAccountBridge());
     QObject::connect(accountRuntime->controller(), &AccountController::signedIn,
                      watchPartyUi, &Colosseum::WatchParty::UiController::handleAccountIdentityChanged);
     QObject::connect(accountRuntime->controller(), &AccountController::signedOut,

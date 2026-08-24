@@ -1,7 +1,11 @@
 // native/work/BackgroundActivityRegistry.h
 #pragma once
 
+#include "work/BackgroundWorkCoordinator.h"
+
+#include <QMetaObject>
 #include <QObject>
+#include <QPointer>
 #include <QPair>
 #include <QString>
 #include <QVariantList>
@@ -21,6 +25,7 @@ public:
     explicit BackgroundActivityRegistry(QObject *parent = nullptr);
 
     QVariantList activities() const;
+    void setCoordinator(BackgroundWorkCoordinator *coordinator);
 
     // Required state keys: title, stage, progress (0..1), paused, canPause.
     // Publishing an existing id updates that row in place.
@@ -36,7 +41,13 @@ signals:
     void resumeRequested(const QString &id);
 
 private:
+    void updatePausedState(const QString &id, bool paused);
+
     QVector<QPair<QString, QVariantMap>> m_rows; // insertion order = display order
+    QPointer<BackgroundWorkCoordinator> m_coordinator;
+    QMetaObject::Connection m_pauseRequestConnection;
+    QMetaObject::Connection m_resumeRequestConnection;
+    QMetaObject::Connection m_pauseStateConnection;
 };
 
 } // namespace work

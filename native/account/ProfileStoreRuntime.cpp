@@ -1,5 +1,3 @@
-// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
-
 #include "ProfileStoreRuntime.h"
 
 #include "ActivityStore.h"

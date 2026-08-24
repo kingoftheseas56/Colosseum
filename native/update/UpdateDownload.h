@@ -8,6 +8,8 @@
 #include <QPointer>
 #include <QUrl>
 
+#include <memory>
+
 class QNetworkAccessManager;
 class QNetworkReply;
 class QFile;
@@ -28,6 +30,8 @@ class UpdateDownload final : public QObject {
     Q_OBJECT
 public:
     UpdateDownload(QNetworkAccessManager* nam, UpdateCache* cache, QObject* parent = nullptr);
+    UpdateDownload(QNetworkAccessManager* nam, std::unique_ptr<UpdateCache> cache,
+                   QObject* parent = nullptr);
 
     void start(const DownloadRequest& request);
     void cancel();
@@ -45,6 +49,7 @@ private:
     bool validRequest(const DownloadRequest& request, QString* error) const;
 
     QNetworkAccessManager* m_nam = nullptr;
+    std::unique_ptr<UpdateCache> m_ownedCache;
     UpdateCache* m_cache = nullptr;
     QPointer<QNetworkReply> m_reply;
     DownloadRequest m_request;

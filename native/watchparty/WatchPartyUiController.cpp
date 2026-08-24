@@ -256,7 +256,32 @@ bool UiController::setAccountBridge(IWatchPartyAccountBridge* accountBridge)
     if (m_accountBridge == accountBridge)
         return true;
 
+    m_identity.reset();
+    m_ownedAccountBridge.reset();
     m_accountBridge = accountBridge;
+    m_identity =
+        std::make_unique<IdentityCoordinator>(m_service.get(), m_accountBridge);
+    m_serviceIdentityMode = ServiceIdentityMode::None;
+    Q_EMIT identityChanged();
+    return true;
+}
+
+bool UiController::setOwnedAccountBridge(
+    std::unique_ptr<IWatchPartyAccountBridge> accountBridge)
+{
+    if (m_inRoom
+        || (m_transport && m_transport->state() != TransportState::Closed)
+        || m_pendingAction != PendingAction::None) {
+        setError(
+            QStringLiteral("identityBusy"),
+            QStringLiteral("Leave the current Watch Party before changing accounts."));
+        return false;
+    }
+
+    IWatchPartyAccountBridge* rawBridge = accountBridge.get();
+    m_identity.reset();
+    m_ownedAccountBridge = std::move(accountBridge);
+    m_accountBridge = rawBridge;
     m_identity =
         std::make_unique<IdentityCoordinator>(m_service.get(), m_accountBridge);
     m_serviceIdentityMode = ServiceIdentityMode::None;

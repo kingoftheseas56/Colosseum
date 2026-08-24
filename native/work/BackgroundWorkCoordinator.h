@@ -63,12 +63,14 @@ public:
     void reprioritize(const QString &id, int priority);
     void setPressure(Pressure pressure);
     Status status(const QString &id) const;
+    bool isPaused(const QString &id) const;
 
 signals:
     void workStarted(const QString &id);
     void workFinished(const QString &id); // Completed only
     void workPaused(const QString &id);
     void workFailed(const QString &id, const QString &reason);
+    void pauseStateChanged(const QString &id, bool paused);
 
 private:
     struct Job {

@@ -10,11 +10,21 @@
 #include <QThreadPool>
 #include <QtConcurrent/QtConcurrentRun>
 
+#include <utility>
+
 namespace Colosseum::Update {
 
 UpdateDownload::UpdateDownload(QNetworkAccessManager* nam, UpdateCache* cache, QObject* parent)
     : QObject(parent), m_nam(nam), m_cache(cache), m_file(new QFile(this))
 {
+}
+
+UpdateDownload::UpdateDownload(QNetworkAccessManager* nam,
+                               std::unique_ptr<UpdateCache> cache,
+                               QObject* parent)
+    : UpdateDownload(nam, cache.get(), parent)
+{
+    m_ownedCache = std::move(cache);
 }
 
 bool UpdateDownload::validRequest(const DownloadRequest& request, QString* error) const

@@ -1,5 +1,3 @@
-// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
-
 #include "AccountRuntime.h"
 
 #include "AccountServiceEndpoint.h"

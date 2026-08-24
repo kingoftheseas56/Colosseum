@@ -66,10 +66,11 @@ void BackgroundWorkCoordinator::submit(const WorkSpec &spec, WorkFn fn)
 void BackgroundWorkCoordinator::pause(const QString &id)
 {
     bool announce = false;
+    bool pauseChanged = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (auto job = m_jobs.value(id)) {
-            job->paused->store(true);
+            pauseChanged = !job->paused->exchange(true);
             if (job->status == Status::Queued) {
                 job->status = Status::Paused;
                 announce = true;
@@ -78,33 +79,42 @@ void BackgroundWorkCoordinator::pause(const QString &id)
             // Running honestly (it is mid-stage) until the stage ends.
         }
     }
+    if (pauseChanged)
+        emit pauseStateChanged(id, true);
     if (announce)
         emit workPaused(id);
 }
 
 void BackgroundWorkCoordinator::resume(const QString &id)
 {
+    bool pauseChanged = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (auto job = m_jobs.value(id)) {
-            job->paused->store(false);
+            pauseChanged = job->paused->exchange(false);
             if (job->status == Status::Paused)
                 job->status = Status::Queued;
         }
     }
+    if (pauseChanged)
+        emit pauseStateChanged(id, false);
     m_cv.notify_all();
 }
 
 void BackgroundWorkCoordinator::cancel(const QString &id)
 {
+    bool pauseChanged = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (auto job = m_jobs.value(id)) {
             job->cancelled->store(true);
+            pauseChanged = job->paused->exchange(false);
             if (job->status == Status::Queued || job->status == Status::Paused)
                 job->status = Status::Cancelled;
         }
     }
+    if (pauseChanged)
+        emit pauseStateChanged(id, false);
     m_cv.notify_all();
 }
 
@@ -127,6 +137,14 @@ Status BackgroundWorkCoordinator::status(const QString &id) const
     if (auto job = m_jobs.value(id))
         return job->status;
     return Status::Unknown;
+}
+
+bool BackgroundWorkCoordinator::isPaused(const QString &id) const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (auto job = m_jobs.value(id))
+        return job->paused->load();
+    return false;
 }
 
 bool BackgroundWorkCoordinator::runnableAvailableLocked() const
@@ -199,6 +217,7 @@ void BackgroundWorkCoordinator::workerLoop()
             break;
         case WorkResult::Paused:
             job->status = Status::Paused;
+            job->paused->store(true);
             m_queue.push_back(job); // resume() flips it back to Queued
             break;
         case WorkResult::Cancelled:
@@ -214,9 +233,10 @@ void BackgroundWorkCoordinator::workerLoop()
         lock.unlock();
         if (finalStatus == Status::Completed)
             emit workFinished(id);
-        else if (finalStatus == Status::Paused)
+        else if (finalStatus == Status::Paused) {
+            emit pauseStateChanged(id, true);
             emit workPaused(id);
-        else if (finalStatus == Status::Failed)
+        } else if (finalStatus == Status::Failed)
             emit workFailed(id, failReason.isEmpty()
                                     ? QStringLiteral("work function reported failure")
                                     : failReason);

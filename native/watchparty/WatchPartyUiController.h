@@ -86,10 +86,12 @@ public:
     UiController(const UiController&) = delete;
     UiController& operator=(const UiController&) = delete;
 
-    // Non-QML adoption seams. Service/account ownership remains outside QML so
-    // credentials and endpoint policy are never exposed as UI properties.
+    // Non-QML adoption seams. Credentials and endpoint policy never enter QML.
+    // Tests may inject a borrowed bridge; production transfers ownership so the
+    // controller cannot outlive the account bridge it dereferences.
     bool configureServiceUrl(const QUrl& serviceUrl);
     bool setAccountBridge(IWatchPartyAccountBridge* accountBridge);
+    bool setOwnedAccountBridge(std::unique_ptr<IWatchPartyAccountBridge> accountBridge);
 
     bool serviceConfigured() const { return m_serviceConfigured; }
     bool signedIn() const;
@@ -237,6 +239,7 @@ private:
     WebSocketTransport* m_ownedWebSocketTransport = nullptr;
     ITransport* m_transport = nullptr;
     std::unique_ptr<RoomServiceClient> m_service;
+    std::unique_ptr<IWatchPartyAccountBridge> m_ownedAccountBridge;
     std::unique_ptr<IdentityCoordinator> m_identity;
     PlayerSyncController* m_playerSync = nullptr;
     IWatchPartyAccountBridge* m_accountBridge = nullptr;
