@@ -96,6 +96,19 @@ Item {
     // handing it nothing is what sent a film to the comic catalogues. Both openers (a grid Film
     // tile and a carousel slide's Details) carry kind now.
     property string detailSheetRowKind: ""
+    // Vault ux uplift S7 — the opened row's vault id + its live watched mark, the sheet's two
+    // watched-verb inputs. The id is the S6 join key browseAt() carries on Film/Episode/Clip
+    // rows ("vault:"-prefixed; anything else resolves to "" and both verbs hide — the same
+    // catalogue-id guard the context menu's verbs hold). The mark reads the store on the
+    // Progress revision clock (reading Q_INVOKABLE watchers with NO named revision dependency
+    // stale — the S6 join's own rule), so a mark made in one place re-opens the pair anywhere.
+    property string detailSheetRowVaultId: ""
+    readonly property bool detailSheetRowIsWatched: {
+        if (root.detailSheetRowVaultId.length === 0 || typeof Progress === "undefined")
+            return false
+        Progress.revision
+        return Progress.watchedMark(root.detailSheetRowVaultId) === 1
+    }
     readonly property var detailSheetDetail: (root.detailSheetVisible && root.detailSheetKey
             && typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.browseDetail(root.detailSheetKey)) : ({})
@@ -103,6 +116,8 @@ Item {
         root.detailSheetKey = row.key || ""
         root.detailSheetRowState = row.state || ""
         root.detailSheetRowKind = row.kind || ""
+        const rowId = row.id ? String(row.id) : ""
+        root.detailSheetRowVaultId = rowId.indexOf("vault:") === 0 ? rowId : ""
         root.detailSheetVisible = true
     }
     function closeDetailSheet() { root.detailSheetVisible = false }
@@ -404,6 +419,25 @@ Item {
     function openCardContextMenu(row) {
         root.contextRow = row
         cardContextMenu.popup()
+    }
+    // Vault ux uplift S7: the vault id on the menu's target row — the live Progress join key
+    // browseAt() carries on Film/Episode/Clip rows since S6. The watched verbs are Vault verbs:
+    // a catalogue id (or an id-less container row/away fallback row) must never be marked here,
+    // so anything non-"vault:" resolves to "" and both menu items hide.
+    readonly property string contextRowVaultId: {
+        if (!root.contextRow) return ""
+        const id = root.contextRow.id
+        return (id && String(id).indexOf("vault:") === 0) ? String(id) : ""
+    }
+    // Vault ux uplift S7: the two verbs' single writer — "Mark watched" writes the durable
+    // 1 mark (setWatchedMark(id, true)); "Mark unwatched" clears it (clearWatchedMark — the
+    // no-mark state lets the auto rules resume, unlike setWatchedMark(id, false) which pins a
+    // manual -1). vault ids pass seriesRootId() through unchanged, so both are exactly the
+    // catalogue-id paths the rest of the app already uses.
+    function markContextRowWatched(on) {
+        if (root.contextRowVaultId.length === 0 || typeof Progress === "undefined") return
+        if (on) Progress.setWatchedMark(root.contextRowVaultId, true)
+        else Progress.clearWatchedMark(root.contextRowVaultId)
     }
     function initBrowseState() {
         if (!root.hasConfirmedStorage || typeof VaultLibrary === "undefined") return
@@ -1213,6 +1247,30 @@ Item {
             onTriggered: if (typeof VaultLibrary !== "undefined" && root.contextRow)
                              VaultLibrary.restoreGroup(root.contextRow.key || "")
         }
+        // Vault ux uplift S7 — the watched verbs, single-item only (bulk/season marking waits
+        // on Phase-4's multi-select ruling). Vault ids only: contextRowVaultId is "" for a
+        // catalogue/container/away row, and the revision clock is named so a mark (or the S3
+        // retire path) re-opens the pair live. "Mark unwatched" is the CLEAR verb — the record
+        // may then auto-retire on its own; it never pins -1.
+        MenuSeparator {
+            visible: !root.hiddenViewActive && root.contextRowVaultId.length > 0
+        }
+        MenuItem {
+            objectName: "vaultBrowseContextMarkWatched"
+            text: "Mark watched"
+            visible: !root.hiddenViewActive && root.contextRowVaultId.length > 0
+                     && (typeof Progress !== "undefined")
+                     && (Progress.revision, Progress.watchedMark(root.contextRowVaultId) !== 1)
+            onTriggered: root.markContextRowWatched(true)
+        }
+        MenuItem {
+            objectName: "vaultBrowseContextMarkUnwatched"
+            text: "Mark unwatched"
+            visible: !root.hiddenViewActive && root.contextRowVaultId.length > 0
+                     && (typeof Progress !== "undefined")
+                     && (Progress.revision, Progress.watchedMark(root.contextRowVaultId) === 1)
+            onTriggered: root.markContextRowWatched(false)
+        }
     }
 
     // ---- scan pill (Slice 11): a folder census is running; cancelable. Shows the folder name;
@@ -1397,6 +1455,18 @@ Item {
         onHideRequested: (key) => {
             if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.hideGroup(key)
             root.closeDetailSheet()
+        }
+        // Vault ux uplift S7 — the sheet's watched verbs. The sheet stays seedable (it never
+        // calls Progress itself; see its own markWatchedRequested comment), so the Progress
+        // calls are VaultPage's — the same owner discipline the identify-again handler above
+        // follows. The mark is the durable store mark; "Mark unwatched" CLEARS it (-1 is only
+        // set by explicitly marking unwatched again, which re-visibility handles).
+        rowVaultId: root.detailSheetRowVaultId
+        rowIsWatched: root.detailSheetRowIsWatched
+        onMarkWatchedRequested: (vaultId, watched) => {
+            if (typeof Progress === "undefined" || !vaultId) return
+            if (watched) Progress.setWatchedMark(vaultId, true)
+            else Progress.clearWatchedMark(vaultId)
         }
     }
 

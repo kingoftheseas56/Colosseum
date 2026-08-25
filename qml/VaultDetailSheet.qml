@@ -9,9 +9,10 @@
 // Lanista bridge structurally cannot see a secondary window (ledger law). Seedable, like its
 // siblings: it takes `detail` (VaultLibrary.browseDetail()'s returned map) and emits
 // backRequested / playRequested(path) / revealRequested(path) / identifyRequested(key) /
-// unidentifyRequested(key) / hideRequested(key) / identifyAgainRequested(key) — VaultPage wires
-// those to VaultLibrary + the existing openMediaRequested path. So a Qt Quick Test drives it
-// with a seeded map, no app.
+// unidentifyRequested(key) / hideRequested(key) / identifyAgainRequested(key) /
+// markWatchedRequested(vaultId, watched) — VaultPage wires those to VaultLibrary and the
+// existing openMediaRequested/Progress paths. So a Qt Quick Test drives it with a seeded map,
+// no app.
 import QtQuick
 import QtQuick.Controls
 
@@ -29,6 +30,9 @@ Item {
     // healthy)}], companions:[string], extras:[{title, path}], evidence, ignoredCount, playPath }.
     property var detail: ({})
     property string identityStateOfRow: "" // the grid row's own state, for the Identify/Un-identify choice
+    // S7 watched-verb inputs (see the signal's own block below for the full contract).
+    property string rowVaultId: ""           // the opened row's vault id ("vault:"-prefixed; "" otherwise)
+    property bool rowIsWatched: false        // the live ProgressStore.watchedMark === 1 state
 
     // ── outputs ──
     signal backRequested()
@@ -46,6 +50,15 @@ Item {
     //   }
     // — the same guard shape its sibling handlers below on this sheet already use.
     signal identifyAgainRequested(string groupKey)
+
+    // Vault ux uplift S7 — watched/unwatched verbs. The sheet stays seedable like every
+    // sibling: it never calls Progress itself. VaultPage supplies the row's vault id (its
+    // S6 join key, "vault:"-prefixed — see rowVaultId/rowIsWatched at the inputs above) and
+    // the live mark state (ProgressStore.watchedMark === 1 read on the Progress revision
+    // clock), and a click EMBEDS the two facts in one emission — the same owner discipline
+    // identifyAgainRequested follows. A catalogue/container row's empty id hides both verbs;
+    // "Mark unwatched" is the CLEAR verb (never a pinned -1).
+    signal markWatchedRequested(string vaultId, bool watched)
 
     readonly property bool found: !!(detail && detail.found)
     readonly property var copies: (detail && detail.copies) ? detail.copies : []
@@ -436,6 +449,37 @@ Item {
                             MouseArea { id: hideMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.hideRequested(sheet.detail.key || "") }
+                        }
+                    }
+
+                    // S7 — the watched verbs, in their own row: the actions row above already
+                    // carries six affordances at the panel's width budget, and the verbs are the
+                    // pair that must collapse to NOTHING (not an empty slot) for a non-vault row.
+                    // 7's own spacing matches the actions row's so the verbs read as one family.
+                    Row {
+                        topPadding: 10
+                        spacing: 18
+                        Text {
+                            objectName: "vaultBrowseSheetMarkWatched"
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Mark watched"
+                            visible: sheet.rowVaultId.length > 0 && !sheet.rowIsWatched
+                            color: markWatchedMa.containsMouse ? theme.ink : theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 13
+                            MouseArea { id: markWatchedMa; anchors.fill: parent; hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: sheet.markWatchedRequested(sheet.rowVaultId, true) }
+                        }
+                        Text {
+                            objectName: "vaultBrowseSheetMarkUnwatched"
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Mark unwatched"
+                            visible: sheet.rowVaultId.length > 0 && sheet.rowIsWatched
+                            color: markUnwatchedMa.containsMouse ? theme.ink : theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 13
+                            MouseArea { id: markUnwatchedMa; anchors.fill: parent; hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: sheet.markWatchedRequested(sheet.rowVaultId, false) }
                         }
                     }
                 }

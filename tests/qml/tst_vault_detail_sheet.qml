@@ -18,22 +18,28 @@ TestCase {
     Component { id: sheetComp; Colosseum.VaultDetailSheet {} }
     property var sheet: null
     SignalSpy { id: identifyAgainSpy; signalName: "identifyAgainRequested" }
+    SignalSpy { id: markSpy; signalName: "markWatchedRequested" }
 
-    function makeSheet(detail, rowState) {
+    function makeSheet(detail, rowState, vaultId, isWatched) {
         if (sheet) sheet.destroy()
         sheet = sheetComp.createObject(testWindow, {
             detail: detail,
-            identityStateOfRow: rowState || ""
+            identityStateOfRow: rowState || "",
+            rowVaultId: vaultId || "",
+            rowIsWatched: !!isWatched
         })
         verify(sheet !== null)
         identifyAgainSpy.target = sheet
         identifyAgainSpy.clear()
+        markSpy.target = sheet
+        markSpy.clear()
         wait(40)
         return sheet
     }
 
     function cleanup() {
         identifyAgainSpy.target = null
+        markSpy.target = null
         if (sheet) sheet.destroy()
         sheet = null
     }
@@ -129,6 +135,44 @@ TestCase {
         posterTitle = findChild(sheet, "vaultBrowseSheetPosterTitle")
         verify(posterTitle !== null)
         compare(posterTitle.visible, false)
+    }
+
+    // ── 5. watched verbs (vault ux uplift S7): exactly one verb per mark state, vault rows
+    //       only; a click EMBEDS id + intent in one emission (Progress stays VaultPage's). Each
+    //       makeSheet() re-arms + clears the spy, so each block asserts ITS OWN emission. ─────
+    function test_watched_verbs_offer_the_one_that_applies() {
+        // unmarked/unwatched row → "Mark watched" (the primary verb).
+        makeSheet(baseDetail(), "", "vault:abc123", false)
+        var watched = findChild(sheet, "vaultBrowseSheetMarkWatched")
+        var unwatched = findChild(sheet, "vaultBrowseSheetMarkUnwatched")
+        verify(watched !== null); verify(unwatched !== null)
+        compare(watched.visible, true)
+        compare(unwatched.visible, false)
+        mouseClick(watched)
+        wait(20)
+        compare(markSpy.count, 1)
+        compare(markSpy.signalArguments[0][0], "vault:abc123")   // the row's vault id
+        compare(markSpy.signalArguments[0][1], true)
+
+        // watched row → the CLEAR verb only (never a pinned -1; the no-mark state lets the
+        // auto rules run again).
+        makeSheet(baseDetail(), "", "vault:abc123", true)
+        watched = findChild(sheet, "vaultBrowseSheetMarkWatched")
+        unwatched = findChild(sheet, "vaultBrowseSheetMarkUnwatched")
+        compare(watched.visible, false)
+        compare(unwatched.visible, true)
+        mouseClick(unwatched)
+        wait(20)
+        compare(markSpy.count, 1)
+        compare(markSpy.signalArguments[0][0], "vault:abc123")
+        compare(markSpy.signalArguments[0][1], false)
+
+        // NEGATIVE CONTROL: no vault id (a catalogue row, a container, an away fallback) →
+        // both verbs absent, no emission.
+        makeSheet(baseDetail(), "", "", false)
+        compare(findChild(sheet, "vaultBrowseSheetMarkWatched").visible, false)
+        compare(findChild(sheet, "vaultBrowseSheetMarkUnwatched").visible, false)
+        compare(markSpy.count, 0)
     }
 
     function findText(root, wanted) {
