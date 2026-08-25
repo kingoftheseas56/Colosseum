@@ -112,6 +112,15 @@ Item {
 
     readonly property var browseRootsDetail: (typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.rootsDetail()) : []
+    // S9 (vault ux uplift) — the rail marquee's two data sources. rootCount() is the "· N
+    // folders" count (revision-driven: a confirm/remove publishes, so the count follows);
+    // downloadsRootPath() is static after boot (main.cpp wires the synthetic root before QML
+    // loads — a remove only HIDES the root, the path itself never changes mid-run), so it
+    // needs no revision gate.
+    readonly property int vaultRootCount: (typeof VaultLibrary !== "undefined")
+        ? (VaultLibrary.revision, VaultLibrary.rootCount()) : 0
+    readonly property string vaultDownloadsRootPath: (typeof VaultLibrary !== "undefined")
+        ? VaultLibrary.downloadsRootPath() : ""
     readonly property var hiddenSeriesRows: (root.populated && typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.hiddenSeries()) : []
     readonly property var carouselArrivalRows: (root.hasConfirmedStorage && typeof VaultLibrary !== "undefined")
@@ -942,6 +951,13 @@ Item {
                 selectedRootPath: root.crumbStack.length ? root.crumbStack[0].key : ""
                 hiddenActive: root.hiddenViewActive
                 hiddenCount: root.hiddenSeriesRows.length
+                // S9 (vault ux uplift): the marquee count + the synthetic downloads root's
+                // quiet/last/remove treatment, all fed from the façade's own invokables.
+                rootFolderCount: root.vaultRootCount
+                downloadsRootPath: root.vaultDownloadsRootPath
+                onRemoveDownloadsRequested: {
+                    if (typeof VaultLibrary !== "undefined") VaultLibrary.removeDownloadsRoot()
+                }
                 onRootSelected: (path) => {
                     let name = path
                     for (let i = 0; i < root.browseRootsDetail.length; ++i) {

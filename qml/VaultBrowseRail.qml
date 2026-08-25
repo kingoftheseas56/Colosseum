@@ -3,7 +3,9 @@
 // glyph with its availability dot; expanding adds names and counts only — it never reveals
 // state that was hidden while collapsed (design §4.1: "Expanding never reveals state that was
 // hidden — only detail"). Also carries the two capability affordances the old marquee/tab-bar
-// owned: Add storage (→ existing addFolder) and the reversible Hidden shelf.
+// owned: Add storage (→ existing addFolder) and the reversible Hidden shelf, plus (vault ux
+// uplift S9) the marquee "· N folders" count in the header and the synthetic downloads root's
+// quiet, always-last chip treatment with its remove action.
 import QtQuick
 
 Item {
@@ -19,11 +21,34 @@ Item {
     property string selectedRootPath: ""
     property bool hiddenActive: false
     property int hiddenCount: 0
+    // S9 (vault ux uplift) — the synthetic downloads root's normalized path ("" when no
+    // synthetic root is wired). The chip that matches it gets the spec's "visually quiet,
+    // always last" treatment: muted icon + name, sorted last regardless of the order
+    // rootsDetail() happened to return, plus its remove affordance.
+    property string downloadsRootPath: ""
+    // S9 — the marquee "· N folders" count. Fed from VaultLibrary.rootCount() (NOT
+    // roots.length) so the marquee states the same truth the chip count derives from.
+    property int rootFolderCount: 0
 
     signal rootSelected(string path)
     signal hiddenRequested()
     signal addRequested()
     signal toggleRequested()
+    // S9 — the downloads chip's remove action (VaultLibrary.removeDownloadsRoot(): full
+    // hide + republish; the files + transfer history on the Downloads lane are untouched).
+    signal removeDownloadsRequested()
+
+    // S9 — the display order: user roots in rootsDetail() order, the synthetic downloads
+    // root ALWAYS last (design decision 4: "the downloads root last and visually quiet …
+    // and never leads the view"). A computed copy, never a mutation of `roots`.
+    readonly property var displayRoots: {
+        const dl = rail.downloadsRootPath
+        if (!dl) return rail.roots
+        const users = [], downloads = []
+        for (let i = 0; i < rail.roots.length; ++i)
+            (rail.roots[i].path === dl ? downloads : users).push(rail.roots[i])
+        return downloads.length ? users.concat(downloads) : users
+    }
 
     readonly property int collapsedWidth: 62
     readonly property int expandedWidth: 236
@@ -63,6 +88,18 @@ Item {
                 color: theme.inkDimmer
                 font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5; font.weight: Font.DemiBold
             }
+            // S9 — the marquee "· N folders" line (VaultLibrary.rootCount() through
+            // rootFolderCount): the roots strip's one honest count, singular/plural correct,
+            // hidden when there is nothing to count.
+            Text {
+                objectName: "vaultBrowseRailFolderCount"
+                visible: rail.expanded && rail.rootFolderCount > 0
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: toggleBtn.left; anchors.rightMargin: 8
+                text: "· " + rail.rootFolderCount + (rail.rootFolderCount === 1 ? " folder" : " folders")
+                color: theme.inkDimmer
+                font.family: theme.ui; font.pixelSize: 11
+            }
             Rectangle {
                 id: toggleBtn
                 objectName: "vaultBrowseRailToggle"
@@ -87,9 +124,9 @@ Item {
             }
         }
 
-        // ---- one row per confirmed/synthetic root ----
+        // ---- one row per confirmed/synthetic root (S9: downloads root always LAST, muted) ----
         Repeater {
-            model: rail.roots
+            model: rail.displayRoots
             delegate: Item {
                 id: rootRow
                 required property var modelData
@@ -97,6 +134,12 @@ Item {
                 objectName: "vaultBrowseRailRoot_" + rootRow.index
                 property bool available: !!rootRow.modelData.available
                 property string rootPath: rootRow.modelData.path || ""
+                // S9 — the synthetic downloads root renders quiet: muted glyph + dim name
+                // (spec decision 4: it never leads the view). Exposed as `muted` so the
+                // harness can pin the treatment without scraping colors.
+                readonly property bool isDownloads: rootRow.rootPath !== ""
+                                                   && rootRow.rootPath === rail.downloadsRootPath
+                readonly property bool muted: rootRow.isDownloads
                 width: col.width
                 height: 40
 
@@ -113,7 +156,8 @@ Item {
                 Item {
                     id: rootRowContent
                     anchors.left: parent.left; anchors.leftMargin: rail.expanded ? 12 : 0
-                    anchors.right: parent.right; anchors.rightMargin: rail.expanded ? 12 : 0
+                    anchors.right: parent.right
+                    anchors.rightMargin: rail.expanded ? (rootRow.isDownloads ? 30 : 12) : 0
                     anchors.verticalCenter: parent.verticalCenter
                     height: 26
 
@@ -123,9 +167,12 @@ Item {
                         anchors.left: parent.left
                         anchors.horizontalCenter: rail.expanded ? undefined : parent.horizontalCenter
                         Image {
+                            objectName: "vaultBrowseRailRootGlyph"
                             anchors.centerIn: parent
                             width: 18; height: 18
-                            opacity: rootRow.available ? 0.85 : 0.4
+                            // S9: a muted row's glyph sits at the away-glyph dimness —
+                            // present, never demanding.
+                            opacity: rootRow.muted ? 0.4 : (rootRow.available ? 0.85 : 0.4)
                             source: "../assets/icons/vault-folder.svg"
                             fillMode: Image.PreserveAspectFit
                         }
@@ -149,10 +196,13 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 3
                         Text {
+                            objectName: "vaultBrowseRailRootName"
                             width: parent.width
                             elide: Text.ElideRight
                             text: rootRow.modelData.name || ""
-                            color: rootRow.available ? theme.ink : theme.inkDimmer
+                            // S9: the muted row's name sits at the away-name dimness.
+                            color: rootRow.muted ? theme.inkDimmer
+                                                 : (rootRow.available ? theme.ink : theme.inkDimmer)
                             font.family: theme.ui; font.pixelSize: 13
                         }
                         Text {
@@ -172,6 +222,34 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: rail.rootSelected(rootRow.rootPath)
+                }
+
+                // S9 — the downloads chip's remove action. Quiet: a small × that only exists
+                // on the muted row, only while expanded, only on hover. Declared AFTER rowMa
+                // so it stacks above the row's own hit area (a click on × removes, never
+                // selects). VaultPage wires the signal to VaultLibrary.removeDownloadsRoot()
+                // (hide + republish — the files on the Downloads lane are never touched).
+                Item {
+                    id: downloadsRemove
+                    objectName: "vaultBrowseRailDownloadsRemove"
+                    visible: rail.expanded && rootRow.isDownloads
+                             && (rowMa.containsMouse || removeMa.containsMouse)
+                    anchors.right: parent.right; anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 22; height: 22
+                    Text {
+                        anchors.centerIn: parent
+                        text: "×"
+                        color: removeMa.containsMouse ? theme.ink : theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 14
+                    }
+                    MouseArea {
+                        id: removeMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: rail.removeDownloadsRequested()
+                    }
                 }
             }
         }

@@ -31,6 +31,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMap>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QtTest>
@@ -359,6 +360,7 @@ private slots:
     void timeout_returns_error();
     void projection_does_not_mutate_files();
     void browse_projection_carries_stored_kind();
+    void downloads_root_chip_remove_hides_and_republishes();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -741,6 +743,62 @@ void tst_vault_forensics::browse_projection_carries_stored_kind()
     }
     QCOMPARE(recentKindByName.value(videoFolderName), QStringLiteral("video"));
     QCOMPARE(recentKindByName.value(comicFolderName), QStringLiteral("comic"));
+}
+
+// Vault UX uplift S9 — the downloads chip's three invokables were finished with zero callers;
+// the rail + marquee wiring (qml/VaultBrowseRail.qml, qml/VaultPage.qml) now calls them. This
+// is the C++ half of that slice's focused-test list: remove HIDES the synthetic root (never
+// deletes it or its files), drops it from rootCount()/rootsDetail() (the marquee "· N folders"
+// line and the chip strip follow), and REPUBLISHES — the union publish that follows must carry
+// the surviving user root's rows through untouched. Unlike every case above, this one DOES
+// exercise the real census path (removeDownloadsRoot → publishAllConfirmed → scanner), so it
+// waits on the scanner's own indexPublished signal instead of hand-publishing rows.
+//
+// NEGATIVE CONTROL (performed live for the S9 gate, 2026-08-25): commenting out the
+// m_config->setRootHidden(m_downloadsRootPath, true) line in VaultLibrary::removeDownloadsRoot
+// (native/engine/VaultLibrary.cpp) turns exactly the isRootHidden/rootCount/rootsDetail
+// assertions below red while every other case in this file stays green; restoring the line
+// returns the suite to green. The published.wait() guard also fails in that state — with the
+// synthetic root still publishable, publishAllConfirmed censuses it too (a nonexistent
+// directory yields no rows but the publish itself still fires).
+void tst_vault_forensics::downloads_root_chip_remove_hides_and_republishes()
+{
+    auto fx = buildFlatFixture(1);
+    QVERIFY(fx->library);
+    // A real directory for the synthetic downloads root: the chip's `available` fact and the
+    // "files on disk are untouched" law both need something to exist on disk.
+    const QString dlPath =
+        normalizedRootPath(QDir(fx->tmp.path()).filePath(QStringLiteral("downloads")));
+    QVERIFY(QDir().mkpath(dlPath));
+    fx->config->addSyntheticRoot(dlPath);
+    // The façade's synthetic-root seam. main.cpp wires a real VaultDownloadsRoot here; the
+    // remove path only needs the PATH (the synthetic extra rows are derived pre-publish and
+    // empty for a null downloads backbone), so a null backbone exercises exactly the
+    // hide+republish contract without standing up the Downloads lane.
+    fx->library->setDownloadsRoot(nullptr, dlPath);
+
+    // All three invokables answer before the remove: the path, the marquee count (user root
+    // + the synthetic root), and the rail's root list.
+    QCOMPARE(fx->library->downloadsRootPath(), dlPath);
+    QCOMPARE(fx->library->rootCount(), 2);
+    QCOMPARE(fx->library->rootsDetail().size(), 2);
+
+    const int revisionBefore = fx->library->revision();
+    QSignalSpy published(fx->scanner.get(), &VaultScanner::indexPublished);
+    fx->library->removeDownloadsRoot();
+    QVERIFY2(published.wait(10000),
+             "the chip's remove must republish (a publish WITHOUT the synthetic root's rows)");
+
+    // HIDDEN, never deleted: the root row survives in config (restorable via
+    // setRootHidden(false)), the files survive on disk, and the marquee + rail drop it.
+    QVERIFY(fx->config->isRootHidden(dlPath));
+    QVERIFY(fx->config->hasRoot(dlPath));
+    QVERIFY(QDir(dlPath).exists());
+    QCOMPARE(fx->library->rootCount(), 1);
+    QCOMPARE(fx->library->rootsDetail().size(), 1);
+    QVERIFY(fx->library->revision() > revisionBefore);
+    // The surviving user root came through the union republish intact.
+    QCOMPARE(fx->index->rowsForRoot(fx->rootPath).size(), 1);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)
