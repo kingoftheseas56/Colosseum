@@ -157,7 +157,8 @@ public:
     // store, not the index, so QML sorts the joined rows (VaultApi.sortRowsRecentlyPlayed —
     // the VaultFolderView lastread precedent). An unknown sort string reads as "natural".
     Q_INVOKABLE QVariantList browseAt(const QString& rootOrPath,
-                                      const QString& sort = QStringLiteral("natural")) const;
+                                      const QString& sort = QStringLiteral("natural"),
+                                      const QVariantMap& filter = {}) const;
     // rootsDetail(): one row per confirmed/synthetic, non-hidden root — {path, name, available,
     // itemCount, fileCount} — the rail's data source once Slice 5 wires it. Vault ux uplift
     // S11 extends each row with the "needs attention" facts: `errorCount` (rows under the root
@@ -176,10 +177,12 @@ public:
     // key. Never cast, synopsis, or related titles — the locked design's decision #11.
     Q_INVOKABLE QVariantMap browseDetail(const QString& key) const;
     // Slice 9 — the grid's empty-cause classification (design §4.5's four distinct causes minus
-    // the deferred "filtered", which VaultBrowseEmpty.qml still renders defensively but this
-    // method never returns since no filter control has shipped). "none" when the level actually
-    // has rows. See VaultBrowseEmpty::classify for the pure logic.
-    Q_INVOKABLE QString browseEmptyCause(const QString& rootOrPath) const;
+    // the formerly deferred "filtered" — VaultBrowseEmpty.qml always rendered its copy; S13's
+    // filter surface is the production trigger: with an ACTIVE filter whose projection is empty
+    // while the level HAS rows unfiltered, this returns "filtered". "none" when the level
+    // actually has rows. See VaultBrowseEmpty::classify for the pure logic.
+    Q_INVOKABLE QString browseEmptyCause(const QString& rootOrPath,
+                                         const QVariantMap& filter = {}) const;
     // The owning root's total known file count — the "all away" empty state's one physical fact
     // (design plate 6: "All N items live on a drive that is not connected"). 0 when the path
     // resolves to no confirmed root or that root has no durable rows at all.

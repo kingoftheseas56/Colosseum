@@ -325,4 +325,32 @@ TestCase {
         compare(VaultApi.sortRowsRecentlyPlayed([]).length, 0)
         compare(VaultApi.sortRowsRecentlyPlayed(null).length, 0)
     }
+
+    // ── 8. the watched-state filter (vault ux uplift S13 — production VaultApi
+    //       filterRowsByWatched over JOINED rows): video rows only, the durable mark decides,
+    //       non-video rows drop in BOTH modes (a comics tile is neither watched nor unwatched),
+    //       and "" is a no-op returning a new array. ─────────────────────────────────────────
+    function test_watched_filter_is_video_scoped_and_mark_decided() {
+        var joined = [
+            { key: "v-seen", kind: "video", watched: true },
+            { key: "v-fresh", kind: "video", watched: false },
+            { key: "c-1", kind: "comic", watched: false },
+            { key: "b-1", kind: "book", watched: true }
+        ]
+        compare(VaultApi.filterRowsByWatched(joined, "watched").map(function (r) { return r.key }),
+                ["v-seen"])
+        compare(VaultApi.filterRowsByWatched(joined, "unwatched").map(function (r) { return r.key }),
+                ["v-fresh"])
+        // "" (or any unknown mode) is the no-op: everything kept, NEW array, input untouched
+        var noop = VaultApi.filterRowsByWatched(joined, "")
+        compare(noop.length, 4)
+        verify(noop !== joined)
+        // a row with no kind at all (a container tile) is not video → drops in both modes
+        var withContainer = [{ key: "folder" }, { key: "v", kind: "video", watched: true }]
+        compare(VaultApi.filterRowsByWatched(withContainer, "watched").map(function (r) { return r.key }),
+                ["v"])
+        // empty/null inputs never throw
+        compare(VaultApi.filterRowsByWatched([], "watched").length, 0)
+        compare(VaultApi.filterRowsByWatched(null, "unwatched").length, 0)
+    }
 }

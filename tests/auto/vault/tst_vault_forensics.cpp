@@ -369,6 +369,8 @@ private slots:
     void browse_sort_newest_orders_by_row_mtime_desc();
     void browse_sort_size_orders_by_total_bytes_desc();
     void browse_sort_title_merges_across_node_types();
+    void browse_filter_kind_ident_and_presence_predicate();
+    void browse_empty_cause_filtered_from_production_path();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -1109,6 +1111,96 @@ void tst_vault_forensics::browse_sort_title_merges_across_node_types()
              natural);
     QCOMPARE(browseTitles(fx->library->browseAt(fx->rootPath, QStringLiteral("bogus"))),
              natural);
+}
+
+// ── vault ux uplift S13 — the browse filter predicates ──
+// kind matches the row's STORED kind; identState matches the row's projected state;
+// presence matches the away flag; absent predicates are no-ops. All over the REAL walk.
+void tst_vault_forensics::browse_filter_kind_ident_and_presence_predicate()
+{
+    // f0 = a video film made permanently uncertain (an ambiguous identity record); f1 = a
+    // comic group; f2 = a plain video film. Mixed on purpose: every predicate discriminates.
+    auto fx = buildFlatFixture(0);
+    QVERIFY(fx->library);
+    auto makeRow = [&fx](const QString& folder, const char* idSuffix, const char* kind) {
+        const QString dir = QDir(fx->rootPath).filePath(folder);
+        QDir().mkpath(dir);
+        const QString file = QDir(dir).filePath(QStringLiteral("item.mkv"));
+        writeStub(file);
+        VaultIndex::FileRow r = makeFilmRow(fx->rootPath, dir, file,
+                                            QStringLiteral("vault:s13-") + idSuffix, 1000);
+        r.kind = QString::fromLatin1(kind);
+        return r;
+    };
+    QList<VaultIndex::FileRow> rows;
+    // The walk's own canonical form (QFileInfo::absoluteFilePath uppercases the drive letter on
+    // Windows — a plain QDir::filePath string would case-miss it in the loop below).
+    const QString ambiguousDir =
+        QFileInfo(QDir(fx->rootPath).filePath(QStringLiteral("f0"))).absoluteFilePath();
+    rows.append(makeRow(QStringLiteral("f0"), "amb", "video"));
+    rows.append(makeRow(QStringLiteral("f1"), "comic", "comic"));
+    rows.append(makeRow(QStringLiteral("f2"), "vid", "video"));
+    // f0's group carries a durable ambiguous identity → its browse state is "uncertain";
+    // f1/f2 carry adopted identities → "identified" (no identity would read "resolving").
+    for (auto& row : rows) {
+        if (row.subtreePath == ambiguousDir) {
+            row.identityState = QStringLiteral("ambiguous");
+        } else {
+            row.identityId = QStringLiteral("imdb:tt000") + row.id.right(4);
+        }
+    }
+    fx->index->publish(rows);
+
+    using KV = QPair<QString, QString>;
+    auto titlesWith = [&fx](const QList<KV>& filterPairs) {
+        QVariantMap filter;
+        for (const auto& kv : filterPairs)
+            filter.insert(kv.first, kv.second);
+        return browseTitles(fx->library->browseAt(fx->rootPath,
+                                                  QStringLiteral("natural"), filter));
+    };
+
+    // kind: the stored classification, node-blind (a Film and a folder both match "video")
+    QCOMPARE(titlesWith({{"kind", "video"}}), QStringList() << "f0" << "f2");
+    QCOMPARE(titlesWith({{"kind", "comic"}}), QStringList() << "f1");
+    QCOMPARE(titlesWith({{"kind", "book"}}), QStringList());
+    // identState: uncertain-only is the identify workflow's lane
+    QCOMPARE(titlesWith({{"identState", "uncertain"}}), QStringList() << "f0");
+    QCOMPARE(titlesWith({{"identState", "identified"}}), QStringList() << "f1" << "f2");
+    // presence: flip the whole root away — "away" passes everything, "present" empties.
+    QVERIFY(fx->index->markRootAway(fx->rootPath, true));
+    QCOMPARE(titlesWith({{"presence", "away"}}).size(), 3);
+    QCOMPARE(titlesWith({{"presence", "present"}}), QStringList());
+    QVERIFY(fx->index->markRootAway(fx->rootPath, false));
+    // predicates AND together; an empty map is the unfiltered projection
+    QCOMPARE(titlesWith({{"kind", "video"}, {"identState", "uncertain"}}),
+             QStringList() << "f0");
+    QCOMPARE(titlesWith({}).size(), 3);
+}
+
+// The fourth empty cause finally has its production trigger: an ACTIVE filter whose
+// projection is empty while the level HAS rows unfiltered → "filtered" (and it outranks
+// allAway — the copy's next step is clearing the filter).
+void tst_vault_forensics::browse_empty_cause_filtered_from_production_path()
+{
+    auto fx = buildFlatFixture(2); // f0 + f1, both plain video films
+    QVERIFY(fx->library);
+    QVariantMap filter;
+    filter.insert(QStringLiteral("kind"), QStringLiteral("book"));
+
+    QCOMPARE(fx->library->browseEmptyCause(fx->rootPath, filter),
+             QStringLiteral("filtered"));
+    // No filter → the old Slice 9 contract, byte for byte ("none": the level has rows).
+    QCOMPARE(fx->library->browseEmptyCause(fx->rootPath), QStringLiteral("none"));
+    // A filter that still shows rows → still "none" (one walk, exactly as before).
+    filter.insert(QStringLiteral("kind"), QStringLiteral("video"));
+    QCOMPARE(fx->library->browseEmptyCause(fx->rootPath, filter), QStringLiteral("none"));
+    // A filter over a genuinely EMPTY level is emptyFolder, never filtered (nothing was
+    // excluded — the level itself is empty).
+    const QString emptyDir = QDir(fx->rootPath).filePath(QStringLiteral("nothing-here"));
+    QVERIFY(QDir().mkpath(emptyDir));
+    filter.insert(QStringLiteral("kind"), QStringLiteral("book"));
+    QCOMPARE(fx->library->browseEmptyCause(emptyDir, filter), QStringLiteral("emptyFolder"));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

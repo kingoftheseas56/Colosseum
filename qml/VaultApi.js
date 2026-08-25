@@ -52,6 +52,24 @@ function resumeTarget(rows) {
     return best
 }
 
+// --- Vault ux uplift S13 — the watched-state filter (the one predicate whose fact is NOT in the
+// index): video rows only — "unwatched" keeps unmarked video rows, "watched" keeps the durably
+// marked ones (the S3/S7 mark), and non-video rows drop in BOTH modes ("watched?" is a video
+// question; the plan scopes this predicate to video). Applied over the JOINED rows (joinRow's
+// watched decoration + VaultPage's durable-mark flag), never recomputes the mark, and "" is a
+// no-op. Returns a NEW array in every mode.
+function filterRowsByWatched(rows, mode) {
+    var src = rows || [], out = []
+    if (mode !== "watched" && mode !== "unwatched") return src.slice()
+    for (var i = 0; i < src.length; i++) {
+        var r = src[i]
+        if (!r) continue
+        if (String(r.kind || "") !== "video") continue
+        if ((mode === "watched") === !!r.watched) out.push(r)
+    }
+    return out
+}
+
 // --- Vault ux uplift S12 — the one browse ordering whose key is NOT in the index ----------------
 // "Recently played" orders by lastReadMs, which joinRow surfaces from the live Progress store —
 // so this is a pure array re-order of the JOINED rows VaultPage already holds (the VaultFolderView

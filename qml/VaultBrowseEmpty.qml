@@ -5,10 +5,10 @@
 // paints it, never infers it. Copy verbatim from the approved mock
 // (Brotherhood/agents/colosseum-vault-browse-face-mock.html, plate 6). No taglines.
 //
-// The fourth cause ("filtered") renders here for completeness and Quick Test coverage, but no
-// production trigger sets `cause` to it — no filter control has shipped on the Browse face yet
-// (deferred to the parent design's later arc). See VaultPage.qml's wiring comment for the honest
-// account of which causes are actually reachable live.
+// The fourth cause ("filtered") had no production trigger until vault ux uplift S13 shipped
+// the Browse face's filter surface — browseEmptyCause(path, filter) now returns it from a
+// real filter, and the cause's own "clear the filter" copy grew its action (the
+// clearFilterRequested signal below; VaultPage wires it to resetFilters()).
 import QtQuick
 
 Item {
@@ -20,6 +20,8 @@ Item {
     // items live..." / "...see all 8 items again."). 0 renders the count-free fallback phrasing.
     property int itemsCount: 0
     signal addStorageRequested()
+    // S13 — the filtered cause's action: clears the active filters (VaultPage's resetFilters).
+    signal clearFilterRequested()
 
     function awayBody(n) {
         if (n <= 0)
@@ -116,6 +118,37 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.addStorageRequested()
+            }
+        }
+
+        // S13 — the filtered cause's action: the copy always said "Clear the filter to see
+        // everything again"; now the sentence has its verb.
+        Item {
+            objectName: "vaultBrowseEmptyClearFilter"
+            visible: root.cause === "filtered"
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: clearLabel.implicitWidth + 32
+            height: 36
+            Rectangle {
+                anchors.fill: parent; radius: 10
+                color: clearMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.9) : Qt.rgba(1, 1, 1, 0.08)
+                border.width: 1
+                border.color: clearMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.6) : theme.edge
+            }
+            Text {
+                id: clearLabel
+                anchors.centerIn: parent
+                text: "Clear filter"
+                color: clearMa.containsMouse ? "#141207" : theme.ink
+                font.family: theme.ui
+                font.pixelSize: 13
+            }
+            MouseArea {
+                id: clearMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.clearFilterRequested()
             }
         }
     }

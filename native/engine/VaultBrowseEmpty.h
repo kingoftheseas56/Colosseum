@@ -10,22 +10,26 @@
 // cause, do not infer it in QML"). Same "pure logic kit" spirit as VaultBrowseAway, one layer up
 // (this one composes ON TOP of VaultBrowseAway's away verdict, never reimplements it).
 //
-// The fourth design cause ("a filter has excluded everything") is named here for completeness —
-// VaultBrowseEmpty.qml still renders its copy — but classify() below NEVER produces it: no filter
-// control has shipped on the Browse face (deferred to the parent design's later arc; the execution
-// plan is explicit that inventing a live trigger for it here would be exactly the kind of
-// unrequested product surface Slice 9 warns against).
+// The fourth design cause ("a filter has excluded everything") was named here for
+// completeness — VaultBrowseEmpty.qml renders its copy — but classify() could never produce
+// it: no filter control had shipped on the Browse face. Vault ux uplift S13 IS that filter
+// surface, so classify() now takes `filteredOut` (the caller's job to compute: the level's
+// UNFILTERED rows are non-empty while the filtered projection is empty) and produces
+// Cause::Filtered for the production trigger the component always waited for.
 
 #include <QString>
 
 namespace VaultBrowseEmpty {
 
-enum class Cause { None, NoRoots, EmptyFolder, AllAway };
+enum class Cause { None, NoRoots, EmptyFolder, AllAway, Filtered };
 
 // hasAnyRoots: at least one confirmed/synthetic non-hidden root exists (rootsDetail() non-empty).
-// levelHasRows: the level's own browseAt() rows are non-empty — nothing to classify (Cause::None).
+// levelHasRows: the level's own (filtered, when a filter is active) browseAt() rows are non-empty
+// — nothing to classify (Cause::None).
 // levelAway: the level's owning root is currently away (VaultBrowseAway::ownerRootAway).
-Cause classify(bool hasAnyRoots, bool levelHasRows, bool levelAway);
+// filteredOut: the level HAS rows unfiltered; the active filter excluded them all (default
+// false — the no-filter caller keeps the Slice 9 contract byte-for-byte).
+Cause classify(bool hasAnyRoots, bool levelHasRows, bool levelAway, bool filteredOut = false);
 
 // "none" | "noRoots" | "emptyFolder" | "allAway" — the QML-facing vocabulary
 // (VaultBrowseEmpty.qml's `cause` property, the Lanista/Quick-Test string).

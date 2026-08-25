@@ -110,6 +110,35 @@ static void insertLeafJoinId(QVariantMap& m, const QList<VaultIndex::FileRow>& r
     }
 }
 
+// Vault ux uplift S13: does a finished browse row pass the active filter? Empty/absent values
+// are no-ops — the unfiltered projection stays the default and every predicate is ANDed. The
+// watched-state filter is deliberately absent here: its fact (ProgressStore.watchedMark) lives
+// in the Progress store, not the index, so QML applies it over the joined rows
+// (VaultApi.filterRowsByWatched) — the same store-boundary split "recently played" follows.
+static bool rowPassesFilter(const QVariantMap& row, const QVariantMap& filter)
+{
+    const QString kind = filter.value(QStringLiteral("kind")).toString();
+    if (!kind.isEmpty() && row.value(QStringLiteral("kind")).toString() != kind)
+        return false;
+    const QString identState = filter.value(QStringLiteral("identState")).toString();
+    if (!identState.isEmpty() && row.value(QStringLiteral("state")).toString() != identState)
+        return false;
+    const QString presence = filter.value(QStringLiteral("presence")).toString();
+    const bool away = row.value(QStringLiteral("away")).toBool();
+    if (presence == QLatin1String("present") && away)
+        return false;
+    if (presence == QLatin1String("away") && !away)
+        return false;
+    return true;
+}
+
+static bool filterHasAnyPredicate(const QVariantMap& filter)
+{
+    return !filter.value(QStringLiteral("kind")).toString().isEmpty()
+        || !filter.value(QStringLiteral("identState")).toString().isEmpty()
+        || !filter.value(QStringLiteral("presence")).toString().isEmpty();
+}
+
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
                            VaultIdentity* identity, QString cacheDir, QObject* parent)
     : QObject(parent), m_index(index), m_scanner(scanner), m_config(config), m_identity(identity)
@@ -534,7 +563,8 @@ QVariantList VaultLibrary::hiddenSeries() const
     return out;
 }
 
-QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& sort) const
+QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& sort,
+                                    const QVariantMap& filter) const
 {
     QVariantList out;
     const QVariantList roots = m_config ? m_config->roots() : QVariantList();
@@ -846,6 +876,18 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
             sorted.append(out.at(i));
         out = sorted;
     }
+    // Vault ux uplift S13 — the filter pass, applied LAST (over finished, ordered rows: the
+    // sort already ran, so a filter toggle cannot reshuffle the survivors). Absent
+    // predicates (or no filter at all) keep the projection byte-for-byte unfiltered.
+    if (filterHasAnyPredicate(filter)) {
+        QVariantList kept;
+        kept.reserve(out.size());
+        for (const QVariant& rv : out) {
+            if (rowPassesFilter(rv.toMap(), filter))
+                kept.append(rv);
+        }
+        out = kept;
+    }
     return out;
 }
 
@@ -975,11 +1017,20 @@ QVariantMap VaultLibrary::browseDetail(const QString& key) const
     return VaultBrowseDetail::detailFor(m_index, key, scanIgnore);
 }
 
-QString VaultLibrary::browseEmptyCause(const QString& rootOrPath) const
+QString VaultLibrary::browseEmptyCause(const QString& rootOrPath,
+                                       const QVariantMap& filter) const
 {
     const QVariantList roots = m_config ? m_config->roots() : QVariantList();
     const bool hasAnyRoots = !rootsDetail().isEmpty();
-    const bool levelHasRows = !browseAt(rootOrPath).isEmpty();
+    const bool filterActive = filterHasAnyPredicate(filter);
+    const bool levelHasRows = !browseAt(rootOrPath, QStringLiteral("natural"), filter).isEmpty();
+    // Vault ux uplift S13 — the fourth cause's production trigger: the filtered projection is
+    // empty but the level HAS rows unfiltered. The extra walk is paid only on the
+    // filtered-empty path (a filtered level that still shows rows classifies from ONE walk,
+    // exactly as before).
+    bool filteredOut = false;
+    if (!levelHasRows && filterActive)
+        filteredOut = !browseAt(rootOrPath).isEmpty();
     // See VaultBrowseEmpty::isLevelAway's own comment for why the index's row-based away flag
     // alone is not enough. Scoped to THIS method only — VaultBrowseAway::ownerRootAway itself is
     // untouched so Slice 6's own pinned tests/behavior stay exactly as they are.
@@ -989,7 +1040,7 @@ QString VaultLibrary::browseEmptyCause(const QString& rootOrPath) const
         VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath),
         !ownerRoot.isEmpty(), ownerDirExists);
     return VaultBrowseEmpty::causeName(
-        VaultBrowseEmpty::classify(hasAnyRoots, levelHasRows, levelAway));
+        VaultBrowseEmpty::classify(hasAnyRoots, levelHasRows, levelAway, filteredOut));
 }
 
 int VaultLibrary::browseEmptyAwayCount(const QString& rootOrPath) const

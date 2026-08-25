@@ -174,8 +174,62 @@ Item {
         else map[key] = mode
         browseSettings.sortPerLevel = JSON.stringify(map)
     }
-    // A level change reloads THAT level's remembered sort (never inherits the prior level's).
-    onCurrentBrowsePathChanged: root.browseSettings_loadSort()
+    // A level change reloads THAT level's remembered sort (never inherits the prior level's)
+    // AND resets the filters (the plan's predictability-over-stickiness law — one handler,
+    // one place, both level-arrival behaviors).
+    onCurrentBrowsePathChanged: {
+        root.browseSettings_loadSort()
+        root.resetFilters()
+    }
+
+    // ==== Vault ux uplift S13 — the browse filters. Predicates: kind (stored comic|book|video),
+    //      identification state (uncertain-only — directly serves the identify workflow),
+    //      presence (here / on other drives), and watched state (video — its fact lives in the
+    //      Progress store, so it filters QML-side over the joined rows, VaultApi
+    //      .filterRowsByWatched; the other three ride browseAt()'s `filter` param). Filters
+    //      RESET on level change (predictability over stickiness — the plan's own law); nothing
+    //      persists. The Hidden view stays unfiltered (its own order and population are the
+    //      shelf's contract). ====
+    property string filterKind: ""       // "" | video | comic | book
+    property string filterWatched: ""    // "" | unwatched | watched
+    property string filterIdent: ""      // "" | uncertain
+    property string filterPresence: ""   // "" | present | away
+    // The C++ half of the active predicates (index facts only — watched never rides this map).
+    readonly property var cxxFilterMap: ({
+        kind: root.filterKind,
+        identState: root.filterIdent,
+        presence: root.filterPresence
+    })
+    readonly property int activeFilterCount: (root.filterKind !== "" ? 1 : 0)
+        + (root.filterWatched !== "" ? 1 : 0)
+        + (root.filterIdent !== "" ? 1 : 0)
+        + (root.filterPresence !== "" ? 1 : 0)
+    function resetFilters() {
+        root.filterKind = ""
+        root.filterWatched = ""
+        root.filterIdent = ""
+        root.filterPresence = ""
+    }
+    // The projection both the grid property and the art-resolved re-projection share: the
+    // engine sort, the Progress join, and the QML-side recent ordering in one place — an art
+    // landing must re-project the SAME order the grid holds or the in-place ListModel diff
+    // would see a reorder as a structural change and rebuild the grid.
+    function projectBrowseRows() {
+        const rows = VaultLibrary.browseAt(root.currentBrowsePath, root.browseSortParam,
+                                           root.cxxFilterMap)
+        if (typeof Progress === "undefined") return rows
+        const joined = root.joinProgressRows(rows)
+        // S13: the watched filter runs over the JOINED rows (the mark is a Progress fact);
+        // the count before it feeds the QML-side "filtered" empty-cause override below.
+        root.browseRowsBeforeWatchedFilter = joined.length
+        const watchedFiltered = root.filterWatched !== ""
+            ? VaultApi.filterRowsByWatched(joined, root.filterWatched) : joined
+        return root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(watchedFiltered)
+                                          : watchedFiltered
+    }
+    // S13: the joined-row count BEFORE the watched filter — the QML half of the "filtered"
+    // empty-cause trigger (the C++ half knows only the index-fact predicates).
+    property int browseRowsBeforeWatchedFilter: 0
     // The menu's open state + position (mapped imperatively at open — the rail menu's own
     // pattern; a publish/sort change can never invalidate what anchors would have held).
     property bool sortMenuOpen: false
@@ -188,15 +242,28 @@ Item {
         root.sortMenuY = p.y + 6
         root.sortMenuOpen = true
     }
-    // The projection both the grid property and the art-resolved re-projection share: the
-    // engine sort, the Progress join, and the QML-side recent ordering in one place — an art
-    // landing must re-project the SAME order the grid holds or the in-place ListModel diff
-    // would see a reorder as a structural change and rebuild the grid.
-    function projectBrowseRows() {
-        const rows = VaultLibrary.browseAt(root.currentBrowsePath, root.browseSortParam)
-        if (typeof Progress === "undefined") return rows
-        const joined = root.joinProgressRows(rows)
-        return root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(joined) : joined
+    // S13 — the filter panel's open state + position (the sort menu's own pattern).
+    property bool filterMenuOpen: false
+    property real filterMenuX: 0
+    property real filterMenuY: 0
+    function toggleFilterMenu() {
+        if (root.filterMenuOpen) { root.filterMenuOpen = false; return }
+        const p = browseFilterControl.mapToItem(root, 0, browseFilterControl.height)
+        root.filterMenuX = Math.max(10, Math.min(p.x - 120, root.width - 260))
+        root.filterMenuY = p.y + 6
+        root.filterMenuOpen = true
+    }
+    // One chip row per predicate axis: label + mutually exclusive options ("" = the axis is
+    // off). Clicking the active option turns the axis off again (a chip toggle, not a lock).
+    function setFilterAxis(axis, value) {
+        const current = axis === "kind" ? root.filterKind
+                       : axis === "watched" ? root.filterWatched
+                       : axis === "ident" ? root.filterIdent : root.filterPresence
+        const next = current === value ? "" : value
+        if (axis === "kind") root.filterKind = next
+        else if (axis === "watched") root.filterWatched = next
+        else if (axis === "ident") root.filterIdent = next
+        else root.filterPresence = next
     }
 
     readonly property var browseRootsDetail: (typeof VaultLibrary !== "undefined")
@@ -224,9 +291,16 @@ Item {
     // walking a 300-episode directory and pushing a "redrill" past vault_browse_smoke.json's own
     // 15s wait. The overwhelming majority of levels are non-empty, so this guard is the
     // difference that matters.
+    // S13: the active filter rides the call (the C++ half of the "filtered" trigger), and the
+    // QML half fires FIRST — a watched-filter that emptied a level which HAD joined rows reads
+    // as "filtered" without a second filesystem walk (browseRowsBeforeWatchedFilter is the
+    // joined count projectBrowseRows recorded).
     readonly property string browseEmptyCause: (root.browseGridRows.length === 0
             && typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
-        ? (VaultLibrary.revision, VaultLibrary.browseEmptyCause(root.currentBrowsePath)) : ""
+        ? (VaultLibrary.revision,
+           (root.filterWatched !== "" && root.browseRowsBeforeWatchedFilter > 0)
+               ? "filtered"
+               : VaultLibrary.browseEmptyCause(root.currentBrowsePath, root.cxxFilterMap)) : ""
     readonly property int browseEmptyAwayCount: (root.browseGridRows.length === 0
             && typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
         ? (VaultLibrary.revision, VaultLibrary.browseEmptyAwayCount(root.currentBrowsePath)) : 0
@@ -288,9 +362,13 @@ Item {
         // "recent" ordering. root.sortMode is itself a dependency: choosing a sort
         // re-derives the level through this same path (the grid's in-place diff then sees
         // a deliberate reorder as the structural change it is).
+        // S13: the filter state is a dependency the same way — toggling a predicate
+        // re-derives the level through the same single funnel.
         root.sortMode
+        root.filterKind; root.filterWatched; root.filterIdent; root.filterPresence
         if (typeof Progress === "undefined")
-            return VaultLibrary.browseAt(root.currentBrowsePath, root.browseSortParam)
+            return VaultLibrary.browseAt(root.currentBrowsePath, root.browseSortParam,
+                                         root.cxxFilterMap)
         Progress.revision
         return root.projectBrowseRows()
     }
@@ -1182,10 +1260,48 @@ Item {
                 VaultBrowseCrumb {
                     id: browseCrumb
                     anchors.top: parent.top; anchors.left: parent.left
-                    // S12: the sort control owns the row's right edge now.
-                    anchors.right: browseSortControl.left; anchors.rightMargin: 14
+                    // S12/S13: the sort + filter controls own the row's right edge now.
+                    anchors.right: browseFilterControl.left; anchors.rightMargin: 14
                     stack: root.displayedCrumbStack
                     onSegmentClicked: (index) => root.goToCrumb(index)
+                }
+
+                // ── Vault ux uplift S13 — the filter control: a quiet pill left of the sort
+                //    control ("⧩ Filter", with a count when predicates are active), opening a
+                //    chip panel. Hidden in the Hidden view (that shelf is never filtered). ──
+                Item {
+                    id: browseFilterControl
+                    objectName: "vaultBrowseFilterControl"
+                    visible: !root.hiddenViewActive
+                    anchors.top: parent.top
+                    anchors.right: browseSortControl.left; anchors.rightMargin: 18
+                    width: filterFaceRow.implicitWidth + 6
+                    height: browseCrumb.height
+
+                    Row {
+                        id: filterFaceRow
+                        anchors.centerIn: parent
+                        spacing: 7
+                        Text {
+                            text: "⧩"
+                            color: root.filterMenuOpen || filterFaceMa.containsMouse ? theme.ink : theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 13
+                        }
+                        Text {
+                            objectName: "vaultBrowseFilterLabel"
+                            text: root.activeFilterCount > 0
+                                  ? ("Filter · " + root.activeFilterCount) : "Filter"
+                            color: root.filterMenuOpen || filterFaceMa.containsMouse ? theme.ink : theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 12
+                        }
+                    }
+                    MouseArea {
+                        id: filterFaceMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.toggleFilterMenu()
+                    }
                 }
 
                 // ── Vault ux uplift S12 — the sort control: a quiet label button right of the
@@ -1309,6 +1425,8 @@ Item {
                         cause: root.browseEmptyCause
                         itemsCount: root.browseEmptyAwayCount
                         onAddStorageRequested: root.addFolderRequested()
+                        // S13: the filtered cause's own next step, in the component's own copy.
+                        onClearFilterRequested: root.resetFilters()
                     }
                     Text {
                         visible: grid.count === 0 && root.hiddenViewActive
@@ -1449,6 +1567,146 @@ Item {
                                 root.sortMenuOpen = false
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Vault ux uplift S13 — the filter chip panel (the sort menu's own hand-rolled shape).
+    //    Four predicate axes, one chip row each; an active chip is gold-texted; clicking it
+    //    again clears the axis. "Clear all" at the bottom. Nothing persists — a level change
+    //    resets everything (the reset law lives in onCurrentBrowsePathChanged). ──
+    Item {
+        objectName: "vaultBrowseFilterMenu"
+        visible: root.filterMenuOpen
+        anchors.fill: parent
+        z: 55
+
+        MouseArea { anchors.fill: parent; onClicked: root.filterMenuOpen = false }
+
+        Rectangle {
+            x: root.filterMenuX; y: root.filterMenuY
+            width: 252
+            height: filterMenuColumn.implicitHeight + 16
+            radius: 12
+            color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
+            border.width: 1
+            border.color: theme.edge
+
+            Column {
+                id: filterMenuColumn
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 8
+
+                component FilterChip : Item {
+                    id: chip
+                    property string label: ""
+                    property bool active: false
+                    signal picked()
+                    width: chipText.implicitWidth + 20; height: 26
+                    Rectangle {
+                        anchors.fill: parent; radius: 13
+                        color: chip.active ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
+                                           : (chipMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.035))
+                        border.width: 1
+                        border.color: chip.active ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
+                    }
+                    Text {
+                        id: chipText
+                        anchors.centerIn: parent
+                        text: chip.label
+                        color: chip.active ? theme.gold : (chipMa.containsMouse ? theme.ink : theme.inkDim)
+                        font.family: theme.ui; font.pixelSize: 12
+                    }
+                    MouseArea {
+                        id: chipMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: chip.picked()
+                    }
+                }
+
+                // Kind — the stored classification the identify gesture already trusts.
+                Column {
+                    width: parent.width; spacing: 6
+                    Text { text: "KIND"; color: theme.inkDimmer; font.family: theme.ui
+                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                    Row {
+                        spacing: 6
+                        FilterChip { label: "Video"; active: root.filterKind === "video"
+                                     objectName: "vaultBrowseFilterKindVideo"
+                                     onPicked: root.setFilterAxis("kind", "video") }
+                        FilterChip { label: "Comics"; active: root.filterKind === "comic"
+                                     objectName: "vaultBrowseFilterKindComic"
+                                     onPicked: root.setFilterAxis("kind", "comic") }
+                        FilterChip { label: "Books"; active: root.filterKind === "book"
+                                     objectName: "vaultBrowseFilterKindBook"
+                                     onPicked: root.setFilterAxis("kind", "book") }
+                    }
+                }
+                // Watched — video-only, the Progress-mark half (QML-side predicate).
+                Column {
+                    width: parent.width; spacing: 6
+                    Text { text: "WATCHED"; color: theme.inkDimmer; font.family: theme.ui
+                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                    Row {
+                        spacing: 6
+                        FilterChip { label: "Unwatched"; active: root.filterWatched === "unwatched"
+                                     objectName: "vaultBrowseFilterWatchedUnwatched"
+                                     onPicked: root.setFilterAxis("watched", "unwatched") }
+                        FilterChip { label: "Watched"; active: root.filterWatched === "watched"
+                                     objectName: "vaultBrowseFilterWatchedWatched"
+                                     onPicked: root.setFilterAxis("watched", "watched") }
+                    }
+                }
+                // Identification — uncertain-only, the identify workflow's own lane.
+                Column {
+                    width: parent.width; spacing: 6
+                    Text { text: "IDENTIFICATION"; color: theme.inkDimmer; font.family: theme.ui
+                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                    Row {
+                        spacing: 6
+                        FilterChip { label: "Needs identifying"; active: root.filterIdent === "uncertain"
+                                     objectName: "vaultBrowseFilterIdentUncertain"
+                                     onPicked: root.setFilterAxis("ident", "uncertain") }
+                    }
+                }
+                // Presence — here vs on other drives.
+                Column {
+                    width: parent.width; spacing: 6
+                    Text { text: "PRESENCE"; color: theme.inkDimmer; font.family: theme.ui
+                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                    Row {
+                        spacing: 6
+                        FilterChip { label: "Here"; active: root.filterPresence === "present"
+                                     objectName: "vaultBrowseFilterPresencePresent"
+                                     onPicked: root.setFilterAxis("presence", "present") }
+                        FilterChip { label: "On other drives"; active: root.filterPresence === "away"
+                                     objectName: "vaultBrowseFilterPresenceAway"
+                                     onPicked: root.setFilterAxis("presence", "away") }
+                    }
+                }
+                Rectangle { width: parent.width; height: 1; color: theme.edge; opacity: 0.6 }
+                Item {
+                    objectName: "vaultBrowseFilterClearAll"
+                    width: parent.width; height: 30
+                    visible: root.activeFilterCount > 0
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Clear all"
+                        color: clearMa.containsMouse ? theme.ink : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 12
+                    }
+                    MouseArea {
+                        id: clearMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.resetFilters()
                     }
                 }
             }
