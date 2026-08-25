@@ -366,6 +366,9 @@ private slots:
     void forget_root_removes_only_that_root_and_republishes();
     void scan_ignore_needle_excludes_seeded_folder();
     void roots_detail_surfaces_per_root_error_facts();
+    void browse_sort_newest_orders_by_row_mtime_desc();
+    void browse_sort_size_orders_by_total_bytes_desc();
+    void browse_sort_title_merges_across_node_types();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -1014,6 +1017,98 @@ void tst_vault_forensics::roots_detail_surfaces_per_root_error_facts()
     QCOMPARE(items2.size(), 1);
     QCOMPARE(items2.first().toMap().value(QStringLiteral("reason")).toString(),
              QStringLiteral("corrupt"));
+}
+
+// ── vault ux uplift S12 — the browse sort contract ──
+// newest/size order by the node's own row facts; title is ONE merged numeric-aware order
+// across node types (natural keeps the locked §4.2 buckets: folders, then series, then
+// films); ties break by the natural key ascending; an unknown sort string reads as natural.
+// Every case drives the REAL planBrowseLevel walk over a real fixture tree.
+
+namespace {
+QStringList browseTitles(const QVariantList& rows)
+{
+    QStringList titles;
+    for (const QVariant& rv : rows)
+        titles << rv.toMap().value(QStringLiteral("displayTitle")).toString();
+    return titles;
+}
+} // namespace
+
+void tst_vault_forensics::browse_sort_newest_orders_by_row_mtime_desc()
+{
+    auto fx = buildFlatFixture(4); // f0..f3, mtimeMs 1000..1003, titles "f0".."f3"
+    QVERIFY(fx->library);
+    // newest first: f3 (1003) → f0 (1000); natural would be f0 → f3.
+    QCOMPARE(browseTitles(fx->library->browseAt(fx->rootPath, QStringLiteral("newest"))),
+             QStringList() << "f3" << "f2" << "f1" << "f0");
+    // Ties break by the natural key ascending: f1 and f2 share a mtime → f1 before f2.
+    auto rows = fx->index->rowsForRoot(fx->rootPath);
+    for (auto& row : rows) {
+        if (row.path.contains(QStringLiteral("f2"), Qt::CaseInsensitive))
+            row.mtimeMs = 1001; // == f1's
+    }
+    fx->index->publish(rows);
+    QCOMPARE(browseTitles(fx->library->browseAt(fx->rootPath, QStringLiteral("newest"))),
+             QStringList() << "f3" << "f1" << "f2" << "f0");
+}
+
+void tst_vault_forensics::browse_sort_size_orders_by_total_bytes_desc()
+{
+    auto fx = buildFlatFixture(4);
+    QVERIFY(fx->library);
+    auto rows = fx->index->rowsForRoot(fx->rootPath);
+    const qint64 sizes[4] = { 10, 40, 20, 30 }; // f0..f3
+    for (auto& row : rows) {
+        for (int i = 0; i < 4; ++i) {
+            if (row.path.contains(QStringLiteral("f") + QString::number(i),
+                                  Qt::CaseInsensitive))
+                row.size = sizes[i];
+        }
+    }
+    fx->index->publish(rows);
+    // biggest first: f1 (40) → f3 (30) → f2 (20) → f0 (10).
+    QCOMPARE(browseTitles(fx->library->browseAt(fx->rootPath, QStringLiteral("size"))),
+             QStringList() << "f1" << "f3" << "f2" << "f0");
+}
+
+void tst_vault_forensics::browse_sort_title_merges_across_node_types()
+{
+    // A mixed level discriminates the two orders: "zzzShow" holds TWO videos (a series/folder
+    // node), "aaaFilm" exactly one (a Film node) — natural buckets containers before films
+    // ([zzzShow, aaaFilm]); title is ONE merged numeric-aware order ([aaaFilm, zzzShow]).
+    auto fx = buildFlatFixture(0);
+    QVERIFY(fx->library);
+    const QString showDir = QDir(fx->rootPath).filePath(QStringLiteral("zzzShow"));
+    const QString filmDir = QDir(fx->rootPath).filePath(QStringLiteral("aaaFilm"));
+    QVERIFY(QDir().mkpath(showDir));
+    QVERIFY(QDir().mkpath(filmDir));
+    writeStub(QDir(showDir).filePath(QStringLiteral("movie.mp4")));
+    writeStub(QDir(showDir).filePath(QStringLiteral("movie2.mp4")));
+    writeStub(QDir(filmDir).filePath(QStringLiteral("movie.mp4")));
+    QList<VaultIndex::FileRow> rows;
+    rows.append(makeFilmRow(fx->rootPath, showDir,
+                            QDir(showDir).filePath(QStringLiteral("movie.mp4")),
+                            QStringLiteral("vault:title-show-1"), 2000));
+    rows.append(makeFilmRow(fx->rootPath, showDir,
+                            QDir(showDir).filePath(QStringLiteral("movie2.mp4")),
+                            QStringLiteral("vault:title-show-2"), 2000));
+    rows.append(makeFilmRow(fx->rootPath, filmDir,
+                            QDir(filmDir).filePath(QStringLiteral("movie.mp4")),
+                            QStringLiteral("vault:title-film-1"), 1000));
+    fx->index->publish(rows);
+    const QStringList natural = browseTitles(
+        fx->library->browseAt(fx->rootPath, QStringLiteral("natural")));
+    QVERIFY2(natural == (QStringList() << "zzzShow" << "aaaFilm"),
+             "natural must keep the locked §4.2 buckets (containers before films)");
+    QCOMPARE(browseTitles(fx->library->browseAt(fx->rootPath, QStringLiteral("title"))),
+             QStringList() << "aaaFilm" << "zzzShow");
+    // The default call and any unknown string read as natural (spec §6 law: natural stays
+    // the default; a typo'd persistence value can never invent a sixth order).
+    QCOMPARE(browseTitles(fx->library->browseAt(fx->rootPath)),
+             natural);
+    QCOMPARE(browseTitles(fx->library->browseAt(fx->rootPath, QStringLiteral("bogus"))),
+             natural);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

@@ -455,7 +455,7 @@ Item {
                     // S7 — the watched verbs, in their own row: the actions row above already
                     // carries six affordances at the panel's width budget, and the verbs are the
                     // pair that must collapse to NOTHING (not an empty slot) for a non-vault row.
-                    // 7's own spacing matches the actions row's so the verbs read as one family.
+                    // S7's own spacing matches the actions row's so the verbs read as one family.
                     Row {
                         topPadding: 10
                         spacing: 18

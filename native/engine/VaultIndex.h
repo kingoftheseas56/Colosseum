@@ -159,6 +159,15 @@ public:
     // ownership arc's business). Each row: {groupKey, subtreePath, groupTitle, kind, mtimeMs}.
     Q_INVOKABLE QVariantList recentGroups(int limit) const;
 
+    // (ux uplift S12) Aggregate facts over a whole subtree PREFIX — the exact group itself
+    // plus every deeper group beneath it (subtreePath = :p OR subtreePath LIKE :p || '/%').
+    // For a node that IS a group, the caller's rowsForGroup() rows already answer newest/
+    // size; this is the ancestor-folder/season-node fallback browseAt()'s sort needs (those
+    // nodes hold no rows of their own — filesInSubtree is an exact-match query and cannot
+    // answer it). Returns false when the prefix has no rows at all (outputs zeroed).
+    bool subtreeFacts(const QString& subtreePath,
+                      qint64* newestMtimeMs, qint64* totalSizeBytes) const;
+
     // Narrow read-only projection for QML: { id -> admissionVerdict } over video rows that carry a
     // non-empty durable verdict. Unprobed and non-video rows are omitted. Read-only by construction —
     // QML never sees VaultIndex itself; it re-reads this through the VaultLibrary.revision clock.

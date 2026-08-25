@@ -52,6 +52,27 @@ function resumeTarget(rows) {
     return best
 }
 
+// --- Vault ux uplift S12 — the one browse ordering whose key is NOT in the index ----------------
+// "Recently played" orders by lastReadMs, which joinRow surfaces from the live Progress store —
+// so this is a pure array re-order of the JOINED rows VaultPage already holds (the VaultFolderView
+// lastread precedent). Descending; never-read rows (lastReadMs 0) sink to the bottom. The
+// decorate-sort-undecorate keeps ties in the incoming order EXPLICITLY (index tiebreak): the QML
+// engine's Array.sort is not guaranteed stable, and "equal last-read keeps the projection's
+// order" is part of this ordering's contract. Returns a NEW array; the input is never mutated.
+function sortRowsRecentlyPlayed(rows) {
+    var src = rows || []
+    var decorated = []
+    for (var i = 0; i < src.length; i++)
+        decorated.push({ row: src[i], idx: i, key: Number(src[i] && src[i].lastReadMs) || 0 })
+    decorated.sort(function (a, b) {
+        if (a.key !== b.key) return b.key - a.key
+        return a.idx - b.idx
+    })
+    var out = []
+    for (var j = 0; j < decorated.length; j++) out.push(decorated[j].row)
+    return out
+}
+
 // --- Vault Continue rail (Slice 14) -----------------------------------------------------------
 function isVault(id) { return String(id || "").indexOf("vault:") === 0 }
 

@@ -21,6 +21,8 @@
 #include <QProcess>
 #include <QTimer>
 #include <QUrl>
+#include <algorithm>
+#include <vector>
 
 // Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots().
 static QString normPath(const QString& p)
@@ -532,7 +534,7 @@ QVariantList VaultLibrary::hiddenSeries() const
     return out;
 }
 
-QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
+QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& sort) const
 {
     QVariantList out;
     const QVariantList roots = m_config ? m_config->roots() : QVariantList();
@@ -548,8 +550,40 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         // index's memory of this level instead.
         return VaultBrowseAway::offlineBrowseAt(m_index, roots, rootOrPath);
     }
+    // Vault ux uplift S12 — the per-node numeric sort keys, gathered only when a non-natural
+    // ordering asked for them (the default path pays nothing). Index i parallels out[i]. The
+    // title key is computed post-loop from the finished rows so it always sorts by the title
+    // the tile actually displays.
+    const bool wantTitle = sort == QLatin1String("title");
+    const bool wantNewest = sort == QLatin1String("newest");
+    const bool wantSize = sort == QLatin1String("size");
+    const bool wantFacts = wantTitle || wantNewest || wantSize;
+    struct NodeFacts { qint64 newestMs = 0; qint64 sizeBytes = 0; };
+    std::vector<NodeFacts> facts;
+    if (wantFacts)
+        facts.resize(nodes.size());
+    // newest/size over a row list the branch already fetched (Film group rows, an Episode/
+    // Clip's own exact-path row, a group container's own rows).
+    auto accumulate = [&facts](qsizetype idx, const QList<VaultIndex::FileRow>& rows) {
+        if (idx < 0 || idx >= static_cast<qsizetype>(facts.size()))
+            return;
+        for (const VaultIndex::FileRow& row : rows) {
+            facts[size_t(idx)].newestMs = qMax(facts[size_t(idx)].newestMs, row.mtimeMs);
+            facts[size_t(idx)].sizeBytes += row.size;
+        }
+    };
+    auto subtreeFallback = [this, &facts](qsizetype idx, const QString& path) {
+        if (idx < 0 || idx >= static_cast<qsizetype>(facts.size()) || !m_index)
+            return;
+        qint64 newestMs = 0, sizeBytes = 0;
+        if (m_index->subtreeFacts(path, &newestMs, &sizeBytes)) {
+            facts[size_t(idx)].newestMs = qMax(facts[size_t(idx)].newestMs, newestMs);
+            facts[size_t(idx)].sizeBytes += sizeBytes;
+        }
+    };
     out.reserve(nodes.size());
-    for (const VaultKit::BrowseNode& n : nodes) {
+    for (qsizetype nodeIdx = 0; nodeIdx < nodes.size(); ++nodeIdx) {
+        const VaultKit::BrowseNode& n = nodes.at(nodeIdx);
         QVariantMap m;
         m.insert(QStringLiteral("key"), n.key);
         m.insert(QStringLiteral("nodeType"), VaultKit::browseNodeTypeName(n.nodeType));
@@ -593,6 +627,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 ? m_index->rowsForPath(n.path) : QList<VaultIndex::FileRow>();
             kind = dominantRowKind(leafRows);
             insertLeafJoinId(m, leafRows);
+            accumulate(nodeIdx, leafRows);
             const QString resolved = resolveVideoLeafCoverRef(leafRows, m_artworkResolver, n.key);
             if (!resolved.isEmpty())
                 m.insert(QStringLiteral("coverRef"), resolved);
@@ -608,6 +643,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 ? m_index->rowsForPath(n.path) : QList<VaultIndex::FileRow>();
             kind = dominantRowKind(leafRows);
             insertLeafJoinId(m, leafRows);
+            accumulate(nodeIdx, leafRows);
             const QString resolved = resolveVideoLeafCoverRef(leafRows, m_artworkResolver, n.key);
             if (!resolved.isEmpty())
                 m.insert(QStringLiteral("coverRef"), resolved);
@@ -634,6 +670,11 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             const QList<VaultIndex::FileRow> containerRows = (m_index && !n.path.isEmpty())
                 ? m_index->rowsForGroup(n.path) : QList<VaultIndex::FileRow>();
             kind = dominantRowKind(containerRows);
+            // S12: a group container's own rows carry its newest/size; a pure ancestor
+            // folder (no rows of its own) takes the subtree-prefix aggregate instead —
+            // filesInSubtree is exact-match, hence VaultIndex::subtreeFacts.
+            accumulate(nodeIdx, containerRows);
+            subtreeFallback(nodeIdx, n.path);
             // Browse-artwork execution plan (2026-08-14 fix): a container that IS a group — a
             // top-level show folder whose node path equals the group key — carries the show's
             // canonical identity on its own file rows (The Wire's episodes all carry
@@ -662,6 +703,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             }
         } else if (n.nodeType == VaultKit::BrowseNodeType::Film && m_index) {
             const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
+            accumulate(nodeIdx, rows); // S12: the group's own rows carry its newest/size
             if (!rows.isEmpty()) {
                 // The one branch that matters most for identify routing: a Film node is the ONLY
                 // node type that ever reaches state "uncertain"/"resolving", i.e. the only tile
@@ -771,6 +813,38 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         m.insert(QStringLiteral("state"), state);
         m.insert(QStringLiteral("away"), away);
         out.append(m);
+    }
+    // Vault ux uplift S12 — the non-natural orderings reorder the FINISHED rows (titles are
+    // final there, including the Film branch's stored-identity preference). A permutation is
+    // sorted instead of the rows themselves so the natural-key tiebreak can address facts[i]
+    // and out[i] in lockstep. Stable by construction: equal keys keep planBrowseLevel's §4.2
+    // order (folders < shows < films), and the explicit natural-key tiebreak makes the result
+    // deterministic even across SQL/walk orderings.
+    if (wantFacts) {
+        // naturalSortKey once per row: "title" IS this order, and newest/size tie-break by it.
+        std::vector<QString> naturalKeys;
+        naturalKeys.reserve(out.size());
+        for (const QVariant& rv : out)
+            naturalKeys.push_back(VaultIndex::naturalSortKey(
+                rv.toMap().value(QStringLiteral("displayTitle")).toString()));
+        std::vector<int> order(int(out.size()));
+        for (int i = 0; i < int(out.size()); ++i)
+            order[size_t(i)] = i;
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+            if (wantNewest) {
+                if (facts[size_t(a)].newestMs != facts[size_t(b)].newestMs)
+                    return facts[size_t(a)].newestMs > facts[size_t(b)].newestMs;
+            } else if (wantSize) {
+                if (facts[size_t(a)].sizeBytes != facts[size_t(b)].sizeBytes)
+                    return facts[size_t(a)].sizeBytes > facts[size_t(b)].sizeBytes;
+            }
+            return naturalKeys[size_t(a)].compare(naturalKeys[size_t(b)]) < 0;
+        });
+        QVariantList sorted;
+        sorted.reserve(out.size());
+        for (int i : order)
+            sorted.append(out.at(i));
+        out = sorted;
     }
     return out;
 }

@@ -1079,6 +1079,34 @@ QVariantList VaultIndex::recentGroups(int limit) const
     return out;
 }
 
+bool VaultIndex::subtreeFacts(const QString& subtreePath,
+                              qint64* newestMtimeMs, qint64* totalSizeBytes) const
+{
+    if (newestMtimeMs)
+        *newestMtimeMs = 0;
+    if (totalSizeBytes)
+        *totalSizeBytes = 0;
+    if (!m_db.isOpen() || subtreePath.isEmpty())
+        return false;
+    // Prefix-bound on the separator so "Movies" never matches "Movies 2/…". The exact-match
+    // arm covers a group's own rows when the caller hands a group path (harmless when it is
+    // a pure ancestor — nothing is stored under an ancestor's own key).
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral(
+        "SELECT COUNT(*), MAX(mtimeMs), SUM(size) FROM files"
+        " WHERE subtreePath = ? OR subtreePath LIKE ? || '/%'"));
+    q.addBindValue(subtreePath);
+    q.addBindValue(subtreePath);
+    if (!q.exec() || !q.next())
+        return false;
+    const bool any = q.value(0).toLongLong() > 0;
+    if (newestMtimeMs)
+        *newestMtimeMs = q.value(1).toLongLong();
+    if (totalSizeBytes)
+        *totalSizeBytes = q.value(2).toLongLong();
+    return any;
+}
+
 QSet<QString> VaultIndex::fileIdsInRoot(const QString& rootPath) const
 {
     QSet<QString> out;

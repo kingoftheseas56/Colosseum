@@ -77,6 +77,9 @@ Item {
         category: "vaultBrowseV1"
         property string lastCrumbJson: "[]"
         property bool railExpanded: false
+        // Vault ux uplift S12 — per-level sort choices ({levelKey: mode}; natural levels
+        // store nothing — it is the default).
+        property string sortPerLevel: "{}"
     }
 
     property var crumbStack: []              // [{key, displayTitle}, ...] selected root -> current level
@@ -124,6 +127,77 @@ Item {
 
     readonly property var displayedCrumbStack: root.hiddenViewActive
         ? [{ key: "hidden:", displayTitle: "Hidden" }] : root.crumbStack
+
+    // ==== Vault ux uplift S12 — the browse sort. Natural order stays the default (spec §6
+    //      law); the other four orderings are per-LEVEL choices persisted in
+    //      browseSettings.sortPerLevel (a {levelKey: mode} JSON map — the same vaultBrowseV1
+    //      home the crumb trail already uses). "recent" (Recently played) sorts QML-side over
+    //      the joined rows — its key, lastReadMs, lives in the Progress store, not the index
+    //      (VaultApi.sortRowsRecentlyPlayed); the other three are browseAt()'s `sort` param.
+    property string sortMode: "natural"   // natural | title | newest | recent | size
+    readonly property var sortVocabulary: [
+        { mode: "natural", label: "Natural order" },
+        { mode: "title", label: "Title" },
+        { mode: "newest", label: "Newest arrival" },
+        { mode: "recent", label: "Recently played" },
+        { mode: "size", label: "Size" }
+    ]
+    function sortLabelOf(mode) {
+        for (let i = 0; i < root.sortVocabulary.length; ++i)
+            if (root.sortVocabulary[i].mode === mode) return root.sortVocabulary[i].label
+        return "Natural order"
+    }
+    // what browseAt() gets: "recent" is QML-side, so the engine sees natural there
+    readonly property string browseSortParam: root.sortMode === "title" ? "title"
+        : root.sortMode === "newest" ? "newest"
+        : root.sortMode === "size" ? "size" : "natural"
+    function browseSettings_loadSort() {
+        const key = root.currentBrowsePath || ""
+        if (!key) { root.sortMode = "natural"; return }
+        let map = {}
+        try { map = JSON.parse(browseSettings.sortPerLevel || "{}") } catch (e) { map = {} }
+        const mode = map[key]
+        const next = (mode === "title" || mode === "newest" || mode === "recent"
+                      || mode === "size") ? mode : "natural"
+        // Only touch sortMode when it actually differs: browseGridRows reads it, and an
+        // unconditional same-value write would still re-derive the level a second time per
+        // navigation (two filesystem walks where there was one).
+        if (root.sortMode !== next) root.sortMode = next
+    }
+    function browseSettings_setSort(mode) {
+        root.sortMode = mode
+        const key = root.currentBrowsePath || ""
+        if (!key) return
+        let map = {}
+        try { map = JSON.parse(browseSettings.sortPerLevel || "{}") } catch (e) { map = {} }
+        if (mode === "natural") delete map[key]   // natural is the default — store nothing
+        else map[key] = mode
+        browseSettings.sortPerLevel = JSON.stringify(map)
+    }
+    // A level change reloads THAT level's remembered sort (never inherits the prior level's).
+    onCurrentBrowsePathChanged: root.browseSettings_loadSort()
+    // The menu's open state + position (mapped imperatively at open — the rail menu's own
+    // pattern; a publish/sort change can never invalidate what anchors would have held).
+    property bool sortMenuOpen: false
+    property real sortMenuX: 0
+    property real sortMenuY: 0
+    function toggleSortMenu() {
+        if (root.sortMenuOpen) { root.sortMenuOpen = false; return }
+        const p = browseSortControl.mapToItem(root, 0, browseSortControl.height)
+        root.sortMenuX = Math.max(10, Math.min(p.x, root.width - 220))
+        root.sortMenuY = p.y + 6
+        root.sortMenuOpen = true
+    }
+    // The projection both the grid property and the art-resolved re-projection share: the
+    // engine sort, the Progress join, and the QML-side recent ordering in one place — an art
+    // landing must re-project the SAME order the grid holds or the in-place ListModel diff
+    // would see a reorder as a structural change and rebuild the grid.
+    function projectBrowseRows() {
+        const rows = VaultLibrary.browseAt(root.currentBrowsePath, root.browseSortParam)
+        if (typeof Progress === "undefined") return rows
+        const joined = root.joinProgressRows(rows)
+        return root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(joined) : joined
+    }
 
     readonly property var browseRootsDetail: (typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.rootsDetail()) : []
@@ -196,23 +270,29 @@ Item {
         // Slice 9: gated on hasConfirmedStorage, not populated — a freshly-confirmed root whose
         // first census hasn't published yet (itemCount still 0) has REAL resolving-state rows
         // from browseAt()'s own live filesystem walk (design §4.6's signature "resolve in
-        // place" moment); the old `populated` gate silently suppressed that until the very
+        // place" moment); the old `populated` gate silently suppressed this until the very
         // first publish landed. (Never reachable before this slice anyway, since the whole
         // browse face was itself gated on `populated` — see that gate's own comment above.)
         if (!root.hasConfirmedStorage) return []
         if (root.hiddenViewActive) return root.hiddenRowsAsBrowse
         if (typeof VaultLibrary === "undefined" || !root.currentBrowsePath) return []
         VaultLibrary.revision // dependency: re-project on every committed publish
-        const rows = VaultLibrary.browseAt(root.currentBrowsePath)
         // Vault ux uplift S6: the live Progress join so the cards can paint the spec's gold
         // resume hairline and S3's durable watched tick. The two revision clocks are named
         // separately and honestly: a committed publish re-projects the level, a Progress
         // lifecycle write (open/close/minimize/mark) re-joins it — and the silent 5s video
         // tick bumps NEITHER, so the join can never reintroduce the Continue-repaint stutter
         // cascade (the same discipline folderDetailRows above already follows).
-        if (typeof Progress === "undefined") return rows
+        // Vault ux uplift S12: the same projection now carries the level's sort —
+        // projectBrowseRows() = browseAt(path, browseSortParam) + join + the QML-side
+        // "recent" ordering. root.sortMode is itself a dependency: choosing a sort
+        // re-derives the level through this same path (the grid's in-place diff then sees
+        // a deliberate reorder as the structural change it is).
+        root.sortMode
+        if (typeof Progress === "undefined")
+            return VaultLibrary.browseAt(root.currentBrowsePath, root.browseSortParam)
         Progress.revision
-        return root.joinProgressRows(rows)
+        return root.projectBrowseRows()
     }
     // Vault ux uplift S6: decorate browseAt() rows with live Progress facts. VaultApi's
     // joinRow supplies progressFraction/lastReadMs/progressed STRAIGHT from the store (this
@@ -294,11 +374,10 @@ Item {
             // Vault ux uplift S6: through the same Progress join browseGridRows uses — a bare
             // browseAt() here would hand syncGridModel un-joined rows and the in-place
             // ListModel.set would silently STRIP every tile's progressFraction/watched facts
-            // each time a poster lands.
-            if (typeof Progress === "undefined")
-                root.syncGridModel(VaultLibrary.browseAt(root.currentBrowsePath))
-            else
-                root.syncGridModel(root.joinProgressRows(VaultLibrary.browseAt(root.currentBrowsePath)))
+            // each time a poster lands. S12: through projectBrowseRows() for the same reason
+            // PLUS the sort — an unsorted re-projection would read as a structural reorder
+            // and rebuild the grid every time art lands on a sorted level.
+            root.syncGridModel(root.projectBrowseRows())
         }
     }
     readonly property bool browseGridWide: root.browseGridRows.length > 0
@@ -1102,9 +1181,48 @@ Item {
 
                 VaultBrowseCrumb {
                     id: browseCrumb
-                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                    anchors.top: parent.top; anchors.left: parent.left
+                    // S12: the sort control owns the row's right edge now.
+                    anchors.right: browseSortControl.left; anchors.rightMargin: 14
                     stack: root.displayedCrumbStack
                     onSegmentClicked: (index) => root.goToCrumb(index)
+                }
+
+                // ── Vault ux uplift S12 — the sort control: a quiet label button right of the
+                //    breadcrumb ("⇅ Newest arrival"), natural order by default. Clicking opens
+                //    the vocabulary menu (hand-rolled like every house popup). Hidden in the
+                //    Hidden view — that shelf keeps its own fixed order. ──
+                Item {
+                    id: browseSortControl
+                    objectName: "vaultBrowseSortControl"
+                    visible: !root.hiddenViewActive
+                    anchors.top: parent.top; anchors.right: parent.right
+                    width: sortFaceRow.implicitWidth + 6
+                    height: browseCrumb.height
+
+                    Row {
+                        id: sortFaceRow
+                        anchors.centerIn: parent
+                        spacing: 7
+                        Text {
+                            text: "⇅"
+                            color: root.sortMenuOpen || sortFaceMa.containsMouse ? theme.ink : theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 13
+                        }
+                        Text {
+                            objectName: "vaultBrowseSortLabel"
+                            text: root.sortLabelOf(root.sortMode)
+                            color: root.sortMenuOpen || sortFaceMa.containsMouse ? theme.ink : theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 12
+                        }
+                    }
+                    MouseArea {
+                        id: sortFaceMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.toggleSortMenu()
+                    }
                 }
 
                 Component {
@@ -1270,6 +1388,70 @@ Item {
                      && (typeof Progress !== "undefined")
                      && (Progress.revision, Progress.watchedMark(root.contextRowVaultId) === 1)
             onTriggered: root.markContextRowWatched(false)
+        }
+    }
+
+    // ── Vault ux uplift S12 — the sort vocabulary menu (hand-rolled like every house popup:
+    //    a click-away backing over the page plus one glass panel under the control). One
+    //    instance for the whole grid; the current order carries the ✓. ──
+    Item {
+        objectName: "vaultBrowseSortMenu"
+        visible: root.sortMenuOpen
+        anchors.fill: parent
+        z: 55
+
+        MouseArea { anchors.fill: parent; onClicked: root.sortMenuOpen = false }
+
+        Rectangle {
+            x: root.sortMenuX; y: root.sortMenuY
+            width: 204
+            height: sortMenuColumn.implicitHeight + 16
+            radius: 12
+            color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
+            border.width: 1
+            border.color: theme.edge
+
+            Column {
+                id: sortMenuColumn
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 2
+                Repeater {
+                    model: root.sortVocabulary
+                    delegate: Item {
+                        id: sortMenuItem
+                        required property var modelData
+                        objectName: "vaultBrowseSortItem_" + sortMenuItem.modelData.mode
+                        width: parent.width; height: 32
+                        Row {
+                            anchors.left: parent.left; anchors.leftMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 8
+                            Text {
+                                text: root.sortMode === sortMenuItem.modelData.mode ? "✓" : ""
+                                color: theme.gold
+                                font.family: theme.ui; font.pixelSize: 12
+                                width: 12
+                            }
+                            Text {
+                                text: sortMenuItem.modelData.label
+                                color: sortItemMa.containsMouse ? theme.ink : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 13
+                            }
+                        }
+                        MouseArea {
+                            id: sortItemMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.browseSettings_setSort(sortMenuItem.modelData.mode)
+                                root.sortMenuOpen = false
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

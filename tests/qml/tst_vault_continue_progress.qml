@@ -297,4 +297,32 @@ TestCase {
         verify(!(String("tt123").indexOf("vault:") === 0))          // a catalogue id never ticks
         stubProgress.marks = ({})
     }
+
+    // ── 7. the QML-side ordering (vault ux uplift S12 — production VaultApi.sortRowsRecentlyPlayed
+    //       over JOINED rows): descending lastReadMs, never-read rows sink, ties stay stable, and
+    //       the input array is never mutated (the grid feeds the result straight to syncGridModel). ──
+    function test_recently_played_sort_descends_and_sinks_unread() {
+        var joined = [
+            { key: "never", displayTitle: "Never", lastReadMs: 0 },
+            { key: "old", displayTitle: "Old", lastReadMs: 500 },
+            { key: "newest", displayTitle: "Newest", lastReadMs: 900 },
+            { key: "mid", displayTitle: "Mid", lastReadMs: 700 },
+            { key: "old-tie", displayTitle: "OldTie", lastReadMs: 500 }
+        ]
+        var sorted = VaultApi.sortRowsRecentlyPlayed(joined)
+        compare(sorted.map(function (r) { return r.key }),
+                ["newest", "mid", "old", "old-tie", "never"])
+        // stable tie: "old" stays before "old-tie" (both 500), never-read (0) sinks last
+        // the input array is untouched — the projection hands syncGridModel a NEW array
+        compare(joined[0].key, "never")
+        compare(joined.length, 5)
+        // NEGATIVE CONTROL: nothing read at all → the order is unchanged (all sink together,
+        // stability keeps the incoming order), never reversed or shuffled
+        var fresh = [{ key: "a", lastReadMs: 0 }, { key: "b", lastReadMs: 0 }]
+        compare(VaultApi.sortRowsRecentlyPlayed(fresh).map(function (r) { return r.key }),
+                ["a", "b"])
+        // null/undefined rows and an empty list are honest no-ops, never throws
+        compare(VaultApi.sortRowsRecentlyPlayed([]).length, 0)
+        compare(VaultApi.sortRowsRecentlyPlayed(null).length, 0)
+    }
 }

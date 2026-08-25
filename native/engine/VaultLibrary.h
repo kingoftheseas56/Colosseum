@@ -146,7 +146,18 @@ public:
     // per-row lookup for. When the owning root's directory can no longer be walked at all,
     // browseAt() falls back to offlineBrowseAt() so the level's tiles hold position (marked
     // away) instead of the grid reading as empty (design §4.7 "nothing disappears").
-    Q_INVOKABLE QVariantList browseAt(const QString& rootOrPath) const;
+    // `sort` (vault ux uplift S12): "natural" (default — planBrowseLevel's locked §4.2 order:
+    // folders, then series, then films, each numeric-aware by title) | "title" (ONE merged
+    // numeric-aware order across every node — VaultIndex::naturalSortKey, so "Vol 2" < "Vol
+    // 10") | "newest" (node's newest row mtimeMs descending) | "size" (node's total row bytes
+    // descending). Newest/size keys come from the rows each branch already fetches; a pure
+    // ancestor folder or season node (no rows of its own) falls back to VaultIndex::subtreeFacts.
+    // Ties break by the natural key ascending (deterministic, never by SQL/walk accident).
+    // "Recently played" is deliberately NOT here: its key (lastReadMs) lives in the Progress
+    // store, not the index, so QML sorts the joined rows (VaultApi.sortRowsRecentlyPlayed —
+    // the VaultFolderView lastread precedent). An unknown sort string reads as "natural".
+    Q_INVOKABLE QVariantList browseAt(const QString& rootOrPath,
+                                      const QString& sort = QStringLiteral("natural")) const;
     // rootsDetail(): one row per confirmed/synthetic, non-hidden root — {path, name, available,
     // itemCount, fileCount} — the rail's data source once Slice 5 wires it. Vault ux uplift
     // S11 extends each row with the "needs attention" facts: `errorCount` (rows under the root
