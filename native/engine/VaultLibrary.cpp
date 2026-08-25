@@ -92,6 +92,22 @@ static QString dominantRowKind(const QList<VaultIndex::FileRow>& rows)
     return best;
 }
 
+// Vault ux uplift S6: the node's durable vault id — the live Progress join key. The id is
+// "vault:" + SHA-1 of normalizedPath::size::mtimeMs (VaultIdentity), so QML cannot derive it
+// from the row's path alone; without it on the row, VaultApi.joinRow's progressFraction/
+// progressed override (and ProgressStore.watchedMark for the watched tick) are structurally
+// unreachable from the browse face. An Episode/Clip node's exact-path rows are the file itself;
+// the first row carrying an id wins (a one-file leaf has exactly one).
+static void insertLeafJoinId(QVariantMap& m, const QList<VaultIndex::FileRow>& rows)
+{
+    for (const VaultIndex::FileRow& row : rows) {
+        if (!row.id.isEmpty()) {
+            m.insert(QStringLiteral("id"), row.id);
+            return;
+        }
+    }
+}
+
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
                            VaultIdentity* identity, QString cacheDir, QObject* parent)
     : QObject(parent), m_index(index), m_scanner(scanner), m_config(config), m_identity(identity)
@@ -576,6 +592,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             const QList<VaultIndex::FileRow> leafRows = (m_index && !n.path.isEmpty())
                 ? m_index->rowsForPath(n.path) : QList<VaultIndex::FileRow>();
             kind = dominantRowKind(leafRows);
+            insertLeafJoinId(m, leafRows);
             const QString resolved = resolveVideoLeafCoverRef(leafRows, m_artworkResolver, n.key);
             if (!resolved.isEmpty())
                 m.insert(QStringLiteral("coverRef"), resolved);
@@ -590,6 +607,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             const QList<VaultIndex::FileRow> leafRows = (m_index && !n.path.isEmpty())
                 ? m_index->rowsForPath(n.path) : QList<VaultIndex::FileRow>();
             kind = dominantRowKind(leafRows);
+            insertLeafJoinId(m, leafRows);
             const QString resolved = resolveVideoLeafCoverRef(leafRows, m_artworkResolver, n.key);
             if (!resolved.isEmpty())
                 m.insert(QStringLiteral("coverRef"), resolved);
@@ -731,6 +749,22 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 // VaultScanner's "one video file, one group" convention means the group's own
                 // row IS that file, so the browse row must carry the file's real path here.
                 m.insert(QStringLiteral("path"), rows.first().path);
+                // Vault ux uplift S6: the group's durable vault id (the Progress join key —
+                // see insertLeafJoinId's comment). The PRIMARY row is the join target: the
+                // first video row (the film itself under the one-video-one-group convention,
+                // never an Extras sibling), falling back to the first row for a comic/book
+                // group whose progress is keyed under its own kind.
+                QString joinId;
+                for (const VaultIndex::FileRow& row : rows) {
+                    if (row.kind == QLatin1String("video") && !row.id.isEmpty()) {
+                        joinId = row.id;
+                        break;
+                    }
+                }
+                if (joinId.isEmpty())
+                    joinId = rows.first().id;
+                if (!joinId.isEmpty())
+                    m.insert(QStringLiteral("id"), joinId);
             }
         }
         m.insert(QStringLiteral("kind"), kind);

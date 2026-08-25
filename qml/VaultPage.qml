@@ -188,7 +188,31 @@ Item {
         if (root.hiddenViewActive) return root.hiddenRowsAsBrowse
         if (typeof VaultLibrary === "undefined" || !root.currentBrowsePath) return []
         VaultLibrary.revision // dependency: re-project on every committed publish
-        return VaultLibrary.browseAt(root.currentBrowsePath)
+        const rows = VaultLibrary.browseAt(root.currentBrowsePath)
+        // Vault ux uplift S6: the live Progress join so the cards can paint the spec's gold
+        // resume hairline and S3's durable watched tick. The two revision clocks are named
+        // separately and honestly: a committed publish re-projects the level, a Progress
+        // lifecycle write (open/close/minimize/mark) re-joins it — and the silent 5s video
+        // tick bumps NEITHER, so the join can never reintroduce the Continue-repaint stutter
+        // cascade (the same discipline folderDetailRows above already follows).
+        if (typeof Progress === "undefined") return rows
+        Progress.revision
+        return root.joinProgressRows(rows)
+    }
+    // Vault ux uplift S6: decorate browseAt() rows with live Progress facts. VaultApi's
+    // joinRow supplies progressFraction/lastReadMs/progressed STRAIGHT from the store (this
+    // never recomputes a position — surfacing, not deriving); the `watched` flag adds S3's
+    // durable mark (ProgressStore.watchedMark), which lives on in the store AFTER the resume
+    // record itself is retired at ≥90% — exactly why the tick needs its own lookup rather
+    // than trusting the join's hasProgress. Vault ids only: a catalogue id must never gain a
+    // Vault tick from here.
+    function joinProgressRows(rows) {
+        var joined = VaultApi.joinRows(Progress, rows || [])
+        for (var i = 0; i < joined.length; ++i) {
+            var id = String(joined[i].id || "")
+            joined[i].watched = id.indexOf("vault:") === 0 && Progress.watchedMark(id) === 1
+        }
+        return joined
     }
     // ==== Slice 6: living tile states — re-project WITHOUT rebuilding the grid. ====
     // `browseGridRows` recomputes to a BRAND NEW array every time (a fresh publish, a root
@@ -252,7 +276,14 @@ Item {
         target: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
         function onBrowseArtResolved(rowKey) {
             if (!root.hasConfirmedStorage || root.hiddenViewActive || !root.currentBrowsePath) return
-            root.syncGridModel(VaultLibrary.browseAt(root.currentBrowsePath))
+            // Vault ux uplift S6: through the same Progress join browseGridRows uses — a bare
+            // browseAt() here would hand syncGridModel un-joined rows and the in-place
+            // ListModel.set would silently STRIP every tile's progressFraction/watched facts
+            // each time a poster lands.
+            if (typeof Progress === "undefined")
+                root.syncGridModel(VaultLibrary.browseAt(root.currentBrowsePath))
+            else
+                root.syncGridModel(root.joinProgressRows(VaultLibrary.browseAt(root.currentBrowsePath)))
         }
     }
     readonly property bool browseGridWide: root.browseGridRows.length > 0
@@ -936,9 +967,51 @@ Item {
             }
         }
 
+        // ---- Vault ux uplift S6: the Continue rail — the mid-way locals (spec §4.5 places it
+        //      here, between "Just arrived" and the grid). Data from root.continueItems
+        //      (VaultApi.continueRail over the live Progress store: admitted vault videos
+        //      with a resumable path only); tiles are the existing vaultContinueTileComp
+        //      (cover, kind badge, gold resume hairline — written with Slice 14's rail, never
+        //      instantiated until now). Entirely absent while there is nothing to resume —
+        //      the carousel leads an empty Vault. ----
+        Item {
+            id: continueRail
+            objectName: "vaultContinueRail"
+            visible: root.continueItems.length > 0
+            anchors.top: browseCarousel.bottom; anchors.topMargin: 18
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+            height: visible ? 270 : 0
+
+            Text {
+                objectName: "vaultContinueRailKicker"
+                anchors.top: parent.top; anchors.left: parent.left
+                text: "CONTINUE"
+                color: theme.inkDimmer
+                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
+                font.weight: Font.DemiBold
+            }
+            // PosterRail's own house shape: a clipped horizontal ListView, StopAtBounds,
+            // no scrollbar of its own (drag to move; 18 tiles is the cap VaultApi is fed).
+            ListView {
+                id: continueList
+                objectName: "vaultContinueRailList"
+                anchors.top: parent.top; anchors.topMargin: 28
+                anchors.left: parent.left; anchors.right: parent.right
+                height: 242
+                orientation: ListView.Horizontal
+                spacing: 14
+                clip: true
+                cacheBuffer: width * 0.5
+                boundsBehavior: Flickable.StopAtBounds
+                model: root.continueItems
+                delegate: vaultContinueTileComp
+            }
+        }
+
         Item {
             id: browseBody
-            anchors.top: browseCarousel.bottom; anchors.topMargin: 22
+            anchors.top: continueRail.bottom; anchors.topMargin: continueRail.visible ? 20 : 4
             anchors.left: parent.left; anchors.right: parent.right
             anchors.bottom: parent.bottom; anchors.bottomMargin: 24
             anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
@@ -1313,6 +1386,13 @@ Item {
         }
         onUnidentifyRequested: (key) => {
             if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.unidentifyGroup(key)
+        }
+        // Vault ux uplift S8's one deferred wire (landed with S6, which owned this file): the
+        // sheet's "Identify again" — a one-shot re-run of the conservative auto gate for this
+        // group. VaultLibrary::identifyGroup adopts on a single catalogue match and durably
+        // records the ambiguity when several remain, so the verb is one honest call.
+        onIdentifyAgainRequested: (key) => {
+            if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.identifyGroup(key)
         }
         onHideRequested: (key) => {
             if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.hideGroup(key)

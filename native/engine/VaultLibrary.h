@@ -128,7 +128,12 @@ public:
     // artResolved(rowKey) then fires browseArtResolved(rowKey) (see that signal below) so the
     // caller re-projects the same level. Row shape:
     // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path,
-    //  kind}.
+    //  kind, id}.
+    // `id` (vault ux uplift S6) is the node's durable vault id on Film/Episode/Clip rows — the
+    // live Progress join key (VaultApi.joinRow's progressFraction/progressed override and
+    // ProgressStore.watchedMark both need it; it is not derivable from `path` in QML). Container
+    // rows and away-fallback rows (offlineBrowseAt) carry no id: their tiles render no progress
+    // chrome by the cards' own away/precedence rules.
     // `kind` is the STORED comic|book|video the index rows under a node carry (VaultScanner's own
     // per-file classification), never a re-derivation of the structural `nodeType` — QML's identify
     // gesture branches on it to choose IMDb over the comic/manga catalogues, and this projection

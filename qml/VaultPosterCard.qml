@@ -36,6 +36,20 @@ Item {
     readonly property string nodeKey: row && row.key !== undefined ? row.key : ""
     readonly property string nodeType: row && row.nodeType !== undefined ? row.nodeType : ""
     readonly property int itemCount: (row && row.counts && row.counts.items !== undefined) ? row.counts.items : 0
+    // Vault ux uplift S6 — live Progress facts, joined page-side (VaultApi.joinRows in
+    // VaultPage.qml) and never recomputed here: progressFraction is the STORED resume
+    // position (0..1, clamped defensively), `progressFinished` a live finished record, and
+    // `watched` S3's durable mark (ProgressStore.watchedMark === 1), which OUTLIVES the
+    // resume record's own retirement at completion. Absent on plain seeded rows → 0/false,
+    // so an un-joined caller (a test, the hidden-shelf translation) paints no progress chrome.
+    readonly property real progressFraction: row && row.progressFraction !== undefined
+        ? Math.max(0, Math.min(1, Number(row.progressFraction) || 0)) : 0
+    readonly property bool progressFinished: !!(row && row.progressFinished)
+    readonly property bool watched: !!(row && row.watched) || card.progressFinished
+    // the spec's gold resume hairline: settled face, never on an away tile (away is reduced
+    // ink — no bright bar), never once watched (the tick owns a finished item).
+    readonly property bool showsProgressHairline: card.faceState === "settled" && !card.away
+        && !card.watched && card.progressFraction > 0
 
     // "filename" while unresolved (the design's signature latency state, §4.6); "settled" once
     // there is a face to show (identified / uncertain / localOnly all have SOMETHING to paint,
@@ -53,12 +67,18 @@ Item {
     signal openRequested(var row)
     signal identifyRequested(var row)
 
-    // away beats uncertainty beats a plain item count (design §4.3); a film/episode/clip's own
-    // copy-of-one is not interesting enough to badge — only multi-item container nodes are.
+    // away beats uncertainty beats watched/progress beats a plain item count (design §4.3,
+    // extended by vault ux uplift S6 with the progress/watched tier); a film/episode/clip's
+    // own copy-of-one is not interesting enough to badge — only multi-item container nodes
+    // are. The gold progress HAIRLINE (below) is an edge bar, not a corner mark — it paints
+    // alongside whichever corner indicator owns the corner.
     readonly property bool showIndicator: card.faceState === "settled" && (card.away
         || card.state === "uncertain"
+        || card.watched
         || (card.itemCount > 0 && card.nodeType !== "film" && card.nodeType !== "episode" && card.nodeType !== "clip"))
-    readonly property string indicatorKind: card.away ? "away" : (card.state === "uncertain" ? "uncertain" : "count")
+    readonly property string indicatorKind: card.away ? "away"
+        : (card.state === "uncertain" ? "uncertain"
+        : (card.watched ? "watched" : "count"))
 
     objectName: "vaultBrowseCard_" + card.nodeKey
     width: cardWidth
@@ -166,6 +186,24 @@ Item {
                 }
             }
         }
+        // ── VAULT UX UPLIFT S6: the spec's gold progress hairline — the live resume position
+        //    as a thin bar along the art's bottom edge (the same language the Continue tile's
+        //    own gold hairline already speaks). Gold is allowed here by the spec's own §4.5
+        //    progress treatment; it never paints on an away tile. ──
+        Rectangle {
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_progressTrack"
+            visible: card.showsProgressHairline
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            height: 3
+            color: Qt.rgba(1, 1, 1, 0.14)
+            Rectangle {
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_progressFill"
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                width: parent.width * card.progressFraction
+                color: theme.gold
+            }
+        }
+
         // The hit area is a sibling of settledLayer, not nested inside it: settledLayer is
         // `visible: opacity > 0`, and an invisible item receives no mouse events, so a MouseArea
         // living inside it would only ever be reachable once the card had already settled. That
@@ -196,11 +234,21 @@ Item {
                 ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.5) : theme.edge
 
             Text {
-                visible: card.indicatorKind !== "away"
+                visible: card.indicatorKind === "uncertain" || card.indicatorKind === "count"
                 anchors.centerIn: parent
                 text: card.indicatorKind === "uncertain" ? "?" : String(card.itemCount)
                 color: card.indicatorKind === "uncertain" ? theme.gold : theme.inkDim
                 font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+            }
+            // Vault ux uplift S6 — the watched tick (S3's durable mark): a plain check in the
+            // house ink, never gold (gold stays the uncertainty mark's alone).
+            Text {
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_watchedTick"
+                visible: card.indicatorKind === "watched"
+                anchors.centerIn: parent
+                text: "✓"
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
             }
             // away glyph: a slashed circle — no icon asset invented for this, two primitives.
             Item {

@@ -360,6 +360,7 @@ private slots:
     void timeout_returns_error();
     void projection_does_not_mutate_files();
     void browse_projection_carries_stored_kind();
+    void browse_projection_carries_vault_id();
     void downloads_root_chip_remove_hides_and_republishes();
     void rescan_root_republishes_the_union();
     void forget_root_removes_only_that_root_and_republishes();
@@ -746,6 +747,59 @@ void tst_vault_forensics::browse_projection_carries_stored_kind()
     }
     QCOMPARE(recentKindByName.value(videoFolderName), QStringLiteral("video"));
     QCOMPARE(recentKindByName.value(comicFolderName), QStringLiteral("comic"));
+}
+
+// Vault UX uplift S6 — browseAt() rows now carry the node's durable vault id (`id`), the live
+// Progress join key: the id is "vault:" + SHA-1 of normalizedPath::size::mtimeMs (VaultIdentity),
+// so QML cannot derive it from the row's path, and without it on the row VaultApi.joinRow's
+// progressFraction/progressed override and ProgressStore.watchedMark (S3's durable watched tick)
+// are structurally unreachable from the browse face. The falsifiability half is the SAME
+// fixture as browse_projection_carries_stored_kind: two structurally identical film nodes whose
+// stored ids differ is exactly the proof that the id is data, not a derivation.
+void tst_vault_forensics::browse_projection_carries_vault_id()
+{
+    QString videoFolderName, comicFolderName;
+    auto fx = buildMixedKindFixture(&videoFolderName, &comicFolderName);
+    QVERIFY(fx->library);
+    QVERIFY(!videoFolderName.isEmpty());
+    QVERIFY(!comicFolderName.isEmpty());
+
+    const QVariantList rows = fx->library->browseAt(fx->rootPath);
+    QCOMPARE(rows.size(), 2);
+
+    QMap<QString, QVariantMap> byFolderName;
+    for (const QVariant& rv : rows) {
+        const QVariantMap m = rv.toMap();
+        byFolderName.insert(QFileInfo(m.value(QStringLiteral("key")).toString()).fileName(), m);
+    }
+    QVERIFY2(byFolderName.contains(videoFolderName), qPrintable(videoFolderName));
+    QVERIFY2(byFolderName.contains(comicFolderName), qPrintable(comicFolderName));
+
+    // THE CONTRACT: each film row carries ITS OWN group's stored vault id — the exact key
+    // Progress records resume state and watched marks under (video joins as kind "video",
+    // comics as kind "comic", both under their vault: id).
+    QCOMPARE(byFolderName.value(videoFolderName)
+                 .value(QStringLiteral("id")).toString(),
+             QStringLiteral("vault:mixed-video"));
+    QCOMPARE(byFolderName.value(comicFolderName)
+                 .value(QStringLiteral("id")).toString(),
+             QStringLiteral("vault:mixed-comic"));
+
+    // Container rows (a pure ancestor folder node) honestly carry NO id — there is no single
+    // file under an ancestor whose progress could be joined, and inventing one is how a wrong
+    // tile ends up wearing another file's tick. Proven on the nested fixture's "Shows" level:
+    // the level's rows are film children (id-bearing), while walking the ROOT of the flat
+    // fixture keeps every row id-bearing too — the ancestor case needs the intermediate node.
+    // (The flat fixture's root level IS the film level, so this asserts the positive on it.)
+    auto flat = buildFlatFixture(2);
+    QVERIFY(flat->library);
+    const QVariantList flatRows = flat->library->browseAt(flat->rootPath);
+    QCOMPARE(flatRows.size(), 2);
+    for (const QVariant& rv : flatRows) {
+        QVERIFY2(rv.toMap().value(QStringLiteral("id")).toString()
+                     .startsWith(QStringLiteral("vault:film-")),
+                 qPrintable(rv.toMap().value(QStringLiteral("id")).toString()));
+    }
 }
 
 // Vault UX uplift S9 — the downloads chip's three invokables were finished with zero callers;

@@ -30,6 +30,15 @@ Item {
     readonly property string nodeKey: row && row.key !== undefined ? row.key : ""
     readonly property string nodeType: row && row.nodeType !== undefined ? row.nodeType : ""
     readonly property int itemCount: (row && row.counts && row.counts.items !== undefined) ? row.counts.items : 0
+    // Vault ux uplift S6 — same live Progress facts as VaultPosterCard (joined page-side by
+    // VaultApi.joinRows in VaultPage.qml, never recomputed here). See that card's own block
+    // for the full contract; absent on plain seeded rows → no progress chrome.
+    readonly property real progressFraction: row && row.progressFraction !== undefined
+        ? Math.max(0, Math.min(1, Number(row.progressFraction) || 0)) : 0
+    readonly property bool progressFinished: !!(row && row.progressFinished)
+    readonly property bool watched: !!(row && row.watched) || card.progressFinished
+    readonly property bool showsProgressHairline: card.faceState === "settled" && !card.away
+        && !card.watched && card.progressFraction > 0
 
     readonly property string faceState: card.state === "resolving" ? "filename" : "settled"
     property real settledOpacity: card.faceState === "settled" ? 1 : 0
@@ -43,9 +52,13 @@ Item {
     signal identifyRequested(var row)
 
     // episode/clip nodes never badge a plain item count (design §6.3 — a season of Gintama is 49
-    // wide cards, not 49 posters, and none of them badges "1"); away/uncertain still apply.
-    readonly property bool showIndicator: card.faceState === "settled" && (card.away || card.state === "uncertain")
-    readonly property string indicatorKind: card.away ? "away" : (card.state === "uncertain" ? "uncertain" : "count")
+    // wide cards, not 49 posters, and none of them badges "1"); away/uncertain/watched still
+    // apply (vault ux uplift S6 adds the watched tick tier).
+    readonly property bool showIndicator: card.faceState === "settled"
+        && (card.away || card.state === "uncertain" || card.watched)
+    readonly property string indicatorKind: card.away ? "away"
+        : (card.state === "uncertain" ? "uncertain"
+        : (card.watched ? "watched" : "count"))
 
     objectName: "vaultBrowseCard_" + card.nodeKey
     width: cardWidth
@@ -149,6 +162,23 @@ Item {
                 }
             }
         }
+        // ── VAULT UX UPLIFT S6: the spec's gold progress hairline (the live resume position
+        //    along the art's bottom edge — same language as VaultPosterCard's own bar and the
+        //    Continue tile's hairline; never on an away tile). ──
+        Rectangle {
+            objectName: "vaultBrowseCard_" + card.nodeKey + "_progressTrack"
+            visible: card.showsProgressHairline
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            height: 3
+            color: Qt.rgba(1, 1, 1, 0.14)
+            Rectangle {
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_progressFill"
+                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                width: parent.width * card.progressFraction
+                color: theme.gold
+            }
+        }
+
         // The hit area is a sibling of settledLayer, not nested inside it: settledLayer is
         // `visible: opacity > 0`, and an invisible item receives no mouse events, so a MouseArea
         // living inside it would only ever be reachable once the card had already settled. That
@@ -183,6 +213,16 @@ Item {
                 text: "?"
                 color: theme.gold
                 font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+            }
+            // Vault ux uplift S6 — the watched tick (S3's durable mark): plain house ink,
+            // never gold (gold stays the uncertainty mark's alone).
+            Text {
+                objectName: "vaultBrowseCard_" + card.nodeKey + "_watchedTick"
+                visible: card.indicatorKind === "watched"
+                anchors.centerIn: parent
+                text: "✓"
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
             }
             // away glyph: a slashed circle — no icon asset invented for this, two primitives.
             Item {
