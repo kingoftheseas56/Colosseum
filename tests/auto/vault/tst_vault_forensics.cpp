@@ -365,6 +365,7 @@ private slots:
     void rescan_root_republishes_the_union();
     void forget_root_removes_only_that_root_and_republishes();
     void scan_ignore_needle_excludes_seeded_folder();
+    void roots_detail_surfaces_per_root_error_facts();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -968,6 +969,51 @@ void tst_vault_forensics::scan_ignore_needle_excludes_seeded_folder()
     QVERIFY(!sawSample);
     // The live browse projection agrees (its walk threads the same needle layer).
     QCOMPARE(fx->library->browseAt(fx->rootPath).size(), 2);
+}
+
+// ── vault ux uplift S11 — rootsDetail()'s per-root error facts ──
+// The rail's "needs attention" affordance reads errorCount/errorItems/watcherDegraded
+// STRAIGHT from rootsDetail(). The facts must reflect the index's stored error rows, never
+// an always-empty default: count total, the capped list's reason is the row's human detail
+// (falling back to the state name when the detail is empty, the store's own preference), and
+// a live registered root's watcherDegraded stays false.
+void tst_vault_forensics::roots_detail_surfaces_per_root_error_facts()
+{
+    auto fx = buildFlatFixture(2); // f0 + f1, both clean — publish() replaced their rows
+    QVERIFY(fx->library);
+
+    // Seed ONE errored row: f0 gains a recorded corrupt state + its human reason; f1 stays
+    // clean as the in-case control (its absence from the list proves per-row truth, not a
+    // per-root all-or-nothing).
+    auto rows = fx->index->rowsForRoot(fx->rootPath);
+    QCOMPARE(rows.size(), 2);
+    const int f0 = rows[0].path.contains(QStringLiteral("f0"), Qt::CaseInsensitive) ? 0 : 1;
+    rows[f0].errorState = QStringLiteral("corrupt");
+    rows[f0].errorDetail = QStringLiteral("archive contains no readable pages");
+    fx->index->publish(rows);
+
+    const QVariantList detail = fx->library->rootsDetail();
+    QCOMPARE(detail.size(), 1);
+    const QVariantMap row = detail.first().toMap();
+    QCOMPARE(row.value(QStringLiteral("errorCount")).toInt(), 1);
+    const QVariantList items = row.value(QStringLiteral("errorItems")).toList();
+    QCOMPARE(items.size(), 1);
+    QCOMPARE(items.first().toMap().value(QStringLiteral("reason")).toString(),
+             QStringLiteral("archive contains no readable pages"));
+    QCOMPARE(items.first().toMap().value(QStringLiteral("path")).toString(),
+             rows[f0].path);
+    // A live registered root is never degraded — the flag defaults false. (The red side of
+    // both watcher failure classes stays the watcher's own domain.)
+    QCOMPARE(row.value(QStringLiteral("watcherDegraded")).toBool(), false);
+
+    // Stored state with NO detail must fall back to the state name (never an empty reason).
+    rows[f0].errorDetail.clear();
+    fx->index->publish(rows);
+    const QVariantList items2 = fx->library->rootsDetail().first()
+                                    .toMap().value(QStringLiteral("errorItems")).toList();
+    QCOMPARE(items2.size(), 1);
+    QCOMPARE(items2.first().toMap().value(QStringLiteral("reason")).toString(),
+             QStringLiteral("corrupt"));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

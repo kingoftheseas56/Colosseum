@@ -139,6 +139,11 @@ bool VaultWatcher::isRootDegraded(const QString& rootPath) const
     return m_degraded.contains(normPath(rootPath));
 }
 
+bool VaultWatcher::isTreeWatchDegraded(const QString& rootPath) const
+{
+    return m_treeDegraded.contains(normPath(rootPath));
+}
+
 void VaultWatcher::watchRoot(const QString& root)
 {
     const QString norm = normPath(root);

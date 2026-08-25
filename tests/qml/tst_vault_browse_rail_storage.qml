@@ -299,6 +299,111 @@ TestCase {
         verify(editor.visible === false)
     }
 
+    // ── 8. S11: the amber attention dot marks affected roots only, never a clean one. The
+    //      rootsDetail() error facts arrive as modelData (errorCount/errorItems/watcherDegraded)
+    //      exactly as VaultPage.qml feeds the rail. ───────────────────────────────────────
+    function test_attention_dot_marks_affected_roots_only() {
+        testCase.rootsSeed = [
+            { path: "/media/a", name: "Archive", available: true, itemCount: 3, fileCount: 9,
+              errorCount: 2,
+              errorItems: [ { path: "/media/a/f0.mp4", reason: "corrupt" },
+                            { path: "/media/a/f1.mkv", reason: "no video track" } ] },
+            { path: "/media/b", name: "Films", available: true, itemCount: 5, fileCount: 5,
+              watcherDegraded: true },
+            { path: "/media/c", name: "Books", available: true, itemCount: 1, fileCount: 1 }
+        ]
+        wait(40)
+        // error facts root → dot visible (per-row scoping; a rail-wide findChild would hit row 0)
+        verify(row(0).hasNeedsAttention === true)
+        verify(row(1).hasNeedsAttention === true)
+        verify(row(2).hasNeedsAttention === false)
+        var dot = findChild(row(0), "vaultBrowseRailRootErrorDot")
+        verify(dot !== null)
+        verify(dot.visible === true)
+        dot = findChild(row(1), "vaultBrowseRailRootErrorDot")
+        verify(dot !== null)
+        verify(dot.visible === true)
+        // NEGATIVE CONTROL: the clean root carries no dot at all
+        dot = findChild(row(2), "vaultBrowseRailRootErrorDot")
+        verify(dot !== null)
+        verify(dot.visible === false)
+    }
+
+    // ── 9. S11: the overflow menu's attention line opens the plain "path · reason" list; the
+    //      capped list says "+ N more" honestly; the watcher-degraded consequence is stated;
+    //      Back returns to the actions; a clean root's menu shows no attention line at all. ──
+    function test_attention_list_lists_reasons_and_stays_quiet_when_clean() {
+        testCase.rootsSeed = [
+            { path: "/media/a", name: "Archive", available: true, itemCount: 3, fileCount: 9,
+              errorCount: 3,
+              errorItems: [ { path: "/media/a/f0.mp4", reason: "corrupt" },
+                            { path: "/media/a/f1.mkv", reason: "no video track" } ],
+              watcherDegraded: true },
+            { path: "/media/b", name: "Books", available: true, itemCount: 1, fileCount: 1 }
+        ]
+        wait(40)
+        const menu = findChild(rail, "vaultBrowseRailRowMenu")
+
+        // open row 0's menu: the count line is present and honest about the total
+        mouseMove(row(0), Math.min(30, row(0).width / 2), row(0).height / 2)
+        mouseClick(findChild(row(0), "vaultBrowseRailRowOverflow"))
+        tryVerify(function() { return menu.visible === true })
+        const attLine = findChild(menu, "vaultBrowseRailMenuAttention")
+        verify(attLine !== null)
+        verify(attLine.lineVisible === true)           // the row is armed, not just present
+        verify(findText(menu, "3 files need attention…") !== null)
+
+        // Clicking the count line arms the attention panel (the line's footprint is constant
+        // by design — see the line's own comment — so its slot cannot drift) and the list
+        // opens with both capped items.
+        mouseClick(attLine)
+        tryVerify(function() { return findChild(menu, "vaultBrowseRailAttentionTitle").visible === true })
+        const item0 = findChild(menu, "vaultBrowseRailAttentionItem_0")
+        const item1 = findChild(menu, "vaultBrowseRailAttentionItem_1")
+        verify(item0 !== null); verify(item1 !== null)
+        verify(findText(item0, "/media/a/f0.mp4") !== null)
+        verify(findText(item0, "corrupt") !== null)
+        verify(findText(item1, "no video track") !== null)
+        verify(findChild(menu, "vaultBrowseRailAttentionMore").visible === true)
+        verify(findText(menu, "+ 1 more") !== null)
+        const note = findChild(menu, "vaultBrowseRailAttentionWatcherNote")
+        verify(note !== null)
+        verify(note.visible === true)
+        verify(note.text.indexOf("rescanned") >= 0)
+
+        // Back returns to the actions (the cancel-not-close shape)
+        const back = findChild(menu, "vaultBrowseRailAttentionBack")
+        mouseClick(back)
+        tryVerify(function() { return findChild(menu, "vaultBrowseRailMenuRescan").visible === true })
+        verify(rail.attentionArmed === false)
+        verify(findChild(menu, "vaultBrowseRailAttentionTitle").visible === false)
+        tryVerify(function() { return menu.visible === true })
+        mouseMove(rail, rail.width / 2, rail.height - 1)   // park the pointer off the row
+        wait(20)
+
+        // NEGATIVE CONTROL: the clean root's menu offers no attention line at all. The row-0
+        // menu is still up (its panel covers row 1, so row 1's overflow can never hover) —
+        // close it via the panel's click-away first, then open the clean row's menu.
+        mouseClick(rail, 5, rail.height - 30)
+        tryVerify(function() { return menu.visible === false })
+        mouseMove(row(1), Math.min(30, row(1).width / 2), row(1).height / 2)
+        mouseClick(findChild(row(1), "vaultBrowseRailRowOverflow"))
+        tryVerify(function() { return menu.visible === true })
+        verify(findChild(menu, "vaultBrowseRailMenuAttention").lineVisible === false)
+        verify(findText(menu, "needs attention…") === null)
+    }
+
+    function findText(root, wanted) {
+        if (!root) return null
+        if (root.text === wanted) return root
+        const kids = root.children || []
+        for (let i = 0; i < kids.length; i++) {
+            const found = findText(kids[i], wanted)
+            if (found) return found
+        }
+        return null
+    }
+
     function findChild(root, wanted) {
         if (!root) return null
         if (root.objectName === wanted && wanted !== "") return root

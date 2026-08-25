@@ -7,7 +7,10 @@
 // uplift S9) the marquee "· N folders" count in the header and the synthetic downloads root's
 // quiet, always-last chip treatment with its remove action, and (S10) each row's overflow
 // menu — Rescan · "Forget this storage…" (confirm copy states files on disk are untouched) ·
-// the root's path — with the scan-ignore needle editor reachable from the footer.
+// the root's path — with the scan-ignore needle editor reachable from the footer, and (S11)
+// the quiet "needs attention" affordance: an amber dot on an affected root's row plus the
+// attention panel (a plain "path · reason" list from rootsDetail()'s per-root error facts)
+// opening from the same overflow menu, with the watcher-degraded consequence stated plainly.
 import QtQuick
 
 Item {
@@ -55,15 +58,30 @@ Item {
     // time (imperative mapping — no duplicated geometry math). Any roots repaint closes
     // the menu (a publish can invalidate the row).
     property var menuRow: null
+    // S11 — the menu's second state, the attention list (after the per-root "N need
+    // attention…" line in state 1). One armed flag per panel state, mutually exclusive,
+    // like forgetArmed/S10's confirm pane.
+    property bool attentionArmed: false
     property real menuRowY: 0
     function openRowMenu(row) {
         rail.forgetArmed = false
+        rail.attentionArmed = false
         rail.menuRow = row
         rail.menuRowY = row.mapToItem(rail, 0, 0).y
     }
     function closeRowMenu() {
         rail.menuRow = null
         rail.forgetArmed = false
+        rail.attentionArmed = false
+    }
+    // S11 — the per-root count line's label. Error facts first (the list has real reasons),
+    // then the watcher-only degradation. The … marks the line's nature: it OPENS the list.
+    readonly property string attentionLabel: {
+        if (!rail.menuRow) return ""
+        const n = rail.menuRow.errorCount || 0
+        if (n > 0)
+            return n + (n === 1 ? " file needs attention…" : " files need attention…")
+        return "Watcher needs attention…"
     }
 
     // S9 — the display order: user roots in rootsDetail() order, the synthetic downloads
@@ -171,6 +189,16 @@ Item {
                 readonly property bool isDownloads: rootRow.rootPath !== ""
                                                    && rootRow.rootPath === rail.downloadsRootPath
                 readonly property bool muted: rootRow.isDownloads
+                // S11 (vault ux uplift) — the per-root error facts rootsDetail() now carries:
+                // how many indexed rows under this root carry a stored error state, the capped
+                // {path, reason} list the attention panel shows, and the watcher-degraded flag
+                // (registration failure OR the 512-dir recursive-registration cap — only ONE
+                // consequence sentence, whichever class is true).
+                readonly property int errorCount: rootRow.modelData.errorCount || 0
+                readonly property var errorItems: rootRow.modelData.errorItems || []
+                readonly property bool watcherDegraded: !!rootRow.modelData.watcherDegraded
+                readonly property bool hasNeedsAttention: rootRow.errorCount > 0
+                                                          || rootRow.watcherDegraded
                 width: col.width
                 height: 40
 
@@ -217,6 +245,19 @@ Item {
                             border.color: theme.inkDimmer
                             Rectangle { anchors.fill: parent; radius: 4; color: "transparent"
                                         border.width: 1.5; border.color: Qt.rgba(0.08, 0.08, 0.10, 1) }
+                        }
+                        // S11 — the "needs attention" amber dot: the availability dot's opposite
+                        // corner, amber (NEVER gold — gold is the S6 progress/uncertainty mark's
+                        // own), only while this root carries stored error facts or a degraded
+                        // watcher. Exposed through `hasNeedsAttention` so a harness can pin the
+                        // state without scraping the paint.
+                        Rectangle {
+                            objectName: "vaultBrowseRailRootErrorDot"
+                            width: 7; height: 7; radius: 3.5
+                            anchors.horizontalCenter: parent.right
+                            anchors.top: parent.top
+                            color: "#dc9e39"
+                            visible: rootRow.hasNeedsAttention
                         }
                     }
 
@@ -470,7 +511,8 @@ Item {
             x: 3
             width: rail.width - 6
             height: menuColumn.visible ? menuColumn.implicitHeight + 16
-                                       : confirmColumn.implicitHeight + 16
+                    : confirmColumn.visible ? confirmColumn.implicitHeight + 16
+                    : attentionColumn.implicitHeight + 16
             y: Math.min(rail.menuRowY + 42, rail.height - height - 6)
             radius: 12
             color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
@@ -480,7 +522,7 @@ Item {
             // state 1 — the actions
             Column {
                 id: menuColumn
-                visible: !forgetArmed
+                visible: !forgetArmed && !attentionArmed
                 anchors.fill: parent
                 anchors.margins: 8
                 spacing: 2
@@ -516,13 +558,16 @@ Item {
                         color: forgetMa.containsMouse ? theme.ink : theme.inkDim
                         font.family: theme.ui; font.pixelSize: 13
                     }
-                    MouseArea {
-                        id: forgetMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: forgetArmed = true
-                    }
+                        MouseArea {
+                            id: forgetMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                rail.attentionArmed = false
+                                forgetArmed = true
+                            }
+                        }
                 }
                 Rectangle { width: parent.width; height: 1; color: theme.edge; opacity: 0.6 }
                 // the root's own path — the menu's one honest fact line, never clickable
@@ -534,6 +579,39 @@ Item {
                     color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: 11
                     topPadding: 8; bottomPadding: 6; leftPadding: 10
+                }
+                // S11 — the "needs attention" count line: LAST row of the menu, present only
+                // while THIS root carries stored error facts or a degraded watcher; opens the
+                // attention list (the plain "path · reason" panel — state 3). Amber on hover
+                // markers it as a non-destructive, look-first affordance. The row's FOOTPRINT
+                // is constant (34px, always in the column): a positioner never re-flows an
+                // invisible-conditioned item after its first layout (measured: an item that
+                // comes alive after menu open keeps its initial slot and sits ON an action
+                // row), so the geometry is stable and only the content arms.
+                Item {
+                    objectName: "vaultBrowseRailMenuAttention"
+                    readonly property bool lineVisible: rail.menuRow
+                                                        ? rail.menuRow.hasNeedsAttention : false
+                    width: parent.width; height: 34
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: attLine.lineVisible
+                        text: rail.attentionLabel
+                        color: attMa.containsMouse ? "#dc9e39" : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 13
+                    }
+                    MouseArea {
+                        id: attMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        enabled: attLine.lineVisible
+                        onClicked: {
+                            rail.forgetArmed = false
+                            rail.attentionArmed = true
+                        }
+                    }
                 }
             }
 
@@ -597,6 +675,104 @@ Item {
                             onClicked: rail.forgetArmed = false
                         }
                     }
+                }
+            }
+
+            // state 3 — the attention list (S11): the plain "path · reason" panel for THIS
+            // root's stored error facts. Path first facts, the reason dimmer under it; the
+            // capped list from rootsDetail() (errorItems, 8) plus an honest "+ N more" for
+            // the reste of errorCount, the watcher-degraded consequence sentence, and a
+            // Back that returns to the actions — the same cancel-not-close shape the
+            // confirm pane uses.
+            Column {
+                id: attentionColumn
+                visible: attentionArmed
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 2
+                Text {
+                    objectName: "vaultBrowseRailAttentionTitle"
+                    text: "NEEDS ATTENTION"
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.4
+                                              font.weight: Font.DemiBold
+                    bottomPadding: 4
+                }
+                Repeater {
+                    model: rail.menuRow ? rail.menuRow.errorItems : []
+                    delegate: Row {
+                        id: attItem
+                        required property var modelData
+                        required property int index
+                        objectName: "vaultBrowseRailAttentionItem_" + attItem.index
+                        width: attentionColumn.width
+                        spacing: 8
+                        Text {
+                            width: parent.width * 0.42
+                            elide: Text.ElideMiddle
+                            text: attItem.modelData.path || ""
+                            color: theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 11
+                        }
+                        Text {
+                            width: parent.width * 0.58 - 8
+                            text: attItem.modelData.reason || ""
+                            color: theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+                Text {
+                    objectName: "vaultBrowseRailAttentionMore"
+                    visible: rail.menuRow
+                             && (rail.menuRow.errorCount || 0) > (rail.menuRow.errorItems || []).length
+                    width: parent.width
+                    text: "+ " + ((rail.menuRow ? (rail.menuRow.errorCount || 0) : 0)
+                                  - ((rail.menuRow ? rail.menuRow.errorItems : []) || []).length)
+                          + " more"
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 11
+                }
+                Text {
+                    objectName: "vaultBrowseRailAttentionWatcherNote"
+                    visible: rail.menuRow ? !!rail.menuRow.watcherDegraded : false
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: rail.menuRow && rail.menuRow.watcherDegraded
+                          ? "Watcher degraded — changes in this root can be missed until it is rescanned."
+                          : ""
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 11; lineHeight: 1.25
+                    topPadding: 4
+                }
+                Rectangle { width: parent.width; height: 1; color: theme.edge; opacity: 0.6 }
+                Item {
+                    objectName: "vaultBrowseRailAttentionBack"
+                    width: parent.width; height: 30
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "‹ Back"
+                        color: attBackMa.containsMouse ? theme.ink : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 12
+                    }
+                    MouseArea {
+                        id: attBackMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: rail.attentionArmed = false
+                    }
+                }
+                Text {
+                    objectName: "vaultBrowseRailAttentionPath"
+                    width: parent.width
+                    elide: Text.ElideMiddle
+                    text: rail.menuRow ? rail.menuRow.rootPath : ""
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 10
+                    topPadding: 4; bottomPadding: 2; leftPadding: 10
                 }
             }
         }

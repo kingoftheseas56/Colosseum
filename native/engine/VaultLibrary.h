@@ -148,7 +148,12 @@ public:
     // away) instead of the grid reading as empty (design §4.7 "nothing disappears").
     Q_INVOKABLE QVariantList browseAt(const QString& rootOrPath) const;
     // rootsDetail(): one row per confirmed/synthetic, non-hidden root — {path, name, available,
-    // itemCount, fileCount} — the rail's data source once Slice 5 wires it.
+    // itemCount, fileCount} — the rail's data source once Slice 5 wires it. Vault ux uplift
+    // S11 extends each row with the "needs attention" facts: `errorCount` (rows under the root
+    // carrying any recorded error state), `errorItems` (capped [{path, reason}] — the plain
+    // "path · reason" list the rail's attention panel shows; 8 cap, total stays in errorCount),
+    // and `watcherDegraded` (root-watch registration failure OR the recursive-registration
+    // 512-dir over-budget class — both state the rescan-on-open consequence).
     Q_INVOKABLE QVariantList rootsDetail() const;
     // recentArrivals(limit): the newest-mtime index groups, most-recent first — the carousel's
     // data source once Slice 5 wires it. Row shape mirrors browseAt's film/show rows.

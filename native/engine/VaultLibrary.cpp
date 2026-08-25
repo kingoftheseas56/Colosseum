@@ -795,8 +795,42 @@ QVariantList VaultLibrary::rootsDetail() const
         const QString name = QFileInfo(path).fileName();
         row.insert(QStringLiteral("name"), name.isEmpty() ? path : name);
         row.insert(QStringLiteral("available"), QDir(path).exists());
-        row.insert(QStringLiteral("fileCount"), m_index ? m_index->rowsForRoot(path).size() : 0);
+        const QList<VaultIndex::FileRow> rootRows
+            = m_index ? m_index->rowsForRoot(path) : QList<VaultIndex::FileRow>();
+        row.insert(QStringLiteral("fileCount"), rootRows.size());
         row.insert(QStringLiteral("itemCount"), browseAt(path).size());
+        // Vault ux uplift S11 — per-root error facts, the "needs attention" affordance's data.
+        // One walk supplies both counts: `errorCount` is the total rows carrying any recorded
+        // error state (corrupt/rejected — the store's admissionDetail/errorDetail rows); the
+        // capped `errorItems` list is the plain "path · reason" list the rail's attention panel
+        // shows (capped so one bad root with thousands of rows cannot build a million-triangle
+        // list; the count stays total). Reasons are never fabricated: a row whose ErrorDetail
+        // is empty but whose admission verdict is a rejection still lists the verdict's state
+        // name as its reason (the store's own human text preference falls back the same way).
+        // `watcherDegraded` folds BOTH watcher failure classes a root can carry — root-watch
+        // registration failure (QFSW limits / network drives) and the recursive-registration
+        // over-budget class (the 512-dir cap, m_treeDegraded); the rail states the
+        // rescan-on-open consequence for whichever is true.
+        int errorCount = 0;
+        QVariantList errorItems;
+        const int kItemCap = 8;
+        const bool watcherDegraded = m_watcher && (m_watcher->isRootDegraded(path)
+                                                   || m_watcher->isTreeWatchDegraded(path));
+        for (const VaultIndex::FileRow& r : rootRows) {
+            if (r.errorState.isEmpty())
+                continue;
+            ++errorCount;
+            if (errorItems.size() < kItemCap) {
+                QVariantMap item;
+                item.insert(QStringLiteral("path"), r.path);
+                const QString reason = !r.errorDetail.isEmpty() ? r.errorDetail : r.errorState;
+                item.insert(QStringLiteral("reason"), reason);
+                errorItems.append(item);
+            }
+        }
+        row.insert(QStringLiteral("errorCount"), errorCount);
+        row.insert(QStringLiteral("errorItems"), errorItems);
+        row.insert(QStringLiteral("watcherDegraded"), watcherDegraded);
         out.append(row);
     }
     return out;

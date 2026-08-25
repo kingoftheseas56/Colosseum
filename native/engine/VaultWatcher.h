@@ -61,6 +61,13 @@ public:
     // Per-root degraded flag (the plan's watcher-failure fallback trigger).
     Q_INVOKABLE bool isRootDegraded(const QString& rootPath) const;
 
+    // Vault ux uplift S11: a root whose recursive registration EXCEEDED the per-root directory
+    // budget (kMaxWatchedDirectoriesPerRoot, VaultWatcher.cpp — the "512-dir cap") was only
+    // partially watched. Reading it is how the browse face's "needs attention" affordance can
+    // state the rescan-on-open consequence plainly. Transient refresh() state, read the same
+    // way isRootDegraded is.
+    Q_INVOKABLE bool isTreeWatchDegraded(const QString& rootPath) const;
+
     // ── The synchronous arrival seam (the testable core) ──
     struct Landing {
         int landedCount = 0;          // rows actually upserted (the exact arrival set)
