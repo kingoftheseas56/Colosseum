@@ -59,7 +59,39 @@ QVariantMap copyEntry(const VaultIndex::FileRow& row)
     m.insert(QStringLiteral("sizeText"), humanSize(row.size));
     m.insert(QStringLiteral("where"), whereTextFor(row));
     m.insert(QStringLiteral("away"), row.away);
+    // Honest failure (vault ux uplift S8): the copy's durable admission verdict travels with
+    // the entry, plus the ONE quiet factual line the sheet prints under a rejected/errored
+    // copy — the recorded human reason (admissionDetail, e.g. "no video track") when the
+    // verdict is a rejection, else any extraction errorDetail; empty for a healthy copy.
+    // A rejection that somehow recorded no detail still names its verdict rather than
+    // staying silent — the sheet must never show less truth than the engine holds.
+    QString statusDetail;
+    if (row.admissionVerdict.startsWith(QLatin1String("Rejected")))
+        statusDetail = !row.admissionDetail.isEmpty() ? row.admissionDetail : row.admissionVerdict;
+    else if (!row.errorDetail.isEmpty())
+        statusDetail = row.errorDetail;
+    m.insert(QStringLiteral("admissionVerdict"), row.admissionVerdict);
+    m.insert(QStringLiteral("statusDetail"), statusDetail);
     return m;
+}
+
+// Seconds -> "1h 47m" / "48m" — the same floor-based grammar as the app's existing duration
+// formatter (qml/AccountActivityFormat.js durationText, its own worked example "37h 24m";
+// VaultFolderView.qml's metaFor does the same Math.floor inline). That formatter lives in JS
+// and is unreachable from this C++ projection, so this is its twin, not a new format. Empty
+// for anything under one printable minute — the caller omits the line entirely rather than
+// render the "-1" unprobed sentinel or a "0m" stub (ux uplift S8's rule).
+QString runtimeTextFromSec(double durationSec)
+{
+    if (durationSec <= 0.0)
+        return QString();
+    const int totalMinutes = static_cast<int>(durationSec / 60.0); // trunc == floor for > 0
+    const int hours = totalMinutes / 60;
+    const int minutes = totalMinutes % 60;
+    if (hours <= 0 && minutes <= 0)
+        return QString();
+    return hours > 0 ? QStringLiteral("%1h %2m").arg(hours).arg(minutes)
+                     : QStringLiteral("%1m").arg(minutes);
 }
 
 } // namespace
@@ -112,6 +144,14 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
                state == QLatin1String("identified") ? QStringLiteral("identity certain")
              : state == QLatin1String("uncertain")  ? QStringLiteral("identity uncertain")
                                                      : QStringLiteral("not yet identified"));
+
+    // Runtime (vault ux uplift S8) — the clicked copy's own measured duration (VaultEnricher's
+    // ffprobe pass, S5, admitted video rows). The key is OMITTED while unknown (durationSec
+    // still at its -1 sentinel, or a sub-minute file) so the sheet never renders "-1"/"0m" —
+    // an extension of the shape, never a reshape; existing consumers never read it.
+    const QString runtimeText = runtimeTextFromSec(primary.durationSec);
+    if (!runtimeText.isEmpty())
+        out.insert(QStringLiteral("runtimeText"), runtimeText);
 
     QVariantList copies;
     QString bestQuality;

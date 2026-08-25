@@ -24,6 +24,13 @@ namespace VaultBrowseDetail {
 // the "one video file, one group" convention VaultScanner already keeps). Returns an empty map
 // with `found: false` when the key resolves to no rows (a stale click after a rescan). Honors
 // the same user `scanIgnore` needle layer every other Vault walk does.
+//
+// Vault ux uplift S8 additions (EXTENSIONS of the shape, never a reshape): `runtimeText`
+// ("1h 47m" / "48m", the AccountActivityFormat.durationText grammar's C++ twin) — key present
+// ONLY when the clicked copy's durationSec holds a printable minute count; and each copy entry
+// now carries `admissionVerdict` + a composed `statusDetail` (the rejection's human
+// admissionDetail, else any errorDetail; empty for a healthy copy) so the sheet can state a
+// rejected/errored copy's reason instead of a bare verdict code.
 QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& scanIgnore = {});
 
 } // namespace VaultBrowseDetail

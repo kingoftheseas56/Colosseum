@@ -24,6 +24,10 @@ private slots:
     void twoRootSameIdentityYieldsTwoCopiesOneSheet();
     void staleKeyReturnsFoundFalse();
     void groupedExtrasRowsNeverCountAsCopies();
+    // ── vault ux uplift S8: the detail sheet tells the truth it already knows ──
+    void runtimeFormatsHumanAndIsAbsentWhileUnknown();
+    void rejectedCopyExposesItsAdmissionDetail();
+    void afterIdentifyAgainAdoptedReadsIdentifiedAmbiguousStaysHonest();
 
 private:
     static VaultIndex::FileRow fileRow(const QString& id, const QString& rootPath,
@@ -240,6 +244,175 @@ void VaultBrowseDetailTest::groupedExtrasRowsNeverCountAsCopies()
     QCOMPARE(copies.size(), 1);
     QCOMPARE(copies.first().toMap().value(QStringLiteral("path")).toString(), main.path);
     QCOMPARE(detail.value(QStringLiteral("playPath")).toString(), main.path);
+}
+
+// ── S8: runtime ────────────────────────────────────────────────────────────────────────────
+// durationSec (S5's VaultEnricher ffprobe pass) reaches the sheet as a pre-formatted
+// `runtimeText` — "1h 47m" / "48m", the AccountActivityFormat.durationText grammar (its JS is
+// unreachable from this C++ projection, so detailFor owns a floor-based twin). The key is
+// ABSENT while unknown: the -1 unprobed sentinel, 0, and sub-minute files must never render
+// ("-1" / "0m" are banned outright by the slice rule).
+void VaultBrowseDetailTest::runtimeFormatsHumanAndIsAbsentWhileUnknown()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    struct Case { double durationSec; const char* expect; }; // expect == nullptr means ABSENT
+    const Case cases[] = {
+        { 6420.0, "1h 47m" },   // the slice's own worked example
+        { 2880.0, "48m" },      // minutes-only, no "0h" prefix
+        { 3600.0, "1h 0m" },    // exact hour keeps its minutes (the JS formatter's own shape)
+        { 6479.9, "1h 47m" },   // floor, never rounds into the next minute
+        { 59.0, nullptr },      // sub-minute: never a "0m" stub
+        { 0.0, nullptr },       // zero is unknown, not a runtime
+        { -1.0, nullptr },      // the unprobed sentinel FileRow ships with
+    };
+    for (const Case& c : cases) {
+        VaultIndex::FileRow row = fileRow(QStringLiteral("vault:runtime-probe"),
+            QStringLiteral("D:/root-r"), QStringLiteral("D:/root-r/Runtime Probe"),
+            QStringLiteral("D:/root-r/Runtime Probe/probe.mkv"),
+            QStringLiteral("Runtime Probe"));
+        row.durationSec = c.durationSec;
+        QVERIFY2(index.publish({row}), qPrintable(QString::number(c.durationSec)));
+        const QVariantMap detail = VaultBrowseDetail::detailFor(&index, row.subtreePath);
+        QVERIFY2(detail.value(QStringLiteral("found")).toBool(),
+                 qPrintable(QString::number(c.durationSec)));
+        if (c.expect) {
+            QVERIFY2(detail.contains(QStringLiteral("runtimeText")),
+                     qPrintable(QString::number(c.durationSec)));
+            QCOMPARE(detail.value(QStringLiteral("runtimeText")).toString(),
+                     QString::fromLatin1(c.expect));
+        } else {
+            QVERIFY2(!detail.contains(QStringLiteral("runtimeText")),
+                     qPrintable(QString::number(c.durationSec)));
+            QVERIFY(detail.value(QStringLiteral("runtimeText")).toString().isEmpty());
+        }
+        // publish() is a full replace, so the next iteration's single-row publish resets the
+        // index on its own — no explicit clear needed.
+    }
+}
+
+// ── S8: honest failure ─────────────────────────────────────────────────────────────────────
+// A rejected copy carries its human `admissionDetail` (MediaAdmissionProbe's own strings:
+// "no video track" / "timeout" / …) into the sheet as `statusDetail`, beside the bare
+// `admissionVerdict` the COPIES table used to stop at. A healthy copy confesses nothing, and a
+// copy with only an extraction errorDetail still states it — never less truth than the engine
+// holds.
+void VaultBrowseDetailTest::rejectedCopyExposesItsAdmissionDetail()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    VaultIndex::FileRow healthy = fileRow(QStringLiteral("vault:healthy"), QStringLiteral("D:/root-a"),
+        QStringLiteral("D:/root-a/Film (2021)"), QStringLiteral("D:/root-a/Film (2021)/film.mkv"),
+        QStringLiteral("Film"));
+    healthy.identityId = QStringLiteral("imdb:tt0000001");
+    healthy.identityTitle = QStringLiteral("Film");
+    healthy.identityState = QStringLiteral("adopted");
+
+    VaultIndex::FileRow rejected = fileRow(QStringLiteral("vault:rejected"), QStringLiteral("E:/root-b"),
+        QStringLiteral("E:/root-b/Film (2021)"), QStringLiteral("E:/root-b/Film (2021)/film.mkv"),
+        QStringLiteral("Film 2021"));
+    rejected.identityId = healthy.identityId;
+    rejected.identityTitle = healthy.identityTitle;
+    rejected.identityState = QStringLiteral("adopted");
+    rejected.admissionVerdict = QStringLiteral("RejectedNoVideo");
+    rejected.admissionDetail = QStringLiteral("no video track"); // the probe's own wording
+
+    VaultIndex::FileRow errored = fileRow(QStringLiteral("vault:errored"), QStringLiteral("F:/root-c"),
+        QStringLiteral("F:/root-c/Film (2021)"), QStringLiteral("F:/root-c/Film (2021)/film.mkv"),
+        QStringLiteral("Film"));
+    errored.identityId = healthy.identityId;
+    errored.identityTitle = healthy.identityTitle;
+    errored.identityState = QStringLiteral("adopted");
+    // errorDetail travels only with a non-empty errorState (VaultIndex's own persist contract,
+    // and always how VaultEnricher writes it — never a detail without its state).
+    errored.errorState = QStringLiteral("corrupt");
+    errored.errorDetail = QStringLiteral("cover extract failed"); // extraction error, no verdict
+
+    QVERIFY(index.publish({healthy, rejected, errored}));
+
+    const QVariantMap detail = VaultBrowseDetail::detailFor(&index, healthy.subtreePath);
+    QVERIFY(detail.value(QStringLiteral("found")).toBool());
+    QCOMPARE(detail.value(QStringLiteral("copiesHeld")).toInt(), 3);
+
+    const QVariantList copies = detail.value(QStringLiteral("copies")).toList();
+    QCOMPARE(copies.size(), 3);
+    QHash<QString, QVariantMap> byPath;
+    for (const QVariant& c : copies)
+        byPath.insert(c.toMap().value(QStringLiteral("path")).toString(), c.toMap());
+
+    const QVariantMap healthyEntry = byPath.value(healthy.path);
+    QCOMPARE(healthyEntry.value(QStringLiteral("admissionVerdict")).toString(), QString());
+    QCOMPARE(healthyEntry.value(QStringLiteral("statusDetail")).toString(), QString());
+
+    const QVariantMap rejectedEntry = byPath.value(rejected.path);
+    QCOMPARE(rejectedEntry.value(QStringLiteral("admissionVerdict")).toString(),
+             QStringLiteral("RejectedNoVideo"));
+    QCOMPARE(rejectedEntry.value(QStringLiteral("statusDetail")).toString(),
+             QStringLiteral("no video track"));
+
+    const QVariantMap erroredEntry = byPath.value(errored.path);
+    QCOMPARE(erroredEntry.value(QStringLiteral("admissionVerdict")).toString(), QString());
+    QCOMPARE(erroredEntry.value(QStringLiteral("statusDetail")).toString(),
+             QStringLiteral("cover extract failed"));
+}
+
+// ── S8: what the sheet reads after an "Identify again" (VaultLibrary::identifyGroup) ────────
+// identifyGroup() itself is matchGroup → applyGroup/recordAmbiguous composition, proven at the
+// identifier layer (tst_vault_identifier.cpp:327-384: one match adopts, several durably record
+// ambiguity, zero record nothing). This proves the OTHER half the sheet owns: the map fields
+// detailFor renders after each outcome — an adopted group reads "identified", an ambiguous
+// group stays HONEST as "uncertain" naming its candidate count, and a user-suppressed group
+// never silently re-adopts.
+void VaultBrowseDetailTest::afterIdentifyAgainAdoptedReadsIdentifiedAmbiguousStaysHonest()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    // identifyGroup's adopt branch landed: identityState "adopted", identityId set.
+    VaultIndex::FileRow adopted = fileRow(QStringLiteral("vault:adopted"), QStringLiteral("D:/root-a"),
+        QStringLiteral("D:/root-a/Akira"), QStringLiteral("D:/root-a/Akira/akira.cbz"),
+        QStringLiteral("Akira"));
+    adopted.kind = QStringLiteral("comic");
+    adopted.identityId = QStringLiteral("gcd:3636");
+    adopted.identityTitle = QStringLiteral("Akira");
+    adopted.identityState = QStringLiteral("adopted");
+
+    // identifyGroup's ambiguous branch landed: recordAmbiguous wrote the count, NO adoption.
+    VaultIndex::FileRow ambiguous = fileRow(QStringLiteral("vault:ambiguous"), QStringLiteral("D:/root-a"),
+        QStringLiteral("D:/root-a/Masterpiece"), QStringLiteral("D:/root-a/Masterpiece/m.cbz"),
+        QStringLiteral("Masterpiece"));
+    ambiguous.kind = QStringLiteral("comic");
+    ambiguous.identityState = QStringLiteral("ambiguous");
+    ambiguous.identityCandidateCount = 2;
+
+    QVERIFY(index.publish({adopted, ambiguous}));
+
+    const QVariantMap adoptedDetail = VaultBrowseDetail::detailFor(&index, adopted.subtreePath);
+    QCOMPARE(adoptedDetail.value(QStringLiteral("identityState")).toString(),
+             QStringLiteral("identified"));
+    QCOMPARE(adoptedDetail.value(QStringLiteral("identityLabel")).toString(),
+             QStringLiteral("identity certain"));
+    QCOMPARE(adoptedDetail.value(QStringLiteral("displayTitle")).toString(),
+             QStringLiteral("Akira"));
+
+    const QVariantMap ambiguousDetail = VaultBrowseDetail::detailFor(&index, ambiguous.subtreePath);
+    QCOMPARE(ambiguousDetail.value(QStringLiteral("identityState")).toString(),
+             QStringLiteral("uncertain"));
+    QCOMPARE(ambiguousDetail.value(QStringLiteral("identityLabel")).toString(),
+             QStringLiteral("identity uncertain"));
+    QVERIFY(ambiguousDetail.value(QStringLiteral("evidence")).toString()
+                .contains(QStringLiteral("2 possible matches")));
+    // Stayed honest: no invented identity leaked into the title.
+    QCOMPARE(ambiguousDetail.value(QStringLiteral("displayTitle")).toString(),
+             QStringLiteral("Masterpiece"));
 }
 
 QTEST_MAIN(VaultBrowseDetailTest)

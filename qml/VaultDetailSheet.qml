@@ -9,8 +9,9 @@
 // Lanista bridge structurally cannot see a secondary window (ledger law). Seedable, like its
 // siblings: it takes `detail` (VaultLibrary.browseDetail()'s returned map) and emits
 // backRequested / playRequested(path) / revealRequested(path) / identifyRequested(key) /
-// unidentifyRequested(key) / hideRequested(key) — VaultPage wires those to VaultLibrary + the
-// existing openMediaRequested path. So a Qt Quick Test drives it with a seeded map, no app.
+// unidentifyRequested(key) / hideRequested(key) / identifyAgainRequested(key) — VaultPage wires
+// those to VaultLibrary + the existing openMediaRequested path. So a Qt Quick Test drives it
+// with a seeded map, no app.
 import QtQuick
 import QtQuick.Controls
 
@@ -21,9 +22,11 @@ Item {
 
     // ── inputs ──
     // Shape: VaultLibrary.browseDetail()'s QVariantMap — { found, key, displayTitle, year,
-    // identityState, identityLabel, copiesHeld, coverRef, bestQualityLine, copies:[{path,
-    // rootPath, quality, sizeBytes, sizeText, where, away}], companions:[string], extras:[{title,
-    // path}], evidence, ignoredCount, playPath }.
+    // identityState, identityLabel, runtimeText (ux uplift S8 — PRESENT ONLY when the clicked
+    // copy's duration is known: "1h 47m" / "48m", never "-1"/"0m"), copiesHeld, coverRef,
+    // bestQualityLine, copies:[{path, rootPath, quality, sizeBytes, sizeText, where, away,
+    // admissionVerdict, statusDetail (S8 — a rejected/errored copy's human reason; empty when
+    // healthy)}], companions:[string], extras:[{title, path}], evidence, ignoredCount, playPath }.
     property var detail: ({})
     property string identityStateOfRow: "" // the grid row's own state, for the Identify/Un-identify choice
 
@@ -34,6 +37,15 @@ Item {
     signal identifyRequested(string key)
     signal unidentifyRequested(string key)
     signal hideRequested(string key)
+    // "Identify again" (vault ux uplift S8) — a one-shot re-run of the conservative auto gate
+    // for THIS group (VaultLibrary::identifyGroup(groupKey): adopt when exactly one match,
+    // durably record the ambiguity and stay honest when several). Deliberately NOT wired here:
+    // VaultPage.qml owns the handler (a different slice's file). The intended wiring is
+    //   onIdentifyAgainRequested: (key) => {
+    //       if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.identifyGroup(key)
+    //   }
+    // — the same guard shape its sibling handlers below on this sheet already use.
+    signal identifyAgainRequested(string groupKey)
 
     readonly property bool found: !!(detail && detail.found)
     readonly property var copies: (detail && detail.copies) ? detail.copies : []
@@ -111,11 +123,21 @@ Item {
                         asynchronous: true; cache: true
                     }
                     Text {
+                        // Typographic-title fallback (ux uplift S8) — the cards' own permanent
+                        // floor (VaultPosterCard's settled layer: real title, centered, wrapped,
+                        // elided) instead of the literal placeholder word "artwork". Never an
+                        // empty frame; real art (S5's file:// poster refs) paints on top.
+                        objectName: "vaultBrowseSheetPosterTitle"
                         anchors.centerIn: parent
                         visible: !(sheet.detail && sheet.detail.coverRef)
-                        text: "artwork"
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                        width: parent.width - 24
+                        text: (sheet.detail && sheet.detail.displayTitle) ? sheet.detail.displayTitle : ""
+                        color: theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 13
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        elide: Text.ElideRight
+                        maximumLineCount: 4
                     }
                 }
 
@@ -138,6 +160,15 @@ Item {
                         Text {
                             visible: !!(sheet.detail && sheet.detail.year > 0)
                             text: (sheet.detail && sheet.detail.year > 0) ? String(sheet.detail.year) : ""
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                        }
+                        Text {
+                            // Runtime (ux uplift S8) — durationSec as the engine formatted it
+                            // ("1h 47m"); the engine OMITS the key while unknown, so no "-1"/"0m"
+                            // can ever reach this line.
+                            objectName: "vaultBrowseSheetRuntime"
+                            visible: !!(sheet.detail && sheet.detail.runtimeText)
+                            text: (sheet.detail && sheet.detail.runtimeText) ? sheet.detail.runtimeText : ""
                             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
                         }
                         Text {
@@ -166,11 +197,12 @@ Item {
                         Repeater {
                             model: sheet.copies
                             delegate: Rectangle {
+                                id: copyDelegate
                                 required property var modelData
                                 required property int index
                                 objectName: "vaultBrowseSheetCopy_" + index
                                 width: parent.width
-                                height: copyRow.implicitHeight + 24
+                                height: copyCol.implicitHeight + 24
                                 radius: 10
                                 color: Qt.rgba(1, 1, 1, 0.042)
                                 border.width: 1; border.color: theme.edge
@@ -181,28 +213,48 @@ Item {
                                 readonly property string sizeText: modelData.sizeText || ""
                                 readonly property bool away: !!modelData.away
 
-                                Row {
-                                    id: copyRow
+                                Column {
+                                    id: copyCol
                                     anchors.left: parent.left; anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.leftMargin: 14; anchors.rightMargin: 14
-                                    spacing: 14
-                                    Text {
-                                        text: (modelData.quality && modelData.quality.length) ? modelData.quality
-                                              : modelData.away ? "Drive not connected" : "Quality unknown"
-                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 13
-                                        width: 130; elide: Text.ElideRight
+                                    spacing: 5
+
+                                    Row {
+                                        id: copyRow
+                                        width: parent.width
+                                        spacing: 14
+                                        Text {
+                                            text: (modelData.quality && modelData.quality.length) ? modelData.quality
+                                                  : modelData.away ? "Drive not connected" : "Quality unknown"
+                                            color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                            width: 130; elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            text: modelData.where || ""
+                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                            width: parent.width - 130 - 90 - 28
+                                            elide: Text.ElideMiddle
+                                        }
+                                        Text {
+                                            text: modelData.sizeText || ""
+                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                                            width: 90; horizontalAlignment: Text.AlignRight
+                                        }
                                     }
+
+                                    // Honest failure (ux uplift S8): a rejected/errored copy's
+                                    // own recorded reason, quiet and factual — never a bare
+                                    // verdict code. Empty for a healthy copy; the Column drops
+                                    // the invisible line, so nothing shifts.
                                     Text {
-                                        text: modelData.where || ""
-                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                                        width: parent.width - 130 - 90 - 28
-                                        elide: Text.ElideMiddle
-                                    }
-                                    Text {
-                                        text: modelData.sizeText || ""
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                                        width: 90; horizontalAlignment: Text.AlignRight
+                                        objectName: "vaultBrowseSheetCopyStatus_" + copyDelegate.index
+                                        width: parent.width
+                                        visible: !!(copyDelegate.modelData.statusDetail
+                                                    && copyDelegate.modelData.statusDetail.length)
+                                        text: visible ? copyDelegate.modelData.statusDetail : ""
+                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                                        wrapMode: Text.WordWrap
                                     }
                                 }
                             }
@@ -344,6 +396,23 @@ Item {
                             MouseArea { id: identifyMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.identifyRequested(sheet.detail.key || "") }
+                        }
+
+                        Text {
+                            // "Identify again" (ux uplift S8) — the one-shot conservative retry
+                            // beside the manual picker: VaultLibrary::identifyGroup() re-runs the
+                            // certainty gate for this one group (auto-adopt on a single match,
+                            // durably record ambiguity and stay honest on several). The handler
+                            // is VaultPage.qml's, not this sheet's — see the signal's own comment.
+                            objectName: "vaultBrowseSheetIdentifyAgain"
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Identify again"
+                            visible: sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"
+                            color: identifyAgainMa.containsMouse ? theme.ink : theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 13
+                            MouseArea { id: identifyAgainMa; anchors.fill: parent; hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: sheet.identifyAgainRequested(sheet.detail.key || "") }
                         }
 
                         Text {
