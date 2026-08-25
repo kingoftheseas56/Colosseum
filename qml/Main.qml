@@ -1017,7 +1017,6 @@ Window {
         var page = vaultLayer.item
         if (!page) { win.closeVaultPage(); return }
         if (page.detailSheetVisible) { page.closeDetailSheet(); return }
-        if (page.folderDetailOpen) { page.closeFolder(); return }
         // Vault ux uplift S14: Escape leaves the search pseudo-level first — it is the most
         // transient view state (the field itself can never see the key: the window-context
         // Shortcut is matched before the focus item, the S2 lesson).

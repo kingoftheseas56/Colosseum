@@ -8,7 +8,6 @@ import QtQuick
 import QtQuick.Controls
 import QtCore
 import "VaultApi.js" as VaultApi
-import "TheatreApi.js" as TheatreApi
 import "VaultBrowseState.js" as VaultBrowseState
 
 Item {
@@ -452,7 +451,7 @@ Item {
         // separately and honestly: a committed publish re-projects the level, a Progress
         // lifecycle write (open/close/minimize/mark) re-joins it — and the silent 5s video
         // tick bumps NEITHER, so the join can never reintroduce the Continue-repaint stutter
-        // cascade (the same discipline folderDetailRows above already follows).
+        // cascade.
         // Vault ux uplift S12: the same projection now carries the level's sort —
         // projectBrowseRows() = browseAt(path, browseSortParam) + join + the QML-side
         // "recent" ordering. root.sortMode is itself a dependency: choosing a sort
@@ -752,49 +751,11 @@ Item {
     }
     onHasConfirmedStorageChanged: if (root.hasConfirmedStorage && root.crumbStack.length === 0) root.initBrowseState()
 
-    // ---- Slice 12 dress: the in-world tab bar (All · Comics · Books · Video · Folders) ----
-    property string currentTab: "all"
-    readonly property var tabModel: [
-        { key: "all", label: "All" }, { key: "comic", label: "Comics" },
-        { key: "book", label: "Books" }, { key: "video", label: "Video" },
-        { key: "folders", label: "Folders" }, { key: "hidden", label: "Hidden" }
-    ]
-    property var autoFilmEnrichmentRequested: ({})
-    function requestAutoFilmEnrichment(list) {
-        if (!list) return list
-        for (var i = 0; i < list.length; i++) {
-            var tile = list[i]
-            if (!tile || tile.identSource !== "IMDB" || !tile.identityId) continue
-            var key = String(tile.key || tile.identityId)
-            if (root.autoFilmEnrichmentRequested[key]) continue
-            root.autoFilmEnrichmentRequested[key] = true
-            root.requestProgressiveFilmIdentity(tile)
-        }
-        return list
-    }
-    function seriesFor(kind) {
-        var list = (typeof VaultLibrary !== "undefined")
-            ? (VaultLibrary.revision, VaultLibrary.series(kind)) : []
-        return kind === "video" ? root.requestAutoFilmEnrichment(list) : list
-    }
-    // Kinds whose shelf shows under the current tab; Folders is a flat all-kinds gallery instead.
-    function shelfKinds() {
-        if (root.currentTab === "comic" || root.currentTab === "book" || root.currentTab === "video")
-            return [root.currentTab]
-        if (root.currentTab === "folders") return []
-        if (root.currentTab === "hidden") return []
-        return ["comic", "book", "video"]
-    }
-    function allSeries() {
-        return root.seriesFor("comic").concat(root.seriesFor("book")).concat(root.seriesFor("video"))
-    }
-    function hiddenSeries() {
-        return (typeof VaultLibrary !== "undefined") ? (VaultLibrary.revision, VaultLibrary.hiddenSeries()) : []
-    }
-    function revealTile(data) {
-        if (typeof VaultLibrary !== "undefined" && data && data.subtreePath)
-            VaultLibrary.revealInExplorer(data.subtreePath)
-    }
+    // (Phase-4 G3 ruling, 2026-08-25: the retired tab-bar vocabulary, the old shelf tile
+    // components, and the Slice-13 folder-detail overlay were deleted — fully built, never
+    // reachable in production, and ruled dead rather than left to rot. The rail + breadcrumb
+    // + grid own the face; the detail sheet owns "what do I physically hold".)
+
     // An EPUB's identity comes from the file itself — there is no offline book catalogue for
     // VaultIdentifyDialog's "book" branch to search, so it renders this pre-filled candidate or
     // nothing at all. Extracted from identifyTile() (unchanged logic) so the browse face's
@@ -813,191 +774,12 @@ Item {
             year: Number(book.year || 0)
         }
     }
-    function identifyTile(data) {
-        if (!data) return
-        identifyDialog.groupKey = data.key || ""
-        identifyDialog.titleText = data.title || ""
-        identifyDialog.kind = data.kind || ""
-        identifyDialog.embeddedIdentity = identifyDialog.kind === "book"
-            ? root.bookEmbeddedIdentity(identifyDialog.groupKey, data.title) : ({})
-        identifyDialog.feedback = ""
-        identifyDialog.open()
-    }
-    function requestProgressiveFilmIdentity(tile) {
-        if (!tile || tile.identSource !== "IMDB" || !tile.identityId) return
-        var imdbId = String(tile.identityId).replace(/^imdb:/, "")
-        function applyMeta(meta) {
-            if (!meta) return
-            var synopsis = String(meta.description || meta.overview || meta.plot || "")
-            var poster = TheatreApi.normalizeArtUrl(meta.poster || meta.cover || "")
-            if (typeof VaultLibrary !== "undefined")
-                VaultLibrary.enrichIdentity(tile.key || "", synopsis, poster)
-            var facts = root.folderDetailFacts || ({})
-            facts.synopsis = synopsis
-            facts.synopsisSource = synopsis.length ? "Cinemeta" : (facts.synopsisSource || "IMDB")
-            facts.coverUrl = poster || facts.coverUrl || ""
-            root.folderDetailFacts = facts
-            if (folderLayer.item) {
-                folderLayer.item.synopsis = facts.synopsis || ""
-                folderLayer.item.synopsisSource = facts.synopsisSource || ""
-                if (poster) folderLayer.item.coverUrl = poster
-            }
-        }
-        TheatreApi.loadMeta("movie", imdbId, function(meta) {
-            if (meta) applyMeta(meta)
-            else TheatreApi.loadMeta("series", imdbId, applyMeta)
-        })
-    }
-
     // ---- Slice 14: the Vault Continue rail — the app's own local reads/watches, resumable. Live
     //      from Progress.recent filtered to vault: ids (catalogue recents keep their own rails, §9).
     //      Re-derives on Progress.revision (a lifecycle write), never the silent 5s video tick. ----
     readonly property var continueItems: (root.populated && typeof Progress !== "undefined")
         ? VaultApi.continueRail(Progress, (Progress.revision, 18), root.admissionById)
         : []
-
-    // ---- Slice 13: the folder detail overlay. Vault-local — the shelves stay instantiated
-    //      underneath (hidden), so their scroll position survives open → Back for free. A row
-    //      snapshot is seeded on open (not re-queried while a background scan runs). ----
-    property bool folderDetailOpen: false
-    property var folderDetailFacts: ({})
-    // The static index snapshot (files as they sit on disk); seeded on open, NOT re-queried while a
-    // background scan runs — the S13 snapshot discipline. The live read-state join happens below.
-    property var folderDetailBaseRows: []
-    // Rows the folder view actually renders: the index snapshot joined against live Progress so the
-    // read tick, gold hairline, and last-read sort reflect real reads. Re-joins on Progress.revision
-    // — a lifecycle write (open/close/minimize) — so a comic read then Back updates the tick; it does
-    // NOT re-join on the silent 5s video tick (recordSilent bumps no revision), so the join can never
-    // reintroduce the Continue-repaint stutter cascade (Preflight's reactivity hazard).
-    readonly property var folderDetailRows: (root.folderDetailOpen && typeof Progress !== "undefined")
-        ? VaultApi.joinRows(Progress, (Progress.revision, root.folderDetailBaseRows))
-        : root.folderDetailBaseRows
-    function openFolder(tile) {
-        if (!tile) return
-        root.folderDetailFacts = tile
-        root.folderDetailBaseRows = (typeof VaultLibrary !== "undefined")
-            ? VaultLibrary.items(tile.kind, tile.key) : []
-        root.folderDetailOpen = true
-        root.requestProgressiveFilmIdentity(tile)
-    }
-    function closeFolder() { root.folderDetailOpen = false }
-    // Push the re-joined rows into the live folder view when Progress changes under it (e.g. after a
-    // read while the folder view sits occluded beneath the reader). onLoaded seeds the first model.
-    onFolderDetailRowsChanged: if (folderLayer.item) folderLayer.item.model = root.folderDetailRows
-
-    // Shared shelf tile: a real comic cover when the row carries one (image://comiccover), else the
-    // honest kind-icon on a gradient (book/video art is a later slice). Reused by every shelf + Folders.
-    Component {
-        id: vaultTileLegacyComp
-        Column {
-            id: tile
-            required property var modelData
-            objectName: "vaultTile_" + (modelData.key || "")
-            readonly property bool away: Number(modelData.awayCount || 0) > 0
-            readonly property bool hasErrors: Number(modelData.errorCount || 0) > 0
-            spacing: 8
-            Rectangle {
-                id: coverBox
-                width: 150; height: 208; radius: 12; clip: true
-                border.width: 1; border.color: theme.edge
-                opacity: tile.away ? 0.48 : 1.0
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(0.16, 0.14, 0.20, 1) }
-                    GradientStop { position: 1.0; color: Qt.rgba(0.055, 0.060, 0.090, 1) }
-                }
-                Image { // real cover art (comics after enrichment) — filling the whole tile
-                    anchors.fill: parent
-                    visible: !!modelData.coverUrl
-                    source: modelData.coverUrl || ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true; cache: true
-                }
-                Image { // honest kind icon when there is no cover yet (book/video, un-enriched comics)
-                    anchors.centerIn: parent; width: 34; height: 34; opacity: 0.4
-                    visible: !modelData.coverUrl
-                    source: modelData.kind === "book" ? "../assets/icons/book-library.svg"
-                          : modelData.kind === "video" ? "../assets/icons/projector-theatre.svg"
-                          : "../assets/icons/comic-book.svg"
-                    fillMode: Image.PreserveAspectFit
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    visible: tile.away || tile.hasErrors
-                    color: Qt.rgba(0.04, 0.04, 0.04, tile.away ? 0.54 : 0.38)
-                    Text {
-                        anchors.centerIn: parent
-                        text: tile.away ? "Unavailable" : "Needs attention"
-                        color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
-                    }
-                }
-                // kind badge, top-left
-                Rectangle {
-                    anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 8
-                    radius: 99; height: 20; width: badgeT.implicitWidth + 16
-                    color: Qt.rgba(0, 0, 0, 0.62); border.width: 1; border.color: theme.edge
-                    Text {
-                        id: badgeT; anchors.centerIn: parent
-                        text: modelData.kind === "comic" ? "COMIC" : modelData.kind === "book" ? "BOOK" : "VIDEO"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
-                    }
-                }
-                // scrim so the overlaid title reads over any art
-                Rectangle {
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 76
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: "transparent" }
-                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.82) }
-                    }
-                }
-                // title, overlaid at the foot of the cover
-                Text {
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    anchors.leftMargin: 9; anchors.rightMargin: 9; anchors.bottomMargin: 9
-                    text: modelData.title || ""
-                    color: "#f2f2f0"; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
-                    elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
-                    style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.9)
-                }
-                MouseArea {   // open the folder detail (Slice 13)
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    enabled: !tile.away
-                    onClicked: root.openFolder(modelData)
-                }
-            }
-            Text {
-                text: (modelData.count || 0) + ((modelData.count === 1) ? " item" : " items")
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
-            }
-        }
-    }
-
-    // The extracted tile is the production delegate; the legacy component above remains inert as
-    // a short-lived source reference while the shelf transition is review-gated.
-    Component {
-        id: vaultTileComp
-        VaultTile {
-            onFolderRequested: (data) => root.openFolder(data)
-            onOpenRequested: (data) => root.openFolder(data)
-            onRevealRequested: (data) => root.revealTile(data)
-            onIdentifyRequested: (data) => root.identifyTile(data)
-            onUnidentifyRequested: (data) => {
-                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.unidentifyGroup(data.key || "")
-            }
-            onReshelveRequested: (kind, data) => {
-                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.reshelveGroup(data.key || "", kind)
-            }
-            onHideRequested: (data) => {
-                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.hideGroup(data.key || "")
-            }
-            onRestoreRequested: (data) => {
-                if (typeof VaultLibrary !== "undefined" && data) VaultLibrary.restoreGroup(data.key || "")
-            }
-        }
-    }
 
     // A Vault Continue tile: cover (or honest kind-icon on a gradient), title, a gold resume
     // hairline, and a click that reopens through the shared LocalLaunch path (openMediaRequested).
@@ -1117,8 +899,8 @@ Item {
         // face (Slice 5) is the sibling `browseFace` Item below, which needs its own
         // bounded-height layout for the grid's virtualization rather than living inside this
         // unbounded outer Flickable.
-        visible: !root.folderDetailOpen && !root.hasConfirmedStorage
-        enabled: !root.folderDetailOpen && !root.hasConfirmedStorage
+        visible: !root.hasConfirmedStorage
+        enabled: !root.hasConfirmedStorage
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight + 150
@@ -1251,7 +1033,7 @@ Item {
     Item {
         id: browseFace
         objectName: "vaultBrowseFace"
-        visible: root.hasConfirmedStorage && !root.folderDetailOpen
+        visible: root.hasConfirmedStorage
         enabled: visible
         anchors.fill: parent
         focus: root.hasConfirmedStorage
@@ -1265,7 +1047,7 @@ Item {
             // (the grid's own key handling doesn't consume them, so they bubble here; a
             // focused text field consumes "/" itself, so the shortcut never re-triggers
             // while typing). Multi-select/bulk actions stay out of scope.
-            if (!root.searchViewActive && !root.folderDetailOpen
+            if (!root.searchViewActive
                 && ((event.key === Qt.Key_Slash && !(event.modifiers & ~Qt.KeypadModifier))
                     || ((event.modifiers & Qt.ControlModifier)
                         && event.key === Qt.Key_F))) {
@@ -2027,7 +1809,7 @@ Item {
                                  ? (VaultLibrary.scanProgressChanged, VaultLibrary.scanTotal) : 0
         property string rootPath: (typeof VaultLibrary !== "undefined")
                                   ? (VaultLibrary.scanProgressChanged, VaultLibrary.scanningRoot) : ""
-        visible: scanning && !root.folderDetailOpen
+        visible: scanning
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 44
@@ -2100,13 +1882,12 @@ Item {
         }
     }
 
-    // The in-world tab bar (All · Comics · Books · Video · Folders · Hidden) is retired from the
-    // populated face by Slice 5 — the rail + breadcrumb + grid replace it. `WorldTabBar` itself
-    // is untouched (other pages still use it); `currentTab`/`tabModel` stay declared above
-    // (dead but harmless) since `seriesFor`/`shelfKinds`/`allSeries` are also unused-but-kept.
+    // The in-world tab bar (All · Comics · Books · Video · Folders · Hidden) was retired from the
+    // populated face by Slice 5 (the rail + breadcrumb + grid replaced it), and its vocabulary
+    // (`currentTab`/`tabModel`/`seriesFor`/`shelfKinds`/`allSeries`) was deleted outright by the
+    // Phase-4 G3 ruling (2026-08-25). `WorldTabBar` itself is untouched — other pages still use it.
 
     // ---- top chrome: minimize · fullscreen · power (same vocabulary as Settings/Downloads) ----
-    // z above the folder overlay so the window controls stay usable inside the detail view.
     Item {
         anchors.top: parent.top
         anchors.right: parent.right
@@ -2131,7 +1912,6 @@ Item {
     }
     BackAction {
         variant: "capsule"; tip: "Back"
-        visible: !root.folderDetailOpen   // the folder detail owns Back while it is up
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.topMargin: 21
@@ -2152,7 +1932,7 @@ Item {
         objectName: "vaultCard"
         anchors.fill: parent
         z: 30
-        visible: ((typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false) && !root.folderDetailOpen
+        visible: ((typeof VaultLibrary !== "undefined") ? VaultLibrary.cardVisible : false)
         model: (typeof VaultLibrary !== "undefined") ? (VaultLibrary.candidateChanged, VaultLibrary.candidate) : []
         rootPath: (typeof VaultLibrary !== "undefined") ? VaultLibrary.candidateRoot : ""
         onShelveRequested: (ov) => { if (typeof VaultLibrary !== "undefined") VaultLibrary.confirmRoot(rootPath, ov) }
@@ -2209,51 +1989,6 @@ Item {
             if (typeof Progress === "undefined" || !vaultId) return
             if (watched) Progress.setWatchedMark(vaultId, true)
             else Progress.clearWatchedMark(vaultId)
-        }
-    }
-
-    // ── Slice 13: the folder detail overlay (z above the shelves + card, below the window chrome).
-    //    The shelves stay instantiated (hidden) underneath so Back returns to the same scroll spot. ──
-    Loader {
-        id: folderLayer
-        anchors.fill: parent
-        z: 40
-        active: root.folderDetailOpen
-        source: "VaultFolderView.qml"
-        onLoaded: {
-            item.backdrop = root.backdrop
-            item.title = root.folderDetailFacts.title || ""
-            item.kind = root.folderDetailFacts.kind || "comic"
-            item.coverUrl = root.folderDetailFacts.coverUrl || ""
-            item.rootPath = root.folderDetailFacts.subtreePath || ""
-            item.identityId = root.folderDetailFacts.identityId || ""
-            item.identitySource = root.folderDetailFacts.identSource || ""
-            item.identityWorld = root.folderDetailFacts.identityWorld || ""
-            item.synopsis = root.folderDetailFacts.synopsis || ""
-            item.synopsisSource = root.folderDetailFacts.synopsisSource || ""
-            item.model = root.folderDetailRows
-            item.viewWorldRequested.connect(function(identity) { root.viewWorldRequested(identity) })
-        }
-    }
-    Connections {
-        target: folderLayer.item
-        function onBackRequested() { root.closeFolder() }
-        function onRevealRequested(path) {
-            if (typeof VaultLibrary !== "undefined") VaultLibrary.revealInExplorer(path)
-        }
-        // Slice 14 (open half): a row click opens that file; the preview "Continue" door opens the
-        // first file that already carries progress (the reader resumes itself at the saved page —
-        // the Vault-side read tick / hairline / rail join is the seam-map half, not this one).
-        function onOpenRequested(row) {
-            if (row && row.path) root.openMediaRequested(row.path)
-        }
-        function onContinueRequested() {
-            // Resume the file with the freshest real Progress; fall back to the first row only if
-            // nothing carries progress (defensive — the door reads "Continue" only when some does).
-            var rows = root.folderDetailRows || []
-            var target = VaultApi.resumeTarget(rows)
-            if (!target && rows.length) target = rows[0]
-            if (target && target.path) root.openMediaRequested(target.path)
         }
     }
 

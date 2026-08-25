@@ -4,8 +4,8 @@
 // believes the identity it does. Deliberately never cast, synopsis, or related titles; the locked
 // design gives that away to Theatre in three separate places.
 //
-// A SAME-WINDOW surface (a plain Item overlay inside VaultPage, the VaultConfirmCard/
-// VaultFolderView convention), never a Window/Popup that would own its own platform window — the
+// A SAME-WINDOW surface (a plain Item overlay inside VaultPage, the VaultConfirmCard
+// convention), never a Window/Popup that would own its own platform window — the
 // Lanista bridge structurally cannot see a secondary window (ledger law). Seedable, like its
 // siblings: it takes `detail` (VaultLibrary.browseDetail()'s returned map) and emits
 // backRequested / playRequested(path) / revealRequested(path) / identifyRequested(key) /
