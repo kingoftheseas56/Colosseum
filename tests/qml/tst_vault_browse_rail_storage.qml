@@ -8,6 +8,9 @@ import "../../qml" as Colosseum
 // (roots + downloadsRootPath + rootFolderCount in, signals out; VaultPage owns the
 // VaultLibrary calls, so this harness pins the component contract, not the façade — the C++
 // half of "remove hides + republishes" is proved in tst_vault_forensics.cpp).
+// Vault UX uplift S10 — the same rail's overflow menu (Rescan · Forget this storage… with
+// its files-untouched confirm copy · the root's path) and the footer's ignore-patterns
+// editor (seeded field, parsed Save, quiet Cancel), same seeded-signal contract.
 TestCase {
     id: testCase
     name: "VaultBrowseRailStorage"
@@ -18,6 +21,7 @@ TestCase {
     property var rootsSeed: []
     property string downloadsSeed: "/downloads"
     property int countSeed: 0
+    property var ignoreSeed: []
 
     Colosseum.VaultBrowseRail {
         id: rail
@@ -32,6 +36,10 @@ TestCase {
     }
     SignalSpy { id: removeSpy; signalName: "removeDownloadsRequested" }
     SignalSpy { id: selectedSpy; signalName: "rootSelected" }
+    // S10
+    SignalSpy { id: rescanSpy; signalName: "rescanRequested" }
+    SignalSpy { id: forgetSpy; signalName: "forgetConfirmed" }
+    SignalSpy { id: ignoreSpy; signalName: "scanIgnoreSaved" }
 
     function init() {
         // Park the pointer off-target first (same hygiene as tst_vault_home_widget): a stale
@@ -40,16 +48,27 @@ TestCase {
         testCase.rootsSeed = []
         testCase.downloadsSeed = "/downloads"
         testCase.countSeed = 0
+        testCase.ignoreSeed = []
         rail.expanded = true
+        rail.scanIgnore = testCase.ignoreSeed
         removeSpy.target = rail
         removeSpy.clear()
         selectedSpy.target = rail
         selectedSpy.clear()
+        rescanSpy.target = rail
+        rescanSpy.clear()
+        forgetSpy.target = rail
+        forgetSpy.clear()
+        ignoreSpy.target = rail
+        ignoreSpy.clear()
         wait(20)
     }
     function cleanup() {
         removeSpy.target = null
         selectedSpy.target = null
+        rescanSpy.target = null
+        forgetSpy.target = null
+        ignoreSpy.target = null
     }
 
     function row(i) { return findChild(rail, "vaultBrowseRailRoot_" + i) }
@@ -186,6 +205,98 @@ TestCase {
         rail.expanded = true
         wait(40)
         verify(countText.visible === true)
+    }
+
+    // ── 6. S10: the row overflow menu — Rescan fires with the row's path; Forget arms a
+    //      confirm whose copy states files on disk are untouched; Forget confirm fires;
+    //      Cancel disarms without firing; the root's own path is stated, not clickable. ──
+    function test_overflow_menu_rescan_and_forget_confirm_flow() {
+        testCase.rootsSeed = [
+            { path: "/media/a", name: "Archive", available: true, itemCount: 3, fileCount: 9 }
+        ]
+        wait(40)
+        const menu = findChild(rail, "vaultBrowseRailRowMenu")
+        verify(menu !== null)
+        verify(menu.visible === false)
+
+        // open via the row's hover-revealed ⋮ handle (scoped: every row carries one)
+        const overflow = findChild(row(0), "vaultBrowseRailRowOverflow")
+        verify(overflow !== null)
+        mouseMove(row(0), Math.min(30, row(0).width / 2), row(0).height / 2)
+        tryVerify(function() { return overflow.visible === true })
+        mouseClick(overflow)
+        tryVerify(function() { return menu.visible === true })
+
+        // the menu states the root's own path as its fact line
+        const pathText = findChild(menu, "vaultBrowseRailMenuPath")
+        verify(pathText !== null)
+        compare(pathText.text, "/media/a")
+
+        // Rescan fires with exactly the row's path and closes the menu
+        mouseClick(findChild(menu, "vaultBrowseRailMenuRescan"))
+        compare(rescanSpy.count, 1)
+        compare(rescanSpy.signalArguments[0][0], "/media/a")
+        tryVerify(function() { return menu.visible === false })
+
+        // Forget arms the confirm; its copy MUST say files on disk are untouched
+        mouseClick(overflow)
+        tryVerify(function() { return menu.visible === true })
+        mouseClick(findChild(menu, "vaultBrowseRailMenuForget"))
+        const copy = findChild(menu, "vaultBrowseRailMenuCopy")
+        verify(copy !== null)
+        verify(copy.visible === true)
+        verify(copy.text.indexOf("untouched") >= 0)
+        compare(forgetSpy.count, 0)                 // arming alone never forgets
+
+        // Cancel disarms back to the actions, still without forgetting
+        mouseClick(findChild(menu, "vaultBrowseRailMenuCancel"))
+        tryVerify(function() { return findChild(menu, "vaultBrowseRailMenuRescan").visible === true })
+        compare(forgetSpy.count, 0)
+
+        // The confirmed Forget fires with the row's path and closes the menu
+        mouseClick(findChild(menu, "vaultBrowseRailMenuForget"))
+        mouseClick(findChild(menu, "vaultBrowseRailMenuConfirm"))
+        compare(forgetSpy.count, 1)
+        compare(forgetSpy.signalArguments[0][0], "/media/a")
+        tryVerify(function() { return menu.visible === false })
+    }
+
+    // ── 7. S10: the ignore-patterns editor — footer opens it seeded, Save parses the
+    //      comma list into needles, Cancel saves nothing. ────────────────────────────────
+    function test_ignore_editor_save_and_cancel() {
+        testCase.rootsSeed = [
+            { path: "/media/a", name: "Archive", available: true, itemCount: 3, fileCount: 9 }
+        ]
+        testCase.ignoreSeed = ["sample"]
+        rail.scanIgnore = testCase.ignoreSeed
+        wait(40)
+        const editor = findChild(rail, "vaultBrowseRailIgnoreEditor")
+        verify(editor !== null)
+        verify(editor.visible === false)
+
+        mouseClick(findChild(rail, "vaultBrowseRailIgnore"))
+        tryVerify(function() { return editor.visible === true })
+        const field = findChild(editor, "vaultBrowseRailIgnoreField")
+        verify(field !== null)
+        compare(field.text, "sample")               // seeded from the current needles
+
+        field.text = "sample, extras;season pass,,  "   // messy input on purpose
+        mouseClick(findChild(editor, "vaultBrowseRailIgnoreSave"))
+        compare(ignoreSpy.count, 1)
+        const needles = ignoreSpy.signalArguments[0][0]
+        compare(needles.length, 3)
+        compare(needles[0], "sample")
+        compare(needles[1], "extras")
+        compare(needles[2], "season pass")
+        tryVerify(function() { return editor.visible === false })
+
+        // Cancel: no second save, editor closed, nothing emitted
+        mouseClick(findChild(rail, "vaultBrowseRailIgnore"))
+        tryVerify(function() { return editor.visible === true })
+        field.text = "never"
+        mouseClick(findChild(editor, "vaultBrowseRailIgnoreCancel"))
+        compare(ignoreSpy.count, 1)
+        verify(editor.visible === false)
     }
 
     function findChild(root, wanted) {

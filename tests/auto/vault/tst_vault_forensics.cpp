@@ -361,6 +361,9 @@ private slots:
     void projection_does_not_mutate_files();
     void browse_projection_carries_stored_kind();
     void downloads_root_chip_remove_hides_and_republishes();
+    void rescan_root_republishes_the_union();
+    void forget_root_removes_only_that_root_and_republishes();
+    void scan_ignore_needle_excludes_seeded_folder();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -799,6 +802,118 @@ void tst_vault_forensics::downloads_root_chip_remove_hides_and_republishes()
     QVERIFY(fx->library->revision() > revisionBefore);
     // The surviving user root came through the union republish intact.
     QCOMPARE(fx->index->rowsForRoot(fx->rootPath).size(), 1);
+}
+
+// ── vault ux uplift S10 — storage management (rescanRoot / forgetRoot / setScanIgnore) ──
+// These are the first cases in this file that drive the REAL census through VaultLibrary's
+// own publish path (rescanRoot → publishAllConfirmed → publishConfirmed), so each waits on
+// VaultScanner::indexPublished rather than hand-publishing rows. The tiny fixture trees keep
+// each census near-instant; the 10s waits are machine-load headroom, not expected latency.
+
+// NEGATIVE CONTROLS (performed live for the S10 gate, 2026-08-25): making forgetRoot's body a
+// bare `return` reds exactly forget_root_removes_only_that_root_and_republishes (hasRoot still
+// true, rows still present, no publish) while every other case stays green; removing
+// setScanIgnore's publishAllConfirmed() call reds exactly
+// scan_ignore_needle_excludes_seeded_folder (the INDEX keeps 3 rows — the durable exclusion
+// never happened) with the rescan/forget cases untouched. Restoring both returns the suite to
+// green.
+void tst_vault_forensics::rescan_root_republishes_the_union()
+{
+    auto fx = buildMultiRootFixture(2);
+    QVERIFY(fx->library);
+    QVariantList rootsDetail = fx->library->rootsDetail();
+    QCOMPARE(rootsDetail.size(), 2);
+    const QString a = rootsDetail[0].toMap().value(QStringLiteral("path")).toString();
+    const QString b = rootsDetail[1].toMap().value(QStringLiteral("path")).toString();
+    QVERIFY(!a.isEmpty() && !b.isEmpty() && a != b);
+
+    // The user-facing rescan: ONE root requested, the UNION republished (never one root
+    // alone — VaultScanner's whole-index replace would wipe the sibling).
+    QSignalSpy published(fx->scanner.get(), &VaultScanner::indexPublished);
+    fx->library->rescanRoot(a);
+    QVERIFY2(published.wait(10000), "rescanRoot must republish");
+    QCOMPARE(fx->index->rowsForRoot(a).size(), 1);
+    QCOMPARE(fx->index->rowsForRoot(b).size(), 1); // the sibling rode the same publish
+    QVERIFY(fx->library->revision() > 0);
+
+    // Guard: an unknown path is a no-op, never a scan of an arbitrary folder. Give any
+    // (wrong) async publish a fair chance to fire, then hold it to zero.
+    published.clear();
+    fx->library->rescanRoot(QDir(fx->tmp.path()).filePath(QStringLiteral("not-a-root")));
+    QTest::qWait(250);
+    QCOMPARE(published.count(), 0);
+}
+
+void tst_vault_forensics::forget_root_removes_only_that_root_and_republishes()
+{
+    auto fx = buildMultiRootFixture(2);
+    QVERIFY(fx->library);
+    QVariantList rootsDetail = fx->library->rootsDetail();
+    const QString a = rootsDetail[0].toMap().value(QStringLiteral("path")).toString();
+    const QString b = rootsDetail[1].toMap().value(QStringLiteral("path")).toString();
+
+    // Bootstrap the REAL census (hand-built fixture rows carry invented ids; a real publish
+    // derives identity-stable ones the preservation assertion below can compare across
+    // republishes).
+    QSignalSpy published(fx->scanner.get(), &VaultScanner::indexPublished);
+    fx->library->rescanRoot(a);
+    QVERIFY(published.wait(10000));
+    const auto bRows = fx->index->rowsForRoot(b);
+    QCOMPARE(bRows.size(), 1);
+    const QString bId = bRows.first().id;
+    QVERIFY(!bId.isEmpty());
+    // The user's intent state for the SURVIVING root (a hidden item) must ride through.
+    fx->config->setHidden(bId, true);
+    QVERIFY(fx->config->isHidden(bId));
+
+    fx->library->forgetRoot(a);
+    QVERIFY2(published.wait(10000), "forget must republish the surviving roots' union");
+
+    // The forgotten root: config row gone, rows gone — and its FILES on disk untouched.
+    QVERIFY(!fx->config->hasRoot(a));
+    QVERIFY(fx->index->rowsForRoot(a).isEmpty());
+    QVERIFY(QDir(a).exists());
+    // The surviving root: row + identity + hidden intent all preserved by the union publish.
+    QVERIFY(fx->config->hasRoot(b));
+    QCOMPARE(fx->library->rootCount(), 1);
+    QCOMPARE(fx->library->rootsDetail().size(), 1);
+    const auto bRowsAfter = fx->index->rowsForRoot(b);
+    QCOMPARE(bRowsAfter.size(), 1);
+    QCOMPARE(bRowsAfter.first().id, bId);      // identity preserved across the republish
+    QVERIFY(fx->config->isHidden(bId));        // hidden state preserved
+}
+
+void tst_vault_forensics::scan_ignore_needle_excludes_seeded_folder()
+{
+    auto fx = buildFlatFixture(1); // one confirmed root already holding f0/movie.mp4
+    QVERIFY(fx->library);
+    // Seed the needle folder + one control sibling.
+    const QString sampleDir = QDir(fx->rootPath).filePath(QStringLiteral("sample"));
+    const QString filmDir = QDir(fx->rootPath).filePath(QStringLiteral("Film"));
+    QVERIFY(QDir().mkpath(sampleDir));
+    QVERIFY(QDir().mkpath(filmDir));
+    writeStub(QDir(sampleDir).filePath(QStringLiteral("movie.mp4")));
+    writeStub(QDir(filmDir).filePath(QStringLiteral("movie.mp4")));
+
+    QSignalSpy published(fx->scanner.get(), &VaultScanner::indexPublished);
+    fx->library->rescanRoot(fx->rootPath); // no needles yet: all three folders land
+    QVERIFY(published.wait(10000));
+    QCOMPARE(fx->index->rowsForRoot(fx->rootPath).size(), 3);
+
+    // The façade passthrough persists the needle AND republishes — the exclusion must be
+    // DURABLE (the index dropped the folder's rows), not just the live projection skipping
+    // it during a walk.
+    fx->library->setScanIgnore(QStringList{QStringLiteral("sample")});
+    QVERIFY2(published.wait(10000), "setScanIgnore must republish with the new needles");
+    QCOMPARE(fx->library->scanIgnore(), QStringList{QStringLiteral("sample")});
+    QCOMPARE(fx->index->rowsForRoot(fx->rootPath).size(), 2);
+    bool sawSample = false;
+    for (const auto& row : fx->index->rowsForRoot(fx->rootPath))
+        if (row.subtreePath.contains(QStringLiteral("sample"), Qt::CaseInsensitive))
+            sawSample = true;
+    QVERIFY(!sawSample);
+    // The live browse projection agrees (its walk threads the same needle layer).
+    QCOMPARE(fx->library->browseAt(fx->rootPath).size(), 2);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

@@ -958,6 +958,20 @@ Item {
                 onRemoveDownloadsRequested: {
                     if (typeof VaultLibrary !== "undefined") VaultLibrary.removeDownloadsRoot()
                 }
+                // S10 (vault ux uplift): the row overflow menu's verbs + the needle editor,
+                // all straight façade calls (QML paints, C++ decides — the union-republish
+                // and never-delete laws live in VaultLibrary, not here).
+                scanIgnore: (typeof VaultLibrary !== "undefined")
+                            ? (VaultLibrary.revision, VaultLibrary.scanIgnore()) : []
+                onRescanRequested: (path) => {
+                    if (typeof VaultLibrary !== "undefined" && path) VaultLibrary.rescanRoot(path)
+                }
+                onForgetConfirmed: (path) => {
+                    if (typeof VaultLibrary !== "undefined" && path) VaultLibrary.forgetRoot(path)
+                }
+                onScanIgnoreSaved: (needles) => {
+                    if (typeof VaultLibrary !== "undefined") VaultLibrary.setScanIgnore(needles)
+                }
                 onRootSelected: (path) => {
                     let name = path
                     for (let i = 0; i < root.browseRootsDetail.length; ++i) {

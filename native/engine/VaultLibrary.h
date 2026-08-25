@@ -16,6 +16,7 @@
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -208,6 +209,28 @@ public:
     // Watcher-failure fallback (Slice 15): silently rescan any confirmed root whose watcher
     // is degraded, the next time the Vault opens. Publishes the UNION (never one root alone).
     Q_INVOKABLE void rescanDegradedRoots();
+    // ── storage management (vault ux uplift S10) — the rail overflow menu's verbs ──
+    // A user-facing rescan for ONE known root (before S10 only confirm/boot/watcher paths
+    // ever re-censused). Silent by design — no card rises; the scan pill shows progress.
+    // Like every publish path here it re-censuses and publishes the UNION of all confirmed
+    // roots (VaultScanner's whole-index replace law), so a rescan of one root can never
+    // wipe a sibling root's rows. A path that is not a known, non-hidden, confirmed-or-
+    // synthetic root is a no-op (never a scan of an arbitrary folder).
+    Q_INVOKABLE void rescanRoot(const QString& path);
+    // Remove a USER root entirely: config row gone (VaultConfig::removeRootCompletely(),
+    // documented at VaultConfig.h as awaiting exactly this affordance), rows dropped by
+    // the union republish that follows. Files on disk are NEVER touched. Forgetting the
+    // SYNTHETIC downloads root delegates to removeDownloadsRoot()'s reversible hide — its
+    // files belong to the Downloads lane and the config row that remembers that ownership
+    // must survive. Other roots' rows, identities, and hidden items are preserved by the
+    // union-publish law.
+    Q_INVOKABLE void forgetRoot(const QString& path);
+    // scanIgnore needles (Groundworks contract) — a case-insensitive substring test every
+    // walk already threads through (census, watcher, browse projections, detail). Thin
+    // passthroughs so QML never sees VaultConfig itself; setScanIgnore re-publishes so an
+    // edit takes effect on the shelves immediately, not on the next unrelated scan.
+    Q_INVOKABLE QStringList scanIgnore() const;
+    Q_INVOKABLE void setScanIgnore(const QStringList& needles);
     // ── watcher → door/card wiring (Slice 15) ──
     void onWatcherLanded(int count);
     void onWatcherNewKind(const QString& root, const QVariantList& slices);

@@ -1271,6 +1271,65 @@ void VaultLibrary::rescanDegradedRoots()
     publishAllConfirmed();
 }
 
+void VaultLibrary::rescanRoot(const QString& path)
+{
+    if (!m_scanner || !m_config)
+        return;
+    // Only a KNOWN, publishable root: confirmed or synthetic, not hidden. A stray path is
+    // a no-op — this is a rail verb, not an add-folder side channel.
+    const QString n = normPath(path);
+    if (!m_config->hasRoot(n) || m_config->isRootHidden(n)
+        || !(m_config->isRootConfirmed(n) || m_config->isSyntheticRoot(n))) {
+        return;
+    }
+    // Silent union republish (no card — a confirmed root's rescan never re-ceremonies).
+    // publishAllConfirmed() re-censuses EVERY confirmed root: the whole-index replace
+    // means publishing one root alone would wipe its siblings, so "rescan this root"
+    // rides the same union path confirm/boot/watcher already use.
+    publishAllConfirmed();
+}
+
+void VaultLibrary::forgetRoot(const QString& path)
+{
+    if (!m_scanner || !m_config)
+        return;
+    const QString n = normPath(path);
+    if (!m_config->hasRoot(n) || m_config->isRootHidden(n))
+        return;
+    // The synthetic downloads root's files belong to the Downloads lane — forgetting it
+    // takes the reversible hide (the S9 chip remove), never the true delete that would
+    // drop the config row remembering that ownership.
+    if (m_config->isSyntheticRoot(n)) {
+        removeDownloadsRoot();
+        return;
+    }
+    // A user root: true delete of the CONFIG row (VaultConfig::removeRootCompletely,
+    // exposed by VaultConfig.h for exactly this affordance), then the union republish —
+    // the forgotten root's census is no longer in the confirmed list, so its rows drop,
+    // while every surviving root's rows + identity state come through untouched. Files
+    // on disk are never touched by either half.
+    m_config->removeRootCompletely(n);
+    m_offeredThisRun.remove(n);
+    m_pendingReviveRoots.remove(n);
+    publishAllConfirmed();
+}
+
+QStringList VaultLibrary::scanIgnore() const
+{
+    return m_config ? m_config->scanIgnore() : QStringList();
+}
+
+void VaultLibrary::setScanIgnore(const QStringList& needles)
+{
+    if (!m_config || !m_scanner)
+        return;
+    m_config->setScanIgnore(needles);
+    // The needle layer threads through every walk; republish so the shelves reflect the
+    // edit now (durable rows drop for excluded folders) instead of waiting for the next
+    // unrelated confirm/watcher scan.
+    publishAllConfirmed();
+}
+
 void VaultLibrary::dismissCard()
 {
     m_candidate.clear();
