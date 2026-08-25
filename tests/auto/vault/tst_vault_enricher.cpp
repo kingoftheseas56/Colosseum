@@ -6,8 +6,9 @@
 // so no decoding happens here. GUILESS; real fixtures + QTemporaryDir.
 //
 // Deferred (gradient-fallback until their slices): epub cover ladder + author,
-// video thumbnails, page dimensions. The live ffprobe path is exercised at
-// Slice 6 (the decodable-MP4 fixture); here only the cache is tested.
+// video thumbnails, page dimensions. The live ffprobe path (UX-uplift S5) runs
+// against the decodable tiny.mp4 fixture when ffprobe is resolvable, skip-guarded
+// otherwise; the triple-keyed cache is covered separately below.
 //
 // Browse-face execution plan Slice 3 (local artwork adoption) added
 // VaultEnricher::findLocalArtwork(): a video group's folder is checked for a
@@ -26,6 +27,7 @@
 #include <QFile>
 #include <QImage>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QUrl>
@@ -156,6 +158,9 @@ private slots:
     void find_local_artwork_refuses_corrupt_image();
     void enrich_adopts_local_artwork_for_video_group();
     void enrich_refuses_the_real_release_site_junk_image_for_video_group();
+    // ── UX-uplift S5: the production-defect pair (durations + local artwork) ──
+    void enrich_writes_real_duration_for_seeded_video();
+    void enrich_adopts_decodable_poster_jpg_as_group_cover();
 };
 
 void tst_vault_enricher::pick_cover_entry_prefers_cover_then_first()
@@ -644,6 +649,94 @@ void tst_vault_enricher::enrich_refuses_the_real_release_site_junk_image_for_vid
     const auto rows = idx.rowsForKind(QStringLiteral("video"));
     QCOMPARE(rows.size(), 1);
     QVERIFY(rows.first().coverRef.isEmpty()); // www.YTS.MX.jpg must never be adopted
+}
+
+// ── UX-uplift S5: the production-defect pair ─────────────────────────────────
+// main.cpp never constructed VaultEnricher, so durationSec stayed -1 on every
+// video row and findLocalArtwork() never ran. These two prove the capabilities
+// the production wiring now relies on, end-to-end through enrich() into the index.
+
+void tst_vault_enricher::enrich_writes_real_duration_for_seeded_video()
+{
+    // Live ffprobe (the same locator production uses — app dir, tools/, then PATH);
+    // skip-guarded when no ffprobe is resolvable, the same honest-deference style
+    // this file applies to live-binary facts.
+    if (QStandardPaths::findExecutable(QStringLiteral("ffprobe")).isEmpty())
+        QSKIP("ffprobe not resolvable; the live duration probe needs the real binary");
+
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString video = tmp.filePath(QStringLiteral("movie.mp4"));
+    QVERIFY(QFile::copy(mediaFixture(QStringLiteral("tiny.mp4")), video));
+
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultEnricher enricher(&idx, tmp.path());
+
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:duration-video");
+    row.kind = QStringLiteral("video");
+    row.path = video;
+    row.rootPath = tmp.path();
+    row.subtreePath = tmp.path(); // the group's own folder — one file, one group
+    row.groupKey = tmp.path();
+    row.groupTitle = QStringLiteral("Movie");
+    row.realName = QStringLiteral("movie.mp4");
+    row.size = QFileInfo(video).size();
+    row.mtimeMs = 1;
+    row.durationSec = -1; // the production sentinel this pass exists to replace
+    row.admissionVerdict = QStringLiteral("Admitted"); // duration is this test's subject
+    QVERIFY(idx.publish({row}));
+
+    enricher.enrich({row});
+
+    const auto rows = idx.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(rows.size(), 1);
+    QVERIFY2(rows.first().durationSec > 0.0, "probed duration must land in the index");
+    // The folder holds no conventional artwork, so the cover stays honestly empty.
+    QVERIFY(rows.first().coverRef.isEmpty());
+}
+
+void tst_vault_enricher::enrich_adopts_decodable_poster_jpg_as_group_cover()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString video = tmp.filePath(QStringLiteral("movie.mp4"));
+    QVERIFY(QFile::copy(mediaFixture(QStringLiteral("tiny.mp4")), video));
+    const QString poster = tmp.filePath(QStringLiteral("poster.jpg"));
+    writeFile(poster, coverJpeg());
+
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultEnricher enricher(&idx, tmp.path());
+    // Prime the duration cache so this test needs no ffprobe: the (path, size,
+    // mtimeMs) triple keys the hit, and enrich() must carry the cached value
+    // through — proving the cache-to-row wiring alongside the artwork adoption.
+    enricher.putDuration(video, QFileInfo(video).size(), 1, 91.0);
+
+    VaultIndex::FileRow row;
+    row.id = QStringLiteral("vault:poster-jpg-video");
+    row.kind = QStringLiteral("video");
+    row.path = video;
+    row.rootPath = tmp.path();
+    row.subtreePath = tmp.path(); // the group's own folder — one file, one group
+    row.groupKey = tmp.path();
+    row.groupTitle = QStringLiteral("Movie");
+    row.realName = QStringLiteral("movie.mp4");
+    row.size = QFileInfo(video).size();
+    row.mtimeMs = 1; // matches the cache triple above
+    row.durationSec = -1;
+    row.admissionVerdict = QStringLiteral("Admitted"); // artwork is this test's subject
+    QVERIFY(idx.publish({row}));
+
+    enricher.enrich({row});
+
+    const auto rows = idx.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(rows.size(), 1);
+    // Exact value, not merely non-empty: a decodable poster.jpg companion is
+    // adopted as the group cover, as a namespaced file:// ref.
+    QCOMPARE(rows.first().coverRef,
+             QUrl::fromLocalFile(QFileInfo(poster).absoluteFilePath()).toString());
+    QVERIFY(rows.first().coverRef.startsWith(QStringLiteral("file://")));
+    QCOMPARE(rows.first().durationSec, 91.0); // cache hit carried through enrich()
 }
 
 QTEST_GUILESS_MAIN(tst_vault_enricher)

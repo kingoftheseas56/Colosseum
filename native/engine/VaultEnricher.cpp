@@ -18,6 +18,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
+#include <QStandardPaths>
 #include <QThread>
 #include <QUrl>
 #include <QXmlStreamReader>
@@ -491,6 +492,12 @@ QString VaultEnricher::findFfprobe()
         if (QFileInfo::exists(cand))
             return cand;
     }
+    // PATH hit via QStandardPaths — the same third step MpvItem::findFfmpeg applies to
+    // ffmpeg (player/mpvitem.cpp): a PATH-installed ffprobe is discovered deterministically
+    // instead of depending on CreateProcess's own PATH resolution of the bare name below.
+    const QString pathHit = QStandardPaths::findExecutable(QStringLiteral("ffprobe"));
+    if (!pathHit.isEmpty())
+        return pathHit;
     return exe; // fall back to PATH
 }
 

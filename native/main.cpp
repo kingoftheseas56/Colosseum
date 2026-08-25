@@ -94,6 +94,7 @@
 #include <QtConcurrent>
 #include <QFutureWatcher>
 #include <algorithm>
+#include <memory>
 #include "anime/AnimeOrderService.h"
 #include "reader2/Reader2Bridge.h"
 #include "comicreader/ComicReaderCore.h"
@@ -1020,8 +1021,9 @@ int main(int argc, char *argv[]) {
     // paint from, plus the scan/confirm commands. It wraps the rebuildable VaultIndex (SQLite at
     // <vaultDir>/index-v1.sqlite), the cancellable off-thread VaultScanner, and the VaultConfig
     // user-intent store (roots + kind overrides), so QML fires one gesture (addFolder/confirmRoot)
-    // and C++ owns the scan/publish threading and multi-step sequence. VaultEnricher (covers,
-    // durations) is still deferred — census facts shelve first; enrichment repaint lands later.
+    // and C++ owns the scan/publish threading and multi-step sequence. VaultEnricher is
+    // constructed below (UX-uplift S5): census facts still shelve first via the inline
+    // static pass, then the instance fills video durations + local artwork.
     auto *vaultIndex = new VaultIndex(vaultDir + QStringLiteral("/index-v1.sqlite"), &app);
     auto *vaultConfig = new VaultConfig(vaultDir, &app);
     auto *vaultIdentity = new VaultIdentity(vaultDir, &app);
@@ -1037,14 +1039,95 @@ int main(int argc, char *argv[]) {
         new VaultLibrary(vaultIndex, vaultScanner, vaultConfig, vaultIdentity, vaultDir, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("VaultLibrary"), vaultLibrary);
 
+    // ── VaultEnricher, the instance the app never constructed (UX-uplift S5) ──────
+    // main.cpp used the class's static fact helpers only, so durationSec stayed -1 on
+    // every video row and the findLocalArtwork() convention (poster./folder./cover.
+    // beside the film) never ran — comics and EPUBs got covers from the census pass,
+    // videos never did. The instance owns the durations.json cache (load once here,
+    // flush every 20 files) and commits through upsertManyIfRevision on the index
+    // owner thread (its own resurrection barrier, commitRowsOnIndexThread), so a slow
+    // ffprobe pass can never overwrite newer index data. Lives on the GUI thread;
+    // enrich() itself runs on a worker.
+    auto *vaultEnricher = new VaultEnricher(vaultIndex, vaultDir, &app);
+
+    // The video duration + local-artwork pass. Chained AFTER the census-enrichment
+    // lambda below completes (its finished handler / empty-todo return), so admission
+    // verdicts are already durable and the enricher's probe-if-empty branch stays
+    // cold. Row selection mirrors the census pass's video filter (present, not away,
+    // not rejected); the work condition is the missing fact itself. Immersive gate
+    // (VaultWatcher's debounceExpired pattern): never start while a player/reader is
+    // open, cancel an in-flight pass between files, rerun the remainder on close.
+    bool vaultVideoEnrichInFlight = false;
+    bool vaultVideoEnrichRerun = false;
+    std::shared_ptr<VaultKit::CancellationToken> vaultVideoEnrichCancel;
+    auto runVaultVideoEnrichment = [vaultIndex, vaultEnricher, vaultLibrary,
+                                    &vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
+                                    &vaultVideoEnrichCancel]() {
+        if (vaultVideoEnrichInFlight) {
+            vaultVideoEnrichRerun = true; // one pass at a time; coalesce the later trigger
+            return;
+        }
+        if (vaultLibrary->immersive()) {
+            vaultVideoEnrichRerun = true; // deferred until the immersive surface closes
+            return;
+        }
+        vaultVideoEnrichRerun = false;
+        QList<VaultIndex::FileRow> todo;
+        for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
+            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+                && r.errorState != QLatin1String("rejected")
+                && (r.durationSec <= 0.0 || r.coverRef.isEmpty()))
+                todo.append(r);
+        }
+        if (todo.isEmpty())
+            return;
+        vaultVideoEnrichInFlight = true;
+        vaultVideoEnrichCancel = std::make_shared<VaultKit::CancellationToken>();
+        const VaultKit::CancellationToken* cancel = vaultVideoEnrichCancel.get();
+        // ffprobe (kill-on-timeout, per file) and artwork header sniffs stay off the
+        // GUI thread; enrich() hops its own single-batch write-back to the index owner.
+        (void)QtConcurrent::run([vaultEnricher, todo, cancel]() {
+            vaultEnricher->enrich(todo, cancel);
+        });
+    };
+    // An immersive surface opening mid-pass cancels the pass between files (the probe
+    // itself admits no cancellation; the enrich loop guard does) and reruns on close.
+    QObject::connect(
+        vaultEnricher, &VaultEnricher::progress, vaultLibrary,
+        [&vaultVideoEnrichInFlight, &vaultVideoEnrichRerun, &vaultVideoEnrichCancel,
+         vaultLibrary](int, int) {
+            if (!vaultVideoEnrichInFlight || !vaultLibrary->immersive())
+                return;
+            vaultVideoEnrichRerun = true;
+            if (vaultVideoEnrichCancel)
+                vaultVideoEnrichCancel->cancel();
+        });
+    QObject::connect(
+        vaultEnricher, &VaultEnricher::enrichmentFinished, vaultLibrary,
+        [&vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
+         &runVaultVideoEnrichment]() {
+            vaultVideoEnrichInFlight = false;
+            if (vaultVideoEnrichRerun)
+                runVaultVideoEnrichment();
+        });
+    QObject::connect(
+        vaultLibrary, &VaultLibrary::immersiveChanged, vaultLibrary,
+        [vaultLibrary, &vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
+         &runVaultVideoEnrichment]() {
+            if (vaultLibrary->immersive() || vaultVideoEnrichInFlight || !vaultVideoEnrichRerun)
+                return;
+            runVaultVideoEnrichment();
+        });
+
     // Vault cover enrichment (execution plan Slice 12): after a publish, read each comic's
     // CBZ cover ENTRY off the GUI thread (pure file I/O — VaultEnricher::readComicFacts, no
     // SQLite), then write the enriched rows back in ONE batch on the GUI thread so the shelf
     // tiles paint real covers via the already-registered image://comiccover provider. Video
-    // durations + book covers stay deferred (their art is a later slice) — enriching video
-    // here would run ffprobe on the GUI thread. An index-revision guard drops stale enrichment
-    // after ANY superseding index mutation, so scanner and watcher changes cannot be resurrected.
-    auto runVaultCoverEnrichment = [vaultIndex]() {
+    // durations + local artwork run in the instance-level VaultEnricher pass chained AFTER
+    // this one (runVaultVideoEnrichment above) — never ffprobe on the GUI thread. An
+    // index-revision guard drops stale enrichment after ANY superseding index mutation, so
+    // scanner and watcher changes cannot be resurrected.
+    auto runVaultCoverEnrichment = [vaultIndex, runVaultVideoEnrichment]() {
         // Capture the exact index snapshot this async work is derived from. Any successful
         // scanner publish, watcher reconciliation, away-state change, or other mutation advances
         // the revision and makes this worker's eventual write-back ineligible.
@@ -1069,17 +1152,24 @@ int main(int argc, char *argv[]) {
                 && r.errorState.isEmpty() && r.metadataSource.isEmpty())
                 todo.append(r);
         }
-        if (todo.isEmpty())
-            return; // a zero-work newer publication still advanced VaultIndex::revision()
+        if (todo.isEmpty()) {
+            // A zero-work newer publication still advanced VaultIndex::revision(); the
+            // video duration/artwork pass still owes its chained turn (S5).
+            runVaultVideoEnrichment();
+            return;
+        }
         auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>();
         QObject::connect(
             watcher, &QFutureWatcher<QList<VaultIndex::FileRow>>::finished, vaultIndex,
-            [vaultIndex, watcher, baseRevision]() {
+            [vaultIndex, watcher, baseRevision, runVaultVideoEnrichment]() {
                 const QList<VaultIndex::FileRow> enriched = watcher->result();
                 watcher->deleteLater();
                 // Conditional write-back is the resurrection barrier: stale workers cannot
                 // reinsert rows after a scanner publish OR a live watcher deletion/replacement.
                 vaultIndex->upsertManyIfRevision(enriched, baseRevision);
+                // S5: video durations + local artwork run only after this census commit
+                // landed, so admission verdicts are durable before the enricher re-reads.
+                runVaultVideoEnrichment();
             });
         watcher->setFuture(QtConcurrent::run([todo]() {
             QList<VaultIndex::FileRow> out;
