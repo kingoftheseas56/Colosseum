@@ -170,6 +170,16 @@ public:
     // recentArrivals(limit): the newest-mtime index groups, most-recent first — the carousel's
     // data source once Slice 5 wires it. Row shape mirrors browseAt's film/show rows.
     Q_INVOKABLE QVariantList recentArrivals(int limit) const;
+    // searchLibrary(query, limit = 60) — vault ux uplift S14, the in-vault search: one row per
+    // GROUP whose cleaned file title, adopted identity title, or real on-disk filename contains
+    // the query (case-insensitive; %/_ in the query are literal — VaultIndex::rowsMatching
+    // escapes them). Newest-hit-first; hidden items never surface (the Hidden shelf's own
+    // population). Row shape is the FULL browseAt contract (key/nodeType/displayTitle/
+    // physicalFact/path/state/away/counts/coverRef/kind/id) so the SAME grid cards render it;
+    // physicalFact carries the hit's crumb ("root / subfolder") — the plan's own tagging law —
+    // and `id` is the S6 Progress join key so progress/watched chrome survives on search tiles.
+    // Multi-select/bulk actions over results are OUT of scope (Phase-4-style ruling pending).
+    Q_INVOKABLE QVariantList searchLibrary(const QString& query, int limit = 60) const;
     // browseDetail(key): the detail sheet's ONE projection (Slice 7) — copies you hold (same
     // canonical identity across roots where identity exists, else the single physical group),
     // companions, extras, evidence, and a best-quality line. `key` is a Film browse-row's own

@@ -1011,6 +1011,97 @@ QVariantList VaultLibrary::recentArrivals(int limit) const
     return out;
 }
 
+QVariantList VaultLibrary::searchLibrary(const QString& query, int limit) const
+{
+    QVariantList out;
+    if (!m_index)
+        return out;
+    const int groupCap = limit > 0 ? limit : 60;
+    // Headroom: many matching FILES can share one group (a season of episodes); the fold
+    // below collapses them, so fetch several files per group slot before capping groups.
+    const QList<VaultIndex::FileRow> rows = m_index->rowsMatching(query, groupCap * 6);
+    struct GroupFold {
+        int rowCount = 0;
+        bool anyAway = false;
+        bool ambiguous = false;
+        QString identityTitle;   // first non-suppressed adopted title wins
+        QString firstVideoId;    // the S6 join key
+        QString firstId;
+        QString firstPath;       // a single-file group's own path (the Play/Details target)
+        QString subtreePath;
+        QString crumbFact;       // "root / subfolder" — where the hit lives
+        QList<VaultIndex::FileRow> rowsForKind;
+    };
+    QMap<QString, GroupFold> groups; // first-seen order = mtime-desc (rowsMatching's ORDER BY)
+    for (const VaultIndex::FileRow& row : rows) {
+        if (m_config && m_config->isHidden(row.id))
+            continue; // the Hidden shelf's own population — search never resurrects it
+        GroupFold& g = groups[row.groupKey];
+        if (++g.rowCount == 1) {
+            g.firstPath = row.path;
+            g.firstId = row.id;
+            g.subtreePath = row.subtreePath;
+            const QString rootName = QFileInfo(row.rootPath).fileName();
+            g.crumbFact = row.subfolder.isEmpty()
+                ? rootName : (rootName + QStringLiteral(" / ") + row.subfolder);
+            if (groups.size() > groupCap)
+                break; // the cap is on GROUPS, not files
+        }
+        if (row.away)
+            g.anyAway = true;
+        if (row.identityState == QLatin1String("ambiguous"))
+            g.ambiguous = true;
+        if (g.identityTitle.isEmpty() && !row.identityId.isEmpty()
+            && !row.identitySuppressed && !row.identityTitle.isEmpty()) {
+            g.identityTitle = row.identityTitle;
+        }
+        if (g.firstVideoId.isEmpty() && row.kind == QLatin1String("video")
+            && !row.id.isEmpty()) {
+            g.firstVideoId = row.id;
+        }
+        g.rowsForKind.append(row);
+    }
+    for (auto it = groups.constBegin(); it != groups.constEnd(); ++it) {
+        const GroupFold& g = it.value();
+        if (g.rowCount == 0)
+            continue; // a fully-hidden group never entered the fold; belt and braces
+        QVariantMap m;
+        m.insert(QStringLiteral("key"), it.key());
+        m.insert(QStringLiteral("nodeType"),
+                 g.rowCount == 1 ? QStringLiteral("film") : QStringLiteral("show"));
+        // The title the tile displays: the adopted identity's title when there is one, else
+        // the census group title — the same preference recentArrivals holds.
+        QString title = g.identityTitle;
+        if (title.isEmpty()) {
+            for (const VaultIndex::FileRow& row : g.rowsForKind) {
+                if (!row.groupTitle.isEmpty()) {
+                    title = row.groupTitle;
+                    break;
+                }
+            }
+        }
+        m.insert(QStringLiteral("displayTitle"), title);
+        m.insert(QStringLiteral("physicalFact"), g.crumbFact);
+        m.insert(QStringLiteral("path"), g.rowCount == 1 ? g.firstPath : g.subtreePath);
+        m.insert(QStringLiteral("coverRef"), QString());
+        m.insert(QStringLiteral("kind"), dominantRowKind(g.rowsForKind));
+        const QString joinId = !g.firstVideoId.isEmpty() ? g.firstVideoId : g.firstId;
+        if (!joinId.isEmpty())
+            m.insert(QStringLiteral("id"), joinId);
+        m.insert(QStringLiteral("state"), !g.identityTitle.isEmpty()
+                 ? QStringLiteral("identified")
+                 : g.ambiguous ? QStringLiteral("uncertain") : QStringLiteral("resolving"));
+        m.insert(QStringLiteral("away"), g.anyAway);
+        QVariantMap counts;
+        counts.insert(QStringLiteral("items"), g.rowCount);
+        m.insert(QStringLiteral("counts"), counts);
+        out.append(m);
+        if (out.size() >= groupCap)
+            break;
+    }
+    return out;
+}
+
 QVariantMap VaultLibrary::browseDetail(const QString& key) const
 {
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();

@@ -371,6 +371,7 @@ private slots:
     void browse_sort_title_merges_across_node_types();
     void browse_filter_kind_ident_and_presence_predicate();
     void browse_empty_cause_filtered_from_production_path();
+    void search_library_matches_all_three_spellings();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -1201,6 +1202,80 @@ void tst_vault_forensics::browse_empty_cause_filtered_from_production_path()
     QVERIFY(QDir().mkpath(emptyDir));
     filter.insert(QStringLiteral("kind"), QStringLiteral("book"));
     QCOMPARE(fx->library->browseEmptyCause(emptyDir, filter), QStringLiteral("emptyFolder"));
+}
+
+// ── vault ux uplift S14 — the in-vault search ──
+// All three spellings match (cleaned file title, adopted identity title, real on-disk
+// filename); results are GROUP-shaped full browse rows (one tile per group, not per file)
+// with the crumb-tag physicalFact and the S6 join id; hidden items never surface; the
+// query's own wildcards are literal; newest hit first.
+void tst_vault_forensics::search_library_matches_all_three_spellings()
+{
+    auto fx = buildFlatFixture(0);
+    QVERIFY(fx->library);
+    auto makeRow = [&fx](const QString& folder, const QString& file, const char* idSuffix) {
+        const QString dir = QDir(fx->rootPath).filePath(folder);
+        QDir().mkpath(dir);
+        const QString path = QDir(dir).filePath(file);
+        writeStub(path);
+        return makeFilmRow(fx->rootPath, dir, path,
+                           QStringLiteral("vault:s14-") + idSuffix, 1000);
+    };
+    QList<VaultIndex::FileRow> rows;
+    // "Dune (2021)" — the cleaned title carries "Dune"; identity title "Dune: Part Two"
+    // (matched by a query the FILENAME never contains); "Blade-2049.mkv" — realName only.
+    rows.append(makeRow(QStringLiteral("Dune (2021)"), QStringLiteral("part2.mkv"), "dune"));
+    rows.back().groupTitle = QStringLiteral("Dune 2021");
+    rows.back().displayTitle = QStringLiteral("Dune");
+    rows.back().identityId = QStringLiteral("imdb:tt15239678");
+    rows.back().identityTitle = QStringLiteral("Dune: Part Two");
+    rows.append(makeRow(QStringLiteral("Blade"), QStringLiteral("Blade-2049.mkv"), "blade"));
+    rows.back().groupTitle = QStringLiteral("Blade");
+    rows.back().displayTitle = QStringLiteral("Blade Runner 2049");
+    // makeFilmRow hardcodes realName to "movie.mp4" — the real spelling under test differs.
+    rows.back().realName = QStringLiteral("Blade-2049.mkv");
+    rows.append(makeRow(QStringLiteral("Unrelated"), QStringLiteral("movie.mp4"), "other"));
+    rows.back().groupTitle = QStringLiteral("Unrelated");
+    fx->index->publish(rows);
+
+    auto resultKeys = [&fx](const QString& q) {
+        QStringList keys;
+        const QVariantList out = fx->library->searchLibrary(q);
+        for (const QVariant& rv : out)
+            keys << rv.toMap().value(QStringLiteral("key")).toString();
+        return keys;
+    };
+
+    // 1. the cleaned/group title spelling
+    QCOMPARE(resultKeys(QStringLiteral("blade")).size(), 1);
+    // 2. the adopted identity title (a query the cleaned titles never contain)
+    QCOMPARE(resultKeys(QStringLiteral("Part Two")).size(), 1);
+    // 3. the real on-disk filename
+    QCOMPARE(resultKeys(QStringLiteral("2049.mkv")).size(), 1);
+    // miss → nothing, and empty/whitespace queries never match everything
+    QCOMPARE(resultKeys(QStringLiteral("nonexistent")).size(), 0);
+    QCOMPARE(resultKeys(QStringLiteral("   ")).size(), 0);
+
+    // Row shape: one GROUP tile (not per-file), the crumb fact, the join id, the counts.
+    const QVariantList dune = fx->library->searchLibrary(QStringLiteral("Part Two"));
+    const QVariantMap row = dune.first().toMap();
+    QCOMPARE(row.value(QStringLiteral("nodeType")).toString(), QStringLiteral("film"));
+    QCOMPARE(row.value(QStringLiteral("displayTitle")).toString(),
+             QStringLiteral("Dune: Part Two"));   // identity title preferred
+    QCOMPARE(row.value(QStringLiteral("id")).toString(), QStringLiteral("vault:s14-dune"));
+    QVERIFY(row.value(QStringLiteral("physicalFact")).toString()
+            .contains(QStringLiteral("root")));   // the crumb tag names the hit's root
+    QVERIFY(row.contains(QStringLiteral("state")));
+    QVERIFY(row.contains(QStringLiteral("counts")));
+
+    // A literal "%" query must not act as a wildcard (everything would match).
+    QCOMPARE(resultKeys(QStringLiteral("%")).size(), 0);
+
+    // Hidden items never surface in search (the Hidden shelf's own population).
+    fx->config->setHidden(QStringLiteral("vault:s14-blade"), true);
+    QCOMPARE(resultKeys(QStringLiteral("2049.mkv")).size(), 0);
+    fx->config->setHidden(QStringLiteral("vault:s14-blade"), false);
+    QCOMPARE(resultKeys(QStringLiteral("2049.mkv")).size(), 1);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

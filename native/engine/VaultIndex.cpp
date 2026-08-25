@@ -837,6 +837,84 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForPath(const QString& path) const
     return out;
 }
 
+QList<VaultIndex::FileRow> VaultIndex::rowsMatching(const QString& needle, int limit) const
+{
+    QList<FileRow> out;
+    const QString trimmed = needle.trimmed();
+    if (trimmed.isEmpty() || limit <= 0 || !m_db.isOpen())
+        return out;
+    // Escape the needle's own wildcards so a literal "100%" or "S_E" never widens the match,
+    // then wrap in %…% for the substring search. ESCAPE '\' names the escape char.
+    QString escaped;
+    escaped.reserve(trimmed.size());
+    for (const QChar c : trimmed) {
+        if (c == QLatin1Char('%') || c == QLatin1Char('_') || c == QLatin1Char('\\'))
+            escaped += QLatin1Char('\\');
+        escaped += c;
+    }
+    const QString pattern = QLatin1Char('%') + escaped + QLatin1Char('%');
+    QSqlQuery q(m_db);
+    q.prepare(QStringLiteral(
+        "SELECT id, rootPath, subtreePath, groupKey, groupTitle, kind, path,"
+        "       displayTitle, realName, subfolder, sortKey, size, mtimeMs,"
+        "       pages, durationSec, author, format, progressed, coverRef, away,"
+        "       errorState, errorDetail, admissionVerdict, admissionDetail"
+        "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
+        " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
+        " identityState, identityCandidateCount"
+        " FROM files WHERE displayTitle LIKE ? ESCAPE '\\'"
+        "    OR identityTitle  LIKE ? ESCAPE '\\'"
+        "    OR realName       LIKE ? ESCAPE '\\'"
+        " ORDER BY mtimeMs DESC LIMIT ?"));
+    q.addBindValue(pattern);
+    q.addBindValue(pattern);
+    q.addBindValue(pattern);
+    q.addBindValue(limit);
+    if (q.exec()) {
+        while (q.next()) {
+            FileRow r;
+            r.id = q.value(0).toString();
+            r.rootPath = q.value(1).toString();
+            r.subtreePath = q.value(2).toString();
+            r.groupKey = q.value(3).toString();
+            r.groupTitle = q.value(4).toString();
+            r.kind = q.value(5).toString();
+            r.path = q.value(6).toString();
+            r.displayTitle = q.value(7).toString();
+            r.realName = q.value(8).toString();
+            r.subfolder = q.value(9).toString();
+            r.sortKey = q.value(10).toString();
+            r.size = q.value(11).toLongLong();
+            r.mtimeMs = q.value(12).toLongLong();
+            r.pages = q.value(13).toInt();
+            r.durationSec = q.value(14).toDouble();
+            r.author = q.value(15).toString();
+            r.format = q.value(16).toString();
+            r.progressed = q.value(17).toInt() != 0;
+            r.coverRef = q.value(18).toString();
+            r.away = q.value(19).toInt() != 0;
+            r.errorState = q.value(20).toString();
+            r.errorDetail = q.value(21).toString();
+            r.admissionVerdict = q.value(22).toString();
+            r.admissionDetail = q.value(23).toString();
+            r.synopsis = q.value(24).toString();
+            r.metadataSource = q.value(25).toString();
+            r.identityId = q.value(26).toString();
+            r.identityTitle = q.value(27).toString();
+            r.identitySource = q.value(28).toString();
+            r.identitySynopsis = q.value(29).toString();
+            r.identityCoverUrl = q.value(30).toString();
+            r.identityWorld = q.value(31).toString();
+            r.identityYear = q.value(32).toInt();
+            r.identitySuppressed = q.value(33).toInt() != 0;
+            r.identityState = q.value(34).toString();
+            r.identityCandidateCount = q.value(35).toInt();
+            out.append(r);
+        }
+    }
+    return out;
+}
+
 QList<VaultIndex::FileRow> VaultIndex::rowsForIdentity(const QString& identityId) const
 {
     QList<FileRow> out;

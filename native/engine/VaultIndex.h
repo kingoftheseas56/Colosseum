@@ -133,6 +133,13 @@ public:
     // normalization at either write or read side, matching every other rowsForX query here) — 0
     // or 1 rows in practice; returns a list only to match the family's own shape.
     QList<FileRow> rowsForPath(const QString& path) const;
+    // (ux uplift S14) In-vault search: every row whose cleaned title, adopted identity title,
+    // or real on-disk filename contains `needle` (SQLite LIKE, case-insensitive for ASCII;
+    // % and _ in the needle are escaped so a literal "100%" never becomes a wildcard), newest
+    // mtime first, capped. The caller (VaultLibrary::searchLibrary) folds these into
+    // group-shaped browse rows; this raw-row shape exists because the fold needs the whole
+    // FileRow (identity + away + kind) to compose honestly.
+    QList<FileRow> rowsMatching(const QString& needle, int limit) const;
     // Every non-suppressed row sharing one adopted canonical identity, across every group/root —
     // the detail sheet's "copies you hold" truth when a film has been identified (browse-face
     // execution plan Slice 7). Empty identityId returns no rows (an unidentified group is never

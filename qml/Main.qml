@@ -1018,6 +1018,10 @@ Window {
         if (!page) { win.closeVaultPage(); return }
         if (page.detailSheetVisible) { page.closeDetailSheet(); return }
         if (page.folderDetailOpen) { page.closeFolder(); return }
+        // Vault ux uplift S14: Escape leaves the search pseudo-level first — it is the most
+        // transient view state (the field itself can never see the key: the window-context
+        // Shortcut is matched before the focus item, the S2 lesson).
+        if (page.searchViewActive) { page.leaveSearchView(); return }
         if (page.hiddenViewActive || (page.crumbStack && page.crumbStack.length > 1)) {
             page.ascendBrowse()
             return

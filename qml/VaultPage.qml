@@ -85,6 +85,26 @@ Item {
     property var crumbStack: []              // [{key, displayTitle}, ...] selected root -> current level
     property string currentBrowsePath: ""    // the current level's key (folder path / show sentinel)
     property bool hiddenViewActive: false    // the reversible Hidden shelf, not a folder level
+    // Vault ux uplift S14 — the in-vault search pseudo-level (the Hidden shelf's own pattern:
+    // a view state that replaces the grid's population while the crumb trail beneath stays
+    // intact, so leaving returns exactly where the user was). Escape leaves it FIRST (the
+    // Main.qml Escape chain's own precedence), Enter opens the first hit.
+    property bool searchViewActive: false
+    property string searchQuery: ""
+    function openSearch() {
+        root.rememberCurrentScroll()
+        root.hiddenViewActive = false
+        root.searchViewActive = true
+        root.searchQuery = ""
+        browseSearchField.text = ""
+        browseSearchField.forceActiveFocus()
+    }
+    function leaveSearchView() {
+        if (!root.searchViewActive) return
+        root.rememberCurrentScroll()
+        root.searchViewActive = false
+        root.searchQuery = ""
+    }
     property var contextRow: null            // the row a card's right-click context menu targets
 
     // ==== Slice 7: the detail sheet — opening a Film row answers "what do I physically hold"
@@ -125,8 +145,19 @@ Item {
     }
     function closeDetailSheet() { root.detailSheetVisible = false }
 
-    readonly property var displayedCrumbStack: root.hiddenViewActive
+    readonly property var displayedCrumbStack: root.searchViewActive
+        ? [{ key: "search:", displayTitle: "Search" }]
+        : root.hiddenViewActive
         ? [{ key: "hidden:", displayTitle: "Hidden" }] : root.crumbStack
+
+    // S14 — the search results, the third grid population. Group-shaped browse rows from
+    // VaultLibrary.searchLibrary (full browseAt contract incl. the crumb-tag physicalFact and
+    // the S6 join id), newest-hit first, re-joined with live Progress so the gold hairline and
+    // the watched tick survive on search tiles. Revision-gated like every other projection.
+    readonly property var searchRowsJoined: (root.searchViewActive
+            && typeof VaultLibrary !== "undefined" && root.searchQuery.length > 0)
+        ? (VaultLibrary.revision, root.joinProgressRows(
+               VaultLibrary.searchLibrary(root.searchQuery))) : []
 
     // ==== Vault ux uplift S12 — the browse sort. Natural order stays the default (spec §6
     //      law); the other four orderings are per-LEVEL choices persisted in
@@ -295,7 +326,8 @@ Item {
     // QML half fires FIRST — a watched-filter that emptied a level which HAD joined rows reads
     // as "filtered" without a second filesystem walk (browseRowsBeforeWatchedFilter is the
     // joined count projectBrowseRows recorded).
-    readonly property string browseEmptyCause: (root.browseGridRows.length === 0
+    readonly property string browseEmptyCause: (!root.searchViewActive
+            && root.browseGridRows.length === 0
             && typeof VaultLibrary !== "undefined" && root.currentBrowsePath)
         ? (VaultLibrary.revision,
            (root.filterWatched !== "" && root.browseRowsBeforeWatchedFilter > 0)
@@ -348,6 +380,7 @@ Item {
         // first publish landed. (Never reachable before this slice anyway, since the whole
         // browse face was itself gated on `populated` — see that gate's own comment above.)
         if (!root.hasConfirmedStorage) return []
+        if (root.searchViewActive) return root.searchRowsJoined
         if (root.hiddenViewActive) return root.hiddenRowsAsBrowse
         if (typeof VaultLibrary === "undefined" || !root.currentBrowsePath) return []
         VaultLibrary.revision // dependency: re-project on every committed publish
@@ -404,7 +437,8 @@ Item {
     property string gridSyncedLevelKey: "//__unsynced__//"
     function syncGridModel(rows) {
         rows = rows || []
-        const levelKey = root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
+        const levelKey = root.searchViewActive ? "search:"
+            : root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
         const levelChanged = levelKey !== root.gridSyncedLevelKey
         root.gridSyncedLevelKey = levelKey
 
@@ -448,7 +482,8 @@ Item {
     Connections {
         target: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
         function onBrowseArtResolved(rowKey) {
-            if (!root.hasConfirmedStorage || root.hiddenViewActive || !root.currentBrowsePath) return
+            if (!root.hasConfirmedStorage || root.hiddenViewActive || root.searchViewActive
+                || !root.currentBrowsePath) return
             // Vault ux uplift S6: through the same Progress join browseGridRows uses — a bare
             // browseAt() here would hand syncGridModel un-joined rows and the in-place
             // ListModel.set would silently STRIP every tile's progressFraction/watched facts
@@ -469,15 +504,18 @@ Item {
         browseSettings.lastCrumbJson = JSON.stringify(root.crumbStack)
     }
     function rememberCurrentScroll() {
-        const key = root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
+        const key = root.searchViewActive ? "search:"
+            : root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
         if (key && typeof grid !== "undefined" && grid) VaultBrowseState.rememberScroll(key, grid.contentY)
     }
     function restoreGridScroll() {
-        const key = root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
+        const key = root.searchViewActive ? "search:"
+            : root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
         if (typeof grid !== "undefined" && grid) grid.contentY = VaultBrowseState.scrollFor(key)
     }
     function selectRoot(path, name) {
         root.rememberCurrentScroll()
+        root.leaveSearchView()
         root.hiddenViewActive = false
         root.crumbStack = [{ key: path, displayTitle: name }]
         root.currentBrowsePath = path
@@ -490,13 +528,18 @@ Item {
         root.browseSettings_setLastCrumb()
     }
     function goToCrumb(index) {
-        if (index < 0 || index >= root.crumbStack.length - 1 || root.hiddenViewActive) return
+        if (index < 0 || index >= root.crumbStack.length - 1 || root.hiddenViewActive
+            || root.searchViewActive) return
         root.rememberCurrentScroll()
         root.crumbStack = root.crumbStack.slice(0, index + 1)
         root.currentBrowsePath = root.crumbStack[root.crumbStack.length - 1].key
         root.browseSettings_setLastCrumb()
     }
     function ascendBrowse() {
+        if (root.searchViewActive) {
+            root.leaveSearchView()
+            return
+        }
         if (root.hiddenViewActive) {
             root.rememberCurrentScroll()
             root.hiddenViewActive = false
@@ -507,10 +550,28 @@ Item {
     }
     function openHidden() {
         root.rememberCurrentScroll()
+        root.leaveSearchView()
         root.hiddenViewActive = true
     }
     function handleBrowseCardOpen(row) {
         if (!row) return
+        if (root.searchViewActive) {
+            // S14: a search hit drills into its folder — leave the search pseudo-level first
+            // so the crumb trail it pushes is the real browse stack again. A film opens the
+            // detail sheet as an overlay (search stays beneath; Escape closes the sheet first
+            // per the window chain). An episode/clip plays straight through.
+            if (row.nodeType === "folder" || row.nodeType === "show" || row.nodeType === "season") {
+                root.leaveSearchView()
+                root.pushCrumb(row.key, row.displayTitle)
+                return
+            }
+            if (row.nodeType === "film") {
+                root.openDetailSheet(row)
+                return
+            }
+            if (row.path) root.openMediaRequested(row.path)
+            return
+        }
         if (root.hiddenViewActive) {
             if (typeof VaultLibrary !== "undefined") VaultLibrary.restoreGroup(row.key || "")
             return
@@ -1132,6 +1193,18 @@ Item {
             if (event.key === Qt.Key_Backspace) {
                 root.ascendBrowse()
                 event.accepted = true
+                return
+            }
+            // S14: "/" or Ctrl+F opens the in-vault search from anywhere in the browse face
+            // (the grid's own key handling doesn't consume them, so they bubble here; a
+            // focused text field consumes "/" itself, so the shortcut never re-triggers
+            // while typing). Multi-select/bulk actions stay out of scope.
+            if (!root.searchViewActive && !root.folderDetailOpen
+                && ((event.key === Qt.Key_Slash && !(event.modifiers & ~Qt.KeypadModifier))
+                    || ((event.modifiers & Qt.ControlModifier)
+                        && event.key === Qt.Key_F))) {
+                root.openSearch()
+                event.accepted = true
             }
         }
 
@@ -1141,6 +1214,11 @@ Item {
             anchors.top: parent.top; anchors.topMargin: 20
             anchors.left: parent.left; anchors.right: parent.right
             anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+            // S14: the search results view replaces the browse face's level chrome — the
+            // carousel and the Continue rail collapse (the rail's own empty-state pattern:
+            // height follows visible) so the flat results grid owns the viewport.
+            implicitHeight: root.searchViewActive ? 0 : 330
+            visible: !root.searchViewActive
             slides: root.carouselSlides
             kicker: "Just arrived"
             primaryLabel: "Play"
@@ -1168,7 +1246,7 @@ Item {
         Item {
             id: continueRail
             objectName: "vaultContinueRail"
-            visible: root.continueItems.length > 0
+            visible: root.continueItems.length > 0 && !root.searchViewActive
             anchors.top: browseCarousel.bottom; anchors.topMargin: 18
             anchors.left: parent.left; anchors.right: parent.right
             anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
@@ -1262,17 +1340,106 @@ Item {
                     anchors.top: parent.top; anchors.left: parent.left
                     // S12/S13: the sort + filter controls own the row's right edge now.
                     anchors.right: browseFilterControl.left; anchors.rightMargin: 14
+                    visible: !root.searchViewActive
                     stack: root.displayedCrumbStack
                     onSegmentClicked: (index) => root.goToCrumb(index)
                 }
 
+                // ── Vault ux uplift S14 — the search field, replacing the crumb row while the
+                //    search pseudo-level is up (live results; Enter opens the first hit; the
+                //    window-level Escape chain leaves the view — a field-local Escape handler
+                //    would never fire, the S2 Shortcut-precedence lesson). Hand-rolled like the
+                //    rail's needle editor: Rectangle + TextInput, no Quick Controls styling. ──
+                Item {
+                    id: browseSearchField
+                    objectName: "vaultBrowseSearchField"
+                    visible: root.searchViewActive
+                    anchors.top: parent.top; anchors.left: parent.left
+                    anchors.right: browseFilterControl.left; anchors.rightMargin: 14
+                    height: browseCrumb.height
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 9
+                        color: Qt.rgba(1, 1, 1, 0.04)
+                        border.width: 1
+                        border.color: searchInput.activeFocus ? theme.inkDimmer : theme.edge
+                    }
+                    TextInput {
+                        id: searchInput
+                        objectName: "vaultBrowseSearchInput"
+                        anchors.fill: parent
+                        anchors.leftMargin: 12; anchors.rightMargin: 12
+                        clip: true
+                        color: theme.ink
+                        selectionColor: theme.gold
+                        selectedTextColor: "#141207"
+                        font.family: theme.ui; font.pixelSize: 13
+                        verticalAlignment: TextInput.AlignVCenter
+                        // live results — the plan's "≤3 keystrokes" law
+                        onTextChanged: root.searchQuery = text
+                        onAccepted: {
+                            if (root.searchRowsJoined.length > 0)
+                                root.handleBrowseCardOpen(root.searchRowsJoined[0])
+                        }
+                    }
+                    Text {
+                        visible: searchInput.length === 0
+                        anchors.fill: parent
+                        anchors.leftMargin: 12; anchors.rightMargin: 12
+                        verticalAlignment: Text.AlignVCenter
+                        text: "Search the Vault — titles, identities, filenames"
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 13
+                        elide: Text.ElideRight
+                        MouseArea { anchors.fill: parent; onClicked: searchInput.forceActiveFocus() }
+                    }
+                    Text {
+                        objectName: "vaultBrowseSearchCount"
+                        visible: root.searchQuery.length > 0
+                        anchors.right: parent.right; anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.searchRowsJoined.length === 60 ? "60+"
+                              : String(root.searchRowsJoined.length)
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 11
+                    }
+                }
+
+                // ── Vault ux uplift S14 — the search open button (the "/" and Ctrl+F
+                //    shortcuts' mouse twin): a quiet glyph left of the filter control. ──
+                Item {
+                    id: browseSearchOpenBtn
+                    objectName: "vaultBrowseSearchOpen"
+                    visible: !root.hiddenViewActive && !root.searchViewActive
+                    anchors.top: parent.top
+                    anchors.right: browseFilterControl.left; anchors.rightMargin: 16
+                    width: searchOpenGlyph.implicitWidth + 6
+                    height: browseCrumb.height
+                    Text {
+                        id: searchOpenGlyph
+                        anchors.centerIn: parent
+                        text: "⌕"
+                        color: searchOpenMa.containsMouse ? theme.ink : theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 14
+                    }
+                    MouseArea {
+                        id: searchOpenMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openSearch()
+                    }
+                }
+
                 // ── Vault ux uplift S13 — the filter control: a quiet pill left of the sort
                 //    control ("⧩ Filter", with a count when predicates are active), opening a
-                //    chip panel. Hidden in the Hidden view (that shelf is never filtered). ──
+                //    chip panel. Hidden in the Hidden view (that shelf is never filtered) and
+                //    in search (results carry their own newest-first order). ──
                 Item {
                     id: browseFilterControl
                     objectName: "vaultBrowseFilterControl"
-                    visible: !root.hiddenViewActive
+                    visible: !root.hiddenViewActive && !root.searchViewActive
                     anchors.top: parent.top
                     anchors.right: browseSortControl.left; anchors.rightMargin: 18
                     width: filterFaceRow.implicitWidth + 6
@@ -1307,11 +1474,11 @@ Item {
                 // ── Vault ux uplift S12 — the sort control: a quiet label button right of the
                 //    breadcrumb ("⇅ Newest arrival"), natural order by default. Clicking opens
                 //    the vocabulary menu (hand-rolled like every house popup). Hidden in the
-                //    Hidden view — that shelf keeps its own fixed order. ──
+                //    Hidden view — that shelf keeps its own fixed order — and in search. ──
                 Item {
                     id: browseSortControl
                     objectName: "vaultBrowseSortControl"
-                    visible: !root.hiddenViewActive
+                    visible: !root.hiddenViewActive && !root.searchViewActive
                     anchors.top: parent.top; anchors.right: parent.right
                     width: sortFaceRow.implicitWidth + 6
                     height: browseCrumb.height
@@ -1422,11 +1589,23 @@ Item {
                         objectName: "vaultBrowseGridEmpty"
                         anchors.fill: parent
                         visible: grid.count === 0 && !root.hiddenViewActive
+                                 && !root.searchViewActive
                         cause: root.browseEmptyCause
                         itemsCount: root.browseEmptyAwayCount
                         onAddStorageRequested: root.addFolderRequested()
                         // S13: the filtered cause's own next step, in the component's own copy.
                         onClearFilterRequested: root.resetFilters()
+                    }
+                    // S14: the search view's own quiet empty — not one of the design's four
+                    // causes (a miss is not a storage/away/filter problem), so it keeps a
+                    // plain text like the Hidden shelf's own "Nothing is hidden."
+                    Text {
+                        visible: grid.count === 0 && root.searchViewActive
+                                 && root.searchQuery.length > 0
+                        anchors.centerIn: parent
+                        text: "No matches in the Vault."
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 14
                     }
                     Text {
                         visible: grid.count === 0 && root.hiddenViewActive
