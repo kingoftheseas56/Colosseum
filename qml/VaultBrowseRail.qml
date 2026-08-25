@@ -189,6 +189,12 @@ Item {
                 readonly property bool isDownloads: rootRow.rootPath !== ""
                                                    && rootRow.rootPath === rail.downloadsRootPath
                 readonly property bool muted: rootRow.isDownloads
+                // S15 (vault ux uplift): a focused row activates on Return/Enter/Space — the
+                // mouse path's twin — and the focus ring paints only under keyboard focus.
+                activeFocusOnTab: true
+                Keys.onReturnPressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
+                Keys.onEnterPressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
+                Keys.onSpacePressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
                 // S11 (vault ux uplift) — the per-root error facts rootsDetail() now carries:
                 // how many indexed rows under this root carry a stored error state, the capped
                 // {path, reason} list the attention panel shows, and the watcher-degraded flag
@@ -207,6 +213,17 @@ Item {
                     radius: 10
                     color: rootRow.rootPath === rail.selectedRootPath && !rail.hiddenActive
                            ? theme.glassHi : (rowMa.containsMouse ? theme.glassTint : "transparent")
+                }
+                // S15 — the keyboard focus ring: house ink, only while the row itself holds
+                // keyboard focus (a mouse click never sets focus, so ring and hover stay
+                // structurally independent — the grid's own focus-ring law).
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 10
+                    color: "transparent"
+                    border.width: 2
+                    border.color: theme.inkDim
+                    visible: rootRow.activeFocus
                 }
 
                 // A plain Item, not a Row: Row forbids left/right/horizontalCenter/fill/centerIn
@@ -589,6 +606,7 @@ Item {
                 // comes alive after menu open keeps its initial slot and sits ON an action
                 // row), so the geometry is stable and only the content arms.
                 Item {
+                    id: attLine
                     objectName: "vaultBrowseRailMenuAttention"
                     readonly property bool lineVisible: rail.menuRow
                                                         ? rail.menuRow.hasNeedsAttention : false

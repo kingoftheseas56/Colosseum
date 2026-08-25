@@ -1285,6 +1285,23 @@ Item {
             // height follows visible) so the flat results grid owns the viewport.
             implicitHeight: root.searchViewActive ? 0 : 330
             visible: !root.searchViewActive
+            // S15 (ux uplift): the carousel is keyboard-reachable — Left/Right move the slide,
+            // Return fires the slide's primary (Play), the ring paints only under keyboard.
+            focus: true
+            activeFocusOnTab: true
+            Keys.onLeftPressed: (event) => { browseCarousel.index = (browseCarousel.index + browseCarousel.slides.length - 1) % Math.max(1, browseCarousel.slides.length); event.accepted = true }
+            Keys.onRightPressed: (event) => { browseCarousel.index = (browseCarousel.index + 1) % Math.max(1, browseCarousel.slides.length); event.accepted = true }
+            Keys.onReturnPressed: (event) => { browseCarousel.primaryClicked(browseCarousel.index); event.accepted = true }
+            Keys.onEnterPressed: (event) => { browseCarousel.primaryClicked(browseCarousel.index); event.accepted = true }
+            Rectangle {
+                anchors.fill: parent
+                radius: 14
+                color: "transparent"
+                border.width: 2
+                border.color: theme.inkDim
+                visible: browseCarousel.activeFocus
+                opacity: 0.5
+            }
             slides: root.carouselSlides
             kicker: "Just arrived"
             primaryLabel: "Play"
@@ -1393,7 +1410,11 @@ Item {
                 // Slice 9 (design §4.9): Tab from the grid reaches the rail; Shift+Tab returns.
                 // `grid` is declared further down in this same file — QML resolves ids
                 // document-wide, so the forward reference is valid.
+                // S15 (ux uplift): the rail → crumb → grid Tab cycle, alongside Slice 9's grid
+                // → rail. Each focusable surface is part of ONE loop; the crumb's internal
+                // segments Tab-cycle inside it (the crumb's own FocusScope).
                 KeyNavigation.backtab: grid
+                KeyNavigation.tab: browseCrumb
             }
 
             Item {
@@ -1409,6 +1430,9 @@ Item {
                     visible: !root.searchViewActive
                     stack: root.displayedCrumbStack
                     onSegmentClicked: (index) => root.goToCrumb(index)
+                    // S15: the crumb is one stop in the rail → crumb → grid cycle.
+                    KeyNavigation.tab: grid
+                    KeyNavigation.backtab: browseRail
                 }
 
                 // ── Vault ux uplift S14 — the search field, replacing the crumb row while the

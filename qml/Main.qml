@@ -3242,6 +3242,15 @@ Window {
         onActivated: openMediaDialog.open()
     }
 
+    // Vault ux uplift S15: a global shortcut opens the Vault from anywhere, via the same
+    // door function the taskbar folder door uses (the layer-priority chain is respected —
+    // openVaultPage already deactivates the other taskbar layers; Escape's law closes it).
+    Shortcut {
+        sequences: ["Ctrl+Shift+V"]
+        context: Qt.ApplicationShortcut
+        onActivated: win.openVaultPage()
+    }
+
     // ── Open Recent panel (Slice 9): the Open Media control remembers ──
     // A same-window popup (so the bridge can see it) that pops up above the taskbar dock near the
     // Open Media control. Lists recently opened local files for one-click reopen; a dead file is

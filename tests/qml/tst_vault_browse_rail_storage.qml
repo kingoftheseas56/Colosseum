@@ -393,6 +393,29 @@ TestCase {
         verify(findText(menu, "needs attention…") === null)
     }
 
+    // ── 10. S15: a rail row is keyboard-activatable — Tab reaches it, Return selects the
+    //          row's path (the mouse path's twin), and the ring paints only under focus. ─────
+    function test_rail_row_keyboard_activates_on_return() {
+        testCase.rootsSeed = [
+            { path: "/media/a", name: "Archive", available: true, itemCount: 3, fileCount: 9 }
+        ]
+        wait(40)
+        const row0 = row(0)
+        verify(row0 !== null)
+        verify(row0.activeFocusOnTab === true)
+        // keyClick drives the test window's own focus (the harness window takes it).
+        testWindow.requestActivate()
+        row0.forceActiveFocus()
+        wait(20)
+        verify(row0.activeFocus === true)
+        keyClick(Qt.Key_Return)
+        compare(selectedSpy.count, 1)
+        compare(selectedSpy.signalArguments[0][0], "/media/a")
+        row0.forceActiveFocus()
+        keyClick(Qt.Key_Enter)
+        compare(selectedSpy.count, 2)
+    }
+
     function findText(root, wanted) {
         if (!root) return null
         if (root.text === wanted) return root

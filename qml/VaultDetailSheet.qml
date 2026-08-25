@@ -82,6 +82,20 @@ Item {
             event.accepted = true
         }
     }
+    // Vault ux uplift S15 — keyboard accept: Return plays the primary path (the cancel key,
+    // Escape/Backspace, is above). Never fires while the sheet has no play target.
+    Keys.onReturnPressed: (event) => {
+        if (sheet.playPath) {
+            sheet.playRequested(sheet.playPath)
+            event.accepted = true
+        }
+    }
+    Keys.onEnterPressed: (event) => {
+        if (sheet.playPath) {
+            sheet.playRequested(sheet.playPath)
+            event.accepted = true
+        }
+    }
     onVisibleChanged: if (visible) sheet.forceActiveFocus()
 
     function copiesHeldLabel(n) { return n + (n === 1 ? " copy held" : " copies held") }
