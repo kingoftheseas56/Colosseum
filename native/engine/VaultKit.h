@@ -174,6 +174,13 @@ QString qualityLineFromFileName(const QString& fileName);
 // the show root. Anchored guard from TB2 VideosPage::resolveShowPath.
 bool isSeasonLikeDirName(const QString& dirName);
 
+// The ordinal a season-shaped name denotes — "Season 4" → 4, "S04" → 4, "Disc 2" → 2;
+// 0 when it has no digits. The ONE rule planBrowseLevel and seasonFactsForShow
+// (vault ux uplift S17) share: the derived season structure must never diverge
+// between the browse walk's own season nodes and the per-season counts a show
+// page renders. Caller contract: the name already passed isSeasonLikeDirName.
+int seasonOrdinalFromDirName(const QString& dirName);
+
 // Climb past season-like parents so multi-season shows collapse to one root
 // (Sopranos/Season 5/ep and Sopranos/Season 6/ep → one "Sopranos" key).
 QString showRootForEpisodePath(const QString& filePath);

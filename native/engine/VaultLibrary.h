@@ -180,6 +180,14 @@ public:
     // and `id` is the S6 Progress join key so progress/watched chrome survives on search tiles.
     // Multi-select/bulk actions over results are OUT of scope (Phase-4-style ruling pending).
     Q_INVOKABLE QVariantList searchLibrary(const QString& query, int limit = 60) const;
+    // seasonFactsForShow(showFolderPath) — vault ux uplift S17: the DERIVED season/episode
+    // structure behind one show folder ({seasons:[{season,total,episodes:[{path,id,season,
+    // episode,title}]}], total}), natural order within each season, season ordinals via
+    // VaultKit::seasonOrdinalFromDirName (planBrowseLevel's own rule). Derivation only: no
+    // watched data (the page joins Progress against each episode id), no identity state, no
+    // persistence. Empty for a path that holds no rows (an unscanned folder, a sibling-
+    // collapsed sentinel key).
+    Q_INVOKABLE QVariantMap seasonFactsForShow(const QString& showFolderPath) const;
     // browseDetail(key): the detail sheet's ONE projection (Slice 7) — copies you hold (same
     // canonical identity across roots where identity exists, else the single physical group),
     // companions, extras, evidence, and a best-quality line. `key` is a Film browse-row's own

@@ -637,8 +637,9 @@ bool isExtrasDirName(const QString& name)
 
 // The ordinal from a bare season-like dir name (isSeasonLikeDirName already true), e.g.
 // "Season 4" -> 4, "S04" -> 4, "Disc 2" -> 2. 0 if no digits (shouldn't happen for a name that
-// already passed the guard).
-static int seasonOrdinalFromDirName(const QString& dirName)
+// already passed the guard). Public (ux uplift S17) so seasonFactsForShow derives its season
+// ordinals with the SAME rule planBrowseLevel uses — never a second derivation.
+int seasonOrdinalFromDirName(const QString& dirName)
 {
     static const QRegularExpression re(QStringLiteral("(\\d+)"));
     const auto m = re.match(dirName);

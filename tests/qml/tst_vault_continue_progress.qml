@@ -353,4 +353,43 @@ TestCase {
         compare(VaultApi.filterRowsByWatched([], "watched").length, 0)
         compare(VaultApi.filterRowsByWatched(null, "unwatched").length, 0)
     }
+
+    // ── 9. the show-page math (vault ux uplift S17 — production VaultApi.deriveSeasonState):
+    //       per-season watched/unwatched counts + the first UNWATCHED episode as next-up, in
+    //       the derived sequence; a finished season contributes nothing; an invalid structure
+    //       stays empty. The mark probe is the caller's (ProgressStore.watchedMark). ─────────
+    function test_show_season_math_counts_and_orders_next_up() {
+        var structure = {
+            total: 5,
+            seasons: [
+                { season: 1, total: 2, episodes: [
+                    { id: "vault:s1e1", path: "/S1/e1", title: "S01E01" },
+                    { id: "vault:s1e2", path: "/S1/e2", title: "S01E02" }
+                ]},
+                { season: 2, total: 3, episodes: [
+                    { id: "vault:s2e1", path: "/S2/e1", title: "S02E01" },
+                    { id: "vault:s2e2", path: "/S2/e2", title: "S02E02" },
+                    { id: "vault:s2e3", path: "/S2/e3", title: "S02E03" }
+                ]}
+            ]
+        }
+        var marks = { "vault:s1e1": 1, "vault:s1e2": 1, "vault:s2e1": 1 }
+        var state = VaultApi.deriveSeasonState(structure, function (id) { return marks[id] || 0 })
+        compare(state.nextUp.id, "vault:s2e2")          // S1E1+S1E2 watched, S2E1 watched → S2E2
+        compare(state.seasons.length, 2)
+        compare(state.seasons[0].watched, 2)
+        compare(state.seasons[0].unwatched, 0)
+        compare(state.seasons[0].nextUp, null)          // a finished season has no next-up
+        compare(state.seasons[1].watched, 1)
+        compare(state.seasons[1].unwatched, 2)
+        compare(state.seasons[1].nextUp.id, "vault:s2e2")
+
+        // NEGATIVE CONTROL: a finished show yields a show-wide null next-up (never a guess).
+        var all = VaultApi.deriveSeasonState(structure, function (id) { return 1 })
+        compare(all.nextUp, null)
+
+        // invalid/empty structures are honest no-ops
+        compare(VaultApi.deriveSeasonState(null, null).nextUp, null)
+        compare(VaultApi.deriveSeasonState({}, null).seasons.length, 0)
+    }
 }

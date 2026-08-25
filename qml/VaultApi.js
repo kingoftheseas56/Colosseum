@@ -70,6 +70,37 @@ function filterRowsByWatched(rows, mode) {
     return out
 }
 
+// --- Vault ux uplift S17 — the show-page math (pure; watchedFn is the caller's mark probe) ---
+// Takes seasonFactsForShow's derived structure and joins the durable watched mark per episode
+// id (watchedFn(id) -> the ProgressStore.watchedMark state; -1/0/1 tri-state, 1 = watched).
+// Returns {seasons: [{season,total,watched,unwatched,nextUp}], nextUp} — nextUp is the FIRST
+// unwatched episode in the derived natural order (season sequence then episode order) or null
+// when the show is finished. Ties to neither a season's own file order nor SxxExx parse: the
+// derivation the C++ side handed over IS the order the page paints.
+function deriveSeasonState(structure, watchedFn) {
+    if (!structure || !structure.seasons) return { seasons: [], nextUp: null }
+    var out = [], showNextUp = null
+    for (var i = 0; i < structure.seasons.length; i++) {
+        var s = structure.seasons[i]
+        var watched = 0, nextUp = null
+        var eps = s.episodes || []
+        for (var e = 0; e < eps.length; e++) {
+            var ep = eps[e]
+            var isWatched = watchedFn ? (watchedFn(ep.id) === 1) : false
+            if (isWatched) watched++
+            else if (!nextUp) nextUp = ep
+        }
+        var row = {
+            season: s.season, total: s.total,
+            watched: watched, unwatched: (s.total || 0) - watched,
+            nextUp: nextUp
+        }
+        out.push(row)
+        if (!showNextUp && nextUp) showNextUp = nextUp
+    }
+    return { seasons: out, nextUp: showNextUp }
+}
+
 // --- Vault ux uplift S12 — the one browse ordering whose key is NOT in the index ----------------
 // "Recently played" orders by lastReadMs, which joinRow surfaces from the live Progress store —
 // so this is a pure array re-order of the JOINED rows VaultPage already holds (the VaultFolderView

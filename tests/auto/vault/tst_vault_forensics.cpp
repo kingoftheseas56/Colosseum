@@ -372,6 +372,7 @@ private slots:
     void browse_filter_kind_ident_and_presence_predicate();
     void browse_empty_cause_filtered_from_production_path();
     void search_library_matches_all_three_spellings();
+    void season_facts_derives_the_group_structure();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -1276,6 +1277,64 @@ void tst_vault_forensics::search_library_matches_all_three_spellings()
     QCOMPARE(resultKeys(QStringLiteral("2049.mkv")).size(), 0);
     fx->config->setHidden(QStringLiteral("vault:s14-blade"), false);
     QCOMPARE(resultKeys(QStringLiteral("2049.mkv")).size(), 1);
+}
+
+// ── vault ux uplift S17 — the derived season/episode structure ──
+// One show folder → per-season totals + the ordered episode list (natural order), season
+// ordinals by VaultKit's own rule, an unrecognized subfolder as season 0, and the whole thing
+// capped/empty for a path with no rows (the sibling-collapsed sentinel, an unscanned folder).
+void tst_vault_forensics::season_facts_derives_the_group_structure()
+{
+    auto fx = buildFlatFixture(0);
+    QVERIFY(fx->library);
+    auto makeSe = [&fx](const QString& folder, const QString& name, const char* suffix,
+                        const QString& subfolder) {
+        const QString dir = QDir(fx->rootPath).filePath(folder);
+        QDir().mkpath(dir);
+        const QString path = QDir(dir).filePath(name);
+        writeStub(path);
+        VaultIndex::FileRow r = makeFilmRow(fx->rootPath, dir, path,
+                                            QStringLiteral("vault:s17-") + suffix, 1000);
+        r.kind = QStringLiteral("video");
+        r.subfolder = subfolder; // "Season 1"/"Season 2" the group rows carry
+        return r;
+    };
+    QList<VaultIndex::FileRow> rows;
+    rows.append(makeSe(QStringLiteral("Sopranos"), "S01E01.mkv", "s1e1", QStringLiteral("Season 1")));
+    rows.append(makeSe(QStringLiteral("Sopranos"), "S01E02.mkv", "s1e2", QStringLiteral("Season 1")));
+    rows.append(makeSe(QStringLiteral("Sopranos"), "S02E01.mkv", "s2e1", QStringLiteral("Season 2")));
+    // An unrecognized subfolder ("Bonus") is season 0 — honestly unparsed, not invented.
+    rows.append(makeSe(QStringLiteral("Sopranos"), "bonus.mkv", "bonus", QStringLiteral("Bonus")));
+    fx->index->publish(rows);
+
+    const QString showDir =
+        QFileInfo(QDir(fx->rootPath).filePath(QStringLiteral("Sopranos"))).absoluteFilePath();
+    const QVariantMap facts = fx->library->seasonFactsForShow(showDir);
+    QVERIFY(!facts.isEmpty());
+    QCOMPARE(facts.value(QStringLiteral("total")).toInt(), 4);
+    const QVariantList seasons = facts.value(QStringLiteral("seasons")).toList();
+    QCOMPARE(seasons.size(), 3);
+    // season order ascends 0 (Bonus), 1, 2
+    QCOMPARE(seasons[0].toMap().value(QStringLiteral("season")).toInt(), 0);
+    QCOMPARE(seasons[0].toMap().value(QStringLiteral("total")).toInt(), 1);
+    QCOMPARE(seasons[1].toMap().value(QStringLiteral("season")).toInt(), 1);
+    QCOMPARE(seasons[1].toMap().value(QStringLiteral("total")).toInt(), 2);
+    QCOMPARE(seasons[2].toMap().value(QStringLiteral("season")).toInt(), 2);
+    QCOMPARE(seasons[2].toMap().value(QStringLiteral("total")).toInt(), 1);
+    // Season 1's episode list: S01E01, S01E02 — order by the stored sortKey (natural order).
+    const QVariantList s1eps = seasons[1].toMap().value(QStringLiteral("episodes")).toList();
+    QCOMPARE(s1eps.size(), 2);
+    QCOMPARE(s1eps[0].toMap().value(QStringLiteral("path")).toString(),
+             QDir(showDir).filePath(QStringLiteral("S01E01.mkv")));
+    QCOMPARE(s1eps[1].toMap().value(QStringLiteral("path")).toString(),
+             QDir(showDir).filePath(QStringLiteral("S01E02.mkv")));
+    // The patched id + the per-episode season ordinal ride the entry (the QML join key).
+    QCOMPARE(s1eps[0].toMap().value(QStringLiteral("id")).toString(),
+             QStringLiteral("vault:s17-s1e1"));
+    QCOMPARE(s1eps[0].toMap().value(QStringLiteral("season")).toInt(), 1);
+    // A path with no rows (an unscanned folder) returns empty — honest, never a fake show.
+    QVERIFY(fx->library->seasonFactsForShow(
+                QDir(fx->rootPath).filePath(QStringLiteral("no-such"))).isEmpty());
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

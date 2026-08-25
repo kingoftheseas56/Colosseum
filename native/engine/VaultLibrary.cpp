@@ -1102,6 +1102,71 @@ QVariantList VaultLibrary::searchLibrary(const QString& query, int limit) const
     return out;
 }
 
+// Vault ux uplift S17 — the derived show structure a show page needs WITHOUT knowing what the
+// user watched: one entry per season (ordinal via VaultKit::seasonOrdinalFromDirName — the
+// planBrowseLevel rule; an unrecognized subfolder counts as season 0 "extras-ish", honestly
+// unparsed), each with its total + the ordered episode list the page joins watched state
+// against ({path, id, season, episode, title}). Derivation ONLY: no watcher, no identity
+// state, no persistence (the encyclopedia's no-grouping trap — this is per-call, rebuildable
+// from the index rows, which are themselves a rebuildable product). A key that holds no rows
+// (a sibling-collapsed virtual show sentinel, an unscanned folder) returns empty — honest.
+QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) const
+{
+    QVariantMap out;
+    if (!m_index || showFolderPath.isEmpty())
+        return out;
+    const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(showFolderPath);
+    if (rows.isEmpty())
+        return out;
+    struct SeasonEntry {
+        int ordinal = 0;
+        QList<VaultIndex::FileRow> episodes; // natural order set at the end
+    };
+    QMap<int, SeasonEntry> seasons;
+    for (const VaultIndex::FileRow& row : rows) {
+        int ord = 0;
+        const QStringList relParts = row.subfolder.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+        for (const QString& part : relParts) {
+            if (VaultKit::isSeasonLikeDirName(part)) {
+                ord = VaultKit::seasonOrdinalFromDirName(part);
+                break;
+            }
+        }
+        seasons[ord].ordinal = ord;
+        seasons[ord].episodes.append(row);
+    }
+    QVariantList seasonList;
+    for (auto it = seasons.constBegin(); it != seasons.constEnd(); ++it) {
+        SeasonEntry& s = seasons[it.key()]; // the order-mutable copy, sorted below
+        std::sort(s.episodes.begin(), s.episodes.end(),
+                  [](const VaultIndex::FileRow& a, const VaultIndex::FileRow& b) {
+                      if (a.sortKey != b.sortKey)
+                          return a.sortKey < b.sortKey;
+                      return a.realName < b.realName;
+                  });
+        QVariantList season;
+        for (const VaultIndex::FileRow& row : s.episodes) {
+            QVariantMap ep;
+            ep.insert(QStringLiteral("path"), row.path);
+            ep.insert(QStringLiteral("id"), row.id);
+            const VaultKit::SeasonEpisode parsed = VaultKit::parseEpisodeNumber(row.realName);
+            ep.insert(QStringLiteral("season"), parsed.season ? parsed.season : s.ordinal);
+            ep.insert(QStringLiteral("episode"), parsed.episode);
+            ep.insert(QStringLiteral("title"),
+                      row.displayTitle.isEmpty() ? row.realName : row.displayTitle);
+            season.append(ep);
+        }
+        QVariantMap sm;
+        sm.insert(QStringLiteral("season"), s.ordinal);
+        sm.insert(QStringLiteral("total"), s.episodes.size());
+        sm.insert(QStringLiteral("episodes"), season);
+        seasonList.append(sm);
+    }
+    out.insert(QStringLiteral("seasons"), seasonList);
+    out.insert(QStringLiteral("total"), rows.size());
+    return out;
+}
+
 QVariantMap VaultLibrary::browseDetail(const QString& key) const
 {
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();

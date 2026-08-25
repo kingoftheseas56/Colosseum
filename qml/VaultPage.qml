@@ -159,6 +159,42 @@ Item {
         ? (VaultLibrary.revision, root.joinProgressRows(
                VaultLibrary.searchLibrary(root.searchQuery))) : []
 
+    // ==== Vault ux uplift S17 — the show page. A show folder's grid is season tiles; the
+    //      seasonFacts structure (derived C++, progress-free) is joined against the durable
+    //      watched marks here, producing per-season watched/unwatched counts (painted on the
+    //      season tiles) and the page's next-up (the first unwatched episode in the derived
+    //      natural order). The level is a show page when the current crumb's parent grid
+    //      contained its SHOW tile — cheap proxy: currentBrowsePath is the show folder, its
+    //      own rows are season nodes. ====
+    readonly property bool showPageActive: root.crumbStack.length > 0
+            && root.crumbStack[root.crumbStack.length - 1].nodeType === "show"
+    // The structure through the revision clock (a publish re-derives; a rescan of the show).
+    readonly property var currentShowFacts: (root.showPageActive
+            && typeof VaultLibrary !== "undefined")
+        ? (VaultLibrary.revision,
+           VaultLibrary.seasonFactsForShow(root.currentBrowsePath)) : ({})
+    // The joined form: counts + next-up, with Progress feeding the mark probe.  the silent 5s
+    // tick bumps neither clock; a watch-mark write bumps Progress (the mark probe re-reads).
+    readonly property var currentShowState: {
+        if (root.showPageActive && typeof Progress !== "undefined") {
+            Progress.revision
+            return VaultApi.deriveSeasonState(root.currentShowFacts, function (id) {
+                return Progress.watchedMark(id)
+            })
+        }
+        return ({ seasons: [], nextUp: null })
+    }
+    // S17 — the next-up row's data model (vaultContinueTileComp's own shape): the first
+    // unwatched episode of the derived sequence. A finished show (nextUp null) hides the row.
+    readonly property var showNextUpRows: {
+        const n = root.currentShowState.nextUp
+        if (!n) return []
+        return [{
+            id: n.id || "", kind: "video", path: n.path || "", title: n.title || "",
+            cover: "", progressFraction: 0
+        }]
+    }
+
     // ==== Vault ux uplift S12 — the browse sort. Natural order stays the default (spec §6
     //      law); the other four orderings are per-LEVEL choices persisted in
     //      browseSettings.sortPerLevel (a {levelKey: mode} JSON map — the same vaultBrowseV1
@@ -255,8 +291,35 @@ Item {
         root.browseRowsBeforeWatchedFilter = joined.length
         const watchedFiltered = root.filterWatched !== ""
             ? VaultApi.filterRowsByWatched(joined, root.filterWatched) : joined
-        return root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(watchedFiltered)
-                                          : watchedFiltered
+        let final = root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(watchedFiltered)
+                                               : watchedFiltered
+        // S17: on the show page, each season tile gains its watched fact (the derived season
+        // mathematics, joined — the tile itself never recomputes it). Tiles are keyed by their
+        // displayTitle's ordinal; a tile whose ordinal has no season entry stays undecorated.
+        if (root.showPageActive && root.currentShowState.seasons.length) {
+            for (let i = 0; i < final.length; i++) {
+                if (final[i].nodeType !== "season") continue
+                const m = /(\d+)/.exec(String(final[i].displayTitle || ""))
+                if (!m) continue
+                const ord = Number(m[1])
+                for (const s of root.currentShowState.seasons) {
+                    if (s.season === ord) {
+                        final[i].watchedFact = s.watched + "/" + s.total
+                        final[i].unwatchedFact = s.unwatched
+                        // The one physical-fact law (TB2) still holds: ONE factual line. The
+                        // season tile's line becomes the count it owns — the card's own
+                        // "N episodes" is the total, so the fact line gains only the watched
+                        // fraction (never a synopsis, never an inference).
+                        const base = String(final[i].physicalFact || "")
+                        final[i].physicalFact = base ? (base + " · " + final[i].watchedFact
+                                                        + " watched") : (final[i].watchedFact
+                                                          + " watched")
+                        break
+                    }
+                }
+            }
+        }
+        return final
     }
     // S13: the joined-row count BEFORE the watched filter — the QML half of the "filtered"
     // empty-cause trigger (the C++ half knows only the index-fact predicates).
@@ -517,13 +580,16 @@ Item {
         root.rememberCurrentScroll()
         root.leaveSearchView()
         root.hiddenViewActive = false
-        root.crumbStack = [{ key: path, displayTitle: name }]
+        // S17: the crumb carries the node type it was opened FROM ("" for a root), so a page
+        // under a "show" tile knows it is the show page without re-walking the grid.
+        root.crumbStack = [{ key: path, displayTitle: name, nodeType: "" }]
         root.currentBrowsePath = path
         root.browseSettings_setLastCrumb()
     }
-    function pushCrumb(key, title) {
+    function pushCrumb(key, title, nodeType) {
         root.rememberCurrentScroll()
-        root.crumbStack = root.crumbStack.concat([{ key: key, displayTitle: title }])
+        root.crumbStack = root.crumbStack.concat(
+            [{ key: key, displayTitle: title, nodeType: nodeType || "" }])
         root.currentBrowsePath = key
         root.browseSettings_setLastCrumb()
     }
@@ -562,7 +628,7 @@ Item {
             // per the window chain). An episode/clip plays straight through.
             if (row.nodeType === "folder" || row.nodeType === "show" || row.nodeType === "season") {
                 root.leaveSearchView()
-                root.pushCrumb(row.key, row.displayTitle)
+                root.pushCrumb(row.key, row.displayTitle, row.nodeType)
                 return
             }
             if (row.nodeType === "film") {
@@ -577,7 +643,7 @@ Item {
             return
         }
         if (row.nodeType === "folder" || row.nodeType === "show" || row.nodeType === "season") {
-            root.pushCrumb(row.key, row.displayTitle)
+            root.pushCrumb(row.key, row.displayTitle, row.nodeType)
             return
         }
         if (row.nodeType === "film") {
@@ -1508,6 +1574,38 @@ Item {
                     }
                 }
 
+                // ── Vault ux uplift S17 — the NEXT UP row on the show page: the first
+                //    unwatched episode of the derived season sequence, one tile (the Continue
+                //    rail's own tile component — it degrades to a plain open tile when a
+                //    progress hairline has nothing to paint). Finished show → absent.
+                Item {
+                    id: showNextUp
+                    objectName: "vaultShowNextUp"
+                    visible: root.showPageActive && root.showNextUpRows.length > 0
+                    anchors.top: browseCrumb.bottom; anchors.topMargin: 16
+                    anchors.left: parent.left; anchors.right: parent.right
+                    height: visible ? 158 : 0
+
+                    Text {
+                        objectName: "vaultShowNextUpKicker"
+                        anchors.top: parent.top; anchors.left: parent.left
+                        text: "NEXT UP"
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
+                        font.weight: Font.DemiBold
+                    }
+                    ListView {
+                        id: nextUpList
+                        anchors.top: parent.top; anchors.topMargin: 20
+                        anchors.left: parent.left; anchors.right: parent.right
+                        height: 126
+                        orientation: ListView.Horizontal
+                        spacing: 14
+                        model: root.showNextUpRows
+                        delegate: vaultContinueTileComp
+                    }
+                }
+
                 Component {
                     id: posterDelegateComp
                     VaultPosterCard {
@@ -1545,7 +1643,8 @@ Item {
                 GridView {
                     id: grid
                     objectName: "vaultBrowseGrid"
-                    anchors.top: browseCrumb.bottom; anchors.topMargin: 16
+                    anchors.top: browseCrumb.bottom
+                    anchors.topMargin: root.showNextUp.visible ? (16 + root.showNextUp.height) : 16
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     clip: true
                     cellWidth: root.browseGridWide ? root.wideCellWidth : root.posterCellWidth
