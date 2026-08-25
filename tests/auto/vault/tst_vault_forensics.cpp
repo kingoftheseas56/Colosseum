@@ -30,6 +30,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMap>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QtTest>
@@ -270,6 +271,70 @@ std::unique_ptr<Fixture> buildIdentityFixture(int copyCount, QString* keyOut)
     return fx;
 }
 
+// Same hand-built row shape as makeFilmRow above — see its comment for why groupKey/subtreePath
+// MUST be the QFileInfo::absoluteFilePath()-canonical form of the folder (that is the string
+// VaultKit's real walk independently reconstructs, and the one browseAt() feeds to
+// rowsForGroup()). Only the stored `kind` and the real filename differ, which is exactly what
+// browse_projection_carries_stored_kind is about.
+VaultIndex::FileRow makeKindRow(const QString& rootPath, const QString& folder,
+                                const QString& file, const QString& id, const QString& kind)
+{
+    VaultIndex::FileRow r = makeFilmRow(rootPath, folder, file, id, 1000);
+    r.kind = kind;
+    r.realName = QFileInfo(file).fileName();
+    r.groupTitle = QFileInfo(folder).fileName();
+    r.displayTitle = QFileInfo(folder).fileName();
+    return r;
+}
+
+// One confirmed root holding two single-media-file folders: one video, one comic. Both collapse
+// to FILM nodes — VaultKit::classifyChildDirectory's "a folder holding exactly one media file IS
+// that film" rule counts through allMediaFilters(), which covers .cbz as well as .mp4, so the
+// node type is medium-agnostic and the STORED kind is the only thing that can tell the two apart.
+// That is precisely the browse row the identify gesture is reachable from, and precisely why
+// browseAt() has to carry kind rather than let QML infer a medium from nodeType.
+std::unique_ptr<Fixture> buildMixedKindFixture(QString* videoFolderOut, QString* comicFolderOut)
+{
+    auto fx = std::make_unique<Fixture>();
+    if (!fx->tmp.isValid())
+        return fx;
+    fx->rootPath = normalizedRootPath(QDir(fx->tmp.path()).filePath(QStringLiteral("root")));
+    QDir().mkpath(fx->rootPath);
+
+    fx->index = std::make_unique<VaultIndex>(
+        QDir(fx->tmp.path()).filePath(QStringLiteral("index.sqlite")));
+    fx->config = std::make_unique<VaultConfig>(fx->tmp.path());
+    fx->identity = std::make_unique<VaultIdentity>(fx->tmp.path());
+    fx->scanner = std::make_unique<VaultScanner>(fx->index.get(), fx->identity.get());
+    fx->config->addRoot(fx->rootPath);
+    fx->config->confirmRoot(fx->rootPath);
+
+    const QString videoFolder = QDir(fx->rootPath).filePath(QStringLiteral("Film Group"));
+    const QString comicFolder = QDir(fx->rootPath).filePath(QStringLiteral("Comic Group"));
+    QDir().mkpath(videoFolder);
+    QDir().mkpath(comicFolder);
+    const QString videoFile = QDir(videoFolder).filePath(QStringLiteral("movie.mp4"));
+    const QString comicFile = QDir(comicFolder).filePath(QStringLiteral("issue.cbz"));
+    writeStub(videoFile);
+    writeStub(comicFile);
+
+    fx->index->publish({
+        makeKindRow(fx->rootPath, videoFolder, videoFile,
+                    QStringLiteral("vault:mixed-video"), QStringLiteral("video")),
+        makeKindRow(fx->rootPath, comicFolder, comicFile,
+                    QStringLiteral("vault:mixed-comic"), QStringLiteral("comic")),
+    });
+    // cacheDir: same fx->tmp reuse as buildFlatFixture above (Slice 3 part 2 signature).
+    fx->library = std::make_unique<VaultLibrary>(fx->index.get(), fx->scanner.get(),
+                                                 fx->config.get(), fx->identity.get(),
+                                                 fx->tmp.path());
+    if (videoFolderOut)
+        *videoFolderOut = QFileInfo(videoFolder).fileName();
+    if (comicFolderOut)
+        *comicFolderOut = QFileInfo(comicFolder).fileName();
+    return fx;
+}
+
 qsizetype serializedSize(const QVariantMap& out)
 {
     return QJsonDocument(QJsonObject::fromVariantMap(out)).toJson(QJsonDocument::Compact).size();
@@ -293,6 +358,7 @@ private slots:
     void foreign_thread_marshals_to_owner();
     void timeout_returns_error();
     void projection_does_not_mutate_files();
+    void browse_projection_carries_stored_kind();
 };
 
 void tst_vault_forensics::schema_and_shape_v1()
@@ -616,6 +682,65 @@ void tst_vault_forensics::projection_does_not_mutate_files()
 
     // Second signal: the rows themselves are byte-identical, not just the file's bytes.
     QCOMPARE(fx->index->rowsForRoot(rootPath).size(), 4);
+}
+
+// This file already owns the ONLY C++ fixture that constructs a real VaultLibrary (F0's named
+// safe seam), so the browse projection's own row contract is proved here rather than in a second
+// copy of that whole object graph.
+//
+// The bug: VaultLibrary::browseAt() returned rows with no `kind`, so VaultPage.identifyBrowseRow()
+// had nothing to hand VaultIdentifyDialog and passed "" — and searchNow()'s "" path falls through
+// to ComicsCatalog then MalCatalog. Identifying a MOVIE from the browse face therefore searched
+// comic and manga catalogues and could never reach IMDb. nodeType cannot substitute: a folder
+// holding one .cbz and a folder holding one .mp4 are BOTH "film" nodes (that is a statement about
+// folder shape, not medium), which this fixture makes concrete.
+void tst_vault_forensics::browse_projection_carries_stored_kind()
+{
+    QString videoFolderName, comicFolderName;
+    auto fx = buildMixedKindFixture(&videoFolderName, &comicFolderName);
+    QVERIFY(fx->library);
+    QVERIFY(!videoFolderName.isEmpty());
+    QVERIFY(!comicFolderName.isEmpty());
+
+    const QVariantList rows = fx->library->browseAt(fx->rootPath);
+    QCOMPARE(rows.size(), 2);
+
+    // Keyed by the folder's own NAME, not its full path: a browse node's key comes from
+    // QDir::entryInfoList()'s absoluteFilePath(), which canonicalizes the drive letter on Windows
+    // (see makeFilmRow's comment) — the leaf name is the part that is byte-stable either way.
+    QMap<QString, QVariantMap> byFolderName;
+    for (const QVariant& rv : rows) {
+        const QVariantMap m = rv.toMap();
+        byFolderName.insert(QFileInfo(m.value(QStringLiteral("key")).toString()).fileName(), m);
+    }
+    QVERIFY2(byFolderName.contains(videoFolderName), qPrintable(videoFolderName));
+    QVERIFY2(byFolderName.contains(comicFolderName), qPrintable(comicFolderName));
+
+    const QVariantMap videoRow = byFolderName.value(videoFolderName);
+    const QVariantMap comicRow = byFolderName.value(comicFolderName);
+
+    // The falsifiability half: both really are the same node type, so `kind` is carrying
+    // information nothing else in the row could have supplied.
+    QCOMPARE(videoRow.value(QStringLiteral("nodeType")).toString(), QStringLiteral("film"));
+    QCOMPARE(comicRow.value(QStringLiteral("nodeType")).toString(), QStringLiteral("film"));
+
+    // THE CONTRACT: each row carries the kind its own index rows were STORED with.
+    QCOMPARE(videoRow.value(QStringLiteral("kind")).toString(), QStringLiteral("video"));
+    QCOMPARE(comicRow.value(QStringLiteral("kind")).toString(), QStringLiteral("comic"));
+
+    // recentArrivals() mirrors browseAt()'s film/show row shape and feeds the SAME detail sheet
+    // (a carousel slide's Details opens it), whose Identify action hands the row's kind on — so
+    // it has to carry kind too, or identifying from the carousel keeps the original bug.
+    const QVariantList recent = fx->library->recentArrivals(6);
+    QCOMPARE(recent.size(), 2);
+    QMap<QString, QString> recentKindByName;
+    for (const QVariant& rv : recent) {
+        const QVariantMap m = rv.toMap();
+        recentKindByName.insert(QFileInfo(m.value(QStringLiteral("key")).toString()).fileName(),
+                                m.value(QStringLiteral("kind")).toString());
+    }
+    QCOMPARE(recentKindByName.value(videoFolderName), QStringLiteral("video"));
+    QCOMPARE(recentKindByName.value(comicFolderName), QStringLiteral("comic"));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_forensics)

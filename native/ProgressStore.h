@@ -488,7 +488,15 @@ private:
         const bool isSeriesEpisode =
             kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2;
         if (kind == QStringLiteral("video") && progress >= 0.90 && !isSeriesEpisode) {
-            if (m_map.remove(key)) {
+            // A vault id is "vault:<sha1>" — ONE colon — so every vault video, episodes
+            // included, retires here; the mark is what survives the dropped resume record.
+            // Guarded on the entry existing so the mark is written once at the crossing:
+            // setWatchedMark bumps changed(), and a 5s recordSilent() cascade of that is the
+            // proven video-stutter source.
+            if (m_map.contains(key)) {
+                if (id.startsWith(QStringLiteral("vault:")))
+                    setWatchedMark(id, true);
+                m_map.remove(key);
                 scheduleSave();
                 emit syncDirty();
                 return true;

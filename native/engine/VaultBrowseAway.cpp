@@ -123,11 +123,25 @@ QVariantList offlineBrowseAt(VaultIndex* index, const QVariantList& roots, const
         counts.insert(QStringLiteral("items"), groupRows.size());
         m.insert(QStringLiteral("counts"), counts);
         m.insert(QStringLiteral("coverRef"), QString());
+        // The group's stored kind, same contract VaultLibrary::browseAt() carries — an away tile
+        // still opens the detail sheet, and the sheet's Identify still has to reach the right
+        // catalogue. Most common kind wins; the first row to reach that count breaks a tie.
+        QMap<QString, int> kindTally;
+        QString dominantKind;
+        int dominantCount = 0;
         bool identified = false;
         for (const VaultIndex::FileRow& r : groupRows) {
             if (!r.identityId.isEmpty() && !r.identitySuppressed)
                 identified = true;
+            if (r.kind.isEmpty())
+                continue;
+            const int seen = ++kindTally[r.kind];
+            if (seen > dominantCount) {
+                dominantCount = seen;
+                dominantKind = r.kind;
+            }
         }
+        m.insert(QStringLiteral("kind"), dominantKind);
         m.insert(QStringLiteral("state"),
                  identified ? QStringLiteral("identified") : QStringLiteral("resolving"));
         m.insert(QStringLiteral("away"), true);

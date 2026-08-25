@@ -126,7 +126,15 @@ public:
     // "" (typographic fallback) and kicks that producer's async fetch/grab; VaultArtworkResolver::
     // artResolved(rowKey) then fires browseArtResolved(rowKey) (see that signal below) so the
     // caller re-projects the same level. Row shape:
-    // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path}.
+    // {key, nodeType, displayTitle, physicalFact, state, away, counts:{items}, coverRef, path,
+    //  kind}.
+    // `kind` is the STORED comic|book|video the index rows under a node carry (VaultScanner's own
+    // per-file classification), never a re-derivation of the structural `nodeType` — QML's identify
+    // gesture branches on it to choose IMDb over the comic/manga catalogues, and this projection
+    // returning "" for every row is exactly why identifying a film from the browse face used to
+    // search comics. Film/Episode/Clip take it from their own group/exact-path rows; a container
+    // that IS a group takes its most common row kind; a pure ancestor folder (no rows of its own)
+    // and anything not indexed yet honestly stay "".
     // Slice 6: away now flows to EVERY node type, not just Film — a whole level's owning root
     // going away marks every one of its tiles, not just the ones this method already had a
     // per-row lookup for. When the owning root's directory can no longer be walked at all,

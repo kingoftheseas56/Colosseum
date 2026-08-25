@@ -39,13 +39,14 @@ static QString normPath(const QString& p)
 // VaultIndex::rowsForPath (added for this) closes that gap with an exact-path query, bounded to
 // 0-or-1 rows in practice. Returns the resolver's answer, or "" when there's nothing yet (a miss
 // still kicks that producer's async fetch/grab inside resolve() itself).
-static QString resolveVideoLeafCoverRef(VaultIndex* index, VaultArtworkResolver* resolver,
-                                        const QString& rowKey, const QString& filePath)
+//
+// Identify-catalogue routing fix: the caller now performs the rowsForPath() lookup itself (it also
+// needs the row's stored `kind` for the projection) and hands the rows in, so a level of 300+
+// episode leaves still costs exactly ONE exact-path query per leaf, not two.
+static QString resolveVideoLeafCoverRef(const QList<VaultIndex::FileRow>& rows,
+                                        VaultArtworkResolver* resolver, const QString& rowKey)
 {
-    if (!resolver || !index || filePath.isEmpty())
-        return QString();
-    const QList<VaultIndex::FileRow> rows = index->rowsForPath(filePath);
-    if (rows.isEmpty())
+    if (!resolver || rows.isEmpty())
         return QString(); // not indexed yet (e.g. mid-scan) — honest "no facts", never invented
     const VaultIndex::FileRow& row = rows.first();
     VaultArtworkResolver::RowFacts facts;
@@ -64,6 +65,31 @@ static QString resolveVideoLeafCoverRef(VaultIndex* index, VaultArtworkResolver*
     facts.mtimeMs = row.mtimeMs;
     facts.durationSec = row.durationSec;
     return resolver->resolve(facts);
+}
+
+// The stored `kind` (comic|book|video) that a browse node inherits from the index rows underneath
+// it. kind is DATA — VaultScanner's own per-file classification, persisted on every VaultIndex
+// row — and is deliberately NOT re-derived from the structural nodeType: the identify flow
+// branches on kind to pick a catalogue (IMDb for video, Comics/MAL otherwise), so a guess here is
+// how a film ends up searched against comic catalogues. A mixed folder answers with its most
+// common kind; the first row to reach that count wins a tie, which keeps one level's answer
+// stable across calls. "" when nothing underneath is indexed yet (mid-scan) — an honest "not
+// known", never an invented default.
+static QString dominantRowKind(const QList<VaultIndex::FileRow>& rows)
+{
+    QMap<QString, int> tally;
+    QString best;
+    int bestCount = 0;
+    for (const VaultIndex::FileRow& row : rows) {
+        if (row.kind.isEmpty())
+            continue;
+        const int seen = ++tally[row.kind];
+        if (seen > bestCount) {
+            bestCount = seen;
+            best = row.kind;
+        }
+    }
+    return best;
 }
 
 VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig* config,
@@ -529,6 +555,10 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         // Deeper per-episode state and durable ambiguity are Slices 2/6's business; this slice
         // gives every other node an honest "resolving" default rather than inventing one.
         QString state = QStringLiteral("resolving");
+        // The group's stored kind, carried through to QML so the identify gesture can pick the
+        // right catalogue (see dominantRowKind above). Filled per node type from the index rows
+        // each branch already fetches; a node with nothing indexed under it keeps "".
+        QString kind;
         // Slice 6: away is a ROOT-WIDE fact (markRootAway() flips every row under one root in one
         // statement), so every node this call returns starts from the SAME verdict — whichever
         // confirmed root owns `rootOrPath`. Only a Film node overrides this with its own group's
@@ -541,8 +571,12 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             // Browse-artwork execution plan, Slice 3 part 2: a Clip is real footage (locked
             // design gives it a genuine frame from the file, e.g. Hemanth's own Cricket clips —
             // never a typographic-only face just because it isn't catalogue-identifiable). n.key
-            // == n.path == the file itself for a Clip node (VaultKit's loose-video leaf grammar).
-            const QString resolved = resolveVideoLeafCoverRef(m_index, m_artworkResolver, n.key, n.path);
+            // == n.path == the file itself for a Clip node (VaultKit's loose-video leaf grammar),
+            // so the leaf's own exact-path row is what carries its stored kind.
+            const QList<VaultIndex::FileRow> leafRows = (m_index && !n.path.isEmpty())
+                ? m_index->rowsForPath(n.path) : QList<VaultIndex::FileRow>();
+            kind = dominantRowKind(leafRows);
+            const QString resolved = resolveVideoLeafCoverRef(leafRows, m_artworkResolver, n.key);
             if (!resolved.isEmpty())
                 m.insert(QStringLiteral("coverRef"), resolved);
         } else if (n.nodeType == VaultKit::BrowseNodeType::Episode) {
@@ -551,8 +585,12 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             state = QStringLiteral("identified");
             // Browse-artwork execution plan, Slice 3 part 2: an Episode gets the same real
             // frame-grab/poster treatment as a Clip (locked design's 16:9 still) — same lookup,
-            // same reasoning, n.key == n.path == the file for an Episode node too.
-            const QString resolved = resolveVideoLeafCoverRef(m_index, m_artworkResolver, n.key, n.path);
+            // same reasoning, n.key == n.path == the file for an Episode node too, and the same
+            // exact-path row answers its stored kind.
+            const QList<VaultIndex::FileRow> leafRows = (m_index && !n.path.isEmpty())
+                ? m_index->rowsForPath(n.path) : QList<VaultIndex::FileRow>();
+            kind = dominantRowKind(leafRows);
+            const QString resolved = resolveVideoLeafCoverRef(leafRows, m_artworkResolver, n.key);
             if (!resolved.isEmpty())
                 m.insert(QStringLiteral("coverRef"), resolved);
         } else if (n.nodeType == VaultKit::BrowseNodeType::Folder
@@ -568,6 +606,16 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
             // or played by a real click. Away nuance is Slice 6's explicit business, not invented
             // here.
             state = QStringLiteral("identified");
+            // A container that IS a group (a show folder whose node path equals the group key)
+            // answers its own kind from the rows it holds. A pure ancestor folder — one whose
+            // children are groups, not files — has no rows of its own here and honestly keeps ""
+            // rather than inventing one from a child; identify is unreachable on a container tile
+            // anyway (both cards only emit identifyRequested from the "uncertain" mark, and only a
+            // Film node ever reaches that state), so "" costs the identify flow nothing. Fetched
+            // once, above the resolver guard, because the artwork lookup below reads the SAME rows.
+            const QList<VaultIndex::FileRow> containerRows = (m_index && !n.path.isEmpty())
+                ? m_index->rowsForGroup(n.path) : QList<VaultIndex::FileRow>();
+            kind = dominantRowKind(containerRows);
             // Browse-artwork execution plan (2026-08-14 fix): a container that IS a group — a
             // top-level show folder whose node path equals the group key — carries the show's
             // canonical identity on its own file rows (The Wire's episodes all carry
@@ -582,15 +630,12 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 facts.rowKey = n.key;
                 facts.kind = VaultKit::browseNodeTypeName(n.nodeType);
                 facts.path = n.path;
-                if (m_index && !n.path.isEmpty()) {
-                    const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
-                    for (const VaultIndex::FileRow& row : rows) {
-                        if (!row.identityId.isEmpty() && !row.identitySuppressed
-                            && !row.identityCoverUrl.isEmpty()) {
-                            facts.identityId = row.identityId;
-                            facts.posterUrl = row.identityCoverUrl;
-                            break;
-                        }
+                for (const VaultIndex::FileRow& row : containerRows) {
+                    if (!row.identityId.isEmpty() && !row.identitySuppressed
+                        && !row.identityCoverUrl.isEmpty()) {
+                        facts.identityId = row.identityId;
+                        facts.posterUrl = row.identityCoverUrl;
+                        break;
                     }
                 }
                 const QString resolved = m_artworkResolver->resolve(facts);
@@ -600,6 +645,11 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
         } else if (n.nodeType == VaultKit::BrowseNodeType::Film && m_index) {
             const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(n.path);
             if (!rows.isEmpty()) {
+                // The one branch that matters most for identify routing: a Film node is the ONLY
+                // node type that ever reaches state "uncertain"/"resolving", i.e. the only tile
+                // whose Identify affordance is reachable at all. Its group's rows carry the kind
+                // the identify dialog needs to choose IMDb over the comic/manga catalogues.
+                kind = dominantRowKind(rows);
                 bool anyAway = false;
                 bool identified = false;
                 bool ambiguous = false;
@@ -683,6 +733,7 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath) const
                 m.insert(QStringLiteral("path"), rows.first().path);
             }
         }
+        m.insert(QStringLiteral("kind"), kind);
         m.insert(QStringLiteral("state"), state);
         m.insert(QStringLiteral("away"), away);
         out.append(m);
@@ -764,6 +815,10 @@ QVariantList VaultLibrary::recentArrivals(int limit) const
         m.insert(QStringLiteral("path"), rows.size() == 1
                  ? rows.first().path : g.value(QStringLiteral("subtreePath")));
         m.insert(QStringLiteral("coverRef"), QString());
+        // Same stored kind browseAt() now carries: a carousel slide's "Details" opens the SAME
+        // detail sheet a grid Film tile does, and the sheet's Identify hands its row on to the
+        // identify dialog — so a carousel-opened film has to know it is a film too.
+        m.insert(QStringLiteral("kind"), dominantRowKind(rows));
         m.insert(QStringLiteral("state"), !identityTitle.isEmpty() ? QStringLiteral("identified")
                  : ambiguous ? QStringLiteral("uncertain") : QStringLiteral("resolving"));
         m.insert(QStringLiteral("away"), anyAway);

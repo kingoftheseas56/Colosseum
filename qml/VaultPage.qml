@@ -90,12 +90,19 @@ Item {
     property bool detailSheetVisible: false
     property string detailSheetKey: ""
     property string detailSheetRowState: "" // the grid row's own state at open time (Identify/Un-identify choice)
+    // The opening row's STORED kind, remembered for the same reason its state is: the sheet's own
+    // projection (VaultLibrary.browseDetail) answers "what do I physically hold", not "what medium
+    // is this", so the sheet's Identify action has nothing else to hand the identify dialog — and
+    // handing it nothing is what sent a film to the comic catalogues. Both openers (a grid Film
+    // tile and a carousel slide's Details) carry kind now.
+    property string detailSheetRowKind: ""
     readonly property var detailSheetDetail: (root.detailSheetVisible && root.detailSheetKey
             && typeof VaultLibrary !== "undefined")
         ? (VaultLibrary.revision, VaultLibrary.browseDetail(root.detailSheetKey)) : ({})
     function openDetailSheet(row) {
         root.detailSheetKey = row.key || ""
         root.detailSheetRowState = row.state || ""
+        root.detailSheetRowKind = row.kind || ""
         root.detailSheetVisible = true
     }
     function closeDetailSheet() { root.detailSheetVisible = false }
@@ -154,7 +161,10 @@ Item {
             state: "identified",
             away: Number(s.awayCount || 0) > 0,
             counts: { items: count },
-            coverRef: s.coverUrl || ""
+            coverRef: s.coverUrl || "",
+            // hiddenSeries() rows already carry the group's stored kind — passing it through keeps
+            // this translation a FULL browseAt() row, now that `kind` is part of that contract.
+            kind: s.kind || ""
         }
     })
 
@@ -185,7 +195,7 @@ Item {
     // resets scroll) is told apart from an in-place content update (which must NOT touch scroll:
     // touching it here would yank a live in-progress scroll back to the remembered position on
     // every unrelated background repaint, e.g. a resolve tick landing while the user scrolls).
-    property string gridSyncedLevelKey: " __unsynced__"
+    property string gridSyncedLevelKey: "//__unsynced__//"
     function syncGridModel(rows) {
         rows = rows || []
         const levelKey = root.hiddenViewActive ? "hidden:" : root.currentBrowsePath
@@ -333,11 +343,21 @@ Item {
         if (!row) return
         identifyDialog.groupKey = row.key || ""
         identifyDialog.titleText = row.displayTitle || ""
-        // browseAt() rows don't carry a comic/book/video `kind` (Slice 1's row contract is
-        // kind-agnostic) — the book-specific synopsis/cover pre-fill identifyTile() does for
-        // the old shelves is skipped here; the identify flow itself is unaffected.
-        identifyDialog.kind = ""
-        identifyDialog.embeddedIdentity = ({})
+        // The row's STORED kind, straight from the C++ projection (VaultLibrary::browseAt now
+        // carries comic|book|video per node). Passing "" here — which this function used to do,
+        // back when the browse row contract was kind-agnostic — sent every identify from the
+        // browse face down VaultIdentifyDialog.searchNow()'s trailing branch (ComicsCatalog then
+        // MalCatalog), so identifying a MOVIE searched comic and manga catalogues and never IMDb.
+        // Never guessed from row.nodeType: nodeType is a structural verdict about the filesystem
+        // ("film" is folder shape, not medium), kind is the scanner's stored classification.
+        // A row whose kind the index genuinely does not know yet stays "" and keeps the old
+        // behavior rather than picking a catalogue on its behalf.
+        identifyDialog.kind = row.kind || ""
+        // Now that a browse row can legitimately BE a book, it needs the same EPUB pre-fill the
+        // old shelves' identifyTile() does — the dialog's "book" branch has no catalogue to search
+        // and would otherwise open on "No catalogue candidates yet."
+        identifyDialog.embeddedIdentity = identifyDialog.kind === "book"
+            ? root.bookEmbeddedIdentity(identifyDialog.groupKey, identifyDialog.titleText) : ({})
         identifyDialog.feedback = ""
         identifyDialog.open()
     }
@@ -417,25 +437,31 @@ Item {
         if (typeof VaultLibrary !== "undefined" && data && data.subtreePath)
             VaultLibrary.revealInExplorer(data.subtreePath)
     }
+    // An EPUB's identity comes from the file itself — there is no offline book catalogue for
+    // VaultIdentifyDialog's "book" branch to search, so it renders this pre-filled candidate or
+    // nothing at all. Extracted from identifyTile() (unchanged logic) so the browse face's
+    // identifyBrowseRow(), which can now carry kind === "book" too, uses the identical rule
+    // instead of a second copy of it. Returns ({}) when the index knows no book row here.
+    function bookEmbeddedIdentity(groupKey, fallbackTitle) {
+        if (typeof VaultLibrary === "undefined" || !groupKey) return ({})
+        var bookRows = VaultLibrary.items("book", groupKey) || []
+        var book = bookRows.length ? bookRows[0] : {}
+        if (!book.title && !book.displayTitle) return ({})
+        return {
+            title: book.title || book.displayTitle || fallbackTitle,
+            sourceId: "epub:" + String(book.id || groupKey),
+            synopsis: book.synopsis || "",
+            coverUrl: book.coverUrl || "",
+            year: Number(book.year || 0)
+        }
+    }
     function identifyTile(data) {
         if (!data) return
         identifyDialog.groupKey = data.key || ""
         identifyDialog.titleText = data.title || ""
         identifyDialog.kind = data.kind || ""
-        identifyDialog.embeddedIdentity = ({})
-        if (identifyDialog.kind === "book" && typeof VaultLibrary !== "undefined") {
-            var bookRows = VaultLibrary.items("book", identifyDialog.groupKey) || []
-            var book = bookRows.length ? bookRows[0] : {}
-            if (book.title || book.displayTitle) {
-                identifyDialog.embeddedIdentity = {
-                    title: book.title || book.displayTitle || data.title,
-                    sourceId: "epub:" + String(book.id || identifyDialog.groupKey),
-                    synopsis: book.synopsis || "",
-                    coverUrl: book.coverUrl || "",
-                    year: Number(book.year || 0)
-                }
-            }
-        }
+        identifyDialog.embeddedIdentity = identifyDialog.kind === "book"
+            ? root.bookEmbeddedIdentity(identifyDialog.groupKey, data.title) : ({})
         identifyDialog.feedback = ""
         identifyDialog.open()
     }
@@ -1249,7 +1275,11 @@ Item {
             if (typeof VaultLibrary !== "undefined" && path) VaultLibrary.revealInExplorer(path)
         }
         onIdentifyRequested: (key) => {
-            root.identifyBrowseRow({ key: key, displayTitle: root.detailSheetDetail.displayTitle || "" })
+            root.identifyBrowseRow({
+                key: key,
+                displayTitle: root.detailSheetDetail.displayTitle || "",
+                kind: root.detailSheetRowKind
+            })
         }
         onUnidentifyRequested: (key) => {
             if (typeof VaultLibrary !== "undefined" && key) VaultLibrary.unidentifyGroup(key)

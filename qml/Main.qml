@@ -363,11 +363,12 @@ Window {
         else if (bookReaderLayer.active) win.closeBookReader()
         // Taskbar full-pages sit at z:56, above every browsing/detail page — so back must
         // close them BEFORE the pages they cover, else ESC "does nothing" visibly while
-        // silently closing the page underneath. Only one of the three is ever active.
+        // silently closing the page underneath. Only one of the five is ever active.
         else if (downloadsLayer.active) win.closeDownloadsPage()
         else if (extensionsLayer.active) win.closeExtensionsPage()
         else if (settingsLayer.active) win.closeSettingsPage()
         else if (updateLayer.active) win.closeUpdatePage()
+        else if (vaultLayer.active) win.vaultBack()
         else if (bookLayer.active) win.closeBook()
         else if (biblioGenreLayer.active) win.closeBiblioGenre()
         else if (biblioGenreIndexLayer.active) win.closeBiblioGenreIndex()
@@ -1004,6 +1005,25 @@ Window {
         taskbar.open = false
     }
     function closeVaultPage() { vaultLayer.active = false }
+
+    // Esc inside the Vault, mirroring VaultPage's own top-left Back law: sheet, then folder
+    // detail, then one browse level up (or out of the Hidden shelf), and only leave once
+    // there is nowhere left to ascend.
+    // The sheet must be handled HERE, not by its own Keys.onPressed: the window-context
+    // Escape Shortcut above is matched before the key reaches the focus item, and nothing in
+    // the Vault accepts Keys.onShortcutOverride, so an inner handler can never win Escape
+    // back. Backspace is not a Shortcut, so inner ascend handlers still see it.
+    function vaultBack() {
+        var page = vaultLayer.item
+        if (!page) { win.closeVaultPage(); return }
+        if (page.detailSheetVisible) { page.closeDetailSheet(); return }
+        if (page.folderDetailOpen) { page.closeFolder(); return }
+        if (page.hiddenViewActive || (page.crumbStack && page.crumbStack.length > 1)) {
+            page.ascendBrowse()
+            return
+        }
+        win.closeVaultPage()
+    }
 
     // ---- Extensions page: the store, entered from the taskbar beside Downloads ----
     // The installed roster, live. The universes rail derives from it rather than from a

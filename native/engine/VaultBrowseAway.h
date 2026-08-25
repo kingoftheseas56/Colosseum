@@ -36,8 +36,9 @@ bool ownerRootAway(VaultIndex* index, const QVariantList& roots, const QString& 
 // walker: films collapse the same way (one file, one tile), but show/season fidelity is not
 // re-derived offline (the parent ownership arc's business) — a multi-file group folds to a plain
 // folder tile instead of a show/season tile. Row shape matches VaultLibrary::browseAt()'s
-// contract: {key, nodeType, displayTitle, physicalFact, path, counts:{items}, coverRef, state,
-// away}.
+// contract: {key, nodeType, displayTitle, physicalFact, path, counts:{items}, coverRef, kind,
+// state, away} — `kind` being the group's stored comic|book|video, same meaning and same
+// most-common-row derivation VaultLibrary::browseAt() documents.
 QVariantList offlineBrowseAt(VaultIndex* index, const QVariantList& roots, const QString& levelPath);
 
 } // namespace VaultBrowseAway
