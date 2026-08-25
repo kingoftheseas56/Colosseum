@@ -62,6 +62,12 @@ public:
         QString identityCoverUrl;
         QString identityWorld;  // Tankoban / Biblio / Theatre
         int identityYear = 0;
+        // Vault ux uplift S16: the year the cleaner found (and used to strip) — carried to
+        // the identifier so a remade title ("Dune (2021)") matches the RIGHT catalogue row
+        // instead of reading as an ambiguous "Dune" (the cleaner discards the token; the
+        // identifier's own re-grep then sees no year and ImdbCatalog::matchByTitle skips its
+        // year filter). 0 = no year was found in the title.
+        int parsedYear = 0;
         bool identitySuppressed = false; // explicit Un-identify; blocks auto re-adoption
         // Durable identification-attempt outcome (browse-face execution plan, Slice 2):
         // "" (none) | "ambiguous" | "adopted" | "suppressed". Recorded by VaultIdentifier so a

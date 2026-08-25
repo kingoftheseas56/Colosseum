@@ -49,6 +49,17 @@ LookupTitle lookupTitle(const QString& title)
     return {VaultKit::normalizedTitle(withoutYear), year};
 }
 
+// Vault ux uplift S16: the cleaner already found the year and stripped it; the identifier's
+// own re-grep then sees none and matchByTitle skips its year filter, so every remake reads
+// ambiguous. The census's parsedYear (the RAW name's first 19xx/20xx token) is the exact
+// find the cleaner made — it wins whenever the name had one; the re-grep is the fallback
+// for rows that predate the column or were assembled by a path that never stamped it.
+void applyLookupYear(LookupTitle& lookup, const VaultIndex::FileRow& row)
+{
+    if (row.parsedYear > 0)
+        lookup.year = row.parsedYear;
+}
+
 } // namespace
 
 VaultIdentifier::VaultIdentifier(VaultIndex* index, ComicsCatalog* comics,
@@ -83,7 +94,11 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         return match;
 
     const QString title = row.groupTitle.trimmed();
-    const LookupTitle lookup = lookupTitle(title);
+    // Vault ux uplift S16: the census's parsed year is the cleaner's own find, and it wins
+    // the lookup over the cleaned title (whose year the cleaner already removed), so a
+    // remade title matches the catalogue's year filter instead of reading ambiguous.
+    LookupTitle lookup = lookupTitle(title);
+    applyLookupYear(lookup, row);
     const QString normalizedTitle = lookup.normalized;
     if (title.isEmpty() || normalizedTitle.isEmpty())
         return match;

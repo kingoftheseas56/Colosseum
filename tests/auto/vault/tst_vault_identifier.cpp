@@ -19,6 +19,38 @@ bool execSql(QSqlQuery& query, const QString& sql)
     return query.exec();
 }
 
+// Vault ux uplift S16 — the remake fixture: TWO Dune rows, 1984 and 2021, sharing the
+// normalized title (the exact shape that renders the cleaned title "Dune" ambiguous, and the
+// kind/table shape ImdbCatalog::matchByTitle expects — the tst_vault_imdb_match schema).
+bool buildImdbDuneFixture(const QString& path)
+{
+    const QString connection = QStringLiteral("vault_identifier_imdb_%1")
+        .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    bool ok = false;
+    {
+        QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        db.setDatabaseName(path);
+        if (db.open()) {
+            QSqlQuery q(db);
+            ok = execSql(q, QStringLiteral(
+                "CREATE TABLE title ("
+                "tt TEXT PRIMARY KEY, type TEXT, title TEXT, "
+                "norm_title TEXT NOT NULL, year INTEGER, endYear INTEGER, runtimeMin INTEGER, "
+                "genres TEXT, rating REAL, votes INTEGER, episodes INTEGER, "
+                "origLang TEXT, isAnime INTEGER)"));
+            if (ok) {
+                ok = execSql(q, QStringLiteral(
+                    "INSERT INTO title VALUES "
+                    "('tt0000001','movie','Dune','dune',1984,0,137,'[\"Sci-Fi\"]',7.1,6000,0,'en',0),"
+                    "('tt0000002','movie','Dune','dune',2021,0,155,'[\"Sci-Fi\"]',8.1,30000,0,'en',0)"));
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(connection);
+    return ok;
+}
+
 bool buildMalFixture(const QString& path, bool ambiguous)
 {
     const QString connection = QStringLiteral("vault_identifier_mal_%1")
@@ -94,11 +126,15 @@ private slots:
     void reshelveChangesKindWithoutChangingFileId();
     // ── browse-face execution plan, Slice 2: durable identityState ──
     void identityStateRecordsAdoptedAmbiguousNoneAndSuppressed();
+    // ── Vault ux uplift S16: the census's parsed year disambiguates remakes ──
+    void duneRemakeYearAdoptsTheRightRow();
+    void yearlessDuneStaysHonestlyAmbiguous();
 
 private:
     QTemporaryDir m_dir;
     QString m_malPath;
     QString m_ambiguousMalPath;
+    QString m_imdbDunePath;
 };
 
 void VaultIdentifierTest::initTestCase()
@@ -108,6 +144,54 @@ void VaultIdentifierTest::initTestCase()
     m_ambiguousMalPath = m_dir.filePath(QStringLiteral("mal-ambiguous.sqlite"));
     QVERIFY(buildMalFixture(m_malPath, false));
     QVERIFY(buildMalFixture(m_ambiguousMalPath, true));
+    m_imdbDunePath = m_dir.filePath(QStringLiteral("imdb-dune.sqlite"));
+    QVERIFY(buildImdbDuneFixture(m_imdbDunePath));
+}
+
+// Vault ux uplift S16 — the cleaner's year find wins the catalog's own year filter. The group
+// title is the ALREADY-CLEANED "Dune" (the raw folder "Dune (2021)" was stripped by
+// cleanMediaFolderTitle; row.parsedYear = 2021 is the find it never exposed). Two catalogue
+// Dunes exist (1984 + 2021); without the year both are candidates and the gate abstains.
+void VaultIdentifierTest::duneRemakeYearAdoptsTheRightRow()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+    auto row = fixtureRow(QStringLiteral("vault:dune-remake"), QStringLiteral("Dune"));
+    row.kind = QStringLiteral("video");
+    row.parsedYear = 2021; // the census captured the year the cleaner stripped
+    QVERIFY(index.publish({row}));
+    ImdbCatalog imdb(m_imdbDunePath);
+    QVERIFY(imdb.ready());
+    VaultIdentifier identifier(&index, nullptr, nullptr, &imdb);
+
+    const VaultIdentifier::Match match = identifier.matchGroup(row.groupKey);
+    QVERIFY2(match.adopted, "the year filter must narrow exactly the one Dune");
+    QCOMPARE(match.source, QStringLiteral("IMDB"));
+    QCOMPARE(match.sourceId, QStringLiteral("imdb:tt0000002")); // the 2021 Dune
+    QCOMPARE(match.year, 2021);
+}
+
+// The negative, the gate's own law: without a year the cleaned title "Dune" matches BOTH
+// catalogue rows and the conservative gate stays honestly ambiguous (never a guess).
+void VaultIdentifierTest::yearlessDuneStaysHonestlyAmbiguous()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+    auto row = fixtureRow(QStringLiteral("vault:dune-plain"), QStringLiteral("Dune"));
+    row.kind = QStringLiteral("video");
+    row.parsedYear = 0; // no year in the raw folder name
+    QVERIFY(index.publish({row}));
+    ImdbCatalog imdb(m_imdbDunePath);
+    QVERIFY(imdb.ready());
+    VaultIdentifier identifier(&index, nullptr, nullptr, &imdb);
+
+    const VaultIdentifier::Match match = identifier.matchGroup(row.groupKey);
+    QVERIFY(!match.adopted);
+    QCOMPARE(match.candidateCount, 2);
 }
 
 void VaultIdentifierTest::unambiguousMatchAdopts()

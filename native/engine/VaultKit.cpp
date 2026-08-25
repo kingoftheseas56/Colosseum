@@ -343,6 +343,13 @@ QString cleanMediaFolderTitle(const QString& rawName)
     return cleaned;
 }
 
+int parsedTitleYear(const QString& rawName)
+{
+    static const QRegularExpression yearToken(QStringLiteral("\\b(?:19|20)\\d{2}\\b"));
+    const QRegularExpressionMatch m = yearToken.match(rawName);
+    return m.hasMatch() ? m.captured(0).toInt() : 0;
+}
+
 QString normalizedTitle(const QString& rawTitle)
 {
     QString s = cleanMediaFolderTitle(rawTitle).toLower();

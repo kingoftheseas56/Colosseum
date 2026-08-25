@@ -83,6 +83,13 @@ QMap<QString, QStringList> groupByFirstLevelSubdir(
 // went too far (< 2 chars). Port of TB2 ScannerUtils::cleanMediaFolderTitle.
 QString cleanMediaFolderTitle(const QString& rawName);
 
+// Vault ux uplift S16 — the year the cleaner finds: the FIRST four-digit 19xx/20xx token in
+// the raw name (the same token class cleanMediaFolderTitle strips, and what the cleaner
+// does NOT expose — hence this sibling, so the census year survives to the identifier).
+// 0 when the name carries no such token. "Vol 2" is 0 (2-digit); "Dune (2021)" is 2021;
+// "2049 Blade Runner" is 2049 even though the year leads.
+int parsedTitleYear(const QString& rawName);
+
 // Fold a cleaned title for offline catalogue identity lookups. This is the
 // native counterpart of the catalogue bake norm: lowercase, remove a
 // possessive 's, collapse non-alphanumeric runs, then drop one leading

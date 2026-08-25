@@ -389,9 +389,12 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
         const QString normSubtree = normPath(subtree);
         const QString law = lawForSubtree(subtree, kindOverrides);
 
-        QString groupTitle = VaultKit::cleanMediaFolderTitle(QFileInfo(subtree).fileName());
+        // S16 lockstep: the raw name's year rides the row exactly as buildScan stamps it
+        // (the rebuildable-index law — a watcher row must reproduce the scanner's).
+        const QString groupRaw = QFileInfo(subtree).fileName();
+        QString groupTitle = VaultKit::cleanMediaFolderTitle(groupRaw);
         if (groupTitle.isEmpty())
-            groupTitle = QFileInfo(subtree).fileName();
+            groupTitle = groupRaw;
 
         for (const QString& f : it.value()) {
             const VaultKit::MediaKind fk = VaultKit::kindForFile(f);
@@ -413,6 +416,7 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
             row.subtreePath = subtree;
             row.groupKey = subtree;
             row.groupTitle = groupTitle;
+            row.parsedYear = VaultKit::parsedTitleYear(groupRaw); // S16
             const QString kindName = VaultKit::kindName(fk);
             row.kind = kindName;
             row.path = f;

@@ -84,9 +84,13 @@ VaultScanner::RawResult VaultScanner::buildScan(
         const VaultKit::MediaKind shelveKind = overridePresent ? effectiveKind : cls.dominant;
         const QString effectiveKindName = VaultKit::kindName(effectiveKind);
 
-        QString groupTitle = VaultKit::cleanMediaFolderTitle(QFileInfo(subtree).fileName());
+        // Vault ux uplift S16: capture the RAW name's year where the cleaner strips it, so
+        // the identifier can re-match a remade title ("Dune (2021)") against the catalogue's
+        // year filter instead of seeing a bare "Dune" ambiguity.
+        const QString groupRaw = QFileInfo(subtree).fileName();
+        QString groupTitle = VaultKit::cleanMediaFolderTitle(groupRaw);
         if (groupTitle.isEmpty())
-            groupTitle = QFileInfo(subtree).fileName();
+            groupTitle = groupRaw;
 
         // Enrichment gathered over the shelved files (Thread B): distinct 2nd-level
         // subgroups (the card's "· N series"), a small sample line, and total size.
@@ -148,6 +152,7 @@ VaultScanner::RawResult VaultScanner::buildScan(
             row.subtreePath = subtree;
             row.groupKey = subtree;
             row.groupTitle = groupTitle;
+            row.parsedYear = VaultKit::parsedTitleYear(groupRaw); // S16
             row.kind = effectiveKindName; // the user's chip choice wins the shelf
             row.path = f;
             row.realName = fi.fileName();

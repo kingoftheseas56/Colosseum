@@ -77,6 +77,8 @@ private:
 
 private slots:
     void build_scan_produces_expected_census();
+    // ── Vault ux uplift S16: the census year the cleaner stripped is captured ──
+    void build_scan_derives_parsed_year_from_raw_folder_name();
     void build_scan_enriches_slice_model();
     void override_reassigns_mixed_leaf_to_present_kind();
     void override_relabels_folder_to_absent_kind();
@@ -129,6 +131,34 @@ void tst_vault_scanner::build_scan_produces_expected_census()
     }
     QVERIFY(sawBerserk);
     QVERIFY(sawSeasonedVideo);
+}
+
+// Vault ux uplift S16: the raw folder name's year rides the row even though the cleaner
+// strips it from the title (parsedYear = the cleaner's own find, delivered so the
+// identifier can match a remake against the catalogue's year filter).
+void tst_vault_scanner::build_scan_derives_parsed_year_from_raw_folder_name()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = QDir::cleanPath(QDir(tmp.path()).filePath(QStringLiteral("root")));
+    const QString dune = QDir(root).filePath(QStringLiteral("Dune (2021)"));
+    QDir().mkpath(dune);
+    QVERIFY(!writeMediaFile(dune, QStringLiteral("part2.mp4")).isEmpty());
+    const QString plain = QDir(root).filePath(QStringLiteral("Blade Runner"));
+    QDir().mkpath(plain);
+    QVERIFY(!writeMediaFile(plain, QStringLiteral("movie.mp4")).isEmpty());
+
+    const auto r = VaultScanner::buildScan(root, {}, 1, {});
+    QVERIFY(!r.cancelled);
+    bool sawDune = false;
+    for (const VaultIndex::FileRow& row : r.rows) {
+        if (row.realName == QStringLiteral("part2.mp4")) {
+            sawDune = true;
+            QCOMPARE(row.groupTitle, QStringLiteral("Dune")); // the cleaner DID strip it
+            QCOMPARE(row.parsedYear, 2021);                   // but the find was captured
+        }
+    }
+    QVERIFY(sawDune);
 }
 
 void tst_vault_scanner::build_scan_enriches_slice_model()
