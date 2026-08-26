@@ -10,7 +10,7 @@
 # server can never silently fall out of a release again.
 #
 # Usage:  bash scripts/installer/package_release.sh [VERSION]
-#   VERSION defaults to 0.1. Override the Stremio source dir with STREMIO_SRC=<dir>.
+#   VERSION defaults to 0.1. STREMIO_SRC=<dir> is required and must name a verified payload.
 set -euo pipefail
 
 VERSION="${1:-0.1}"
@@ -24,7 +24,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # so the shipped exe is reproducible from the release tag. Defaults to the daily dir for
 # local smoke-packaging only.
 BUILD_DIR="${BUILD_DIR:-$REPO/native/build-msvc}"
-STREMIO_SRC="${STREMIO_SRC:-/c/Users/Suprabha/AppData/Local/Programs/StremioService}"
+STREMIO_SRC="${STREMIO_SRC:-}"
 MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
 DIST="$REPO/dist"
 STAGE="$DIST/stage"
@@ -41,6 +41,7 @@ if [ "$HEAD_TAG" != "$EXPECTED_TAG" ]; then
   exit 1
 fi
 
+[ -n "$STREMIO_SRC" ] || { echo "STREMIO_SRC must point to a verified Stremio Service payload"; exit 1; }
 [ -x "$MAKENSIS" ] || { echo "makensis not found at $MAKENSIS"; exit 1; }
 [ -f "$STREMIO_SRC/stremio-runtime.exe" ] || { echo "Stremio source missing: $STREMIO_SRC"; exit 1; }
 [ -f "$BUILD_DIR/colosseum.exe" ] || { echo "build missing: $BUILD_DIR/colosseum.exe"; exit 1; }

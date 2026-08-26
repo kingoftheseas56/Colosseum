@@ -43,11 +43,10 @@ QString StreamServer::findRuntimeDir() const
     // 2) shipped next to the Colosseum exe (self-contained copy, gitignored)
     candidates << appDir + QStringLiteral("/stream_server");
     candidates << appDir + QStringLiteral("/../stream_server");
-    // 3) the OFFICIAL Stremio Service install — the canonical server on this machine
-    //    (Hemanth's call 2026-07-05: the vendored copy fell behind; official wins)
-    candidates << QStringLiteral("C:/Users/Suprabha/AppData/Local/Programs/StremioService");
-    // 4) fall back to Tankoban 2's vendored runtime
-    candidates << QStringLiteral("C:/Users/Suprabha/Desktop/Tankoban 2/resources/stream_server");
+    // 3) official Stremio Service install, resolved per-user without a maintainer-specific path
+    const QString genericData = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    if (!genericData.isEmpty())
+        candidates << QDir(genericData).filePath(QStringLiteral("Programs/StremioService"));
 
     for (const QString &dir : candidates) {
         if (QFileInfo::exists(dir + QLatin1Char('/') + exe))

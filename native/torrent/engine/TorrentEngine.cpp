@@ -458,9 +458,8 @@ void TorrentEngine::applySettings()
     // TANKOBAN_STREMIO_TUNE=1 env var. Default OFF preserves current Tankoban
     // behavior (Tankorent downloads continue working as-is). When ON, applies
     // the 10 streaming-critical settings Stremio's stream-server sets in
-    // C:\Users\Suprabha\Downloads\Stremio Reference\stream-server-master\
-    // bindings\libtorrent-sys\cpp\wrapper.cpp:186-216. See plan at
-    // ~/.claude/plans/2026-04-23-stremio-tuning-ab-experiment.md.
+    // upstream Stremio stream-server bindings used as the experiment reference.
+    // bindings\libtorrent-sys\cpp\wrapper.cpp:186-216 in the upstream source.
     //
     // Falsifiability bar: >=40% stall-per-10min reduction vs flag-off baseline
     // AND cold-open must not regress >20%. If bar not met this block gets
