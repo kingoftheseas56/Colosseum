@@ -1,56 +1,63 @@
 {
-  "eyebrow": "READ COMES FIRST",
+  "eyebrow": "VAULT GROWS UP",
   "title": "Colosseum 1.1.4",
-  "summary": "Read now, download later across every world; catalogues that fetch themselves on first launch; a real comics catalogue engine; and silent install and uninstall through WinGet and Chocolatey.",
+  "summary": "Vault becomes a full local-library surface, acquisition intent is consistent across worlds, catalogues fetch themselves, and the account backend lands while sign-in remains unavailable until deployment.",
   "notes_url": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.4",
   "highlights": [
     {
       "kind": "feature",
+      "section": "VAULT",
+      "title": "Your local library grows up",
+      "body": "Search and type-to-find, sort and filters, honest empty/error states, keyboard navigation, watched controls, progress and Continue now live on Vault's browse surface.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "VAULT",
+      "title": "Shows know their seasons",
+      "body": "Shows and seasons get a real presentation with parsed years, media-bearing Bonus/OVA folders, durations, local artwork, IMDb ratings and genres.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
+      "section": "VAULT",
+      "title": "Storage stays under your control",
+      "body": "Rescan, forget a root, edit ignore patterns, remove Downloads entries, and see folder-aware counts without leaving the Vault surface.",
+      "artwork_assets": []
+    },
+    {
+      "kind": "feature",
       "section": "WORLDS",
       "title": "Read now, download later",
-      "body": "Read opens the reader as soon as the content can open, guarded against stale requests. Download acquires and stops at Ready. The split runs through comics, Tankoban volumes, and both of Biblio's transports, so the two intents mean the same thing everywhere.",
+      "body": "Read opens content as soon as it can open. Download acquires it and stops at Ready across comics, Tankoban volumes, and both Biblio transports.",
       "artwork_assets": []
     },
     {
       "kind": "feature",
       "section": "CATALOGUES",
       "title": "They fetch themselves",
-      "body": "The installer no longer ships catalogue databases. On first launch Colosseum downloads all four — anime/manga, Tankoban volumes, comics, and the IMDb index — from the public Colosseum-Data release, and shelves wake live as each one lands.",
-      "artwork_assets": []
-    },
-    {
-      "kind": "feature",
-      "section": "COMICS",
-      "title": "Catalogue intelligence",
-      "body": "A real catalogue engine drives new Discover shelves and a per-series ledger, and an empty or still-downloading catalogue renders an honest empty state instead of a broken wall.",
+      "body": "The installer stays lean while anime/manga, Tankoban volumes, comics and IMDb catalogues fetch into AppData on first launch; the comics catalogue now drives Discover and series ledgers.",
       "artwork_assets": []
     },
     {
       "kind": "feature",
       "section": "TANKOBAN",
       "title": "Volume identity",
-      "body": "A Torrentio-style identity pipeline gives the source picker and file picker one shared volume grammar — better matches, fewer misfiled downloads.",
-      "artwork_assets": []
-    },
-    {
-      "kind": "feature",
-      "section": "THEATRE",
-      "title": "One scroll surface",
-      "body": "The series episode list scrolls as one surface — masthead and episodes move together instead of trapping the wheel in a nested list.",
+      "body": "A shared string-safe volume grammar keeps source selection and file selection aligned, reducing mismatches and misfiled acquisitions.",
       "artwork_assets": []
     },
     {
       "kind": "feature",
       "section": "RUNTIME",
-      "title": "Composition hardening",
-      "body": "Pause/resume authority lives in the native session coordinator, Watch Party and the update cache are owned services, startup gains an explicit bootstrap, and pinned-host networking retries through a durable IPv4 pin store.",
+      "title": "Theatre, runtime, distribution",
+      "body": "Theatre uses one episode scroll surface, session authority and update services are hardened natively, and quiet uninstall plus WinGet/Chocolatey packaging improve distribution.",
       "artwork_assets": []
     },
     {
       "kind": "milestone",
-      "section": "DISTRIBUTION",
-      "title": "WinGet and Chocolatey",
-      "body": "Colosseum is submitted to the WinGet community repository as Colosseum.Colosseum, a Chocolatey package lives in-tree, and the installer now registers a quiet uninstall command so silent managers can remove it cleanly.",
+      "section": "ACCOUNTS",
+      "title": "Backend landed, sign-in did not",
+      "body": "The Go account service, CI path and deployment seam are in-tree, but no production endpoint is deployed, so account creation, sign-in and cloud sync remain unavailable.",
       "artwork_assets": []
     }
   ],
