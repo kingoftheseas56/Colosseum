@@ -80,3 +80,10 @@ docs/encyclopedia/
 
 # Generated release/package output lives outside the checkout (Colosseum-Local\dist); net for accidents.
 dist/
+
+# Release-prep scratch kept locally, never in public source archives.
+.tmp_mcu_wpapi.out
+docs/colosseum-trailer-capture-handoff.md
+native/_*.bat
+native/app-scrollcheck.log.out
+tests/_reality_shelves.txt
