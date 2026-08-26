@@ -4,7 +4,7 @@
 // (src/protocol.ts) — never around it.
 //
 // Contract reference (frozen):
-// C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/03-watch-party/
+// Design provenance: the original Watch Party design notes.
 // watch-party-qml-slice-08/SERVER-PROTOCOL-CONTRACT.md
 //   - "Authentication and room-scoped reconnect credential"
 //   - "createRoom", both "joinRoom" forms, "reconnectRoom", "leaveRoom",

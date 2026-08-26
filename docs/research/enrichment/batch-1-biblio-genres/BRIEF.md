@@ -8,7 +8,7 @@ approves the results later and fills them in by hand.
 ## Hard rules
 
 - **Write ONLY `output.json` in this folder.** Do not create, edit, or delete any file outside
-  `enrichment/batch-1-biblio-genres/`. Never touch the app's `qml/`, `data/`, or source — the
+  `docs/research/enrichment/batch-1-biblio-genres/`. Never touch the app's `qml/`, `data/`, or source — the
   target file `qml/BiblioGenreApi.js` is named for context only and must NOT be modified.
 - **Web-sourced, not from memory.** For each genre, actually search the web and read 2-4
   reputable sources (e.g. Wikipedia's genre article, established library/publisher genre guides,

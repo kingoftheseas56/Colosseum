@@ -484,7 +484,7 @@ class ParseFailureLogTests(unittest.TestCase):
         text = (
             '$ native/build-msvc/lanista.exe session run '
             'tests/lanista_scenarios/journey_open_manga.json '
-            '--seed "C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/artifacts/x y" '
+            '--seed "C:/Users/TestUser/Desktop/Brotherhood/Colosseum/artifacts/x y" '
             '--tag g3red --drive --ready-ms 90000 --verbose\n'
             'PASS  a step\n'
             '1 steps, 0 failed  (manifest: x/session.json)\n'
@@ -494,7 +494,7 @@ class ParseFailureLogTests(unittest.TestCase):
         inv = parsed.invocation
         self.assertEqual(inv["lanistaExe"], "native/build-msvc/lanista.exe")
         self.assertEqual(inv["scenario"], "tests/lanista_scenarios/journey_open_manga.json")
-        self.assertEqual(inv["seed"], "C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/artifacts/x y")
+        self.assertEqual(inv["seed"], "C:/Users/TestUser/Desktop/Brotherhood/Colosseum/artifacts/x y")
         self.assertEqual(inv["tag"], "g3red")
         self.assertTrue(inv["drive"])
         self.assertTrue(inv["verbose"])

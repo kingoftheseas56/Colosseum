@@ -55,10 +55,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DB_PATH = os.path.join(REPO, "data", "tankoban_catalog.db")
 
 # The arc's spine, produced outside this repo (Preflight-Architect workspace).
-DEFAULT_SPINE = (
-    "C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/01-tankoban-repopulation/"
-    "data/spine_top10000.jsonl"
-)
+DEFAULT_SPINE = os.environ.get("COLOSSEUM_TANKOBAN_SPINE")
 
 
 def load_spine(path: str) -> dict:
@@ -201,6 +198,9 @@ def main() -> int:
                      "cover harvest jsonl (optional; skipped if absent)")
     args = ap.parse_args()
 
+    if not args.spine:
+        print("error: pass --spine or set COLOSSEUM_TANKOBAN_SPINE", file=sys.stderr)
+        return 1
     if not os.path.exists(args.spine):
         print(f"error: spine not found at {args.spine}", file=sys.stderr)
         return 1

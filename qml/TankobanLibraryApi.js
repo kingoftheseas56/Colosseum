@@ -4,7 +4,7 @@
 // Brotherhood#1). Mirrors LibraryApi.js's shape (pure joins, no context-property or
 // network access — a .pragma library script can't see those anyway) but carries
 // Tankoban's own vocabulary: manga/comic rows, chapter/volume reading lanes, no
-// airing/watched/new-episode concepts. See CONTEXT.md for "Library row", "Collection",
+// airing/watched/new-episode concepts. See docs/terminology.md for "Library row", "Collection",
 // "reading lane".
 //
 // TB-002 slice: manga-chapter progress join added. A manga Collection entry joins the

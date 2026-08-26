@@ -27,13 +27,14 @@
 set -u
 
 ROUNDS="${1:-5}"
-CLIP="C:\\Users\\Suprabha\\Downloads\\Colosseum\\Tenet - 20260726_184029.mp4"
+CLIP="${COLOSSEUM_PROBE_CLIP:-}"
 START="00:06:00"        # a real action scene: the opening credits are low-motion and flatter every arm
 MEASURE=60              # seconds of measured playback
 WARMUP=15               # seconds before counting, so startup cost never lands in the number
 COOLDOWN=15             # seconds idle between runs, so heat does not carry from one arm to the next
 MPV="/c/tools/mpv/mpv.exe"
-APP_ROOT="C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/player2-chrome-port"
+APP_ROOT="${COLOSSEUM_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+[ -n "$CLIP" ] || { echo "Set COLOSSEUM_PROBE_CLIP to a local media file." >&2; exit 2; }
 OUT="$APP_ROOT/tests/ruler-out"
 mkdir -p "$OUT"
 

@@ -21,7 +21,7 @@ Window {
     color: "black"
     title: "mpv efficiency baseline"
 
-    property string clip: "C:/Users/Suprabha/Downloads/Colosseum/The Wire - S4E10 - Misgivings - 20260720_175049.mp4"
+    property string clip: (typeof DevAbbaClip !== "undefined") ? String(DevAbbaClip) : ""
     // Set by the ABBA runner via COLOSSEUM_ABBA_IDLE to hold the window without playing.
     property bool idleMode: (typeof DevAbbaIdle !== "undefined") ? DevAbbaIdle : false
 
@@ -33,6 +33,11 @@ Window {
     Component.onCompleted: {
         if (probe.idleMode) {
             console.log("MPV BASELINE: idle window only (no playback)")
+            return
+        }
+        if (probe.clip.length === 0) {
+            console.log("MPV BASELINE: FAIL set COLOSSEUM_ABBA_CLIP to a local media file")
+            Qt.callLater(function() { Qt.quit() })
             return
         }
         mpv.loadFile(probe.clip)

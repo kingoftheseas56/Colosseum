@@ -4,10 +4,10 @@
   "root": "vaultBrowseFace",
   "rules": [
     { "kind": "actionableNonzero", "name": "gridActionable", "target": "vaultBrowseGrid" },
-    { "kind": "actionableNonzero", "name": "originalCardActionable", "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClip" },
-    { "kind": "actionableNonzero", "name": "copyCardActionable", "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClipCopy" },
+    { "kind": "actionableNonzero", "name": "originalCardActionable", "target": "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClip" },
+    { "kind": "actionableNonzero", "name": "copyCardActionable", "target": "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClipCopy" },
     { "kind": "contained", "name": "gridWithinWindow", "target": "vaultBrowseGrid", "viewport": "$rootWindow", "toleranceLogicalPx": 0 },
-    { "kind": "contained", "name": "originalCardWithinWindow", "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClip", "viewport": "$rootWindow", "toleranceLogicalPx": 0 },
-    { "kind": "contained", "name": "copyCardWithinWindow", "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClipCopy", "viewport": "$rootWindow", "toleranceLogicalPx": 0 }
+    { "kind": "contained", "name": "originalCardWithinWindow", "target": "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClip", "viewport": "$rootWindow", "toleranceLogicalPx": 0 },
+    { "kind": "contained", "name": "copyCardWithinWindow", "target": "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClipCopy", "viewport": "$rootWindow", "toleranceLogicalPx": 0 }
   ]
 }

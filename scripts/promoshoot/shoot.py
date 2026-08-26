@@ -9,7 +9,7 @@ import json, time, subprocess, sys, os, ctypes
 
 PIPE = '//./pipe/LanCWProbe'
 FF = r'C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin\ffmpeg.exe'
-OUT = r'C:\Users\Suprabha\Desktop\Colosseum-clips'
+OUT = os.environ.get('COLOSSEUM_PROMOSHOOT_OUT', os.path.join(os.path.expanduser('~'), 'Videos', 'Colosseum-clips'))
 
 _seq = [0]
 def lan(cmd, payload=None):

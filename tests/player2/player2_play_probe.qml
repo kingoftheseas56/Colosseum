@@ -12,7 +12,7 @@ import "../../qml/player2host"
 //
 // Run (from the repo root, with COLOSSEUM_PLAYER2=1 so the process boots on D3D11):
 //   colosseum.exe tests/player2/player2_play_probe.qml
-// Pass the clip via COLOSSEUM_PROBE_CLIP, or it uses the default below.
+// Pass the real local clip via COLOSSEUM_ABBA_CLIP; the probe fails closed if it is absent.
 Window {
     id: probe
     width: 960
@@ -72,12 +72,12 @@ Window {
     }
 
     Component.onCompleted: {
-        probe.clip = probe.clipFromEnv()
+        probe.clip = (typeof DevAbbaClip !== "undefined") ? String(DevAbbaClip) : ""
+        if (probe.clip.length === 0) {
+            console.log("PLAYER2 PLAY PROBE: FAIL set COLOSSEUM_ABBA_CLIP to a local media file")
+            Qt.callLater(function() { Qt.quit() })
+            return
+        }
         page.playLocalFile({ "id": "probe:local", "title": "probe clip", "localPath": probe.clip })
-    }
-
-    function clipFromEnv() {
-        // QML cannot read the environment, so the runner substitutes the path here if it needs to.
-        return "C:/Users/Suprabha/Downloads/Colosseum/The Wire - S4E10 - Misgivings - 20260720_175049.mp4"
     }
 }

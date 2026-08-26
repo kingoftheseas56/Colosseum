@@ -3,4 +3,4 @@
 # EXACT command that produced the red run (Fixture fragility law: embed exact
 # commands, never rely on ambient state).
 $ErrorActionPreference = "Stop"
-& "native/build-msvc/lanista.exe" session run "tests/lanista_scenarios/journey_open_manga.json" --exe "C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/native/build-msvc/colosseum.exe" --qml "qml/Main.qml" --tag "g3red" --seed "C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/artifacts/autorepair/g3/corrupt-seed/open-manga-v1-corrupt" --drive --ready-ms 90000 --verbose
+& "native/build-msvc/lanista.exe" session run "tests/lanista_scenarios/journey_open_manga.json" --exe "C:/Users/TestUser/Desktop/Brotherhood/Colosseum/native/build-msvc/colosseum.exe" --qml "qml/Main.qml" --tag "g3red" --seed "C:/Users/TestUser/Desktop/Brotherhood/Colosseum/artifacts/autorepair/g3/corrupt-seed/open-manga-v1-corrupt" --drive --ready-ms 90000 --verbose

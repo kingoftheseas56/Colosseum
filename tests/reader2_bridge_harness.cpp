@@ -91,7 +91,7 @@ int main(int argc, char** argv)
     //     value, not a recomputation — that's what catches a formula change, whereas a
     //     recompute-here would be a tautology that drifts in lockstep).
     const QString p1 = QStringLiteral("C:/x/y.epub");
-    const QString p2 = QStringLiteral("C:/Users/Suprabha/Desktop/book with spaces.epub");
+    const QString p2 = QStringLiteral("C:/Users/TestUser/Desktop/book with spaces.epub");
     check(bridge.bookKey(p1) == BookStores::keyFor(p1), "bookKey delegates to BookStores::keyFor (p1)");
     check(bridge.bookKey(p2) == BookStores::keyFor(p2), "bookKey delegates to BookStores::keyFor (p2)");
     // Known-good: SHA1[:20] of the UTF-8 bytes of "C:/x/y.epub" (drift tripwire).

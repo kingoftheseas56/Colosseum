@@ -2,12 +2,8 @@
   "mcpServers": {
     "lanista": {
       "command": "python",
-      "args": ["native/tools/lanista-mcp/server.py"]
-    },
-    "brotherhood-delegates": {
-      "command": "C:\\Program Files\\nodejs\\node.exe",
       "args": [
-        "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\runtime\\mcp\\brotherhood-delegates\\server.mjs"
+        "native/tools/lanista-mcp/server.py"
       ]
     }
   }

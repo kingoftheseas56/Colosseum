@@ -11,11 +11,11 @@
     { "kind": "contained", "name": "gridWithinWindow", "target": "vaultBrowseGrid", "viewport": "$rootWindow", "toleranceLogicalPx": 0 },
     { "kind": "noPeerOverlap", "name": "rootCardsDoNotOverlap",
       "peers": [
-        "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips",
-        "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]",
-        "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Film One (2024) [1080p] [WEBRip]",
-        "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Film Three (2024) [1080p] [WEBRip]",
-        "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Film Two (2024) [1080p] [WEBRip]"
+        "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Clips",
+        "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Show (2024) Seasons 1-2 S01-S02 [1080p] [WEBRip]",
+        "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Film One (2024) [1080p] [WEBRip]",
+        "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Film Three (2024) [1080p] [WEBRip]",
+        "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/vault-browse-five-shapes-v1/media/Journey Film Two (2024) [1080p] [WEBRip]"
       ] }
   ]
 }

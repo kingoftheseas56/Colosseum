@@ -50,7 +50,7 @@
                    "out": "artifacts/visibility-phase2/j1-ceremony/settled-verdict.json" } },
 
     { "cmd": "ui-click", "label": "open B (OriginalClipCopy) -- the newly-aliased tuple",
-      "payload": { "target": "vaultBrowseCard_C:/users/suprabha/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClipCopy_hitArea" } },
+      "payload": { "target": "vaultBrowseCard_C:/users/testuser/desktop/brotherhood/colosseum/tests/lanista_fixtures/journeys/ceremony-use-existing-v1/media/OriginalClipCopy_hitArea" } },
     { "cmd": "ui-wait-for", "label": "B's detail sheet opens",
       "payload": { "object": "vaultBrowseSheet", "prop": "visible", "value": true, "timeout_ms": 8000 },
       "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },

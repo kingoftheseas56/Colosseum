@@ -6,8 +6,10 @@
 # cold-open. House law: one lucky measurement is not a baseline, so every trial
 # repeats and we report spread, never a single figure.
 set -u
-LAB="c:/Users/Suprabha/Desktop/Brotherhood/Colosseum/native/build-msvc/_t2lab"
-SCRIPTS="c:/Users/Suprabha/Desktop/Brotherhood/Colosseum/docs/research/tankorent2-phase0/labscripts"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+LAB="$REPO/native/build-msvc/_t2lab"
+SCRIPTS="$SCRIPT_DIR"
 OUT="$LAB/logs/slice5"
 mkdir -p "$OUT"
 

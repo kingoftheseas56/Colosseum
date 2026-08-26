@@ -32,7 +32,7 @@ Read in this order if you need to change it:
    side of the controller's raw pass-through data (device list, approvals
    list, avatar id).
 5. The preserved Go reference service under
-   `C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\02-profile-account-centre\cpp\reference-account-bundle-8c\bundle-8c-colosseum-account-cumulative\service\internal\{httpserver,account}\`
+   `Preflight-Architect/arcs/02-profile-account-centre/cpp/reference-account-bundle-8c/bundle-8c-colosseum-account-cumulative/service/internal/{httpserver,account}/`
    — used for status codes, error-code-per-failure mapping, and any shape
    the C++/QML side doesn't pin down (device list fields, approval list
    fields, password/username validation rules).

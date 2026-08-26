@@ -547,10 +547,13 @@ int main()
     // ── 11. THE MIRROR: the live path lands on the published shelf ─────────────
     QString publishedRender;
     {
-        const QStringList candidates{
-            QStringLiteral("C:/Users/Suprabha/Desktop/colosseum-volume-db/db/"
-                           "01JQH0FBS5BGDMBDC0BJW034N2.json"),
-            QStringLiteral("../../../colosseum-volume-db/db/01JQH0FBS5BGDMBDC0BJW034N2.json")};
+        QStringList candidates;
+        if (const char* explicitRecord = std::getenv("COLOSSEUM_MHA_PUBLISHED_RECORD");
+            explicitRecord && *explicitRecord) {
+            candidates.append(QString::fromLocal8Bit(explicitRecord));
+        }
+        candidates.append(QStringLiteral(
+            "../../../colosseum-volume-db/db/01JQH0FBS5BGDMBDC0BJW034N2.json"));
         QByteArray bytes;
         QString found;
         if (!readFirst(candidates, &bytes, &found)) {
@@ -574,10 +577,13 @@ int main()
         }
     }
     {
-        const QStringList candidates{
-            QStringLiteral("C:/Users/Suprabha/Desktop/Brotherhood/scripts/mha_all.json"),
-            QStringLiteral("../../scripts/mha_all.json"),
-            QStringLiteral("scripts/mha_all.json")};
+        QStringList candidates;
+        if (const char* explicitPull = std::getenv("COLOSSEUM_MHA_ALL_JSON");
+            explicitPull && *explicitPull) {
+            candidates.append(QString::fromLocal8Bit(explicitPull));
+        }
+        candidates.append(QStringLiteral("../../scripts/mha_all.json"));
+        candidates.append(QStringLiteral("scripts/mha_all.json"));
         QByteArray bytes;
         QString found;
         if (!readFirst(candidates, &bytes, &found)) {

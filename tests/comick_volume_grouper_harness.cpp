@@ -930,10 +930,13 @@ int main(int argc, char** argv)
         // The same assertions against the raw JSON pull, when it is on this machine.
         // This is what proves the embedded fixture above is faithful to real data
         // rather than to itself.
-        const QStringList candidates{
-            QStringLiteral("C:/Users/Suprabha/Desktop/Brotherhood/scripts/mha_all.json"),
-            QStringLiteral("../../scripts/mha_all.json"),
-            QStringLiteral("scripts/mha_all.json")};
+        QStringList candidates;
+        if (const char* explicitPull = std::getenv("COLOSSEUM_MHA_ALL_JSON");
+            explicitPull && *explicitPull) {
+            candidates.append(QString::fromLocal8Bit(explicitPull));
+        }
+        candidates.append(QStringLiteral("../../scripts/mha_all.json"));
+        candidates.append(QStringLiteral("scripts/mha_all.json"));
 
         QList<ChapterRow> rows;
         QString why;

@@ -15,7 +15,7 @@ $scratch = $null
 # After adoption, tests/ sits beside the complete qml/ tree and runs directly.
 # Inside Preflight, stage the current Colosseum qml/ tree and overlay the candidate.
 if (!(Test-Path -LiteralPath (Join-Path $localQmlDir "Theme.qml"))) {
-    $colosseumRoot = if ($env:COLOSSEUM_ROOT) { $env:COLOSSEUM_ROOT } else { "C:/Users/Suprabha/Desktop/Brotherhood/Colosseum" }
+    $colosseumRoot = if ($env:COLOSSEUM_ROOT) { $env:COLOSSEUM_ROOT } else { $candidateRoot }
     $sourceQml = Join-Path $colosseumRoot "qml"
     if (!(Test-Path -LiteralPath (Join-Path $sourceQml "Theme.qml"))) {
         Write-Host "FAIL: set COLOSSEUM_ROOT to a current Colosseum checkout"

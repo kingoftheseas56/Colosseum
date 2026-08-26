@@ -22,8 +22,9 @@
 
 set -u
 SECS="${1:-60}"
-CLIP="C:\\Users\\Suprabha\\Downloads\\Colosseum\\Tenet - 20260726_184029.mp4"
-APP_ROOT="C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/player2-chrome-port"
+CLIP="${COLOSSEUM_PROBE_CLIP:-}"
+APP_ROOT="${COLOSSEUM_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+[ -n "$CLIP" ] || { echo "Set COLOSSEUM_PROBE_CLIP to a local media file." >&2; exit 2; }
 OUT="$APP_ROOT/tests/pacing-out"
 mkdir -p "$OUT"
 LOG="$OUT/pacing.log"

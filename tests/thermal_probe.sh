@@ -24,11 +24,12 @@
 
 set -u
 ARM="${1:-mpv}"
-CLIP="C:\\Users\\Suprabha\\Downloads\\Colosseum\\Tenet - 20260726_184029.mp4"
+CLIP="${COLOSSEUM_PROBE_CLIP:-}"
 START_SEC=360
 SECONDS_TO_RUN=75
 MPV="/c/tools/mpv/mpv.exe"
-APP_ROOT="C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/player2-chrome-port"
+APP_ROOT="${COLOSSEUM_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+[ -n "$CLIP" ] || { echo "Set COLOSSEUM_PROBE_CLIP to a local media file." >&2; exit 2; }
 OUT="$APP_ROOT/tests/thermal-out"
 mkdir -p "$OUT"
 SAMPLES="$OUT/samples.csv"

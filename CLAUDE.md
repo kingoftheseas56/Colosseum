@@ -1,5 +1,5 @@
-# Colosseum Claude Adapter
+# Colosseum Claude adapter
 
-Claude uses the same app-level rules as every other substrate. Keep this file thin so it cannot drift into a second Colosseum constitution.
+Repository-specific working rules live in `AGENTS.md`. Claude should use that file as the authoritative Colosseum instruction surface.
 
 @AGENTS.md

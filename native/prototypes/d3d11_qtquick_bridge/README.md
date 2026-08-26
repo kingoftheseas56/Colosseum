@@ -63,7 +63,7 @@ Get-ChildItem 'C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin\*.dll' |
   --report "$env:TEMP\colosseum-d3d11-gate-a.json"
 
 & .\build\d3d11_qtquick_bridge.exe --source hevc `
-  --file 'C:\Users\Suprabha\Downloads\Colosseum\The Wire - S4E13 - Final Grades - 20260720_211141.mp4' `
+  --file "$env:USERPROFILE\Downloads\Colosseum\The Wire - S4E13 - Final Grades - 20260720_211141.mp4" `
   --duration 300 --report "$env:TEMP\colosseum-d3d11-gate-b-300s.json"
 ```
 

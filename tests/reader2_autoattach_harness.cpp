@@ -113,7 +113,7 @@ int main(int argc, char** argv)
 
     // The bookId is the reader's key: keyFor(<ebook file path>). This is EXACTLY
     // what ReaderShell.bookId / Task 13's Audio tab will use to look the pairing up.
-    const QString ebookPath = QStringLiteral("C:/Users/Suprabha/Books/the-book.epub");
+    const QString ebookPath = QStringLiteral("C:/Users/TestUser/Books/the-book.epub");
     const QString bookId    = BookStores::keyFor(ebookPath);
 
     QNetworkAccessManager nam;

@@ -1,3 +1,4 @@
+from pathlib import Path
 import ctypes
 import json
 import time
@@ -32,5 +33,7 @@ PROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 user32.EnumWindows(PROC(callback), 0)
 foreground = user32.GetForegroundWindow()
 payload = {"foreground": hex(foreground), "windows": rows}
-with open(r"C:\Users\Suprabha\Desktop\Brotherhood\Colosseum\artifacts\reddit-captures\_window-inspect.json", "w", encoding="utf-8") as f:
+out = Path(__file__).resolve().parents[2] / "artifacts" / "reddit-captures" / "_window-inspect.json"
+out.parent.mkdir(parents=True, exist_ok=True)
+with out.open("w", encoding="utf-8") as f:
     json.dump(payload, f, indent=2)

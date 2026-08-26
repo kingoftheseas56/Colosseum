@@ -14,6 +14,7 @@ Window {
     property int ticks: 0
     property bool seeked: false
     property string phase: "warmup"
+    property string clip: (typeof DevAbbaClip !== "undefined") ? String(DevAbbaClip) : ""
 
     Player2Page { id: page; anchors.fill: parent }
 
@@ -56,8 +57,14 @@ Window {
         }
     }
 
-    Component.onCompleted: page.playLocalFile({
-        "id": "probe:seek", "title": "seek probe",
-        "localPath": "C:/Users/Suprabha/Downloads/Colosseum/The Wire - S4E10 - Misgivings - 20260720_175049.mp4"
-    })
+    Component.onCompleted: {
+        if (probe.clip.length === 0) {
+            console.log("SEEK PROBE: FAIL set COLOSSEUM_ABBA_CLIP to a local media file")
+            Qt.callLater(function() { Qt.quit() })
+            return
+        }
+        page.playLocalFile({
+            "id": "probe:seek", "title": "seek probe", "localPath": probe.clip
+        })
+    }
 }
