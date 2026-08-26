@@ -362,11 +362,13 @@ TestCase {
         var structure = {
             total: 5,
             seasons: [
-                { season: 1, total: 2, episodes: [
+                { season: 1, key: "/Show/Season 1", label: "Season 1", supplemental: false,
+                  total: 2, episodes: [
                     { id: "vault:s1e1", path: "/S1/e1", title: "S01E01" },
                     { id: "vault:s1e2", path: "/S1/e2", title: "S01E02" }
                 ]},
-                { season: 2, total: 3, episodes: [
+                { season: 2, key: "/Show/Season 2", label: "Season 2", supplemental: false,
+                  total: 3, episodes: [
                     { id: "vault:s2e1", path: "/S2/e1", title: "S02E01" },
                     { id: "vault:s2e2", path: "/S2/e2", title: "S02E02" },
                     { id: "vault:s2e3", path: "/S2/e3", title: "S02E03" }
@@ -377,12 +379,27 @@ TestCase {
         var state = VaultApi.deriveSeasonState(structure, function (id) { return marks[id] || 0 })
         compare(state.nextUp.id, "vault:s2e2")          // S1E1+S1E2 watched, S2E1 watched → S2E2
         compare(state.seasons.length, 2)
+        compare(state.seasons[0].key, "/Show/Season 1")
+        compare(state.seasons[0].label, "Season 1")
+        compare(state.seasons[0].supplemental, false)
         compare(state.seasons[0].watched, 2)
         compare(state.seasons[0].unwatched, 0)
         compare(state.seasons[0].nextUp, null)          // a finished season has no next-up
         compare(state.seasons[1].watched, 1)
         compare(state.seasons[1].unwatched, 2)
         compare(state.seasons[1].nextUp.id, "vault:s2e2")
+
+        // Stable tile identity survives for a non-numbered supplemental folder too. This is
+        // the Bonus/season-0 regression: no display-title parsing is required downstream.
+        var bonus = VaultApi.deriveSeasonState({ seasons: [{
+            season: 0, key: "/Show/Bonus", label: "Bonus", supplemental: true, total: 1,
+            episodes: [{ id: "vault:bonus", path: "/Show/Bonus/extra.mkv", title: "Extra" }]
+        }]}, function (id) { return id === "vault:bonus" ? 1 : 0 })
+        compare(bonus.seasons[0].key, "/Show/Bonus")
+        compare(bonus.seasons[0].label, "Bonus")
+        compare(bonus.seasons[0].supplemental, true)
+        compare(bonus.seasons[0].watched, 1)
+        compare(bonus.seasons[0].unwatched, 0)
 
         // NEGATIVE CONTROL: a finished show yields a show-wide null next-up (never a guess).
         var all = VaultApi.deriveSeasonState(structure, function (id) { return 1 })

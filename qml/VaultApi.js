@@ -73,8 +73,9 @@ function filterRowsByWatched(rows, mode) {
 // --- Vault ux uplift S17 — the show-page math (pure; watchedFn is the caller's mark probe) ---
 // Takes seasonFactsForShow's derived structure and joins the durable watched mark per episode
 // id (watchedFn(id) -> the ProgressStore.watchedMark state; -1/0/1 tri-state, 1 = watched).
-// Returns {seasons: [{season,total,watched,unwatched,nextUp}], nextUp} — nextUp is the FIRST
-// unwatched episode in the derived natural order (season sequence then episode order) or null
+// Returns {seasons: [{season,key,label,supplemental,total,watched,unwatched,nextUp}], nextUp} —
+// tile identity rides through untouched so the page joins counts by real browse key, never by
+// parsing display text. nextUp is the FIRST unwatched episode in the derived natural order or null
 // when the show is finished. Ties to neither a season's own file order nor SxxExx parse: the
 // derivation the C++ side handed over IS the order the page paints.
 function deriveSeasonState(structure, watchedFn) {
@@ -91,7 +92,8 @@ function deriveSeasonState(structure, watchedFn) {
             else if (!nextUp) nextUp = ep
         }
         var row = {
-            season: s.season, total: s.total,
+            season: s.season, key: s.key || "", label: s.label || "",
+            supplemental: !!s.supplemental, total: s.total,
             watched: watched, unwatched: (s.total || 0) - watched,
             nextUp: nextUp
         }

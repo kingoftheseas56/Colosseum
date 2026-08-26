@@ -15,6 +15,7 @@
 #include "VaultPosterFetcher.h"
 #include "VaultArtworkResolver.h"
 
+#include <QCollator>
 #include <QDir>
 #include <QFileInfo>
 #include <QMap>
@@ -1120,24 +1121,59 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
         return out;
     struct SeasonEntry {
         int ordinal = 0;
+        QString key;
+        QString label;
+        bool supplemental = false;
         QList<VaultIndex::FileRow> episodes; // natural order set at the end
     };
-    QMap<int, SeasonEntry> seasons;
+    QMap<QString, SeasonEntry> seasons;
     for (const VaultIndex::FileRow& row : rows) {
         int ord = 0;
+        QString entryKey;
+        QString entryLabel;
+        bool supplemental = false;
         const QStringList relParts = row.subfolder.split(QLatin1Char('/'), Qt::SkipEmptyParts);
-        for (const QString& part : relParts) {
-            if (VaultKit::isSeasonLikeDirName(part)) {
-                ord = VaultKit::seasonOrdinalFromDirName(part);
-                break;
-            }
+        for (int i = 0; i < relParts.size(); ++i) {
+            const QString& part = relParts.at(i);
+            if (!VaultKit::isSeasonLikeDirName(part))
+                continue;
+            ord = VaultKit::seasonOrdinalFromDirName(part);
+            entryKey = QDir(showFolderPath).filePath(relParts.mid(0, i + 1).join(QLatin1Char('/')));
+            entryLabel = QStringLiteral("Season %1").arg(ord);
+            break;
         }
-        seasons[ord].ordinal = ord;
-        seasons[ord].episodes.append(row);
+        if (entryKey.isEmpty() && !relParts.isEmpty()) {
+            const QString top = relParts.first();
+            entryKey = QDir(showFolderPath).filePath(top);
+            entryLabel = VaultKit::cleanMediaFolderTitle(top);
+            if (entryLabel.isEmpty())
+                entryLabel = top;
+            supplemental = true;
+        }
+        const QString mapKey = entryKey.isEmpty()
+            ? QStringLiteral("__flat__")
+            : QStringLiteral("path:") + normPath(entryKey);
+        SeasonEntry& s = seasons[mapKey];
+        s.ordinal = ord;
+        s.key = entryKey;
+        s.label = entryLabel;
+        s.supplemental = supplemental;
+        s.episodes.append(row);
     }
+    QList<SeasonEntry> orderedSeasons = seasons.values();
+    QCollator seasonCollator;
+    seasonCollator.setNumericMode(true);
+    seasonCollator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(orderedSeasons.begin(), orderedSeasons.end(),
+              [&seasonCollator](const SeasonEntry& a, const SeasonEntry& b) {
+                  if (a.supplemental != b.supplemental)
+                      return !a.supplemental;
+                  if (!a.supplemental && a.ordinal != b.ordinal)
+                      return a.ordinal < b.ordinal;
+                  return seasonCollator.compare(a.label, b.label) < 0;
+              });
     QVariantList seasonList;
-    for (auto it = seasons.constBegin(); it != seasons.constEnd(); ++it) {
-        SeasonEntry& s = seasons[it.key()]; // the order-mutable copy, sorted below
+    for (SeasonEntry& s : orderedSeasons) {
         std::sort(s.episodes.begin(), s.episodes.end(),
                   [](const VaultIndex::FileRow& a, const VaultIndex::FileRow& b) {
                       if (a.sortKey != b.sortKey)
@@ -1158,6 +1194,9 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
         }
         QVariantMap sm;
         sm.insert(QStringLiteral("season"), s.ordinal);
+        sm.insert(QStringLiteral("key"), s.key);
+        sm.insert(QStringLiteral("label"), s.label);
+        sm.insert(QStringLiteral("supplemental"), s.supplemental);
         sm.insert(QStringLiteral("total"), s.episodes.size());
         sm.insert(QStringLiteral("episodes"), season);
         seasonList.append(sm);

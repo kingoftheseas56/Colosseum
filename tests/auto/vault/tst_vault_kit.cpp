@@ -81,6 +81,7 @@ private slots:
     void browse_collapse_one_film_folder_folds_companions_and_extras();
     void browse_collapse_sibling_season_folders_fold_to_one_show();
     void browse_collapse_nested_season_folder_reports_honest_presence();
+    void browse_collapse_nested_show_keeps_media_bearing_bonus_folder();
     void browse_collapse_flat_absolute_numbered_folder_is_a_show();
     void browse_collapse_season_episode_wall_fact_line_has_season_colon_and_quality();
     void browse_collapse_loose_clips_folder_stays_a_folder();
@@ -458,6 +459,38 @@ void tst_vault_kit::browse_collapse_nested_season_folder_reports_honest_presence
     QCOMPARE(seasons.first().nodeType, BrowseNodeType::Season);
     QCOMPARE(seasons.first().seasonNumber, 4);
     QCOMPARE(seasons.first().mediaCount, 2);
+}
+
+void tst_vault_kit::browse_collapse_nested_show_keeps_media_bearing_bonus_folder()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    QDir base(tmp.path());
+    QVERIFY(base.mkpath(QStringLiteral("Show/Season 1")));
+    QVERIFY(base.mkpath(QStringLiteral("Show/Bonus")));
+    { QFile f(base.filePath(QStringLiteral("Show/Season 1/Show.S01E01.mkv")));
+      QVERIFY(f.open(QIODevice::WriteOnly)); f.write("x"); }
+    { QFile f(base.filePath(QStringLiteral("Show/Bonus/Behind the Scenes.mkv")));
+      QVERIFY(f.open(QIODevice::WriteOnly)); f.write("x"); }
+    QVERIFY(base.mkpath(QStringLiteral("Show/Subs")));
+    { QFile f(base.filePath(QStringLiteral("Show/Subs/english.srt")));
+      QVERIFY(f.open(QIODevice::WriteOnly)); f.write("x"); }
+
+    const QList<BrowseNode> shows = planBrowseLevel(tmp.path());
+    QCOMPARE(shows.size(), 1);
+    QCOMPARE(shows.first().nodeType, BrowseNodeType::Show);
+
+    const QList<BrowseNode> children = planBrowseLevel(shows.first().path);
+    QCOMPARE(children.size(), 2); // Season 1 + Bonus; subtitle-only Subs stays folded.
+    QCOMPARE(children.at(0).nodeType, BrowseNodeType::Season);
+    QCOMPARE(children.at(0).seasonNumber, 1);
+    QCOMPARE(children.at(1).nodeType, BrowseNodeType::Folder);
+    QCOMPARE(children.at(1).displayTitle, QStringLiteral("Bonus"));
+    QCOMPARE(children.at(1).mediaCount, 1);
+
+    const QList<BrowseNode> bonusRows = planBrowseLevel(children.at(1).path);
+    QCOMPARE(bonusRows.size(), 1);
+    QCOMPARE(bonusRows.first().nodeType, BrowseNodeType::Clip);
 }
 
 void tst_vault_kit::browse_collapse_flat_absolute_numbered_folder_is_a_show()

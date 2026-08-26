@@ -1281,8 +1281,9 @@ void tst_vault_forensics::search_library_matches_all_three_spellings()
 
 // ── vault ux uplift S17 — the derived season/episode structure ──
 // One show folder → per-season totals + the ordered episode list (natural order), season
-// ordinals by VaultKit's own rule, an unrecognized subfolder as season 0, and the whole thing
-// capped/empty for a path with no rows (the sibling-collapsed sentinel, an unscanned folder).
+// ordinals by VaultKit's own rule, and stable browse keys for both numbered seasons and
+// media-bearing supplemental folders. An unrecognized subfolder stays season 0 but is no longer
+// collapsed into an anonymous bucket, so the show page can decorate/open its real folder tile.
 void tst_vault_forensics::season_facts_derives_the_group_structure()
 {
     auto fx = buildFlatFixture(0);
@@ -1314,15 +1315,26 @@ void tst_vault_forensics::season_facts_derives_the_group_structure()
     QCOMPARE(facts.value(QStringLiteral("total")).toInt(), 4);
     const QVariantList seasons = facts.value(QStringLiteral("seasons")).toList();
     QCOMPARE(seasons.size(), 3);
-    // season order ascends 0 (Bonus), 1, 2
-    QCOMPARE(seasons[0].toMap().value(QStringLiteral("season")).toInt(), 0);
-    QCOMPARE(seasons[0].toMap().value(QStringLiteral("total")).toInt(), 1);
-    QCOMPARE(seasons[1].toMap().value(QStringLiteral("season")).toInt(), 1);
-    QCOMPARE(seasons[1].toMap().value(QStringLiteral("total")).toInt(), 2);
-    QCOMPARE(seasons[2].toMap().value(QStringLiteral("season")).toInt(), 2);
-    QCOMPARE(seasons[2].toMap().value(QStringLiteral("total")).toInt(), 1);
+    // Numbered seasons stay first in ordinal order; supplemental folders follow by title.
+    const QVariantMap s1 = seasons[0].toMap();
+    const QVariantMap s2 = seasons[1].toMap();
+    const QVariantMap bonus = seasons[2].toMap();
+    QCOMPARE(s1.value(QStringLiteral("season")).toInt(), 1);
+    QCOMPARE(s1.value(QStringLiteral("total")).toInt(), 2);
+    QCOMPARE(s1.value(QStringLiteral("key")).toString(),
+             QDir(showDir).filePath(QStringLiteral("Season 1")));
+    QCOMPARE(s1.value(QStringLiteral("label")).toString(), QStringLiteral("Season 1"));
+    QVERIFY(!s1.value(QStringLiteral("supplemental")).toBool());
+    QCOMPARE(s2.value(QStringLiteral("season")).toInt(), 2);
+    QCOMPARE(s2.value(QStringLiteral("total")).toInt(), 1);
+    QCOMPARE(bonus.value(QStringLiteral("season")).toInt(), 0);
+    QCOMPARE(bonus.value(QStringLiteral("total")).toInt(), 1);
+    QCOMPARE(bonus.value(QStringLiteral("key")).toString(),
+             QDir(showDir).filePath(QStringLiteral("Bonus")));
+    QCOMPARE(bonus.value(QStringLiteral("label")).toString(), QStringLiteral("Bonus"));
+    QVERIFY(bonus.value(QStringLiteral("supplemental")).toBool());
     // Season 1's episode list: S01E01, S01E02 — order by the stored sortKey (natural order).
-    const QVariantList s1eps = seasons[1].toMap().value(QStringLiteral("episodes")).toList();
+    const QVariantList s1eps = s1.value(QStringLiteral("episodes")).toList();
     QCOMPARE(s1eps.size(), 2);
     QCOMPARE(s1eps[0].toMap().value(QStringLiteral("path")).toString(),
              QDir(showDir).filePath(QStringLiteral("S01E01.mkv")));

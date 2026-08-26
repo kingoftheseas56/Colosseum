@@ -292,17 +292,16 @@ Item {
             ? VaultApi.filterRowsByWatched(joined, root.filterWatched) : joined
         let final = root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(watchedFiltered)
                                                : watchedFiltered
-        // S17: on the show page, each season tile gains its watched fact (the derived season
-        // mathematics, joined — the tile itself never recomputes it). Tiles are keyed by their
-        // displayTitle's ordinal; a tile whose ordinal has no season entry stays undecorated.
+        // S17: on the show page, each season/supplemental tile gains its watched fact from the
+        // derived structure. Join by the real browse key the C++ projection carries, never by
+        // scraping a number out of displayTitle: "Bonus" legitimately has no ordinal, while
+        // two differently named folders can legitimately share the same numeric season token.
         if (root.showPageActive && root.currentShowState.seasons.length) {
             for (let i = 0; i < final.length; i++) {
-                if (final[i].nodeType !== "season") continue
-                const m = /(\d+)/.exec(String(final[i].displayTitle || ""))
-                if (!m) continue
-                const ord = Number(m[1])
+                const rowKey = String(final[i].key || "")
+                if (!rowKey) continue
                 for (const s of root.currentShowState.seasons) {
-                    if (s.season === ord) {
+                    if (String(s.key || "") === rowKey) {
                         final[i].watchedFact = s.watched + "/" + s.total
                         final[i].unwatchedFact = s.unwatched
                         // The one physical-fact law (TB2) still holds: ONE factual line. The
@@ -1450,7 +1449,7 @@ Item {
                     id: grid
                     objectName: "vaultBrowseGrid"
                     anchors.top: browseCrumb.bottom
-                    anchors.topMargin: root.showNextUp.visible ? (16 + root.showNextUp.height) : 16
+                    anchors.topMargin: showNextUp.visible ? (16 + showNextUp.height) : 16
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     clip: true
                     cellWidth: root.browseGridWide ? root.wideCellWidth : root.posterCellWidth

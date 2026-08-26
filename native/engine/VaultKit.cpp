@@ -895,9 +895,10 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     }
 
     // ── Drilled into a show whose seasons are nested bare-season subfolders (the Wire shape):
-    // hand back season rows for exactly those. (Slice 1 scope: a show folder mixing season
-    // subfolders with unrelated siblings is not one of the five real shapes this slice targets —
-    // recorded here rather than silently mishandled.) ──
+    // hand back the real season rows first, then preserve any media-bearing non-season sibling
+    // as a plain supplemental folder. This closes the S17 season-0 gap: a Bonus/OVA/etc folder
+    // that the index legitimately owns must not disappear merely because Season N folders exist.
+    // Companion-only folders such as Subs remain folded because they contain no Vault media.
     if (!bareSeasonChildren.isEmpty()) {
         for (const QString& sp : bareSeasonChildren) {
             if (cancel && cancel->isCancelled())
@@ -916,6 +917,32 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         std::sort(out.begin(), out.end(), [](const BrowseNode& a, const BrowseNode& b) {
             return a.seasonNumber < b.seasonNumber;
         });
+
+        QList<BrowseNode> supplemental;
+        for (const QString& child : qualifyingChildDirs) {
+            if (cancel && cancel->isCancelled())
+                return out;
+            const QStringList media = walkFiles(child, allMediaFilters(), cancel, needles);
+            if (media.isEmpty())
+                continue;
+            BrowseNode folder;
+            folder.nodeType = BrowseNodeType::Folder;
+            folder.key = child;
+            folder.path = child;
+            folder.displayTitle = cleanMediaFolderTitle(QFileInfo(child).fileName());
+            folder.mediaCount = media.size();
+            folder.physicalFact = media.size() == 1
+                ? QStringLiteral("1 item") : QStringLiteral("%1 items").arg(media.size());
+            supplemental.append(folder);
+        }
+        QCollator supplementalCollator;
+        supplementalCollator.setNumericMode(true);
+        supplementalCollator.setCaseSensitivity(Qt::CaseInsensitive);
+        std::sort(supplemental.begin(), supplemental.end(),
+                  [&supplementalCollator](const BrowseNode& a, const BrowseNode& b) {
+                      return supplementalCollator.compare(a.displayTitle, b.displayTitle) < 0;
+                  });
+        out += supplemental;
         return out;
     }
 

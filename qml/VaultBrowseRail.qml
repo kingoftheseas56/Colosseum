@@ -817,7 +817,10 @@ Item {
             x: 3
             width: rail.width - 6
             height: 168
-            y: rail.height - height - 8
+            // Keep the editor's action row above the shell taskbar. VaultPage extends to the
+            // window bottom while Main's taskbar floats at z:900 with a 64px dock + 16px gap;
+            // the old 8px bottom inset put Save/Cancel physically underneath that dock.
+            y: Math.max(8, rail.height - height - 88)
             radius: 12
             color: Qt.rgba(0.055, 0.06, 0.09, 0.98)
             border.width: 1

@@ -181,9 +181,11 @@ public:
     // Multi-select/bulk actions over results are OUT of scope (Phase-4-style ruling pending).
     Q_INVOKABLE QVariantList searchLibrary(const QString& query, int limit = 60) const;
     // seasonFactsForShow(showFolderPath) — vault ux uplift S17: the DERIVED season/episode
-    // structure behind one show folder ({seasons:[{season,total,episodes:[{path,id,season,
-    // episode,title}]}], total}), natural order within each season, season ordinals via
-    // VaultKit::seasonOrdinalFromDirName (planBrowseLevel's own rule). Derivation only: no
+    // structure behind one show folder ({seasons:[{season,key,label,supplemental,total,
+    // episodes:[{path,id,season,episode,title}]}], total}). `key` is the real browse key for
+    // a numbered season or media-bearing supplemental folder, so QML joins watched counts by
+    // identity rather than parsing display text. Natural order within each entry; season ordinals
+    // via VaultKit::seasonOrdinalFromDirName (planBrowseLevel's own rule). Derivation only: no
     // watched data (the page joins Progress against each episode id), no identity state, no
     // persistence. Empty for a path that holds no rows (an unscanned folder, a sibling-
     // collapsed sentinel key).
