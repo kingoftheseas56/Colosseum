@@ -1,0 +1,13 @@
+{
+  "name": "a0-verify-manga-grid-2",
+  "steps": [
+    { "cmd": "ping" },
+    { "cmd": "ui-wait-for", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 } },
+    { "cmd": "ui-click", "payload": { "target": "modePill_Tankoban" } },
+    { "cmd": "ui-query", "payload": { "object": "modePill_Tankoban" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "modePill_Tankoban", "prop": "visible", "value": true, "timeout_ms": 4000 } },
+    { "cmd": "ui-query", "payload": { "object": "modePill_Tankoban" } },
+    { "cmd": "ui-query", "payload": { "object": "modePill_Tankoban" } },
+    { "cmd": "dump-ui" }
+  ]
+}

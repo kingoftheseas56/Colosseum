@@ -73,9 +73,13 @@ class CaptureController {
 public:
     using FrameGrabber = std::function<QImage(QString*)>;
 
-    CaptureController(QString outputRoot, FrameGrabber frameGrabber)
+    CaptureController(QString outputRoot, CaptureSpec spec, FrameGrabber frameGrabber)
         : m_outputRoot(std::move(outputRoot)),
+          m_spec(std::move(spec)),
           m_frameGrabber(std::move(frameGrabber)) {}
+
+    CaptureController(QString outputRoot, FrameGrabber frameGrabber)
+        : CaptureController(std::move(outputRoot), CaptureSpec{}, std::move(frameGrabber)) {}
 
     ~CaptureController() { abort(); }
 
@@ -87,6 +91,10 @@ public:
         const QRegularExpression safeName(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"));
         if (!safeName.match(name).hasMatch())
             return fail(detail, QStringLiteral("capture name must use letters, digits, _ or -"));
+        if (m_spec.width <= 0 || m_spec.height <= 0)
+            return fail(detail, QStringLiteral("capture dimensions must be positive"));
+        if (m_spec.captureFps <= 0 || m_spec.gifFps <= 0)
+            return fail(detail, QStringLiteral("capture frame rates must be positive"));
         if (m_active)
             return fail(detail, QStringLiteral("a capture is already active"));
         if (!m_frameGrabber)
@@ -109,7 +117,6 @@ public:
                                 + (holderPid ? QStringLiteral(" (pid %1)").arg(holderPid) : QString{}));
         }
 
-        m_spec = CaptureSpec{};
         m_spec.mp4Path = QDir(m_outputRoot).filePath(name + QStringLiteral(".mp4"));
         m_spec.gifPath = QDir(m_outputRoot).filePath(name + QStringLiteral(".gif"));
         m_logPath = QDir(m_outputRoot).filePath(name + QStringLiteral("-ffmpeg.log"));

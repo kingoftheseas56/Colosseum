@@ -1,0 +1,17 @@
+{
+  "name": "arc12_extensions_probe",
+  "steps": [
+    { "cmd": "ping", "expect": [{ "path": "gates.drive", "op": "==", "value": "true" }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-wait-for", "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "modePill_Tankoban", "prop": "visible", "value": true, "timeout_ms": 10000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "colosseumTaskbarHomeButton" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "taskbarExtensions", "prop": "visible", "value": true, "timeout_ms": 5000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "ui-click", "payload": { "target": "taskbarExtensions" } },
+    { "cmd": "ui-wait-for", "payload": { "object": "extensionsPage", "prop": "visible", "value": true, "timeout_ms": 15000 }, "expect": [{ "path": "matched", "op": "==", "value": true }] },
+    { "cmd": "qml-get", "label": "inspect Extensions pane before click", "payload": { "object": "extensionsPage", "props": ["pane", "world", "installedList"] } },
+    { "cmd": "ui-click", "label": "open Installed pane", "payload": { "target": "extensionsPaneTab_installed" } },
+    { "cmd": "qml-get", "label": "inspect Extensions pane after click", "payload": { "object": "extensionsPage", "props": ["pane", "world"] } }
+  ]
+}

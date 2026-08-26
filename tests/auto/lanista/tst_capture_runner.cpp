@@ -1,4 +1,5 @@
-#include <QtTest>
+﻿#include <QtTest>
+#include <QDir>
 #include <QTemporaryDir>
 #include "tools/LanistaCapture.h"
 
@@ -8,7 +9,10 @@ class CaptureRunnerTest : public QObject
 private slots:
     void gifArgsUseFixedPresentationPreset();
     void sceneRecordingArgsUseObservedFrameRate();
+    void sceneRecordingArgsUseExplicitTrailerResolution();
     void controllerRejectsUnsafeNamesBeforeLaunching();
+    void controllerRejectsInvalidCaptureDimensions();
+    void controllerUsesConfiguredOutputRoot();
 };
 
 void CaptureRunnerTest::gifArgsUseFixedPresentationPreset()
@@ -42,6 +46,19 @@ void CaptureRunnerTest::sceneRecordingArgsUseObservedFrameRate()
     QCOMPARE(args.constLast(), spec.mp4Path);
 }
 
+void CaptureRunnerTest::sceneRecordingArgsUseExplicitTrailerResolution()
+{
+    lanista::CaptureSpec spec;
+    spec.width = 2560;
+    spec.height = 1440;
+    spec.mp4Path = QStringLiteral("C:/captures/home.mp4");
+    const QStringList args = lanista::sceneRecordingArgs(spec, QStringLiteral("frames-%06d.bmp"));
+
+    QVERIFY(args.contains(QStringLiteral(
+        "scale=2560:1440:force_original_aspect_ratio=decrease:flags=lanczos,"
+        "pad=2560:1440:(ow-iw)/2:(oh-ih)/2:color=black")));
+}
+
 void CaptureRunnerTest::controllerRejectsUnsafeNamesBeforeLaunching()
 {
     QTemporaryDir dir;
@@ -54,5 +71,41 @@ void CaptureRunnerTest::controllerRejectsUnsafeNamesBeforeLaunching()
     QVERIFY(why.contains(QStringLiteral("active")));
 }
 
-QTEST_APPLESS_MAIN(CaptureRunnerTest)
+void CaptureRunnerTest::controllerRejectsInvalidCaptureDimensions()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    lanista::CaptureSpec spec;
+    spec.width = 0;
+    spec.height = 1440;
+    lanista::CaptureController controller(dir.path(), spec, [](QString*) { return QImage(); });
+    QString why;
+    QVERIFY(!controller.start(QStringLiteral("home"), &why));
+    QVERIFY(why.contains(QStringLiteral("dimensions")));
+}
+
+void CaptureRunnerTest::controllerUsesConfiguredOutputRoot()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    lanista::CaptureSpec spec;
+    spec.width = 2560;
+    spec.height = 1440;
+    lanista::CaptureController controller(
+        dir.path(), spec, [](QString*) {
+            QImage image(8, 8, QImage::Format_ARGB32);
+            image.fill(Qt::black);
+            return image;
+        });
+
+    QString why;
+    QVERIFY(controller.start(QStringLiteral("home"), &why));
+    const QString expected = QDir(dir.path()).filePath(QStringLiteral("home.mp4"));
+    QVERIFY2(why.contains(expected), qPrintable(why));
+    controller.abort();
+}
+
+QTEST_GUILESS_MAIN(CaptureRunnerTest)
 #include "tst_capture_runner.moc"
+
+\n

@@ -218,6 +218,10 @@ struct SessionSpec {
     QStringList appArgs;         // optional arguments appended after the QML path
     bool drive = false;          // COLOSSEUM_LANISTA_DRIVE=1
     int readyMs = 30000;         // ping-until-ready deadline
+    int captureWidth = 1280;
+    int captureHeight = 720;
+    QString captureOut = QStringLiteral("artifacts/reddit-captures");
+    bool trailerCapture = false;
 };
 
 static bool copyTree(const QString& srcDir, const QString& dstDir)
@@ -319,6 +323,13 @@ static void startSession(Session& s)
     env.insert(QStringLiteral("COLOSSEUM_APPDATA_TAG"), s.spec.tag);
     if (s.spec.drive)
         env.insert(QStringLiteral("COLOSSEUM_LANISTA_DRIVE"), QStringLiteral("1"));
+    if (s.spec.trailerCapture) {
+        env.insert(QStringLiteral("COLOSSEUM_TRAILER_MODE"), QStringLiteral("1"));
+        env.insert(QStringLiteral("COLOSSEUM_TRAILER_WIDTH"),
+                   QString::number(s.spec.captureWidth));
+        env.insert(QStringLiteral("COLOSSEUM_TRAILER_HEIGHT"),
+                   QString::number(s.spec.captureHeight));
+    }
     env.insert(QStringLiteral("QT_FORCE_STDERR_LOGGING"), QStringLiteral("1"));
     s.proc.setProcessEnvironment(env);
     s.proc.setStandardOutputFile(s.dir + QStringLiteral("/stdout.log"));
@@ -331,7 +342,17 @@ static void startSession(Session& s)
     const QString launchedAt = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
     s.proc.start();
     if (!s.proc.waitForStarted(10000)) {
-        s.error = QStringLiteral("process failed to start");
+        // Opaque "failed to start" is almost always one of: missing runtime DLL,
+        // bad exe path, or an unwritable working directory (the session dir and
+        // the stdout/stderr redirect files are resolved relative to CWD). Report
+        // enough to tell those apart without guessing.
+        s.error = QStringLiteral(
+                      "process failed to start: %1 | exe=%2 | cwd=%3 | sessionDir=%4 | args=[%5]")
+                      .arg(s.proc.errorString(),
+                           QFileInfo(s.spec.exe).absoluteFilePath(),
+                           QDir::currentPath(),
+                           QDir(s.dir).absolutePath(),
+                           childArgs.join(QLatin1Char(' ')));
         return;
     }
     const qint64 pid = s.proc.processId();
@@ -398,6 +419,12 @@ static void startSession(Session& s)
         {QStringLiteral("cacheRoot"), s.cacheRoot},
         {QStringLiteral("stdoutPath"), s.dir + QStringLiteral("/stdout.log")},
         {QStringLiteral("stderrPath"), s.dir + QStringLiteral("/stderr.log")},
+        {QStringLiteral("capture"),
+         QJsonObject{{QStringLiteral("width"), s.spec.captureWidth},
+                     {QStringLiteral("height"), s.spec.captureHeight},
+                     {QStringLiteral("targetFps"), 15},
+                     {QStringLiteral("outputRoot"), s.spec.captureOut},
+                     {QStringLiteral("trailerMode"), s.spec.trailerCapture}}},
     };
     s.writeManifest();
 }
@@ -782,6 +809,8 @@ static void printUsage(std::ostream& os)
        << "  lanista brief <arcName> [--from <runDir>]\n"
        << "  lanista session run <scenario.json> [--exe <path>] [--qml <path>] [--tag <t>]\n"
        << "                      [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going]\n"
+       << "                      [--capture-width <px>] [--capture-height <px>]\n"
+       << "                      [--capture-out <dir>]\n"
        << "     (launches a DISPOSABLE tagged app on a unique pipe, proves isolation,\n"
        << "      runs the scenario, stops the app, writes artifacts/lanista-sessions/<id>/)\n"
        << "\n"
@@ -822,7 +851,8 @@ int main(int argc, char** argv)
     if (verb == QStringLiteral("session")) {
         if (args.isEmpty() || args.takeFirst() != QStringLiteral("run")) {
             std::cerr << "session run <scenario.json> [--exe <path>] [--qml <path>] "
-                         "[--tag <t>] [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going]\n";
+                         "[--tag <t>] [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going] "
+                         "[--capture-width <px>] [--capture-height <px>] [--capture-out <dir>]\n";
             return 2;
         }
         SessionSpec spec;
@@ -841,6 +871,30 @@ int main(int argc, char** argv)
         if (const QString v = takeOpt(QStringLiteral("--seed")); !v.isEmpty()) spec.seedDir = v;
         if (const QString v = takeOpt(QStringLiteral("--ready-ms")); !v.isEmpty())
             spec.readyMs = v.toInt();
+
+        const QString captureWidthText = takeOpt(QStringLiteral("--capture-width"));
+        const QString captureHeightText = takeOpt(QStringLiteral("--capture-height"));
+        const QString captureOutText = takeOpt(QStringLiteral("--capture-out"));
+        if (captureWidthText.isEmpty() != captureHeightText.isEmpty()) {
+            std::cerr << "session run: --capture-width and --capture-height must be supplied together\n";
+            return 2;
+        }
+        if (!captureWidthText.isEmpty()) {
+            bool widthOk = false;
+            bool heightOk = false;
+            const int width = captureWidthText.toInt(&widthOk);
+            const int height = captureHeightText.toInt(&heightOk);
+            if (!widthOk || !heightOk || width <= 0 || height <= 0) {
+                std::cerr << "session run: capture dimensions must be positive integers\n";
+                return 2;
+            }
+            spec.captureWidth = width;
+            spec.captureHeight = height;
+            spec.trailerCapture = true;
+        }
+        if (!captureOutText.isEmpty())
+            spec.captureOut = captureOutText;
+
         if (args.isEmpty()) { std::cerr << "session run: missing <scenario.json>\n"; return 2; }
         const QString scenario = args.takeFirst();
 
@@ -877,7 +931,10 @@ int main(int argc, char** argv)
                 *why = QStringLiteral("Lanista scene grab was unreadable: ") + path;
             return image;
         };
-        lanista::CaptureController capture(QStringLiteral("artifacts/reddit-captures"),
+        lanista::CaptureSpec captureSpec;
+        captureSpec.width = spec.captureWidth;
+        captureSpec.height = spec.captureHeight;
+        lanista::CaptureController capture(spec.captureOut, captureSpec,
                                             std::move(sceneGrabber));
         const ScenarioRun run = runScenario(scenario, keep, &capture);
         if (capture.isActive()) capture.abort();
