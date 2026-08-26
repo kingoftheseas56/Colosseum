@@ -1,0 +1,51 @@
+name: Feature request
+description: Propose a focused product or workflow improvement.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Colosseum has deliberate experimental boundaries. Please describe the user problem first, then the solution you have in mind.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful outcome from the user's point of view.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Home / shell
+        - Tankoban / comics
+        - Biblio / audiobooks
+        - Theatre / player
+        - Vault / local media
+        - Extensions
+        - Accounts / sync
+        - Downloads / Collection
+        - Build / packaging / tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context or alternatives
+      description: Optional screenshots, examples, or approaches you considered. Do not include private account/media data.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the README's Known boundaries and existing issues for this request.
+          required: true

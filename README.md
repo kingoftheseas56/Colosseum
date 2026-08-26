@@ -10,12 +10,22 @@
 
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/release-1.1.4-111111?style=flat-square" alt="1.1.4" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><img src="https://img.shields.io/github/v/release/kingoftheseas56/Colosseum?display_name=tag&sort=semver&style=flat-square&label=release" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-777777?style=flat-square" alt="MIT License" /></a>
 </p>
 
 <p align="center">
   <img src="docs/media/hero.gif" alt="Colosseum home — Continue row and world shelves" width="840" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><strong>Download latest</strong></a> &nbsp;|&nbsp;
+  <a href="docs/README.md">Docs</a> &nbsp;|&nbsp;
+  <a href="docs/build/windows.md">Build on Windows</a> &nbsp;|&nbsp;
+  <a href="https://github.com/kingoftheseas56/Colosseum/issues/new?template=bug_report.yml">Report a bug</a> &nbsp;|&nbsp;
+  <a href="SUPPORT.md">Support</a> &nbsp;|&nbsp;
+  <a href="CONTRIBUTING.md">Contribute</a> &nbsp;|&nbsp;
+  <a href="SECURITY.md">Security</a>
 </p>
 
 ## Overview
@@ -271,29 +281,9 @@ remains the fallback.
 
 ### Build from source
 
-Requirements: Windows 10 or 11, Visual Studio 2022 C++ Build Tools, CMake 3.16+, Ninja, Qt 6.11.1
-MSVC 2022 64-bit (with Quick, QML, Network, GUI, SQL, Concurrent, WebEngineQuick, WebChannel,
-WebSockets), MpvQt + libmpv, libtorrent-rasterbar with Boost and OpenSSL, the bundled Stremio
-stream-server runtime, and ffmpeg. Python 3 is only needed to rebuild catalogue databases or run
-the repository's Python verification tooling. The catalogue databases are deployment artifacts
-rather than ordinary Git source. Current source builds resolve local `data/*.db` files first; when a
-catalogue is absent, `CatalogVaultClient` can fetch the published database into per-user AppData
-without blocking startup, then wake the corresponding catalogue surface when it becomes ready.
+Windows source builds use Visual Studio 2022 C++ Build Tools, CMake/Ninja, Qt 6.11.1 MSVC 2022 64-bit, MpvQt/libmpv, and libtorrent/Boost/OpenSSL. Contributors should pass their own dependency locations explicitly when configuring the build.
 
-```bat
-cmake -S native -B native/build-msvc -G Ninja ^
-  -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/msvc2022_64 ^
-  -DMPVQT_PREFIX=C:/tools/mpvqt-feasibility/mpvqt-msvc-install ^
-  -DLIBMPV_PREFIX=C:/tools/mpvqt-feasibility/libmpv-prefix ^
-  -DLIBTORRENT_ROOT=C:/tools/libtorrent-2.0-msvc ^
-  -DBOOST_ROOT=C:/tools/boost-1.84.0 ^
-  -DOPENSSL_MSVC_ROOT=C:/tools/openssl-msvc
-
-cmake --build native/build-msvc
-```
-
-Then run the live QML loop with `dev.bat`. Player 2 additionally requires
-`-DCOLOSSEUM_PLAYER2_IN_APP=ON` at configure time and `COLOSSEUM_PLAYER2=1` at boot.
+See **[Build Colosseum on Windows](docs/build/windows.md)** for the supported dependency shape, neutral-path configure command, development launch, runtime deployment, and verification boundary. Player 2 remains an opt-in experimental build path; mpv/MpvQt is the default player.
 
 ### Development verification
 
@@ -378,18 +368,15 @@ Colosseum/
 └── dist/        Built installers
 ```
 
-## Contributing
+## Contributing and project help
 
-Colosseum is developed in the open and steered by what its users actually hit. The most
-valuable contribution is a **real issue**: a bug, a rough edge, a source that stopped
-working, a feature you reached for and didn't find. Open one at
-[Issues](https://github.com/kingoftheseas56/Colosseum/issues) — include what you clicked,
-what you expected, and what happened. The app writes a rolling log at
-`%APPDATA%/Brotherhood/Colosseum/logs/colosseum.log`; attaching its tail makes most bugs
-diagnosable in one pass.
+Colosseum is developed in the open and steered by real use. Focused bug reports and pull requests are welcome; larger changes should start with an issue so the direction can be agreed before implementation.
 
-Pull requests are welcome for focused fixes. For anything larger, open an issue first so
-the approach can be agreed before the work.
+- [Contributing guide](CONTRIBUTING.md)
+- [Bug reports and feature requests](https://github.com/kingoftheseas56/Colosseum/issues/new/choose)
+- [Support and troubleshooting](SUPPORT.md)
+- [Security policy](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## License
 
