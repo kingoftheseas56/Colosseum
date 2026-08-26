@@ -25,6 +25,11 @@ public:
         QString coverUrl;
         QString world;
         int year = 0;
+        // Phase-4 G1 ruling (2026-08-25): the adopted identity's IMDb rating (0 = the source
+        // carried no fact) and its display-ready " · "-joined genre list (empty = none). The
+        // detail sheet's provenance-badged meta line reads these — identified items only.
+        double rating = 0;
+        QString genres;
         // Slice 2 (browse-face execution plan): the total exact-candidate count from the last
         // matchGroup() catalogue lookup (comics+MAL, or IMDB alone) — 0 when no catalogue lookup
         // ran at all (e.g. the book path, or an ineligible group). >1 means the exactly-one

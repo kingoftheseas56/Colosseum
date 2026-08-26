@@ -13,7 +13,7 @@ namespace {
 // Vault schema v5 adds identityState/identityCandidateCount (browse-face execution plan Slice 2:
 // a durable "Vault isn't sure" fact). A DB stamped higher than this was created by a newer owner
 // and is refused rather than downgraded.
-inline constexpr int kVaultSchemaVersion = 6; // v6: parsedYear (vault ux uplift S16)
+inline constexpr int kVaultSchemaVersion = 7; // v7: identityRating/identityGenres (phase-4 G1 ruling)
 
 bool execSchemaSql(QSqlDatabase& db, const QString& sql)
 {
@@ -286,6 +286,17 @@ bool VaultIndex::ensureSchema()
             "ALTER TABLE files ADD COLUMN parsedYear INTEGER NOT NULL DEFAULT 0")))
         return rollback();
 
+    // v6 -> v7: identityRating/identityGenres (phase-4 G1 ruling, 2026-08-25 — the adopted
+    // IMDb identity's rating + genres, identity facts surfaced on the detail sheet).
+    if (!afterMetadata.contains(QStringLiteral("identityRating"))
+        && !execSchemaSql(m_db, QStringLiteral(
+            "ALTER TABLE files ADD COLUMN identityRating REAL NOT NULL DEFAULT 0")))
+        return rollback();
+    if (!afterMetadata.contains(QStringLiteral("identityGenres"))
+        && !execSchemaSql(m_db, QStringLiteral(
+            "ALTER TABLE files ADD COLUMN identityGenres TEXT NOT NULL DEFAULT ''")))
+        return rollback();
+
     const QSet<QString> finalColumns = tableColumns(m_db, &columnsOk);
     if (!columnsOk
         || !finalColumns.contains(QStringLiteral("admissionVerdict"))
@@ -305,7 +316,9 @@ bool VaultIndex::ensureSchema()
         || !finalColumns.contains(QStringLiteral("identitySuppressed"))
         || !finalColumns.contains(QStringLiteral("identityState"))
         || !finalColumns.contains(QStringLiteral("identityCandidateCount"))
-        || !finalColumns.contains(QStringLiteral("parsedYear")))
+        || !finalColumns.contains(QStringLiteral("parsedYear"))
+        || !finalColumns.contains(QStringLiteral("identityRating"))
+        || !finalColumns.contains(QStringLiteral("identityGenres")))
         return rollback();
 
     if (!execSchemaSql(m_db, QStringLiteral(
@@ -360,14 +373,14 @@ bool VaultIndex::insertRow(const FileRow& row)
         "durationSec, author, format, progressed, coverRef, away, errorState, errorDetail, "
         "admissionVerdict, admissionDetail, synopsis, metadataSource, identityId, identityTitle, "
         "identitySource, identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed, "
-        "identityState, identityCandidateCount, parsedYear"
+        "identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
         ") VALUES ("
         ":id, :rootPath, :subtreePath, :groupKey, :groupTitle, :kind, :path, "
         ":displayTitle, :realName, :subfolder, :sortKey, :size, :mtimeMs, :pages, "
         ":durationSec, :author, :format, :progressed, :coverRef, :away, :errorState, :errorDetail, "
         ":admissionVerdict, :admissionDetail, :synopsis, :metadataSource, :identityId, :identityTitle, "
         ":identitySource, :identitySynopsis, :identityCoverUrl, :identityWorld, :identityYear, :identitySuppressed, "
-        ":identityState, :identityCandidateCount, :parsedYear)"));
+        ":identityState, :identityCandidateCount, :parsedYear, :identityRating, :identityGenres)"));
 
     q.bindValue(QStringLiteral(":id"), row.id);
     q.bindValue(QStringLiteral(":rootPath"), row.rootPath);
@@ -400,6 +413,8 @@ bool VaultIndex::insertRow(const FileRow& row)
     q.bindValue(QStringLiteral(":identityState"), row.identityState);
     q.bindValue(QStringLiteral(":identityCandidateCount"), row.identityCandidateCount);
     q.bindValue(QStringLiteral(":parsedYear"), row.parsedYear);
+    q.bindValue(QStringLiteral(":identityRating"), row.identityRating);
+    q.bindValue(QStringLiteral(":identityGenres"), row.identityGenres);
     q.bindValue(QStringLiteral(":progressed"), row.progressed ? 1 : 0);
     q.bindValue(QStringLiteral(":coverRef"), row.coverRef);
     q.bindValue(QStringLiteral(":away"), row.away ? 1 : 0);
@@ -619,7 +634,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
         " FROM files WHERE kind = ? ORDER BY subtreePath, sortKey"));
     q.addBindValue(kind);
     if (q.exec()) {
@@ -662,6 +677,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForKind(const QString& kind) const
             r.identityState = q.value(34).toString();
             r.identityCandidateCount = q.value(35).toInt();
         r.parsedYear = q.value(36).toInt();
+        r.identityRating = q.value(37).toDouble();
+        r.identityGenres = q.value(38).toString();
             out.append(r);
         }
     }
@@ -679,7 +696,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) cons
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
         " FROM files WHERE rootPath = ? ORDER BY subtreePath, sortKey"));
     q.addBindValue(rootPath);
     if (!q.exec())
@@ -723,6 +740,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForRoot(const QString& rootPath) cons
         r.identityState = q.value(34).toString();
         r.identityCandidateCount = q.value(35).toInt();
         r.parsedYear = q.value(36).toInt();
+        r.identityRating = q.value(37).toDouble();
+        r.identityGenres = q.value(38).toString();
         out.append(r);
     }
     return out;
@@ -739,7 +758,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForGroup(const QString& groupKey) con
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
         " FROM files WHERE groupKey = ? ORDER BY sortKey"));
     q.addBindValue(groupKey);
     if (!q.exec())
@@ -783,6 +802,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForGroup(const QString& groupKey) con
         r.identityState = q.value(34).toString();
         r.identityCandidateCount = q.value(35).toInt();
         r.parsedYear = q.value(36).toInt();
+        r.identityRating = q.value(37).toDouble();
+        r.identityGenres = q.value(38).toString();
         out.append(r);
     }
     return out;
@@ -801,7 +822,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForPath(const QString& path) const
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
         " FROM files WHERE path = ? ORDER BY sortKey"));
     q.addBindValue(path);
     if (!q.exec())
@@ -845,6 +866,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForPath(const QString& path) const
         r.identityState = q.value(34).toString();
         r.identityCandidateCount = q.value(35).toInt();
         r.parsedYear = q.value(36).toInt();
+        r.identityRating = q.value(37).toDouble();
+        r.identityGenres = q.value(38).toString();
         out.append(r);
     }
     return out;
@@ -874,7 +897,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsMatching(const QString& needle, int l
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
         " FROM files WHERE displayTitle LIKE ? ESCAPE '\\'"
         "    OR identityTitle  LIKE ? ESCAPE '\\'"
         "    OR realName       LIKE ? ESCAPE '\\'"
@@ -923,6 +946,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsMatching(const QString& needle, int l
             r.identityState = q.value(34).toString();
             r.identityCandidateCount = q.value(35).toInt();
         r.parsedYear = q.value(36).toInt();
+        r.identityRating = q.value(37).toDouble();
+        r.identityGenres = q.value(38).toString();
             out.append(r);
         }
     }
@@ -942,7 +967,7 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForIdentity(const QString& identityId
         "       errorState, errorDetail, admissionVerdict, admissionDetail"
         "       , synopsis, metadataSource, identityId, identityTitle, identitySource,"
         " identitySynopsis, identityCoverUrl, identityWorld, identityYear, identitySuppressed,"
-        " identityState, identityCandidateCount, parsedYear"
+        " identityState, identityCandidateCount, parsedYear, identityRating, identityGenres"
         " FROM files WHERE identityId = ? AND identitySuppressed = 0 ORDER BY groupKey, sortKey"));
     q.addBindValue(identityId);
     if (!q.exec())
@@ -986,6 +1011,8 @@ QList<VaultIndex::FileRow> VaultIndex::rowsForIdentity(const QString& identityId
         r.identityState = q.value(34).toString();
         r.identityCandidateCount = q.value(35).toInt();
         r.parsedYear = q.value(36).toInt();
+        r.identityRating = q.value(37).toDouble();
+        r.identityGenres = q.value(38).toString();
         out.append(r);
     }
     return out;

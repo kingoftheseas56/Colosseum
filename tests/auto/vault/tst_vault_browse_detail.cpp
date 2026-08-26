@@ -28,6 +28,8 @@ private slots:
     void runtimeFormatsHumanAndIsAbsentWhileUnknown();
     void rejectedCopyExposesItsAdmissionDetail();
     void afterIdentifyAgainAdoptedReadsIdentifiedAmbiguousStaysHonest();
+    // Phase-4 G1 ruling: the adopted IMDb rating+genres ride identified rows only.
+    void ratingAndGenresRideIdentifiedRowsOnly();
 
 private:
     static VaultIndex::FileRow fileRow(const QString& id, const QString& rootPath,
@@ -413,6 +415,58 @@ void VaultBrowseDetailTest::afterIdentifyAgainAdoptedReadsIdentifiedAmbiguousSta
     // Stayed honest: no invented identity leaked into the title.
     QCOMPARE(ambiguousDetail.value(QStringLiteral("displayTitle")).toString(),
              QStringLiteral("Masterpiece"));
+}
+
+// Phase-4 G1 ruling — the sheet map carries the adopted IMDb facts, provenance-badged, and
+// ONLY on an identified row (the negative control is the plain same-file row's omission).
+void VaultBrowseDetailTest::ratingAndGenresRideIdentifiedRowsOnly()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    VaultIndex::FileRow identified = fileRow(QStringLiteral("vault:g1-film"),
+        QStringLiteral("D:/root-a"), QStringLiteral("D:/root-a/Dune"),
+        QStringLiteral("D:/root-a/Dune/dune.mkv"), QStringLiteral("Dune"));
+    identified.identityId = QStringLiteral("imdb:tt0000002");
+    identified.identityTitle = QStringLiteral("Dune");
+    identified.identitySource = QStringLiteral("IMDB");
+    identified.identityState = QStringLiteral("adopted");
+    identified.identityRating = 8.1;
+    identified.identityGenres = QStringLiteral("Sci-Fi · Adventure");
+
+    VaultIndex::FileRow plain = fileRow(QStringLiteral("vault:g1-plain"),
+        QStringLiteral("D:/root-a"), QStringLiteral("D:/root-a/Unknown"),
+        QStringLiteral("D:/root-a/Unknown/u.mkv"), QStringLiteral("Unknown"));
+    QVERIFY(index.publish({identified, plain}));
+
+    const QVariantMap identifiedDetail =
+        VaultBrowseDetail::detailFor(&index, identified.subtreePath);
+    QCOMPARE(identifiedDetail.value(QStringLiteral("ratingText")).toString(),
+             QStringLiteral("IMDb 8.1")); // provenance-badged inline, never bare "8.1"
+    QCOMPARE(identifiedDetail.value(QStringLiteral("genresLine")).toString(),
+             QStringLiteral("Sci-Fi · Adventure"));
+
+    // NEGATIVE CONTROL: an unidentified row carries neither key (no "0.0", no empty line —
+    // the engine OMITS, the sheet never renders them).
+    const QVariantMap plainDetail = VaultBrowseDetail::detailFor(&index, plain.subtreePath);
+    QVERIFY(!plainDetail.contains(QStringLiteral("ratingText")));
+    QVERIFY(!plainDetail.contains(QStringLiteral("genresLine")));
+
+    // An identified row whose identity carried no rating/genes (a MAL/older adoption) omits
+    // both too — absent facts are absent, not zeroized.
+    VaultIndex::FileRow rated0 = fileRow(QStringLiteral("vault:g1-nofact"),
+        QStringLiteral("D:/root-a"), QStringLiteral("D:/root-a/Bare"),
+        QStringLiteral("D:/root-a/Bare/b.mkv"), QStringLiteral("Bare"));
+    rated0.identityId = QStringLiteral("imdb:tt0000001");
+    rated0.identityTitle = QStringLiteral("Bare");
+    rated0.identitySource = QStringLiteral("IMDB");
+    rated0.identityState = QStringLiteral("adopted");
+    QVERIFY(index.publish({identified, plain, rated0}));
+    const QVariantMap bareDetail = VaultBrowseDetail::detailFor(&index, rated0.subtreePath);
+    QVERIFY(!bareDetail.contains(QStringLiteral("ratingText")));
+    QVERIFY(!bareDetail.contains(QStringLiteral("genresLine")));
 }
 
 QTEST_MAIN(VaultBrowseDetailTest)

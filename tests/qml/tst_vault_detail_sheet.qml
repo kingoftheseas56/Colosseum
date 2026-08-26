@@ -175,6 +175,29 @@ TestCase {
         compare(markSpy.count, 0)
     }
 
+    // ── 6. the G1 identity facts (phase-4 ruling): the provenance-badged rating and the genre
+    //          list render when the map carries them; absent facts render NOTHING (never "0.0"
+    //          or an empty line). ──────────────────────────────────────────────────────────────
+    function test_rating_and_genres_render_only_when_known() {
+        makeSheet(baseDetail({ ratingText: "IMDb 8.1", genresLine: "Sci-Fi · Adventure" }))
+        var rating = findChild(sheet, "vaultBrowseSheetRating")
+        var genres = findChild(sheet, "vaultBrowseSheetGenres")
+        verify(rating !== null); verify(genres !== null)
+        compare(rating.visible, true)
+        compare(rating.text, "IMDb 8.1")
+        compare(genres.visible, true)
+        compare(genres.text, "Sci-Fi · Adventure")
+
+        // NEGATIVE CONTROL: the same map without the facts → the lines are absent entirely.
+        makeSheet(baseDetail({}))
+        rating = findChild(sheet, "vaultBrowseSheetRating")
+        genres = findChild(sheet, "vaultBrowseSheetGenres")
+        compare(rating.visible, false)
+        compare(genres.visible, false)
+        verify(findText(sheet, "0.0") === null)
+        verify(findText(sheet, "IMDb") === null)
+    }
+
     function findText(root, wanted) {
         if (!root) return null
         if (root.text === wanted) return root

@@ -68,6 +68,12 @@ public:
         // identifier's own re-grep then sees no year and ImdbCatalog::matchByTitle skips its
         // year filter). 0 = no year was found in the title.
         int parsedYear = 0;
+        // Vault ux uplift G1 (phase-4 ruling, 2026-08-25): the adopted identity's IMDb rating
+        // and genre list — identity facts, identified-items-only, provenance-badged on the
+        // sheet. 0 / empty = the source carried no fact. Votes are deliberately NOT here:
+        // the ruling excluded them (a popularity count ages; the sheet stays physical-truth).
+        double identityRating = 0;
+        QString identityGenres; // display-ready " · "-joined genre list; empty when absent
         bool identitySuppressed = false; // explicit Un-identify; blocks auto re-adoption
         // Durable identification-attempt outcome (browse-face execution plan, Slice 2):
         // "" (none) | "ambiguous" | "adopted" | "suppressed". Recorded by VaultIdentifier so a

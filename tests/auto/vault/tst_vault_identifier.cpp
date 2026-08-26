@@ -42,7 +42,7 @@ bool buildImdbDuneFixture(const QString& path)
                 ok = execSql(q, QStringLiteral(
                     "INSERT INTO title VALUES "
                     "('tt0000001','movie','Dune','dune',1984,0,137,'[\"Sci-Fi\"]',7.1,6000,0,'en',0),"
-                    "('tt0000002','movie','Dune','dune',2021,0,155,'[\"Sci-Fi\"]',8.1,30000,0,'en',0)"));
+                    "('tt0000002','movie','Dune','dune',2021,0,155,'[\"Sci-Fi\",\"Adventure\"]',8.1,30000,0,'en',0)"));
             }
             db.close();
         }
@@ -171,6 +171,22 @@ void VaultIdentifierTest::duneRemakeYearAdoptsTheRightRow()
     QCOMPARE(match.source, QStringLiteral("IMDB"));
     QCOMPARE(match.sourceId, QStringLiteral("imdb:tt0000002")); // the 2021 Dune
     QCOMPARE(match.year, 2021);
+    // Phase-4 G1: the adopted IMDb facts ride the match AND the group's rows (applyGroup).
+    QCOMPARE(match.rating, 8.1);
+    QCOMPARE(match.genres, QStringLiteral("Sci-Fi · Adventure"));
+
+    // The persistence seam: applyGroup writes the facts onto every row of the group.
+    QVERIFY(identifier.applyGroup(row.groupKey, match));
+    const QList<VaultIndex::FileRow> adopted = index.rowsForGroup(row.groupKey);
+    QCOMPARE(adopted.size(), 1);
+    QCOMPARE(adopted.first().identityRating, 8.1);
+    QCOMPARE(adopted.first().identityGenres, QStringLiteral("Sci-Fi · Adventure"));
+
+    // Un-identify clears them (no stale billboard on a filename-honest tile).
+    QVERIFY(identifier.unidentifyGroup(row.groupKey));
+    const QList<VaultIndex::FileRow> cleared = index.rowsForGroup(row.groupKey);
+    QCOMPARE(cleared.first().identityRating, 0.0);
+    QVERIFY(cleared.first().identityGenres.isEmpty());
 }
 
 // The negative, the gate's own law: without a year the cleaned title "Dune" matches BOTH

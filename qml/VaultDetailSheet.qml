@@ -24,10 +24,13 @@ Item {
     // ── inputs ──
     // Shape: VaultLibrary.browseDetail()'s QVariantMap — { found, key, displayTitle, year,
     // identityState, identityLabel, runtimeText (ux uplift S8 — PRESENT ONLY when the clicked
-    // copy's duration is known: "1h 47m" / "48m", never "-1"/"0m"), copiesHeld, coverRef,
-    // bestQualityLine, copies:[{path, rootPath, quality, sizeBytes, sizeText, where, away,
-    // admissionVerdict, statusDetail (S8 — a rejected/errored copy's human reason; empty when
-    // healthy)}], companions:[string], extras:[{title, path}], evidence, ignoredCount, playPath }.
+    // copy's duration is known: "1h 47m" / "48m", never "-1"/"0m"), ratingText (G1 — the
+    // adopted identity's "IMDb 8.1", provenance-badged; OMITTED while the identity carries no
+    // rating), genresLine (G1 — the " · "-joined genre list; OMITTED when empty), copiesHeld,
+    // coverRef, bestQualityLine, copies:[{path, rootPath, quality, sizeBytes, sizeText, where,
+    // away, admissionVerdict, statusDetail (S8 — a rejected/errored copy's human reason; empty
+    // when healthy)}], companions:[string], extras:[{title, path}], evidence, ignoredCount,
+    // playPath }.
     property var detail: ({})
     property string identityStateOfRow: "" // the grid row's own state, for the Identify/Un-identify choice
     // S7 watched-verb inputs (see the signal's own block below for the full contract).
@@ -208,6 +211,24 @@ Item {
                             text: (sheet.detail && sheet.detail.identityLabel) ? sheet.detail.identityLabel : ""
                             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
                         }
+                        Text {
+                            // Phase-4 G1 ruling (2026-08-25): the adopted identity's rating,
+                            // provenance-badged inline ("IMDb 8.1"). The engine OMITS the key
+                            // while the identity carries no rating, so no "0"/"0.0" renders.
+                            objectName: "vaultBrowseSheetRating"
+                            visible: !!(sheet.detail && sheet.detail.ratingText)
+                            text: (sheet.detail && sheet.detail.ratingText) ? sheet.detail.ratingText : ""
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                        }
+                    }
+                    // Phase-4 G1 — the genre list, one dim line under the meta row (identity
+                    // facts; never a synopsis — the G1 ruling, like decision #11, bans prose).
+                    Text {
+                        objectName: "vaultBrowseSheetGenres"
+                        width: parent.width
+                        visible: !!(sheet.detail && sheet.detail.genresLine)
+                        text: (sheet.detail && sheet.detail.genresLine) ? sheet.detail.genresLine : ""
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     }
 
                     // ── Copies you hold ──

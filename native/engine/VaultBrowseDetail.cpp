@@ -153,6 +153,20 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     if (!runtimeText.isEmpty())
         out.insert(QStringLiteral("runtimeText"), runtimeText);
 
+    // Phase-4 G1 ruling (2026-08-25): the adopted identity's IMDb rating + genres, surfaced on
+    // identified items only. Provenance-badged INLINE ("IMDb 8.1" — identitySource IMDB is the
+    // only source the ruling carries facts for; MAL score is deliberately out). The keys are
+    // OMITTED when the row carries no fact (an unidentified group can never have written them).
+    // Votes still not carried, by the ruling's own word.
+    if (primary.identityRating > 0)
+        out.insert(QStringLiteral("ratingText"),
+                   (primary.identitySource == QLatin1String("IMDB") ? QStringLiteral("IMDb")
+                                                                     : primary.identitySource)
+                   + QLatin1Char(' ')
+                   + QString::number(primary.identityRating, 'f', 1));
+    if (!primary.identityGenres.isEmpty())
+        out.insert(QStringLiteral("genresLine"), primary.identityGenres);
+
     QVariantList copies;
     QString bestQuality;
     for (const VaultIndex::FileRow& row : copyRows) {

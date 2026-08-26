@@ -27,6 +27,8 @@ void clearIdentity(VaultIndex::FileRow& row)
     row.identityCoverUrl.clear();
     row.identityWorld.clear();
     row.identityYear = 0;
+    row.identityRating = 0;   // phase-4 G1: the adopted IMDb facts die with the identity
+    row.identityGenres.clear();
     row.identityState.clear();
     row.identityCandidateCount = 0;
 }
@@ -197,6 +199,22 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         match.coverUrl = QStringLiteral("https://live.metahub.space/poster/medium/%1/img").arg(tt);
         match.world = QStringLiteral("Theatre");
         match.year = hit.value(QStringLiteral("year")).toInt();
+        // Phase-4 G1 ruling (2026-08-25): the adopted identity's rating + genres ride the
+        // Match. The bake already returns both; ImdbCatalog folds the baked db's JSON genre
+        // array to a QVariantList, so the join reducer here goes straight to the list. Votes
+        // deliberately not carried (the ruling excluded them — a popularity count ages).
+        match.rating = hit.value(QStringLiteral("rating")).toDouble();
+        {
+            QStringList genres;
+            const QVariantList genreList =
+                hit.value(QStringLiteral("genres")).toList();
+            for (const QVariant& g : genreList) {
+                const QString gr = g.toString().trimmed();
+                if (!gr.isEmpty())
+                    genres << gr;
+            }
+            match.genres = genres.join(QStringLiteral(" · "));
+        }
         return match;
     }
 
@@ -258,6 +276,8 @@ bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match)
         row.identityCoverUrl = match.coverUrl;
         row.identityWorld = match.world;
         row.identityYear = match.year;
+        row.identityRating = match.rating;   // phase-4 G1: the adopted IMDb facts persist
+        row.identityGenres = match.genres;
         row.identitySuppressed = false;
         // Adoption clears any prior ambiguity — identify-in-place settles the tile.
         row.identityState = QStringLiteral("adopted");
