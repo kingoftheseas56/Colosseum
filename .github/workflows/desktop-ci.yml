@@ -50,7 +50,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: "qtwebengine qtwebchannel qtwebsockets"
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
       - name: Enable MSVC developer environment
@@ -159,11 +159,20 @@ jobs:
       - name: Build desktop and release smoke targets
         shell: pwsh
         run: |
+          $log = Join-Path $env:RUNNER_TEMP "colosseum-build.log"
           cmake --build $env:COLOSSEUM_CI_BUILD --target `
             colosseum `
             update_manifest_trust_harness `
             update_install_bridge_harness `
-            --parallel 2
+            --parallel 2 2>&1 | Tee-Object -FilePath $log
+          $buildExit = $LASTEXITCODE
+          if ($buildExit -ne 0) {
+            Get-Content $log | Where-Object { $_ -match 'FAILED:|fatal error|\berror\b|LNK\d+' } | Select-Object -Last 30 | ForEach-Object {
+              $message = $_.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+              Write-Output "::error::$message"
+            }
+            exit $buildExit
+          }
 
       - name: Release-critical smoke
         shell: pwsh

@@ -355,14 +355,17 @@ void TorrentEngine::applySettings()
     // libtorrent's baseline alert stream. block_progress stays env-var
     // gated — block_finished_alert volume is per-16KB-block and only
     // Mode A diagnosis needs it.
-    int alertMask = lt::alert_category::status
-                  | lt::alert_category::storage
-                  | lt::alert_category::error
-                  | lt::alert_category::piece_progress;
+    lt::alert_category_t alertMask = lt::alert_category::status
+                                   | lt::alert_category::storage
+                                   | lt::alert_category::error
+                                   | lt::alert_category::piece_progress;
     if (qEnvironmentVariableIsSet("TANKOBAN_ALERT_TRACE")) {
         alertMask |= lt::alert_category::block_progress;
     }
-    sp.set_int(lt::settings_pack::alert_mask, alertMask);
+    sp.set_int(
+        lt::settings_pack::alert_mask,
+        static_cast<int>(
+            static_cast<lt::alert_category_t::underlying_type>(alertMask)));
 
     // STREAM_PLAYBACK_FIX Phase 3 Batch 3.3 — session settings tuned for
     // streaming. Pre-3.3 values admitted "less aggressive than streaming"
@@ -524,7 +527,16 @@ void TorrentEngine::loadDhtState()
         qWarning() << "Failed to bdecode DHT state:" << ec.message().c_str();
         return;
     }
-    m_session.load_state(node);
+
+    try {
+        auto params = lt::read_session_params(
+            node, lt::session_handle::save_dht_state);
+        m_session.set_dht_state(std::move(params.dht_state));
+    } catch (const std::exception& e) {
+        qWarning() << "Failed to restore DHT state:" << e.what();
+        return;
+    }
+
     qDebug() << "Loaded DHT state from" << path << "(" << data.size() << "bytes)";
 }
 
@@ -533,10 +545,9 @@ void TorrentEngine::saveDhtState()
     auto path = m_cacheDir + "/session.state";
     auto tmp  = path + ".tmp";
 
-    lt::entry state;
-    m_session.save_state(state);
-    std::vector<char> buf;
-    lt::bencode(std::back_inserter(buf), state);
+    auto params = m_session.session_state(lt::session_handle::save_dht_state);
+    auto buf = lt::write_session_params_buf(
+        params, lt::session_handle::save_dht_state);
 
     QFile file(tmp);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
@@ -656,8 +667,8 @@ void TorrentEngine::start()
 {
     if (m_running) return;
     ensureDirs();
-    applySettings();
     loadDhtState();
+    applySettings();
 
     // Re-apply persisted ban list (Phase 6.4) so banned peers stay blocked
     // across app restart. `banPeer()` already writes to QSettings on each ban.
