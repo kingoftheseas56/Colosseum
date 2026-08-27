@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 REPO = "kingoftheseas56/Colosseum"
 VERSION_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
@@ -25,7 +25,7 @@ HIGHLIGHT_KEYS = {
 ARTWORK_KEYS = {"asset", "path"}
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise ValueError(message)
 
 
@@ -34,9 +34,9 @@ def openssl_command() -> str:
     if candidate:
         return candidate
     windows_git = Path("C:/Program Files/Git/usr/bin/openssl.exe")
-    if windows_git.is_file():
-        return str(windows_git)
-    fail("openssl executable not found")
+    if not windows_git.is_file():
+        raise ValueError("openssl executable not found")
+    return str(windows_git)
 
 
 def canonical_version(value: str) -> str:

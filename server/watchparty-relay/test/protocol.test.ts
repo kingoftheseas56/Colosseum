@@ -105,15 +105,6 @@ describe("protocol conformance — valid fixtures round-trip", () => {
   });
 
   it("covers every server->client message type at least once", () => {
-    const serverTypes = new Set(
-      validFixtures
-        .map((f) => (f.json as { type: string }).type)
-        .filter(
-          (type) =>
-            !(CLIENT_TO_SERVER_TYPES as readonly string[]).includes(type) ||
-            ["chat", "reaction", "participantState"].includes(type)
-        )
-    );
     // chat/reaction/participantState are dual-direction; every fixture name
     // for those carries a -request/-event/-broadcast suffix, so just assert
     // the full server vocabulary is present among fixture types.

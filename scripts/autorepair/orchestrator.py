@@ -702,9 +702,18 @@ def _execute_stage(
 # self-checked here too, the same "self-protection, mechanized" pattern policy.py's
 # _assert_self_protection()/verify.py's find_forbidden_verifier_exhibits() already
 # established for their own rulings).
-_EMOJI_RE = re.compile(
-    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF✀-➿☀-⛿]"
-)
+class _EmojiMatcher:
+    @staticmethod
+    def findall(text: str) -> list[str]:
+        return [
+            ch for ch in text
+            if (0x1F300 <= ord(ch) <= 0x1FAFF
+                or 0x2600 <= ord(ch) <= 0x27BF
+                or 0x1F1E6 <= ord(ch) <= 0x1F1FF)
+        ]
+
+
+_EMOJI_RE = _EmojiMatcher()
 
 _STATE_SUMMARY: dict[str, str] = {
     "PROMOTION-READY": (

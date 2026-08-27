@@ -24,7 +24,6 @@ color, no emoji - self-checked here with the same regex (refused, never shipped)
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -33,9 +32,18 @@ from typing import Any
 # imported: bugdoc must stay importable even if the orchestrator module moves -
 # the two guards must be able to disagree loudly during review, not silently
 # share a drifting definition through a live import).
-_EMOJI_RE = re.compile(
-    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF✀-➿☀-⛿]"
-)
+class _EmojiMatcher:
+    @staticmethod
+    def findall(text: str) -> list[str]:
+        return [
+            ch for ch in text
+            if (0x1F300 <= ord(ch) <= 0x1FAFF
+                or 0x2600 <= ord(ch) <= 0x27BF
+                or 0x1F1E6 <= ord(ch) <= 0x1F1FF)
+        ]
+
+
+_EMOJI_RE = _EmojiMatcher()
 
 BUG_DOC_FILE_NAME = "bug.md"
 

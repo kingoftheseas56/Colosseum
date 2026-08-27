@@ -140,12 +140,16 @@ interface ConnectionState {
 }
 
 const ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
+const ROOM_ID_MASK = ROOM_ID_ALPHABET.length - 1;
+if ((ROOM_ID_ALPHABET.length & ROOM_ID_MASK) !== 0) {
+  throw new Error("ROOM_ID_ALPHABET length must stay a power of two");
+}
 
 function generateRoomId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(8));
   let code = "";
   for (let i = 0; i < 8; i++) {
-    code += ROOM_ID_ALPHABET[bytes[i] % ROOM_ID_ALPHABET.length];
+    code += ROOM_ID_ALPHABET[bytes[i] & ROOM_ID_MASK];
   }
   return `WP-${code.slice(0, 4)}-${code.slice(4, 8)}`;
 }

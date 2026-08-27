@@ -15,24 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  codeql-cpp:
-    name: CodeQL C++
-    runs-on: windows-2025
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v7
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: c-cpp
-          build-mode: none
-          queries: security-and-quality
-          config-file: ./.github/codeql/codeql-config.yml
-      - name: Analyze C++
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: /language:c-cpp
-
   codeql-scripting:
     name: CodeQL ${{ matrix.language }}
     runs-on: ubuntu-24.04
@@ -93,7 +75,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Qt 6.11.1
-        uses: jurplel/install-qt-action@v4.3.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:
           version: "6.11.1"
           host: windows

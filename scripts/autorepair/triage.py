@@ -91,9 +91,6 @@ from typing import Any, Callable
 
 SCHEMA = 1
 
-# scripts/autorepair/triage.py -> scripts/autorepair -> scripts -> repo root.
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
 # Sibling import (house pattern: flat scripts/autorepair/, no package __init__.py - see
 # sandbox.py's identical sys.path setup). Program ruling 1: policy.py owns
 # policy.triage.{runs,confirmThreshold}; this module only reads them via load_policy(),

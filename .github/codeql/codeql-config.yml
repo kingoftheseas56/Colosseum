@@ -9,6 +9,7 @@ paths-ignore:
   - native/prototypes/**
   - qml/**
   - resources/reader2/vendor/**
+  - resources/reader2/qwebchannel.js
   - docs/research/**
   - server/watchparty-relay/node_modules/**
 

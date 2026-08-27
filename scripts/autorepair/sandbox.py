@@ -75,7 +75,10 @@ _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
 
-from policy import Policy, load_policy  # noqa: E402  (after sys.path setup, by design)
+from policy import Policy, load_policy as _load_policy  # noqa: E402  (after sys.path setup, by design)
+
+# Compatibility re-export: callers/tests historically import load_policy through sandbox.
+load_policy = _load_policy
 
 __all__ = [
     "REPO_ROOT",
@@ -85,6 +88,7 @@ __all__ = [
     "DriftViolation",
     "BuildResult",
     "DriftSnapshot",
+    "load_policy",
     "create",
     "provision",
     "build",

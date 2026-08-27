@@ -128,7 +128,6 @@ policy.py's/triage.py's/diagnosis.py's/repair_contract.py's/verify.py's own
 from __future__ import annotations
 
 import fnmatch
-import re
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -227,9 +226,18 @@ DOSSIER_SECTIONS: tuple[tuple[str, str], ...] = (
 # not an exhaustive Unicode emoji classifier (that would need an external table this
 # stdlib-only module deliberately does not carry), but covers the overwhelmingly common
 # case (faces, symbols, dingbats, transport/map symbols, regional-indicator flag pairs).
-_EMOJI_RE = re.compile(
-    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF✀-➿☀-⛿]"
-)
+class _EmojiMatcher:
+    @staticmethod
+    def findall(text: str) -> list[str]:
+        return [
+            ch for ch in text
+            if (0x1F300 <= ord(ch) <= 0x1FAFF
+                or 0x2600 <= ord(ch) <= 0x27BF
+                or 0x1F1E6 <= ord(ch) <= 0x1F1FF)
+        ]
+
+
+_EMOJI_RE = _EmojiMatcher()
 
 
 def _section_missing_or_empty(dossier: dict[str, Any], key: str) -> bool:

@@ -45,11 +45,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_sha || '5df10d8fc2c57414756a4a298ecc6696972233bc' }}
-          fetch-depth: 1
-      - name: Verify and locally tag exact release source
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify and locally tag trusted release source
         shell: pwsh
         run: |
+          git fetch origin master --no-tags
+          if ($LASTEXITCODE -ne 0) { throw "failed to fetch origin/master" }
+          git cat-file -e "$env:SOURCE_SHA^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw "source SHA is not a commit in this repository" }
+          git merge-base --is-ancestor $env:SOURCE_SHA origin/master
+          if ($LASTEXITCODE -ne 0) { throw "source SHA is not reachable from origin/master" }
+          git checkout --detach $env:SOURCE_SHA
+          if ($LASTEXITCODE -ne 0) { throw "failed to checkout trusted source SHA" }
           $head = git rev-parse HEAD
           if ($head -ne $env:SOURCE_SHA) { throw "source SHA drift: $head" }
           git tag -d "v$env:VERSION" 2>$null
@@ -58,7 +66,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Qt 6.11.1
-        uses: jurplel/install-qt-action@v4.3.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:
           version: "6.11.1"
           host: windows
@@ -68,7 +76,7 @@ jobs:
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
       - name: Enable MSVC developer environment
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
       - name: Install native dependencies

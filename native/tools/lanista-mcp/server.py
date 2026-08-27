@@ -123,10 +123,12 @@ def _kill_and_wait(proc, timeout=5):
     try:
         proc.kill()
     except Exception:
+        # Best-effort process/session cleanup must not mask the primary result.
         pass
     try:
         proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
+        # Best-effort process/session cleanup must not mask the primary result.
         pass
 
 
@@ -252,6 +254,7 @@ def _clear_active_pointer():
     try:
         os.remove(ACTIVE_POINTER)
     except FileNotFoundError:
+        # Best-effort process/session cleanup must not mask the primary result.
         pass
 
 
@@ -465,6 +468,7 @@ def tool_session_stop(_args):
         SESSION["stdout_f"].close()
         SESSION["stderr_f"].close()
     except Exception:
+        # Best-effort process/session cleanup must not mask the primary result.
         pass
 
     result = {"sessionId": SESSION["id"], "exitCode": exit_code,

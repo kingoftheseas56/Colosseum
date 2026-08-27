@@ -81,6 +81,7 @@ def aspect(data, ext):
         if ext == ".ico" and data[:4] == b"\x00\x00\x01\x00":
             return (data[6] or 256), (data[7] or 256)
     except Exception:
+        # Unreadable image metadata falls back to unknown dimensions.
         pass
     return None
 

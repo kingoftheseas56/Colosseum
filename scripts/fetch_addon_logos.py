@@ -3,7 +3,7 @@
 # not already bundle. Reads each add-on's manifest.json, takes its `logo` URL,
 # downloads the icon into assets/addon-logos/<slug>.<ext>. Whatever fails to
 # fetch simply keeps the letter fallback in the UI — honest, never a fake tile.
-import json, os, sys, urllib.request, urllib.parse
+import json, os, urllib.request, urllib.parse
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "assets", "addon-logos")
