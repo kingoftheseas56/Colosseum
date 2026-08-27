@@ -9,7 +9,7 @@ Window {
 
     QtObject {
         id: fakeDownloads
-        property var totals: ({ items: 2, bytes: 1000, tankoban: 1, biblio: 0, theatre: 1 })
+        property var totals: ({ items: 3, bytes: 5096, tankoban: 1, biblio: 1, theatre: 1 })
         function activeJobs() {
             return [
                 { id: "one", world: "theatre", groupKey: "show",
@@ -34,8 +34,19 @@ Window {
                   canResume: false, canCancel: false, canDismiss: true }
             ]
         }
-        function series(world) { return [] }
-        function items(world, key) { return [] }
+        function series(world) {
+            if (world === "biblio")
+                return [{ key: "author:test author", world: "biblio", title: "Test Author",
+                          kind: "book", itemCount: 1, bytes: 4096, updatedAt: 42 }]
+            return []
+        }
+        function items(world, key) {
+            if (world === "biblio" && key === "author:test author")
+                return [{ id: "cccccccccccccccccccccccccccccccc", world: "biblio", kind: "book",
+                          title: "Arc 19 Book", author: "Test Author", subtitle: "EPUB",
+                          path: "C:/arc19/persisted.epub", bytes: 4096, addedAt: 42, missing: false }]
+            return []
+        }
         function remove(world, id) {
             return { success: false, message: "fixture deletion was denied" }
         }
@@ -68,9 +79,19 @@ Window {
                 Qt.exit(12)
             if (item.attentionCount !== 2)
                 Qt.exit(13)
-            if (item.totalsMap.items !== 3 || item.totalsMap.bytes !== 1500
-                    || item.totalsMap.audiobook !== 1)
+            if (item.totalsMap.items !== 4 || item.totalsMap.bytes !== 5596
+                    || item.totalsMap.biblio !== 1 || item.totalsMap.audiobook !== 1)
                 Qt.exit(14)
+            if (item.laneSeries.biblio.length !== 1
+                    || item.laneSeries.biblio[0].key !== "author:test author")
+                Qt.exit(17)
+            item.toggleLedger("biblio", "author:test author")
+            if (item.ledgerItems.length !== 1
+                    || item.ledgerItems[0].path !== "C:/arc19/persisted.epub"
+                    || item.ledgerItems[0].title !== "Arc 19 Book"
+                    || item.ledgerItems[0].author !== "Test Author"
+                    || item.ledgerItems[0].subtitle !== "EPUB")
+                Qt.exit(18)
 
             item.confirmAction("Delete local copy?", "This deletes the file.", "Delete", function() {})
             if (!item.confirmationOpen)

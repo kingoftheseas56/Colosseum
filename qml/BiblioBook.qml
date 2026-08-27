@@ -522,6 +522,24 @@ Item {
                 var lp = books.localBook(md5)
                 if (lp) { p = lp; break }
             }
+        // Source search is ephemeral, but the Books index is durable. A source can vanish,
+        // reorder, or return a different md5 on a later visit; recover the already-downloaded
+        // copy by the same normalized title+author identity Biblio uses for pairing.
+        if (!p && books && books.downloadedBooks) {
+            var wanted = BiblioApi.pairKey(detail.book ? detail.book.title : "",
+                                           detail.book ? detail.book.author : "")
+            if (wanted.length && wanted !== "|") {
+                var landed = books.downloadedBooks() || []
+                for (var k = 0; k < landed.length; k++) {
+                    var row = landed[k] || ({})
+                    if (row.missing || !String(row.path || "").length) continue
+                    if (BiblioApi.pairKey(row.title || "", row.author || "") === wanted) {
+                        p = String(row.path)
+                        break
+                    }
+                }
+            }
+        }
         var torrents = detail.bookTorrentsRef
         if (!p && torrents)
             for (var j = 0; j < detail.torrents.length; j++) {
