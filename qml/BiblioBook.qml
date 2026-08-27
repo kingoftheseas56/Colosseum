@@ -14,6 +14,7 @@ import "AbbApi.js" as Abb
 
 Item {
     id: detail
+    objectName: "biblioBookDetail"   // test-only seam: Lanista qml-get reads localPath/readError/pendingReadTransport
     property var book: ({})
     property Item backdrop
     property var editions: []

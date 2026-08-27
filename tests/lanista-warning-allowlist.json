@@ -70,5 +70,11 @@
     "owner": "arc-21 Slice 4 (Agent 1 sub-exec, Sonnet)",
     "reason": "Live-network image-loading warning from qml/PortraitTile.qml (an existing cover-art loader, untouched by arc-21) - the getcomics.org/i0.wp.com CDN mirror is rate-limiting this machine (HTTP 429) after many agents' Lanista sessions loaded comics cover art in quick succession today. Same family as the already-allowlisted live.metahub.space 404 (Vault Slice 7, 2026-08-13) and the QSslSocket teardown entry above - an external, unrelated live-network fact, not a defect in the arc-21 engine/QML this slice proves. Observed in session 20260823-203714-a7a2bacf (comics_catalogue_intelligence_smoke.json, Comics tab grab).",
     "date": "2026-08-23"
+  },
+  {
+    "pattern": "QMetaObject::invokeMethod: No such method QObject::writeSnapshot",
+    "owner": "Lanista warning baseline / Biblio downloaded-EPUB probe",
+    "reason": "Pre-existing teardown-only warning already recorded in this verification ledger by Vault Browse runs before this probe. In the Biblio probe it appeared only after all 38 functional scenario steps had passed, during graceful session teardown alongside other known teardown warnings, and was absent from the mid-session read journey. This entry classifies that known noise for the warning gate; it does not claim the underlying shutdown-ordering cause is fixed.",
+    "date": "2026-08-27"
   }
 ]
