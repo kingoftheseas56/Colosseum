@@ -4,6 +4,9 @@ $root = Split-Path -Parent $PSScriptRoot
 function Assert-Contains($hay, $needle, $why) {
     if ($hay -notlike "*$needle*") { throw "MISSING [$why]: expected to find -> $needle" }
 }
+function Assert-NotContains($hay, $needle, $why) {
+    if ($hay -like "*$needle*") { throw "UNEXPECTED [$why]: expected not to find -> $needle" }
+}
 
 # ---- (a) persistence: run the ContentPreferences QML harness offscreen ----
 # qml.exe is a GUI-subsystem exe: its console.log never reaches redirected stdout unless
@@ -33,13 +36,18 @@ Remove-Item -LiteralPath $iniPath -ErrorAction SilentlyContinue
 # ---- (b) static shell + contract wiring ----
 $taskbar = Get-Content -Raw (Join-Path $root "qml\Taskbar.qml")
 $main    = Get-Content -Raw (Join-Path $root "qml\Main.qml")
-$page    = Get-Content -Raw (Join-Path $root "qml\SettingsPage.qml")
+$center  = Get-Content -Raw (Join-Path $root "qml\account\AccountCenter.qml")
+$privacy = Get-Content -Raw (Join-Path $root "qml\account\AccountDataPrivacyPage.qml")
 
-Assert-Contains $taskbar 'signal settingsClicked()' 'taskbar exposes settings door'
-Assert-Contains $taskbar '../assets/icons/preferences.svg' 'distinct sliders icon (not the wallpaper gear) for global settings'
-Assert-Contains $main 'id: contentPreferences' 'one global preference instance'
-Assert-Contains $main 'source: "SettingsPage.qml"' 'settings surface is host-owned'
-Assert-Contains $page 'Show sexually explicit titles across Theatre, Tankoban, and Biblio.' 'locked helper copy'
+Assert-NotContains $taskbar 'signal settingsClicked()' 'taskbar Settings door is removed'
+Assert-NotContains $taskbar '../assets/icons/preferences.svg' 'taskbar Settings icon is removed'
+Assert-NotContains $main 'source: "SettingsPage.qml"' 'standalone Settings page is no longer routed'
+Assert-NotContains $main 'id: settingsLayer' 'standalone Settings layer is removed'
+Assert-Contains $main 'id: contentPreferences' 'one global preference instance remains'
+Assert-Contains $main 'explicitContentPreferences: contentPreferences' 'Account Centre receives the global preference store'
+Assert-Contains $center 'explicitContentPreferences: root.explicitContentPreferences' 'Data & privacy receives the shared preference store'
+Assert-Contains $privacy 'objectName: "privacyExplicitContentSwitch"' 'explicit content switch lives in Data & privacy'
+Assert-Contains $privacy 'Show sexually explicit titles across Theatre, Tankoban, and Biblio.' 'explicit-content helper copy is preserved'
 
 Write-Host "content preferences OK"
 exit 0
