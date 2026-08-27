@@ -156,6 +156,18 @@ class UpdateReleaseToolingTests(unittest.TestCase):
             os.chdir(previous_cwd)
 
 
+    def test_nsis_uses_product_branding_and_official_icon(self):
+        script = (ROOT / "scripts/installer/colosseum.nsi").read_text(encoding="utf-8")
+        self.assertIn('Name "Colosseum"', script)
+        self.assertIn('Caption "Colosseum"', script)
+        self.assertIn('UninstallCaption "Colosseum"', script)
+        self.assertIn('!define MUI_WELCOMEPAGE_TITLE "Colosseum"', script)
+        self.assertIn('!define MUI_ICON "${STAGE}\\assets\\icons\\colosseum.ico"', script)
+        self.assertIn('!define MUI_UNICON "${STAGE}\\assets\\icons\\colosseum.ico"', script)
+        self.assertTrue((ROOT / "assets/icons/colosseum.ico").is_file())
+
+
+
 class InstalledChronicleGeneratorTests(unittest.TestCase):
     """Slice 1: the bundled installed-chronicle generator reuses the exact manifest +
     signing trust path, copies all five verified screenshots, and rejects missing

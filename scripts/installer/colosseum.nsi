@@ -43,7 +43,9 @@
   !define COLOSSEUM_START_LINK "$SMPROGRAMS\Colosseum.lnk"
 !endif
 
-Name "Colosseum ${VERSION}"
+Name "Colosseum"
+Caption "Colosseum"
+UninstallCaption "Colosseum"
 OutFile "${OUTFILE}"
 Unicode true
 RequestExecutionLevel user
@@ -53,7 +55,9 @@ RequestExecutionLevel user
 InstallDir "${COLOSSEUM_INSTALL_ROOT}"
 SetCompressor /SOLID lzma
 
-!define MUI_WELCOMEPAGE_TITLE "Colosseum ${VERSION}"
+!define MUI_ICON "${STAGE}\assets\icons\colosseum.ico"
+!define MUI_UNICON "${STAGE}\assets\icons\colosseum.ico"
+!define MUI_WELCOMEPAGE_TITLE "Colosseum"
 !define MUI_WELCOMEPAGE_TEXT "One app for your movies and shows, manga and comics, and books.$\r$\n$\r$\nThis installs Colosseum for your user account only — no administrator needed."
 !define MUI_FINISHPAGE_RUN "$INSTDIR\native\build-msvc\colosseum.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Launch Colosseum"
