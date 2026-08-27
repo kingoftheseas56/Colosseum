@@ -1,0 +1,48 @@
+﻿name: release-installer-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      validation_tag:
+        description: Draft validation release tag containing the exact installer
+        required: true
+        type: string
+      expected_version:
+        description: Expected installed Colosseum version
+        required: true
+        default: "1.1.4"
+        type: string
+      expected_sha256:
+        description: Expected SHA256 of the exact installer asset
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download exact draft installer asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATION_TAG: ${{ inputs.validation_tag }}
+          VERSION: ${{ inputs.expected_version }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "release-installer"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          gh release download $env:VALIDATION_TAG --repo $env:GITHUB_REPOSITORY `
+            --pattern "Colosseum-$env:VERSION-setup.exe" --dir $dir
+          $installer = Join-Path $dir "Colosseum-$env:VERSION-setup.exe"
+          if (!(Test-Path -LiteralPath $installer)) { throw "installer asset missing: $installer" }
+          "INSTALLER_PATH=$installer" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Fresh install, boot, runtime, and uninstall smoke
+        shell: pwsh
+        run: >-
+          & .\tests\installer\release_installer_smoke.ps1
+          -Installer "$env:INSTALLER_PATH"
+          -ExpectedSha256 "${{ inputs.expected_sha256 }}"
+          -ExpectedVersion "${{ inputs.expected_version }}"
