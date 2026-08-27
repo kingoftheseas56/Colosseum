@@ -37,6 +37,7 @@ def resolve_token() -> str:
             if line.startswith("password="):
                 return line.split("=", 1)[1].strip()
     except Exception:
+        # Credential lookup failure falls through to the local token fallback.
         pass
     tf = os.path.join(REPO_ROOT, "data", "vault_token.txt")
     if os.path.exists(tf):

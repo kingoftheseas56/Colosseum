@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 )
@@ -50,6 +51,14 @@ func TestLoadRequiresProductionAvatarStorage(t *testing.T) {
 	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
 	if _, err := Load(); err == nil {
 		t.Fatal("Load() accepted production without Tigris configuration")
+	}
+}
+
+func TestPositiveInt32EnvRejectsTooLargeValue(t *testing.T) {
+	t.Setenv("TEST_POSITIVE_INT32", "2147483648")
+	_, err := positiveInt32Env("TEST_POSITIVE_INT32", 1)
+	if err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("positiveInt32Env() error = %v, want too-large refusal", err)
 	}
 }
 

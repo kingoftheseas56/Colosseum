@@ -30,6 +30,10 @@ jobs:
     needs: public-trust
     runs-on: windows-2025
     timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     env:
       VCPKG_TAG: "2026.07.29"
       MPV_RELEASE: "20260814"
@@ -44,7 +48,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Qt 6.11.1
-        uses: jurplel/install-qt-action@v4.3.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:
           version: "6.11.1"
           host: windows
@@ -54,7 +58,7 @@ jobs:
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
       - name: Enable MSVC developer environment
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
 
@@ -141,6 +145,14 @@ jobs:
           "MPVQT_ROOT=$install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "$install/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Initialize CodeQL C++
+        uses: github/codeql-action/init@v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-and-quality
+          config-file: ./.github/codeql/codeql-config.yml
+
       - name: Configure Colosseum
         shell: pwsh
         run: |
@@ -181,3 +193,8 @@ jobs:
           ctest --test-dir $env:COLOSSEUM_CI_BUILD `
             -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness)$' `
             --output-on-failure
+
+      - name: Analyze C++
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:c-cpp

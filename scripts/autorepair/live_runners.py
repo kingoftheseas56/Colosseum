@@ -167,7 +167,6 @@ import repair_contract  # noqa: E402
 import verify as verify_mod  # noqa: E402
 import promotion as promotion_mod  # noqa: E402
 import orchestrator  # noqa: E402
-from guard import canonicalize  # noqa: E402
 
 __all__ = [
     "REPO_ROOT",
@@ -203,7 +202,6 @@ class ClaudeInvocationError(LiveRunnerError):
 # built sandbox (de18d5d) was moved over the retired 353b675 build when the frontier
 # advanced, so the pinned sha moves with the fixture it names.
 GOLDEN_REUSE_DIR = Path("C:/arsbx/g2-live-proof")
-GOLDEN_BASE_SHA = "de18d5d5801a1305b31c1e7f62146fc5e7a3c25f"
 
 CLAUDE_CLI_DEFAULT = "claude"
 GH_CLI_DEFAULT = "gh"
@@ -453,6 +451,7 @@ def _extract_json_object(text: str) -> dict[str, Any]:
         if isinstance(obj, dict):
             return obj
     except json.JSONDecodeError:
+        # Invalid probe output falls through to the next recovery or refusal path.
         pass
 
     fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
@@ -462,6 +461,7 @@ def _extract_json_object(text: str) -> dict[str, Any]:
             if isinstance(obj, dict):
                 return obj
         except json.JSONDecodeError:
+            # Invalid probe output falls through to the next recovery or refusal path.
             pass
 
     start = text.find("{")
@@ -472,6 +472,7 @@ def _extract_json_object(text: str) -> dict[str, Any]:
             if isinstance(obj, dict):
                 return obj
         except json.JSONDecodeError:
+            # Invalid probe output falls through to the next recovery or refusal path.
             pass
 
     raise ClaudeInvocationError(
@@ -1466,6 +1467,7 @@ def _idempotence_check(repo_root: Path, target_branch: str, incident_id: str, gh
                 if prs:
                     return True
             except json.JSONDecodeError:
+                # Invalid probe output falls through to the next recovery or refusal path.
                 pass
     return False
 
@@ -1522,7 +1524,6 @@ def live_promotion_invoke(
 
     worktree_dir = Path(tempfile.mkdtemp(prefix="gl-promote-worktree-"))
     worktree_dir.rmdir()  # `git worktree add` requires the target NOT already exist
-    branch_pushed = False
     try:
         add_result = _git(
             repo_root, "worktree", "add", str(worktree_dir), "-b", target_branch, base_sha, timeout=120,
@@ -1550,7 +1551,6 @@ def live_promotion_invoke(
         push_result = _git(worktree_dir, "push", "-u", "origin", target_branch, timeout=180)
         if push_result.returncode != 0:
             raise LiveRunnerError(f"git push failed for {target_branch}: {push_result.stderr}")
-        branch_pushed = True
 
         if shutil.which(gh_cli) is None:
             body_path = orchestrator.DEFAULT_ARTIFACTS_ROOT / incident["id"] / "pr-body.md"

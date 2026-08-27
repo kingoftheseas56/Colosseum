@@ -46,6 +46,7 @@ def load_fribb():
             try:
                 by_mal[int(mal)] = entry
             except (TypeError, ValueError):
+                # Malformed optional IDs are skipped.
                 pass
     print(f"  {len(data)} entries, {len(by_mal)} with MAL ids\n")
     return by_mal

@@ -27,9 +27,7 @@ import hashlib
 import json
 import shutil
 import sys
-import tempfile
 from pathlib import Path
-from typing import Any
 
 # Reuse the proven signing + manifest-building path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))

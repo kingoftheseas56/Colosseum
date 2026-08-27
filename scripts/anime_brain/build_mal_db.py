@@ -30,7 +30,6 @@ import json
 import os
 import re
 import sqlite3
-import sys
 import zipfile
 from datetime import datetime, timezone
 
@@ -306,4 +305,4 @@ def bake():
 
 
 if __name__ == "__main__":
-    sys.exit(bake())
+    bake()

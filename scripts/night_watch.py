@@ -503,7 +503,6 @@ def run_night_synthesis(
     at the bundle for a morning brain) when not."""
     memo_path = report_dir / LACKING_MEMO_NAME
     answer: dict[str, Any] = {}
-    state = "unanswered"
     if timeout_sec <= 0:
         state = "disabled"
     elif not attempt_call:

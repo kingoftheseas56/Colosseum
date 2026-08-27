@@ -131,11 +131,19 @@ func Load() (Config, error) {
 }
 
 func positiveInt32Env(name string, fallback int) (int32, error) {
-	value, err := positiveIntEnv(name, fallback)
-	if err != nil {
-		return 0, err
+	const maxInt32 = int64(1<<31 - 1)
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		if int64(fallback) > maxInt32 {
+			return 0, fmt.Errorf("%s is too large", name)
+		}
+		return int32(fallback), nil
 	}
-	if int64(value) > int64(^uint32(0)>>1) {
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value <= 0 {
+		return 0, fmt.Errorf("%s must be a positive integer", name)
+	}
+	if value > maxInt32 {
 		return 0, fmt.Errorf("%s is too large", name)
 	}
 	return int32(value), nil

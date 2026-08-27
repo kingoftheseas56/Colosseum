@@ -114,6 +114,7 @@ def load_covers(path: str):
                 try:
                     series_overrides[mal_id] = int(obj["volumeCount"])
                 except (TypeError, ValueError):
+                    # Malformed optional catalog metadata is ignored.
                     pass
 
             number = obj.get("number")

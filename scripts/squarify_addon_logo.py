@@ -87,9 +87,6 @@ def symbol_left_box(im):
         x += 1
     else:
         return None
-    if gap_start is None or gap_start <= left:
-        return None
-
     box = (left, bbox[1], gap_start, bbox[3])
     bw, bh = box[2] - box[0], box[3] - box[1]
     if bh == 0:
