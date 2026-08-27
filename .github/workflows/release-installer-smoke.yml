@@ -64,7 +64,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats"
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
       - name: Enable MSVC developer environment

@@ -11,6 +11,7 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
         self.assertIn('workflow_dispatch:', workflow)
         self.assertIn('runs-on: windows-latest', workflow)
         self.assertIn('source_sha', workflow)
+        self.assertIn('qtimageformats', workflow)
         self.assertIn('actions/upload-artifact', workflow)
         self.assertIn('actions/download-artifact', workflow)
         self.assertIn('release_installer_smoke.ps1', workflow)
