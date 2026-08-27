@@ -71,7 +71,7 @@ Window {
     ContentPreferences { id: contentPreferences }
 
     // The C++ extension store gates adult manifests on direct preview/install. It reads the
-    // same one preference, so the Account Data & privacy switch governs both ingress paths (community
+    // same one preference, so the Settings switch governs both ingress paths (community
     // Browse is filtered in ExtensionsCatalog.js) rather than only the one.
     Binding {
         target: typeof Extensions !== "undefined" ? Extensions : null
@@ -363,9 +363,10 @@ Window {
         else if (bookReaderLayer.active) win.closeBookReader()
         // Taskbar full-pages sit at z:56, above every browsing/detail page — so back must
         // close them BEFORE the pages they cover, else ESC "does nothing" visibly while
-        // silently closing the page underneath. Only one of the four is ever active.
+        // silently closing the page underneath. Only one of the five is ever active.
         else if (downloadsLayer.active) win.closeDownloadsPage()
         else if (extensionsLayer.active) win.closeExtensionsPage()
+        else if (settingsLayer.active) win.closeSettingsPage()
         else if (updateLayer.active) win.closeUpdatePage()
         else if (vaultLayer.active) win.vaultBack()
         else if (bookLayer.active) win.closeBook()
@@ -980,10 +981,11 @@ Window {
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
-    // Downloads and Extensions are taskbar full-pages; opening either closes the other
-    // taskbar destinations so only one shell surface is ever the front page.
+    // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
+    // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
         extensionsLayer.active = false
+        settingsLayer.active = false
         updateLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
@@ -997,6 +999,7 @@ Window {
     function openVaultPage() {
         downloadsLayer.active = false
         extensionsLayer.active = false
+        settingsLayer.active = false
         updateLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
@@ -1072,6 +1075,7 @@ Window {
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
         downloadsLayer.active = false
+        settingsLayer.active = false
         updateLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
@@ -1080,15 +1084,26 @@ Window {
     }
     function closeExtensionsPage() { extensionsLayer.active = false }
 
+    // ---- Settings page: the global preferences gear, entered from the taskbar ----
+    function openSettingsPage() {
+        downloadsLayer.active = false
+        extensionsLayer.active = false
+        updateLayer.active = false
+        vaultLayer.active = false
+        settingsLayer.active = true
+        taskbar.open = false
+    }
+    function closeSettingsPage() { settingsLayer.active = false }
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
         downloadsLayer.active = false
         extensionsLayer.active = false
+        settingsLayer.active = false
         vaultLayer.active = false
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
-        // every other full-page destination (Downloads/Vault/Extensions)
+        // every other full-page destination (Downloads/Vault/Extensions/Settings)
         // and still reveals on hover for session switching. The Update entry point
         // is the home topbar glyph now — no launcher in the taskbar dock.
         taskbar.open = false
@@ -2976,13 +2991,31 @@ Window {
         onLoaded: {
             item.backdrop = wall
             // Same global preference Discover/genres/search read — a live binding so
-            // flipping the Account Data & privacy switch re-asks the registry without a relaunch.
+            // flipping the Settings switch re-asks the registry without a relaunch.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeExtensionsPage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
+        }
+    }
+
+    // ---- Settings page: global preferences, entered from the taskbar gear (Task 2) ----
+    Loader {
+        id: settingsLayer
+        anchors.fill: parent
+        z: 56     // taskbar full-page, same rule as downloadsLayer (see its comment)
+        active: false
+        visible: active
+        source: "SettingsPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.preferences = contentPreferences
+            item.backRequested.connect(win.closeSettingsPage)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { Qt.quit() })
         }
     }
 
@@ -3059,6 +3092,8 @@ Window {
         onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
+        settingsActive: settingsLayer.active
+        onSettingsClicked: !settingsLayer.active ? win.openSettingsPage() : win.closeSettingsPage()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
@@ -3378,7 +3413,6 @@ Window {
         objectName: "accountCenter"
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
-        explicitContentPreferences: contentPreferences
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";

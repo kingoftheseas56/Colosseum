@@ -11,7 +11,6 @@ Item {
     objectName: "accountDataPrivacyPage"
 
     property bool active: false
-    property var explicitContentPreferences: null
 
     // Authoritative presentation state. Product defaults are On, but live
     // adoption must bind these to the privacy backend rather than persisting
@@ -168,112 +167,6 @@ Item {
                 width: 1
                 height: root.errorMessage.length > 0 ? 14 : 0
             }
-
-            // CONTENT VISIBILITY
-            Column {
-                id: contentVisibilityGroup
-                objectName: "privacyContentVisibilityGroup"
-                width: parent.width
-                height: implicitHeight
-                spacing: 0
-
-                Rectangle { width: parent.width; height: 1; color: theme.edge }
-                Item { width: 1; height: 23 }
-
-                Text {
-                    text: qsTr("Content visibility").toUpperCase()
-                    color: theme.inkDimmer
-                    font.family: theme.ui
-                    font.pixelSize: 10
-                    font.letterSpacing: 1.0
-                }
-
-                Item { width: 1; height: 9 }
-
-                Item {
-                    id: explicitContentRow
-                    width: parent.width
-                    height: root.compactRows
-                        ? explicitContentMain.height + explicitContentSwitch.height + 14
-                        : Math.max(explicitContentMain.height, explicitContentSwitch.height)
-
-                    Row {
-                        id: explicitContentMain
-                        width: root.compactRows
-                            ? parent.width
-                            : Math.max(0, parent.width - explicitContentSwitch.width - 34)
-                        height: Math.max(39, explicitContentCopy.height)
-                        spacing: 15
-
-                        Rectangle {
-                            width: 39
-                            height: 39
-                            radius: 12
-                            color: theme.glassTint
-                            border.width: 1
-                            border.color: theme.edge
-
-                            AccountDataPrivacyIcon {
-                                anchors.centerIn: parent
-                                kind: "secret"
-                                glyphSize: 18
-                                strokeColor: theme.inkDim
-                            }
-                        }
-
-                        Column {
-                            id: explicitContentCopy
-                            width: Math.max(0, explicitContentMain.width - 54)
-                            height: implicitHeight
-                            spacing: 5
-
-                            Text {
-                                width: parent.width
-                                text: qsTr("Explicit content")
-                                color: theme.ink
-                                font.family: theme.ui
-                                font.pixelSize: 14
-                                font.weight: Font.DemiBold
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Text {
-                                width: Math.min(parent.width, 650)
-                                text: qsTr("Show sexually explicit titles across Theatre, Tankoban, and Biblio. Violence, horror, mature themes, and standard age ratings are not filtered.")
-                                color: theme.inkDimmer
-                                font.family: theme.ui
-                                font.pixelSize: 11
-                                lineHeightMode: Text.ProportionalHeight
-                                lineHeight: 1.5
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-                    }
-
-                    AccountAuthoritativeSwitch {
-                        id: explicitContentSwitch
-                        objectName: "privacyExplicitContentSwitch"
-                        authoritativeChecked: root.explicitContentPreferences
-                            ? root.explicitContentPreferences.showExplicit
-                            : false
-                        busy: root.explicitContentPreferences === null
-                        accessibleName: qsTr("Show sexually explicit titles")
-                        x: root.compactRows ? 54 : parent.width - width
-                        y: root.compactRows
-                            ? explicitContentMain.height + 14
-                            : Math.max(0, (parent.height - height) / 2)
-                        onChangeRequested: function(enabled) {
-                            if (root.explicitContentPreferences)
-                                root.explicitContentPreferences.showExplicit = enabled
-                        }
-                    }
-                }
-
-                Item { width: 1; height: 18 }
-                Rectangle { width: parent.width; height: 1; color: theme.edge }
-            }
-
-            Item { width: 1; height: 26 }
 
             // HISTORY
             Column {
