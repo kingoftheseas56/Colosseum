@@ -1,0 +1,558 @@
+{
+  "name": "theatre_one_piece_virtualization",
+  "comment": "Production One Piece (IMDb tt0388629) must keep its absolute long-run episode ledger virtualized while scrolling deep.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "payload": {
+        "target": "modePill_Theatre"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "theatreWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "presentation_wait_ms": 1200,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "payload": {
+        "target": "topBarSearch"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "searchSurfaceInput",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "payload": {
+        "target": "searchSurfaceInput",
+        "text": "tt0388629"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "searchResult_tt0388629",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "payload": {
+        "target": "searchResult_tt0388629"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "theatreSeriesPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "payload": {
+        "object": "theatreSeriesPage",
+        "prop": "loading",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "payload": {
+        "object": "theatreSeriesPage",
+        "props": [
+          "title",
+          "effectiveEpisodeOrder",
+          "episodeContentHeight",
+          "liveEpisodeDelegateCount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.title",
+          "op": "==",
+          "value": "One Piece"
+        },
+        {
+          "path": "props.effectiveEpisodeOrder",
+          "op": "==",
+          "value": "absolute"
+        },
+        {
+          "path": "props.episodeContentHeight",
+          "op": ">",
+          "value": 100000
+        },
+        {
+          "path": "props.liveEpisodeDelegateCount",
+          "op": "<=",
+          "value": 40
+        }
+      ]
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "payload": {
+        "target": "theatreSeriesScroll",
+        "dy": -5000
+      }
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "presentation_wait_ms": 1200,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "payload": {
+        "object": "theatreSeriesPage",
+        "props": [
+          "episodeWindowStart",
+          "liveEpisodeDelegateCount",
+          "episodeContentHeight"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.episodeWindowStart",
+          "op": ">",
+          "value": 100
+        },
+        {
+          "path": "props.liveEpisodeDelegateCount",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "path": "props.liveEpisodeDelegateCount",
+          "op": "<=",
+          "value": 40
+        },
+        {
+          "path": "props.episodeContentHeight",
+          "op": ">",
+          "value": 100000
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "payload": {
+        "object": "theatreSeriesPage",
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    }
+  ]
+}
