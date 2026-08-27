@@ -1,0 +1,8 @@
+name: Colosseum CodeQL
+
+paths-ignore:
+  - archive/**
+  - artifacts/**
+  - output/**
+  - server/watchparty-relay/node_modules/**
+  - native/prototypes/**
