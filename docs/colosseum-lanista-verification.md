@@ -282,6 +282,7 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
   the running list of names, which has fallen behind every time so far. **As of 2026-08-23 (arc-21
   Slice 4) there are 51**, adding `comics_catalogue_intelligence_smoke.json` — see that slice's own
   entry below.
+  **As of 2026-08-27 there are 52**, adding `biblio_downloaded_epub_read_journey.json`.
 - **`tests/lanista-seeds/`** is the versioned fixture zoo: one folder per real-bug seed, each
   carrying a `seed.json` manifest (`{name, version, provenance, placement, expectedOnBoot}` — see
   `tests/lanista-seeds/README.md` for the full journey contract). A seed is admitted only when a
@@ -388,6 +389,7 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
 - `biblioDiscoverPage` with `loading` (bool) and `freshness` (string: `"bundled"` = one-book
   built-in fallback wall; `"fresh"/"aging"/"stale"` = real catalog rows — wait for `"fresh"`
   before asserting on catalog content; proven necessary in pilot run 3)
+- **Biblio downloaded-EPUB hostile probe (2026-08-27):** `biblioBookDetail` exposes the existing detail state (`localPath`, `readError`, `pendingReadTransport`); `bookReaderShell` exposes Reader2's existing `bookPath`/`bookReady`; `bookReaderBack` closes that reader through its real Back action; `downloadsPageScroll` is the Downloads Flickable scroll target. `tests/lanista_scenarios/biblio_downloaded_epub_read_journey.json` uses those names with `tests/lanista-seeds/biblio-downloaded-epub-v1/` to attack the durable downloaded-book fallback and detail-vs-Downloads path identity without driving the daily app.
 - `discoverCard_<itemId>` on materialized Discover delegates (world-neutral; skeletons
   unnamed), with `discoverCard_<id>_art` (RoundedPosterImage: `activeSource`, `exhausted`,
   `candidateIndex`, `sources`, `ready`) and `discoverCard_<id>_art_img` (the inner `Image`:

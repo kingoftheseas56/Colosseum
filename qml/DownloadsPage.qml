@@ -426,6 +426,7 @@ Item {
 
     Flickable {
         id: page
+        objectName: "downloadsPageScroll"   // test-only seam: Lanista ui-scroll target for the ledger Read action
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight + 140

@@ -73,6 +73,7 @@ Item {
     // back arrow (left, 22px, inkDim → ink on hover)
     IconButton {
         id: backBtn
+        objectName: "bookReaderBack"   // test-only seam: Lanista ui-click closes the reader session (goBack -> closed)
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
         anchors.leftMargin: 22
