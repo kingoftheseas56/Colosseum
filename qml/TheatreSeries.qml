@@ -52,6 +52,26 @@ Item {
     property var seasons: []
     property int activeSeason: 0
     property var episodes: AnimeEpisodePresentation.visibleEpisodes(animeOrder, effectiveEpisodeOrder, activeSeason)
+    readonly property int compactEpisodeRowHeight: 104
+    readonly property int nextUpEpisodeRowHeight: 148
+    readonly property int episodeWindowOverscanRows: 8
+    readonly property int nextUpEpisodeIndex: page.computeNextUpEpisodeIndex()
+    readonly property int episodeContentHeight: page.episodes.length * page.compactEpisodeRowHeight
+                                                + (page.nextUpEpisodeIndex >= 0
+                                                   ? page.nextUpEpisodeRowHeight - page.compactEpisodeRowHeight : 0)
+    readonly property real episodeVirtualContentY: episodeVirtualSpace.mapToItem(pageCol, 0, 0).y
+    readonly property real episodeWindowLocalTop: flick.contentY - page.episodeVirtualContentY
+    readonly property real episodeWindowLocalBottom: page.episodeWindowLocalTop + flick.height
+    readonly property int episodeWindowStart: page.computeEpisodeWindowStart()
+    readonly property int episodeWindowEnd: page.computeEpisodeWindowEnd()
+    readonly property bool episodeWindowNearViewport:
+        page.episodeWindowLocalBottom >= -page.compactEpisodeRowHeight * page.episodeWindowOverscanRows
+        && page.episodeWindowLocalTop <= page.episodeContentHeight
+                                      + page.compactEpisodeRowHeight * page.episodeWindowOverscanRows
+    readonly property var episodeWindowModel: page.episodeWindowNearViewport
+                                              ? page.episodes.slice(page.episodeWindowStart, page.episodeWindowEnd)
+                                              : []
+    readonly property int liveEpisodeDelegateCount: episodeWindowRepeater.count
     property bool episodeJumpOpen: false
     property color watchedInk: "#76b8aa"
     property var seasonQueued: ({})   // season -> queued this visit
@@ -478,31 +498,65 @@ Item {
     // scrollToEpisodeIndex lands a row just below it rather than under it.
     property real stickyHeaderHeight: seasonChromeFloat.visible ? (72 + chromeCol.height) : 0
 
-    // Content-Y (in `flick`/pageCol coordinates) of episode row `index`. Every delegate is
-    // instantiated (episodeList is non-interactive, height: contentHeight — never viewport-
-    // culled), so itemAtIndex should always resolve; the arithmetic fallback covers the one
-    // frame right after a model rebuild where the delegate isn't laid out yet.
-    function episodeRowY(index) {
-        var row = episodeList.itemAtIndex(index)
-        if (row)
-            return row.mapToItem(pageCol, 0, 0).y
-        var compact = episodeList.compactRowHeight
-        var next = episodeList.nextRowHeight
-        var nextUpId = page.nextUpEpisodeId()
-        var nextUpIdx = -1
-        if (nextUpId.length)
-            for (var i = 0; i < page.episodes.length; i++)
-                if (page.episodeStreamId(page.episodes[i]) === nextUpId) { nextUpIdx = i; break }
-        var y = index * compact
-        if (nextUpIdx >= 0 && nextUpIdx < index)
-            y += (next - compact)
-        return y + episodeList.mapToItem(pageCol, 0, 0).y
+    // Episode geometry is arithmetic because only a small moving window of delegates exists.
+    // This keeps jump-to-episode and next-up positioning independent of delegate realization.
+    function episodeOffsetForIndex(index) {
+        if (index <= 0)
+            return 0
+        var y = index * page.compactEpisodeRowHeight
+        if (page.nextUpEpisodeIndex >= 0 && page.nextUpEpisodeIndex < index)
+            y += page.nextUpEpisodeRowHeight - page.compactEpisodeRowHeight
+        return y
+    }
+
+    function episodeIndexAtOffset(offset) {
+        if (!page.episodes.length)
+            return 0
+        var y = Math.max(0, Number(offset || 0))
+        var nextIdx = page.nextUpEpisodeIndex
+        if (nextIdx >= 0) {
+            var nextStart = nextIdx * page.compactEpisodeRowHeight
+            var nextEnd = nextStart + page.nextUpEpisodeRowHeight
+            if (y >= nextStart && y < nextEnd)
+                return nextIdx
+            if (y >= nextEnd)
+                y -= page.nextUpEpisodeRowHeight - page.compactEpisodeRowHeight
+        }
+        return Math.max(0, Math.min(page.episodes.length - 1,
+                                    Math.floor(y / page.compactEpisodeRowHeight)))
+    }
+
+    function computeEpisodeWindowStart() {
+        if (!page.episodes.length || page.episodeWindowLocalBottom < 0)
+            return 0
+        var first = page.episodeIndexAtOffset(Math.max(0, page.episodeWindowLocalTop))
+        return Math.max(0, first - page.episodeWindowOverscanRows)
+    }
+
+    function computeEpisodeWindowEnd() {
+        if (!page.episodes.length)
+            return 0
+        if (page.episodeWindowLocalTop > page.episodeContentHeight)
+            return page.episodes.length
+        if (page.episodeWindowLocalBottom < 0)
+            return Math.min(page.episodes.length, page.episodeWindowOverscanRows * 2 + 1)
+        var bottom = Math.max(0, Math.min(page.episodeContentHeight - 1,
+                                         page.episodeWindowLocalBottom))
+        var last = page.episodeIndexAtOffset(bottom)
+        return Math.min(page.episodes.length, last + 1 + page.episodeWindowOverscanRows)
+    }
+
+    function computeNextUpEpisodeIndex() {
+        for (var i = 0; i < page.episodes.length; i++)
+            if (!page.episodeWatched(page.episodes[i]))
+                return i
+        return page.episodes.length ? page.episodes.length - 1 : -1
     }
 
     function scrollToEpisodeIndex(index) {
         if (index < 0)
             return
-        var target = episodeRowY(index) - page.stickyHeaderHeight - 8
+        var target = page.episodeVirtualContentY + page.episodeOffsetForIndex(index) - page.stickyHeaderHeight - 8
         flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, target))
     }
 
@@ -597,24 +651,22 @@ Item {
     }
 
     function nextUpEpisode() {
-        for (var i = 0; i < episodes.length; i++)
-            if (!episodeWatched(episodes[i]))
-                return episodes[i];
-        return episodes.length ? episodes[episodes.length - 1] : null;
+        return page.nextUpEpisodeIndex >= 0 && page.nextUpEpisodeIndex < page.episodes.length
+               ? page.episodes[page.nextUpEpisodeIndex] : null
     }
     function nextUpEpisodeNumber() {
-        var e = nextUpEpisode();
-        return e ? episodeNumber(e) : 0;
+        var e = page.nextUpEpisode()
+        return e ? page.episodeNumber(e) : 0
     }
     // Next-up identity rides the stream id: provider episode numbers repeat across
     // seasons, so matching by number lights up two rows at once in Absolute view.
     function nextUpEpisodeId() {
-        var e = nextUpEpisode();
-        return e ? episodeStreamId(e) : "";
+        var e = page.nextUpEpisode()
+        return e ? page.episodeStreamId(e) : ""
     }
     function nextUpDisplayNumber() {
-        var e = nextUpEpisode();
-        return e ? episodeDisplayNumber(e) : 0;
+        var e = page.nextUpEpisode()
+        return e ? page.episodeDisplayNumber(e) : 0
     }
 
     function recentProgressSeason() {
@@ -732,7 +784,7 @@ Item {
             // Open on next-up, not episode 1 (Hemanth, scroll-UX rework 2026-08-24). If
             // everything is unwatched, next-up IS episode 1 (index 0) — leave the page at
             // the top so the hero stays visible instead of "scrolling" nowhere.
-            var nextIdx = page.episodes.indexOf(page.nextUpEpisode())
+            var nextIdx = page.nextUpEpisodeIndex
             if (nextIdx > 0)
                 Qt.callLater(function() { page.scrollToEpisodeIndex(nextIdx) })
         } else {
@@ -841,6 +893,7 @@ Item {
 
     Flickable {
         id: flick
+        objectName: "theatreSeriesScroll"
         anchors.fill: parent
         contentWidth: width
         contentHeight: pageCol.height
@@ -1159,31 +1212,32 @@ Item {
                         height: chromeCol.height
                     }
 
-                    ListView {
-                        id: episodeList
-                        // Non-scrolling, full-height: the PAGE Flickable (`flick`) owns all
-                        // vertical motion now (scroll-UX rework 2026-08-24). Every delegate
-                        // instantiates (no recycling window to cap) since the list is never
-                        // clipped to a viewport shorter than its content.
+                    Item {
+                        id: episodeVirtualSpace
+                        objectName: "theatreEpisodeVirtualSpace"
                         width: parent.width
-                        height: contentHeight
-                        model: page.episodes
-                        orientation: ListView.Vertical
-                        interactive: false
-                        spacing: 0
-                        property int compactRowHeight: 104
-                        property int nextRowHeight: 148
+                        height: page.episodeContentHeight
 
-                        delegate: Item {
-                            id: ep
-                            required property var modelData
-                            property real progressRatio: page.episodeProgressRatio(modelData)
-                            property bool watched: page.episodeWatched(modelData)
-                            property bool nextUp: page.nextUpEpisodeId() === page.episodeStreamId(modelData)
-                            property bool narrow: ListView.view.width < 980
-                            property bool tiny: ListView.view.width < 760
-                            width: ListView.view.width
-                            height: ep.nextUp ? episodeList.nextRowHeight : episodeList.compactRowHeight
+                        // The page remains the only vertical scroll surface. This repeater
+                        // receives only the visible episode slice plus a small overscan window.
+                        Repeater {
+                            id: episodeWindowRepeater
+                            objectName: "theatreEpisodeWindow"
+                            model: page.episodeWindowModel
+
+                            delegate: Item {
+                                id: ep
+                                required property int index
+                                required property var modelData
+                                property int absoluteIndex: page.episodeWindowStart + index
+                                property real progressRatio: page.episodeProgressRatio(modelData)
+                                property bool watched: page.episodeWatched(modelData)
+                                property bool nextUp: ep.absoluteIndex === page.nextUpEpisodeIndex
+                                property bool narrow: episodeVirtualSpace.width < 980
+                                property bool tiny: episodeVirtualSpace.width < 760
+                                y: page.episodeOffsetForIndex(ep.absoluteIndex)
+                                width: episodeVirtualSpace.width
+                                height: ep.nextUp ? page.nextUpEpisodeRowHeight : page.compactEpisodeRowHeight
                             function openForPlay() {
                                 var epLabel = page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData)
                                 if (page.tryPlayLocal(page.episodeStreamId(ep.modelData), epLabel, "episode"))
@@ -1408,9 +1462,8 @@ Item {
                                 onClicked: ep.openForPlay()
                             }
                             Rectangle {
-                                // Automation identity (Lanista): keyed by the episode's own stream id
-                                // (page.episodeStreamId), stable across recycling — ListView delegates
-                                // carry no `index` here (pragma ComponentBehavior: Bound, unrequired).
+                                // Automation identity (Lanista): keyed by the episode's own stream id.
+                                // The identity stays stable while the bounded virtual window is recreated.
                                 objectName: "theatreEpisodePlay_" + String(page.episodeStreamId(ep.modelData))
                                 x: rowActions.x
                                 y: rowActions.y
@@ -1481,6 +1534,7 @@ Item {
                                         sources.show("series", sid, label, context, "download")
                                     }
                                 }
+                            }
                             }
                         }
                     }
