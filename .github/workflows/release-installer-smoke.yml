@@ -115,7 +115,8 @@ jobs:
           $build = Join-Path $env:RUNNER_TEMP "mpvqt-build"
           $install = Join-Path $env:RUNNER_TEMP "mpvqt-install"
           $uri = "https://download.kde.org/stable/mpvqt/mpvqt-$env:MPVQT_VERSION.tar.xz"
-          Invoke-WebRequest -Uri $uri -OutFile $archive
+          curl.exe --fail --location --retry 5 --retry-all-errors --retry-delay 2 --output $archive $uri
+          if ($LASTEXITCODE -ne 0) { throw "MpvQt download failed after retries" }
           $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($hash -ne $env:MPVQT_SHA256) { throw "MpvQt checksum mismatch" }
           New-Item -ItemType Directory -Force -Path $sourceRoot | Out-Null
