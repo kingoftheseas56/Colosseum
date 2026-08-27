@@ -14,7 +14,6 @@ Rectangle {
 
     property var controller: null
     property var recoveryPresenter: null
-    property var explicitContentPreferences: null
     readonly property bool signedIn:
         controller && controller.mode === "signedIn"
     property string initial: "?"
@@ -432,7 +431,6 @@ Rectangle {
                 height: parent.height - 96
                 active: root.visible && root.activeSection === "privacy"
                 visible: active
-                explicitContentPreferences: root.explicitContentPreferences
 
                 rememberSearchHistory: root.privacyRememberSearchHistory
                 keepActivityHistory: root.privacyKeepActivityHistory
