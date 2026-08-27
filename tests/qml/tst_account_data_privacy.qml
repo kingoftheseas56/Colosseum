@@ -27,6 +27,11 @@ TestCase {
         Account.AccountCenter {}
     }
 
+    QtObject {
+        id: explicitPreferences
+        property bool showExplicit: false
+    }
+
     property var page: null
 
     SignalSpy {
@@ -131,10 +136,12 @@ TestCase {
     }
 
     function init() {
+        explicitPreferences.showExplicit = false
         page = pageComponent.createObject(testWindow.contentItem, {
             "width": 980,
             "height": 820,
             "active": true,
+            "explicitContentPreferences": explicitPreferences,
             "rememberSearchHistory": true,
             "keepActivityHistory": true,
             "syncActivityHistory": true
@@ -151,18 +158,35 @@ TestCase {
     }
 
     function test_locked_section_order_is_preserved() {
+        var content = byName(page, "privacyContentVisibilityGroup")
         var history = byName(page, "privacyHistoryGroup")
         var accountData = byName(page, "privacyAccountDataGroup")
         var map = byName(page, "privacyMap")
         var account = byName(page, "privacyDangerZone")
 
+        verify(content !== null)
         verify(history !== null)
         verify(accountData !== null)
         verify(map !== null)
         verify(account !== null)
+        verify(content.y < history.y)
         verify(history.y < accountData.y)
         verify(accountData.y < map.y)
         verify(map.y < account.y)
+    }
+
+    function test_explicit_content_switch_writes_shared_preference_store() {
+        var explicitSwitch = byName(page, "privacyExplicitContentSwitch")
+        verify(explicitSwitch !== null)
+        compare(explicitPreferences.showExplicit, false)
+        compare(explicitSwitch.authoritativeChecked, false)
+
+        scrollIntoView(explicitSwitch)
+        mouseClick(explicitSwitch, explicitSwitch.width / 2, explicitSwitch.height / 2)
+        wait(0)
+
+        compare(explicitPreferences.showExplicit, true)
+        compare(explicitSwitch.authoritativeChecked, true)
     }
 
     function test_toggles_emit_requested_value_without_optimistic_state() {
@@ -210,13 +234,16 @@ TestCase {
         verify(confirmBox.visible)
         compare(clearSearchSpy.count, 0)
 
+        scrollIntoView(cancel)
         mouseClick(cancel, cancel.width / 2, cancel.height / 2)
         wait(0)
         verify(!confirmBox.visible)
         compare(clearSearchSpy.count, 0)
 
+        scrollIntoView(open)
         mouseClick(open, open.width / 2, open.height / 2)
         wait(0)
+        scrollIntoView(confirm)
         mouseClick(confirm, confirm.width / 2, confirm.height / 2)
         compare(clearSearchSpy.count, 1)
 
