@@ -1124,7 +1124,7 @@ Window {
                                         "title": item.title || "", "art": item.art || "",
                                         "kind": item.kind || "", "position": pos })
         } else if (item.world === "biblio") {
-            win.openBookSession(item.path, { "title": item.title || "" })
+            win.openBookSession(item.path, { "id": item.id || item.path, "title": item.title || "", "author": item.author || "" })
         } else if (item.kind === "comic") {
             // A demuxed pack child carries packRole (Slice 1 field, forwarded by
             // tankobanItems from downloadedIssueRow). Route it to the downloads-backed
@@ -1465,7 +1465,7 @@ Window {
         var b = book || ({})
         Sessions.openOrSwitch({
             "appType": "biblio", "contentKind": "book", "title": b.title || "Book",
-            "target": { "path": path, "book": b, "id": (b.id !== undefined ? ("" + b.id) : path) }
+            "target": { "path": path, "book": b, "id": path }
         })
     }
 

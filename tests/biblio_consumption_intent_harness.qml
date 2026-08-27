@@ -12,6 +12,7 @@ Window {
     component FakeBooks: QtObject {
         property var states: ({})
         property var files: ({})
+        property var downloadedRows: []
         property int downloadCalls: 0
         property int deleteCalls: 0
         signal resolving(string md5)
@@ -38,6 +39,7 @@ Window {
                 ? states[String(id)] : { state: "none", received: 0, total: 0 }
         }
         function localBook(id) { return files[String(id)] || "" }
+        function downloadedBooks() { return downloadedRows }
         function isDownloaded(id) { return localBook(id).length > 0 }
         function downloadBook(id, name, title, bytes, author) {
             downloadCalls += 1
@@ -63,6 +65,7 @@ Window {
     component FakeBookTorrents: QtObject {
         property var states: ({})
         property var files: ({})
+        property var downloadedRows: []
         property int downloadCalls: 0
         property int deleteCalls: 0
         signal resultsReady(var rows)
@@ -395,6 +398,20 @@ Window {
             ck(page.readError.indexOf("No tracked readable source") >= 0,
                "no-source Read must expose an honest recovery state")
 
+            // A completed EPUB remains readable from the book page even when live source lookup
+            // no longer returns its old md5. Downloads is durable state; source search is not.
+            resetPageState()
+            books.downloadedRows = [{ id: "cccccccccccccccccccccccccccccccc", title: "Arc 19 Book",
+                                      author: "Test Author", path: "C:/arc19/persisted.epub", missing: false }]
+            page.book = { title: "Arc 19 Book", author: "Test Author" }
+            bookCalls = books.downloadCalls
+            page.readBook()
+            ck(openedCount === 1 && openedPath === "C:/arc19/persisted.epub",
+               "book page Read must recover the persisted EPUB even when source inventories are empty")
+            ck(books.downloadCalls === bookCalls,
+               "persisted EPUB recovery must not start a replacement download")
+            books.downloadedRows = []
+            page.book = ({})
             // Book-context identity is part of the completion guard, not just the acquisition id.
             resetPageState()
             page.editions = [ed1]
