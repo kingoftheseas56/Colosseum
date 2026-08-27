@@ -30,11 +30,19 @@ class CodeQualityWorkflowContract(unittest.TestCase):
                          "var-used-before-declaration", "with"):
             self.assertIn(category, gate)
 
-    def test_codeql_ignores_generated_and_vendor_noise(self):
+    def test_codeql_ignores_noise_but_keeps_quality_suite(self):
         config = CONFIG.read_text(encoding="utf-8")
-        for path in ("archive/**", "artifacts/**", "output/**",
+        for path in ("archive/**", "artifacts/**", "output/**", "tests/**",
+                     "native/third_party/**", "native/prototypes/**", "qml/**",
+                     "resources/reader2/vendor/**", "docs/research/**",
                      "server/watchparty-relay/node_modules/**"):
             self.assertIn(path, config)
+        for rule in ("cpp/short-global-name", "cpp/unused-static-variable",
+                     "cpp/function-in-block", "cpp/ambiguously-signed-bit-field",
+                     "cpp/local-variable-hides-global-variable",
+                     "cpp/poorly-documented-function", "cpp/trivial-switch",
+                     "cpp/long-switch", "cpp/complex-block"):
+            self.assertIn(rule, config)
 
 
 if __name__ == "__main__":
