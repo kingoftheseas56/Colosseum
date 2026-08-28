@@ -321,6 +321,10 @@ quint64 AccountClient::setNewDeviceProtection(bool enabled) {
 
 quint64 AccountClient::listApprovals(int waitSeconds) {
     waitSeconds = qBound(0, waitSeconds, 25);
+    const int timeoutMs = qBound(
+        10000,
+        waitSeconds * 1000 + 10000,
+        35000);
     QString path = QStringLiteral("/v1/approvals");
     if (waitSeconds > 0) {
         path += QStringLiteral("?wait_seconds=")
@@ -331,7 +335,8 @@ quint64 AccountClient::listApprovals(int waitSeconds) {
         QByteArrayLiteral("GET"),
         path,
         QJsonObject(),
-        true);
+        true,
+        timeoutMs);
 }
 
 quint64 AccountClient::decideApproval(
@@ -385,13 +390,15 @@ quint64 AccountClient::send(
     const QByteArray &method,
     const QString &path,
     const QJsonObject &body,
-    bool authenticated) {
+    bool authenticated,
+    int timeoutMs) {
     const quint64 requestId = m_nextRequestId++;
 
     AccountTransportRequest request;
     request.method = method;
     request.path = path;
     request.body = body;
+    request.timeoutMs = qMax(1, timeoutMs);
     if (authenticated)
         request.bearerToken = m_accessToken;
 

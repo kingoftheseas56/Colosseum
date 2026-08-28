@@ -13,6 +13,7 @@ struct AccountTransportRequest {
     QString path;
     QJsonObject body;
     QByteArray bearerToken;
+    int timeoutMs = 15000;
 };
 
 struct AccountTransportReply {

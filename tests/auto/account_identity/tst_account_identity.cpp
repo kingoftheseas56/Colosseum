@@ -304,7 +304,9 @@ private slots:
     void fixtureTransportRefusesUntaggedUse();
     void httpTransportRejectsUnsafeBaseUrls();
     void httpTransportDoesNotFollowRedirects();
+    void httpTransportTimesOutStalledReply();
     void accountClientPreservesPasswordWhitespace();
+    void accountClientAssignsRequestDeadlines();
 
     void controllerExposesOnlySafeStateProperties();
     void deviceIdentityIsStableAndNonSecret();
@@ -448,6 +450,50 @@ void tst_account_identity::httpTransportDoesNotFollowRedirects() {
     QCOMPARE(requestCount, 1);
 }
 
+void tst_account_identity::httpTransportTimesOutStalledReply() {
+    QTcpServer server;
+    QVERIFY(server.listen(
+        QHostAddress::LocalHost,
+        0));
+
+    connect(
+        &server,
+        &QTcpServer::newConnection,
+        &server,
+        [&server]() {
+            while (server.hasPendingConnections()) {
+                QTcpSocket *socket = server.nextPendingConnection();
+                QObject::connect(
+                    socket,
+                    &QTcpSocket::readyRead,
+                    socket,
+                    [socket]() {
+                        socket->readAll();
+                    });
+            }
+        });
+
+    AccountHttpTransport transport(
+        QUrl(
+            QStringLiteral("http://127.0.0.1:%1/")
+                .arg(server.serverPort())));
+    QSignalSpy finishedSpy(
+        &transport,
+        &AccountTransport::finished);
+
+    AccountTransportRequest request;
+    request.method = QByteArrayLiteral("GET");
+    request.path = QStringLiteral("/stall");
+    request.timeoutMs = 100;
+    transport.send(77, request);
+
+    QVERIFY(finishedSpy.wait(2000));
+    const AccountTransportReply reply =
+        finishedSpy.at(0).at(1).value<AccountTransportReply>();
+    QVERIFY(reply.networkError);
+    QCOMPARE(reply.statusCode, 0);
+}
+
 void tst_account_identity::accountClientPreservesPasswordWhitespace() {
     CapturingTransport transport;
     AccountClient client(&transport);
@@ -471,6 +517,25 @@ void tst_account_identity::accountClientPreservesPasswordWhitespace() {
             .toString(),
         password);
     QVERIFY(transport.lastRequest.bearerToken.isEmpty());
+}
+
+void tst_account_identity::accountClientAssignsRequestDeadlines() {
+    CapturingTransport transport;
+    AccountClient client(&transport);
+
+    client.signIn(
+        QStringLiteral("DeadlineOwner"),
+        QStringLiteral("password-value"),
+        QStringLiteral("install-1"),
+        QStringLiteral("Test PC"),
+        QStringLiteral("Windows"));
+    QCOMPARE(transport.lastRequest.timeoutMs, 15000);
+
+    client.listApprovals(0);
+    QCOMPARE(transport.lastRequest.timeoutMs, 10000);
+
+    client.listApprovals(25);
+    QCOMPARE(transport.lastRequest.timeoutMs, 35000);
 }
 
 void tst_account_identity::controllerExposesOnlySafeStateProperties() {

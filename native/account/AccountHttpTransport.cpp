@@ -70,6 +70,8 @@ void AccountHttpTransport::send(
     networkRequest.setRawHeader(
         QByteArrayLiteral("Cache-Control"),
         QByteArrayLiteral("no-store"));
+    networkRequest.setTransferTimeout(
+        qMax(1, request.timeoutMs));
 
     // Business API redirects are not followed. This avoids ever forwarding a
     // bearer token or refresh request to an unexpected redirect target.

@@ -137,7 +137,8 @@ private:
         const QByteArray &method,
         const QString &path,
         const QJsonObject &body,
-        bool authenticated);
+        bool authenticated,
+        int timeoutMs = 15000);
 
     static QString encodedPathSegment(const QString &value);
 
