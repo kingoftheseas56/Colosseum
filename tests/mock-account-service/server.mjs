@@ -9,13 +9,12 @@
 // without a live Go service.
 //
 // Binding contract sources (read before changing behavior):
-//   native/account/AccountClient.cpp / .h   — exact routes/methods/payloads
-//   native/account/AccountController.cpp    — how responses map to state
+//   server/account-service/internal/httpserver/account_handlers.go
+//                                           — canonical account/profile wire fields
+//   native/account/AccountClient.cpp / .h   — exact routes/methods/request payloads
+//   native/account/AccountController.cpp    — how responses map to safe state
 //   native/account/AccountHttpTransport.cpp — error envelope shape
-//   qml/account/*.qml                        — exact JSON field names actually
-//                                              read back out on the QML side
-//   Preflight reference bundle (Go service) — response shapes where the
-//   C++/QML side is silent (device list fields, approval list fields, etc.)
+//   qml/account/*.qml                        — downstream UI consumption
 //
 // Run:
 //   node tests/mock-account-service/server.mjs --port 18080
@@ -122,9 +121,8 @@ function sleep(ms) {
 }
 
 // ---------------------------------------------------------------------------
-// Encoders — field names verified against AccountController.cpp /
-// qml/account/*.qml, NOT the older Go reference (see README "Contract
-// ambiguities").
+// Encoders — response field names mirror the production Go account service.
+// The native controller adapts that canonical wire shape to safe QML state.
 // ---------------------------------------------------------------------------
 
 function encodeAccount(account) {
@@ -132,7 +130,7 @@ function encodeAccount(account) {
         id: account.id,
         username: account.username,
         protect_new_device_signins: account.protectNewDeviceSignins,
-        avatar_id: account.avatarId,
+        builtin_avatar_id: account.avatarId,
     };
 }
 
@@ -998,7 +996,8 @@ async function runSelfTest(baseUrl) {
         const r = await call('GET', '/v1/profile', undefined, accessToken);
         assert(r.status === 200, `expected 200, got ${r.status}`);
         assert(r.body.username === 'testpilot', `unexpected username ${r.body.username}`);
-        assert('avatar_id' in r.body, 'missing avatar_id field');
+        assert('builtin_avatar_id' in r.body, 'missing builtin_avatar_id field');
+        assert(!Object.hasOwn(r.body, 'avatar_id'), 'mock must not emit stale avatar_id');
         assert('protect_new_device_signins' in r.body, 'missing protect_new_device_signins field');
     });
 
@@ -1011,7 +1010,8 @@ async function runSelfTest(baseUrl) {
     await step('set builtin avatar', async () => {
         const r = await call('PUT', '/v1/profile/avatar/builtin', { avatar_id: 'astro-01' }, accessToken);
         assert(r.status === 200, `expected 200, got ${r.status}`);
-        assert(r.body.avatar_id === 'astro-01', `unexpected avatar_id ${r.body.avatar_id}`);
+        assert(r.body.builtin_avatar_id === 'astro-01', `unexpected builtin_avatar_id ${r.body.builtin_avatar_id}`);
+        assert(!Object.hasOwn(r.body, 'avatar_id'), 'mock must not emit stale avatar_id');
     });
 
     await step('list devices includes current device', async () => {

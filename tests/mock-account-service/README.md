@@ -17,25 +17,20 @@ mirrors.
 
 Read in this order if you need to change it:
 
-1. `native/account/AccountClient.cpp` / `.h` — the exact routes, HTTP
-   methods, and request payload field names the native client sends. This
-   is the binding contract.
-2. `native/account/AccountController.cpp` — which response fields the
-   controller actually reads back out of each reply body, and which error
-   codes it treats specially (`session_invalid`, `session_revoked`,
+1. `server/account-service/internal/httpserver/account_handlers.go` - the
+   canonical production account/profile response shape, status codes, and
+   endpoint-specific response fields.
+2. `native/account/AccountClient.cpp` / `.h` - the exact routes, HTTP
+   methods, and request payload field names the desktop client sends.
+3. `native/account/AccountController.cpp` - how canonical response fields
+   are translated into safe desktop state, plus the error codes the
+   controller treats specially (`session_invalid`, `session_revoked`,
    `challenge_expired`, `challenge_denied`, `challenge_invalid`, etc.).
-3. `native/account/AccountHttpTransport.cpp` — the error envelope shape
+4. `native/account/AccountHttpTransport.cpp` - the error envelope shape
    (`{"error":{"code":"...","message":"..."}}` for any status >= 400) and
    the fact that redirects are never followed.
-4. `qml/account/AccountSecurityPage.qml`, `AccountDevicesPage.qml`,
-   `AccountProfilePage.qml` — the exact JSON field names read on the far
-   side of the controller's raw pass-through data (device list, approvals
-   list, avatar id).
-5. The preserved Go reference service under
-   `Preflight-Architect/arcs/02-profile-account-centre/cpp/reference-account-bundle-8c/bundle-8c-colosseum-account-cumulative/service/internal/{httpserver,account}/`
-   — used for status codes, error-code-per-failure mapping, and any shape
-   the C++/QML side doesn't pin down (device list fields, approval list
-   fields, password/username validation rules).
+5. `qml/account/*.qml` - downstream UI behavior for the controller's safe
+   properties and raw device/approval arrays.
 
 ## Run
 
@@ -87,9 +82,9 @@ running first.
 | `POST /v1/sessions/logout-all` | Revokes every session for the account. `204`. |
 | `POST /v1/password/change` | Validates current password, 8–128 code points on the new one. `204` on success, `401 invalid_credentials` / `400 invalid_password` otherwise. |
 | `POST /v1/recovery-key/replace` | Validates current password, rotates recovery key. `200 {recovery_key}`. |
-| `GET /v1/profile` | `200 {id, username, protect_new_device_signins, avatar_id}`. |
+| `GET /v1/profile` | `200 {id, username, protect_new_device_signins, builtin_avatar_id}`. |
 | `PATCH /v1/profile/username` | Rename with the same validation as create. `200` account body, `409 username_unavailable` on collision. |
-| `PUT /v1/profile/avatar/builtin` | `200` account body with the new `avatar_id`. |
+| `PUT /v1/profile/avatar/builtin` | Request body uses `avatar_id`; response uses canonical `builtin_avatar_id`. |
 | `GET /v1/devices` | `200 {devices:[{id, install_id, label, platform, trusted, last_seen_at}, ...]}`. |
 | `DELETE /v1/devices/{deviceID}` | Revokes that device's tokens and removes it. `204` whether it's the current device or a remote one — the native client (not the server) decides what "revoked my own device" means locally. `404 device_not_found` if unknown. |
 | `PUT /v1/security/new-device-protection` | `200` account body with the new `protect_new_device_signins`. |
@@ -120,18 +115,14 @@ in and logout-all → subsequent request → `session_revoked`.
 
 ## Contract ambiguities resolved
 
-- **Avatar/profile field name.** `AccountController.cpp` (e.g. lines
-  ~1063–1067 in the `GetProfile`/`SetNewDeviceProtection` case, and the
-  `RenameUsername`/`SetBuiltinAvatar` cases) reads `reply.body.value("avatar_id")`
-  and writes it straight into `m_avatarId`. The preserved Go reference's
-  `accountResponse` struct (`account_handlers.go`) instead serializes
-  `builtin_avatar_id` and `avatar_url` — no `avatar_id` key at all. Since
-  the task's binding contract is the C++ client (it decides what the mock
-  must satisfy), and `qml/account/AccountProfilePage.qml` reads
-  `controller.avatarId` (populated only from that `avatar_id` key), the
-  mock emits `avatar_id` on every account-shaped response (`/v1/profile`,
-  rename, set-avatar, set-protection). The Go-only fields were dropped as
-  stale/superseded rather than mirrored.
+- **Avatar/profile response field name.** The production Go
+  `accountResponse` serializes `builtin_avatar_id`, so that is the canonical
+  wire field emitted by the mock on every account-shaped response. The
+  desktop controller maps it into the existing `avatarId` QML property and
+  temporarily accepts legacy `avatar_id` on read for compatibility. The
+  builtin-avatar request body still uses `avatar_id`, matching the production
+  Go request contract; the request and response field names are intentionally
+  different.
 - **Approval item id field (resolved 2026-08-20, service-side).** `AccountSecurityPage.qml`
   (`approvalChallengeId`, lines ~66–71) reads `challenge_id` first, falling
   back to `challengeId`. The Go reference's `listApprovals` handler used to
