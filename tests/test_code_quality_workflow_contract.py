@@ -65,6 +65,22 @@ class CodeQualityWorkflowContract(unittest.TestCase):
         self.assertNotIn("portability-avoid-pragma-once", policy)
         self.assertIn("ComicDownloader.cpp|1427|clang-analyzer-cplusplus.NewDeleteLeaks", allowlist)
 
+    def test_address_sanitizer_gate_builds_and_runs_high_risk_native_probes(self):
+        desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Configure AddressSanitizer probes", desktop)
+        self.assertIn("Run AddressSanitizer probes", desktop)
+        self.assertIn("/fsanitize=address", desktop)
+        self.assertIn("_DISABLE_VECTOR_ANNOTATION", desktop)
+        self.assertIn("_DISABLE_STRING_ANNOTATION", desktop)
+        for target in ("comicreader_provider_harness", "comicreader_decode_harness",
+                       "tst_vault_scanner", "tst_watchparty_lifecycle",
+                       "cbz_archive_probe_harness"):
+            self.assertIn(target, desktop)
+        self.assertIn("ASAN_OPTIONS", desktop)
+        self.assertIn("QT_QPA_PLATFORM", desktop)
+        self.assertLess(desktop.index("Run clang-tidy correctness gate"),
+                        desktop.index("Configure AddressSanitizer probes"))
+
     def test_codeql_ignores_noise_but_keeps_quality_suite(self):
         config = CONFIG.read_text(encoding="utf-8")
         for path in ("archive/**", "artifacts/**", "output/**", "tests/**",

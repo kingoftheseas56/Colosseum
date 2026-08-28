@@ -228,3 +228,51 @@ jobs:
             --required-version "$env:LLVM_VERSION" `
             --jobs 2 `
             --min-files 184
+
+      - name: Configure AddressSanitizer probes
+        shell: pwsh
+        run: |
+          $build = Join-Path $env:RUNNER_TEMP "colosseum-asan"
+          $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake -S native -B $build -G Ninja `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DBUILD_TESTING=ON `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DCMAKE_PREFIX_PATH=$prefix" `
+            "-DMPVQT_PREFIX=$env:MPVQT_ROOT" `
+            "-DLIBMPV_PREFIX=$env:LIBMPV_ROOT" `
+            "-DCMAKE_C_FLAGS=/fsanitize=address /Zi" `
+            "-DCMAKE_CXX_FLAGS=/fsanitize=address /Zi /EHsc /D_DISABLE_VECTOR_ANNOTATION /D_DISABLE_STRING_ANNOTATION"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "COLOSSEUM_ASAN_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run AddressSanitizer probes
+        shell: pwsh
+        run: |
+          cmake --build $env:COLOSSEUM_ASAN_BUILD --target `
+            comicreader_provider_harness `
+            comicreader_decode_harness `
+            tst_vault_scanner `
+            tst_watchparty_lifecycle `
+            cbz_archive_probe_harness `
+            --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $asanRuntime = Join-Path $env:VCToolsInstallDir "bin/Hostx64/x64"
+          if (-not (Test-Path (Join-Path $asanRuntime "clang_rt.asan_dynamic-x86_64.dll"))) {
+            throw "MSVC AddressSanitizer runtime missing"
+          }
+          $env:PATH = "$asanRuntime;$env:QT_ROOT_DIR\bin;$env:PATH"
+          $env:ASAN_OPTIONS = "halt_on_error=1:abort_on_error=1"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_FORCE_STDERR_LOGGING = "1"
+          foreach ($target in @(
+            "comicreader_provider_harness",
+            "comicreader_decode_harness",
+            "tst_vault_scanner",
+            "tst_watchparty_lifecycle",
+            "cbz_archive_probe_harness"
+          )) {
+            & (Join-Path $env:COLOSSEUM_ASAN_BUILD "$target.exe")
+            if ($LASTEXITCODE -ne 0) { throw "$target failed under AddressSanitizer" }
+          }
