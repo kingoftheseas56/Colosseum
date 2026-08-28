@@ -79,6 +79,7 @@ AccountPageFrame {
     }
 
     Text {
+        objectName: "accountSignInError"
         width: parent.width
         visible: root.validationMessage.length > 0
             || (root.controller
