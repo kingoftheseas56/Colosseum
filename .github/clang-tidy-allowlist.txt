@@ -1,0 +1,5 @@
+# Exact, reviewed Qt/framework ownership false positives only.
+# Any line movement or message/check change intentionally requires re-review.
+native/main.cpp|873|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
+native/main.cpp|1235|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/engine/ComicDownloader.cpp|1427|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'

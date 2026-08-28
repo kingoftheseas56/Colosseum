@@ -3,7 +3,7 @@
 #include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
-#include <QFutureWatcher>
+#include <QFuture>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -232,32 +232,8 @@ void UpdateDownload::persistMetadata()
 
 void UpdateDownload::finishHashVerification()
 {
-    auto* watcher = new QFutureWatcher<QByteArray>(this);
-    connect(watcher, &QFutureWatcher<QByteArray>::finished, this,
-            [this, watcher] {
-                const QByteArray digest = watcher->result();
-                watcher->deleteLater();
-                if (m_cancelled) {
-                    fail(QStringLiteral("cancelled"), true);
-                    return;
-                }
-                if (digest != m_request.expectedSha256) {
-                    fail(QStringLiteral("sha256_mismatch"), false);
-                    return;
-                }
-                QString error;
-                QString promotedPath;
-                if (!m_cache->promotePart(m_request.version, m_request.assetName,
-                                          &promotedPath, &error)) {
-                    fail(error.isEmpty() ? QStringLiteral("installer_promotion_failed") : error, true);
-                    return;
-                }
-                QFile::remove(m_metadataPath);
-                m_finished = true;
-                emit completed(promotedPath);
-            });
     const QString path = m_partPath;
-    watcher->setFuture(QtConcurrent::run([path] {
+    QtConcurrent::run([path] {
         QFile file(path);
         if (!file.open(QIODevice::ReadOnly))
             return QByteArray{};
@@ -265,7 +241,26 @@ void UpdateDownload::finishHashVerification()
         if (!hash.addData(&file))
             return QByteArray{};
         return hash.result();
-    }));
+    }).then(this, [this](QByteArray digest) {
+        if (m_cancelled) {
+            fail(QStringLiteral("cancelled"), true);
+            return;
+        }
+        if (digest != m_request.expectedSha256) {
+            fail(QStringLiteral("sha256_mismatch"), false);
+            return;
+        }
+        QString error;
+        QString promotedPath;
+        if (!m_cache->promotePart(m_request.version, m_request.assetName,
+                                  &promotedPath, &error)) {
+            fail(error.isEmpty() ? QStringLiteral("installer_promotion_failed") : error, true);
+            return;
+        }
+        QFile::remove(m_metadataPath);
+        m_finished = true;
+        emit completed(promotedPath);
+    });
 }
 
 void UpdateDownload::cancel()

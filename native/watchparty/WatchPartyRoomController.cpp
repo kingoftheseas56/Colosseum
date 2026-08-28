@@ -90,6 +90,8 @@ Result RoomController::leave(const QString& participantId)
     const Result membership = requireConnectedParticipant(participantId, &state);
     if (!membership.ok())
         return membership;
+    if (!state)
+        return Result::failure(RoomError::NotParticipant);
 
     if (state->host)
         return Result::failure(RoomError::HostMustEndRoom);
@@ -187,6 +189,8 @@ Result RoomController::setReady(const QString& participantId, bool ready)
     const Result membership = requireConnectedParticipant(participantId, &state);
     if (!membership.ok())
         return membership;
+    if (!state)
+        return Result::failure(RoomError::NotParticipant);
 
     state->ready = ready;
     if (!ready)
@@ -200,6 +204,8 @@ Result RoomController::setSyncStatus(const QString& participantId, SyncStatus st
     const Result membership = requireConnectedParticipant(participantId, &state);
     if (!membership.ok())
         return membership;
+    if (!state)
+        return Result::failure(RoomError::NotParticipant);
     if (!state->ready && status != SyncStatus::Unknown)
         return Result::failure(RoomError::InvalidParticipantState);
 
@@ -213,6 +219,8 @@ Result RoomController::addChat(const QString& participantId, const QString& mess
     const Result membership = requireConnectedParticipant(participantId, &state);
     if (!membership.ok())
         return membership;
+    if (!state)
+        return Result::failure(RoomError::NotParticipant);
 
     const QString cleaned = message.trimmed();
     if (cleaned.isEmpty())
@@ -234,6 +242,8 @@ Result RoomController::addReaction(const QString& participantId,
     const Result membership = requireConnectedParticipant(participantId, &state);
     if (!membership.ok())
         return membership;
+    if (!state)
+        return Result::failure(RoomError::NotParticipant);
 
     const QString cleaned = reaction.trimmed();
     if (cleaned.isEmpty())
@@ -352,6 +362,8 @@ Result RoomController::requireConnectedParticipant(
     const QString& participantId,
     ParticipantState** participantOut)
 {
+    if (participantOut)
+        *participantOut = nullptr;
     if (!m_active)
         return Result::failure(RoomError::RoomNotActive);
 
@@ -374,6 +386,8 @@ Result RoomController::requireHost(const QString& participantId,
         requireConnectedParticipant(participantId, &state);
     if (!membership.ok())
         return membership;
+    if (!state)
+        return Result::failure(RoomError::NotParticipant);
     if (!state->host)
         return Result::failure(RoomError::NotHost);
 

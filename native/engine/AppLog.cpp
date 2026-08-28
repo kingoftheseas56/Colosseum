@@ -113,8 +113,11 @@ void handler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg)
         g_prev(type, ctx, msg);
         return;   // the delegate owns fatal handling too
     }
-    std::fputs(line.toUtf8().constData(), stderr);
-    std::fflush(stderr);
+    const QByteArray stderrBytes = line.toUtf8();
+    const int writeStatus = std::fputs(stderrBytes.constData(), stderr);
+    const int flushStatus = std::fflush(stderr);
+    if (writeStatus == EOF || flushStatus == EOF)
+        std::clearerr(stderr); // allow a later fallback write to retry cleanly
     if (type == QtFatalMsg)
         std::abort();   // Qt's default handler aborts; replicate it
 }
