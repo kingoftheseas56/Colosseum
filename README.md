@@ -15,6 +15,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kingoftheseas56/Colosseum/actions/workflows/desktop-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/kingoftheseas56/Colosseum/desktop-ci.yml?branch=master&style=flat-square&label=desktop-ci" alt="desktop-ci" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/actions/workflows/code-quality.yml"><img src="https://img.shields.io/github/actions/workflow/status/kingoftheseas56/Colosseum/code-quality.yml?branch=master&style=flat-square&label=CodeQL" alt="CodeQL" /></a>
+</p>
+
+<p align="center">
   <img src="docs/media/hero.gif" alt="Colosseum home — Continue row and world shelves" width="840" />
 </p>
 
@@ -246,6 +251,22 @@ libtorrent-rasterbar · SQLite catalogues · Stremio-compatible extension protoc
 QML owns presentation; native C++ owns durable state, files, catalogs, readers, playback
 engines, torrent transport, WebEngine bridges, downloads, Vault indexing, accounts/sync, and
 system integration.
+
+## Code quality & security
+
+Every push runs a multi-stage quality and security pipeline:
+
+- **CodeQL** static analysis (security-and-quality queries) across C/C++ and the Python /
+  JavaScript / GitHub Actions scripting.
+- **clang-tidy** correctness gate on the native C++.
+- **AddressSanitizer** — the app and its lifetime/ownership harnesses run instrumented and clean.
+- **Coverage-guided fuzzing** of the untrusted-input parsers — the comic/CBZ archive reader, the
+  Watch Party network protocol, and the update manifest — under AddressSanitizer. Initial campaigns
+  ran past 10 million executions with no memory-safety defects.
+- **Dependency scanning** — reachability-aware vulnerability checks on bundled and service
+  dependencies.
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## Install
 
