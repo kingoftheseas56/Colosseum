@@ -41,6 +41,8 @@ jobs:
       MPV_SHA256: "0af22b28e920620036d3ae08fd9283156dc9af0420bf4df84b0e02282094599c"
       MPVQT_VERSION: "1.2.0"
       MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+      LLVM_VERSION: "22.1.8"
+      LLVM_SHA256: "16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c"
 
     steps:
       - uses: actions/checkout@v7
@@ -68,6 +70,21 @@ jobs:
           cmake --version
           ninja --version
           cl 2>&1 | Select-Object -First 5
+
+      - name: Install pinned LLVM clang-tidy
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-$env:LLVM_VERSION-win64.exe"
+          $install = Join-Path $env:RUNNER_TEMP "llvm-$env:LLVM_VERSION"
+          $uri = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/LLVM-$env:LLVM_VERSION-win64.exe"
+          Invoke-WebRequest -Uri $uri -OutFile $installer
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:LLVM_SHA256) { throw "LLVM installer checksum mismatch" }
+          $process = Start-Process -FilePath $installer -ArgumentList "/S", "/D=$install" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+          $clangTidy = Join-Path $install "bin/clang-tidy.exe"
+          if (-not (Test-Path $clangTidy)) { throw "clang-tidy.exe missing after LLVM install" }
+          "CLANG_TIDY_EXE=$clangTidy" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install native dependencies
         shell: pwsh
@@ -161,6 +178,7 @@ jobs:
           cmake -S native -B $build -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
             -DBUILD_TESTING=ON `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
             "-DCMAKE_PREFIX_PATH=$prefix" `
             "-DMPVQT_PREFIX=$env:MPVQT_ROOT" `
@@ -198,3 +216,15 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:c-cpp
+
+      - name: Run clang-tidy correctness gate
+        shell: pwsh
+        run: |
+          python scripts/clang_tidy_quality_gate.py `
+            --clang-tidy "$env:CLANG_TIDY_EXE" `
+            --compile-commands "$env:COLOSSEUM_CI_BUILD/compile_commands.json" `
+            --source-root native `
+            --allowlist .github/clang-tidy-allowlist.txt `
+            --required-version "$env:LLVM_VERSION" `
+            --jobs 2 `
+            --min-files 184

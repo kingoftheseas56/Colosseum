@@ -1,0 +1,14 @@
+Checks: >-
+  -*,
+  clang-analyzer-core.*,
+  clang-analyzer-cplusplus.NewDelete*,
+  clang-analyzer-deadcode.DeadStores,
+  bugprone-chained-comparison,
+  bugprone-empty-catch,
+  bugprone-multi-level-implicit-pointer-conversion,
+  bugprone-suspicious-include,
+  cert-dcl59-cpp,
+  cert-err33-c
+HeaderFilterRegex: '(^|[\\/])native[\\/](account|anime|bootstrap|comicreader|devtools|engine|models|net|player|reader|reader2|torrent|tts|update|watchparty|work)[\\/]'
+ExcludeHeaderFilterRegex: '(^|[\\/])native[\\/](third_party|build-)|_autogen'
+WarningsAsErrors: ''
