@@ -47,8 +47,8 @@ AccountPageFrame {
         }
 
         const count = passwordCodePoints(passwordField.text)
-        if (count < 15 || count > 128) {
-            validationMessage = "Use a password between 15 and 128 characters."
+        if (count < 8 || count > 128) {
+            validationMessage = "Use a password between 8 and 128 characters."
             return
         }
 
