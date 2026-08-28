@@ -48,31 +48,26 @@ real video player. Browsing is catalogue-first and discovery-rich; downloaded me
 so reading and listening can continue offline.
 
 > [!IMPORTANT]
-> Colosseum 1.1.4 is the current Windows 10/11 desktop release. Download the installer from
-> [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for a per-user install —
-> no administrator required. Building from source is documented below.
+> Colosseum 1.1.3 is the current Windows 10/11 desktop release. The 1.1.4 release was withdrawn.
+> Download the installer from [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for
+> a per-user install — no administrator required. Building from source is documented below.
 
-## What's new in 1.1.4
+## What's new in 1.1.3
 
-- **Read now, download later — everywhere.** Comics, Tankoban volumes, and Biblio books share one
-  consumption-first split: **Read** opens the reader as soon as the content can open, guarded against
-  stale requests, while **Download** acquires the content and stops at Ready instead of flipping into
-  the reader on its own.
-- **The catalogues fetch themselves.** The installer no longer ships catalogue databases. On first
-  launch, Colosseum downloads all four — anime/manga, Tankoban volumes, comics, and the IMDb index —
-  from the public Colosseum-Data release, and shelves wake live as each one lands.
-- **Comics catalogue intelligence.** A real catalogue engine drives new Discover shelves and a
-  per-series ledger, with honest empty states while a catalogue is absent or still downloading.
-- **Tankoban volume identity.** A Torrentio-style identity pipeline gives the source picker and file
-  picker one shared volume grammar — better matches, fewer misfiled downloads.
-- **Theatre and runtime polish.** Series episode lists scroll as a single surface; pause/resume
-  authority, the Watch Party bridge, and the update cache moved into owned native services; startup
-  gains an explicit bootstrap; pinned-host networking retries through a durable IPv4 pin store.
-- **Quieter installs, more channels.** The installer registers a quiet uninstall command for silent
-  managers, Colosseum is submitted to WinGet as `Colosseum.Colosseum`, and a Chocolatey package
-  definition lives in-tree.
+- **Release builds open again.** `Colosseum.Activity` is registered unconditionally, fixing the
+  release-only startup failure that caused 1.1.2 to exit before a window appeared.
+- **Updates relaunch correctly.** Installer result flags now reach the updater instead of being
+  mistaken for a QML file path, so the post-update relaunch path no longer exits immediately.
+- **A much smaller installer.** Release packaging strips build intermediates, test harnesses, and
+  source trees, with a size gate preventing the old 647 MB packaging failure from returning.
+- **Vault hardening and a Home portal.** Live delete/replace reconciliation, revision-guarded
+  enrichment, honest CBR failure handling, and a permanent Vault entry point shipped together.
+- **Watch Party ships configured.** The hosted relay is the default, and exact torrent rooms can
+  fetch the room source for joiners instead of requiring it to exist locally first.
+- **Catalogue and reading polish.** Tankoban gained a Library tab, Biblio's catalogue was reworked,
+  ScrollGlide landed across grid/reader surfaces, and the Living Guide was removed.
 
-Full release notes: [docs/release-notes/v1.1.4.md](docs/release-notes/v1.1.4.md).
+Full release notes: [docs/release-notes/v1.1.3.md](docs/release-notes/v1.1.3.md).
 
 ## Highlights
 
@@ -160,7 +155,7 @@ moving the underlying download data.
 
 ## Watch Party
 
-Colosseum 1.1.4 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
+Colosseum 1.1.3 includes the Player 1 Watch Party client and defaults to the hosted protocol-v3
 relay, so creating or joining a room no longer requires endpoint configuration. A Join action lives
 on the taskbar; room controls live inside Player 1. The client supports guest and signed-in identity,
 participant rosters, chat and reactions, host/shared control, reconnect and host grace, kick/rejoin,
@@ -333,8 +328,7 @@ repair into `master`. This is development infrastructure, not part of the instal
 - Tankoban remains volume-only. The old chapter browser/downloader is unrouted, and first launch
   removes the obsolete chapter tree plus `manga` progress. Downloaded Tankoban volumes are kept.
 - After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a
-  few seconds before recovering. Known since 1.1.3; the picker flow was reworked in 1.1.4 but this
-  issue has not been re-verified as fixed.
+  few seconds before recovering. This is a known issue in 1.1.3; no released fix has been verified yet.
 - Tankoban and Biblio can consume compatible extension catalogues for discovery, but their native
   acquisition paths are not generic Stremio stream consumers. Theatre is the world with generic
   torrent/direct-stream playback from compatible add-ons.
