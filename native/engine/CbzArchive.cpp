@@ -73,6 +73,14 @@ bool sniffLooksDecodable(const QByteArray& h)
 // ZIP general-purpose bit flag 0 (per the spec): entry is encrypted.
 constexpr mz_uint16 kZipEncryptedBit = 0x1;
 
+// Upper bound on a single entry's declared uncompressed size. A stored comic page
+// file is single-digit MB; this cap is far above any legitimate page and exists
+// only to reject a hostile archive whose central-directory header claims a huge
+// size purely to force an out-of-memory allocation on open (DoS). The check is on
+// the DECLARED size (from the header), so the allocation never happens. Surfaced by
+// the CBZ fuzz target (a crafted header claiming a multi-GB page OOM'd extraction).
+constexpr mz_uint64 kMaxEntryUncompressedBytes = 256ull * 1024 * 1024;
+
 } // namespace
 
 bool CbzArchive::isAcceptedImageEntryName(const QString& name)
@@ -141,6 +149,27 @@ QByteArray CbzArchive::readEntry(const QString& archivePath,
     const int index = mz_zip_reader_locate_file(&zip, entry.constData(), nullptr, 0);
     if (index < 0) {
         setError(error, QStringLiteral("CBZ entry not found: %1").arg(entryName));
+        mz_zip_reader_end(&zip);
+        return {};
+    }
+
+    // Reject an entry whose header DECLARES an implausibly large uncompressed size
+    // before asking miniz to allocate it — a hostile archive could otherwise claim a
+    // multi-gigabyte page and exhaust memory on open. Checked against the declared
+    // size, so no large allocation occurs on the rejection path.
+    mz_zip_archive_file_stat stat{};
+    if (!mz_zip_reader_file_stat(&zip, static_cast<mz_uint>(index), &stat)) {
+        setError(error, QStringLiteral("cannot stat CBZ entry %1: %2")
+                            .arg(entryName, zipError(zip)));
+        mz_zip_reader_end(&zip);
+        return {};
+    }
+    if (stat.m_uncomp_size > kMaxEntryUncompressedBytes) {
+        setError(error, QStringLiteral(
+                            "CBZ entry %1 declares an implausible uncompressed size "
+                            "(%2 bytes); refusing to extract")
+                            .arg(entryName)
+                            .arg(static_cast<qulonglong>(stat.m_uncomp_size)));
         mz_zip_reader_end(&zip);
         return {};
     }

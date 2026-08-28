@@ -228,3 +228,191 @@ jobs:
             --required-version "$env:LLVM_VERSION" `
             --jobs 2 `
             --min-files 184
+
+      - name: Configure AddressSanitizer probes
+        shell: pwsh
+        run: |
+          $build = Join-Path $env:RUNNER_TEMP "colosseum-asan"
+          $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake -S native -B $build -G Ninja `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DBUILD_TESTING=ON `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DCMAKE_PREFIX_PATH=$prefix" `
+            "-DMPVQT_PREFIX=$env:MPVQT_ROOT" `
+            "-DLIBMPV_PREFIX=$env:LIBMPV_ROOT" `
+            "-DCMAKE_C_FLAGS=/fsanitize=address /Zi" `
+            "-DCMAKE_CXX_FLAGS=/fsanitize=address /Zi /EHsc /D_DISABLE_VECTOR_ANNOTATION /D_DISABLE_STRING_ANNOTATION"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "COLOSSEUM_ASAN_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run AddressSanitizer probes
+        shell: pwsh
+        run: |
+          cmake --build $env:COLOSSEUM_ASAN_BUILD --target `
+            comicreader_provider_harness `
+            comicreader_decode_harness `
+            tst_vault_scanner `
+            tst_watchparty_lifecycle `
+            cbz_archive_probe_harness `
+            --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $asanRuntime = Join-Path $env:VCToolsInstallDir "bin/Hostx64/x64"
+          if (-not (Test-Path (Join-Path $asanRuntime "clang_rt.asan_dynamic-x86_64.dll"))) {
+            throw "MSVC AddressSanitizer runtime missing"
+          }
+          $env:PATH = "$asanRuntime;$env:QT_ROOT_DIR\bin;$env:PATH"
+          $env:ASAN_OPTIONS = "halt_on_error=1:abort_on_error=1"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_FORCE_STDERR_LOGGING = "1"
+          foreach ($target in @(
+            "comicreader_provider_harness",
+            "comicreader_decode_harness",
+            "tst_vault_scanner",
+            "tst_watchparty_lifecycle",
+            "cbz_archive_probe_harness"
+          )) {
+            & (Join-Path $env:COLOSSEUM_ASAN_BUILD "$target.exe")
+            if ($LASTEXITCODE -ne 0) { throw "$target failed under AddressSanitizer" }
+          }
+
+  dependency-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+      # Reachability-aware gate: govulncheck fails only when a vulnerability is
+      # actually CALLED by the code (unlike a plain version scanner). The known
+      # unreachable advisory (x/crypto/openpgp) does NOT fail the gate; a newly
+      # reachable vuln in the Go account-service will.
+      - name: govulncheck (Go account-service)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          cd server/account-service
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+  fuzz-smoke:
+    needs: public-trust
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      LLVM_VERSION: "22.1.8"
+      LLVM_SHA256: "16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Qt 6.11.1 (Core)
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Enable MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+      - name: Install pinned LLVM
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-$env:LLVM_VERSION-win64.exe"
+          $install = Join-Path $env:RUNNER_TEMP "llvm-$env:LLVM_VERSION"
+          $uri = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/LLVM-$env:LLVM_VERSION-win64.exe"
+          Invoke-WebRequest -Uri $uri -OutFile $installer
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:LLVM_SHA256) { throw "LLVM installer checksum mismatch" }
+          $process = Start-Process -FilePath $installer -ArgumentList "/S", "/D=$install" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+          "LLVM_ROOT=$install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+      # The stock clang_rt.fuzzer is /MT; Qt release libs are /MD and cannot share
+      # a link. Build a /MD libFuzzer from the pinned LLVM sources so Qt-linked fuzz
+      # targets can link -fsanitize=fuzzer-no-link + this lib + Qt6Core.
+      - name: Build /MD libFuzzer runtime
+        shell: pwsh
+        run: |
+          $clangcl = Join-Path $env:LLVM_ROOT "bin/clang-cl.exe"
+          $llvmlib = Join-Path $env:LLVM_ROOT "bin/llvm-lib.exe"
+          $fz = Join-Path $env:RUNNER_TEMP "llvm-fz"
+          git clone --depth 1 --branch "llvmorg-$env:LLVM_VERSION" --filter=blob:none --sparse https://github.com/llvm/llvm-project.git $fz
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C $fz sparse-checkout set compiler-rt/lib/fuzzer
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $fzdir = Join-Path $fz "compiler-rt/lib/fuzzer"
+          $obj = Join-Path $env:RUNNER_TEMP "fzobj"; New-Item -ItemType Directory -Force $obj | Out-Null
+          $srcs = Get-ChildItem "$fzdir/*.cpp" | ForEach-Object { $_.FullName }
+          $a = @('/nologo','/MD','/O2','/EHsc','/std:c++17','-D_DISABLE_STL_ANNOTATION','-c',"-I$fzdir","/Fo$obj\") + $srcs
+          & $clangcl @a
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $objs = Get-ChildItem "$obj/*.obj" | ForEach-Object { $_.FullName }
+          $lib = Join-Path $env:RUNNER_TEMP "libFuzzer_md.lib"
+          & $llvmlib '/nologo' "/out:$lib" @objs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "LIBFUZZER_MD=$lib" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build and run fuzz smoke (45s each, seeded; fail on crash)
+        shell: pwsh
+        run: |
+          $clangcl = Join-Path $env:LLVM_ROOT "bin/clang-cl.exe"
+          $qt = $env:QT_ROOT_DIR
+          $out = Join-Path $env:RUNNER_TEMP "fuzzout"; New-Item -ItemType Directory -Force $out | Out-Null
+          Write-Output "LLVM_ROOT=$env:LLVM_ROOT"
+          Write-Output "QT_ROOT_DIR=$qt"
+          # Locate the ASan runtime DLL by search (installer layout varies) and place it
+          # beside the fuzzers so it resolves without any PATH assumption.
+          $asanDll = Get-ChildItem $env:LLVM_ROOT -Recurse -Filter "clang_rt.asan_dynamic-x86_64.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $asanDll) { Write-Output "::error::ASan runtime DLL not found under $env:LLVM_ROOT"; throw "ASan runtime DLL missing" }
+          Write-Output "ASan DLL: $($asanDll.FullName)"
+          Copy-Item $asanDll.FullName $out -Force
+          $targets = @(
+            @{ name = "miniz_zip_fuzzer";           srcs = @("native/third_party/miniz/miniz.c"); qt = $false },
+            @{ name = "cbz_archive_fuzzer";          srcs = @("native/engine/CbzArchive.cpp","native/third_party/miniz/miniz.c"); qt = $true },
+            @{ name = "watchparty_protocol_fuzzer";  srcs = @("native/watchparty/WatchPartyProtocol.cpp","native/watchparty/WatchPartyTypes.cpp"); qt = $true },
+            @{ name = "update_manifest_fuzzer";      srcs = @("native/update/UpdateManifest.cpp","native/update/UpdateVersion.cpp"); qt = $true }
+          )
+          foreach ($t in $targets) {
+            $exe = Join-Path $out "$($t.name).exe"
+            $objd = Join-Path $out "obj_$($t.name)"; New-Item -ItemType Directory -Force $objd | Out-Null
+            $a = @('/nologo','/std:c++17','/EHsc','/MD','/Zi','/O1','-fsanitize=fuzzer-no-link,address','-D_DISABLE_STL_ANNOTATION','-Inative')
+            if ($t.qt) { $a += @("-I$qt/include","-I$qt/include/QtCore") }
+            $a += "tests/fuzz/$($t.name).cpp"
+            $a += $t.srcs
+            $a += @("/Fo$objd\","/Fe:$exe",'/link',$env:LIBFUZZER_MD)
+            if ($t.qt) { $a += @("/libpath:$qt/lib",'Qt6Core.lib') }
+            Write-Output "--- building $($t.name) ---"
+            $log = Join-Path $out "build_$($t.name).log"
+            & $clangcl @a 2>&1 | Out-File -FilePath $log -Encoding utf8
+            if ($LASTEXITCODE -ne 0) {
+              $tail = ((Get-Content $log | Where-Object { $_ -match 'error|LNK\d|cannot|unresolved|No such' } | Select-Object -Last 3) -join ' || ')
+              Write-Output "::error::fuzz build failed ($($t.name)): $tail"
+              Get-Content $log | Select-Object -Last 30
+              throw "fuzz build failed: $($t.name)"
+            }
+          }
+          # Put the Qt runtime DLLs next to the exes so the Qt-linked targets resolve
+          # them without any PATH assumption (the ASan DLL is already in $out).
+          Copy-Item (Join-Path $qt "bin/Qt6Core.dll") $out -Force
+          Get-ChildItem (Join-Path $qt "bin") -Filter "icu*.dll" -ErrorAction SilentlyContinue | ForEach-Object { Copy-Item $_.FullName $out -Force }
+          $env:PATH = "$out;$qt\bin;$env:PATH"
+          $env:ASAN_OPTIONS = "abort_on_error=1"
+          foreach ($t in $targets) {
+            $exe = Join-Path $out "$($t.name).exe"
+            # Run against a temp COPY so libFuzzer's discovered units are written to
+            # RUNNER_TEMP, never back into the checked-out source tree.
+            $corpus = Join-Path $out "corpus_$($t.name)"
+            Copy-Item "tests/fuzz/corpora/$($t.name)" $corpus -Recurse -Force
+            Write-Output "--- running $($t.name) ---"
+            $rlog = Join-Path $out "run_$($t.name).log"
+            & $exe "-artifact_prefix=$out\$($t.name)_" "-max_total_time=45" "-rss_limit_mb=2048" $corpus 2>&1 | Tee-Object -FilePath $rlog | Out-Null
+            $rc = $LASTEXITCODE
+            Write-Output "--- $($t.name) exit=$rc ---"
+            if ($rc -ne 0) {
+              $key = ((Get-Content $rlog -ErrorAction SilentlyContinue | Where-Object { $_ -match 'ERROR|SUMMARY|runtime error|libFuzzer|abort|0x[0-9A-Fa-f]{6,}' } | Select-Object -Last 4) -join ' || ')
+              Write-Output "::error::fuzz $($t.name) exit=$rc : $key"
+              Get-Content $rlog -ErrorAction SilentlyContinue | Select-Object -Last 30
+              throw "fuzz failure: $($t.name) (exit $rc)"
+            }
+          }
