@@ -164,6 +164,22 @@ func TestTrustedDeviceCanApprovePasswordRecovery(t *testing.T) {
 		t.Fatalf("trusted recovery result = %#v, want recovered + recovery key", recovered)
 	}
 
+	replayed, err := fixture.service.PollTrustedRecovery(
+		context.Background(),
+		started.ChallengeToken)
+	if err != nil {
+		t.Fatalf("replayed PollTrustedRecovery() error = %v", err)
+	}
+	if replayed.Status != "recovered" || replayed.RecoveryKey != recovered.RecoveryKey {
+		t.Fatalf("replayed trusted recovery = %#v, want same one-time result", replayed)
+	}
+	fixture.clock.Advance(trustedRecoveryRetryGrace + time.Second)
+	if _, err := fixture.service.PollTrustedRecovery(
+		context.Background(),
+		started.ChallengeToken); !errors.Is(err, ErrChallengeInvalid) {
+		t.Fatalf("expired trusted recovery replay error = %v, want ErrChallengeInvalid", err)
+	}
+
 	if _, err := fixture.service.AuthenticateAccessToken(
 		context.Background(),
 		created.Session.AccessToken); !errors.Is(err, ErrSessionInvalid) {

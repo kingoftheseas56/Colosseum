@@ -110,13 +110,28 @@ void AccountHttpTransport::send(
     }
 
     const QPointer<QNetworkReply> guardedReply(reply);
+    auto *hardDeadline = new QTimer(reply);
+    hardDeadline->setSingleShot(true);
+    connect(
+        hardDeadline,
+        &QTimer::timeout,
+        reply,
+        [guardedReply]() {
+            if (!guardedReply || guardedReply->isFinished())
+                return;
+            guardedReply->setProperty("accountHardDeadlineExpired", true);
+            guardedReply->abort();
+        });
+    hardDeadline->start(qMax(1, request.timeoutMs));
+
     connect(
         reply,
         &QNetworkReply::finished,
         this,
-        [this, guardedReply, requestId]() {
+        [this, guardedReply, hardDeadline, requestId]() {
             if (!guardedReply)
                 return;
+            hardDeadline->stop();
 
             const QByteArray payload = guardedReply->readAll();
             const AccountTransportReply decoded = decodeReply(
@@ -164,6 +179,14 @@ AccountTransportReply AccountHttpTransport::decodeReply(
 
     result.statusCode = reply->attribute(
         QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+    if (reply->property("accountHardDeadlineExpired").toBool()) {
+        result.networkError = true;
+        result.statusCode = 0;
+        result.errorCode = QStringLiteral("request_timeout");
+        result.errorMessage = QStringLiteral("The account request timed out.");
+        return result;
+    }
 
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(

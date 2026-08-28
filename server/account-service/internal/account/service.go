@@ -11,24 +11,25 @@ import (
 )
 
 const (
-	accessTokenLifetime     = 15 * time.Minute
-	refreshRetryGrace       = 30 * time.Second
-	deviceChallengeLifetime = 10 * time.Minute
-	trustedRecoveryLifetime = 10 * time.Minute
-	usernameRenameCooldown  = 30 * 24 * time.Hour
-	createAttemptWindow     = time.Hour
-	createAttemptLimit      = 10
-	createUsernameWindow    = time.Hour
-	createUsernameLimit     = 5
-	createSuccessWindow     = 24 * time.Hour
-	createSuccessLimit      = 2
-	createGlobalWindow      = 10 * time.Minute
-	signInWindow            = 15 * time.Minute
-	signInLimit             = 10
-	recoveryWindow          = 30 * time.Minute
-	recoveryLimit           = 5
-	reauthWindow            = 15 * time.Minute
-	reauthLimit             = 5
+	accessTokenLifetime       = 15 * time.Minute
+	refreshRetryGrace         = 30 * time.Second
+	deviceChallengeLifetime   = 10 * time.Minute
+	trustedRecoveryLifetime   = 10 * time.Minute
+	trustedRecoveryRetryGrace = 10 * time.Minute
+	usernameRenameCooldown    = 30 * 24 * time.Hour
+	createAttemptWindow       = time.Hour
+	createAttemptLimit        = 10
+	createUsernameWindow      = time.Hour
+	createUsernameLimit       = 5
+	createSuccessWindow       = 24 * time.Hour
+	createSuccessLimit        = 2
+	createGlobalWindow        = 10 * time.Minute
+	signInWindow              = 15 * time.Minute
+	signInLimit               = 10
+	recoveryWindow            = 30 * time.Minute
+	recoveryLimit             = 5
+	reauthWindow              = 15 * time.Minute
+	reauthLimit               = 5
 )
 
 type Service struct {
@@ -148,6 +149,16 @@ func (s *Service) RunSecurityMaintenanceOnce(ctx context.Context) error {
           AND expires_at <= $1
     `, now); err != nil {
 		return fmt.Errorf("expire device sign-in challenges: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+        UPDATE trusted_recovery_challenges
+        SET recovery_retry_ciphertext = NULL,
+            recovery_retry_expires_at = NULL
+        WHERE recovery_retry_expires_at IS NOT NULL
+          AND recovery_retry_expires_at <= $1
+    `, now); err != nil {
+		return fmt.Errorf("clear expired trusted recovery retry material: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -30,9 +31,11 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {
 }
 
 func clientNetworkKey(r *http.Request) string {
-	if raw := strings.TrimSpace(r.Header.Get("Fly-Client-IP")); raw != "" {
-		if ip := net.ParseIP(raw); ip != nil {
-			return networkPrefix(ip)
+	if strings.TrimSpace(os.Getenv("FLY_APP_NAME")) != "" {
+		if raw := strings.TrimSpace(r.Header.Get("Fly-Client-IP")); raw != "" {
+			if ip := net.ParseIP(raw); ip != nil {
+				return networkPrefix(ip)
+			}
 		}
 	}
 

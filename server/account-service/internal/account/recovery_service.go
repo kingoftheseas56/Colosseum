@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -381,13 +382,17 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 	var state string
 	var newPasswordHash string
 	var expiresAt time.Time
+	var retryCiphertext []byte
+	var retryExpiresAt sql.NullTime
 	err = tx.QueryRow(ctx, `
         SELECT
             id::text,
             account_id::text,
             state,
             new_password_hash,
-            expires_at
+            expires_at,
+            recovery_retry_ciphertext,
+            recovery_retry_expires_at
         FROM trusted_recovery_challenges
         WHERE challenge_token_hash = $1
         FOR UPDATE
@@ -396,7 +401,9 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 		&accountID,
 		&state,
 		&newPasswordHash,
-		&expiresAt)
+		&expiresAt,
+		&retryCiphertext,
+		&retryExpiresAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return TrustedRecoveryResult{}, ErrChallengeInvalid
 	}
@@ -429,7 +436,25 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 	case "denied":
 		return TrustedRecoveryResult{}, ErrChallengeDenied
 	case "consumed":
-		return TrustedRecoveryResult{}, ErrChallengeInvalid
+		if len(retryCiphertext) == 0 || !retryExpiresAt.Valid || now.After(retryExpiresAt.Time) {
+			return TrustedRecoveryResult{}, ErrChallengeInvalid
+		}
+		recoveryKey, err := s.sessionCipher.OpenTrustedRecoveryRetry(retryCiphertext)
+		if err != nil {
+			return TrustedRecoveryResult{}, fmt.Errorf("open trusted recovery retry key: %w", err)
+		}
+		var currentVerifier []byte
+		if err := tx.QueryRow(ctx, `
+            SELECT recovery_key_verifier
+            FROM accounts
+            WHERE id = $1::uuid
+        `, accountID).Scan(&currentVerifier); err != nil {
+			return TrustedRecoveryResult{}, fmt.Errorf("verify trusted recovery retry key: %w", err)
+		}
+		if !s.recoveryVerifier.Verify(recoveryKey, currentVerifier) {
+			return TrustedRecoveryResult{}, ErrChallengeInvalid
+		}
+		return TrustedRecoveryResult{Status: "recovered", RecoveryKey: recoveryKey}, nil
 	case "approved":
 	default:
 		return TrustedRecoveryResult{}, ErrChallengeInvalid
@@ -456,6 +481,11 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
 	if err != nil {
 		return TrustedRecoveryResult{}, err
 	}
+	retryCiphertext, err = s.sessionCipher.SealTrustedRecoveryRetry(newRecoveryKey)
+	if err != nil {
+		return TrustedRecoveryResult{}, fmt.Errorf("seal trusted recovery retry key: %w", err)
+	}
+	retryExpires := now.Add(trustedRecoveryRetryGrace)
 
 	if _, err := tx.Exec(ctx, `
         UPDATE accounts
@@ -479,10 +509,12 @@ func (s *Service) PollTrustedRecovery(ctx context.Context,
         UPDATE trusted_recovery_challenges
         SET state = 'consumed',
             consumed_at = $2,
-            new_password_hash = ''
+            new_password_hash = '',
+            recovery_retry_ciphertext = $3,
+            recovery_retry_expires_at = $4
         WHERE id = $1::uuid
           AND state = 'approved'
-    `, challengeID, now); err != nil {
+    `, challengeID, now, retryCiphertext, retryExpires); err != nil {
 		return TrustedRecoveryResult{}, fmt.Errorf("consume trusted recovery challenge: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `

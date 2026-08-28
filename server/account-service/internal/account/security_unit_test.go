@@ -115,3 +115,28 @@ func TestSessionCipherRejectsTamper(t *testing.T) {
 		t.Fatal("Open() accepted tampered ciphertext")
 	}
 }
+
+func TestSessionCipherSeparatesTrustedRecoveryRetryDomain(t *testing.T) {
+	cipher, err := NewSessionCipher(bytes.Repeat([]byte{0x52}, 32))
+	if err != nil {
+		t.Fatalf("NewSessionCipher() error = %v", err)
+	}
+	sealed, err := cipher.SealTrustedRecoveryRetry("recovery-key")
+	if err != nil {
+		t.Fatalf("SealTrustedRecoveryRetry() error = %v", err)
+	}
+	opened, err := cipher.OpenTrustedRecoveryRetry(sealed)
+	if err != nil || opened != "recovery-key" {
+		t.Fatalf("OpenTrustedRecoveryRetry() = %q, %v", opened, err)
+	}
+	if _, err := cipher.Open(sealed); err == nil {
+		t.Fatal("refresh-token domain accepted trusted-recovery ciphertext")
+	}
+	refreshSealed, err := cipher.Seal("refresh-token")
+	if err != nil {
+		t.Fatalf("Seal() error = %v", err)
+	}
+	if _, err := cipher.OpenTrustedRecoveryRetry(refreshSealed); err == nil {
+		t.Fatal("trusted-recovery domain accepted refresh-token ciphertext")
+	}
+}

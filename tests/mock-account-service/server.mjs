@@ -146,10 +146,15 @@ function encodeDevice(device) {
 }
 
 function encodeApproval(challenge) {
+    const wireKind = challenge.kind === 'device'
+        ? 'device_signin'
+        : challenge.kind === 'recovery'
+            ? 'trusted_recovery'
+            : challenge.kind;
     return {
         id: challenge.id,
         challenge_id: challenge.id,
-        kind: challenge.kind,
+        kind: wireKind,
         device_label: challenge.deviceLabel,
         platform: challenge.platform,
         expires_at: challenge.expiresAt,
@@ -715,8 +720,13 @@ async function handleDecideApproval(req, res, session, kind, challengeId) {
         return;
     }
 
+    const internalKind = kind === 'device_signin'
+        ? 'device'
+        : kind === 'trusted_recovery'
+            ? 'recovery'
+            : kind;
     const challenge = state.challenges.get(challengeId);
-    if (!challenge || challenge.kind !== kind || challenge.accountId !== session.accountId) {
+    if (!challenge || challenge.kind !== internalKind || challenge.accountId !== session.accountId) {
         sendError(res, 401, 'challenge_invalid', 'The approval request is no longer valid.');
         return;
     }
@@ -1064,7 +1074,7 @@ async function runSelfTest(baseUrl) {
         assert(r.status === 200, `expected 200, got ${r.status}`);
         assert(Array.isArray(r.body.approvals) && r.body.approvals.length === 1, `expected 1 approval, got ${r.body.approvals && r.body.approvals.length}`);
         assert(r.body.approvals[0].challenge_id, 'approval missing challenge_id');
-        assert(r.body.approvals[0].kind === 'device', 'approval missing kind');
+        assert(r.body.approvals[0].kind === 'device_signin', 'approval kind must match production device_signin contract');
         approvalChallengeId = r.body.approvals[0].challenge_id;
         approvalKind = r.body.approvals[0].kind;
     });

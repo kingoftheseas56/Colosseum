@@ -1,0 +1,232 @@
+{
+  "name": "account-signin-happy-path",
+  "comment": "Fresh tagged-profile sign-in. Proves wrong-password generic error then successful sign-in and shell identity.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "second isolated driven session is alive",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash is gone",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "fresh profile requires onboarding",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "choose Sign in",
+      "payload": {
+        "target": "accountWelcomeSignIn"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "sign-in surface is visible",
+      "payload": {
+        "object": "accountSignIn",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "enter existing username",
+      "payload": {
+        "target": "accountSignInUsername",
+        "text": "LanistaAccountOwner"
+      }
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "enter deliberately wrong password",
+      "payload": {
+        "target": "accountSignInPassword",
+        "text": "Definitely-Wrong-Password!"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "submit bad credentials",
+      "payload": {
+        "target": "accountSignInSubmit"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "generic credential error becomes visible",
+      "payload": {
+        "object": "accountSignInError",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "error does not reveal username existence",
+      "payload": {
+        "object": "accountSignInError",
+        "props": [
+          "text",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "contains",
+          "value": "The credentials were not accepted."
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "refocus password field",
+      "payload": {
+        "target": "accountSignInPassword"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "select wrong password",
+      "payload": {
+        "key": "Ctrl+A"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "clear wrong password",
+      "payload": {
+        "key": "Backspace"
+      }
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "enter correct password",
+      "payload": {
+        "target": "accountSignInPassword",
+        "text": "Lanista-Account-Pass-2026!"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "submit correct credentials",
+      "payload": {
+        "target": "accountSignInSubmit"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "onboarding closes after successful sign-in",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the real account flyout",
+      "payload": {
+        "target": "colosseumTopbarAccountButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "signed-in identity is visible",
+      "payload": {
+        "object": "accountFlyoutUsername",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "signed-in username matches created account",
+      "payload": {
+        "object": "accountFlyoutUsername",
+        "props": [
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "LanistaAccountOwner"
+        }
+      ]
+    }
+  ]
+}

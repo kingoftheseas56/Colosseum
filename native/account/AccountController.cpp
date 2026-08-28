@@ -24,6 +24,26 @@ QString accountAvatarId(const QJsonObject &body) {
         return canonical;
     return body.value(QStringLiteral("avatar_id")).toString();
 }
+
+bool isValidApprovalItem(const QJsonValue &value) {
+    if (!value.isObject())
+        return false;
+    const QJsonObject item = value.toObject();
+    const QString id = item.value(QStringLiteral("id")).toString().trimmed();
+    const QString challengeId = item.value(QStringLiteral("challenge_id")).toString().trimmed();
+    const QString kind = item.value(QStringLiteral("kind")).toString().trimmed();
+    const QString label = item.value(QStringLiteral("device_label")).toString().trimmed();
+    const QString platform = item.value(QStringLiteral("platform")).toString().trimmed();
+    const QString expiresAt = item.value(QStringLiteral("expires_at")).toString().trimmed();
+    const bool knownKind = kind == QLatin1String("device_signin")
+        || kind == QLatin1String("trusted_recovery");
+    return !id.isEmpty()
+        && id == challengeId
+        && knownKind
+        && !label.isEmpty()
+        && !platform.isEmpty()
+        && QDateTime::fromString(expiresAt, Qt::ISODateWithMs).isValid();
+}
 }
 
 void AccountController::completeOnboarding() {
@@ -456,6 +476,10 @@ void AccountController::restoreRememberedSession() {
     m_accountId = credential->accountId;
     m_deviceId = credential->deviceId;
     m_refreshToken = credential->refreshToken;
+    if (m_bootstrapStore->rememberedAccountId() == m_accountId) {
+        setUsername(m_bootstrapStore->rememberedUsername());
+        setAvatarId(m_bootstrapStore->rememberedAvatarId());
+    }
     emit accountProfileReadyForSync();
 
     setRestoreStageValue(RestoreStage::SessionRefresh);
@@ -1216,7 +1240,19 @@ void AccountController::handleCompleted(
                 scheduleApprovalPoll(kApprovalRetryMs);
                 return;
             }
-            emit approvalRequestsChanged(approvalsValue.toArray());
+            const QJsonArray approvals = approvalsValue.toArray();
+            for (const QJsonValue &approval : approvals) {
+                if (!isValidApprovalItem(approval)) {
+                    setError(
+                        ErrorCategory::Protocol,
+                        QStringLiteral("invalid_approvals_payload"),
+                        QStringLiteral(
+                            "The account service returned an invalid approval list."));
+                    scheduleApprovalPoll(kApprovalRetryMs);
+                    return;
+                }
+            }
+            emit approvalRequestsChanged(approvals);
             scheduleApprovalPoll();
             return;
         }
@@ -1536,6 +1572,9 @@ bool AccountController::adoptSession(
     completeOnboarding();
 
     setUsername(username);
+    setAvatarId(accountAvatarId(accountObject));
+    m_bootstrapStore->setRememberedIdentity(
+        accountId, username, accountAvatarId(accountObject));
     setNewDeviceProtectionValue(
         accountObject
             .value(
@@ -2101,6 +2140,27 @@ void AccountController::continuePendingLogout() {
     m_pendingLogout =
         PendingLogout::None;
 
+    if (logout == PendingLogout::Current
+        && m_client->accessToken().isEmpty()
+        && !m_refreshToken.isEmpty()) {
+        const QByteArray refreshToken = m_refreshToken;
+        const bool queued =
+            m_credentialStore->addPendingRevocation(refreshToken);
+
+        finishLocalSignOut(false);
+        if (queued) {
+            flushPendingRevocations();
+        } else if (m_lastErrorCode
+                   != QLatin1String("profile_seal_failed")) {
+            setError(
+                ErrorCategory::Storage,
+                QStringLiteral("pending_revocation_store_failed"),
+                QStringLiteral(
+                    "Signed out locally, but server revocation could not be queued."));
+        }
+        return;
+    }
+
     if (logout
         == PendingLogout::Current) {
         track(
@@ -2144,6 +2204,7 @@ void AccountController::finishLocalSignOut(bool locked) {
                    &profileError);
 
     clearStoredSession();
+    m_bootstrapStore->clearRememberedIdentity();
     clearVolatileSession();
     clearError();
 

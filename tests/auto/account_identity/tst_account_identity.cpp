@@ -305,6 +305,7 @@ private slots:
     void httpTransportRejectsUnsafeBaseUrls();
     void httpTransportDoesNotFollowRedirects();
     void httpTransportTimesOutStalledReply();
+    void httpTransportHardDeadlineStopsTrickleReply();
     void accountClientPreservesPasswordWhitespace();
     void accountClientAssignsRequestDeadlines();
 
@@ -314,6 +315,7 @@ private slots:
     void returnToSignInLeavesLocalOnlyForOnboarding();
     void rememberedSessionRestartRotatesSecureCredential();
     void offlineRestoreKeepsRememberedCredential();
+    void offlineRestartRestoresRememberedIdentity();
     void revokedRestoreClearsCredentialAndLocks();
     void protectedBearerRejectionRecoversWithoutLogout();
     void staleBearerFailureCannotTriggerAnotherRefreshAfterRotation();
@@ -328,6 +330,7 @@ private slots:
     void trustedRecoveryUsesNativeOnlySecretSink();
 
     void offlineLogoutQueuesDurablePendingRevocation();
+    void restartedOfflineLogoutRevokesRememberedRefresh();
     void logoutEverywhereSessionInvalidStillSignsOutExplicitly();
     void pendingRevocationFlushRemovesOnlyConfirmedToken();
     void failedCredentialClearTombstonePreventsResurrection();
@@ -490,6 +493,46 @@ void tst_account_identity::httpTransportTimesOutStalledReply() {
     QVERIFY(finishedSpy.wait(2000));
     const AccountTransportReply reply =
         finishedSpy.at(0).at(1).value<AccountTransportReply>();
+    QVERIFY(reply.networkError);
+    QCOMPARE(reply.statusCode, 0);
+}
+
+void tst_account_identity::httpTransportHardDeadlineStopsTrickleReply() {
+    QTcpServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost, 0));
+
+    connect(&server, &QTcpServer::newConnection, &server, [&server]() {
+        while (server.hasPendingConnections()) {
+            QTcpSocket *socket = server.nextPendingConnection();
+            auto *timer = new QTimer(socket);
+            timer->setInterval(25);
+            QObject::connect(socket, &QTcpSocket::readyRead, socket, [socket, timer]() {
+                socket->readAll();
+                if (timer->isActive())
+                    return;
+                socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100000\r\n\r\n{");
+                socket->flush();
+                timer->start();
+            });
+            QObject::connect(timer, &QTimer::timeout, socket, [socket]() {
+                if (socket->state() == QAbstractSocket::ConnectedState) {
+                    socket->write(" ");
+                    socket->flush();
+                }
+            });
+        }
+    });
+
+    AccountHttpTransport transport(QUrl(QStringLiteral("http://127.0.0.1:%1/").arg(server.serverPort())));
+    QSignalSpy finishedSpy(&transport, &AccountTransport::finished);
+    AccountTransportRequest request;
+    request.method = QByteArrayLiteral("GET");
+    request.path = QStringLiteral("/trickle");
+    request.timeoutMs = 150;
+    transport.send(78, request);
+
+    QVERIFY(finishedSpy.wait(700));
+    const AccountTransportReply reply = finishedSpy.at(0).at(1).value<AccountTransportReply>();
     QVERIFY(reply.networkError);
     QCOMPARE(reply.statusCode, 0);
 }
@@ -810,6 +853,36 @@ void tst_account_identity::offlineRestoreKeepsRememberedCredential() {
     const auto stored = fixture.credentials.loadActive();
     QVERIFY(stored.has_value());
     QCOMPARE(stored->refreshToken, refreshToken);
+}
+
+void tst_account_identity::offlineRestartRestoresRememberedIdentity() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    const QByteArray refreshToken = QByteArrayLiteral("refresh-offline-identity");
+
+    seedRememberedCredential(fixture, refreshToken);
+    queueRestore(fixture, refreshToken, QStringLiteral("OfflineOwner"));
+    fixture.controller->restoreRememberedSession();
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("signedIn"));
+    QCOMPARE(fixture.controller->username(), QStringLiteral("OfflineOwner"));
+
+    fixture.controller.reset();
+    fixture.client.reset();
+    fixture.transport.reset();
+    fixture.transport = AccountFixtureTransport::create();
+    QVERIFY(fixture.transport);
+    fixture.transport->setOnline(false);
+    fixture.client = std::make_unique<AccountClient>(fixture.transport.get());
+    fixture.bootstrapStore = std::make_unique<AccountBootstrapStore>(
+        fixture.temp.path() + QLatin1String("/bootstrap.ini"));
+    fixture.controller = std::make_unique<AccountController>(
+        fixture.client.get(), &fixture.credentials, fixture.deviceIdentity.get(),
+        fixture.bootstrapStore.get(), &fixture.secretSink);
+    fixture.controller->setAutomaticPollingEnabled(false);
+
+    fixture.controller->restoreRememberedSession();
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("offline"));
+    QCOMPARE(fixture.controller->username(), QStringLiteral("OfflineOwner"));
 }
 
 void tst_account_identity::revokedRestoreClearsCredentialAndLocks() {
@@ -1708,6 +1781,37 @@ void tst_account_identity::offlineLogoutQueuesDurablePendingRevocation() {
         QList<QByteArray>{refreshToken});
 }
 
+void tst_account_identity::restartedOfflineLogoutRevokesRememberedRefresh() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+
+    const QByteArray refreshToken =
+        QByteArrayLiteral("refresh-restarted-offline-logout");
+    seedRememberedCredential(fixture, refreshToken);
+
+    fixture.transport->setOnline(false);
+    fixture.controller->restoreRememberedSession();
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("offline"));
+    QVERIFY(fixture.client->accessToken().isEmpty());
+
+    fixture.transport->setOnline(true);
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/sessions/revoke-refresh"),
+        okReply(204));
+
+    fixture.controller->logoutCurrent();
+
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
+    QVERIFY(!fixture.credentials.loadActive().has_value());
+    QTRY_COMPARE(
+        fixture.transport->pendingReplyCount(
+            QByteArrayLiteral("POST"),
+            QStringLiteral("/v1/sessions/revoke-refresh")),
+        0);
+    QTRY_VERIFY(!fixture.credentials.pendingRevocations().contains(refreshToken));
+}
+
 void tst_account_identity::logoutEverywhereSessionInvalidStillSignsOutExplicitly() {
     ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
     Fixture fixture;
@@ -2235,10 +2339,12 @@ void tst_account_identity::malformedApprovalListIsProtocolFailure() {
     restoreSignedIn(fixture);
 
     const QJsonObject approval{
-        {QStringLiteral("id"), QStringLiteral("approval-1")},
-        {QStringLiteral("challenge_id"), QStringLiteral("approval-1")},
-        {QStringLiteral("kind"), QStringLiteral("device")},
+        {QStringLiteral("id"), QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc")},
+        {QStringLiteral("challenge_id"), QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc")},
+        {QStringLiteral("kind"), QStringLiteral("device_signin")},
         {QStringLiteral("device_label"), QStringLiteral("Pending device")},
+        {QStringLiteral("platform"), QStringLiteral("Windows")},
+        {QStringLiteral("expires_at"), QDateTime::currentDateTimeUtc().addSecs(300).toString(Qt::ISODateWithMs)},
     };
     QJsonObject valid;
     valid.insert(QStringLiteral("approvals"), QJsonArray{approval});
@@ -2261,6 +2367,21 @@ void tst_account_identity::malformedApprovalListIsProtocolFailure() {
         approvalSpy.at(0).at(0).toJsonArray(),
         QJsonArray{approval});
 
+    QJsonObject badItem = approval;
+    badItem.insert(QStringLiteral("kind"), QStringLiteral("device"));
+    QJsonObject malformedItem;
+    malformedItem.insert(QStringLiteral("approvals"), QJsonArray{badItem});
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/approvals"),
+        okReply(200, malformedItem));
+    fixture.controller->refreshApprovals();
+
+    QTRY_COMPARE(errorSpy.count(), 1);
+    QCOMPARE(approvalSpy.count(), 1);
+    QCOMPARE(fixture.controller->lastErrorCode(), QStringLiteral("invalid_approvals_payload"));
+
+    errorSpy.clear();
     QJsonObject malformed;
     malformed.insert(
         QStringLiteral("approvals"),

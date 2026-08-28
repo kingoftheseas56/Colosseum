@@ -283,6 +283,8 @@ other Task 2/3/5 command (`native/devtools/LanistaServer.cpp:cmdWindowSetState`)
   Slice 4) there are 51**, adding `comics_catalogue_intelligence_smoke.json` — see that slice's own
   entry below.
   **As of 2026-08-27 there are 52**, adding `biblio_downloaded_epub_read_journey.json`.
+  **As of 2026-08-28 there are 55**: `origin/master` measured 53, and account hardening adds
+  `account_create_happy_path.json` plus `account_signin_happy_path.json`.
 - **`tests/lanista-seeds/`** is the versioned fixture zoo: one folder per real-bug seed, each
   carrying a `seed.json` manifest (`{name, version, provenance, placement, expectedOnBoot}` — see
   `tests/lanista-seeds/README.md` for the full journey contract). A seed is admitted only when a
