@@ -15,6 +15,15 @@ constexpr int kRefreshLeadSeconds = 60;
 constexpr int kOfflineRefreshRetryMs = 30 * 1000;
 constexpr int kChallengePollMs = 2 * 1000;
 constexpr int kApprovalRetryMs = 5 * 1000;
+
+QString accountAvatarId(const QJsonObject &body) {
+    const QString canonical = body
+        .value(QStringLiteral("builtin_avatar_id"))
+        .toString();
+    if (!canonical.isEmpty())
+        return canonical;
+    return body.value(QStringLiteral("avatar_id")).toString();
+}
 }
 
 void AccountController::completeOnboarding() {
@@ -1078,11 +1087,9 @@ void AccountController::handleCompleted(
                         .value(QStringLiteral("username"))
                         .toString());
             }
-            if (reply.body.contains(QStringLiteral("avatar_id"))) {
-                setAvatarId(
-                    reply.body
-                        .value(QStringLiteral("avatar_id"))
-                        .toString());
+            if (reply.body.contains(QStringLiteral("builtin_avatar_id"))
+                || reply.body.contains(QStringLiteral("avatar_id"))) {
+                setAvatarId(accountAvatarId(reply.body));
             }
             if (reply.body.contains(
                     QStringLiteral("protect_new_device_signins"))) {
@@ -1105,8 +1112,10 @@ void AccountController::handleCompleted(
                 setUsername(reply.body.value(QStringLiteral("username")).toString());
             else
                 refreshProfile();
-            if (reply.body.contains(QStringLiteral("avatar_id")))
-                setAvatarId(reply.body.value(QStringLiteral("avatar_id")).toString());
+            if (reply.body.contains(QStringLiteral("builtin_avatar_id"))
+                || reply.body.contains(QStringLiteral("avatar_id"))) {
+                setAvatarId(accountAvatarId(reply.body));
+            }
             emit usernameRenameSucceeded();
             return;
         }
@@ -1119,10 +1128,12 @@ void AccountController::handleCompleted(
         if (isSuccess(reply)) {
             if (reply.body.contains(QStringLiteral("username")))
                 setUsername(reply.body.value(QStringLiteral("username")).toString());
-            if (reply.body.contains(QStringLiteral("avatar_id")))
-                setAvatarId(reply.body.value(QStringLiteral("avatar_id")).toString());
-            else
+            if (reply.body.contains(QStringLiteral("builtin_avatar_id"))
+                || reply.body.contains(QStringLiteral("avatar_id"))) {
+                setAvatarId(accountAvatarId(reply.body));
+            } else {
                 refreshProfile();
+            }
             emit builtinAvatarChangeSucceeded();
             return;
         }

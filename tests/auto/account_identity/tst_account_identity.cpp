@@ -336,6 +336,7 @@ private slots:
     void deviceListUpdatesSafeCount();
 
     void profileRefreshExposesPersistedAvatar();
+    void profileUsesCanonicalBuiltinAvatarField();
     void avatarMutationFailurePreservesPersistedAvatar();
     void passwordChangeSuccessEmitsCompletionSignal();
     void passwordChangeFailureDoesNotEmitCompletionSignal();
@@ -1922,6 +1923,27 @@ void tst_account_identity::profileRefreshExposesPersistedAvatar() {
 
     QTRY_COMPARE(fixture.controller->avatarId(), QStringLiteral("laurel"));
     QCOMPARE(avatarSpy.count(), 1);
+}
+
+void tst_account_identity::profileUsesCanonicalBuiltinAvatarField() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    restoreSignedIn(fixture);
+
+    const QJsonObject profile{
+        {QStringLiteral("id"), QStringLiteral("account-1")},
+        {QStringLiteral("username"), QStringLiteral("AvatarOwner")},
+        {QStringLiteral("builtin_avatar_id"), QStringLiteral("laurel")},
+        {QStringLiteral("protect_new_device_signins"), true},
+    };
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/profile"),
+        okReply(200, profile));
+
+    fixture.controller->refreshProfile();
+
+    QTRY_COMPARE(fixture.controller->avatarId(), QStringLiteral("laurel"));
 }
 
 void tst_account_identity::avatarMutationFailurePreservesPersistedAvatar() {
