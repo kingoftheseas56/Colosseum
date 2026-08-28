@@ -15,6 +15,11 @@ Item {
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"
+    property var accountController:
+        typeof AccountController !== "undefined" ? AccountController : null
+    readonly property bool accountPresent: accountController
+        && (accountController.mode === "signedIn"
+            || accountController.mode === "offline")
 
     signal mediumSelected(string medium)
     signal homeRequested()
@@ -241,27 +246,21 @@ Item {
             objectName: "colosseumTopbarAccountButton"
             opacity: accountMa.containsMouse ? 1.0 : 0.92
             Accessible.role: Accessible.Button
-            Accessible.name: (typeof AccountController !== "undefined"
-                              && AccountController
-                              && AccountController.mode === "signedIn")
-                             ? ("Account: " + AccountController.username)
-                             : "Account"
+            Accessible.name: bar.accountPresent
+                ? ("Account: " + bar.accountController.username)
+                : "Account"
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
-                readonly property bool signedIn:
-                    typeof AccountController !== "undefined"
-                    && AccountController
-                    && AccountController.mode === "signedIn"
-                color: signedIn ? Qt.rgba(0.94, 0.77, 0.29, 0.16) : "transparent"
+                color: bar.accountPresent ? Qt.rgba(0.94, 0.77, 0.29, 0.16) : "transparent"
                 border.width: 1.5
-                border.color: signedIn
+                border.color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.8)
                     : Qt.rgba(1, 1, 1, 0.38)
                 Item {
                     anchors.centerIn: parent
                     width: 14; height: 14
-                    visible: !parent.signedIn
+                    visible: !bar.accountPresent
                     opacity: 0.82
                     Rectangle {
                         width: 5; height: 5; radius: 2.5
@@ -278,11 +277,9 @@ Item {
                 }
                 Text {
                     anchors.centerIn: parent
-                    visible: parent.signedIn
+                    visible: bar.accountPresent
                     text: {
-                        const who = (typeof AccountController !== "undefined"
-                                     && AccountController)
-                                    ? AccountController.username : "";
+                        const who = bar.accountController ? bar.accountController.username : "";
                         return who.length > 0 ? who.charAt(0).toUpperCase() : "?";
                     }
                     color: "#f0df9a"

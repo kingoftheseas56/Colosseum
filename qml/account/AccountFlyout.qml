@@ -11,8 +11,10 @@ Item {
 
     property var controller: null
     property string initial: "?"
-    readonly property bool signedIn:
-        controller && controller.mode === "signedIn"
+    readonly property bool accountPresent: controller
+        && (controller.mode === "signedIn" || controller.mode === "offline")
+    readonly property bool onlineAccount: controller
+        && controller.mode === "signedIn"
 
     visible: false
     anchors.fill: parent
@@ -87,7 +89,8 @@ Item {
                     spacing: 2
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
-                        text: root.signedIn
+                        objectName: "accountFlyoutUsername"
+                        text: root.accountPresent
                               ? (controller ? controller.username : "")
                               : qsTr("Not signed in")
                         color: "#f2f2ef"
@@ -106,13 +109,13 @@ Item {
 
             Rectangle {
                 width: parent.width; height: 1; color: "#26231d"
-                visible: root.signedIn
+                visible: root.accountPresent
             }
 
             Row {
                 spacing: 8
                 width: parent.width
-                visible: root.signedIn
+                visible: root.accountPresent
                 Rectangle {
                     width: 7; height: 7; radius: 3.5
                     anchors.verticalCenter: parent.verticalCenter
@@ -138,13 +141,13 @@ Item {
             // nav into the centre (Preflight menu mock, merged with identity)
             Rectangle {
                 width: parent.width; height: 1; color: "#26231d"
-                visible: root.signedIn
+                visible: root.accountPresent
             }
 
             Column {
                 width: parent.width
                 spacing: 2
-                visible: root.signedIn
+                visible: root.accountPresent
                 Repeater {
                     model: [
                         { label: qsTr("Account ›"), section: "colosseum" },
@@ -178,6 +181,7 @@ Item {
             }
 
             Button {
+                objectName: "accountFlyoutSessionAction"
                 width: parent.width
                 height: 38
                 background: Rectangle {
@@ -187,7 +191,7 @@ Item {
                     border.color: parent.hovered ? "#3a362c" : "#2a2720"
                 }
                 contentItem: Text {
-                    text: root.signedIn ? qsTr("Sign out") : qsTr("Sign in")
+                    text: root.accountPresent ? qsTr("Sign out") : qsTr("Sign in")
                     color: "#d8d4c8"
                     font.family: "Inter"
                     font.pixelSize: 12
@@ -197,7 +201,7 @@ Item {
                 }
                 onClicked: {
                     if (root.controller) {
-                        if (root.signedIn)
+                        if (root.accountPresent)
                             root.controller.logoutCurrent();
                         else
                             root.controller.returnToSignIn();
