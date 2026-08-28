@@ -346,6 +346,7 @@ private slots:
     void recoveryReplacementSignalsAreOperationSpecific();
     void devicesExposeServerCurrentDeviceIdentityToQml();
     void malformedDeviceListIsProtocolFailureAndPreservesPriorList();
+    void malformedApprovalListIsProtocolFailure();
     void revokeSuccessWaitsForAuthoritativeRefresh();
 };
 
@@ -2161,6 +2162,66 @@ void tst_account_identity::malformedDeviceListIsProtocolFailureAndPreservesPrior
     const QList<QVariant> args = failureSpy.takeFirst();
     QCOMPARE(args.at(1).toString(), QStringLiteral("protocol"));
     QCOMPARE(args.at(2).toString(), QStringLiteral("invalid_devices_payload"));
+}
+
+void tst_account_identity::malformedApprovalListIsProtocolFailure() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    restoreSignedIn(fixture);
+
+    const QJsonObject approval{
+        {QStringLiteral("id"), QStringLiteral("approval-1")},
+        {QStringLiteral("challenge_id"), QStringLiteral("approval-1")},
+        {QStringLiteral("kind"), QStringLiteral("device")},
+        {QStringLiteral("device_label"), QStringLiteral("Pending device")},
+    };
+    QJsonObject valid;
+    valid.insert(QStringLiteral("approvals"), QJsonArray{approval});
+
+    QSignalSpy approvalSpy(
+        fixture.controller.get(),
+        &AccountController::approvalRequestsChanged);
+    QSignalSpy errorSpy(
+        fixture.controller.get(),
+        &AccountController::accountError);
+
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/approvals"),
+        okReply(200, valid));
+    fixture.controller->refreshApprovals();
+
+    QTRY_COMPARE(approvalSpy.count(), 1);
+    QCOMPARE(
+        approvalSpy.at(0).at(0).toJsonArray(),
+        QJsonArray{approval});
+
+    QJsonObject malformed;
+    malformed.insert(
+        QStringLiteral("approvals"),
+        QStringLiteral("not-an-array"));
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/approvals"),
+        okReply(200, malformed));
+    fixture.controller->refreshApprovals();
+
+    QTRY_VERIFY(
+        approvalSpy.count() > 1
+        || errorSpy.count() > 0);
+    QCOMPARE(approvalSpy.count(), 1);
+    QCOMPARE(errorSpy.count(), 1);
+    QCOMPARE(
+        fixture.controller->errorCategory(),
+        QStringLiteral("protocol"));
+    QCOMPARE(
+        fixture.controller->lastErrorCode(),
+        QStringLiteral("invalid_approvals_payload"));
+    const QList<QVariant> args = errorSpy.takeFirst();
+    QCOMPARE(args.at(0).toString(), QStringLiteral("protocol"));
+    QCOMPARE(
+        args.at(1).toString(),
+        QStringLiteral("invalid_approvals_payload"));
 }
 
 void tst_account_identity::revokeSuccessWaitsForAuthoritativeRefresh() {

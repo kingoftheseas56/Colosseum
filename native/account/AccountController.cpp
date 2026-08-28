@@ -1205,10 +1205,18 @@ void AccountController::handleCompleted(
 
     case AccountOperation::ListApprovals:
         if (isSuccess(reply)) {
-            emit approvalRequestsChanged(
-                reply.body
-                    .value(QStringLiteral("approvals"))
-                    .toArray());
+            const QJsonValue approvalsValue =
+                reply.body.value(QStringLiteral("approvals"));
+            if (!approvalsValue.isArray()) {
+                setError(
+                    ErrorCategory::Protocol,
+                    QStringLiteral("invalid_approvals_payload"),
+                    QStringLiteral(
+                        "The account service returned an invalid approval list."));
+                scheduleApprovalPoll(kApprovalRetryMs);
+                return;
+            }
+            emit approvalRequestsChanged(approvalsValue.toArray());
             scheduleApprovalPoll();
             return;
         }
