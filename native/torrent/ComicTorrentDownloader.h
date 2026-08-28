@@ -21,9 +21,9 @@
 //      selected indices becomes the file-priority vector; a second edition on
 //      the same hash JOINS the job instead of re-adding the magnet. On engine
 //      completion each intent independently runs ComicEditionAssembler::
-//      assemble() (synchronous) then hands the staging directory to
-//      ComicDownloader::ingestAssembledEdition(). One intent's assembly
-//      failure never fails its siblings. Every intent is journaled to a
+//      assembleDetached() on a worker, then hands the staging directory to
+//      ComicDownloader::ingestAssembledEdition() on this object's thread. One
+//      intent's assembly failure never fails its siblings. Every intent is journaled to a
 //      ComicRequestLedger so a restart replays exactly the in-flight rows.
 //
 // Both subsystems are reached through the SAME IComicTorrentEngine seam (the
@@ -44,8 +44,10 @@
 #include <QVariantMap>
 #include <QVector>
 
+#include <atomic>
+#include <memory>
+
 class ComicDownloader;          // native/engine — edition publish target (ingestAssembledEdition)
-class ComicEditionAssembler;    // native/engine
 class ComicRequestLedger;
 
 // ── The testable engine seam ────────────────────────────────────────────────
@@ -141,7 +143,7 @@ public:
     //   Missing  — a selected file is absent entirely. After torrentFinished a
     //              WANTED file always exists, so absence is a genuine error, not
     //              the flush race: assemble anyway so it fails promptly (and a
-    //              synthetic missing-payload sibling still fails synchronously).
+    //              synthetic missing-payload sibling still fails promptly).
     enum class DiskReadiness { Ready, Flushing, Missing };
     static DiskReadiness diskReadiness(
         const QString& saveDir,
@@ -217,6 +219,9 @@ private:
         ComicEditionFileSelector::ComicPayloadDecision decision;
         bool resolved = false;        // decision computed (success or typed failure)
         bool awaitingChoice = false;  // Ambiguous / CombinedOnly / IncompleteIssueSet
+        bool assembling = false;      // readiness/assembly worker is in flight
+        bool assemblyWorkerStarted = false; // detached assembler has entered its worker
+        quint64 generation = 0;       // rejects callbacks from a prior revival
         bool terminal = false;        // done consuming shared files (assembled/failed/cancelled)
         qint64 fileSize = 0;          // sum of decision.files[].bytes, for progress scaling
         qint64 received = 0;
@@ -243,10 +248,11 @@ private:
     void resolvePackJob(PackJob* job, bool payloadAlreadyFinished);
     void emitTypedSelection(const EditionIntent& intent);
     void reapplyPackPriorities(PackJob* job);
-    void assembleAndPublish(PackJob* job, EditionIntent& intent);
+    void assembleAndPublish(PackJob* job, EditionIntent& intent, quint64 generation);
     // Assemble as soon as the selected files are fully on disk; else re-check on
     // a short timer (see filesReadyOnDisk below).
-    void tryAssembleWhenReady(const QString& infoHash, const QString& editionId, int attempt);
+    void tryAssembleWhenReady(const QString& infoHash, const QString& editionId,
+                              quint64 generation, int attempt);
     bool hasLivePackIntent(const PackJob* job) const;
     // Tears the job down when it has no live intent left AND nothing on it
     // ever succeeded (pure cancel/fail-out). A job with >=1 successful intent
@@ -282,10 +288,14 @@ private:
     QHash<QString, QString> m_hashByIssue;
 
     ComicDownloader* m_ingestTarget = nullptr;
-    ComicEditionAssembler* m_assembler = nullptr;
+    // One atomic cancellation flag per detached assembly. The worker captures
+    // only request value data and this flag; all ledger/job/publication state
+    // remains owned by this QObject's thread.
+    QHash<QString, std::shared_ptr<std::atomic_bool>> m_assemblyCancels;
     ComicRequestLedger* m_ledger = nullptr;
     QString m_packSaveRoot;
     QString m_stagingRoot;
     QHash<QString, PackJob*> m_packJobs;         // by infoHash
     QHash<QString, QString> m_hashByEdition;     // editionId -> infoHash
+    quint64 m_nextIntentGeneration = 0;
 };

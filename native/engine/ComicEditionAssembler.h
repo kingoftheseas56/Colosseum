@@ -22,6 +22,9 @@
 #include <QString>
 #include <QStringList>
 
+#include <atomic>
+#include <memory>
+
 struct ComicAssembleRequest {
     QString editionId;
     QString jobRoot;      // torrent save dir the selected files live under
@@ -29,6 +32,9 @@ struct ComicAssembleRequest {
     // Ordered; for IssueArchiveSet each file's `order` groups pages by source issue.
     QList<ComicEditionFileSelector::ComicSelectedFile> files;
     QString stagingRoot;  // "<stagingRoot>/<editionId>.staging" is built here
+    // Optional cancellation shared by a detached worker. The assembler never
+    // dereferences a caller-owned QObject from the worker thread.
+    std::shared_ptr<std::atomic_bool> cancelFlag;
 };
 
 class ComicEditionAssembler : public QObject
@@ -50,6 +56,12 @@ public:
     // value AND the signal. NEVER leaves a partial "<editionId>.staging"
     // directory behind on failure.
     Result assemble(const ComicAssembleRequest& req);
+
+    // Runs the same disk/extraction operation on a detached worker-owned
+    // assembler. The returned Result is value data and is safe to marshal back
+    // through QFutureWatcher to the owning QObject thread.
+    static Result assembleDetached(const ComicAssembleRequest& req,
+                                   const std::shared_ptr<std::atomic_bool>& cancelFlag);
 
     // Aborts an in-flight or just-finished assembly for editionId and removes
     // its staging directory if one is known. A cancel() that lands before the

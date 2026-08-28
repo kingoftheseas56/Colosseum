@@ -180,6 +180,16 @@ ComicEditionAssembler::ComicEditionAssembler(QObject* parent) : QObject(parent)
 {
 }
 
+ComicEditionAssembler::Result ComicEditionAssembler::assembleDetached(
+    const ComicAssembleRequest& req,
+    const std::shared_ptr<std::atomic_bool>& cancelFlag)
+{
+    ComicAssembleRequest workerRequest = req;
+    workerRequest.cancelFlag = cancelFlag;
+    ComicEditionAssembler worker;
+    return worker.assemble(workerRequest);
+}
+
 void ComicEditionAssembler::cancel(const QString& editionId)
 {
     const QString id = editionId.trimmed();
@@ -212,9 +222,14 @@ ComicEditionAssembler::Result ComicEditionAssembler::assemble(const ComicAssembl
         return out;
     };
 
+    auto cancelled = [&req, this, &id]() {
+        return m_cancelRequested.contains(id)
+            || (req.cancelFlag && req.cancelFlag->load(std::memory_order_acquire));
+    };
+
     // A cancel() that arrived before this call reached the heavy work aborts
     // immediately — no extraction, no staging left behind.
-    if (m_cancelRequested.remove(id)) return fail(QStringLiteral("cancelled"));
+    if (m_cancelRequested.remove(id) || cancelled()) return fail(QStringLiteral("cancelled"));
     if (req.files.isEmpty()) return fail(QStringLiteral("no files selected for assembly"));
     if (req.kind == ComicPayloadKind::None) return fail(QStringLiteral("no payload kind selected"));
 
@@ -256,6 +271,7 @@ ComicEditionAssembler::Result ComicEditionAssembler::assemble(const ComicAssembl
             QDir(extractTmp).removeRecursively();
             return fail(err);
         }
+        if (cancelled()) return fail(QStringLiteral("cancelled"));
         QString collectErr;
         const QStringList rel = collectValidatedImages(extractTmp, &collectErr);
         if (rel.isEmpty()) {
@@ -275,6 +291,7 @@ ComicEditionAssembler::Result ComicEditionAssembler::assemble(const ComicAssembl
         const int total = req.files.size();
         int done = 0;
         for (const ComicSelectedFile& sf : req.files) {
+            if (cancelled()) return fail(QStringLiteral("cancelled"));
             QString abs;
             if (!safeJobPath(cleanJobRoot, sf.path, &abs))
                 return fail(QStringLiteral("selected file path escapes the job root"));
@@ -311,6 +328,7 @@ ComicEditionAssembler::Result ComicEditionAssembler::assemble(const ComicAssembl
     } else if (req.kind == ComicPayloadKind::LooseImageSubtree) {
         const QList<ComicSelectedFile> sorted = naturalSortedByPath(req.files);
         for (const ComicSelectedFile& sf : sorted) {
+            if (cancelled()) return fail(QStringLiteral("cancelled"));
             QString abs;
             if (!safeJobPath(cleanJobRoot, sf.path, &abs))
                 return fail(QStringLiteral("selected file path escapes the job root"));

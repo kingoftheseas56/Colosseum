@@ -39,6 +39,7 @@ colosseum_register_harness(pin_proxy_factory_harness     unit;network)
 colosseum_register_harness(startup_layout_harness        unit;bootstrap)
 colosseum_register_harness(app_data_migration_harness    unit;bootstrap)
 colosseum_register_harness(ipv4_pin_store_harness        unit;bootstrap;network)
+colosseum_register_harness(manga_image_host_resolver_harness unit;network)
 colosseum_register_harness(comicreader_cache_harness     unit)
 colosseum_register_harness(biblio_catalog_logic_harness  unit)
 # Multi-volume pack demux (Slice 1): parser table + Entry round-trip. No net,
@@ -2252,5 +2253,25 @@ add_test(NAME colosseum.qttest.watchparty_lifecycle
          COMMAND tst_watchparty_lifecycle)
 set_tests_properties(colosseum.qttest.watchparty_lifecycle PROPERTIES
     LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# LiveStore recorder lifecycle: the fake recorder is this same test executable,
+# so start/stop/error paths are deterministic and never require mpv or network.
+add_executable(tst_livestore
+    auto/player/tst_livestore.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/livestore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/livestore.h")
+target_include_directories(tst_livestore PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_livestore PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+set_target_properties(tst_livestore PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_livestore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.livestore COMMAND tst_livestore)
+set_tests_properties(colosseum.qttest.livestore PROPERTIES
+    LABELS "unit;qttest;player"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)

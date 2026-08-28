@@ -54,6 +54,11 @@ private:
     void updateRecordingProgress();
     void finishRecording(const QString &id, const QString &error = QString());
     void markRecordingError(const QString &id, const QString &error);
+    void handleRecorderStarted(const QString &id);
+    void handleRecorderFinished(const QString &id, int exitCode, QProcess::ExitStatus status);
+    void handleRecorderError(const QString &id);
+    void requestRecorderStop(const QString &id);
+    void cleanupRecorder(const QString &id);
 
     bool m_isLive = false;
     QVariantMap m_activeChannel;
@@ -63,5 +68,6 @@ private:
     QVariantList m_recordings;
     QString m_defaultRecordingDir;
     QHash<QString, QProcess *> m_recorders;
+    QHash<QString, QTimer *> m_recorderKillTimers;
     QTimer m_recordingTimer;
 };

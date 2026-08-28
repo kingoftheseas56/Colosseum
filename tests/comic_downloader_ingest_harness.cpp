@@ -497,6 +497,159 @@ bool runAssembledIngestCancelFailureScenario(QNetworkAccessManager* nam)
     return true;
 #endif
 }
+
+// Active extraction cancellation must return before the extractor's finished
+// signal is delivered.  The finished handler then owns process deletion,
+// cancelled-payload cleanup, and queue progression exactly once.
+bool runActiveExtractionCancelScenario(QNetworkAccessManager* nam)
+{
+    const QString activeId = QStringLiteral("active-extraction-cancelled");
+    const QString queuedId = QStringLiteral("active-extraction-queued");
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) {
+        std::printf("FAIL: could not create active-cancel scratch dir\n");
+        return false;
+    }
+
+    QString activeArchive;
+    QString queuedArchive;
+    if (!makeCbr(scratch.path(), QStringLiteral("active-cancel"), &activeArchive)
+        || !makeCbr(scratch.path(), QStringLiteral("queued-after-cancel"), &queuedArchive)) {
+        std::printf("FAIL: could not build active-cancel fixtures\n");
+        return false;
+    }
+
+    ComicDownloader comics(nam);
+    comics.deleteIssue(activeId);
+    comics.deleteIssue(queuedId);
+    int removedCount = 0;
+    int failedCount = 0;
+    int queuedFinishedCount = 0;
+    int queuedFailedCount = 0;
+    QObject::connect(&comics, &ComicDownloader::removed, &comics,
+        [&](const QString& id) { if (id == activeId) ++removedCount; });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& id, const QString&) { if (id == activeId) ++failedCount; });
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& id) { if (id == queuedId) ++queuedFinishedCount; });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& id, const QString&) { if (id == queuedId) ++queuedFailedCount; });
+
+    // No event-loop pump between these calls: the first local CBR has started
+    // extraction, while the second occupies the downloader's queue.
+    comics.ingestLocalArchive(activeId, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                              QStringLiteral("Active Cancel"), activeArchive);
+    comics.ingestLocalArchive(queuedId, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                              QStringLiteral("Queued After Cancel"), queuedArchive);
+
+    QElapsedTimer cancelTimer;
+    cancelTimer.start();
+    comics.cancelDownload(activeId);
+    const qint64 cancelElapsed = cancelTimer.elapsed();
+    if (cancelElapsed >= 250) {
+        std::printf("FAIL: active extraction cancellation took %lld ms\n",
+                    static_cast<long long>(cancelElapsed));
+        return false;
+    }
+    if (removedCount != 0 || failedCount != 0 || queuedFinishedCount != 0) {
+        std::printf("FAIL: active extraction cancellation completed synchronously\n");
+        return false;
+    }
+
+    // A repeated QML cancellation while the process signal is in flight must
+    // not emit a second removal or disturb the queued job.
+    comics.cancelDownload(activeId);
+    if (removedCount != 0 || failedCount != 0) {
+        std::printf("FAIL: repeated active cancellation completed synchronously\n");
+        return false;
+    }
+
+    if (!waitFor([&] { return removedCount == 1 && queuedFinishedCount == 1; }, 30000)) {
+        std::printf("FAIL: active cancellation did not retire once and complete its queued successor (removed=%d failed=%d queuedFinished=%d queuedFailed=%d active=%d source=%d)\n",
+                    removedCount, failedCount, queuedFinishedCount, queuedFailedCount,
+                    static_cast<int>(comics.activeIssueJobs().size()), QFile::exists(queuedArchive));
+        return false;
+    }
+    if (removedCount != 1 || failedCount != 0 || queuedFinishedCount != 1) {
+        std::printf("FAIL: active cancellation/queue progression counts were removed=%d failed=%d queuedFinished=%d\n",
+                    removedCount, failedCount, queuedFinishedCount);
+        return false;
+    }
+    if (comics.isDownloaded(activeId) || comics.activeIssueJobs().size() != 0
+        || QFile::exists(activeArchive) || QDir(activeArchive + QStringLiteral(".x")).exists()) {
+        std::printf("FAIL: active cancellation left payload or an active job behind\n");
+        return false;
+    }
+
+    comics.deleteIssue(queuedId);
+    std::printf("OK: active extraction cancellation is prompt, idempotent, and advances the queue once\n");
+    return true;
+}
+
+// A failed-to-start extractor reports errorOccurred() without finished().
+// That terminal path must still fail the active import and advance a queued
+// fast-path successor exactly once.
+bool runExtractorFailedStartScenario(QNetworkAccessManager* nam)
+{
+    const QString failedId = QStringLiteral("extractor-failed-start");
+    const QString queuedId = QStringLiteral("extractor-failed-start-queued");
+    QTemporaryDir scratch;
+    if (!scratch.isValid()) {
+        std::printf("FAIL: could not create failed-start scratch dir\n");
+        return false;
+    }
+
+    QString failedArchive;
+    QString queuedArchive;
+    if (!makeCbr(scratch.path(), QStringLiteral("failed-start"), &failedArchive)
+        || !makeCbz(scratch.path(), QStringLiteral("queued-fast"), &queuedArchive)) {
+        std::printf("FAIL: could not build failed-start fixtures\n");
+        return false;
+    }
+
+    const QByteArray oldTar = qgetenv("COLOSSEUM_COMIC_BSDTAR_PATH");
+    const QByteArray oldSevenZip = qgetenv("COLOSSEUM_COMIC_7ZIP_PATH");
+    qputenv("COLOSSEUM_COMIC_BSDTAR_PATH", QByteArrayLiteral("C:/does-not-exist/colosseum-tar.exe"));
+    qputenv("COLOSSEUM_COMIC_7ZIP_PATH", QByteArray());
+
+    ComicDownloader comics(nam);
+    comics.deleteIssue(failedId);
+    comics.deleteIssue(queuedId);
+    int failedCount = 0;
+    int queuedFinishedCount = 0;
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& id, const QString&) { if (id == failedId) ++failedCount; });
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& id) { if (id == queuedId) ++queuedFinishedCount; });
+
+    comics.ingestLocalArchive(failedId, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                              QStringLiteral("Failed Start"), failedArchive);
+    comics.ingestLocalArchive(queuedId, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                              QStringLiteral("Queued Fast"), queuedArchive);
+
+    const bool completed = waitFor([&] { return failedCount == 1 && queuedFinishedCount == 1; }, 5000);
+    if (!oldTar.isNull()) qputenv("COLOSSEUM_COMIC_BSDTAR_PATH", oldTar);
+    else qunsetenv("COLOSSEUM_COMIC_BSDTAR_PATH");
+    if (!oldSevenZip.isNull()) qputenv("COLOSSEUM_COMIC_7ZIP_PATH", oldSevenZip);
+    else qunsetenv("COLOSSEUM_COMIC_7ZIP_PATH");
+
+    if (!completed) {
+        std::printf("FAIL: failed-to-start extractor wedged the queue (failed=%d queuedFinished=%d active=%d)\n",
+                    failedCount, queuedFinishedCount,
+                    static_cast<int>(comics.activeIssueJobs().size()));
+        return false;
+    }
+    if (failedCount != 1 || queuedFinishedCount != 1 || comics.activeIssueJobs().size() != 0
+        || !QFile::exists(failedArchive)) {
+        std::printf("FAIL: failed-to-start extractor did not preserve failure semantics or queue progress\n");
+        return false;
+    }
+
+    QFile::remove(failedArchive);
+    comics.deleteIssue(queuedId);
+    std::printf("OK: failed-to-start extractor reports failure and advances its queued successor once\n");
+    return true;
+}
 } // namespace
 
 int main(int argc, char** argv)
@@ -719,12 +872,15 @@ int main(int argc, char** argv)
     // ingestAssembledEdition() — separate ComicDownloader instances so these
     // scenarios never interact with the event loop or signal handlers wired up
     // for the scenario above. The success scenario is async as of Task 5 (the
-    // publish packs off the GUI thread); the cancel scenarios stay
-    // synchronous (they cancel a QUEUED edition, before any packing begins).
+    // publish packs off the GUI thread); queued-cancel scenarios remain
+    // synchronous because they cancel before any packing begins. Active
+    // extraction cancellation is covered separately below.
     if (!runAssembledIngestSuccessScenario(&nam)) return 1;
     if (!runAssembledIngestValidationRejectsScenario(&nam)) return 1;
     if (!runAssembledIngestCancelScenario(&nam)) return 1;
     if (!runAssembledIngestCancelFailureScenario(&nam)) return 1;
+    if (!runActiveExtractionCancelScenario(&nam)) return 1;
+    if (!runExtractorFailedStartScenario(&nam)) return 1;
 
     Q_UNUSED(app);
     return 0;

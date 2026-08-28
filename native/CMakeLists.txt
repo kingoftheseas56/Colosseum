@@ -288,6 +288,8 @@ add_executable(colosseum
     engine/ComickCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
     engine/BookDownloader.cpp
     engine/BookDownloader.h
     engine/AudiobookDownloader.cpp
@@ -1412,6 +1414,18 @@ add_executable(manga_volume_identity_harness
 )
 target_include_directories(manga_volume_identity_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manga_volume_identity_harness PRIVATE Qt6::Core)
+
+# Deterministic runtime proof for MangaDownloader's lazy CDN host resolution.
+# The resolver is injected with a delayed callback so the harness can prove
+# coalescing, retry-token preservation, fallback, cancellation, and exactly-once
+# completion without live DNS or the application process.
+add_executable(manga_image_host_resolver_harness
+    ../tests/manga_image_host_resolver_harness.cpp
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
+target_include_directories(manga_image_host_resolver_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_image_host_resolver_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp

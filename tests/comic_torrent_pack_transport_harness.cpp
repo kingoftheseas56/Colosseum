@@ -4,9 +4,9 @@
 // harness.cpp's proof shape but drives ComicTorrentDownloader's NEW edition
 // pack API through a FAKE IComicTorrentEngine (no real libtorrent session
 // touched) plus a REAL ComicEditionAssembler + REAL ComicDownloader ingest
-// target (both already-proven synchronous/local components).
+// target (the local assembler runs on the transport's worker path).
 //
-// Proves all 8 required behaviors:
+// Proves all 10 required behaviors:
 //   1. First intent calls addMagnet(paused=true) exactly once.
 //   2. Metadata -> exact union priorities set BEFORE startTorrent.
 //   3. A second edition on the SAME hash does not re-add the magnet and
@@ -21,6 +21,11 @@
 //      stays resident because an earlier sibling already succeeded) resolves
 //      against the existing manifest and assembles immediately — no second
 //      addMagnet, no second torrentFinished needed.
+//   9. Cancelling immediately after torrentFinished retires the in-flight
+//      assembly and cleans any late worker result without publication.
+//  10. A cancelled generation cannot publish or clean staging belonging to a
+//      re-requested generation of the same edition while a sibling keeps the
+//      shared pack resident.
 #include "torrent/ComicTorrentDownloader.h"
 #include "torrent/ComicRequestLedger.h"
 #include "torrent/ComicEditionIdentity.h"
@@ -28,6 +33,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QDirIterator>
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
@@ -40,6 +46,8 @@
 #include <QString>
 #include <QStringList>
 #include <QTemporaryDir>
+#include <QThread>
+#include <QTimer>
 #include <QVector>
 
 #include <cstdlib>
@@ -74,6 +82,31 @@ bool waitFor(const std::function<bool()>& pred, int timeoutMs = 20000)
         QCoreApplication::processEvents(QEventLoop::AllEvents, 15);
     }
     return true;
+}
+
+// Used when a test must observe a worker-side filesystem milestone without
+// dispatching the queued watcher completion that would race the next action.
+QString findEditionStaging(const QString& root, const QString& editionId)
+{
+    QDirIterator it(root, QStringList{editionId + QStringLiteral(".staging")},
+                    QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    return it.hasNext() ? it.next() : QString();
+}
+
+bool waitForEditionStaging(const QString& root, const QString& editionId,
+                           QString* pathOut, int timeoutMs = 20000)
+{
+    QElapsedTimer timer;
+    timer.start();
+    for (;;) {
+        const QString path = findEditionStaging(root, editionId);
+        if (!path.isEmpty()) {
+            if (pathOut) *pathOut = path;
+            return true;
+        }
+        if (timer.elapsed() > timeoutMs) return false;
+        QThread::msleep(1);
+    }
 }
 
 // ── Fake engine seam ─────────────────────────────────────────────────────────
@@ -222,6 +255,11 @@ bool writeTpbFixture(const QString& saveDir)
     return writePngFixture(saveDir + QStringLiteral("/TPB 1/page_000.png"))
         && writePngFixture(saveDir + QStringLiteral("/TPB 1/page_001.png"));
 }
+bool writeOmnibusFixture(const QString& saveDir)
+{
+    return writePngFixture(saveDir + QStringLiteral("/Omnibus 1/page_000.png"))
+        && writePngFixture(saveDir + QStringLiteral("/Omnibus 1/page_001.png"));
+}
 
 } // namespace
 
@@ -232,6 +270,9 @@ int main(int argc, char** argv)
     const QString hash(40, QLatin1Char('a'));
     const QString hash2(40, QLatin1Char('b'));
     const QString hash3(40, QLatin1Char('c'));
+    const QString hash4(40, QLatin1Char('d'));
+    const QString hash5(40, QLatin1Char('e'));
+    const QString hash6(40, QLatin1Char('f'));
     const QString magnetUri = QStringLiteral("magnet:?xt=urn:btih:");
 
     const ComicEditionTarget compendium1 =
@@ -349,15 +390,16 @@ int main(int argc, char** argv)
         downloader.downloadEdition(omnibus1, hash2, magnetUri);
         require(engine.priorities == QVector<int>({7, 7, 7, 7, 0, 0}), "both resolved before finish");
 
-        // Assembly runs inline under emitFinished(); the PUBLISH (packing the
-        // assembled staging dir into a canonical CBZ) is now backgrounded
-        // (Task 5), so compendium-1's isDownloaded lands via the event loop.
-        // omnibus-1's failure is still synchronous -- it fails in the assembler
-        // (pages missing on disk), before any ingest/pack is dispatched.
+        // Assembly and publication must both complete asynchronously. In
+        // particular, an assembler failure must not be delivered inline from
+        // the engine's torrentFinished callback: extraction can block for
+        // minutes on a damaged archive.
         engine.emitFinished(hash2);
 
-        require(failedIds == QStringList{omnibus1.editionId},
-                "(5) only the sibling with the missing payload fails");
+        require(failedIds.isEmpty(),
+                "(5) assembly outcomes are not delivered inline from torrentFinished");
+        require(waitFor([&] { return failedIds == QStringList{omnibus1.editionId}; }),
+                "(5) only the sibling with the missing payload fails asynchronously");
         require(waitFor([&] { return comics.isDownloaded(compendium1.editionId); }),
                 "(5) the sibling with present pages still finishes and publishes");
         require(!comics.isDownloaded(omnibus1.editionId),
@@ -375,6 +417,125 @@ int main(int argc, char** argv)
 
         comics.deleteIssue(compendium1.editionId);
         comics.deleteIssue(tpb1.editionId);
+    }
+
+    // ── Async cancellation: cancelling immediately after the engine reports
+    //    completion retires the intent, and a late worker result is discarded
+    //    without publication or a staging-directory leak. ───────────────────
+    {
+        QTemporaryDir dir;
+        require(dir.isValid(), "temp dir is valid");
+        const QString saveRoot = dir.filePath(QStringLiteral("dl"));
+        const QString saveDir = saveRoot + QLatin1Char('/') + hash4.toLower();
+        FakeEngine engine;
+        ComicTorrentDownloader downloader(&engine, nullptr,
+            dir.filePath(QStringLiteral("ledger.json")), saveRoot,
+            dir.filePath(QStringLiteral("staging")));
+        QStringList asyncFailures;
+        QObject::connect(&downloader, &ComicTorrentDownloader::failed, &app,
+            [&](const QString& id, const QString& reason) {
+                asyncFailures << id + QStringLiteral(": ") + reason;
+            });
+        require(writeCompendiumFixture(saveDir), "async-cancel fixture pages written");
+
+        downloader.downloadEdition(compendium1, hash4, magnetUri);
+        engine.emitMetadata(hash4, sharedPackManifest());
+        engine.emitFinished(hash4);
+        const QString stagingRoot = dir.filePath(QStringLiteral("staging"));
+        QString workerStaging;
+        // Deliver only the readiness watcher callbacks until assembly has
+        // been dispatched. Then stop delivering posted events: the path poll
+        // observes the worker's mkdir before its queued result can run.
+        QElapsedTimer startTimer;
+        startTimer.start();
+        while (downloader.statusOfEdition(compendium1.editionId)
+                   .value(QStringLiteral("state")).toString()
+               != QStringLiteral("assembling")) {
+            require(startTimer.elapsed() <= 20000,
+                    "async cancellation readiness callback dispatched");
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
+            QThread::msleep(1);
+        }
+        if (!waitForEditionStaging(stagingRoot, compendium1.editionId, &workerStaging)) {
+            std::cerr << "async cancellation worker failure: ";
+            for (const QString& failure : asyncFailures) std::cerr << failure.toStdString() << ' ';
+            std::cerr << '\n';
+            require(false, "async cancellation waits until the assembly worker has created staging");
+        }
+        require(downloader.cancelEdition(compendium1.editionId),
+                "async cancellation retires the in-flight intent");
+        require(waitFor([&] {
+            return downloader.statusOfEdition(compendium1.editionId)
+                       .value(QStringLiteral("state")).toString()
+                    == QStringLiteral("cancelled");
+        }), "async cancellation is journaled");
+        require(waitFor([&] { return !QFileInfo::exists(workerStaging); }),
+                "late cancelled assembly leaves no staging directory");
+    }
+
+    // ── Generation race: an old worker/result must not revive or publish a
+    //    terminal intent after the same edition is requested again. Each
+    //    generation has a disjoint staging root, so stale cleanup cannot
+    //    delete the newer generation's staging while the sibling keeps the
+    //    shared job resident. ───────────────────────────────────────────────
+    {
+        QTemporaryDir dir;
+        require(dir.isValid(), "generation-race temp dir is valid");
+        const QString saveRoot = dir.filePath(QStringLiteral("dl"));
+        const QString stagingRoot = dir.filePath(QStringLiteral("staging"));
+        const QString saveDir = saveRoot + QLatin1Char('/') + hash6;
+        QNetworkAccessManager nam;
+        ComicDownloader comics(&nam);
+        comics.deleteIssue(compendium1.editionId);
+        comics.deleteIssue(omnibus1.editionId);
+        FakeEngine engine;
+        ComicTorrentDownloader downloader(&engine, &comics,
+            dir.filePath(QStringLiteral("ledger.json")), saveRoot, stagingRoot);
+        require(writeCompendiumFixture(saveDir), "generation-race compendium fixture written");
+        require(writeOmnibusFixture(saveDir), "generation-race omnibus fixture written");
+
+        int compendiumPublications = 0;
+        QObject::connect(&comics, &ComicDownloader::finished, &app,
+            [&](const QString& id) {
+                if (id == compendium1.editionId) ++compendiumPublications;
+            });
+
+        downloader.downloadEdition(compendium1, hash6, magnetUri);
+        engine.emitMetadata(hash6, sharedPackManifest());
+        downloader.downloadEdition(omnibus1, hash6, magnetUri);
+        engine.emitFinished(hash6);
+        QString oldStaging;
+        QElapsedTimer generationStartTimer;
+        generationStartTimer.start();
+        while (downloader.statusOfEdition(compendium1.editionId)
+                   .value(QStringLiteral("state")).toString()
+               != QStringLiteral("assembling")) {
+            require(generationStartTimer.elapsed() <= 20000,
+                    "generation-race readiness callback dispatched");
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
+            QThread::msleep(1);
+        }
+        require(waitForEditionStaging(stagingRoot, compendium1.editionId, &oldStaging),
+                "generation-race observes the old assembly worker started");
+        require(downloader.cancelEdition(compendium1.editionId),
+                "generation-race cancels the old edition generation");
+
+        // The job remains resident because omnibus-1 is still live. This
+        // revives the same EditionIntent in place with a new generation and
+        // must not let the old queued completion publish or clean gen-2.
+        downloader.downloadEdition(compendium1, hash6, magnetUri);
+        require(engine.addMagnetCount == 1,
+                "generation-race re-request does not re-add the resident torrent");
+        require(waitFor([&] { return comics.isDownloaded(compendium1.editionId); }),
+                "generation-race new generation publishes successfully");
+        require(compendiumPublications == 1,
+                "generation-race produces exactly one compendium publication");
+        require(waitFor([&] { return !QFileInfo::exists(oldStaging); }),
+                "generation-race stale cleanup removes only the old staging tree");
+        require(comics.isDownloaded(omnibus1.editionId),
+                "generation-race sibling remains successfully published");
+        comics.deleteIssue(compendium1.editionId);
+        comics.deleteIssue(omnibus1.editionId);
     }
 
     // ── (7): restart replay regroups two ledger rows by hash, re-adds
@@ -449,7 +610,7 @@ int main(int argc, char** argv)
     // ── diskReadiness (Codex #3): assembly must wait out the torrentFinished->
     //    extract flush race (exists-but-short) that made real multi-issue
     //    downloads intermittently fail, WITHOUT deferring a genuinely-missing
-    //    file (which must still fail promptly / synchronously) ──
+    //    file (which must still fail promptly) ──
     {
         using ComicEditionFileSelector::ComicSelectedFile;
         using DiskReadiness = ComicTorrentDownloader::DiskReadiness;
@@ -481,6 +642,43 @@ int main(int argc, char** argv)
         }
         require(ComicTorrentDownloader::diskReadiness(saveDir, { f }) == DiskReadiness::Ready,
                 "diskReadiness: a fully-written file at manifest size is Ready");
+
+        // Exercise the transport's asynchronous retry, not just the pure
+        // classifier above. The first probe sees short pages; a later event
+        // replenishes them. Completion must then pass through a retry rather
+        // than wedging behind the in-flight marker.
+        const QString hash5SaveRoot = dir.filePath(QStringLiteral("pack-dl"));
+        const QString hash5SaveDir = hash5SaveRoot + QLatin1Char('/') + hash5;
+        FakeEngine engine;
+        ComicTorrentDownloader downloader(&engine, nullptr,
+            dir.filePath(QStringLiteral("pack-ledger.json")), hash5SaveRoot,
+            dir.filePath(QStringLiteral("pack-staging")));
+        const QString shortPageRoot = hash5SaveDir + QStringLiteral("/Compendium 1");
+        QDir().mkpath(shortPageRoot);
+        for (const QString& name : {QStringLiteral("page_000.png"),
+                                    QStringLiteral("page_001.png")}) {
+            QFile shortPage(shortPageRoot + QLatin1Char('/') + name);
+            require(shortPage.open(QIODevice::WriteOnly), "short pack page opens for write");
+            static const unsigned char png[8] =
+                {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+            shortPage.write(reinterpret_cast<const char*>(png), 8);
+            shortPage.write(QByteArray(kPackPageBytes - 16, 'x'));
+        }
+        downloader.downloadEdition(compendium1, hash5, magnetUri);
+        engine.emitMetadata(hash5, sharedPackManifest());
+        engine.emitFinished(hash5);
+        QElapsedTimer retryTimer;
+        retryTimer.start();
+        QTimer::singleShot(1000, &app, [hash5SaveDir]() {
+            writeCompendiumFixture(hash5SaveDir);
+        });
+        require(waitFor([&] {
+            return downloader.statusOfEdition(compendium1.editionId)
+                       .value(QStringLiteral("state")).toString()
+                    == QStringLiteral("completed");
+        }, 5000), "short payload completes after an asynchronous readiness retry");
+        require(retryTimer.elapsed() >= 800,
+                "short payload completion waited for the scheduled readiness retry");
     }
 
     std::cout << "COMIC_TORRENT_PACK_TRANSPORT_OK\n";

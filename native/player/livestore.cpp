@@ -132,24 +132,18 @@ QString LiveStore::startRecording(const QVariantMap &request) {
     });
     process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process->setProcessEnvironment(QProcessEnvironment::systemEnvironment());
-    connect(process, &QProcess::finished, this, [this, id](int exitCode, QProcess::ExitStatus status) {
-        if (!m_recorders.contains(id))
-            return;
-        const QString error = (status == QProcess::NormalExit && exitCode == 0)
-            ? QString()
-            : QStringLiteral("mpv exited unexpectedly.");
-        finishRecording(id, error);
+    connect(process, &QProcess::started, this, [this, id] {
+        handleRecorderStarted(id);
     });
+    connect(process, &QProcess::finished, this,
+            [this, id](int exitCode, QProcess::ExitStatus status) {
+                handleRecorderFinished(id, exitCode, status);
+            });
     connect(process, &QProcess::errorOccurred, this, [this, id](QProcess::ProcessError) {
-        if (m_recorders.contains(id))
-            markRecordingError(id, QStringLiteral("Could not start mpv for DVR recording."));
+        handleRecorderError(id);
     });
     m_recorders.insert(id, process);
     process->start();
-    if (!process->waitForStarted(1500)) {
-        markRecordingError(id, QStringLiteral("Could not start mpv for DVR recording."));
-        return id;
-    }
     startProgressTimer();
     return id;
 }
@@ -298,40 +292,133 @@ void LiveStore::updateRecordingProgress() {
 
 void LiveStore::finishRecording(const QString &id, const QString &error) {
     const int idx = findRecording(id);
-    QProcess *process = m_recorders.take(id);
-    if (process) {
-        process->disconnect(this);
-        if (process->state() != QProcess::NotRunning) {
-            process->terminate();
-            if (!process->waitForFinished(1200))
-                process->kill();
-        }
-        process->deleteLater();
-    }
-
+    bool sessionChanged = false;
     if (idx >= 0) {
         QVariantMap session = m_recordings.at(idx).toMap();
-        const qint64 started = session.value(QStringLiteral("startedAtMs")).toLongLong();
-        const qint64 elapsed = qMax<qint64>(0, (QDateTime::currentMSecsSinceEpoch() - started) / 1000);
-        const QString outputPath = session.value(QStringLiteral("outputPath")).toString();
-        const qint64 bytes = QFileInfo(outputPath).exists() ? QFileInfo(outputPath).size() : 0;
-        session.insert(QStringLiteral("elapsedSec"), elapsed);
-        session.insert(QStringLiteral("bytesWritten"), bytes);
-        if (error.isEmpty()) {
-            session.insert(QStringLiteral("state"), QStringLiteral("done"));
-            session.insert(QStringLiteral("error"), QString());
-        } else {
-            session.insert(QStringLiteral("state"), QStringLiteral("error"));
-            session.insert(QStringLiteral("error"), error);
+        if (session.value(QStringLiteral("state")).toString() == QStringLiteral("recording")) {
+            const qint64 started = session.value(QStringLiteral("startedAtMs")).toLongLong();
+            const qint64 elapsed = qMax<qint64>(0, (QDateTime::currentMSecsSinceEpoch() - started) / 1000);
+            const QString outputPath = session.value(QStringLiteral("outputPath")).toString();
+            const qint64 bytes = QFileInfo(outputPath).exists() ? QFileInfo(outputPath).size() : 0;
+            session.insert(QStringLiteral("elapsedSec"), elapsed);
+            session.insert(QStringLiteral("bytesWritten"), bytes);
+            if (error.isEmpty()) {
+                session.insert(QStringLiteral("state"), QStringLiteral("done"));
+                session.insert(QStringLiteral("error"), QString());
+            } else {
+                session.insert(QStringLiteral("state"), QStringLiteral("error"));
+                session.insert(QStringLiteral("error"), error);
+            }
+            sessionChanged = true;
+            m_recordings[idx] = session;
         }
-        m_recordings[idx] = session;
-        emit changed();
     }
+    if (sessionChanged)
+        emit changed();
 
+    if (m_recorders.contains(id))
+        requestRecorderStop(id);
     if (m_recorders.isEmpty())
         m_recordingTimer.stop();
 }
 
 void LiveStore::markRecordingError(const QString &id, const QString &error) {
     finishRecording(id, error);
+}
+
+void LiveStore::handleRecorderStarted(const QString &id) {
+    if (m_recorders.contains(id))
+        startProgressTimer();
+}
+
+void LiveStore::handleRecorderFinished(const QString &id, int exitCode, QProcess::ExitStatus status) {
+    QProcess *process = m_recorders.value(id);
+    if (!process)
+        return;
+
+    const int idx = findRecording(id);
+    bool sessionChanged = false;
+    if (idx >= 0) {
+        QVariantMap session = m_recordings.at(idx).toMap();
+        if (session.value(QStringLiteral("state")).toString() == QStringLiteral("recording")) {
+            const qint64 started = session.value(QStringLiteral("startedAtMs")).toLongLong();
+            const qint64 elapsed = qMax<qint64>(0, (QDateTime::currentMSecsSinceEpoch() - started) / 1000);
+            const QString outputPath = session.value(QStringLiteral("outputPath")).toString();
+            const qint64 bytes = QFileInfo(outputPath).exists() ? QFileInfo(outputPath).size() : 0;
+            const QString error = (status == QProcess::NormalExit && exitCode == 0)
+                ? QString() : QStringLiteral("mpv exited unexpectedly.");
+            session.insert(QStringLiteral("elapsedSec"), elapsed);
+            session.insert(QStringLiteral("bytesWritten"), bytes);
+            if (error.isEmpty()) {
+                session.insert(QStringLiteral("state"), QStringLiteral("done"));
+                session.insert(QStringLiteral("error"), QString());
+            } else {
+                session.insert(QStringLiteral("state"), QStringLiteral("error"));
+                session.insert(QStringLiteral("error"), error);
+            }
+            m_recordings[idx] = session;
+            sessionChanged = true;
+        }
+    }
+
+    cleanupRecorder(id);
+    if (sessionChanged)
+        emit changed();
+}
+
+void LiveStore::handleRecorderError(const QString &id) {
+    if (!m_recorders.contains(id))
+        return;
+    const int idx = findRecording(id);
+    const bool recording = idx >= 0
+        && m_recordings.at(idx).toMap().value(QStringLiteral("state")).toString()
+               == QStringLiteral("recording");
+    if (recording)
+        markRecordingError(id, QStringLiteral("Could not start mpv for DVR recording."));
+    else
+        requestRecorderStop(id);
+}
+
+void LiveStore::requestRecorderStop(const QString &id) {
+    QProcess *process = m_recorders.value(id);
+    if (!process)
+        return;
+    if (process->state() == QProcess::NotRunning) {
+        cleanupRecorder(id);
+        return;
+    }
+    if (m_recorderKillTimers.contains(id))
+        return;
+
+    process->terminate();
+    auto *killTimer = new QTimer(this);
+    killTimer->setSingleShot(true);
+    connect(killTimer, &QTimer::timeout, this, [this, id] {
+        QProcess *stalled = m_recorders.value(id);
+        if (stalled && stalled->state() != QProcess::NotRunning) {
+            stalled->kill();
+            // Keep ownership until QProcess emits finished(). This lets the normal
+            // asynchronous completion path observe the kill and prevents QObject's
+            // parent teardown from destroying a still-running child.
+            return;
+        }
+        cleanupRecorder(id);
+    });
+    m_recorderKillTimers.insert(id, killTimer);
+    killTimer->start(1200);
+}
+
+void LiveStore::cleanupRecorder(const QString &id) {
+    if (QTimer *killTimer = m_recorderKillTimers.take(id)) {
+        killTimer->stop();
+        killTimer->deleteLater();
+    }
+
+    QProcess *process = m_recorders.take(id);
+    if (!process)
+        return;
+    process->disconnect(this);
+    process->deleteLater();
+    if (m_recorders.isEmpty())
+        m_recordingTimer.stop();
 }

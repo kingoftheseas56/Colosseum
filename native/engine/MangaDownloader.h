@@ -25,6 +25,7 @@
 #pragma once
 
 #include "MangaResult.h"
+#include "MangaImageHostResolver.h"
 
 #include <QObject>
 #include <QNetworkReply>
@@ -37,6 +38,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <memory>
+
 class QNetworkAccessManager;
 class QNetworkReply;
 class WeebCentralScraper;
@@ -47,7 +50,8 @@ class MangaDownloader : public QObject
 public:
     // nam is shared with the rest of the app (carries the IPv4-pin / Host fix),
     // so image fetches use the same proven networking the streaming reader did.
-    explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr);
+    explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr,
+                             MangaImageHostResolver::Lookup lookup = {});
     ~MangaDownloader() override;
 
     // Host → IPv4 pins (dead-IPv6 machine). Manga art hosts publish AAAA records, so
@@ -116,7 +120,13 @@ signals:
     void paused(const QString& chapterId, int resumeInMs);
 
 private:
+    struct Job;
+    struct JobLifetime {
+        Job* job = nullptr;
+    };
+
     struct Job {
+        std::shared_ptr<JobLifetime> lifetime;
         QString chapterId;
         QString seriesId;
         QString seriesTitle;
@@ -132,6 +142,7 @@ private:
         qint64 bytes = 0;
         bool failedFlag = false;
         bool cancelled = false;
+        bool scraperPending = false;
         QList<QNetworkReply*> replies;   // in-flight image GETs, for cancel/abort
     };
 
@@ -151,6 +162,8 @@ private:
     void onPagesReady(Job* job, const QList<PageInfo>& pages);
     void pumpImages(Job* job);
     void fetchImage(Job* job, int pageIndex, int attempt);
+    void queueImageForHost(Job* job, int pageIndex, int attempt, const QString& host);
+    void removePendingImageRequests(Job* job);
     void onImageSaved(Job* job, int pageIndex, const QString& fileName, qint64 size);
     void failJob(Job* job, const QString& reason);
     void finishJob(Job* job);
@@ -167,8 +180,17 @@ private:
     void writeEntry(const Job* job);
 
     QNetworkAccessManager* m_nam = nullptr;
+    MangaImageHostResolver m_hostResolver;
     QHash<QString, QString> m_pins;                // host -> IPv4 (dead-IPv6 machine)
     QSet<QString>          m_pinTried;             // hosts we've already tried to resolve+pin (incl. misses)
+    struct PendingImageRequest {
+        Job* job = nullptr;
+        int pageIndex = 0;
+        int attempt = 0;
+    };
+    QHash<QString, QList<PendingImageRequest>> m_pendingPinRequests;
+    QSet<QString> m_pinLookupInFlight;
+    QHash<QString, MangaImageHostResolver::RequestId> m_pinLookupRequests;
     QHash<QString, Entry> m_index;                 // chapterId -> entry
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs

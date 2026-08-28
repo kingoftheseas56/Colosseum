@@ -289,6 +289,9 @@ private:
         qint64 lastProgressEmit = 0;
         qint64 lastProgressBytes = 0;
         bool extracting = false;
+        // Extraction cancellation is completed by the process finished/error
+        // handler, not inline in the QML-facing cancelDownload() call.
+        bool cancelRequested = false;
         bool localArchive = false;   // starts at beginExtract(), never at HTTP startAttempt()
         // Slice 3: a staged-retry source (a preserved .archive from a prior
         // failPreservingSource). Distinct from localArchive: a user-picked/torrent
@@ -399,7 +402,7 @@ private:
 
     void beginExtract(InFlight& f);
     void runExtractor(InFlight& f, int which);   // 0 = bsdtar, 1 = 7z
-    void onExtractDone(int exitCode, int which);
+    void onExtractDone(QProcess* process, int exitCode, int which);
     void finalizeExtract(InFlight& f);
     void cleanupExtract(InFlight& f);
 

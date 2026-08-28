@@ -6,8 +6,6 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
-#include <QHostAddress>
-#include <QHostInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -20,11 +18,14 @@
 #include <QUrl>
 #include <QDebug>
 
+#include <utility>
+
 // ---------------------------------------------------------------------------
 // ctor / dtor
 // ---------------------------------------------------------------------------
-MangaDownloader::MangaDownloader(QNetworkAccessManager* nam, QObject* parent)
-    : QObject(parent), m_nam(nam)
+MangaDownloader::MangaDownloader(QNetworkAccessManager* nam, QObject* parent,
+                                 MangaImageHostResolver::Lookup lookup)
+    : QObject(parent), m_nam(nam), m_hostResolver(std::move(lookup))
 {
     loadIndex();
 }
@@ -192,6 +193,8 @@ void MangaDownloader::downloadChapter(const QString& chapterId, const QString& s
     for (const Job* q : m_queue) if (q->chapterId == chapterId) return;   // already queued
 
     Job* job = new Job;
+    job->lifetime = std::make_shared<JobLifetime>();
+    job->lifetime->job = job;
     job->chapterId    = chapterId;
     job->seriesId     = seriesId;
     job->seriesTitle  = seriesTitle;
@@ -332,6 +335,13 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
     Job* job = m_active.value(chapterId, nullptr);
     if (!job) return;
     job->cancelled = true;
+    if (job->scraperPending) {
+        // Stop future scraper signals before the Job can be reclaimed. Any
+        // already-queued lambda still carries the shared lifetime fence.
+        job->scraperPending = false;
+        QObject::disconnect(job->scraper, nullptr, this, nullptr);
+    }
+    removePendingImageRequests(job);
     const QList<QNetworkReply*> replies = job->replies;
     for (QNetworkReply* r : replies) if (r) r->abort();   // abort -> finished -> cancelled branch
     if (m_active.value(chapterId, nullptr) == job && job->inFlight == 0) finalizeCancel(job);
@@ -506,10 +516,22 @@ void MangaDownloader::beginJob(Job* job)
 {
     QDir().mkpath(job->dir);
     job->scraper = new WeebCentralScraper(m_nam, this);
+    job->scraperPending = true;
+    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
     connect(job->scraper, &MangaScraper::pagesReady, this,
-            [this, job](const QList<PageInfo>& pages) { onPagesReady(job, pages); });
+            [this, lifetime](const QList<PageInfo>& pages) {
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job || job->cancelled) return;
+        job->scraperPending = false;
+        onPagesReady(job, pages);
+    });
     connect(job->scraper, &MangaScraper::errorOccurred, this,
-            [this, job](const QString& e) { failJob(job, e); });
+            [this, lifetime](const QString& e) {
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job || job->cancelled) return;
+        job->scraperPending = false;
+        failJob(job, e);
+    });
     job->scraper->fetchPages(job->chapterId);
 }
 
@@ -602,7 +624,18 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
 
     const QString url = job->pages[pageIndex].imageUrl;
     QUrl u(url);
-    const QString host = u.host();
+    const QString host = u.host().toLower();
+
+    // CDN hosts are intentionally resolved lazily: a blocking DNS helper here would
+    // stop the application's event loop on the first image request. Keep the
+    // image slot held while the one coalesced lookup runs, then resume this same page
+    // and retry attempt from its callback.
+    if (!host.isEmpty() && !m_pins.contains(host)
+        && (!m_pinTried.contains(host) || m_pinLookupInFlight.contains(host))) {
+        queueImageForHost(job, pageIndex, attempt, host);
+        return;
+    }
+
     QNetworkRequest req{u};
     req.setRawHeader("User-Agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -619,18 +652,6 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     // this ISP's dead-IPv6 stall (curl/happy-eyeballs hid it; downloads intermittently
     // "Failed"). Resolve + cache their real IPv4 on first use so every page fetch takes the
     // working IPv4 route — the same fix every other host in the app already has.
-    if (!m_pins.contains(host) && !m_pinTried.contains(host)) {
-        m_pinTried.insert(host);
-        const QHostInfo info = QHostInfo::fromName(host);
-        for (const QHostAddress& a : info.addresses()) {
-            if (a.protocol() == QAbstractSocket::IPv4Protocol) {
-                m_pins.insert(host, a.toString());
-                qInfo("[downloads] pinned CDN host %s -> %s (dead-IPv6 guard)",
-                      qUtf8Printable(host), qUtf8Printable(a.toString()));
-                break;
-            }
-        }
-    }
     const QString ipv4 = m_pins.value(host);
     if (!ipv4.isEmpty()) {
         req.setRawHeader("Host", host.toUtf8());
@@ -688,6 +709,74 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     });
 }
 
+void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,
+                                         const QString& host)
+{
+    m_pendingPinRequests[host].append(PendingImageRequest{job, pageIndex, attempt});
+    if (m_pinLookupInFlight.contains(host)) return;
+
+    m_pinTried.insert(host);
+    m_pinLookupInFlight.insert(host);
+    const MangaImageHostResolver::RequestId requestId = m_hostResolver.resolve(
+        host, [this, host](const QString& ipv4) {
+        if (!m_pinLookupInFlight.remove(host)) return;
+        m_pinLookupRequests.remove(host);
+        if (!ipv4.isEmpty()) {
+            m_pins.insert(host, ipv4);
+            qInfo("[downloads] pinned CDN host %s -> %s (dead-IPv6 guard)",
+                  qUtf8Printable(host), qUtf8Printable(ipv4));
+        } else {
+            qWarning("[downloads] no IPv4 for CDN host %s; using hostname request",
+                     qUtf8Printable(host));
+        }
+
+        const QList<PendingImageRequest> pending = m_pendingPinRequests.take(host);
+        for (const PendingImageRequest& request : pending) {
+            // Every pending request is removed before its Job can be destroyed
+            // (cancelDownload and cleanupJob both call removePendingImageRequests).
+            // Keep this active-map check as a second lifetime fence.
+            if (!request.job || m_active.value(request.job->chapterId, nullptr) != request.job)
+                continue;
+            fetchImage(request.job, request.pageIndex, request.attempt);
+        }
+    });
+    // A test Lookup is allowed to complete synchronously. In that case the
+    // callback already drained this host, so do not leave a stale id behind.
+    if (m_pinLookupInFlight.contains(host))
+        m_pinLookupRequests.insert(host, requestId);
+}
+
+void MangaDownloader::removePendingImageRequests(Job* job)
+{
+    if (!job) return;
+    for (auto it = m_pendingPinRequests.begin(); it != m_pendingPinRequests.end();) {
+        QList<PendingImageRequest> retained;
+        retained.reserve(it.value().size());
+        int removed = 0;
+        for (const PendingImageRequest& request : it.value()) {
+            if (request.job == job)
+                ++removed;
+            else
+                retained.append(request);
+        }
+        job->inFlight -= removed;
+        if (retained.isEmpty()) {
+            const QString host = it.key();
+            it = m_pendingPinRequests.erase(it);
+            const auto lookupIt = m_pinLookupRequests.constFind(host);
+            if (lookupIt != m_pinLookupRequests.constEnd()) {
+                m_hostResolver.cancel(lookupIt.value());
+                m_pinLookupRequests.erase(lookupIt);
+                m_pinLookupInFlight.remove(host);
+                m_pinTried.remove(host);
+            }
+        } else {
+            it.value() = retained;
+            ++it;
+        }
+    }
+}
+
 void MangaDownloader::onImageSaved(Job* job, int pageIndex, const QString& fileName, qint64 size)
 {
     job->files[pageIndex] = fileName;
@@ -720,6 +809,9 @@ void MangaDownloader::failJob(Job* job, const QString& reason)
 
 void MangaDownloader::cleanupJob(Job* job)
 {
+    if (job->lifetime) job->lifetime->job = nullptr;
+    job->scraperPending = false;
+    removePendingImageRequests(job);
     m_active.remove(job->chapterId);
     if (job->scraper) job->scraper->deleteLater();
     delete job;

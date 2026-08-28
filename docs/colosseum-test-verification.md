@@ -29,6 +29,47 @@ correctly, but there is no registration, no selection, no machine-readable outpu
 master gate — every runner is a standalone script a human must know to run, and more than
 half the compiled harnesses are run by nobody.
 
+## Manga responsiveness — asynchronous CDN host resolution (2026-08-28)
+
+`manga_image_host_resolver_harness` is the deterministic runtime seam used by
+`MangaDownloader` for first-use image-host resolution. It injects a delayed lookup callback and
+proves the resolver itself: two requests sharing an unresolved host trigger one lookup, each
+queued completion is dispatched once, an empty IPv4 result returns an empty pin for the caller's
+hostname fallback, cancellation removes the pending slot so a late resolver callback cannot
+dispatch the cancelled request, a cancelled host can start a fresh lookup generation, and a
+resolver destroyed before a late injected callback does not dispatch or crash. It also invokes a
+hostile duplicate resolver callback to prove the exactly-once guard.
+
+The target is defined in `native/CMakeLists.txt` from
+`tests/manga_image_host_resolver_harness.cpp` plus the production
+`native/engine/MangaImageHostResolver.{h,cpp}` seam, and is registered in
+`tests/CMakeLists.txt` as `colosseum.manga_image_host_resolver_harness` with labels
+`unit;network`. The static companion `tests/test_manga_async_dns_contract.ps1` keeps the
+no-synchronous-DNS and downloader-wiring contract visible.
+
+Evidence on 2026-08-28: the target built clean with the MSVC/Qt toolchain; the focused CTest
+entry passed (`1/1`); the runtime harness printed `manga_image_host_resolver_harness: ALL PASS`;
+the static async-DNS contract and existing Manga index self-heal contract passed; and
+the production `colosseum` target rebuilt clean. This proves the resolver seam only, not
+MangaDownloader's end-to-end scraper/image integration, TLS/Host request shape, or a live
+hostile-network session.
+
+## LiveStore responsiveness — asynchronous recorder lifecycle (2026-08-28)
+
+`colosseum.qttest.livestore` is the registered deterministic lifecycle test for the
+`LiveStore` recorder process. Its source is `tests/auto/player/tst_livestore.cpp`; the test
+uses a deterministic fake recorder executable rather than a real mpv session. The covered
+behaviors are prompt recorder start/stop, natural recorder exit, failed start, and idempotent
+stop/cleanup handling.
+
+The target is registered in `tests/CMakeLists.txt` as `colosseum.qttest.livestore` and is
+backed by the `tst_livestore` Qt test executable. Focused CTest evidence on 2026-08-28:
+`colosseum.qttest.livestore` passed (`1/1`, 1.71 seconds).
+
+This is deterministic process-lifecycle coverage for the non-blocking `LiveStore` path. It
+is not real mpv qualification and does not qualify network behavior, stream-server behavior,
+or playback under hostile network conditions.
+
 ## Build entry
 
 - Active build root: `native/CMakeLists.txt`. All 70 harnesses are plain

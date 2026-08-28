@@ -146,12 +146,19 @@ bool looksLikeHtml(const QByteArray& firstChunk, const QString& contentType)
 
 QString sevenZipPath()
 {
+    // Harness-only override: an explicitly present value (including empty)
+    // makes extractor-start/error paths deterministic without touching the
+    // machine's installed tools.
+    const QByteArray overridePath = qgetenv("COLOSSEUM_COMIC_7ZIP_PATH");
+    if (!overridePath.isNull()) return QString::fromLocal8Bit(overridePath);
     const QString p = QStringLiteral("C:/Program Files/7-Zip/7z.exe");
     return QFileInfo::exists(p) ? p : QString();
 }
 
 QString bsdtarPath()
 {
+    const QByteArray overridePath = qgetenv("COLOSSEUM_COMIC_BSDTAR_PATH");
+    if (!overridePath.isNull()) return QString::fromLocal8Bit(overridePath);
     const QString sys = QStringLiteral("C:/Windows/System32/tar.exe");
     if (QFileInfo::exists(sys)) return sys;
     return QStandardPaths::findExecutable(QStringLiteral("tar"));
@@ -1110,11 +1117,26 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
     }
     if (m_active && m_active->id == id) {
         if (m_active->extracting && m_proc) {
-            m_proc->disconnect(this);
-            m_proc->kill();
-            m_proc->waitForFinished(1000);
-            m_proc->deleteLater();
-            m_proc = nullptr;
+            // QML calls this on the application thread.  kill() only requests
+            // termination; waitForFinished() here used to hold that thread for
+            // up to a second.  Keep the normal finished handler connected so it
+            // remains the sole owner of process teardown and queue progression.
+            if (m_active->cancelRequested) return;
+            m_active->cancelRequested = true;
+            QProcess* process = m_proc;
+            if (process->state() == QProcess::NotRunning) {
+                // FailedToStart may have emitted errorOccurred() without a
+                // later finished() signal.  Keep cancellation non-reentrant:
+                // route this already-terminal process through the same handler
+                // on the next event-loop turn.
+                const int exitCode = process->exitCode();
+                QTimer::singleShot(0, this, [this, process, exitCode]() {
+                    onExtractDone(process, exitCode, 0);
+                });
+            } else {
+                process->kill();
+            }
+            return;
         }
         cancelAndCleanup(*m_active);
         return;
@@ -1783,17 +1805,43 @@ void ComicDownloader::runExtractor(InFlight& f, int which)
     m_proc = new QProcess(this);
     m_proc->setProgram(exe);
     m_proc->setArguments(args);
-    connect(m_proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-            [this, which](int code, QProcess::ExitStatus) { onExtractDone(code, which); });
+    QProcess* process = m_proc;
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+            [this, process, which](int code, QProcess::ExitStatus) {
+                onExtractDone(process, code, which);
+            });
+    connect(process, &QProcess::errorOccurred, this,
+            [this, process, which](QProcess::ProcessError) {
+        // FailedToStart can report only errorOccurred(), without a finished()
+        // signal.  A terminal process error therefore uses the same completion
+        // path as finished(), both for cancellation and for ordinary extractor
+        // failures. Ignore errors while the process is still running; its
+        // finished signal will win. The process identity guard prevents a late
+        // error from an old extractor touching a queued successor.
+        if (!m_active || m_proc != process
+            || !m_proc
+            || m_proc->state() != QProcess::NotRunning)
+            return;
+        onExtractDone(process, process->exitCode(), which);
+    });
     qInfo() << "[ComicDownloader] extracting with" << exe;
     m_proc->start();
 }
 
-void ComicDownloader::onExtractDone(int exitCode, int which)
+void ComicDownloader::onExtractDone(QProcess* process, int exitCode, int which)
 {
+    // A cancelled process may report errorOccurred() before finished().  Its
+    // finished signal can then be delivered after startNextQueued() has
+    // installed a new extractor, so never let a stale callback touch the new
+    // m_proc or active job.
+    if (m_proc != process) return;
     if (m_proc) { m_proc->deleteLater(); m_proc = nullptr; }
     if (!m_active || !m_active->extracting) return;
     InFlight& f = *m_active;
+    if (f.cancelRequested) {
+        cancelAndCleanup(f);
+        return;
+    }
     if (exitCode != 0) {
         qWarning() << "[ComicDownloader] extractor" << which << "exit" << exitCode;
         if (which == 0 && !sevenZipPath().isEmpty()) {
