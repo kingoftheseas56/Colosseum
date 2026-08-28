@@ -84,6 +84,9 @@ void MangaTorrentMetainfoFetcher::fetch(const QString& url, const QString& reque
 MangaTorrentEngineAdapter::MangaTorrentEngineAdapter(TorrentEngine* engine, QObject* parent)
     : IMangaTorrentEngine(parent), m_engine(engine)
 {
+    if (!m_engine)
+        return;
+
     // Re-emit engine signals via QUEUED connections: a synchronous re-emit that
     // TorrentEngine could fire while we are inside removeTorrent() (teardown)
     // then lands on the transport on the next event-loop turn, never re-entrant.
@@ -106,7 +109,9 @@ QString MangaTorrentEngineAdapter::addMagnet(const QString& magnetUri, const QSt
     // magnet to a network-DEAD session → no DHT, no peers, metadata never resolved and it sat
     // at "Finding source…" forever (unless a comic/book download had already started the
     // engine). start() is idempotent (no-op when already running).
-    if (m_engine && !m_engine->isRunning())
+    if (!m_engine)
+        return {};
+    if (!m_engine->isRunning())
         m_engine->start();
     // Nyaa's RSS publishes only nyaa:infoHash — no trackers — so the manga path
     // historically handed the engine BARE magnets and metadata resolution rode
@@ -129,22 +134,25 @@ QString MangaTorrentEngineAdapter::addMagnet(const QString& magnetUri, const QSt
 
 void MangaTorrentEngineAdapter::setFilePriorities(const QString& infoHash, const QVector<int>& priorities)
 {
-    m_engine->setFilePriorities(infoHash, priorities);
+    if (m_engine)
+        m_engine->setFilePriorities(infoHash, priorities);
 }
 
 void MangaTorrentEngineAdapter::startTorrent(const QString& infoHash, const QString& savePath)
 {
-    m_engine->startTorrent(infoHash, savePath);
+    if (m_engine)
+        m_engine->startTorrent(infoHash, savePath);
 }
 
 void MangaTorrentEngineAdapter::removeTorrent(const QString& infoHash, bool deleteFiles)
 {
-    m_engine->removeTorrent(infoHash, deleteFiles);
+    if (m_engine)
+        m_engine->removeTorrent(infoHash, deleteFiles);
 }
 
 QJsonArray MangaTorrentEngineAdapter::torrentFiles(const QString& infoHash) const
 {
-    return m_engine->torrentFiles(infoHash);
+    return m_engine ? m_engine->torrentFiles(infoHash) : QJsonArray{};
 }
 #endif // HAS_LIBTORRENT
 

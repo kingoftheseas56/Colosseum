@@ -130,9 +130,10 @@ void SeekThumbnailer::onJobFinished(int exitCode, QProcess::ExitStatus status)
     const QByteArray jpeg = (exitCode == 0 && status == QProcess::NormalExit)
                                 ? proc->readAllStandardOutput() : QByteArray();
     if (!jpeg.isEmpty()) {
-        auto *url = new QString(QStringLiteral("data:image/jpeg;base64,") + QString::fromLatin1(jpeg.toBase64()));
-        m_cache.insert(bucket, url);
-        Q_EMIT thumbReady(static_cast<double>(bucket), *url);
+        const QString url = QStringLiteral("data:image/jpeg;base64,")
+                            + QString::fromLatin1(jpeg.toBase64());
+        m_cache.insert(bucket, new QString(url));
+        Q_EMIT thumbReady(static_cast<double>(bucket), url);
     }
     // Chain the newest hover that queued up while this frame was extracting.
     if (m_pendingBucket >= 0) {
