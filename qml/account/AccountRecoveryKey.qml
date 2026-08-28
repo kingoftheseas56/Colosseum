@@ -170,30 +170,18 @@ AccountPageFrame {
     AccountButton {
         objectName: "accountRecoveryKeyCopy"
         width: parent.width
-        visible: !root.manualReplacement
         text: "Copy recovery key"
         onClicked: root.copyPresentedKey()
     }
 
-    Row {
+    Item { width: 1; height: 10 }
+
+    AccountButton {
+        objectName: "accountRecoveryKeySaved"
         width: parent.width
-        visible: root.manualReplacement
-        spacing: 9
-
-        AccountButton {
-            objectName: "accountRecoveryKeyCopyManual"
-            width: (parent.width - parent.spacing) / 2
-            text: "Copy recovery key"
-            onClicked: root.copyPresentedKey()
-        }
-
-        AccountButton {
-            objectName: "accountRecoveryKeySavedManual"
-            width: (parent.width - parent.spacing) / 2
-            text: "I saved it"
-            variant: "primary"
-            onClicked: root.finishPresentedKey()
-        }
+        text: "I saved it"
+        variant: "primary"
+        onClicked: root.finishPresentedKey()
     }
 
     Item {
@@ -245,19 +233,6 @@ AccountPageFrame {
         wrapMode: Text.WordWrap
         horizontalAlignment: Text.AlignHCenter
         Theme { id: failedTheme }
-    }
-
-    Item { width: 1; height: 16 }
-
-    AccountButton {
-        objectName: "accountRecoveryKeyContinue"
-        width: parent.width
-        visible: !root.manualReplacement
-        text: root.purpose === "passwordRecovered"
-            ? "Continue to sign in"
-            : "Continue to Colosseum"
-        variant: "primary"
-        onClicked: root.finishPresentedKey()
     }
 
     Item { width: 1; height: 18 }
