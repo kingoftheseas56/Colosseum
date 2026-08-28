@@ -307,8 +307,8 @@ TestCase {
 
         compare(keyPage.objectName, "accountManualReplacementRecoveryKey")
         var keyValue = byName(keyPage, "accountRecoveryKeyValue")
-        var copy = byName(keyPage, "accountRecoveryKeyCopyManual")
-        var done = byName(keyPage, "accountRecoveryKeySavedManual")
+        var copy = byName(keyPage, "accountRecoveryKeyCopy")
+        var done = byName(keyPage, "accountRecoveryKeySaved")
         verify(keyValue !== null)
         verify(copy !== null)
         verify(done !== null)
@@ -341,7 +341,7 @@ TestCase {
         wait(0)
 
         var keyValue = byName(keyPage, "accountRecoveryKeyValue")
-        var copy = byName(keyPage, "accountRecoveryKeyCopyManual")
+        var copy = byName(keyPage, "accountRecoveryKeyCopy")
         mouseClick(copy, copy.width / 2, copy.height / 2)
         wait(0)
 
