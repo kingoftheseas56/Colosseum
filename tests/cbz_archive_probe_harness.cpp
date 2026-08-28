@@ -68,6 +68,8 @@ bool patchFirstCentralDirectoryField(const QString& path, int fieldOffset, quint
 
 constexpr int kCdhBitFlagOffset = 8;
 constexpr int kCdhMethodOffset = 10;
+// High 16 bits of the 4-byte central-directory uncompressed-size field (CDH+24).
+constexpr int kCdhUncompSizeHighOffset = 26;
 constexpr quint16 kLzmaMethod = 14;
 constexpr quint16 kEncryptedBit = 0x1;
 
@@ -196,6 +198,36 @@ int main(int argc, char** argv)
         const CbzProbeResult result = CbzArchive::probe(archive, &error);
         require(!result.nativelyReadable, "a non-zip file must be rejected");
         require(result.entries.isEmpty(), "a non-zip file yields no entries");
+    }
+
+    // ---- 7. an entry declaring an implausibly huge uncompressed size is REJECTED ----
+    //         Guards against a hostile archive that forces a multi-GB allocation on
+    //         open (DoS). Surfaced by the CBZ fuzz target as an out-of-memory.
+
+    {
+        const QString pages = temp.path() + QStringLiteral("/huge-pages");
+        require(QDir().mkpath(pages), "huge pages dir created");
+        require(writeBytes(pages + QStringLiteral("/page_1.jpg"), fakeJpeg()), "huge page written");
+        const QString archive = temp.path() + QStringLiteral("/huge.cbz");
+        QString error;
+        require(CbzArchive::writeImagesAtomic(archive, pages, { QStringLiteral("page_1.jpg") }, &error),
+                "huge-fixture base write succeeds");
+        // Set the high word of the 4-byte uncompressed-size field to 0x7FFF so the
+        // entry declares ~2GB — huge, but not the ZIP64 sentinel (0xFFFFFFFF).
+        require(patchFirstCentralDirectoryField(archive, kCdhUncompSizeHighOffset, 0x7FFF),
+                "central directory uncompressed-size high word patched to a huge value");
+
+        // readEntry must refuse BEFORE allocating the declared size.
+        const QByteArray bytes = CbzArchive::readEntry(archive, QStringLiteral("page_1.jpg"), &error);
+        require(bytes.isEmpty(),
+                "readEntry refuses an entry declaring an implausible uncompressed size");
+        require(error.contains(QStringLiteral("implausible uncompressed size")),
+                "the refusal comes from the declared-size guard (not an incidental miniz error)");
+
+        // probe() samples via readEntry, so the archive must be rejected too.
+        const CbzProbeResult result = CbzArchive::probe(archive, &error);
+        require(!result.nativelyReadable,
+                "an archive with an oversized-declared entry is not nativelyReadable");
     }
 
     std::cout << "CBZ_ARCHIVE_PROBE_HARNESS_OK\n";

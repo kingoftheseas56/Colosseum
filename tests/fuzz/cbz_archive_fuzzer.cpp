@@ -45,6 +45,12 @@ QString g_archivePath;
 // run in full on every input regardless of this cap.
 constexpr int kMaxEntriesToExtract = 64;
 
+// Skip the EXTRACTION paths (not the central-directory parse) when any entry claims
+// an uncompressed size above this: extracting it just exercises miniz allocating what
+// the untrusted header claims — a resource-exhaustion OOM, not a memory-safety bug.
+// Mirrors miniz_zip_fuzzer's guard so the gate stays a memory-safety signal.
+constexpr quint64 kMaxExtractBytes = 64ull * 1024 * 1024;
+
 } // namespace
 
 extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
@@ -69,13 +75,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     QString error;
 
-    // Richest single path: init + stat loop + sampled extract.
-    CbzArchive::probe(g_archivePath, &error);
-
-    // Full listing, then extract EVERY listed entry (probe only samples three) to
-    // reach the inflate path for entries probe skips.
+    // Central-directory listing first — cheap, parses header fields with no extraction
+    // or allocation of entry payloads. This is exercised on EVERY input.
     const QVector<CbzPageEntry> entries =
         CbzArchive::imageEntries(g_archivePath, &error);
+
+    // If any entry claims an absurd uncompressed size, skip the extraction paths for
+    // this input: that path only proves miniz allocates what the header claims (an OOM,
+    // not memory corruption). The central-directory parse above still ran.
+    quint64 maxClaim = 0;
+    for (const CbzPageEntry& entry : entries)
+        maxClaim = qMax(maxClaim, entry.uncompressedBytes);
+    if (maxClaim > kMaxExtractBytes)
+        return 0;
+
+    // probe() drives init + stat loop + sampled extract; then extract every listed
+    // entry (probe only samples three) to reach the inflate path for the rest.
+    CbzArchive::probe(g_archivePath, &error);
     int extracted = 0;
     for (const CbzPageEntry& entry : entries) {
         if (extracted++ >= kMaxEntriesToExtract)
