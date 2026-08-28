@@ -14,8 +14,10 @@ Rectangle {
 
     property var controller: null
     property var recoveryPresenter: null
-    readonly property bool signedIn:
-        controller && controller.mode === "signedIn"
+    readonly property bool accountPresent: controller
+        && (controller.mode === "signedIn" || controller.mode === "offline")
+    readonly property bool onlineAccount: controller
+        && controller.mode === "signedIn"
     property string initial: "?"
     property string activeSection: "colosseum"
 
@@ -215,7 +217,7 @@ Rectangle {
 
                         Text {
                             anchors.centerIn: parent
-                            text: root.initial
+                            text: root.accountPresent ? root.initial : "?"
                             color: "#f0df9a"
                             font.family: "Inter"
                             font.pixelSize: 16
@@ -228,7 +230,10 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
 
                         Text {
-                            text: root.controller ? root.controller.username : ""
+                            objectName: "accountCenterUsername"
+                            text: root.accountPresent && root.controller
+                                ? root.controller.username
+                                : qsTr("Not signed in")
                             color: "#f2f2ef"
                             font.family: "Inter"
                             font.pixelSize: 14
@@ -304,7 +309,7 @@ Rectangle {
                 Item { width: 1; height: 14 }
 
                 Text {
-                    text: root.signedIn ? qsTr("Sign out") : qsTr("Sign in")
+                    text: root.accountPresent ? qsTr("Sign out") : qsTr("Sign in")
                     color: railOutMa.containsMouse ? "#d8d4c8" : "#8f8b80"
                     font.family: "Inter"
                     font.pixelSize: 12
@@ -317,7 +322,7 @@ Rectangle {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             if (root.controller) {
-                                if (root.signedIn)
+                                if (root.accountPresent)
                                     root.controller.logoutCurrent()
                                 else
                                     root.controller.returnToSignIn()
