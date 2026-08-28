@@ -104,8 +104,6 @@ inline PackLabel parsePackLabel(const QString& relPath)
     // "v1" both resolve to their integer. A token boundary (start, space, or one
     // of [(-]) must precede the 'v' so "Marvel" or "Draws" don't false-match.
     int volNumber = -1;
-    int volStart = -1;   // span of the matched "v05" token, for Bonus labelling
-    int volLen = 0;
     const int n = cleaned.size();
     for (int i = 0; i < n; ++i) {
         if (cleaned.at(i).toLower() != QChar('v')) continue;
@@ -124,8 +122,6 @@ inline PackLabel parsePackLabel(const QString& relPath)
         const int parsed = cleaned.mid(i + 1, j - i - 1).toInt(&ok);
         if (ok && parsed > 0) {
             volNumber = parsed;
-            volStart = i;
-            volLen = j - i;
             break;   // first v(\d+) wins
         }
     }

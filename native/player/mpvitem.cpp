@@ -926,5 +926,3 @@ QString MpvItem::sanitizeCapturePart(const QString &value) const
         out = out.left(90).trimmed();
     return out;
 }
-
-#include "moc_mpvitem.cpp"

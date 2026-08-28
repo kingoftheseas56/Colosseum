@@ -224,7 +224,7 @@ bool UiController::configureServiceUrl(const QUrl& serviceUrl)
     options.serviceUrl = serviceUrl;
     QString detail;
     if (!options.isValid(&detail)) {
-        m_serviceUrl = {};
+        m_serviceUrl = QUrl();
         if (m_serviceConfigured) {
             m_serviceConfigured = false;
             Q_EMIT serviceChanged();

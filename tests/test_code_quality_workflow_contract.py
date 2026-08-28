@@ -6,6 +6,9 @@ WORKFLOW = ROOT / ".github" / "workflows" / "code-quality.yml"
 DESKTOP_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-ci.yml"
 CONFIG = ROOT / ".github" / "codeql" / "codeql-config.yml"
 QML_GATE = ROOT / "scripts" / "qml_quality_gate.py"
+CLANG_TIDY_GATE = ROOT / "scripts" / "clang_tidy_quality_gate.py"
+CLANG_TIDY_POLICY = ROOT / ".clang-tidy"
+CLANG_TIDY_ALLOWLIST = ROOT / ".github" / "clang-tidy-allowlist.txt"
 
 
 class CodeQualityWorkflowContract(unittest.TestCase):
@@ -39,6 +42,28 @@ class CodeQualityWorkflowContract(unittest.TestCase):
                          "signal-handler-parameters", "unreachable-code",
                          "var-used-before-declaration", "with"):
             self.assertIn(category, gate)
+
+    def test_clang_tidy_gate_is_pinned_first_party_and_correctness_focused(self):
+        desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")
+        gate = CLANG_TIDY_GATE.read_text(encoding="utf-8")
+        policy = CLANG_TIDY_POLICY.read_text(encoding="utf-8")
+        allowlist = CLANG_TIDY_ALLOWLIST.read_text(encoding="utf-8")
+        self.assertIn('LLVM_VERSION: "22.1.8"', desktop)
+        self.assertIn("LLVM_SHA256", desktop)
+        self.assertIn("CMAKE_EXPORT_COMPILE_COMMANDS=ON", desktop)
+        self.assertIn("clang_tidy_quality_gate.py", desktop)
+        self.assertIn("--min-files 184", desktop)
+        self.assertLess(desktop.index("Analyze C++"), desktop.index("Run clang-tidy correctness gate"))
+        self.assertIn("cmakefiles/colosseum.dir/", gate)
+        self.assertIn("third_party", gate)
+        self.assertIn("build-", gate)
+        for check in ("clang-analyzer-core.*", "clang-analyzer-cplusplus.NewDelete*",
+                      "clang-analyzer-deadcode.DeadStores", "bugprone-empty-catch",
+                      "bugprone-chained-comparison", "cert-err33-c"):
+            self.assertIn(check, gate)
+            self.assertIn(check, policy)
+        self.assertNotIn("portability-avoid-pragma-once", policy)
+        self.assertIn("ComicDownloader.cpp|1427|clang-analyzer-cplusplus.NewDeleteLeaks", allowlist)
 
     def test_codeql_ignores_noise_but_keeps_quality_suite(self):
         config = CONFIG.read_text(encoding="utf-8")

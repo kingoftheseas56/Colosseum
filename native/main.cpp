@@ -481,20 +481,19 @@ int main(int argc, char *argv[]) {
     // the same opt-in it always honoured) while the shell is ported - not patched - to parity.
     // Re-flipping the default is Task 18 again, and it happens when HE cannot tell the two apart in
     // an evening of use - not when a ledger says so.
-    const bool forcePlayer1 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER1")
-                              || qEnvironmentVariableIsSet("COLOSSEUM_MPV");
-    bool bootPlayer2 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER2") && !forcePlayer1;
-#ifndef COLOSSEUM_PLAYER2
-    // Not compiled in: there is nothing to boot, and the old player is the only engine present.
-    bootPlayer2 = false;
-#endif
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 #ifdef COLOSSEUM_PLAYER2
+    const bool forcePlayer1 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER1")
+                              || qEnvironmentVariableIsSet("COLOSSEUM_MPV");
+    const bool bootPlayer2 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER2") && !forcePlayer1;
     if (bootPlayer2)
         QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11);
     else
-#endif
         QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+#else
+    // Not compiled in: there is nothing to boot, and the old player is the only engine present.
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+#endif
     QtWebEngineQuick::initialize();
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
@@ -586,9 +585,10 @@ int main(int argc, char *argv[]) {
     updateConfig.repository = QStringLiteral("kingoftheseas56/Colosseum");
     updateConfig.publicKey = QByteArray(Colosseum::Update::embeddedUpdatePublicKey().data(),
                                         Colosseum::Update::embeddedUpdatePublicKey().size());
-    auto *updateClient = new Colosseum::Update::UpdateReleaseClient(
-        updateNam, updateConfig, &app);
-    auto *updateBridge = new Colosseum::Update::UpdateInstallBridge(&app);
+    Colosseum::Update::UpdateReleaseClient updateClientStorage(updateNam, updateConfig, &app);
+    auto *updateClient = &updateClientStorage;
+    Colosseum::Update::UpdateInstallBridge updateBridgeStorage(&app);
+    auto *updateBridge = &updateBridgeStorage;
 
     struct ActiveUpdateCallbacks final {
         std::function<void(qint64, qint64, qint64)> progress;
@@ -1158,7 +1158,7 @@ int main(int argc, char *argv[]) {
             runVaultVideoEnrichment();
             return;
         }
-        auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>();
+        auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>(vaultIndex);
         QObject::connect(
             watcher, &QFutureWatcher<QList<VaultIndex::FileRow>>::finished, vaultIndex,
             [vaultIndex, watcher, baseRevision, runVaultVideoEnrichment]() {
@@ -1396,7 +1396,8 @@ int main(int argc, char *argv[]) {
     // docs/visibility/vault-forensic-owner-thread.md §10) — no second SQLite
     // connection, no writer. Parented to &app like every other Vault object (F0 §1),
     // so it shares vaultLibrary's GUI-thread lifetime; wired into LanistaServer below.
-    auto *vaultForensics = new VaultForensics(vaultLibrary, &app);
+    VaultForensics vaultForensicsStorage(vaultLibrary, &app);
+    auto *vaultForensics = &vaultForensicsStorage;
 
     // BiblioCatalog Discover/Explore keyless daily refresh service (spec
     // 2026-08-01, plan 2026-08-03 Task 4): a writable per-user SQLite cache
@@ -1769,7 +1770,8 @@ int main(int argc, char *argv[]) {
     // Lanista dev-control bridge — ALWAYS ON for reads/grabs (Hemanth, spec
     // 2026-08-01 §3). Local named pipe only, never a network port. Driving and
     // mutation commands gate on env INSIDE the server, per command.
-    auto *lanistaServer = new LanistaServer(&engine, &app);
+    LanistaServer lanistaServerStorage(&engine, &app);
+    auto *lanistaServer = &lanistaServerStorage;
     // F1-Bridge: hand the bridge the live forensic projection constructed above.
     lanistaServer->setVaultForensics(vaultForensics);
 
