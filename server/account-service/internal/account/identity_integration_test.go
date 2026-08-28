@@ -71,6 +71,55 @@ func TestUsernameReservationIsCaseInsensitiveAndPermanent(t *testing.T) {
 	}
 }
 
+func TestSignInAlwaysPerformsPasswordVerification(t *testing.T) {
+	fixture := newServiceFixture(t)
+	createFixtureAccount(t, fixture, "TimingOwner")
+
+	tests := []struct {
+		name      string
+		username  string
+		sourceKey string
+	}{
+		{
+			name:      "unknown username",
+			username:  "UnknownTimingOwner",
+			sourceKey: "203.0.113.50",
+		},
+		{
+			name:      "existing username wrong password",
+			username:  "TimingOwner",
+			sourceKey: "203.0.113.51",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			calls := 0
+			fixture.service.passwordVerify = func(encoded, password string) (bool, error) {
+				calls++
+				return false, nil
+			}
+
+			_, err := fixture.service.SignIn(
+				context.Background(),
+				SignInInput{
+					Username:        test.username,
+					Password:        "wrong password value",
+					DeviceInstallID: deviceBInstall,
+					DeviceLabel:     "Timing Test PC",
+					Platform:        "Windows",
+					SourceKey:       test.sourceKey,
+				})
+			if !errors.Is(err, ErrInvalidCredentials) {
+				t.Fatalf("error = %v, want ErrInvalidCredentials", err)
+			}
+			if calls != 1 {
+				t.Fatalf("password verify calls = %d, want 1", calls)
+			}
+		})
+	}
+}
+
 func TestPasswordChangeKeepsCurrentSessionAndRevokesOthers(t *testing.T) {
 	fixture := newServiceFixture(t)
 	created := createFixtureAccount(t, fixture, "PasswordOwner")

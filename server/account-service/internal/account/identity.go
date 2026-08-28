@@ -241,16 +241,19 @@ func (s *Service) SignIn(ctx context.Context, input SignInInput) (SignInResult, 
 		return SignInResult{}, ErrInvalidCredentials
 	}
 
+	password := norm.NFC.String(input.Password)
 	account, err := s.loadAuthAccountByCanonical(ctx, canonicalUsername)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) {
+			if _, verifyErr := s.passwordVerify(s.dummyPasswordHash, password); verifyErr != nil {
+				return SignInResult{}, fmt.Errorf("verify dummy password hash: %w", verifyErr)
+			}
 			return SignInResult{}, ErrInvalidCredentials
 		}
 		return SignInResult{}, err
 	}
 
-	password := norm.NFC.String(input.Password)
-	valid, err := s.passwordHasher.Verify(account.PasswordHash, password)
+	valid, err := s.passwordVerify(account.PasswordHash, password)
 	if err != nil {
 		return SignInResult{}, fmt.Errorf("verify password hash: %w", err)
 	}

@@ -35,6 +35,8 @@ type Service struct {
 	pool                    *pgxpool.Pool
 	passwordPolicy          PasswordPolicy
 	passwordHasher          *PasswordHasher
+	dummyPasswordHash       string
+	passwordVerify          func(encoded, password string) (bool, error)
 	recoveryVerifier        *RecoveryKeyVerifier
 	sessionCipher           *SessionCipher
 	syncCipher              *SyncPayloadCipher
@@ -91,10 +93,18 @@ func NewService(dependencies Dependencies) (*Service, error) {
 		return nil, fmt.Errorf("account service requires a positive registration global limit")
 	}
 
+	dummyHash, err := dependencies.PasswordHasher.Hash(
+		"colosseum-auth-dummy-password-not-a-user-secret")
+	if err != nil {
+		return nil, fmt.Errorf("build dummy password hash: %w", err)
+	}
+
 	return &Service{
 		pool:                    dependencies.Pool,
 		passwordPolicy:          dependencies.PasswordPolicy,
 		passwordHasher:          dependencies.PasswordHasher,
+		dummyPasswordHash:       dummyHash,
+		passwordVerify:          dependencies.PasswordHasher.Verify,
 		recoveryVerifier:        dependencies.RecoveryVerifier,
 		sessionCipher:           dependencies.SessionCipher,
 		syncCipher:              dependencies.SyncCipher,
