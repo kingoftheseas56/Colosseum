@@ -54,7 +54,7 @@
 #include <memory>
 #include <algorithm>
 
-namespace {
+namespace ProgressStoreDetail {
 // Isolation gate (2026-08-14 fix). ProgressStore/CollectionStore historically hardcoded the
 // QSettings two-arg constructor (org="Brotherhood", app="Colosseum"), which resolves straight
 // to the Windows registry at HKCU\Software\Brotherhood\Colosseum — the REAL user's hive — no
@@ -66,8 +66,8 @@ namespace {
 // persistence there too, as a file, instead of the shared registry. Untagged: returns an
 // empty string, meaning "use the registry" — the daily app is byte-for-byte unaffected.
 // Named per-store (progressStore...) rather than shared: ProgressStore.h and
-// CollectionStore.h are both #included into main.cpp, and two identically-named
-// functions in unnamed namespaces would collide in that one translation unit.
+// CollectionStore.h are both #included into main.cpp, so their helper symbols
+// must remain distinct in that translation unit.
 inline QString progressStoreTaggedIniPath(const QString &storeFileName) {
     if (!qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG"))
         return QString();
@@ -75,7 +75,7 @@ inline QString progressStoreTaggedIniPath(const QString &storeFileName) {
     QDir().mkpath(dir);
     return dir + QLatin1Char('/') + storeFileName;
 }
-}
+} // namespace ProgressStoreDetail
 
 // Background disk writer for the Continue map. Owns the QSettings that persists `continue/
 // entries` and performs ALL JSON serialization + QSettings::sync() on its OWN thread, so the
@@ -136,7 +136,8 @@ public:
         : QObject(parent) {
         // Tagged (isolated Lanista test) sessions divert to a file under the tag's own
         // AppData root; untagged (the daily app) is unchanged — registry, same keys.
-        const QString tagged = progressStoreTaggedIniPath(QStringLiteral("progress-store.ini"));
+        const QString tagged = ProgressStoreDetail::progressStoreTaggedIniPath(
+            QStringLiteral("progress-store.ini"));
         if (tagged.isEmpty()) {
             m_settings = std::make_unique<QSettings>(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"));
             m_writer = new ProgressDiskWriter(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"));

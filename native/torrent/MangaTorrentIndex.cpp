@@ -426,8 +426,10 @@ QList<VolumeMapping> runMappingQuery(QSqlQuery& q)
     // Verified rows first, then best evidence first — the lookup path (M5)
     // consumes index 0 as the answer.
     std::sort(out.begin(), out.end(), [](const VolumeMapping& a, const VolumeMapping& b) {
-        if (a.status == MappingStatus::Verified != (b.status == MappingStatus::Verified))
-            return a.status == MappingStatus::Verified;
+        const bool aVerified = a.status == MappingStatus::Verified;
+        const bool bVerified = b.status == MappingStatus::Verified;
+        if (aVerified != bVerified)
+            return aVerified;
         return a.evidence > b.evidence; // higher enum = stronger evidence
     });
     return out;

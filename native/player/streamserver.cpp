@@ -335,5 +335,3 @@ void StreamServer::pollStats()
         Q_EMIT streamStats(hash, idx, stats);
     });
 }
-
-#include "moc_streamserver.cpp"

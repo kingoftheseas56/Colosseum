@@ -216,7 +216,7 @@ QList<QString> WindowsAccountCredentialStore::enumerateTargets(const QString &pr
         if (target.startsWith(prefix))
             targets.append(target);
     }
-    CredFree(credentials);
+    CredFree(static_cast<void *>(credentials));
 #else
     Q_UNUSED(prefix);
 #endif

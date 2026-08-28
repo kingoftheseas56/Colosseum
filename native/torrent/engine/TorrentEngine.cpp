@@ -279,7 +279,10 @@ private:
             if (rec.savePath == resolveTmp) continue;
             try {
                 rec.handle.save_resume_data(lt::torrent_handle::save_info_dict);
-            } catch (...) {}
+            } catch (...) {
+                // Periodic resume persistence is best-effort for each handle.
+                continue;
+            }
         }
     }
 };
@@ -573,7 +576,10 @@ void TorrentEngine::saveAllResumeData()
         try {
             h.save_resume_data(lt::torrent_handle::save_info_dict);
             ++count;
-        } catch (...) {}
+        } catch (...) {
+            // One bad handle must not block shutdown persistence for the rest.
+            continue;
+        }
     }
     if (count == 0) return;
 
@@ -596,7 +602,11 @@ void TorrentEngine::saveAllResumeData()
                         auto buf = lt::write_resume_data_buf(srd->params);
                         std::ofstream ofs(resumePath.toStdString(), std::ios::binary | std::ios::trunc);
                         ofs.write(buf.data(), static_cast<std::streamsize>(buf.size()));
-                    } catch (...) {}
+                    } catch (...) {
+                        // The alert is consumed even if its best-effort disk write fails.
+                        --remaining;
+                        continue;
+                    }
                 }
                 --remaining;
             } else if (lt::alert_cast<lt::save_resume_data_failed_alert>(a)) {
@@ -1639,19 +1649,8 @@ qint64 TorrentEngine::contiguousBytesFromOffset(const QString& infoHash,
 
         // First piece: count from fileOffset to piece end, clamped to file.
         // Subsequent pieces: full piece length, clamped to file tail.
-        // Use map_file from the OPPOSITE direction — compute the torrent-
-        // absolute byte range this piece covers within the file, then the
-        // byte count contributed is min(pieceEnd, fileEnd) - max(pieceStart,
-        // fileOffset). For the vast majority of cases (piece fully inside
-        // file, no cross-file boundary), this simplifies to full piece.
-        const qint64 pieceStartAbs = static_cast<qint64>(p) * pieceLen;
-        const qint64 pieceEndAbs   = pieceStartAbs + pieceLen;   // exclusive
-
-        // Translate piece to this file's coordinates. ti->map_file gave us
-        // piece + in-piece offset for a file offset; reverse mapping here
-        // is done by asking: what file-byte range does this piece cover?
-        // Simpler: we know startReq.start (the in-piece byte offset of the
-        // requested file byte). So the first-piece contribution is:
+        // startReq.start is the in-piece byte offset of fileOffset, so the
+        // first-piece contribution is:
         //   pieceLen - startReq.start  (bytes from fileOffset to piece end)
         // but clamped to fileSize - fileOffset.
         qint64 contribution;

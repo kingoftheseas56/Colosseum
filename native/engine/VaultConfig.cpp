@@ -262,10 +262,8 @@ bool VaultConfig::isHidden(const QString& fileId) const
 void VaultConfig::setHidden(const QString& fileId, bool hidden)
 {
     QJsonArray a = m_doc.value(QStringLiteral("hidden")).toArray();
-    bool present = false;
     for (int i = 0; i < a.size(); ++i) {
         if (a.at(i).toString() == fileId) {
-            present = true;
             if (!hidden) {
                 a.removeAt(i);
                 m_doc.insert(QStringLiteral("hidden"), a);
@@ -274,7 +272,7 @@ void VaultConfig::setHidden(const QString& fileId, bool hidden)
             return;
         }
     }
-    if (hidden && !present) {
+    if (hidden) {
         a.append(fileId);
         m_doc.insert(QStringLiteral("hidden"), a);
         persist();
