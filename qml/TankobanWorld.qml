@@ -188,11 +188,13 @@ WorldPage {
 
     ContinueRow {
         title: "Continue Reading"
-        // Real resume data — manga + comics BLENDED by true recency and capped like every other
-        // row (audit fix: was all-manga-then-all-comics, unbounded). Stays shared above the tabs
-        // (the split is browse-only; personal rows blend both halves). Progress.revision keeps it live.
+        // Real resume data — manga + tankoban + comics BLENDED: bounded per-kind reads, then a
+        // global updatedAt sort and cap. Stays shared above the tabs (the split is browse-only;
+        // personal rows blend all three kinds). Progress.revision keeps it live.
         items: (Progress.revision, (function() {
-            var a = Progress.recent("manga", 12).concat(Progress.recent("comic", 12))
+            var a = Progress.recent("manga", 12)
+                .concat(Progress.recent("tankoban", 12))
+                .concat(Progress.recent("comic", 12))
             a.sort(function(x, y) { return (y.updatedAt || 0) - (x.updatedAt || 0) })
             // Tag the comic source so blended tiles read GetComics on the badge; manga untagged.
             return a.slice(0, 12).map(function(e) {
