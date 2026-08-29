@@ -1,6 +1,7 @@
 #include "ProfileStoreRuntime.h"
 
 #include "ActivityStore.h"
+#include "ConsumptionHistoryBridge.h"
 #include "HistoryStore.h"
 #include "ProfilePreferencesStore.h"
 
@@ -11,6 +12,7 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QDebug>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QTemporaryDir>
@@ -31,6 +33,7 @@ struct ProfileStoreRuntime::StoreSet {
     // so an unhealthy activity DB never blocks profile bring-up — activity
     // is observational, per CPP-PORT-CONTRACT §25.
     std::unique_ptr<ActivityStore> activity;
+    std::unique_ptr<ConsumptionHistoryBridge> consumptionHistory;
 };
 
 ProfileStoreRuntime::ProfileStoreRuntime(
@@ -403,6 +406,11 @@ ProfileStoreRuntime::createSealedStores(
         std::make_unique<ActivityStore>(
             QDir(root).filePath(
                 QStringLiteral("activity.sqlite")));
+    stores->consumptionHistory = std::make_unique<ConsumptionHistoryBridge>(
+        stores->activity.get(), stores->progress.get(), stores->history.get());
+    QString projectionError;
+    if (!stores->consumptionHistory->replayExisting(&projectionError))
+        qWarning() << "Consumption history replay failed:" << projectionError;
 
     m_sealedRoot =
         std::move(sealedRoot);
@@ -456,6 +464,11 @@ ProfileStoreRuntime::createLegacyStores() const {
     stores->activity =
         std::make_unique<ActivityStore>(
             m_legacyStorage.activityDbPath());
+    stores->consumptionHistory = std::make_unique<ConsumptionHistoryBridge>(
+        stores->activity.get(), stores->progress.get(), stores->history.get());
+    QString projectionError;
+    if (!stores->consumptionHistory->replayExisting(&projectionError))
+        qWarning() << "Consumption history replay failed:" << projectionError;
 
     return stores;
 }
@@ -507,6 +520,11 @@ ProfileStoreRuntime::createProfileStores(
     stores->activity =
         std::make_unique<ActivityStore>(
             paths.activityDbPath());
+    stores->consumptionHistory = std::make_unique<ConsumptionHistoryBridge>(
+        stores->activity.get(), stores->progress.get(), stores->history.get());
+    QString projectionError;
+    if (!stores->consumptionHistory->replayExisting(&projectionError))
+        qWarning() << "Consumption history replay failed:" << projectionError;
 
     return stores;
 }

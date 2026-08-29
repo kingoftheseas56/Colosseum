@@ -1165,6 +1165,7 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
     # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
@@ -1375,6 +1376,42 @@ set_tests_properties(colosseum.qttest.activity_store PROPERTIES
 # tst_activity_store; reuses the same ACTIVITY_FIXTURES_DIR definition even
 # though this target does not load fixtures directly (kept for symmetry/
 # possible future differential use, harmless if unused).
+add_executable(tst_consumption_history
+    auto/consumption_history/tst_consumption_history.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+target_include_directories(tst_consumption_history PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_consumption_history PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_consumption_history PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Sql>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Core>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${Qt6_DIR}/../../../plugins/sqldrivers/qsqlite.dll"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/qsqlite.dll")
+add_test(NAME colosseum.qttest.consumption_history COMMAND tst_consumption_history)
+set_tests_properties(colosseum.qttest.consumption_history PROPERTIES
+    LABELS "unit;qttest;activity;history;profile"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 240)
+
 add_executable(tst_activity_playback_tracker
     auto/activity/tst_activity_playback_tracker.cpp
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityPlaybackTracker.cpp"
@@ -1477,6 +1514,7 @@ add_executable(tst_account_adoption
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
@@ -1536,6 +1574,7 @@ add_executable(tst_account_shared_pc
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
@@ -1607,6 +1646,7 @@ add_executable(tst_profile_activity_isolation
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"

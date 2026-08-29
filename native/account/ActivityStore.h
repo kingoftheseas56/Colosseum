@@ -99,6 +99,8 @@ public:
     // emits changed() only on success.
     Q_INVOKABLE bool clearAll();
 
+    QList<QVariantMap> historyProjectionFacts() const;
+
     // Merges the WAL file back into the main database file (PRAGMA
     // wal_checkpoint(TRUNCATE)) without closing the connection. First-account
     // adoption (CPP-PORT-CONTRACT §17) calls this on a still-open legacy
@@ -122,6 +124,7 @@ public:
 signals:
     void changed();
     void integrityError(const QString &code, const QString &detail);
+    void factCommitted(const QVariantMap &event);
 
 private:
     bool ensureSchema();
