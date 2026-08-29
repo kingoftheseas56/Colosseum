@@ -20,6 +20,18 @@ int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     QTemporaryDir dir;
     ProgressStore store(dir.filePath("progress.ini"));
+    int completionCount = 0;
+    QString completionKind;
+    QString completionId;
+    qint64 completionAt = 0;
+    QObject::connect(&store, &ProgressStore::completionCrossed,
+                     [&completionCount, &completionKind, &completionId, &completionAt](
+                         const QString &kind, const QString &id, qint64 at) {
+        ++completionCount;
+        completionKind = kind;
+        completionId = id;
+        completionAt = at;
+    });
 
     // default: no override
     CHECK(store.watchedMark(QStringLiteral("tt1:1:4")) == 0, "default mark is 0");
@@ -63,13 +75,18 @@ int main(int argc, char** argv) {
     CHECK(store.get(QStringLiteral("video"), vaultId).isEmpty(), "finished vault film drops its resume record");
     CHECK(store.watchedMark(vaultId) == 1, "finished vault film is remembered as watched");
 
-    // A catalogue (non-vault) movie must retire EXACTLY as it did before: record gone, and this
-    // path adds no watched mark of its own.
+    // A catalogue (non-vault) movie must retire without manufacturing manual watched state,
+    // while its automatic completion crosses the History bridge seam exactly once.
     const QString movieId = QStringLiteral("tt7654321");
     store.record(videoEntry(movieId, 0.42));
     store.record(videoEntry(movieId, 0.95));
     CHECK(store.get(QStringLiteral("video"), movieId).isEmpty(), "finished catalogue movie drops its resume record");
     CHECK(store.watchedMark(movieId) == 0, "catalogue retire adds no watched mark");
+    CHECK(completionCount == 2, "vault and catalogue completions each cross once");
+    CHECK(completionKind == "movie" && completionId == movieId && completionAt > 0,
+          "catalogue completion event is a movie event");
+    store.record(videoEntry(movieId, 0.95));
+    CHECK(completionCount == 2, "catalogue completion does not repeat after retirement");
 
     // Both survive a reload over the same INI: the mark is a plain settings key, the dropped
     // records need the writer drained first (flush() is the read-your-writes barrier).

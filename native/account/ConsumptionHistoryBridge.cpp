@@ -2,6 +2,7 @@
 
 #include "ActivityStore.h"
 #include "HistoryStore.h"
+#include "../ProgressStore.h"
 
 #include <QVariantMap>
 
@@ -16,6 +17,14 @@ ConsumptionHistoryBridge::ConsumptionHistoryBridge(ActivityStore *activity,
                     if (m_clearInProgress || projectActivityFact(event))
                         return;
                     emit projectionError(QStringLiteral("Activity fact could not be projected"));
+                }, Qt::DirectConnection);
+    }
+    if (m_progress) {
+        connect(m_progress, &ProgressStore::completionCrossed, this,
+                [this](const QString &kind, const QString &id, qint64 at) {
+                    if (projectProgressCompletion(kind, id, at))
+                        return;
+                    emit projectionError(QStringLiteral("Progress completion could not enter History."));
                 }, Qt::DirectConnection);
     }
 }

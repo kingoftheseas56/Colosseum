@@ -43,6 +43,8 @@ private slots:
     void playbackDeltaProjectsFirstAndLastActivity();
     void readingDeltaProjectsActivity();
     void completionProjectsCompletedAt();
+    void progressMovieThresholdMarksHistoryCompleted();
+    void progressEpisodeThresholdMarksHistoryCompletedOnce();
     void exactDuplicateActivityDoesNotDoubleProject();
     void localOnlyFactDoesNotEnterPortableHistory();
     void existingActivityLedgerReplaysIntoEmptyHistory();
@@ -70,6 +72,25 @@ void tst_consumption_history::completionProjectsCompletedAt() {
     QVERIFY(a.recordCompletion(fact("c1", "media_completed", 4000)));
     QVERIFY(h.completed("movie", "movie:i"));
     QCOMPARE(h.get("movie", "movie:i").value("completedAt").toLongLong(), 4000LL);
+}
+
+void tst_consumption_history::progressMovieThresholdMarksHistoryCompleted() {
+    QTemporaryDir d; QVERIFY(d.isValid()); ActivityStore a; HistoryStore h(d.filePath("history.ini"));
+    ProgressStore p(d.filePath("progress.ini")); ConsumptionHistoryBridge b(&a, &p, &h);
+    p.record({{"kind", "video"}, {"id", "movie:threshold"}, {"progress", 0.42}});
+    p.record({{"kind", "video"}, {"id", "movie:threshold"}, {"progress", 0.90}});
+    QVERIFY(h.completed("movie", "movie:threshold"));
+}
+
+void tst_consumption_history::progressEpisodeThresholdMarksHistoryCompletedOnce() {
+    QTemporaryDir d; QVERIFY(d.isValid()); ActivityStore a; HistoryStore h(d.filePath("history.ini"));
+    ProgressStore p(d.filePath("progress.ini")); ConsumptionHistoryBridge b(&a, &p, &h);
+    QSignalSpy spy(&h, &HistoryStore::syncDirty);
+    p.record({{"kind", "video"}, {"id", "series:1:1"}, {"progress", 0.42}});
+    p.record({{"kind", "video"}, {"id", "series:1:1"}, {"progress", 0.90}});
+    p.record({{"kind", "video"}, {"id", "series:1:1"}, {"progress", 0.95}});
+    QVERIFY(h.completed("episode", "series:1:1"));
+    QCOMPARE(spy.count(), 1);
 }
 
 void tst_consumption_history::exactDuplicateActivityDoesNotDoubleProject() {

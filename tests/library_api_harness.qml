@@ -21,6 +21,10 @@ Item {
                "0<p<0.90 → progress");
             ok(Api.watchState({}, { mark: 0, progress: 0, isSeries: true }) === "unwatched",
                "no progress → unwatched");
+            ok(Api.watchState({}, { mark: 0, completed: true, progress: 0, isSeries: false }) === "watched",
+               "History completion survives Continue retirement");
+            ok(Api.watchState({}, { mark: -1, completed: true, progress: 0, isSeries: false }) === "unwatched",
+               "manual unwatched still wins over automatic History completion");
             ok(Api.watchState({}, { mark: -1, progress: 0.4, isSeries: true }) === "progress",
                "mark=-1 mid-progress → progress");
             // ongoing series NEVER auto-completes on episode %: verbatim guard (buildRows clamps for the bar)
@@ -136,7 +140,9 @@ Item {
                 { id: "tt5:1:12", progress: 0.95, updatedAt: 6000, watched: true }
             ];
             var mark0 = function (id) { return 0; };
-            var brows = Api.buildRows(bentries, plist, mark0, ["tt1"], now);
+            var brows = Api.buildRows(bentries, plist, mark0, function (entry) {
+                return entry && entry.id === "tt3";
+            }, ["tt1"], now);
 
             // join correctness: series in progress, movie auto-watched, stamps + downloaded joined
             ok(brows[0].state === "progress" && brows[0].progress === 0.5 && brows[0].lastWatchedAt === 5000
