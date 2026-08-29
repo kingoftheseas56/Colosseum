@@ -190,6 +190,8 @@ QString ActivityStore::newSessionId() const {
 }
 
 bool ActivityStore::insertFact(const QString &type, const QVariantMap &fact) {
+    if (!m_retentionEnabled)
+        return true;
     if (!healthy()) {
         emit integrityError(QStringLiteral("db_unhealthy"),
                             QStringLiteral("ActivityStore database is not open"));

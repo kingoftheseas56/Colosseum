@@ -1026,6 +1026,47 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 300)
 
+# Arc 26 Task 3 RED: local privacy retention and coordinator contract.
+add_executable(tst_privacy_policy
+    auto/privacy_policy/tst_privacy_policy.cpp
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h")
+target_include_directories(tst_privacy_policy PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_privacy_policy PRIVATE Qt6::Core Qt6::Qml Qt6::Sql Qt6::Test)
+set_target_properties(tst_privacy_policy PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_privacy_policy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.privacy_policy COMMAND tst_privacy_policy)
+set_tests_properties(colosseum.qttest.privacy_policy PROPERTIES
+    LABELS "unit;qttest;privacy" ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 180)
+
 # Deterministic Reading Room contract: qml.exe injects fake service, progress,
 # and download seams, so this gate is safe under the unit label and does not
 # require the live app or network.

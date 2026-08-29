@@ -52,6 +52,8 @@ public:
           m_settings(std::make_unique<QSettings>(iniPath, QSettings::IniFormat)) {}
 
     int revision() const { return m_revision; }
+    void setRetentionEnabled(bool enabled) { m_retentionEnabled = enabled; }
+    bool retentionEnabled() const { return m_retentionEnabled; }
 
     Q_INVOKABLE QStringList list(const QString &scope) const {
         const QString key = storageKey(scope);
@@ -68,6 +70,8 @@ public:
     }
 
     Q_INVOKABLE QStringList record(const QString &scope, const QString &query) {
+        if (!m_retentionEnabled)
+            return list(scope);
         const QString clean = query.trimmed();
         if (clean.size() < 2)
             return list(scope);
@@ -176,4 +180,5 @@ private:
 
     std::unique_ptr<QSettings> m_settings;
     int m_revision = 0;
+    bool m_retentionEnabled = true;
 };

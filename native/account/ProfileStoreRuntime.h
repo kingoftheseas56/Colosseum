@@ -81,6 +81,7 @@ private:
 
     void bindContextProperties();
     void clearContextProperties();
+    void configureRetentionPolicy(StoreSet *stores) const;
     static bool setError(
         QString *error,
         const QString &message);

@@ -77,6 +77,9 @@ public:
     Q_INVOKABLE bool recordReadingDelta(const QVariantMap &fact);
     Q_INVOKABLE bool recordCompletion(const QVariantMap &fact);
 
+    void setRetentionEnabled(bool enabled) { m_retentionEnabled = enabled; }
+    bool retentionEnabled() const { return m_retentionEnabled; }
+
     // Projects the FULL persisted ledger onto `monthKey` via
     // ActivityProjector::projectMonth(). Returns an empty QVariantMap and
     // emits integrityError() when the database is unhealthy or the month
@@ -136,4 +139,5 @@ private:
     QSqlDatabase m_db;
     QString m_openError;
     quint64 m_revision = 0;
+    bool m_retentionEnabled = true;
 };

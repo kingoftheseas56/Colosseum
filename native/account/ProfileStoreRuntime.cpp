@@ -154,6 +154,21 @@ void ProfileStoreRuntime::flushPersonalStores() {
         m_stores->activity->checkpointForSafeCopy(nullptr);
 }
 
+void ProfileStoreRuntime::configureRetentionPolicy(StoreSet *stores) const {
+    if (!stores || !stores->preferences || !stores->searchHistory || !stores->activity)
+        return;
+    stores->searchHistory->setRetentionEnabled(stores->preferences->rememberSearchHistory());
+    stores->activity->setRetentionEnabled(stores->preferences->keepActivityHistory());
+    connect(stores->preferences.get(), &ProfilePreferencesStore::rememberSearchHistoryChanged,
+            stores->searchHistory.get(), [p = stores->preferences.get(), s = stores->searchHistory.get()] {
+                s->setRetentionEnabled(p->rememberSearchHistory());
+            });
+    connect(stores->preferences.get(), &ProfilePreferencesStore::keepActivityHistoryChanged,
+            stores->activity.get(), [p = stores->preferences.get(), a = stores->activity.get()] {
+                a->setRetentionEnabled(p->keepActivityHistory());
+            });
+}
+
 void ProfileStoreRuntime::suspendPersonalStoresForMigration() {
     if (!m_stores)
         return;
@@ -406,6 +421,7 @@ ProfileStoreRuntime::createSealedStores(
         std::make_unique<ActivityStore>(
             QDir(root).filePath(
                 QStringLiteral("activity.sqlite")));
+    configureRetentionPolicy(stores.get());
     stores->consumptionHistory = std::make_unique<ConsumptionHistoryBridge>(
         stores->activity.get(), stores->progress.get(), stores->history.get());
     QString projectionError;
@@ -464,6 +480,7 @@ ProfileStoreRuntime::createLegacyStores() const {
     stores->activity =
         std::make_unique<ActivityStore>(
             m_legacyStorage.activityDbPath());
+    configureRetentionPolicy(stores.get());
     stores->consumptionHistory = std::make_unique<ConsumptionHistoryBridge>(
         stores->activity.get(), stores->progress.get(), stores->history.get());
     QString projectionError;
@@ -520,6 +537,7 @@ ProfileStoreRuntime::createProfileStores(
     stores->activity =
         std::make_unique<ActivityStore>(
             paths.activityDbPath());
+    configureRetentionPolicy(stores.get());
     stores->consumptionHistory = std::make_unique<ConsumptionHistoryBridge>(
         stores->activity.get(), stores->progress.get(), stores->history.get());
     QString projectionError;
@@ -554,6 +572,9 @@ void ProfileStoreRuntime::bindContextProperties() {
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileActivity"),
         m_stores->activity.get());
+    m_qmlContext->setContextProperty(
+        QStringLiteral("ProfileConsumptionHistory"),
+        m_stores->consumptionHistory.get());
 }
 
 void ProfileStoreRuntime::clearContextProperties() {
@@ -580,6 +601,9 @@ void ProfileStoreRuntime::clearContextProperties() {
         static_cast<QObject *>(nullptr));
     m_qmlContext->setContextProperty(
         QStringLiteral("ProfileActivity"),
+        static_cast<QObject *>(nullptr));
+    m_qmlContext->setContextProperty(
+        QStringLiteral("ProfileConsumptionHistory"),
         static_cast<QObject *>(nullptr));
 }
 

@@ -88,11 +88,16 @@ Rectangle {
             colosseumMonthKey = AccountActivityFormat.shiftMonthKey(colosseumMonthKey, 1)
     }
 
-    // Data & privacy is presentation-only until its dedicated backend lane
-    // supplies authoritative policy values and handles these requests.
-    property bool privacyRememberSearchHistory: true
-    property bool privacyKeepActivityHistory: true
-    property bool privacySyncActivityHistory: true
+    property var preferencesStore:
+        typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
+    property var historyCoordinator:
+        typeof ProfileConsumptionHistory !== "undefined" ? ProfileConsumptionHistory : null
+    readonly property bool privacyRememberSearchHistory:
+        preferencesStore ? preferencesStore.rememberSearchHistory : true
+    readonly property bool privacyKeepActivityHistory:
+        preferencesStore ? preferencesStore.keepActivityHistory : true
+    readonly property bool privacySyncActivityHistory:
+        preferencesStore ? preferencesStore.syncActivityHistory : true
     property bool privacyRememberSearchHistoryBusy: false
     property bool privacyKeepActivityHistoryBusy: false
     property bool privacySyncActivityHistoryBusy: false
@@ -110,6 +115,16 @@ Rectangle {
     signal privacyDataExportRequested()
     signal privacyAccountDeletionFlowRequested()
 
+    onPrivacyRememberSearchHistoryChangeRequested: function(enabled) {
+        if (preferencesStore) preferencesStore.setRememberSearchHistory(enabled)
+    }
+    onPrivacyKeepActivityHistoryChangeRequested: function(enabled) {
+        if (preferencesStore) preferencesStore.setKeepActivityHistory(enabled)
+    }
+    onPrivacySyncActivityHistoryChangeRequested: function(enabled) {
+        if (preferencesStore) preferencesStore.setSyncActivityHistory(enabled)
+    }
+
     // E2/E3 backend wiring (roadmap §9, CPP-PORT-CONTRACT.md §16 "Deletion and user-control
     // rules"): the two clears that have real existing local owners. Exposed as PROPERTIES
     // (not a bare-global reference inside the handler) so a host/test can inject a fake —
@@ -117,7 +132,6 @@ Rectangle {
     // the real app picks up the native SearchHistoryStore/ActivityStore context properties
     // automatically via the typeof-guarded default, same pattern as colosseumEarliestMonthKey.
     property var searchHistoryStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
-    property var activityStore: typeof ProfileActivity !== "undefined" ? ProfileActivity : null
 
     // The three real remembered search scopes, verified 2026-08-19 by grepping every
     // SearchHistoryStore record()/list() call site in qml/ rather than trusting a guess:
@@ -139,8 +153,12 @@ Rectangle {
     // ProgressStore::forget/HistoryStore::remove from secretly deleting activity, and the
     // inverse holds here: clearing activity never reaches into Progress or Collection.
     onPrivacyClearActivityHistoryRequested: {
-        if (activityStore)
-            activityStore.clearAll()
+        privacyErrorMessage = ""
+        if (!historyCoordinator || !historyCoordinator.clearAll()) {
+            privacyErrorMessage = qsTr("Could not clear all stored watch and reading activity.")
+            return
+        }
+        privacyPage.acknowledgeActivityHistoryCleared()
     }
 
     visible: false
@@ -430,6 +448,7 @@ Rectangle {
             }
 
             AccountDataPrivacyPage {
+                id: privacyPage
                 x: 34
                 y: 64
                 width: parent.width - 86
