@@ -1386,9 +1386,8 @@ void ComicDownloader::ingestArchiveByProbe(InFlight& f)
 // two-path ingest (Task 4, CBZ-in-place plan)
 // ─────────────────────────────────────────────────────────────────────────────
 
-void ComicDownloader::runPackOrCopyThenPublish(
-    quint64 serial, std::function<PackOrCopyResult()> work,
-    std::function<void(const PackOrCopyResult&)> onDone)
+void ComicDownloader::runPackOrCopyThenPublish(quint64 serial, std::function<PackOrCopyResult()> work,
+                                               std::function<void(const PackOrCopyResult&)> onDone)
 {
     auto* watcher = new QFutureWatcher<PackOrCopyResult>(this);
     connect(watcher, &QFutureWatcher<PackOrCopyResult>::finished, this,
