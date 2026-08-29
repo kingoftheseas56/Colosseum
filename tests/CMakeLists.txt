@@ -213,6 +213,16 @@ set_tests_properties(colosseum.world_warmer_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Home hidden-work contract: the retained Home surface must stop its carousel timer while a
+# world is visible, without changing the explicit hide/show navigation boundary.
+add_test(NAME colosseum.home_hidden_work_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_home_hidden_work_contract.ps1")
+set_tests_properties(colosseum.home_hidden_work_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
 # activeVolumeJobs() plus failed(id, reason), so the test drives the real
 # LocalDownloads retention path without constructing the network/torrent stack.

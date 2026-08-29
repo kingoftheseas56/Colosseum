@@ -2083,7 +2083,7 @@ Window {
                     // Stands down while the player is up: this advances a carousel nobody can see
                     // behind the film, and every advance is an animation plus cover work on the
                     // GUI thread — the thread Qt Quick needs free to present video frames.
-                    interval: 6500; running: !win.immersiveSurfaceOpen; repeat: true
+                    interval: 6500; running: page.visible && !win.immersiveSurfaceOpen; repeat: true
                     // guarded: an empty roster would turn the modulo into NaN
                     onTriggered: if (heroView.count > 0)
                                      heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count

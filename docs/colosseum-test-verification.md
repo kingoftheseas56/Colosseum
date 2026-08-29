@@ -107,6 +107,32 @@ surface: startup stalls are labelled `operation=startup surface=qml-load` or
 `surface=first-frame`, and the later heavy events name `QQuickWindowIncubationController`; this
 is the next measured target for QML lifetime/loading work.
 
+## Responsiveness qualification — cold world navigation and hidden Home work (2026-08-29)
+
+Cold route probes were run with `COLOSSEUM_WORLD_WARMER=0`, `COLOSSEUM_STARTUP_PROBE=1`, and
+`COLOSSEUM_GUI_STALL_PROBE=50`. The isolated Biblio probe (`biblio_tab_probe2.json`, session
+`20260829-214215-c2944904`) passed all 6/6 steps. It reached the first frame at 11.712 s,
+shell-interactive at 23.758 s, and its cold `open the Biblio mode` → tab-bar step took 8.040 s.
+The run recorded 21 GUI-stall hits (5.737 s total), including a 1.968 s network-reply event and
+a 329 ms Main event after the shell became interactive. This is route-local world/network work,
+not automatic warming.
+
+The matching-QML Tankoban catalogue replay (`tankoban_catalogue_smoke.json`, session
+`20260829-212837-1899dd52`) reached Tankoban, its Manga tab, and the deterministic tile click, but
+did not qualify the later network-backed masthead/shelf assertions. Its diagnostic log still
+records route attribution: Main-thread stalls of 987 ms, 1.361 s, and 2.426 s while
+`operation=navigate surface=Tankoban` was active. The failed assertions are retained as an
+infrastructure/network-bound qualification boundary, not counted as a green journey.
+
+The existing `worldStack` retention contract is intentionally unchanged. Visited worlds remain
+alive so tab/filter/scroll state survives a world round-trip; switching all world Loaders to
+`active: worldStack.current === mode` would destroy that state and introduce late-callback and
+request-cancellation risk. The safe follow-on is the new `home_hidden_work_contract`, which gates
+Home's 6.5 s hero timer on `page.visible && !win.immersiveSurfaceOpen`. Home's existing page is
+still hidden/revealed by the same navigation paths, so returning Home resumes the retained index
+without rebuilding it. A deeper visited-world eviction requires serialized state plus explicit
+callback cancellation and remains a separate qualification packet.
+
 ## Build entry
 
 - Active build root: `native/CMakeLists.txt`. All 70 harnesses are plain
