@@ -369,6 +369,9 @@ Item {
     property bool _resumeArmed: false           // the next load may restore the saved Continue spot
     property bool _pendingAtLast: false         // open the entry at its last page (previous-crossing)
     property bool _suspendRecord: false         // mutating state during load() must not emit records
+    // Remote Progress import may switch entries without turning the imported winner
+    // into a fresh local opening write. The imported record remains the authority.
+    property bool _remoteResumeApplying: false
     // Replaying a series' remembered preferences is not the reader MAKING one. Without
     // this, opening a book would stamp that book's night veil onto the GLOBAL seed and
     // re-write the record it had just read — the same leak F2 closed for the strip measure.
@@ -495,6 +498,32 @@ Item {
             _pendingPageFraction = (mode === "long_strip" && r.pageFraction !== undefined)
                                    ? Math.max(0, Math.min(1, Number(r.pageFraction) || 0)) : -1
         }
+    }
+
+    // Apply a validated remote Tankoban winner through the SAME load/_applyResume door
+    // as a normal Continue open. No surface/page geometry is mutated here. If the remote
+    // volume is not local yet, leave it pending in the bridge and keep the current book readable.
+    function _applySyncedResume(target) {
+        if (!target || target.valid !== true) return false
+        if (reader.progressKind !== "tankoban") return false
+        if (String(target.seriesId || "") !== reader.seriesId) return false
+        var id = String(target.chapterId || "")
+        if (!id.length || !reader.entryReady(id)) return false
+
+        reader._resumeArmed = true
+        reader._pendingAtLast = false
+        if (id === reader.curChapterId) {
+            reader.load()
+        } else {
+            reader._remoteResumeApplying = true
+            try {
+                reader.curChapterId = id
+            } finally {
+                reader._remoteResumeApplying = false
+            }
+        }
+        syncedResumeBridge.acceptPending(target)
+        return true
     }
 
     // startDownload() — the acquire router, byte-identical to MangaReader.qml:322-337. Tankoban
@@ -1063,7 +1092,13 @@ Item {
     // this is read from inside onCurChapterIdChanged, the handler for exactly the property
     // (curChapterId) the identity depends on.
     function _activityIdentity() {
-        return ComicActivityHelpers.identityFor(reader.seriesId, reader.curChapterId, reader.progressKind)
+        var idf = ComicActivityHelpers.identityFor(reader.seriesId, reader.curChapterId, reader.progressKind)
+        if (!idf) return null
+        var portable = ComicActivityHelpers.activityItemIdentity(reader.seriesId, reader.curChapterId)
+        if (!portable.itemKey.length) return null
+        idf.itemKey = portable.itemKey
+        idf.syncable = portable.syncable
+        return idf
     }
 
     // Start a new reading session on a fresh open or a chapter/issue/volume crossing (§9 Lane
@@ -1088,9 +1123,9 @@ Item {
 
     // Common identity/metadata fields every reading_delta/media_completed fact for THIS entry
     // carries (§6 common fields). `itemLabel` is the CHAPTER/VOLUME label, `title` the SERIES —
-    // mirrors recordProgress()'s own seriesTitle/curLabel split above. syncable is always true
-    // here: itemKey is curChapterId, a catalog/archive entry id, never a raw filesystem path
-    // (unlike Biblio's local-path-derived book keys, §7's caveat does not apply to this lane).
+    // mirrors recordProgress()'s own seriesTitle/curLabel split above. Portability comes from
+    // _activityIdentity(): catalog entry ids remain syncable; filesystem-backed Vault entries use
+    // their stable logical series id and stay local-only.
     function _activityCommonFields(idf) {
         return {
             world: "tankoban",
@@ -1101,7 +1136,7 @@ Item {
             itemLabel: reader.curLabel,
             cover: ComicActivityHelpers.portableCover(reader.seriesCover),
             utcOffsetMinutes: -(new Date().getTimezoneOffset()),
-            syncable: true,
+            syncable: idf.syncable !== false,
             source: "comicreader-shell",
             sessionId: reader.activitySessionId
         }
@@ -1248,7 +1283,11 @@ Item {
     // reader was on). It is not a page nobody has seen — it is where this open is putting them, and
     // for a resume it is a page they demonstrably saw last time. What the rule removed is the write
     // that fired for every page number a FLICK swept through inside an already-open entry.
-    onCurChapterIdChanged: { load(); recordProgress(); _activityBeginIfNeeded() }
+    onCurChapterIdChanged: {
+        load()
+        if (!_remoteResumeApplying) recordProgress()
+        _activityBeginIfNeeded()
+    }
     onCurrentPageChanged: {
         // CONTRACT for Task 10 (double-page): maxSeen is the completion high-water mark, and
         // `currentPage` is the pair ANCHOR in double mode. MangaReader.qml bumpSeen() (lines 242-249)
@@ -2088,6 +2127,16 @@ Item {
         function onLoupeRequested()      { reader.openOverlay("loupe") }
     }
 
+    // Remote continue_progress winners have one door into an active Tankoban reader.
+    // The bridge validates owner signal/kind/series and coalesces semantic duplicates;
+    // this shell decides when the target is locally readable and reuses load/_applyResume.
+    ComicReaderSyncedResumeBridge {
+        id: syncedResumeBridge
+        progress: reader.progress
+        seriesId: reader.seriesId
+        onResumeRequested: function(target) { reader._applySyncedResume(target) }
+    }
+
     // an injected page store (or a future store) may not emit this exact progress/finished/failed
     // triple — don't spam "no such signal" warnings. A completed download re-runs load() so the
     // reader flips from the download path to the open pages (contract §3).
@@ -2095,7 +2144,13 @@ Item {
         target: reader.store
         ignoreUnknownSignals: true
         function onProgress(cid, done, total) { /* download line — chrome (Task 11) */ }
-        function onFinished(cid) { if (cid === reader.curChapterId) reader.load() }
+        function onFinished(cid) {
+            var pending = syncedResumeBridge.pendingTarget
+            if (pending && String(pending.chapterId || "") === String(cid)) {
+                if (reader._applySyncedResume(pending)) return
+            }
+            if (cid === reader.curChapterId) reader.load()
+        }
         function onFailed(cid, reason) { /* error placard — chrome (Task 11) */ }
     }
 }
