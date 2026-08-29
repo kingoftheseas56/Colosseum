@@ -528,7 +528,7 @@ void UpdateService::checkNow()
     m_lastCheckMs = nowMs();
     setState(Checking);
     persist();
-    m_hooks.checkLatest(m_etag, [this](ReleaseCheckResult result) {
+    m_hooks.checkLatest(m_etag, [this](const ReleaseCheckResult& result) {
         handleRelease(result);
     });
 }

@@ -219,8 +219,8 @@ ReleaseCheckResult check(QNetworkAccessManager& nam, FixtureServer& server,
     ReleaseCheckResult result;
     bool called = false;
     QEventLoop loop;
-    client.checkLatest(priorEtag, [&](ReleaseCheckResult value) {
-        result = std::move(value);
+    client.checkLatest(priorEtag, [&](const ReleaseCheckResult& value) {
+        result = value;
         called = true;
         loop.quit();
     });
@@ -396,7 +396,7 @@ int main(int argc, char** argv)
         server.holdLatest = true;
         UpdateReleaseClient* client = new UpdateReleaseClient(&nam, configFor(server));
         bool called = false;
-        client->checkLatest({}, [&](ReleaseCheckResult) { called = true; });
+        client->checkLatest({}, [&](const ReleaseCheckResult&) { called = true; });
         delete client;
         pump(500);
         require(!called, "destroyed client does not invoke a dangling callback");

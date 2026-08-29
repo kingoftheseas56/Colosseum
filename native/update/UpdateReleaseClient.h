@@ -38,7 +38,7 @@ struct ReleaseClientConfig {
 class UpdateReleaseClient final : public QObject {
     Q_OBJECT
 public:
-    using Callback = std::function<void(ReleaseCheckResult)>;
+    using Callback = std::function<void(const ReleaseCheckResult&)>;
 
     UpdateReleaseClient(QNetworkAccessManager* nam, ReleaseClientConfig config,
                         QObject* parent = nullptr);
@@ -59,7 +59,7 @@ private:
 
     void fetch(const QUrl& url, qint64 cap, const QByteArray& priorEtag,
                std::function<void(const FetchResult&)> done);
-    void finish(ReleaseCheckResult result);
+    void finish(const ReleaseCheckResult& result);
     bool allowedUrl(const QUrl& url) const;
 
     QNetworkAccessManager* m_nam = nullptr;
