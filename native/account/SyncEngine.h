@@ -49,6 +49,13 @@ public:
     void setNetworkEnabled(
         bool enabled);
 
+    void setCategoryNetworkEnabled(
+        const QString &categoryId,
+        bool enabled);
+
+    bool categoryNetworkEnabled(
+        const QString &categoryId) const;
+
     State state() const;
     QString stateName() const;
     int pendingOutboxCount() const;
@@ -132,6 +139,11 @@ private:
         QString *errorCode,
         QString *errorMessage);
 
+    bool finishCategoryReplay(
+        const QString &categoryId,
+        QString *errorCode,
+        QString *errorMessage);
+
     void rebasePendingMutations();
 
     quint64 persistState();
@@ -188,6 +200,10 @@ private:
     bool m_networkBusy = false;
     bool m_signOutFlushRequested = false;
     bool m_pullHasMore = false;
+
+    QSet<QString> m_disabledCategories;
+    QSet<QString> m_requestedDisabledCategories;
+    QString m_categoryReplayInProgress;
 
     State m_state = State::Inactive;
     QString m_lastErrorCode;

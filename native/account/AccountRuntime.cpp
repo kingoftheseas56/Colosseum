@@ -1,6 +1,7 @@
 #include "AccountRuntime.h"
 
 #include "AccountServiceEndpoint.h"
+#include "ProfilePreferencesStore.h"
 #include "watchparty/WatchPartyIdentity.h"
 
 #include <QQmlApplicationEngine>
@@ -307,6 +308,19 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::move(historyAdapter);
     m_preferencesSyncAdapter =
         std::move(preferencesAdapter);
+
+    m_syncEngine.setCategoryNetworkEnabled(
+        QStringLiteral("full_history"),
+        preferences->syncActivityHistory());
+    connect(
+        preferences,
+        &ProfilePreferencesStore::syncActivityHistoryChanged,
+        this,
+        [this, preferences]() {
+            m_syncEngine.setCategoryNetworkEnabled(
+                QStringLiteral("full_history"),
+                preferences->syncActivityHistory());
+        });
     return true;
 }
 

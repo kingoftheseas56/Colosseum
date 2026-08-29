@@ -18,7 +18,7 @@
 #include <QUuid>
 
 namespace {
-constexpr int kStateSchemaVersion = 1;
+constexpr int kStateSchemaVersion = 2;
 
 bool parseUnsigned(
     const QJsonValue &value,
@@ -444,6 +444,46 @@ QJsonObject SyncStateStore::encode(
         QStringLiteral("winners"),
         winners);
 
+    QJsonArray pausedCategories;
+    QStringList pausedNames = state.pausedCategories.keys();
+    pausedNames.sort();
+    for (const QString &category : pausedNames) {
+        const SyncPausedCategoryState &paused =
+            state.pausedCategories.value(category);
+        QJsonObject object;
+        object.insert(QStringLiteral("category"), category);
+        object.insert(QStringLiteral("replaying"), paused.replaying);
+
+        QJsonArray baseline;
+        QStringList baselineKeys = paused.localBaseline.keys();
+        baselineKeys.sort();
+        for (const QString &recordKey : baselineKeys) {
+            const SyncMirrorRecord &record = paused.localBaseline.value(recordKey);
+            baseline.append(QJsonObject{
+                {QStringLiteral("record_key"), recordKey},
+                {QStringLiteral("schema_version"), record.schemaVersion},
+                {QStringLiteral("payload"), record.payload}});
+        }
+        object.insert(QStringLiteral("local_baseline"), baseline);
+
+        QJsonArray overlay;
+        QStringList overlayKeys = paused.localOverlay.keys();
+        overlayKeys.sort();
+        for (const QString &recordKey : overlayKeys) {
+            const SyncPausedOverlayRecord &record = paused.localOverlay.value(recordKey);
+            QJsonObject entry{
+                {QStringLiteral("record_key"), recordKey},
+                {QStringLiteral("schema_version"), record.schemaVersion},
+                {QStringLiteral("operation"), syncWireOperationName(record.operation)},
+                {QStringLiteral("payload"), record.payload},
+                {QStringLiteral("local_order_ms"), QString::number(record.localOrderMs)}};
+            overlay.append(entry);
+        }
+        object.insert(QStringLiteral("local_overlay"), overlay);
+        pausedCategories.append(object);
+    }
+    root.insert(QStringLiteral("paused_categories"), pausedCategories);
+
     return root;
 }
 
@@ -451,11 +491,8 @@ std::optional<SyncPersistentState>
 SyncStateStore::decode(
     const QJsonObject &object,
     QString *error) {
-    if (object.value(
-            QStringLiteral(
-                "schema_version"))
-            .toInt()
-        != kStateSchemaVersion) {
+    const int schemaVersion = object.value(QStringLiteral("schema_version")).toInt();
+    if (schemaVersion != 1 && schemaVersion != kStateSchemaVersion) {
         if (error) {
             *error = QStringLiteral(
                 "The sync state schema is unsupported.");
@@ -685,6 +722,77 @@ SyncStateStore::decode(
         state.winners[category].insert(
             recordKey,
             winner);
+    }
+
+    if (schemaVersion == 1)
+        return state;
+
+    const QJsonValue pausedValue = object.value(QStringLiteral("paused_categories"));
+    if (!pausedValue.isArray()) {
+        if (error)
+            *error = QStringLiteral("The paused sync category state is malformed.");
+        return std::nullopt;
+    }
+
+    for (const QJsonValue &value : pausedValue.toArray()) {
+        if (!value.isObject()) {
+            if (error)
+                *error = QStringLiteral("A paused sync category is malformed.");
+            return std::nullopt;
+        }
+        const QJsonObject objectValue = value.toObject();
+        const QString category = objectValue.value(QStringLiteral("category")).toString();
+        const QJsonValue baselineValue = objectValue.value(QStringLiteral("local_baseline"));
+        const QJsonValue overlayValue = objectValue.value(QStringLiteral("local_overlay"));
+        if (!validCategory(category) || !baselineValue.isArray() || !overlayValue.isArray()
+            || state.pausedCategories.contains(category)) {
+            if (error)
+                *error = QStringLiteral("A paused sync category is invalid or duplicated.");
+            return std::nullopt;
+        }
+        SyncPausedCategoryState paused;
+        paused.replaying = objectValue.value(QStringLiteral("replaying")).toBool();
+        for (const QJsonValue &recordValue : baselineValue.toArray()) {
+            if (!recordValue.isObject()) {
+                if (error) *error = QStringLiteral("A paused baseline record is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = recordValue.toObject();
+            const QString key = record.value(QStringLiteral("record_key")).toString();
+            const int version = record.value(QStringLiteral("schema_version")).toInt();
+            if (!isValidSyncWireRecordKey(key) || version <= 0
+                || !record.contains(QStringLiteral("payload"))
+                || paused.localBaseline.contains(key)) {
+                if (error) *error = QStringLiteral("A paused baseline record is invalid or duplicated.");
+                return std::nullopt;
+            }
+            paused.localBaseline.insert(key, SyncMirrorRecord{version, record.value(QStringLiteral("payload"))});
+        }
+        for (const QJsonValue &recordValue : overlayValue.toArray()) {
+            if (!recordValue.isObject()) {
+                if (error) *error = QStringLiteral("A paused overlay record is malformed.");
+                return std::nullopt;
+            }
+            const QJsonObject record = recordValue.toObject();
+            const QString key = record.value(QStringLiteral("record_key")).toString();
+            const int version = record.value(QStringLiteral("schema_version")).toInt();
+            const auto operation = syncWireOperationFromName(record.value(QStringLiteral("operation")).toString());
+            qint64 localOrderMs = -1;
+            if (record.contains(QStringLiteral("local_order_ms"))
+                && !parseSigned(record.value(QStringLiteral("local_order_ms")), &localOrderMs)) {
+                if (error) *error = QStringLiteral("A paused overlay timestamp is invalid.");
+                return std::nullopt;
+            }
+            if (!isValidSyncWireRecordKey(key) || version <= 0 || !operation.has_value()
+                || paused.localOverlay.contains(key)
+                || (*operation == SyncWireOperation::Put && !record.contains(QStringLiteral("payload")))) {
+                if (error) *error = QStringLiteral("A paused overlay record is invalid or duplicated.");
+                return std::nullopt;
+            }
+            paused.localOverlay.insert(key, SyncPausedOverlayRecord{*operation, version,
+                record.value(QStringLiteral("payload")), localOrderMs});
+        }
+        state.pausedCategories.insert(category, paused);
     }
 
     return state;
