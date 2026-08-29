@@ -127,7 +127,7 @@ private:
     void persist();
     void setState(State state);
     void emitChanged();
-    void handleRelease(ReleaseCheckResult result);
+    void handleRelease(const ReleaseCheckResult& result);
     void handleDownloadFailed(const QString& errorCode, bool resumable);
     void rebuildPresentation();
     void fetchMissingArtwork();

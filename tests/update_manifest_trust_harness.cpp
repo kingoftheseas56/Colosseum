@@ -87,6 +87,7 @@ int main()
                  "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"),
         replaced(valid, "\"artwork\": []", "\"artwork\": [{\"asset\": \"feature.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}, {\"asset\": \"feature.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"} ]"),
         replaced(valid, "\"artwork\": []", "\"artwork\": [{\"asset\": \"foo/bar.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}]"),
+        replaced(valid, "\"size\": 123", "\"size\": 9223372036854775808"),
         replaced(valid, "kingoftheseas56/Colosseum", "another-owner/another-repo")
     };
     for (const QByteArray& invalidJson : invalid)

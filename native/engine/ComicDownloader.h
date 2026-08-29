@@ -488,7 +488,7 @@ private:
     // force-kill -- safe either way, since the repack's own `.incoming`/
     // `.part` temp files are never the canonical path until proven complete.
     void runPackOrCopyThenPublish(quint64 serial, std::function<PackOrCopyResult()> work,
-                                  std::function<void(PackOrCopyResult)> onDone);
+                                  std::function<void(const PackOrCopyResult&)> onDone);
 
     void publishAssembledEdition(InFlight& f);
 

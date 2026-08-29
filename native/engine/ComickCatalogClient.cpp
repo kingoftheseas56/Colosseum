@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace tankoban::manga::comick {
 
@@ -96,9 +97,10 @@ QString labelFromJson(const QJsonValue& value, const char* field, bool* warned)
         return value.toString();
     if (value.isDouble()) {
         const double n = value.toDouble();
+        const qint64 integer = value.toInteger(std::numeric_limits<qint64>::min());
         QString rendered;
-        if (n == std::floor(n) && std::fabs(n) < 1e15)
-            rendered = QString::number(static_cast<qlonglong>(n));
+        if (integer != std::numeric_limits<qint64>::min() && std::fabs(n) < 1e15)
+            rendered = QString::number(integer);
         else
             rendered = QString::number(n);
         if (warned && !*warned) {
@@ -219,14 +221,17 @@ ParsedRecord parseDbRecord(const QByteArray& json)
         // it), so a one-entry record would otherwise sail through the unbroken-run check
         // on a number it never actually carried.
         const QJsonValue numberValue = obj.value(QLatin1String("number"));
-        if (!numberValue.isDouble() || numberValue.toDouble() != std::floor(numberValue.toDouble())) {
+        const qint64 number = numberValue.toInteger(std::numeric_limits<qint64>::min());
+        if (!numberValue.isDouble()
+            || number < std::numeric_limits<int>::min()
+            || number > std::numeric_limits<int>::max()) {
             if (structureProblem.isEmpty()) {
                 structureProblem = QStringLiteral("volume entry %1 has no whole `number`")
                                        .arg(i + 1);
             }
             continue;
         }
-        range.number = numberValue.toInt();
+        range.number = static_cast<int>(number);
         range.chapterStart = obj.value(QLatin1String("chapterStart")).toString();
         range.chapterEnd = obj.value(QLatin1String("chapterEnd")).toString();
 

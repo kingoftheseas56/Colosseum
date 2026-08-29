@@ -451,6 +451,18 @@ int main()
                 QStringLiteral("the refusal names the missing number: %1").arg(rec.gateReason));
     }
 
+    {
+        QByteArray outOfRangeNumber(kNoNumberRecord);
+        outOfRangeNumber.replace("{ \"chapterStart\"",
+                                 "{ \"number\": 2147483648, \"chapterStart\"");
+        const ParsedRecord rec = parseDbRecord(outOfRangeNumber);
+        require(rec.ok, "the out-of-range-number record is well-formed JSON (ok)");
+        require(!rec.qualified,
+                "a volume number outside int range is refused instead of narrowing to volume 0");
+        require(rec.gateReason.contains(QStringLiteral("no whole `number`")),
+                QStringLiteral("the refusal names the unusable number: %1").arg(rec.gateReason));
+    }
+
     // ── 5. An honestly unqualified record keeps its own reason ─────────────────
     {
         const ParsedRecord rec = parseDbRecord(QByteArray(kHonestlyUnqualifiedRecord));

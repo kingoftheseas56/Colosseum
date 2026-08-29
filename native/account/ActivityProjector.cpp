@@ -8,8 +8,8 @@
 #include <QVector>
 
 #include <algorithm>
-#include <cmath>
 #include <functional>
+#include <limits>
 
 // This file is a literal, function-by-function port of activity-reference.js
 // (the reference packet's executable oracle). Where the JS looks redundant —
@@ -61,16 +61,17 @@ bool isValidCompletionReason(const QString &value) {
 }
 
 void validateWorldKind(const QString &world, const QString &kind) {
-    const bool valid =
-        (world == QLatin1String("theatre")
-         && (kind == QLatin1String("movie") || kind == QLatin1String("episode")))
-        || (world == QLatin1String("tankoban")
-            && (kind == QLatin1String("manga_chapter") || kind == QLatin1String("comic_issue")
-                || kind == QLatin1String("tankoban_volume")))
-        || (world == QLatin1String("biblio")
-            && (kind == QLatin1String("book") || kind == QLatin1String("audiobook")));
-    if (!valid)
-        fail(QStringLiteral("invalid world/kind combination"));
+    if (world == QLatin1String("theatre")
+        && (kind == QLatin1String("movie") || kind == QLatin1String("episode")))
+        return;
+    if (world == QLatin1String("tankoban")
+        && (kind == QLatin1String("manga_chapter") || kind == QLatin1String("comic_issue")
+            || kind == QLatin1String("tankoban_volume")))
+        return;
+    if (world == QLatin1String("biblio")
+        && (kind == QLatin1String("book") || kind == QLatin1String("audiobook")))
+        return;
+    fail(QStringLiteral("invalid world/kind combination"));
 }
 
 // ---------------------------------------------------------------------------
@@ -88,10 +89,16 @@ qint64 requireInteger(const QJsonObject &obj, const QString &key) {
     const QJsonValue value = obj.value(key);
     if (!value.isDouble())
         fail(QStringLiteral("invalid %1").arg(key));
-    const double raw = value.toDouble();
-    if (!std::isfinite(raw) || std::trunc(raw) != raw)
-        fail(QStringLiteral("invalid %1").arg(key));
-    return static_cast<qint64>(raw);
+
+    constexpr qint64 lowSentinel = std::numeric_limits<qint64>::min();
+    constexpr qint64 highSentinel = std::numeric_limits<qint64>::max();
+    qint64 parsed = value.toInteger(lowSentinel);
+    if (parsed == lowSentinel) {
+        parsed = value.toInteger(highSentinel);
+        if (parsed == highSentinel)
+            fail(QStringLiteral("invalid %1").arg(key));
+    }
+    return parsed;
 }
 
 // ---------------------------------------------------------------------------

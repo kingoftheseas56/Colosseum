@@ -716,19 +716,19 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
             // typographic, which is correct. (A Season node inheriting its parent show's poster
             // when the season is not itself a group is a later refinement, tracked separately.)
             if (m_artworkResolver) {
-                VaultArtworkResolver::RowFacts facts;
-                facts.rowKey = n.key;
-                facts.kind = VaultKit::browseNodeTypeName(n.nodeType);
-                facts.path = n.path;
+                VaultArtworkResolver::RowFacts rowFacts;
+                rowFacts.rowKey = n.key;
+                rowFacts.kind = VaultKit::browseNodeTypeName(n.nodeType);
+                rowFacts.path = n.path;
                 for (const VaultIndex::FileRow& row : containerRows) {
                     if (!row.identityId.isEmpty() && !row.identitySuppressed
                         && !row.identityCoverUrl.isEmpty()) {
-                        facts.identityId = row.identityId;
-                        facts.posterUrl = row.identityCoverUrl;
+                        rowFacts.identityId = row.identityId;
+                        rowFacts.posterUrl = row.identityCoverUrl;
                         break;
                     }
                 }
-                const QString resolved = m_artworkResolver->resolve(facts);
+                const QString resolved = m_artworkResolver->resolve(rowFacts);
                 if (!resolved.isEmpty())
                     m.insert(QStringLiteral("coverRef"), resolved);
             }
@@ -800,17 +800,17 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
                       : ambiguous  ? QStringLiteral("uncertain")
                                    : QStringLiteral("resolving");
                 if (m_artworkResolver) {
-                    VaultArtworkResolver::RowFacts facts;
-                    facts.rowKey = n.key;
-                    facts.kind = factKind;
-                    facts.path = factPath;
-                    facts.localRef = localRef;
-                    facts.identityId = coverIdentityId;
-                    facts.posterUrl = posterUrl;
-                    facts.size = factSize;
-                    facts.mtimeMs = factMtimeMs;
-                    facts.durationSec = factDurationSec;
-                    const QString resolved = m_artworkResolver->resolve(facts);
+                    VaultArtworkResolver::RowFacts rowFacts;
+                    rowFacts.rowKey = n.key;
+                    rowFacts.kind = factKind;
+                    rowFacts.path = factPath;
+                    rowFacts.localRef = localRef;
+                    rowFacts.identityId = coverIdentityId;
+                    rowFacts.posterUrl = posterUrl;
+                    rowFacts.size = factSize;
+                    rowFacts.mtimeMs = factMtimeMs;
+                    rowFacts.durationSec = factDurationSec;
+                    const QString resolved = m_artworkResolver->resolve(rowFacts);
                     if (!resolved.isEmpty())
                         m.insert(QStringLiteral("coverRef"), resolved);
                 } else if (!localRef.isEmpty()) {

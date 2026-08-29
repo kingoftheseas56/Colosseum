@@ -455,9 +455,41 @@ void tst_watchparty_room::protocol_rejects_version_mismatch_and_invalid_guest_ho
     QVERIFY(wrongVersion.error.contains(
         QStringLiteral("unsupported protocol version")));
 
+    wrongVersionObject.insert(QStringLiteral("version"), -1);
+    const WatchParty::DecodeResult negativeVersion =
+        WatchParty::decodeMessage(
+            QJsonDocument(wrongVersionObject).toJson(QJsonDocument::Compact));
+    QVERIFY(!negativeVersion.ok);
+    QVERIFY(negativeVersion.error.contains(
+        QStringLiteral("unsupported protocol version")));
+
+    wrongVersionObject.insert(QStringLiteral("version"), 1.5);
+    const WatchParty::DecodeResult fractionalVersion =
+        WatchParty::decodeMessage(
+            QJsonDocument(wrongVersionObject).toJson(QJsonDocument::Compact));
+    QVERIFY(!fractionalVersion.ok);
+    QCOMPARE(fractionalVersion.error, QStringLiteral("version must be an integer"));
+
     WatchParty::RoomController room;
     createRoom(&room);
     QJsonObject snapshot = WatchParty::roomSnapshotToJson(room.snapshot());
+
+    QJsonObject fractionalDeadlineSnapshot = snapshot;
+    fractionalDeadlineSnapshot.insert(QStringLiteral("hostReconnectDeadlineMs"), 1.5);
+    WatchParty::RoomSnapshot deadlineParsed;
+    QString deadlineError;
+    QVERIFY(!WatchParty::roomSnapshotFromJson(
+        fractionalDeadlineSnapshot, &deadlineParsed, &deadlineError));
+    QCOMPARE(deadlineError, QStringLiteral("hostReconnectDeadlineMs must be an integer"));
+
+    QJsonObject overflowDeadlineSnapshot = snapshot;
+    overflowDeadlineSnapshot.insert(
+        QStringLiteral("hostReconnectDeadlineMs"), 9223372036854775808.0);
+    deadlineError.clear();
+    QVERIFY(!WatchParty::roomSnapshotFromJson(
+        overflowDeadlineSnapshot, &deadlineParsed, &deadlineError));
+    QCOMPARE(deadlineError, QStringLiteral("hostReconnectDeadlineMs must be an integer"));
+
     QJsonArray participants = snapshot.value(QStringLiteral("participants")).toArray();
     QJsonObject host = participants.first().toObject();
     host.insert(QStringLiteral("identityKind"), QStringLiteral("guest"));

@@ -361,7 +361,7 @@ QVariantList ComicTorrents::sourceRows(const SourceSession& session) const
         ComicTorrentRanker::rankForEdition(session.target, session.results));
 }
 
-void ComicTorrents::beginDownload(Request request, const QString& infoHash,
+void ComicTorrents::beginDownload(const Request& request, const QString& infoHash,
                                   const QString& pickerTitle, const QString& magnetUri)
 {
     m_downloadsByIssue.insert(request.issueId, request);

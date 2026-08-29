@@ -14,9 +14,6 @@
 #include <QSharedPointer>
 #include <QTimer>
 
-#include <cmath>
-#include <limits>
-
 namespace Colosseum::Update {
 namespace {
 
@@ -59,11 +56,10 @@ bool finiteInteger(const QJsonValue& value, qint64* result)
 {
     if (!value.isDouble())
         return false;
-    const double number = value.toDouble();
-    if (!std::isfinite(number) || number <= 0 || std::floor(number) != number
-        || number > static_cast<double>(std::numeric_limits<qint64>::max()))
+    const qint64 number = value.toInteger(0);
+    if (number <= 0)
         return false;
-    *result = static_cast<qint64>(number);
+    *result = number;
     return true;
 }
 
@@ -84,20 +80,20 @@ bool UpdateReleaseClient::allowedUrl(const QUrl& url) const
 }
 
 void UpdateReleaseClient::fetch(const QUrl& url, qint64 cap, const QByteArray& priorEtag,
-                                std::function<void(FetchResult)> done)
+                                std::function<void(const FetchResult&)> done)
 {
     if (m_cancelled || !m_nam) {
         FetchResult result;
         result.errorCode = m_cancelled ? QStringLiteral("cancelled")
                                        : QStringLiteral("network_manager_missing");
-        done(std::move(result));
+        done(result);
         return;
     }
     if (!allowedUrl(url)) {
         FetchResult result;
         result.unsafeRedirect = true;
         result.errorCode = QStringLiteral("unsafe_url");
-        done(std::move(result));
+        done(result);
         return;
     }
 
@@ -186,7 +182,7 @@ void UpdateReleaseClient::fetch(const QUrl& url, qint64 cap, const QByteArray& p
                     }
                 }
                 reply->deleteLater();
-                done(std::move(result));
+                done(result);
             });
 }
 
@@ -199,14 +195,14 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
         return;
 
     fetch(m_config.latestReleaseUrl, kApiBodyCap, priorEtag.toUtf8(),
-          [this](FetchResult latest) {
+          [this](const FetchResult& latest) {
               if (m_cancelled)
                   return;
               ReleaseCheckResult result;
               result.etag = latest.etag;
               if (latest.httpStatus == 304 && latest.transportOk) {
                   result.status = ReleaseCheckResult::Status::NotModified;
-                  finish(std::move(result));
+                  finish(result);
                   return;
               }
               if (!latest.transportOk) {
@@ -214,7 +210,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                       ? ReleaseCheckResult::Status::Rejected
                       : ReleaseCheckResult::Status::NetworkError;
                   result.errorCode = latest.errorCode;
-                  finish(std::move(result));
+                  finish(result);
                   return;
               }
 
@@ -222,7 +218,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
               const QJsonDocument document = QJsonDocument::fromJson(latest.body, &parseError);
               if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
                   reject(&result, QStringLiteral("invalid_api_json"));
-                  finish(std::move(result));
+                  finish(result);
                   return;
               }
               const QJsonObject root = document.object();
@@ -232,7 +228,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
               if (!tagValue.isString() || !draftValue.isBool() || !prereleaseValue.isBool()
                   || draftValue.toBool() || prereleaseValue.toBool()) {
                   reject(&result, QStringLiteral("release_not_stable"));
-                  finish(std::move(result));
+                  finish(result);
                   return;
               }
 
@@ -240,7 +236,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
               const QJsonArray assets = root.value(QStringLiteral("assets")).toArray();
               if (!apiVersion || assets.isEmpty()) {
                   reject(&result, QStringLiteral("invalid_release_metadata"));
-                  finish(std::move(result));
+                  finish(result);
                   return;
               }
 
@@ -259,7 +255,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                       reject(&result, state->assets.contains(name)
                           ? QStringLiteral("duplicate_asset_name")
                           : QStringLiteral("invalid_asset_metadata"));
-                      finish(std::move(result));
+                      finish(result);
                       return;
                   }
                   state->assets.insert(name, ApiAsset{url, size, digest});
@@ -267,13 +263,13 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
               if (!state->assets.contains(QString::fromLatin1(kManifestAsset))
                   || !state->assets.contains(QString::fromLatin1(kSignatureAsset))) {
                   reject(&result, QStringLiteral("missing_manifest_or_signature"));
-                  finish(std::move(result));
+                  finish(result);
                   return;
               }
 
               const ApiAsset manifestAsset = state->assets.value(QString::fromLatin1(kManifestAsset));
               fetch(manifestAsset.url, kManifestBodyCap, {},
-                    [this, state](FetchResult manifest) {
+                    [this, state](const FetchResult& manifest) {
                         if (m_cancelled)
                             return;
                         ReleaseCheckResult result;
@@ -282,14 +278,14 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                             reject(&result, manifest.bodyTooLarge
                                 ? QStringLiteral("manifest_body_too_large")
                                 : manifest.errorCode);
-                            finish(std::move(result));
+                            finish(result);
                             return;
                         }
                         state->manifestBytes = manifest.body;
                         const ApiAsset signatureAsset =
                             state->assets.value(QString::fromLatin1(kSignatureAsset));
                         fetch(signatureAsset.url, kSignatureBodyCap, {},
-                              [this, state](FetchResult signature) {
+                              [this, state](const FetchResult& signature) {
                                   if (m_cancelled)
                                       return;
                                   ReleaseCheckResult result;
@@ -298,7 +294,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                                       reject(&result, signature.bodyTooLarge
                                           ? QStringLiteral("signature_body_too_large")
                                           : signature.errorCode);
-                                      finish(std::move(result));
+                                      finish(result);
                                       return;
                                   }
                                   const QByteArray key = m_config.publicKey.isEmpty()
@@ -309,36 +305,36 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                                   if (!verifyEd25519Raw(state->manifestBytes, signature.body, key,
                                                         &error)) {
                                       reject(&result, QStringLiteral("invalid_manifest_signature"));
-                                      finish(std::move(result));
+                                      finish(result);
                                       return;
                                   }
                                   const auto manifest = parseManifest(state->manifestBytes, &error);
                                   if (!manifest) {
                                       reject(&result, QStringLiteral("invalid_manifest"));
-                                      finish(std::move(result));
+                                      finish(result);
                                       return;
                                   }
                                   const auto apiVersion = Version::parseTag(state->apiTag);
                                   if (!apiVersion || manifest->tag != state->apiTag
                                       || manifest->version.compare(*apiVersion) != 0) {
                                       reject(&result, QStringLiteral("api_manifest_tag_mismatch"));
-                                      finish(std::move(result));
+                                      finish(result);
                                       return;
                                   }
                                   const auto installerIt = state->assets.constFind(manifest->installerAsset);
                                   if (installerIt == state->assets.constEnd()) {
                                       reject(&result, QStringLiteral("missing_installer"));
-                                      finish(std::move(result));
+                                      finish(result);
                                       return;
                                   }
                                   if (installerIt->size != manifest->installerSize) {
                                       reject(&result, QStringLiteral("api_size_mismatch"));
-                                      finish(std::move(result));
+                                      finish(result);
                                       return;
                                   }
                                   if (installerIt->sha256 != manifest->installerSha256) {
                                       reject(&result, QStringLiteral("api_digest_mismatch"));
-                                      finish(std::move(result));
+                                      finish(result);
                                       return;
                                   }
                                   result.status = ReleaseCheckResult::Status::Valid;
@@ -347,7 +343,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                                   result.verifiedSignatureBytes = signature.body;
                                   for (auto it = state->assets.constBegin(); it != state->assets.constEnd(); ++it)
                                       result.assetUrls.insert(it.key(), it->url);
-                                  finish(std::move(result));
+                                  finish(result);
                               });
                     });
           });
@@ -361,13 +357,13 @@ void UpdateReleaseClient::cancel()
     m_reply->abort();
 }
 
-void UpdateReleaseClient::finish(ReleaseCheckResult result)
+void UpdateReleaseClient::finish(const ReleaseCheckResult& result)
 {
     if (!m_done)
         return;
     Callback done = std::move(m_done);
     m_done = {};
-    done(std::move(result));
+    done(result);
 }
 
 } // namespace Colosseum::Update

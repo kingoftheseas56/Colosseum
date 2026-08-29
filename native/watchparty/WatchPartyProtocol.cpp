@@ -108,17 +108,32 @@ bool readBool(const QJsonObject& object,
     return true;
 }
 
+bool exactInteger(const QJsonValue& raw, qint64* value)
+{
+    if (!raw.isDouble())
+        return false;
+
+    constexpr qint64 lowSentinel = std::numeric_limits<qint64>::min();
+    constexpr qint64 highSentinel = std::numeric_limits<qint64>::max();
+    qint64 parsed = raw.toInteger(lowSentinel);
+    if (parsed == lowSentinel) {
+        parsed = raw.toInteger(highSentinel);
+        if (parsed == highSentinel)
+            return false;
+    }
+    *value = parsed;
+    return true;
+}
+
 bool readNonNegativeInteger(const QJsonObject& object,
                             const QString& key,
                             qint64* value,
                             QString* error)
 {
-    const QJsonValue raw = object.value(key);
-    if (!raw.isDouble())
+    qint64 parsed = 0;
+    if (!exactInteger(object.value(key), &parsed))
         return fail(error, key + QStringLiteral(" must be an integer"));
-
-    const qint64 parsed = raw.toInteger(-1);
-    if (parsed < 0 || static_cast<double>(parsed) != raw.toDouble())
+    if (parsed < 0)
         return fail(error, key + QStringLiteral(" must be a non-negative integer"));
 
     *value = parsed;
@@ -699,17 +714,8 @@ DecodeResult decodeMessage(const QByteArray& bytes)
     }
 
     const QJsonValue versionValue = object.value(QStringLiteral("version"));
-    if (!versionValue.isDouble()) {
-        return DecodeResult{
-            false,
-            {},
-            QStringLiteral("version must be an integer"),
-            DecodeError::InvalidEnvelope
-        };
-    }
-
-    const qint64 version = versionValue.toInteger(-1);
-    if (static_cast<double>(version) != versionValue.toDouble()) {
+    qint64 version = 0;
+    if (!exactInteger(versionValue, &version)) {
         return DecodeResult{
             false,
             {},
@@ -1419,17 +1425,14 @@ bool roomSnapshotFromJson(const QJsonObject& object,
 
     const QJsonValue deadline =
         object.value(QStringLiteral("hostReconnectDeadlineMs"));
-    if (!deadline.isDouble()) {
+    if (!exactInteger(deadline, &parsed.hostReconnectDeadlineMs)) {
         return fail(
             error,
             QStringLiteral(
                 "hostReconnectDeadlineMs must be an integer"));
     }
 
-    parsed.hostReconnectDeadlineMs = deadline.toInteger(-2);
-    if (static_cast<double>(parsed.hostReconnectDeadlineMs)
-            != deadline.toDouble()
-        || parsed.hostReconnectDeadlineMs < -1) {
+    if (parsed.hostReconnectDeadlineMs < -1) {
         return fail(
             error,
             QStringLiteral(
