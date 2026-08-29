@@ -152,7 +152,7 @@ private:
     };
 
     void wireSignals();
-    void beginDownload(Request request, const QString& infoHash, const QString& pickerTitle,
+    void beginDownload(const Request& request, const QString& infoHash, const QString& pickerTitle,
                        const QString& magnetUri = QString());
     void failRequest(const QString& issueId, const QString& reason);
 

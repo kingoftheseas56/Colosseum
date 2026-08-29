@@ -1,7 +1,5 @@
 #include "update/UpdateManifest.h"
 
-#include <cmath>
-
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -131,12 +129,12 @@ std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* e
         || !sha256Field(installer.value(QStringLiteral("sha256")), &manifest.installerSha256,
                         error, "installer.sha256"))
         return std::nullopt;
-    const QJsonValue size = installer.value(QStringLiteral("size"));
-    if (!size.isDouble() || size.toDouble() <= 0 || size.toDouble() != std::floor(size.toDouble())) {
+    const qint64 installerSize = installer.value(QStringLiteral("size")).toInteger(0);
+    if (installerSize <= 0) {
         fail(error, QStringLiteral("invalid_installer_size"));
         return std::nullopt;
     }
-    manifest.installerSize = static_cast<qint64>(size.toDouble());
+    manifest.installerSize = installerSize;
 
     const auto minimum = Version::parseCanonical(
         root.value(QStringLiteral("minimumUpdaterVersion")).toString());

@@ -58,7 +58,7 @@ private:
     };
 
     void fetch(const QUrl& url, qint64 cap, const QByteArray& priorEtag,
-               std::function<void(FetchResult)> done);
+               std::function<void(const FetchResult&)> done);
     void finish(ReleaseCheckResult result);
     bool allowedUrl(const QUrl& url) const;
 

@@ -14,9 +14,6 @@
 #include <QSharedPointer>
 #include <QTimer>
 
-#include <cmath>
-#include <limits>
-
 namespace Colosseum::Update {
 namespace {
 
@@ -59,11 +56,10 @@ bool finiteInteger(const QJsonValue& value, qint64* result)
 {
     if (!value.isDouble())
         return false;
-    const double number = value.toDouble();
-    if (!std::isfinite(number) || number <= 0 || std::floor(number) != number
-        || number > static_cast<double>(std::numeric_limits<qint64>::max()))
+    const qint64 number = value.toInteger(0);
+    if (number <= 0)
         return false;
-    *result = static_cast<qint64>(number);
+    *result = number;
     return true;
 }
 
@@ -84,20 +80,20 @@ bool UpdateReleaseClient::allowedUrl(const QUrl& url) const
 }
 
 void UpdateReleaseClient::fetch(const QUrl& url, qint64 cap, const QByteArray& priorEtag,
-                                std::function<void(FetchResult)> done)
+                                std::function<void(const FetchResult&)> done)
 {
     if (m_cancelled || !m_nam) {
         FetchResult result;
         result.errorCode = m_cancelled ? QStringLiteral("cancelled")
                                        : QStringLiteral("network_manager_missing");
-        done(std::move(result));
+        done(result);
         return;
     }
     if (!allowedUrl(url)) {
         FetchResult result;
         result.unsafeRedirect = true;
         result.errorCode = QStringLiteral("unsafe_url");
-        done(std::move(result));
+        done(result);
         return;
     }
 
@@ -186,7 +182,7 @@ void UpdateReleaseClient::fetch(const QUrl& url, qint64 cap, const QByteArray& p
                     }
                 }
                 reply->deleteLater();
-                done(std::move(result));
+                done(result);
             });
 }
 
@@ -199,7 +195,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
         return;
 
     fetch(m_config.latestReleaseUrl, kApiBodyCap, priorEtag.toUtf8(),
-          [this](FetchResult latest) {
+          [this](const FetchResult& latest) {
               if (m_cancelled)
                   return;
               ReleaseCheckResult result;
@@ -273,7 +269,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
 
               const ApiAsset manifestAsset = state->assets.value(QString::fromLatin1(kManifestAsset));
               fetch(manifestAsset.url, kManifestBodyCap, {},
-                    [this, state](FetchResult manifest) {
+                    [this, state](const FetchResult& manifest) {
                         if (m_cancelled)
                             return;
                         ReleaseCheckResult result;
@@ -289,7 +285,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                         const ApiAsset signatureAsset =
                             state->assets.value(QString::fromLatin1(kSignatureAsset));
                         fetch(signatureAsset.url, kSignatureBodyCap, {},
-                              [this, state](FetchResult signature) {
+                              [this, state](const FetchResult& signature) {
                                   if (m_cancelled)
                                       return;
                                   ReleaseCheckResult result;

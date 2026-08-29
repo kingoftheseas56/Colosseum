@@ -82,6 +82,7 @@ struct ApiOptions {
     bool includeInstaller = true;
     bool duplicateInstaller = false;
     QByteArray installerDigest = QByteArray("fbc5fd97006521785cd1aa58917a4e2999e66d835748400dcb47e1df5e5a8226");
+    double installerSize = 17.0;
 };
 
 class FixtureServer final : public QTcpServer {
@@ -106,7 +107,7 @@ public:
     void rebuildLatest(const ApiOptions& options = {})
     {
         QJsonArray assets;
-        const auto addAsset = [&](const QString& name, const QString& path, qint64 size,
+        const auto addAsset = [&](const QString& name, const QString& path, double size,
                                   const QByteArray& digest) {
             QJsonObject asset;
             asset.insert(QStringLiteral("name"), name);
@@ -124,10 +125,10 @@ public:
                      signatureBody.size(), sha256Hex(signatureBody).toLatin1());
         if (options.includeInstaller)
             addAsset(QString::fromLatin1(kInstallerAsset), QStringLiteral("/download/installer"),
-                     17, options.installerDigest);
+                     options.installerSize, options.installerDigest);
         if (options.duplicateInstaller)
             addAsset(QString::fromLatin1(kInstallerAsset), QStringLiteral("/download/installer2"),
-                     17, options.installerDigest);
+                     options.installerSize, options.installerDigest);
 
         QJsonObject release;
         release.insert(QStringLiteral("tag_name"), options.tag);
@@ -325,6 +326,12 @@ int main(int argc, char** argv)
         options.tag = QStringLiteral("v1.2.0");
         server.rebuildLatest(options);
         expectRejected(nam, server, "api_manifest_tag_mismatch");
+    }
+    {
+        ApiOptions options;
+        options.installerSize = 9223372036854775808.0;
+        server.rebuildLatest(options);
+        expectRejected(nam, server, "invalid_asset_metadata");
     }
     {
         ApiOptions options;

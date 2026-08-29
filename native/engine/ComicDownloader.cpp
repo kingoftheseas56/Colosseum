@@ -1386,8 +1386,9 @@ void ComicDownloader::ingestArchiveByProbe(InFlight& f)
 // two-path ingest (Task 4, CBZ-in-place plan)
 // ─────────────────────────────────────────────────────────────────────────────
 
-void ComicDownloader::runPackOrCopyThenPublish(quint64 serial, std::function<PackOrCopyResult()> work,
-                                               std::function<void(PackOrCopyResult)> onDone)
+void ComicDownloader::runPackOrCopyThenPublish(
+    quint64 serial, std::function<PackOrCopyResult()> work,
+    std::function<void(const PackOrCopyResult&)> onDone)
 {
     auto* watcher = new QFutureWatcher<PackOrCopyResult>(this);
     connect(watcher, &QFutureWatcher<PackOrCopyResult>::finished, this,
@@ -1549,7 +1550,7 @@ void ComicDownloader::finalizeSafeMove(InFlight& f, const MangaTankoban::CbzProb
             result.probe = MangaTankoban::CbzArchive::probe(tempCanonical, &result.error);
             return result;
         },
-        [this, tempCanonical](PackOrCopyResult result) {
+        [this, tempCanonical](const PackOrCopyResult& result) {
             InFlight& active = *m_active;   // safe: onDone only runs when m_active->serial matches
             active.packing = false;
             if (!result.ok) { failPreservingSource(active, result.error); return; }
@@ -1897,7 +1898,7 @@ void ComicDownloader::finalizeExtract(InFlight& f)
             result.probe = MangaTankoban::CbzArchive::probe(canonical, &result.error);
             return result;
         },
-        [this, canonical, extractTmp](PackOrCopyResult result) {
+        [this, canonical, extractTmp](const PackOrCopyResult& result) {
             InFlight& active = *m_active;   // safe: onDone only runs when m_active->serial matches
             active.packing = false;
             if (!result.ok || !result.probe.nativelyReadable) {
@@ -2431,7 +2432,7 @@ void ComicDownloader::publishAssembledEdition(InFlight& f)
             result.probe = MangaTankoban::CbzArchive::probe(canonical, &result.error);
             return result;
         },
-        [this, canonical, stagingDir](PackOrCopyResult result) {
+        [this, canonical, stagingDir](const PackOrCopyResult& result) {
             InFlight& active = *m_active;   // safe: onDone only runs when m_active->serial matches
             active.packing = false;
             if (!result.ok || !result.probe.nativelyReadable) {
