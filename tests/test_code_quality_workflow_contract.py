@@ -63,7 +63,7 @@ class CodeQualityWorkflowContract(unittest.TestCase):
             self.assertIn(check, gate)
             self.assertIn(check, policy)
         self.assertNotIn("portability-avoid-pragma-once", policy)
-        self.assertIn("ComicDownloader.cpp|1427|clang-analyzer-cplusplus.NewDeleteLeaks", allowlist)
+        self.assertIn("ComicDownloader.cpp|1449|clang-analyzer-cplusplus.NewDeleteLeaks", allowlist)
 
     def test_address_sanitizer_gate_builds_and_runs_high_risk_native_probes(self):
         desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")
