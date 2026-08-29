@@ -1741,6 +1741,8 @@ int main(int argc, char *argv[]) {
     // never blocks first paint (progressive enhancement).
     auto *animeOrder = new AnimeOrderService(dlNam, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("AnimeOrder"), animeOrder);
+    const bool devWorldWarmer = qEnvironmentVariableIntValue("COLOSSEUM_WORLD_WARMER") == 1;
+    engine.rootContext()->setContextProperty(QStringLiteral("DevWorldWarmer"), devWorldWarmer);
     GuiStallProbeBridge guiStallProbe(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("GuiStallProbe"), &guiStallProbe);
 

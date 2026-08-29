@@ -203,6 +203,16 @@ set_tests_properties(colosseum.startup_deferral_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# World-warmer containment contract: automatic warming is opt-in, while explicit world
+# navigation remains available for normal operation.
+add_test(NAME colosseum.world_warmer_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_world_warmer_contract.ps1")
+set_tests_properties(colosseum.world_warmer_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
 # activeVolumeJobs() plus failed(id, reason), so the test drives the real
 # LocalDownloads retention path without constructing the network/torrent stack.

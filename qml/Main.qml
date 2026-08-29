@@ -37,6 +37,7 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
+    readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
@@ -2213,7 +2214,7 @@ Window {
     Timer {
         id: warmStart
         interval: 2500          // let the home page finish its own first paint first
-        running: true
+        running: win.worldWarmerEnabled
         repeat: false
         onTriggered: warmer.running = true
     }
