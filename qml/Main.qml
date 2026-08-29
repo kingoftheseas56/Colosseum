@@ -40,6 +40,28 @@ Window {
     property var pendingIdentityRoute: null
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+    function setGuiStallContext(operation, surface) {
+        if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
+            GuiStallProbe.setContext(operation, surface)
+    }
+
+    // Collection backfill and Biblio cover enrichment are intentionally post-frame work. Both
+    // functions are idempotent, but their initial local-model scans can be large enough to hold
+    // the GUI inside Component.onCompleted. Start only after native startup has observed the first
+    // frame, then give the shell a short settling window so the first interaction is responsive.
+    Timer {
+        id: postFrameStartupWork
+        interval: 350
+        repeat: false
+        onTriggered: {
+            win.runCollectionBackfill()
+            win.enrichBiblioCovers()
+        }
+    }
+    Connections {
+        target: (typeof GuiStallProbe !== "undefined") ? GuiStallProbe : null
+        function onFirstFrameReady() { postFrameStartupWork.start() }
+    }
     // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
     // the one honest map — an unknown id falls back to the default still.
@@ -340,8 +362,10 @@ Window {
                                     String(rows[i].infoHash).substring(0, 24))
                 })
         }
-        win.runCollectionBackfill()
-        win.enrichBiblioCovers()
+        // The production native entry point starts this timer from its first-frame signal. A
+        // bare QML harness has no bridge, so retain a deterministic fallback for those fixtures.
+        if (typeof GuiStallProbe === "undefined" || !GuiStallProbe)
+            postFrameStartupWork.start()
     }
 
     // locg:<id> → "<gc-tag-slug>|<gc-tagId>", persisted forever (survives restarts)
@@ -432,6 +456,7 @@ Window {
         if (!found) openModes.append({ mode: medium })   // first visit → create its keep-alive Loader
         worldStack.current = medium
         currentSurface = medium
+        setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
         topbar.visible = false
         page.visible = false
@@ -461,6 +486,7 @@ Window {
     function closeWorld() {
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
+        setGuiStallContext("navigate", "Home")
         refreshWallpaper()
         topbar.visible = true
         page.visible = true
@@ -984,6 +1010,7 @@ Window {
     // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
+        setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
         settingsLayer.active = false
         updateLayer.active = false
@@ -991,7 +1018,10 @@ Window {
         downloadsLayer.active = true
         taskbar.open = false
     }
-    function closeDownloadsPage() { downloadsLayer.active = false }
+    function closeDownloadsPage() {
+        downloadsLayer.active = false
+        setGuiStallContext("navigate", currentSurface || "Home")
+    }
 
     // ---- Vault page: the taskbar folder door's full-page, mutually exclusive with the other taskbar
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
@@ -1194,6 +1224,7 @@ Window {
     }
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
+        setGuiStallContext("open", "Player")
         if (!playerLayer.active) playerLayer.active = true
         win.playerOpen = true
         // `backdrop` is the poster url; subType/subId (e.g. "movie"/"tt123" or "series"/"tt123:1:2")
@@ -1228,6 +1259,7 @@ Window {
     function closePlayer() {
         if (playerLayer.item) playerLayer.item.stop()
         win.playerOpen = false
+        setGuiStallContext("navigate", currentSurface || "Home")
     }
 
     // ---- book detail: Biblio's own dust-jacket page, a layer over the world ----
@@ -1243,6 +1275,7 @@ Window {
     //      (it derives identity + resumes through Reader2Bridge/BookStores). ----
     function openBookReader(path, book) {
         if (!path) return
+        setGuiStallContext("open", "Reader")
         bookReaderLayer.bookPath = path
         bookReaderLayer.bookMeta = book || ({})
         if (bookReaderLayer.active && bookReaderLayer.item) {
@@ -1250,11 +1283,15 @@ Window {
             bookReaderLayer.item.openBook(path)
         } else bookReaderLayer.active = true
     }
-    function closeBookReader() { bookReaderLayer.active = false }
+    function closeBookReader() {
+        bookReaderLayer.active = false
+        setGuiStallContext("navigate", currentSurface || "Home")
+    }
 
     // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
     //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
     function openSearch() {
+        setGuiStallContext("open", "Search")
         var w = worldStack.current
         if (w === "Biblio") { searchLayer.active = true; return }
         if (w === "Tankoban") {
@@ -1267,8 +1304,14 @@ Window {
             worldSearchLayer.active = true
         }
     }
-    function closeSearch() { searchLayer.active = false }
-    function closeWorldSearch() { worldSearchLayer.active = false }
+    function closeSearch() {
+        searchLayer.active = false
+        setGuiStallContext("navigate", currentSurface || "Home")
+    }
+    function closeWorldSearch() {
+        worldSearchLayer.active = false
+        setGuiStallContext("navigate", currentSurface || "Home")
+    }
     function routeWorldSearchItem(data) {
         if (data && data.notice) return   // a cooldown/status notice row isn't clickable content
         win.closeWorldSearch()
@@ -1422,6 +1465,7 @@ Window {
 
     // UI entry points (replace direct open* calls from cards / world pages):
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
+        setGuiStallContext("open", "Player")
         // Library membership (spec §4.4): the moment playback starts, it joins the shelf.
         // The show root is EpisodeBrowser.seriesRootId (tt123:1:2 → tt123 ; kitsu:9:3:4 → kitsu:9);
         // a movie's subId IS its id. Downloads keep auto-adding; one shelf, no saved-vs-watched split.
@@ -1443,6 +1487,7 @@ Window {
     // so re-opening the same episode reuses its tile. `position` rides along for first-open
     // resume; a fresher captured position (minimize) wins via restoreState.
     function openLocalVideoSession(v) {
+        setGuiStallContext("open", "Player")
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
@@ -1462,6 +1507,7 @@ Window {
     }
     function openBookSession(path, book) {
         if (!path) return
+        setGuiStallContext("open", "Reader")
         var b = book || ({})
         Sessions.openOrSwitch({
             "appType": "biblio", "contentKind": "book", "title": b.title || "Book",

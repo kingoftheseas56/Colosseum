@@ -74,6 +74,8 @@ Item {
         surf.lastDispatchedQuery = q
         surf.expandedGroups = []   // a NEW query starts collapsed again (See-more state is per-query)
         surf.searching = true
+        if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
+            GuiStallProbe.setContext("search", surf.searchMode)
         surf.searchDispatcher(surf.searchMode, q, function(items) {
             if (q !== queryInput.text.trim()) return
             surf.results = items

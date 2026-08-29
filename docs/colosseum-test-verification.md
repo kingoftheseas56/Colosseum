@@ -19,7 +19,7 @@
 | Hand-rolled QML harnesses in `tests/*.qml` | 88 (+ 1 fixture scene) |
 | Real Qt Quick Test files (`tests/qml/tst_*.qml`) | **2** |
 | PowerShell runners in `tests/*.ps1` | **150** (+ 18 in the gated-off player2 lab) |
-| CTest / `add_test` / `Qt6::Test` / `Qt6::QuickTest` in the active build | **ZERO** |
+| CTest registrations in the current configured build (2026-08-29) | **89** |
 | C++ harnesses invoked by NO runner or script | **39 of 69** |
 | Runners that are pure static source-greps (no binary run) | **88 of 150** |
 | Runners pointing at files that do not exist (broken) | 2 |
@@ -70,19 +70,54 @@ This is deterministic process-lifecycle coverage for the non-blocking `LiveStore
 is not real mpv qualification and does not qualify network behavior, stream-server behavior,
 or playback under hostile network conditions.
 
+## Responsiveness qualification — startup and route attribution (2026-08-29)
+
+The opt-in `COLOSSEUM_GUI_STALL_PROBE` now reports fixed `warning` (below 150 ms), `severe`
+(150–249 ms), and `critical` (250 ms and above) bands, plus an explicitly encoded
+`operation`/`surface` context. The QML-facing `GuiStallProbe` bridge is updated only at
+high-value boundaries: Home/world navigation, Search dispatch, Downloads, Player, and Reader.
+With `COLOSSEUM_STARTUP_PROBE=1`, the native entry path emits `launch`, `first-frame`, and
+`shell-interactive` milestones; the first-frame signal also starts the post-frame startup work.
+
+`colosseum.qttest.gui_responsiveness_probe` is a pure helper test for milestone formatting,
+severity boundaries, and context escaping. `colosseum.qttest.lanista_timing` is a pure helper
+test for the `colosseum.lanista.timings.v1` milestone/step schema. Lanista accepts opt-in
+`--timings` for `session run` and `suite`; session runs write `timings.json` with lifecycle
+milestones and per-step durations, while the default runner output and behavior are unchanged.
+
+The first confirmed pre-frame GUI blocker was `Main.qml`'s Collection backfill and Biblio cover
+enrichment scan. Those existing idempotent functions now run from a one-shot 350 ms timer after
+the native first-frame signal (bare-QML fixtures retain a fallback timer). This packet measures
+and attributes the work; it does not yet split heavy pages into new QML components or impose
+request-level cancellation/backpressure.
+
+Runtime qualification on the rebuilt tagged app used `app_home.json` with `--timings` and passed
+4/4 steps. One representative run recorded first-frame at 7.765 s and shell-interactive at
+8.241 s, with step durations of 2/4/10/8 ms. Five further isolated runs recorded first-frame
+milestones of 6.348, 5.964, 6.369, 10.165, and 7.918 s (p50 6.369 s; five-sample p95/max
+10.165 s) and shell-interactive milestones of 6.887, 6.499, 7.483, 11.491, and 9.575 s
+(p50 7.483 s; five-sample p95/max 11.491 s). The older instrumented baseline was approximately
+8.602 s to first frame and 9.081 s to shell-interactive, so this bounded deferral improves the
+median but does not close the startup budget.
+
+A seeded `journey_open_manga.json` replay captured the normal route path and its timing artifact,
+but stopped at the existing flaky Downloads dock-width settle (step 6, 6.009 s timeout). It is
+not counted as a green journey qualification. Its diagnostic log still proves the new attribution
+surface: startup stalls are labelled `operation=startup surface=qml-load` or
+`surface=first-frame`, and the later heavy events name `QQuickWindowIncubationController`; this
+is the next measured target for QML lifetime/loading work.
+
 ## Build entry
 
 - Active build root: `native/CMakeLists.txt`. All 70 harnesses are plain
   `add_executable` + `target_link_libraries`, built on every build, run by hand or by a
   `.ps1`.
-- **No `include(CTest)`, no `enable_testing()`, no `add_test()`, no `Qt6::Test`, no
-  `Qt6::QuickTest` anywhere in the active build.** The in-tree reason
-  (`native/CMakeLists.txt:1274`): QVERIFY-style macros don't fit the house
-  failure-collecting `main()` idiom.
-- **Exception — the Player 2 lab** (`native/player2/CMakeLists.txt`): the repo's only real
-  CTest suite (18 `add_test` entries, `Qt6::Test` linked), but gated behind
-  `COLOSSEUM_BUILD_PLAYER2=OFF` and scoped by an `enable_testing()` call in a
-  SUBDIRECTORY — top-level `ctest` will not see it even when built.
+- CTest registration now lives in `tests/CMakeLists.txt` alongside the existing native
+  harness graph. The configured Windows build enumerated 89 tests on 2026-08-29, including
+  the responsiveness pilot targets documented above and the existing Player 2 lab.
+- The historical harness majority remains standalone or script-driven; registration does not
+  turn every compiled harness into a runtime gate. The table above still preserves the older
+  estate-shape counts so they can be reconciled deliberately rather than silently rewritten.
 - Only two POST_BUILD deploy steps exist, both on the `colosseum` app target (Qt SQL
   driver + FFmpeg DLLs). **Trap:** the five SQL harnesses find `qsqlite.dll` only because
   they land in the same `build-msvc` dir the app deployed into — run them from elsewhere

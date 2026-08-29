@@ -251,6 +251,7 @@ add_executable(colosseum
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
     installed_chronicle.qrc  # bundled installed-release chronicle (signed manifest + artwork)
     ClipboardHelper.h
+    GuiStallProbe.h           # Q_OBJECT QML-facing diagnostic context bridge
     MangaEngine.h
     ProgressStore.h
     CollectionStore.h

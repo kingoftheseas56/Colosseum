@@ -157,6 +157,52 @@ set_tests_properties(colosseum.qttest.capture_runner PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Startup qualification probe helpers: pure formatting/severity/context logic. The executable
+# stays deterministic and does not boot the application or open a real window.
+add_executable(tst_gui_responsiveness_probe auto/lanista/tst_gui_responsiveness_probe.cpp)
+target_include_directories(tst_gui_responsiveness_probe PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_gui_responsiveness_probe PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+set_target_properties(tst_gui_responsiveness_probe PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_gui_responsiveness_probe POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.gui_responsiveness_probe
+         COMMAND tst_gui_responsiveness_probe)
+set_tests_properties(colosseum.qttest.gui_responsiveness_probe PROPERTIES
+    LABELS "unit;qttest;lanista;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 120)
+
+# Lanista timing contract: schema/order checks for opt-in per-step and lifecycle timing.
+# Pure QtCore/QtTest; it does not boot an app or require a bridge.
+add_executable(tst_lanista_timing auto/lanista/tst_lanista_timing.cpp)
+target_include_directories(tst_lanista_timing PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_lanista_timing PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_lanista_timing PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_lanista_timing POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.lanista_timing
+         COMMAND tst_lanista_timing)
+set_tests_properties(colosseum.qttest.lanista_timing PROPERTIES
+    LABELS "unit;qttest;lanista"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Startup deferral contract: verifies the expensive but idempotent Collection/Biblio scans
+# begin only after the native first-frame boundary and remain reachable from the timer.
+add_test(NAME colosseum.startup_deferral_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_startup_deferral_contract.ps1")
+set_tests_properties(colosseum.startup_deferral_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
 # activeVolumeJobs() plus failed(id, reason), so the test drives the real
 # LocalDownloads retention path without constructing the network/torrent stack.

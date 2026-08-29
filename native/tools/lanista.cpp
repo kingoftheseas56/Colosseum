@@ -45,9 +45,11 @@
 #include "tools/LanistaCapture.h"
 #include "tools/LanistaHash.h"
 #include "tools/LanistaLayoutVerdict.h"
+#include "tools/LanistaTiming.h"
 
 static QString g_pipe = QStringLiteral("ColosseumLanista");
 static int g_timeout = 5000;
+static bool g_timingEnabled = false;
 
 static QJsonObject call(const QJsonObject& req, int timeoutMs = -1)
 {
@@ -263,6 +265,8 @@ struct Session {
     QProcess proc;
     QJsonObject manifest;
     QString error;               // non-empty => start failed
+    QElapsedTimer lifecycleClock;
+    QJsonArray timingMilestones;
 
     void writeManifest()
     {
@@ -285,6 +289,10 @@ static void startSession(Session& s)
     s.pipe = QStringLiteral("ColosseumLanista-") + s.id;
     s.dir = QStringLiteral("artifacts/lanista-sessions/") + s.id;
     QDir().mkpath(s.dir);
+    if (g_timingEnabled) {
+        s.lifecycleClock.start();
+        s.timingMilestones.append(lanista::timingMilestone(QStringLiteral("launch"), 0));
+    }
 
     // The daily-app safety line: the controller never lands on the default pipe.
     if (s.pipe == QStringLiteral("ColosseumLanista")) {
@@ -373,6 +381,9 @@ static void startSession(Session& s)
                 return;
             }
             readyAt = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
+            if (g_timingEnabled)
+                s.timingMilestones.append(lanista::timingMilestone(
+                    QStringLiteral("ready"), s.lifecycleClock.elapsed()));
             break;
         }
         if (s.proc.state() != QProcess::Running) {
@@ -426,6 +437,8 @@ static void startSession(Session& s)
                      {QStringLiteral("outputRoot"), s.spec.captureOut},
                      {QStringLiteral("trailerMode"), s.spec.trailerCapture}}},
     };
+    if (g_timingEnabled)
+        s.manifest.insert(QStringLiteral("timingsPath"), s.dir + QStringLiteral("/timings.json"));
     s.writeManifest();
 }
 
@@ -435,6 +448,9 @@ static void startSession(Session& s)
 static void stopSession(Session& s)
 {
     QString killReason = QStringLiteral("graceful");
+    if (g_timingEnabled)
+        s.timingMilestones.append(lanista::timingMilestone(
+            QStringLiteral("stop-start"), s.lifecycleClock.elapsed()));
     if (s.proc.state() == QProcess::Running) {
         s.proc.terminate();
         if (!s.proc.waitForFinished(8000)) {
@@ -449,6 +465,9 @@ static void stopSession(Session& s)
     s.manifest.insert(QStringLiteral("crashed"),
                       s.proc.exitStatus() == QProcess::CrashExit);
     s.manifest.insert(QStringLiteral("killReason"), killReason);
+    if (g_timingEnabled)
+        s.timingMilestones.append(lanista::timingMilestone(
+            QStringLiteral("exited"), s.lifecycleClock.elapsed()));
     s.writeManifest();
 }
 
@@ -466,7 +485,14 @@ static QString grabTarget(const QString& target, int seq)
 }
 
 // ── scenario runner ─────────────────────────────────────────────────────────
-struct StepResult { QString label; bool pass; QString detail; QString grabPath; };
+struct StepResult {
+    QString label;
+    bool pass;
+    QString detail;
+    QString grabPath;
+    qint64 durationMs = -1;
+    int index = 0;
+};
 
 // The whole run, classified so main can map it to the exit-code contract:
 //   scenarioError -> 5 (file unopenable/malformed/empty)
@@ -476,6 +502,8 @@ struct ScenarioRun {
     bool scenarioError = false;
     bool infra = false;
     QList<StepResult> steps;
+    QJsonArray timingSteps;
+    qint64 durationMs = -1;
 };
 
 // verbose: print every step's full reply body. Exists because the gate's
@@ -518,13 +546,21 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing,
         return out;
     }
 
+    QElapsedTimer scenarioClock;
+    if (g_timingEnabled)
+        scenarioClock.start();
     int seq = 100;
+    int stepIndex = 0;
     const QJsonArray steps = scenario.value(QStringLiteral("steps")).toArray();
     for (const QJsonValue& sv : steps) {
         const QJsonObject step = sv.toObject();
         const QString label = step.value(QStringLiteral("label"))
                                   .toString(step.value(QStringLiteral("cmd")).toString());
         StepResult res{label, true, {}, {}};
+        res.index = ++stepIndex;
+        QElapsedTimer stepClock;
+        if (g_timingEnabled)
+            stepClock.start();
         bool infraStop = false;
 
         // Presentation capture steps are runner-local. They never cross the Lanista pipe.
@@ -760,6 +796,15 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing,
                 }
             }
         }
+        if (g_timingEnabled) {
+            res.durationMs = stepClock.elapsed();
+            out.timingSteps.append(lanista::timingStep(
+                res.index, res.label, res.durationMs, res.pass));
+            std::cout << "TIMING step=" << res.index
+                      << " label=" << res.label.toStdString()
+                      << " durationMs=" << res.durationMs
+                      << " pass=" << (res.pass ? "true" : "false") << "\n";
+        }
         std::cout << (infraStop ? "INFRA " : (res.pass ? "PASS  " : "FAIL  "))
                   << label.toStdString();
         if (!res.detail.isEmpty()) std::cout << "  [" << res.detail.toStdString() << "]";
@@ -770,7 +815,21 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing,
         if (infraStop) break;                    // dead bridge: stop, even with --keep-going
         if (!res.pass && !keepGoing) break;
     }
+    if (g_timingEnabled)
+        out.durationMs = scenarioClock.elapsed();
     return out;
+}
+
+static void writeTimingArtifact(const Session& session, const ScenarioRun& run)
+{
+    if (!g_timingEnabled)
+        return;
+    QJsonObject timing = lanista::timingDocument(session.id, session.timingMilestones,
+                                                  run.timingSteps);
+    timing.insert(QStringLiteral("scenarioDurationMs"), run.durationMs);
+    QFile f(session.dir + QStringLiteral("/timings.json"));
+    if (f.open(QIODevice::WriteOnly))
+        f.write(QJsonDocument(timing).toJson(QJsonDocument::Indented));
 }
 
 // junit attribute values go out RAW today, so a failing step's detail (a `<` /
@@ -802,12 +861,12 @@ static void printUsage(std::ostream& os)
 {
     os << "usage:\n"
        << "  lanista [--pipe <name>] [--timeout <ms>] <cmd> [k=v ...] [--grab <target>]\n"
-       << "  lanista run <scenario.json> [--keep-going]\n"
+       << "  lanista run <scenario.json> [--keep-going] [--timings]\n"
        << "  lanista expect <cmd> <dot.path> <op> <value>   (op 'exists' takes no value)\n"
        << "  lanista bless <target> <name>\n"
-       << "  lanista suite [--dir <scenarioDir>] [--out <reportDir>]\n"
+       << "  lanista suite [--dir <scenarioDir>] [--out <reportDir>] [--timings]\n"
        << "  lanista brief <arcName> [--from <runDir>]\n"
-       << "  lanista session run <scenario.json> [--exe <path>] [--qml <path>] [--tag <t>]\n"
+       << "  lanista session run <scenario.json> [--exe <path>] [--qml <path>] [--tag <t>] [--timings]\n"
        << "                      [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going]\n"
        << "                      [--capture-width <px>] [--capture-height <px>]\n"
        << "                      [--capture-out <dir>]\n"
@@ -836,6 +895,8 @@ int main(int argc, char** argv)
             g_timeout = args[i + 1].toInt(); args.removeAt(i); args.removeAt(i);
         } else if (args[i] == QStringLiteral("--verbose")) {
             g_verbose = true; args.removeAt(i);
+        } else if (args[i] == QStringLiteral("--timings")) {
+            g_timingEnabled = true; args.removeAt(i);
         } else ++i;
     }
     if (args.isEmpty()) {
@@ -909,6 +970,10 @@ int main(int argc, char** argv)
                   << "\n  appData=" << s.appDataRoot.toStdString()
                   << "\n  cache=" << s.cacheRoot.toStdString() << "\n";
 
+        if (g_timingEnabled)
+            s.timingMilestones.append(lanista::timingMilestone(
+                QStringLiteral("scenario-start"), s.lifecycleClock.elapsed()));
+
         int sceneGrabSeq = 910000;
         lanista::CaptureController::FrameGrabber sceneGrabber = [&sceneGrabSeq](QString* why) -> QImage {
             const QJsonObject grab{{QStringLiteral("target"), QStringLiteral("window")},
@@ -937,6 +1002,9 @@ int main(int argc, char** argv)
         lanista::CaptureController capture(spec.captureOut, captureSpec,
                                             std::move(sceneGrabber));
         const ScenarioRun run = runScenario(scenario, keep, &capture);
+        if (g_timingEnabled)
+            s.timingMilestones.append(lanista::timingMilestone(
+                QStringLiteral("scenario-end"), s.lifecycleClock.elapsed()));
         if (capture.isActive()) capture.abort();
         if (!capture.artifacts().isEmpty()) {
             QJsonArray assets;
@@ -961,6 +1029,7 @@ int main(int argc, char** argv)
             }
         }
         stopSession(s);
+        writeTimingArtifact(s, run);
 
         std::cout << run.steps.size() << " steps, " << failed << " failed"
                   << "  (manifest: " << s.dir.toStdString() << "/session.json)\n";
@@ -1036,6 +1105,7 @@ int main(int argc, char** argv)
         int total = 0, failed = 0;
         bool infraAbort = false;
         QString junit, report;
+        QJsonArray suiteTimings;
         QDirIterator it(dir, {QStringLiteral("*.json")}, QDir::Files);
         while (it.hasNext()) {
             const QString file = it.next();
@@ -1043,6 +1113,12 @@ int main(int argc, char** argv)
             // Each scenario is graded independently, keepGoing so a red step never
             // truncates its own scenario's rows.
             const ScenarioRun run = runScenario(file, /*keepGoing=*/true);
+            if (g_timingEnabled) {
+                suiteTimings.append(QJsonObject{
+                    {QStringLiteral("scenario"), scenario},
+                    {QStringLiteral("durationMs"), run.durationMs},
+                    {QStringLiteral("steps"), run.timingSteps}});
+            }
 
             // A dead bridge (NO_PIPE / TIMEOUT) makes the REST of the suite
             // meaningless — every remaining scenario would only re-discover the
@@ -1105,6 +1181,15 @@ int main(int argc, char** argv)
                       + report
                       + QStringLiteral("\n**%1 steps, %2 failed.**\n").arg(total).arg(failed))
                          .toUtf8());
+        if (g_timingEnabled) {
+            QFile tf(outDir + QStringLiteral("/timings.json"));
+            if (tf.open(QIODevice::WriteOnly)) {
+                tf.write(QJsonDocument(QJsonObject{
+                    {QStringLiteral("schema"), QStringLiteral("colosseum.lanista.suite-timings.v1")},
+                    {QStringLiteral("scenarios"), suiteTimings}})
+                            .toJson(QJsonDocument::Indented));
+            }
+        }
         std::cout << total << " steps, " << failed << " failed -> "
                   << outDir.toStdString() << "\n";
         if (infraAbort) {

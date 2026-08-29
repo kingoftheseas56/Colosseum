@@ -19,6 +19,7 @@
 #include <QQmlNetworkAccessManagerFactory>
 #include <QtWebEngineQuick/QtWebEngineQuick>
 #include <QQmlContext>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <qqml.h>
 #include <QStandardPaths>
@@ -1740,7 +1741,13 @@ int main(int argc, char *argv[]) {
     // never blocks first paint (progressive enhancement).
     auto *animeOrder = new AnimeOrderService(dlNam, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("AnimeOrder"), animeOrder);
+    GuiStallProbeBridge guiStallProbe(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("GuiStallProbe"), &guiStallProbe);
 
+    // Startup qualification is opt-in and intentionally marks only coarse boundaries. Keeping
+    // the context explicit makes GUI_STALL_PROBE output distinguish boot work from later playback
+    // stalls without adding work to every event delivery.
+    app.setStallContext(QStringLiteral("startup"), QStringLiteral("qml-load"));
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
@@ -1755,12 +1762,39 @@ int main(int argc, char *argv[]) {
     QObject* rootObject = engine.rootObjects().constFirst();
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
         QObject::connect(rootWindow, &QQuickWindow::frameSwapped, updateBridge,
-                         [updateBridge, launchArguments] {
+                         [&app, &guiStallProbe, updateBridge, launchArguments] {
+            app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame"));
+            app.markFirstFrame();
+            guiStallProbe.notifyFirstFrame();
             updateBridge->acknowledgeHealthyBoot(launchArguments);
         }, Qt::SingleShotConnection);
     } else {
-        QTimer::singleShot(0, updateBridge, [updateBridge, launchArguments] {
+        QTimer::singleShot(0, updateBridge, [&app, &guiStallProbe, updateBridge, launchArguments] {
+            app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame-fallback"));
+            app.markFirstFrame();
+            guiStallProbe.notifyFirstFrame();
             updateBridge->acknowledgeHealthyBoot(launchArguments);
+        });
+    }
+
+    // BootSplash owns the last startup boundary. Its visibleChanged signal fires after the
+    // reveal fade, so this is the first point at which the shell is actually interactive.
+    if (auto *bootSplash = rootObject->findChild<QQuickItem*>(QStringLiteral("bootSplash"))) {
+        if (!bootSplash->isVisible()) {
+            app.markShellInteractive();
+            app.setStallContext({}, {});
+        } else {
+            QObject::connect(bootSplash, &QQuickItem::visibleChanged, &app, [bootSplash, &app] {
+                if (!bootSplash->isVisible()) {
+                    app.markShellInteractive();
+                    app.setStallContext({}, {});
+                }
+            });
+        }
+    } else {
+        QTimer::singleShot(0, &app, [&app] {
+            app.markShellInteractive();
+            app.setStallContext({}, {});
         });
     }
 
