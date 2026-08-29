@@ -22,6 +22,9 @@ Item {
 
     signal itemOpenRequested(var item)      // a click / Enter on a poster opens the detail page
     property var pin: null                   // an optional See-all pin (surface compat)
+    // Retained world pages stay instantiated for state preservation. Main binds this seam to
+    // the visible world so hidden paging and refresh work can be paused without eviction.
+    property bool active: true
     // Task 9: Theatre inherits the global Explicit Content preference from WorldPage
     // (Main.qml binds it). Sexually-explicit ONLY — Berserk/GoT/Ecchi/Mature/TV-MA stay
     // visible; only Policy.visible (EXPLICIT_TAGS = sexually-explicit) gates here.
@@ -54,7 +57,7 @@ Item {
             // shell's single active filter — this is the Theatre-preserving translation.
             var selections = Api.selectionsForFilter(cat, state.filterGroup, state.filterKey)
             var skip = cursor || 0
-            Api.loadPage(cat, selections, skip, function(metas) {
+            return Api.loadPage(cat, selections, skip, function(metas) {
                 // Task 9: apply the global Explicit Content preference. Policy.visible
                 // gates ONLY sexually-explicit items (behaviorHints.adult); mainstream
                 // adult works (TV-MA, R, Mature Readers, horror, romance) always pass.
@@ -76,6 +79,7 @@ Item {
         id: browser
         anchors.fill: parent
         adapter: theatreAdapter
+        active: disco.active
         fallbackType: "movie"                // Theatre's default type when the registry is bare
         // Gallery poster profile — adopted after the Theatre pilot passed eyes-on (2026-08-03). No
         // data/filter/rating-visibility change: presentation only. Posters load small (fast, sharp).
@@ -105,6 +109,9 @@ Item {
     // a live registry change re-derives the adapter, then refreshes the shell.
     Connections {
         target: (typeof Extensions !== "undefined") ? Extensions : null
-        function onChanged() { theatreAdapter.refresh(); browser.refresh() }
+        function onChanged() {
+            theatreAdapter.refresh()
+            if (disco.active) browser.refresh()
+        }
     }
 }

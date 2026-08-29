@@ -44,8 +44,12 @@ WorldPage {
     property var seeAllPin: null
     // the one global content preference (Main binds it in Task 9); null-safe until then.
     property var contentPreferences: null
+    // Retained worlds pause their catalogue/Next Up warmers while hidden. The first activation
+    // runs the existing setup exactly once, preserving the page instance and its state.
+    property bool _contentInitialized: false
 
     onProgressRevisionChanged: {
+        if (!theatre.lifecycleActive) return
         continueRows = VaultApi.recentWithoutVault(Progress, "video", 12)
         recomputeNextUp()
     }
@@ -82,7 +86,7 @@ WorldPage {
         theatre._nextUpPending[show] = true
         TheatreApi.loadMeta("series", show, function(meta) {
             theatre._nextUpMeta[show] = meta || null   // null caches the miss — never refetch-loop
-            theatre.recomputeNextUp()
+            if (theatre.lifecycleActive) theatre.recomputeNextUp()
         })
     }
 
@@ -148,7 +152,9 @@ WorldPage {
         return out
     }
 
-    Component.onCompleted: {
+    function activateContent() {
+        if (theatre._contentInitialized) return
+        theatre._contentInitialized = true
         recomputeNextUp()
         loadCatalog()
         // Refresh the Library's new-episode + airing stamps for saved series (spec §4.5).
@@ -160,6 +166,13 @@ WorldPage {
             function(id, on) { Progress.setWatchedMark(id, on) },
             function(e) { Collection.add("theatre", e) },
             Date.now(), function() {})
+    }
+    Component.onCompleted: if (theatre.lifecycleActive) theatre.activateContent()
+    onLifecycleActiveChanged: {
+        if (!theatre.lifecycleActive) return
+        theatre.continueRows = VaultApi.recentWithoutVault(Progress, "video", 12)
+        theatre.activateContent()
+        theatre.recomputeNextUp()
     }
     function loadCatalog() { TheatreApi.loadTheatre(function(rows) {
         if (rows.movies.length > 0)
@@ -216,6 +229,7 @@ WorldPage {
         visible: theatre.activeTab === "discover"
         width: parent.width
         height: visible ? Math.max(620, theatre.height - 200) : 0
+        active: theatre.lifecycleActive && visible
         // Task 9: inherit the global Explicit Content preference (Main.qml binds it on this world).
         showExplicitContent: theatre.showExplicitContent
         onItemOpenRequested: (item) => theatre.theatreItemRequested(
@@ -227,6 +241,7 @@ WorldPage {
         objectName: "theatreCatalogPage"
         visible: theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime"
         height: visible ? implicitHeight : 0
+        active: theatre.lifecycleActive && visible
         pageKey: (theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime")
                  ? theatre.activeTab : "movies"
         contentPreferences: theatre.contentPreferences

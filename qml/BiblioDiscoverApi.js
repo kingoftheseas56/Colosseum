@@ -275,7 +275,7 @@ function fetchExtensionPage(deps, state, cursor, generation, done) {
     }
     var selections = DiscoverApi.selectionsForFilter(catalog, state.filterGroup, state.filterKey);
     var skip = (cursor !== null && cursor !== undefined) ? cursor : 0;
-    DiscoverApi.loadPage(catalog, selections, skip, function(metas) {
+    return DiscoverApi.loadPage(catalog, selections, skip, function(metas) {
         var rows = metas || [];
         var items = [];
         for (var i = 0; i < rows.length; i++) {
@@ -295,8 +295,8 @@ function fetchExtensionPage(deps, state, cursor, generation, done) {
 
 function fetchPage(deps, state, cursor, generation, done) {
     var key = state.catalogKey || "";
-    if (key.indexOf("|book|") >= 0) fetchExtensionPage(deps, state, cursor, generation, done);
-    else fetchBuiltinPage(deps, state, cursor, generation, done);
+    if (key.indexOf("|book|") >= 0) return fetchExtensionPage(deps, state, cursor, generation, done);
+    return fetchBuiltinPage(deps, state, cursor, generation, done);
 }
 
 // --- the adapter factory ---
@@ -316,6 +316,8 @@ function create(biblioCatalog, extensions, showExplicit) {
         },
         defaultCatalog: function(type) { return "popular"; },
         resolvePin: function(pin) { return resolvePin(pin, deps); },
-        fetchPage: function(state, cursor, generation, done) { fetchPage(deps, state, cursor, generation, done); }
+        fetchPage: function(state, cursor, generation, done) {
+            return fetchPage(deps, state, cursor, generation, done);
+        }
     };
 }

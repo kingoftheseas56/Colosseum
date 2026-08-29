@@ -27,9 +27,19 @@ function _get(url, timeoutMs, done) {
         if (xhr.status < 200 || xhr.status >= 300) { finish(null); return; }
         try { finish(JSON.parse(xhr.responseText)); } catch (e) { finish(null); }
     };
+    xhr.onerror = function() { finish(null); };
     try { xhr.timeout = timeoutMs; xhr.ontimeout = function() { finish(null); }; } catch (e) { /* older QML XHR */ }
-    xhr.open("GET", url);
-    xhr.send();
+    try {
+        xhr.open("GET", url);
+        xhr.send();
+    } catch (e) {
+        finish(null);
+    }
+    return function() {
+        if (settled) return;
+        settled = true;
+        try { xhr.abort(); } catch (e) { /* already closed */ }
+    };
 }
 
 // ---------------------------------------------------------------- matching
@@ -365,7 +375,7 @@ function catalogSpecs(installedList, contentType) {
 
 // One catalog fetch → its meta previews (the standard {metas:[…]} shape).
 function fetchCatalog(spec, done) {
-    _get(spec.url, FAST_TIMEOUT_MS, function(json) {
+    return _get(spec.url, FAST_TIMEOUT_MS, function(json) {
         done(json && json.metas ? json.metas : []);
     });
 }
@@ -593,7 +603,7 @@ function catalogUrl(transportUrl, type, catalogId, extraPairs, skip) {
 
 // One page of one catalog → metas array (defensive cap 100).
 function fetchCatalogUrl(url, done) {
-    _get(url, FAST_TIMEOUT_MS, function(json) {
+    return _get(url, FAST_TIMEOUT_MS, function(json) {
         var metas = (json && json.metas) ? json.metas : [];
         done(metas.slice(0, 100));
     });

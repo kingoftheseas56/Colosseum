@@ -162,7 +162,7 @@ function resolvePin(installed, pin) {
 
 // one page fetch (transport rides AddonClient). done(metas) — [] on miss/error.
 function loadPage(catalog, selections, skip, done) {
-    AddonClient.fetchCatalogUrl(urlFor(catalog, selections, skip), done);
+    return AddonClient.fetchCatalogUrl(urlFor(catalog, selections, skip), done);
 }
 
 // ───────────────── shared-shell adapter translation (Task 3, arc 2026-08-01) ─────────────────

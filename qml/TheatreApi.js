@@ -22,6 +22,7 @@ var jikanInflight = {};
 var requestAdapter = null;
 function setRequestAdapter(fn) { requestAdapter = fn || null; }
 function resetRequestAdapter() { requestAdapter = null; }
+function noopCancel() {}
 // test-only: drop the live (Jikan/Kitsu) + full-meta caches so harness scenarios don't bleed.
 function resetLiveCaches() {
     jikanCache = {}; jikanInflight = {};
@@ -57,7 +58,10 @@ var palette = [
 ];
 
 function requestJson(url, done) {
-    if (requestAdapter) { requestAdapter(url, done); return; }
+    if (requestAdapter) {
+        var injected = requestAdapter(url, done);
+        return (typeof injected === "function") ? injected : noopCancel;
+    }
     var xhr = new XMLHttpRequest();
     var completed = false;
     function finish(value) {
@@ -81,28 +85,60 @@ function requestJson(url, done) {
     };
     xhr.ontimeout = function() { finish(null); };
     xhr.onerror = function() { finish(null); };
-    xhr.open("GET", url);
-    xhr.timeout = 9000;
-    xhr.send();
+    try {
+        xhr.open("GET", url);
+        xhr.timeout = 9000;
+        xhr.send();
+    } catch (e) {
+        finish(null);
+    }
+    var xhrCancel = function() {
+        if (completed)
+            return;
+        completed = true;
+        try { xhr.abort(); } catch (e) { /* already closed */ }
+    };
+    return xhrCancel;
 }
 
 function requestJsonWithFallback(urls, done) {
     var index = 0;
+    var cancelled = false;
+    var finished = false;
+    var activeCancel = noopCancel;
     function next() {
+        if (cancelled || finished) return;
         if (index >= urls.length) {
+            finished = true;
             done(null);
             return;
         }
-        requestJson(urls[index], function(json) {
+        var slot = index;
+        var handle = requestJson(urls[index], function(json) {
+            if (cancelled || finished) return;
             if (json) {
+                finished = true;
                 done(json);
                 return;
             }
             index += 1;
             next();
         });
+        // A deterministic adapter may resolve synchronously and start the fallback before
+        // the first request returns. Only the handle for the still-current slot may become
+        // active; otherwise a hidden page could cancel the already-finished first request
+        // while the fallback remains in flight.
+        if (!cancelled && slot === index)
+            activeCancel = handle;
+        else if (cancelled && typeof handle === "function")
+            handle();
     }
     next();
+    return function() {
+        if (cancelled) return;
+        cancelled = true;
+        activeCancel();
+    };
 }
 
 function requestJsonCached(url, ttlMs, done) {
@@ -110,21 +146,44 @@ function requestJsonCached(url, ttlMs, done) {
     var hit = jikanCache[url];
     if (hit && now - hit.t < ttlMs) {
         done(hit.value);
-        return;
+        return noopCancel;
     }
     if (jikanInflight[url]) {
-        jikanInflight[url].push(done);
-        return;
+        var shared = jikanInflight[url];
+        var waiter = { done: done, cancelled: false };
+        shared.waiters.push(waiter);
+        return function() {
+            if (waiter.cancelled) return;
+            waiter.cancelled = true;
+            for (var wi = shared.waiters.length - 1; wi >= 0; wi--)
+                if (shared.waiters[wi] === waiter) shared.waiters.splice(wi, 1);
+            if (!shared.waiters.length && jikanInflight[url] === shared) {
+                shared.cancel();
+                delete jikanInflight[url];
+            }
+        };
     }
-    jikanInflight[url] = [done];
-    requestJson(url, function(json) {
+    var entry = { waiters: [{ done: done, cancelled: false }], cancel: noopCancel };
+    jikanInflight[url] = entry;
+    entry.cancel = requestJson(url, function(json) {
+        if (jikanInflight[url] !== entry) return;
         if (json)
             jikanCache[url] = { t: Date.now(), value: json };
-        var waiters = jikanInflight[url] || [];
+        var waiters = entry.waiters.slice();
         delete jikanInflight[url];
         for (var i = 0; i < waiters.length; i++)
-            waiters[i](json);
+            if (!waiters[i].cancelled) waiters[i].done(json);
     });
+    return function() {
+        var first = entry.waiters[0];
+        if (!first || first.cancelled) return;
+        first.cancelled = true;
+        entry.waiters.shift();
+        if (!entry.waiters.length && jikanInflight[url] === entry) {
+            entry.cancel();
+            delete jikanInflight[url];
+        }
+    };
 }
 
 function normalizeArtUrl(url) {
@@ -152,7 +211,7 @@ function cinemetaCatalog(type, genre, done) {
         CINEMETA_CATALOGS + path + ".json",
         CINEMETA + path + ".json"
     ];
-    requestJsonWithFallback(urls, function(json) {
+    return requestJsonWithFallback(urls, function(json) {
         done(json && json.metas ? json.metas : []);
     });
 }
@@ -187,7 +246,7 @@ function jikanQuery(path, params, done) {
         params.sfw = showExplicitFlag ? "false" : "true";
     for (var key in params)
         qs.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
-    requestJsonCached(JIKAN + path + (qs.length ? "?" + qs.join("&") : ""), JIKAN_CACHE_TTL_MS, function(json) {
+    return requestJsonCached(JIKAN + path + (qs.length ? "?" + qs.join("&") : ""), JIKAN_CACHE_TTL_MS, function(json) {
         done(json && json.data ? json.data : []);
     });
 }
@@ -409,17 +468,32 @@ function mapKitsuAnime(m, index) {
 function kitsuAiring(limit, done) {
     var url = KITSU_API + "/anime?filter[status]=current&sort=-userCount&page[limit]="
               + Math.min(20, limit || 10);
-    requestJsonCached(url, JIKAN_CACHE_TTL_MS, function(json) {
+    return requestJsonCached(url, JIKAN_CACHE_TTL_MS, function(json) {
         var items = (json && json.data) ? json.data : [];
         done(uniqueById(items.map(mapKitsuAnime)).slice(0, limit || 30));
     });
 }
 
 function jikanFetch(path, params, limit, done) {
-    jikanQuery(path, params || {}, function(items) {
-        if (!items || !items.length) { kitsuAiring(limit, done); return; }
+    var cancelled = false;
+    var activeCancel = null;
+    var initialCancel = jikanQuery(path, params || {}, function(items) {
+        if (cancelled) return;
+        if (!items || !items.length) {
+            activeCancel = kitsuAiring(limit, function(fallback) {
+                if (!cancelled) done(fallback);
+            });
+            return;
+        }
         done(uniqueById(items.map(mapJikan)).slice(0, limit || 30));
     });
+    if (activeCancel === null)
+        activeCancel = initialCancel;
+    return function() {
+        if (cancelled) return;
+        cancelled = true;
+        activeCancel();
+    };
 }
 
 function runSpecs(pageKey, specs, done, sequential) {
@@ -574,7 +648,7 @@ function cinemetaCatalogPaged(type, genre, skip, done) {
     if (genre) path += "/genre=" + encodeURIComponent(genre);
     if (skip) path += "/skip=" + skip;
     var urls = [ CINEMETA_CATALOGS + path + ".json", CINEMETA + path + ".json" ];
-    requestJsonWithFallback(urls, function(json) {
+    return requestJsonWithFallback(urls, function(json) {
         done(json && json.metas ? json.metas : []);
     });
 }
@@ -665,11 +739,14 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     var rowData = {};          // key -> items
     var extMainRows = [], extExtensionRows = [];
     var liveDone = false, extDone = false;
+    var cancelled = false;
+    var cancels = [];
     function keep(items) {
         return explicitFilter
             ? items.filter(function(it) { return explicitFilter(it, showExplicit); }) : items;
     }
     function publish() {
+        if (cancelled) return;
         var houseRows = [];
         for (var i = 0; i < defs.length; i++) {
             var def = defs[i];
@@ -696,13 +773,15 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     publish();
 
     // phase 2 — extensions load in parallel (unchanged contract)
-    loadExtensionRows(pageKey, type, defs,
+    var extensionCancel = loadExtensionRows(pageKey, type, defs,
         { showExplicit: showExplicit, explicitFilter: explicitFilter },
         function() { publish(); },
-        function(main, ext) { extMainRows = main; extExtensionRows = ext; extDone = true; publish(); });
+        function(main, ext) { if (cancelled) return; extMainRows = main; extExtensionRows = ext; extDone = true; publish(); });
+    cancels.push(extensionCancel);
 
     // phase 3 — live rows from Cinemeta, facts-filtered through the index
-    cinemetaCatalog(type, "", function(metas) {
+    var liveCancel = cinemetaCatalog(type, "", function(metas) {
+        if (cancelled) return;
         var mapped = (metas || []).map(mapCinemeta);
         var clean = filterLiveItems(imdb, mapped, false);
         rowData["top-10"] = clean;
@@ -716,6 +795,13 @@ function loadMoviesShowsDeep(pageKey, options, push) {
         liveDone = true;
         publish();
     });
+    cancels.push(liveCancel);
+    return function() {
+        if (cancelled) return;
+        cancelled = true;
+        for (var i = 0; i < cancels.length; i++)
+            if (typeof cancels[i] === "function") cancels[i]();
+    };
 }
 
 // ── Deep Anime ladder (spec §6.2) ───────────────────────────────────────────────────────
@@ -779,12 +865,15 @@ function refreshAnimeLive(defs, rowData, onRefresh, onDone) {
     var keys = [];
     for (var i = 0; i < defs.length; i++)
         if (LIVE_ANIME[defs[i].key]) keys.push(defs[i].key);
-    if (!keys.length) { onDone(); return; }
+    if (!keys.length) { onDone(); return function() {}; }
     var pending = keys.length;
+    var cancelled = false;
+    var cancels = [];
     for (var k = 0; k < keys.length; k++) {
         (function(key) {
             var spec = LIVE_ANIME[key];
-            jikanFetch(spec.path, spec.params, PREVIEW_ROW_CAP, function(items) {
+            var handle = jikanFetch(spec.path, spec.params, PREVIEW_ROW_CAP, function(items) {
+                if (cancelled) return;
                 // jikanFetch already falls back to Kitsu; only overwrite when a live source
                 // actually produced items, so a total live failure leaves the bundled row intact.
                 if (items && items.length) rowData[key] = items;
@@ -792,8 +881,15 @@ function refreshAnimeLive(defs, rowData, onRefresh, onDone) {
                 pending -= 1;
                 if (pending === 0) onDone();
             });
+            cancels.push(handle);
         })(keys[k]);
     }
+    return function() {
+        if (cancelled) return;
+        cancelled = true;
+        for (var i = 0; i < cancels.length; i++)
+            if (typeof cancels[i] === "function") cancels[i]();
+    };
 }
 
 function loadAnimePageDeep(options, push) {
@@ -806,11 +902,13 @@ function loadAnimePageDeep(options, push) {
     defs.sort(function(a, b) { return a.placement - b.placement; });
 
     var rowData = {};   // key -> mapped card items (best source so far)
+    var cancelled = false;
     function keep(items) {
         if (!explicitFilter) return items;
         return items.filter(function(it) { return explicitFilter(it, showExplicit); });
     }
     function publish(loading) {
+        if (cancelled) return;
         var rows = [];
         for (var i = 0; i < defs.length; i++) {
             var def = defs[i];
@@ -831,20 +929,24 @@ function loadAnimePageDeep(options, push) {
     publish(true);
 
     // Phase 2 — live keyless refresh (Jikan → Kitsu) for the hot shelves; failures keep bundled.
-    refreshAnimeLive(defs, rowData, function() { publish(true); }, function() { publish(false); });
+    var liveCancel = refreshAnimeLive(defs, rowData, function() { publish(true); }, function() { publish(false); });
+    return function() {
+        if (cancelled) return;
+        cancelled = true;
+        if (typeof liveCancel === "function") liveCancel();
+    };
 }
 
 function loadCatalogPage(pageKey, options, push) {
     // Legacy shim: loadCatalogPage(pageKey, done) → forward every progressive push to done.
     if (typeof options === "function" && push === undefined) {
         var done = options;
-        loadCatalogPage(pageKey, {}, function(payload) { done(payload); });
-        return;
+        return loadCatalogPage(pageKey, {}, function(payload) { done(payload); });
     }
     options = options || {};
     push = push || function() {};
-    if (pageKey === "anime") { loadAnimePageDeep(options, push); return; }
-    loadMoviesShowsDeep(pageKey, options, push);
+    if (pageKey === "anime") return loadAnimePageDeep(options, push);
+    return loadMoviesShowsDeep(pageKey, options, push);
 }
 
 function findDef(pageKey, rowKey) {
@@ -892,7 +994,7 @@ function loadExtensionRowPage(pin, offset, limit, options, done) {
         return;
     }
     var url = AddonClient.catalogUrl(found.transportUrl, found.type, found.catalogId, [], offset);
-    AddonClient.fetchCatalogUrl(url, function(metas) {
+    return AddonClient.fetchCatalogUrl(url, function(metas) {
         var items = (metas || []).map(mapCinemeta);
         if (options.explicitFilter)
             items = items.filter(function(it) { return options.explicitFilter(it, options.showExplicit === true); });
@@ -905,12 +1007,15 @@ function loadExtensionRowPage(pin, offset, limit, options, done) {
 // "From Your Extensions" section). Each shelf fetches its real catalogue; empty ones drop out.
 function loadExtensionRows(pageKey, contentType, houseDefs, options, onEach, onDone) {
     var specs = AddonClient.theatreCatalogSpecs(extensionsList, contentType);
-    if (!specs.length) { onDone([], []); return; }
+    if (!specs.length) { onDone([], []); return function() {}; }
     var placement = Rules.placeExtensions(pageKey, specs, houseDefs);
     var rows = placement.mainRows.concat(placement.extensionRows);
-    if (!rows.length) { onDone([], []); return; }
+    if (!rows.length) { onDone([], []); return function() {}; }
     var results = {}, pending = rows.length;
+    var cancelled = false;
+    var cancels = [];
     function settle() {
+        if (cancelled) return;
         var main = [], ext = [];
         for (var k = 0; k < rows.length; k++) {
             var r = results[rows[k].key];
@@ -924,7 +1029,8 @@ function loadExtensionRows(pageKey, contentType, houseDefs, options, onEach, onD
         (function(row) {
             var pin = row.seeAllPin;
             var url = AddonClient.catalogUrl(pin.transportUrl, pin.type, pin.catalogId, [], 0);
-            AddonClient.fetchCatalogUrl(url, function(metas) {
+            var handle = AddonClient.fetchCatalogUrl(url, function(metas) {
+                if (cancelled) return;
                 var items = (metas || []).slice(0, EXTENSION_ROW_ITEM_CAP).map(mapCinemeta);
                 if (options.explicitFilter)
                     items = items.filter(function(it) { return options.explicitFilter(it, options.showExplicit === true); });
@@ -933,8 +1039,15 @@ function loadExtensionRows(pageKey, contentType, houseDefs, options, onEach, onD
                 pending -= 1;
                 if (pending === 0) settle();
             });
+            cancels.push(handle);
         })(rows[i]);
     }
+    return function() {
+        if (cancelled) return;
+        cancelled = true;
+        for (var i = 0; i < cancels.length; i++)
+            if (typeof cancels[i] === "function") cancels[i]();
+    };
 }
 
 function rowFromExtDef(def, items) {
@@ -963,7 +1076,7 @@ function loadRowPage(pin, offset, limit, options, done) {
     offset = offset || 0;
     if (!pin) { done({ generation: generation, items: [], hasMore: false, error: "missing pin" }); return; }
     if (pin.sourceKind === "extension" || pin.sourceKind === "service-extension") {
-        loadExtensionRowPage(pin, offset, limit, options, done); return;
+        return loadExtensionRowPage(pin, offset, limit, options, done);
     }
     if (pin.pageKey === "anime") { loadAnimeRowPage(pin, offset, limit, options, done); return; }
     var type = pin.pageKey === "shows" ? "series" : "movie";
@@ -986,7 +1099,7 @@ function loadRowPage(pin, offset, limit, options, done) {
         return;
     }
     // live shelf (top-10 / recently-released / recently-premiered / currently-airing)
-    cinemetaCatalogPaged(type, "", offset, function(metas) {
+    return cinemetaCatalogPaged(type, "", offset, function(metas) {
         var mapped = (metas || []).map(mapCinemeta);
         var clean = filterLiveItems(options.imdbCatalog || null, mapped,
                                     def.recipe.kind === "recent");

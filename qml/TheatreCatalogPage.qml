@@ -24,6 +24,13 @@ Column {
     property var rowPreferences: null
     property var catalogLoader: null
     property bool editMode: false
+    // TheatreWorld retains this page for fast tab switches, but catalogue transport should wait
+    // until the world/tab is active.
+    property bool active: true
+    property bool _ready: false
+    property bool _loadedOnce: false
+    property bool _hasSettled: false
+    property var _loadCancel: null
 
     property var rawRows: []
     property bool loading: false
@@ -123,28 +130,59 @@ Column {
     Connections {
         target: page.contentPreferences
         ignoreUnknownSignals: true
-        function onChanged() { page.load(); }
+        function onChanged() { if (page.active) page.load(); }
     }
 
-    onPageKeyChanged: load()
-    Component.onCompleted: load()
+    onPageKeyChanged: if (page.active) load()
+    Component.onCompleted: {
+        page._ready = true
+        if (page.active) page.load()
+    }
+    Component.onDestruction: page.cancelLoad()
+    onActiveChanged: {
+        if (!page.active) {
+            page.cancelLoad()
+            page.generation += 1
+            page.loading = false
+            return
+        }
+        if (page._ready && !page._hasSettled) page.load()
+    }
 
     function _push(payload) {
         if (!payload || payload.generation !== page.generation) return;   // stale-generation fence
+        if (payload.loading !== true) {
+            page._hasSettled = true;
+            page._loadCancel = null;
+        }
         page.loading = payload.loading === true;
         page.rawRows = payload.rows || [];
         page.errorText = payload.error || "";
     }
     function load() {
+        if (!page.active) return
+        page.cancelLoad()
+        page._loadedOnce = true
+        page._hasSettled = false
         page.generation += 1;
         page.loading = true;
         page.errorText = "";
         page.rawRows = [];
         var loader = page.catalogLoader ? page.catalogLoader : TheatreApi.loadCatalogPage;
-        loader(page.pageKey, { malCatalog: page.malCatalog, imdbCatalog: page.imdbCatalog,
-                               showExplicit: page.showExplicit,
-                               generation: page.generation, explicitFilter: page._explicitFilter,
-                               nowMs: Date.now() }, page._push);
+        var gen = page.generation;
+        var handle = loader(page.pageKey, { malCatalog: page.malCatalog, imdbCatalog: page.imdbCatalog,
+                                            showExplicit: page.showExplicit,
+                                            generation: gen, explicitFilter: page._explicitFilter,
+                                            nowMs: Date.now() }, page._push);
+        if (page.active && page.loading && page.generation === gen)
+            page._loadCancel = (typeof handle === "function") ? handle : null;
+        else if (typeof handle === "function")
+            handle();
+    }
+    function cancelLoad() {
+        var handle = page._loadCancel;
+        page._loadCancel = null;
+        if (typeof handle === "function") handle();
     }
     function isRenamed(key) {
         var _ = page.prefsRev;

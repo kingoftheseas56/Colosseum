@@ -56,6 +56,14 @@ colosseum_register_harness(update_download_harness unit)
 colosseum_register_harness(update_service_harness unit)
 colosseum_register_harness(update_install_bridge_harness unit;windows)
 
+add_test(NAME colosseum.catalogue_cancellation_contract
+         COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                 -File "${CMAKE_CURRENT_SOURCE_DIR}/test_catalogue_cancellation_contract.ps1")
+set_tests_properties(colosseum.catalogue_cancellation_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Qt Test targets (slice 3+) ───────────────────────────────────────────────
 # Test-only Qt components: discovered HERE, under BUILD_TESTING, never linked
 # into the shipping app (arc non-goal). Targets defined here are real Qt Tests:
@@ -219,6 +227,26 @@ add_test(NAME colosseum.home_hidden_work_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_home_hidden_work_contract.ps1")
 set_tests_properties(colosseum.home_hidden_work_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Retained world lifecycle contract: hidden pages preserve state but stand down timers,
+# synchronous catalogue warmers, and Discover paging until activation.
+add_test(NAME colosseum.world_lifecycle_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_world_lifecycle_contract.ps1")
+set_tests_properties(colosseum.world_lifecycle_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Search backpressure contract: surface exits and superseded queries abort transport while
+# generation guards reject any callback that races with cancellation.
+add_test(NAME colosseum.search_cancellation_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_search_cancellation_contract.ps1")
+set_tests_properties(colosseum.search_cancellation_contract PROPERTIES
     LABELS "unit;responsiveness"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)

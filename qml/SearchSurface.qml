@@ -22,6 +22,12 @@ Item {
     property string lastDispatchedQuery: ""
     property var historyStore: null
     property var searchDispatcher: WorldSearch.searchFor
+    property var _searchCancel: null
+    property var _browseCancel: null
+    property var _surpriseCancel: null
+    property int _searchGeneration: 0
+    property int _browseGeneration: 0
+    property int _surpriseGeneration: 0
 
     signal backRequested()
     signal itemRequested(var data)
@@ -46,8 +52,14 @@ Item {
         surf.loadRecent()
         queryInput.forceActiveFocus()
     }
-    Component.onDestruction: surf.commitCurrentQuery()
-    onSearchModeChanged: surf.loadRecent()
+    Component.onDestruction: {
+        surf.cancelAllRequests()
+        surf.commitCurrentQuery()
+    }
+    onSearchModeChanged: {
+        surf.cancelAllRequests()
+        surf.loadRecent()
+    }
     Connections {
         target: surf.historyStore
         function onChanged(scope) {
@@ -65,8 +77,37 @@ Item {
     }
 
     // race guard: apply a result only if its query still matches the field
+    function cancelHandle(handle) {
+        if (!handle) return
+        if (typeof handle === "function") { handle(); return }
+        if (handle.cancel && typeof handle.cancel === "function") handle.cancel()
+    }
+    function cancelSearch() {
+        surf._searchGeneration++
+        surf.cancelHandle(surf._searchCancel)
+        surf._searchCancel = null
+        surf.searching = false
+    }
+    function cancelBrowse() {
+        surf._browseGeneration++
+        surf.cancelHandle(surf._browseCancel)
+        surf._browseCancel = null
+        surf.browseLoading = false
+    }
+    function cancelSurprise() {
+        surf._surpriseGeneration++
+        surf.cancelHandle(surf._surpriseCancel)
+        surf._surpriseCancel = null
+        surf.surprising = false
+    }
+    function cancelAllRequests() {
+        surf.cancelSearch()
+        surf.cancelBrowse()
+        surf.cancelSurprise()
+    }
     function runSearch() {
         var q = queryInput.text.trim()
+        surf.cancelSearch()
         if (q.length < 2) {
             surf.lastDispatchedQuery = ""
             surf.results = []; surf.searched = false; return
@@ -76,8 +117,9 @@ Item {
         surf.searching = true
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext("search", surf.searchMode)
-        surf.searchDispatcher(surf.searchMode, q, function(items) {
-            if (q !== queryInput.text.trim()) return
+        var generation = surf._searchGeneration
+        surf._searchCancel = surf.searchDispatcher(surf.searchMode, q, function(items) {
+            if (generation !== surf._searchGeneration || q !== queryInput.text.trim()) return
             surf.results = items
             surf.searching = false
             surf.searched = true
@@ -91,27 +133,32 @@ Item {
             surf.recent = surf.historyStore.record(surf.historyScope(), q)
     }
     function fillAndSearch(q) { queryInput.text = q; runSearch(); commitCurrentQuery() }
-    function openItem(data) { surf.commitCurrentQuery(); surf.itemRequested(data) }
+    function openItem(data) { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.itemRequested(data) }
     function openTop() { if (surf.results.length > 0) surf.openItem(surf.results[0].data) }
     function removeRecent(q) { surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
 
     // Harbor's genre-browse: open a genre into an inline grid (guarded so a slow reply for a genre
     // you've since left doesn't paint over the new one).
     function openGenre(g) {
+        surf.cancelBrowse()
         surf.browseGenre = g
         surf.browseItems = []
         surf.browseLoading = true
-        WorldSearch.browseGenre(surf.searchMode, g, function(items) {
-            if (surf.browseGenre !== g) return
+        var generation = surf._browseGeneration
+        surf._browseCancel = WorldSearch.browseGenre(surf.searchMode, g, function(items) {
+            if (generation !== surf._browseGeneration || surf.browseGenre !== g) return
             surf.browseItems = items
             surf.browseLoading = false
         })
     }
-    function closeGenre() { surf.browseGenre = ""; surf.browseItems = [] }
+    function closeGenre() { surf.cancelBrowse(); surf.browseGenre = ""; surf.browseItems = [] }
     function doSurprise() {
         if (surf.surprising) return
+        surf.cancelSurprise()
         surf.surprising = true
-        WorldSearch.surprise(surf.searchMode, function(item) {
+        var generation = surf._surpriseGeneration
+        surf._surpriseCancel = WorldSearch.surprise(surf.searchMode, function(item) {
+            if (generation !== surf._surpriseGeneration) return
             surf.surprising = false
             if (item && item.data) surf.itemRequested(item.data)
         })
@@ -139,7 +186,7 @@ Item {
         id: searchBack
         x: theme.margin
         anchors.verticalCenter: field.verticalCenter
-        onTriggered: { surf.commitCurrentQuery(); surf.backRequested() }
+        onTriggered: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
     }
     Rectangle {
         id: field
@@ -169,8 +216,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             color: theme.ink; font.family: theme.display; font.pixelSize: 22
             clip: true; focus: true; selectByMouse: true
-            onTextChanged: debounce.restart()
-            Keys.onEscapePressed: { surf.commitCurrentQuery(); surf.backRequested() }
+            onTextChanged: { surf.cancelSearch(); debounce.restart() }
+            Keys.onEscapePressed: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
         }
         Text {
             visible: queryInput.text.length === 0
@@ -197,7 +244,7 @@ Item {
                 color: "transparent"; border.width: 1; border.color: theme.edge
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.5 }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: surf.backRequested() }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { surf.cancelAllRequests(); surf.backRequested() } }
             }
         }
     }
@@ -615,7 +662,7 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: surf.closeRequested()
+                onClicked: { surf.cancelAllRequests(); surf.closeRequested() }
             }
         }
     }

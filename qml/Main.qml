@@ -2254,13 +2254,24 @@ Window {
                 required property string mode
                 anchors.fill: parent
                 visible: worldStack.current === mode
-                active: true
+                // Pass the initial activation state into the component before Component.onCompleted.
+                // This keeps opt-in warmers from running a world's synchronous setup while hidden.
+                active: false
                 // Stage 2: build off the GUI thread so instantiating a world (~190 tiles)
                 // never freezes the app — the page fills in progressively, and warming
                 // (below) builds it hidden ahead of the first click.
                 asynchronous: true
-                source: win.worldSourceFor(mode)
+                Component.onCompleted: {
+                    setSource(win.worldSourceFor(mode), {
+                        "lifecycleActive": worldStack.current === mode
+                    })
+                    active = true
+                }
                 onLoaded: {
+                    if (item.lifecycleActive !== undefined)
+                        item.lifecycleActive = Qt.binding(function() {
+                            return worldStack.current === mode
+                        })
                     item.medium = mode
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)

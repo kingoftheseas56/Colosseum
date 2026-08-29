@@ -12,6 +12,9 @@ Item {
 
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
+    // Retained world pages stay instantiated for state preservation, but hidden bars must not
+    // keep their live clock timer waking the GUI every second.
+    property bool lifecycleActive: true
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"
@@ -64,7 +67,7 @@ Item {
         bar.date = Qt.formatDate(now, "dddd, MMMM d")
     }
     Timer {
-        interval: 1000; running: true; repeat: true; triggeredOnStart: true
+        interval: 1000; running: bar.lifecycleActive; repeat: true; triggeredOnStart: true
         onTriggered: bar.refreshClock()
     }
 

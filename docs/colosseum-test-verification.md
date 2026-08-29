@@ -2136,3 +2136,31 @@ Runtime-validated against the live app UI (today's real `comics_catalog.db` has 
 tables schema-only/empty per Slice 2 — new coverage shelves will render empty in the running app
 until upstream enrichment runs; this is expected, not a defect, and was not eyes-on verified this
 slice).
+
+## Responsiveness hardening — retained-world lifecycle and search cancellation (2026-08-30)
+
+The retained world stack now exposes a `lifecycleActive` seam. Main passes the initial activation
+state before a world completes, then binds it to the selected world without evicting visited pages.
+Hidden TopBar clocks, Discover paging, Biblio featured refresh, Theatre warmers, and Tankoban's
+synchronous catalogue derivation stand down until activation; retained page and scroll state remain
+alive. Search transport in `WorldSearch.js` and `BiblioApi.js` now returns idempotent abort handles,
+has a bounded 15-second timeout, and rejects late callbacks. Search surfaces cancel superseded,
+short-query, exit, and destruction work; book and audiobook lanes are covered independently.
+
+Catalogue transport now follows the same cancellation contract: AddonClient XHRs expose
+idempotent abort handles, DiscoverApi and both Discover adapters propagate them, DiscoverBrowser
+cancels page work on navigation/lifecycle exits, TheatreApi aggregates fallback/extension/live
+loads, TheatreCatalogPage cancels superseded loads, and Biblio Explore tracks each extension row.
+Synchronous/native catalogue paths retain no-op handles and generation fences remain in place for
+late custom-transport callbacks. Shared Jikan cache waiters are cancellation-aware as well.
+
+Deterministic evidence from `native/build-responsiveness`:
+
+- `colosseum.startup_deferral_contract`, `colosseum.world_warmer_contract`,
+  `colosseum.home_hidden_work_contract`, `colosseum.world_lifecycle_contract`,
+  `colosseum.search_cancellation_contract`, and `colosseum.catalogue_cancellation_contract`:
+  **6/6 passed**.
+- `qmllint` on all touched QML/JS files: exit 0; output contains only pre-existing warnings.
+- `colosseum_qml_tests` rebuilt cleanly with the new search-history tests. The local runner could
+  not execute the QML suite in this environment (the real-window suite exits without a report),
+  so runtime QML results are intentionally not claimed here.

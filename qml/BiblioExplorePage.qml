@@ -43,6 +43,12 @@ Item {
     property int top10Limit: 10
     property int mosaicLimit: 14
     property bool editMode: false
+    // Explore remains mounted beside Discover/Library for scroll-state preservation. Extension
+    // transport is only useful while this retained page is active.
+    property bool active: true
+    property bool _ready: false
+    property int _fetchGeneration: 0
+    property var _extensionCancels: ({})
 
     // persists/restores the page's own scroll position across an Explore -> Discover -> Explore
     // tab switch within the same running session (Task 8's BiblioWorld reads/writes this) — a
@@ -129,7 +135,7 @@ Item {
     readonly property bool housesLoading: !page.catalogSource || page.catalogSource.ready !== true
     readonly property var houseRowsMap: {
         var out = {};
-        if (!page.catalogSource || page.catalogSource.ready !== true) return out;
+        if (!page.active || !page.catalogSource || page.catalogSource.ready !== true) return out;
         var _dep = page.catalogSource.revision;
         var rows = page.catalogSource.exploreRows(page.limitPerShelf, page.showExplicit) || [];
         for (var i = 0; i < rows.length; i++) {
@@ -142,14 +148,14 @@ Item {
         return out;
     }
     readonly property var top10Items: {
-        if (!page.catalogSource || page.catalogSource.ready !== true) return [];
+        if (!page.active || !page.catalogSource || page.catalogSource.ready !== true) return [];
         var _dep = page.catalogSource.revision;
         var p = page.catalogSource.discoverPage("popular", "", "", page.showExplicit, 0, page.top10Limit);
         return page._normalizeHouseList((p && p.items) ? p.items : []);
     }
     readonly property var mosaicItemsByKey: {
         var out = {};
-        if (!page.catalogSource || page.catalogSource.ready !== true) return out;
+        if (!page.active || !page.catalogSource || page.catalogSource.ready !== true) return out;
         var _dep = page.catalogSource.revision;
         for (var i = 0; i < page.mosaicSpecs.length; i++) {
             var spec = page.mosaicSpecs[i];
@@ -231,12 +237,26 @@ Item {
         d[key] = { status: status, items: items || [] };
         page.extensionRowData = d;
     }
+    function cancelExtensionRequests() {
+        var activeCancels = page._extensionCancels;
+        page._extensionCancels = ({})
+        for (var key in activeCancels) {
+            if (typeof activeCancels[key] === "function") activeCancels[key]();
+        }
+    }
     function _loadExtensionRow(catalog) {
+        if (!page.active) return
+        var generation = page._fetchGeneration
         var key = catalog.key;
         page._setExtRowData(key, "loading", []);
         var sel = DiscoverApi.selectionsForFilter(catalog, "", "");
         var fetcher = page.pageFetcher ? page.pageFetcher : DiscoverApi.loadPage;
-        fetcher(catalog, sel, 0, function(metas) {
+        var handle = fetcher(catalog, sel, 0, function(metas) {
+            if (!page.active || generation !== page._fetchGeneration) return
+            var remaining = {};
+            for (var name in page._extensionCancels)
+                if (name !== key) remaining[name] = page._extensionCancels[name];
+            page._extensionCancels = remaining;
             var list = metas || [];
             var items = [];
             for (var i = 0; i < list.length; i++) {
@@ -246,12 +266,43 @@ Item {
             }
             page._setExtRowData(key, items.length ? "ok" : "empty", items);
         });
+        if (page.active && generation === page._fetchGeneration && typeof handle === "function") {
+            var next = {};
+            for (var name in page._extensionCancels) next[name] = page._extensionCancels[name];
+            next[key] = handle;
+            page._extensionCancels = next;
+        } else if (typeof handle === "function") {
+            handle();
+        }
     }
     function reloadExtensionRows() {
+        if (!page.active) return
+        page.cancelExtensionRequests()
+        page._fetchGeneration += 1
         var cats = page.bookExtensionCatalogs;
         for (var i = 0; i < cats.length; i++) page._loadExtensionRow(cats[i]);
     }
-    Component.onCompleted: page.reloadExtensionRows()
+    function needsExtensionRefresh() {
+        var cats = page.bookExtensionCatalogs
+        for (var i = 0; i < cats.length; i++) {
+            var d = page.extensionRowData[cats[i].key]
+            if (!d || d.status === "loading") return true
+        }
+        return false
+    }
+    Component.onCompleted: {
+        page._ready = true
+        if (page.active) page.reloadExtensionRows()
+    }
+    Component.onDestruction: page.cancelExtensionRequests()
+    onActiveChanged: {
+        if (!page.active) {
+            page.cancelExtensionRequests()
+            page._fetchGeneration += 1
+            return
+        }
+        if (page._ready && page.needsExtensionRefresh()) page.reloadExtensionRows()
+    }
     // The house/mosaic rows already react to a live showExplicit flip via their declarative
     // bindings on page.showExplicit (houseRowsMap/top10Items/mosaicItemsByKey all read it
     // directly). Extension rows do NOT — _loadExtensionRow's async fetch callback captures

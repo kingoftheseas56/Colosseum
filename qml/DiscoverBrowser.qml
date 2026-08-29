@@ -32,6 +32,9 @@ Item {
 
     // ── injected world seam ──
     property var adapter: null
+    // Retained worlds stay instantiated for state preservation. The host drives this seam so a
+    // hidden world does not start paging or keep accepting callbacks while another world is visible.
+    property bool active: true
     // the type to fall back to when the adapter offers none yet (bare construction / empty registry)
     property string fallbackType: ""
     // poster visual profile passed straight through to the shared card. Default classic; a wrapper
@@ -64,6 +67,9 @@ Item {
     property string filterKey: ""
     property var cursor: null
     property int fetchGen: 0                 // stale-response fence
+    property bool initialized: false
+    property var _pageCancel: null           // current adapter transport, when cancellable
+    property bool _pageResumePending: false  // canceled paging request to retry on reactivation
     property var typeStates: ({})            // per-type session memory {type: {...}}
     property int adapterRev: 0               // bump to force adapter-derived bindings to re-evaluate
 
@@ -172,11 +178,39 @@ Item {
         itemOpenRequested(items[i])
     }
 
-    onVisibleChanged: if (visible && wall) wall.forceActiveFocus()
+    onVisibleChanged: if (visible && active && wall) wall.forceActiveFocus()
 
-    Component.onCompleted: init()
+    Component.onCompleted: if (active) init()
+
+    Component.onDestruction: browser.cancelPageRequest()
+
+    onActiveChanged: {
+        if (!active) {
+            // Invalidate the current page request. The adapter may still finish its transport,
+            // but its callback cannot mutate this hidden browser after the generation bump.
+            _pageResumePending = loading && !exhausted
+            browser.cancelPageRequest()
+            fetchGen++
+            loading = false
+            catalogMenuOpen = false
+            return
+        }
+        if (!initialized) {
+            init()
+            return
+        }
+        // A hidden browser can have lost its first page to the generation fence. Re-issue only
+        // that incomplete request; settled retained state is left untouched.
+        if (_pageResumePending || (!items.length && !exhausted)) {
+            _pageResumePending = false
+            requestPage()
+        }
+        if (wall) wall.forceActiveFocus()
+    }
 
     function init() {
+        if (initialized) return
+        initialized = true
         if (!adapter) { if (fallbackType.length) currentType = fallbackType; return }
         if (pinValue) { applyPin(pinValue); return }
         var ts = adapter.types()
@@ -189,6 +223,8 @@ Item {
 
     function selectType(t) {
         if (t === currentType) return
+        _pageResumePending = loading && !exhausted
+        cancelPageRequest()
         fetchGen++                       // fence any in-flight fetch bound to the leaving type
         saveTypeState()
         currentType = t
@@ -203,6 +239,7 @@ Item {
     }
 
     function selectCatalog(key) {
+        cancelPageRequest()
         fetchGen++
         currentCatalogKey = key
         filterGroup = ""; filterKey = ""; noticeText = ""
@@ -211,6 +248,7 @@ Item {
     }
 
     function setFilter(group, key) {
+        cancelPageRequest()
         fetchGen++
         if (key && key.length) { filterGroup = group; filterKey = key }
         else { filterGroup = ""; filterKey = "" }
@@ -218,6 +256,7 @@ Item {
     }
 
     function clearFilter() {
+        cancelPageRequest()
         fetchGen++
         filterGroup = ""; filterKey = ""
         reloadForCatalog()
@@ -234,6 +273,7 @@ Item {
     function applyPin(pin) {
         pinValue = pin || null
         if (!pin || !adapter) return
+        cancelPageRequest()
         fetchGen++
         var res = adapter.resolvePin(pin)
         catalogMenuOpen = false
@@ -265,6 +305,7 @@ Item {
         for (var i = 0; i < cats.length; i++)
             if (cats[i].key === currentCatalogKey) return   // still present -> keep the wall as-is
         // the current catalogue is gone -> fall to the default
+        cancelPageRequest()
         fetchGen++
         currentCatalogKey = adapter.defaultCatalog(currentType)
         filterGroup = ""; filterKey = ""; noticeText = ""
@@ -281,6 +322,7 @@ Item {
     // alongside fresh items.
     function reloadCurrent() {
         if (!adapter) return
+        cancelPageRequest()
         fetchGen++
         reloadForCatalog()
     }
@@ -292,6 +334,7 @@ Item {
         s[currentType] = { catalogKey: currentCatalogKey, filterGroup: filterGroup, filterKey: filterKey,
                            items: items, cursor: cursor, exhausted: exhausted,
                            warning: warning, freshness: freshness, noticeText: noticeText,
+                           pageResumePending: _pageResumePending,
                            contentY: (wall ? wall.contentY : 0) }   // remember scroll for restore
         typeStates = s
     }
@@ -311,33 +354,51 @@ Item {
         items = st.items; cursor = st.cursor; exhausted = st.exhausted
         warning = st.warning || ""; freshness = st.freshness || ""; noticeText = st.noticeText || ""
         loading = false
+        _pageResumePending = st.pageResumePending === true
         // A type LEFT during its first-page fetch saved {items:[], exhausted:false}: the generation
         // fence dropped that in-flight reply, and onContentYChanged can't re-page an empty wall — so
         // the type would strand on the empty state. Re-issue a page when the restored wall is empty
         // and NOT exhausted. A legitimately-empty catalogue saved exhausted:true (and requestPage
         // guards on exhausted too), so this never double-fetches a settled, empty catalogue.
-        if (!items.length && !exhausted) { requestPage(); return }
+        if (_pageResumePending || (!items.length && !exhausted)) {
+            _pageResumePending = false
+            requestPage()
+            return
+        }
         // restore the wall's scroll best-effort, after the GridView re-lays out the restored model.
         _pendingScrollY = (st.contentY || 0)
         Qt.callLater(applyPendingScroll)
     }
 
     function reloadForCatalog() {
+        cancelPageRequest()
         items = []; cursor = null; exhausted = false; loading = false
         warning = ""; freshness = ""
         requestPage()
     }
 
     function requestPage() {
-        if (!adapter || loading || exhausted || currentCatalogKey.length === 0) return
+        if (!active || !adapter || loading || exhausted || currentCatalogKey.length === 0) return
+        _pageResumePending = false
         loading = true
         var gen = ++fetchGen
         var st = { type: currentType, catalogKey: currentCatalogKey,
                    filterGroup: filterGroup, filterKey: filterKey }
-        adapter.fetchPage(st, cursor, gen, function(replyGen, page) {
-            if (replyGen !== browser.fetchGen) return      // a newer ask superseded this one
+        var handle = adapter.fetchPage(st, cursor, gen, function(replyGen, page) {
+            if (!browser.active || replyGen !== browser.fetchGen) return
+            browser._pageCancel = null
             browser.acceptPage(page)
         })
+        if (browser.loading && browser.active && browser.fetchGen === gen)
+            browser._pageCancel = (typeof handle === "function") ? handle : null
+        else if (typeof handle === "function")
+            handle()
+    }
+
+    function cancelPageRequest() {
+        var handle = browser._pageCancel
+        browser._pageCancel = null
+        if (typeof handle === "function") handle()
     }
 
     function acceptPage(page) {

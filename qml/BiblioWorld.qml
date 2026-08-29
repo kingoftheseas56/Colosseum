@@ -54,6 +54,8 @@ WorldPage {
         }
     }
     function _refreshFeaturedFromNative() {
+        if (!biblio.lifecycleActive)
+            return
         if (typeof BiblioCatalog === "undefined" || !BiblioCatalog || BiblioCatalog.ready !== true)
             return
         var page = BiblioCatalog.discoverPage("popular", "", "", biblio.showExplicit, 0, 4)
@@ -62,6 +64,7 @@ WorldPage {
             biblio.featuredRows = rows.map(biblio._slideFromNative)
     }
     Component.onCompleted: biblio._refreshFeaturedFromNative()
+    onLifecycleActiveChanged: if (biblio.lifecycleActive) biblio._refreshFeaturedFromNative()
     onShowExplicitChanged: biblio._refreshFeaturedFromNative()
     // BiblioCatalog is a native context property (identity stable for the app lifetime, per
     // BiblioDiscoverPage's own doc comment) — reacting to its ready/revision signals is how a
@@ -152,6 +155,7 @@ WorldPage {
         visible: biblio.activeTab === "discover"
         width: parent.width
         height: visible ? Math.max(620, biblio.height - 200) : 0
+        active: biblio.lifecycleActive && visible
         biblioCatalog: (typeof BiblioCatalog !== "undefined") ? BiblioCatalog : null
         extensions: (typeof Extensions !== "undefined") ? Extensions.installed() : []
         showExplicit: biblio.showExplicit
@@ -181,6 +185,7 @@ WorldPage {
         visible: biblio.activeTab === "explore"
         width: parent.width
         height: visible ? Math.max(620, biblio.height - 200) : 0
+        active: biblio.lifecycleActive && visible
         showExplicit: biblio.showExplicit
         onItemRequested: (item) => biblio.openBookCard(item)
         onDiscoverPinRequested: (pin) => {

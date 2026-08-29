@@ -117,12 +117,39 @@ Item {
         function fetchPage(s, cursor, gen, done) { capturedGen = gen; capturedDone = done }   // never auto-completes
     }
 
+    // ── fake adapter G — an already-populated wall with a deferred next page. Proves that
+    // deactivation cancels that page and reactivation resumes it even though existing items
+    // remain visible (the subtle partial-page lifecycle regression).
+    QtObject {
+        id: pageCancelFake
+        property int fetchCount: 0
+        property int cancelCount: 0
+        property int capturedGen: -1
+        property var capturedDone: null
+        function types() { return [{key:"book", label:"Books"}] }
+        function catalogs(t) { return [{key:"popular", title:"Popular", sourceKind:"builtin", section:"Src", attribution:"Src"}] }
+        function filters(t, c) { return [] }
+        function defaultCatalog(t) { return "popular" }
+        function resolvePin(p) { return {missing:false, type:p.type, catalogKey:p.catalogId, filterGroup:"", filterKey:""} }
+        function fetchPage(s, cursor, gen, done) {
+            fetchCount++
+            if (fetchCount === 1) {
+                done(gen, {items:[{id:"seed",type:"book",title:"Seed",cover:"",year:0,rating:0,format:"",publisher:"",availability:true,explicit:false,raw:{}}],
+                           nextCursor:1, exhausted:false, freshness:"bundled", warning:""})
+                return function() {}
+            }
+            capturedGen = gen; capturedDone = done
+            return function() { cancelCount++ }
+        }
+    }
+
     UI.DiscoverBrowser { id: browser;  width: 1200; height: 700; adapter: fake;         fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser2; width: 1200; height: 700; adapter: deferredFake; fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser3; width: 1200; height: 700; adapter: strandFake;   fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser4; width: 1200; height: 700; adapter: exhaustFake;  fallbackType: "a" }
     UI.DiscoverBrowser { id: browser5; width: 1200; height: 700; adapter: reloadFake;   fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser6; width: 1200; height: 700; adapter: extRemoveFake; fallbackType: "book" }
+    UI.DiscoverBrowser { id: browser8; width: 1200; height: 700; adapter: pageCancelFake; fallbackType: "book" }
     // wide gallery-profile instance for the fixedGalleryWidth geometry proof (2026-08-06) —
     // 1920 is wide enough that the default (stretch-to-fill) behavior visibly exceeds the token.
     UI.DiscoverBrowser { id: browser7; width: 1920; height: 700; adapter: fake; fallbackType: "manga"; posterVisualProfile: "gallery" }
@@ -238,6 +265,26 @@ Item {
                "returning to a type stranded mid-fetch re-issued its fetch (fetchCount): " + strandFake.fetchCount);
             ok(browser3.loading === true && browser3.exhausted === false,
                "the returned type is fetching again, not stranded empty/settled");
+
+            // ── retained-wall cancellation regression: an in-flight next page is canceled when
+            // the world hides, then resumed on reactivation even though the first page remains.
+            ok(pageCancelFake.fetchCount === 1 && browser8.items.length === 1 && !browser8.exhausted,
+               "browser8 has a settled first page with more data available");
+            browser8.requestPage();
+            ok(pageCancelFake.fetchCount === 2 && browser8.loading === true && browser8.items.length === 1,
+               "browser8 started a deferred next page without dropping existing rows");
+            browser8.active = false;
+            ok(pageCancelFake.cancelCount === 1 && browser8.loading === false,
+               "browser8 canceled the hidden next page");
+            browser8.active = true;
+            ok(pageCancelFake.fetchCount === 3 && browser8.loading === true && browser8.items.length === 1,
+               "browser8 re-issued the canceled next page on reactivation");
+            browser8.selectType("comics");
+            ok(pageCancelFake.fetchCount === 4 && browser8.currentType === "comics",
+               "browser8 switching types fences the active next-page request");
+            browser8.selectType("book");
+            ok(pageCancelFake.fetchCount === 5 && browser8.currentType === "book" && browser8.loading === true,
+               "browser8 restores a type with existing rows and resumes its canceled next page");
 
             // ── the fix must NOT double-fetch a legitimately settled (empty + exhausted) catalogue ──
             ok(exhaustFake.fetchCount === 1, "browser4 fetched its first type (A) on init: " + exhaustFake.fetchCount);

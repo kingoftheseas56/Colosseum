@@ -12,6 +12,10 @@
 //      entriesOf() always normalizes to an array.
 .pragma library
 
+var REQUEST_TIMEOUT_MS = 15000;
+
+function noopCancel() {}
+
 var COUNTRY = "us";
 var FEED = "https://itunes.apple.com/" + COUNTRY + "/rss/topebooks";
 
@@ -31,21 +35,35 @@ var palette = [
 
 function requestJson(url, done) {
     var xhr = new XMLHttpRequest();
+    var settled = false;
+    function finish(value) {
+        if (settled) return;
+        settled = true;
+        done(value);
+    }
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE)
             return;
         if (xhr.status < 200 || xhr.status >= 300) {
-            done(null);
+            finish(null);
             return;
         }
         try {
-            done(JSON.parse(xhr.responseText));
+            finish(JSON.parse(xhr.responseText));
         } catch (e) {
-            done(null);
+            finish(null);
         }
     };
+    xhr.onerror = function() { finish(null); };
+    xhr.ontimeout = function() { finish(null); };
     xhr.open("GET", url);
+    xhr.timeout = REQUEST_TIMEOUT_MS;
     xhr.send();
+    return function() {
+        if (settled) return;
+        settled = true;
+        try { xhr.abort(); } catch (e) {}
+    };
 }
 
 // Apple RSS `entry`: single object for 1 result, array for many. Always hand back an array.
@@ -96,7 +114,7 @@ function mapBook(entry, index) {
 // Base load: ONE request. The overall Top ebooks chart feeds both the Featured carousel
 // (first few) and the Top-10 row. Genres stay static (Catalog.biblioGenres).
 function loadBiblio(done) {
-    requestJson(FEED + "/limit=12/json", function(json) {
+    return requestJson(FEED + "/limit=12/json", function(json) {
         var mapped = entriesOf(json).map(mapBook);
         done({
             featured: mapped.slice(0, 4),
@@ -220,9 +238,9 @@ function fullBook(r) {
 
 // live search → array of full book objects (powers the search page AND tile→detail)
 function search(query, done) {
-    if (!query) { done([]); return; }
+    if (!query) { done([]); return noopCancel; }
     var url = "https://itunes.apple.com/search?media=ebook&limit=24&term=" + encodeURIComponent(query);
-    requestJson(url, function(json) {
+    return requestJson(url, function(json) {
         var results = (json && json.results) ? json.results : [];
         done(results.map(fullBook));
     });
@@ -230,7 +248,7 @@ function search(query, done) {
 
 // open-by-title: first match's full detail (so a home tile with only a title can open a detail)
 function lookupBook(title, done) {
-    search(title, function(books) { done(books.length ? books[0] : null); });
+    return search(title, function(books) { done(books.length ? books[0] : null); });
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -285,9 +303,9 @@ function fullAudiobook(r) {
 
 // live search → array of full audiobook objects (powers the audiobook search column)
 function searchAudiobooks(query, done) {
-    if (!query) { done([]); return; }
+    if (!query) { done([]); return noopCancel; }
     var url = "https://itunes.apple.com/search?media=audiobook&limit=24&term=" + encodeURIComponent(query);
-    requestJson(url, function(json) {
+    return requestJson(url, function(json) {
         var results = (json && json.results) ? json.results : [];
         done(results.map(fullAudiobook));
     });

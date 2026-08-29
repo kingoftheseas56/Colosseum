@@ -23,6 +23,9 @@ Item {
 
     property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
     property string medium: ""               // which library pill reads as selected
+    // Main binds this to the current world. Bare page harnesses keep the default true, while
+    // retained hidden worlds can stop timers, paging and refresh work without being destroyed.
+    property bool lifecycleActive: true
     // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
     // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
     // Task 9) read this to drive the sexually-explicit-only gate. Default false so a bare
@@ -57,6 +60,7 @@ Item {
         id: topbar
         backdrop: world.backdrop
         activeMedium: world.medium
+        lifecycleActive: world.lifecycleActive
         x: theme.margin; y: 30
         width: world.width - theme.margin * 2
         onHomeRequested: world.homeRequested()

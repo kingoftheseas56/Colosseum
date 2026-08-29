@@ -33,6 +33,10 @@ Item {
     property var extensions: []                // the extension registry (discoverable book catalogues)
     property bool showExplicit: false          // global Explicit Content preference, injected live
     property var pin: null                     // an optional See-all pin (surface compat)
+    // Retained world pages stay instantiated for state preservation. Main binds this seam to
+    // the visible world so hidden paging and refresh work can be paused without eviction.
+    property bool active: true
+    property bool _ready: false
 
     // ── routing: a normalized card opens the EXISTING book detail door ──
     signal itemOpenRequested(var item)
@@ -52,16 +56,19 @@ Item {
         defaultCatalog: function() { return "" },
         filters: function() { return [] },
         resolvePin: function() { return { missing: true } },
-        fetchPage: function(s, c, g, done) { done(g, { items: [], nextCursor: null, exhausted: true, freshness: "bundled", warning: "" }) }
+        fetchPage: function(s, c, g, done) { done(g, { items: [], nextCursor: null, exhausted: true, freshness: "bundled", warning: "" }); return function() {}; }
     })
 
     function _rebuildAdapter() {
         adapter = Api.create(biblioCatalog, extensions, showExplicit)
         _adapterRev++
-        if (browser.adapter) browser.refresh()
+        if (browser.adapter && root.active && root._ready) browser.refresh()
     }
 
-    Component.onCompleted: _rebuildAdapter()
+    Component.onCompleted: {
+        _rebuildAdapter()
+        _ready = true
+    }
 
     // Rebuild when a shape-affecting dependency changes. biblioCatalog's identity is stable for
     // the app lifetime (a context property), so this fires on extension registry revisions and
@@ -75,13 +82,16 @@ Item {
     // item never persists on screen after a live flip.
     onShowExplicitChanged: {
         _rebuildAdapter()
-        if (browser.adapter) browser.reloadCurrent()
+        if (browser.adapter && root.active) browser.reloadCurrent()
     }
+
+    onActiveChanged: if (active && root._ready && browser.adapter) browser.refresh()
 
     DiscoverBrowser {
         id: browser
         anchors.fill: parent
         adapter: root.adapter
+        active: root.active
         fallbackType: "book"                   // Biblio's only type when the catalog object is absent
         // Gallery poster profile — same shared card polish Tankoban/Theatre already ship.
         posterVisualProfile: "gallery"

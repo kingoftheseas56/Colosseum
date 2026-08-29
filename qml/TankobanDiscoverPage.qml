@@ -32,6 +32,10 @@ Item {
     property var extensions: []                // the extension registry (discoverable catalogues)
     property bool showExplicitContent: false   // global Explicit Content preference (Task 9 threads it live)
     property var pin: null                     // an optional See-all pin (surface compat)
+    // Retained world pages stay instantiated for state preservation. Main binds this seam to
+    // the visible world so hidden paging and refresh work can be paused without eviction.
+    property bool active: true
+    property bool _ready: false
 
     // ── routing: a normalized card opens the EXISTING series door by type ──
     signal mangaSeriesRequested(var item)      // Manga/Manhwa/Manhua card → seriesRequested(title)
@@ -58,18 +62,22 @@ Item {
         adapter = Api.create(malCatalog, comicsCatalog, extensions,
                              showExplicitContent, _xhrFactory || xhrFactory)
         _adapterRev++
-        if (browser.adapter) browser.refresh()
+        if (browser.adapter && root.active && root._ready) browser.refresh()
     }
 
     property var _xhrFactory: null             // harness override; null in-app
 
-    Component.onCompleted: _rebuildAdapter()
+    Component.onCompleted: {
+        _rebuildAdapter()
+        _ready = true
+    }
 
     // Rebuild when a shape-affecting dependency changes. Catalog object identity is stable
     // for the app lifetime (context properties), so this fires on extension registry
     // revisions and on an explicit-preference flip — exactly the two shape changes.
     onExtensionsChanged: _rebuildAdapter()
     onShowExplicitContentChanged: _rebuildAdapter()
+    onActiveChanged: if (active && root._ready && browser.adapter) browser.refresh()
 
     // Data-vault Slice 3 (2026-08-22): the wall is empty-because-downloading only when its
     // CURRENT type's own catalog is the one still landing. malCatalog/comicsCatalog are
@@ -92,13 +100,13 @@ Item {
     Connections {
         target: (typeof MalCatalog !== "undefined") ? MalCatalog : null
         function onReadyChanged() {
-            if (browser.currentType === "manga" && browser.items.length === 0) browser.reloadCurrent()
+            if (root.active && browser.currentType === "manga" && browser.items.length === 0) browser.reloadCurrent()
         }
     }
     Connections {
         target: (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null
         function onReadyChanged() {
-            if (browser.currentType === "comics" && browser.items.length === 0) browser.reloadCurrent()
+            if (root.active && browser.currentType === "comics" && browser.items.length === 0) browser.reloadCurrent()
         }
     }
 
@@ -106,6 +114,7 @@ Item {
         id: browser
         anchors.fill: parent
         adapter: root.adapter
+        active: root.active
         fallbackType: "manga"                  // Tankoban's default type when catalog objects are absent
         // Gallery poster profile for BOTH Manga and Comics (one shared shell) — adopted after the
         // Theatre pilot + a manga/comics cover screenshot check. Presentation only; demographic and

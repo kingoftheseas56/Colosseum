@@ -140,4 +140,46 @@ TestCase {
         compare(history.list("biblio"), ["Dune"])
         surface.destroy()
     }
+
+    function test_genericSearchCancelsSupersededRequestAndRejectsLateResult() {
+        var callbacks = [], cancellations = 0
+        var dispatcher = function(mode, query, callback) {
+            callbacks.push(callback)
+            return function() { cancellations += 1 }
+        }
+        var surface = createGeneric(dispatcher)
+        surface.fillAndSearch("Batman")
+        compare(callbacks.length, 1)
+        surface.fillAndSearch("Dune")
+        compare(cancellations, 1)
+        callbacks[0]([{ title: "stale", data: { title: "stale" } }])
+        compare(surface.results.length, 0)
+        callbacks[1]([{ title: "fresh", data: { title: "fresh" } }])
+        compare(surface.results.length, 1)
+        compare(surface.results[0].title, "fresh")
+        surface.destroy()
+    }
+
+    function test_searchDestructionCancelsBookAndAudioRequests() {
+        var bookCallback, audioCallback, bookCancellations = 0, audioCancellations = 0
+        var surface = biblioSearch.createObject(testWindow.contentItem, {
+            historyStore: history,
+            searchDispatcher: function(query, callback) {
+                bookCallback = callback
+                return function() { bookCancellations += 1 }
+            },
+            audioSearchDispatcher: function(query, callback) {
+                audioCallback = callback
+                return function() { audioCancellations += 1 }
+            },
+            width: testWindow.width,
+            height: testWindow.height
+        })
+        surface.fillAndSearch("Dune")
+        verify(bookCallback !== undefined)
+        verify(audioCallback !== undefined)
+        surface.destroy()
+        compare(bookCancellations, 1)
+        compare(audioCancellations, 1)
+    }
 }

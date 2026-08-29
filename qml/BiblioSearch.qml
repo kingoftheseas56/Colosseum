@@ -22,6 +22,11 @@ Item {
     property string lastDispatchedQuery: ""
     property var historyStore: null
     property var searchDispatcher: BiblioApi.search
+    property var _bookCancel: null
+    property var _audioCancel: null
+    property int _bookGeneration: 0
+    property int _audioGeneration: 0
+    property var audioSearchDispatcher: BiblioApi.searchAudiobooks
 
     // Everything after the Top Match falls into the cover grid.
     readonly property var restResults: search.results.length > 1 ? search.results.slice(1) : []
@@ -43,7 +48,10 @@ Item {
         search.loadRecent()
         queryInput.forceActiveFocus()
     }
-    Component.onDestruction: search.commitCurrentQuery()
+    Component.onDestruction: {
+        search.cancelAllRequests()
+        search.commitCurrentQuery()
+    }
     Connections {
         target: search.historyStore
         function onChanged(scope) {
@@ -63,8 +71,30 @@ Item {
     // ── behaviour ──
     // Race guard: a result is applied ONLY if its query still matches the current input — slow
     // replies for half-typed queries can land last and would otherwise clobber the answer.
+    function cancelHandle(handle) {
+        if (!handle) return
+        if (typeof handle === "function") { handle(); return }
+        if (handle.cancel && typeof handle.cancel === "function") handle.cancel()
+    }
+    function cancelBooks() {
+        search._bookGeneration++
+        search.cancelHandle(search._bookCancel)
+        search._bookCancel = null
+        search.searching = false
+    }
+    function cancelAudio() {
+        search._audioGeneration++
+        search.cancelHandle(search._audioCancel)
+        search._audioCancel = null
+        search.audioSearching = false
+    }
+    function cancelAllRequests() {
+        search.cancelBooks()
+        search.cancelAudio()
+    }
     function runAppleSearch() {
         var q = queryInput.text.trim()
+        search.cancelAllRequests()
         if (q.length < 2) {
             search.lastDispatchedQuery = ""
             search.results = []; search.audioResults = []; search.searched = false
@@ -73,16 +103,18 @@ Item {
         search.lastDispatchedQuery = q
         search.booksExpanded = false; search.audioExpanded = false   // fresh query → collapse both to one row
         search.searching = true
-        search.searchDispatcher(q, function(books) {
-            if (q !== queryInput.text.trim()) return        // stale — input moved on
+        var bookGeneration = search._bookGeneration
+        search._bookCancel = search.searchDispatcher(q, function(books) {
+            if (bookGeneration !== search._bookGeneration || q !== queryInput.text.trim()) return
             search.results = books
             search.searching = false
             search.searched = true
         })
         // audiobooks column — same query, same stale-guard, own lane
         search.audioSearching = true
-        BiblioApi.searchAudiobooks(q, function(abs) {
-            if (q !== queryInput.text.trim()) return        // stale — input moved on
+        var audioGeneration = search._audioGeneration
+        search._audioCancel = search.audioSearchDispatcher(q, function(abs) {
+            if (audioGeneration !== search._audioGeneration || q !== queryInput.text.trim()) return
             search.audioResults = abs
             search.audioSearching = false
         })
@@ -94,7 +126,7 @@ Item {
             search.recent = search.historyStore.record("biblio", q)
     }
     function fillAndSearch(q) { queryInput.text = q; runAppleSearch(); commitCurrentQuery() }
-    function openBook(book) { search.commitCurrentQuery(); search.bookRequested(book) }
+    function openBook(book) { search.cancelAllRequests(); search.commitCurrentQuery(); search.bookRequested(book) }
     function openTop() { if (search.results.length > 0) search.openBook(search.results[0]) }
     function removeRecent(q) { search.recent = search.historyStore.remove("biblio", q) }
 
@@ -108,7 +140,7 @@ Item {
         x: theme.margin
         anchors.verticalCenter: field.verticalCenter
         hoverColor: "#ffffff"   // Biblio world rule: white hover, not gold
-        onTriggered: { search.commitCurrentQuery(); search.backRequested() }
+        onTriggered: { search.cancelAllRequests(); search.commitCurrentQuery(); search.backRequested() }
     }
     Rectangle {
         id: field
@@ -137,10 +169,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             color: theme.ink; font.family: theme.display; font.pixelSize: 22
             clip: true; focus: true; selectByMouse: true
-            onTextChanged: debounce.restart()
+            onTextChanged: { search.cancelAllRequests(); debounce.restart() }
             // the field holds keyboard focus, so close on Esc here rather than relying on the
             // window shortcut reaching past it
-            Keys.onEscapePressed: { search.commitCurrentQuery(); search.backRequested() }
+            Keys.onEscapePressed: { search.cancelAllRequests(); search.commitCurrentQuery(); search.backRequested() }
         }
         Text {
             visible: queryInput.text.length === 0
@@ -168,7 +200,7 @@ Item {
                 color: "transparent"; border.width: 1; border.color: theme.edge
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.5 }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: search.backRequested() }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { search.cancelAllRequests(); search.backRequested() } }
             }
         }
     }
@@ -543,7 +575,7 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: search.closeRequested()
+                onClicked: { search.cancelAllRequests(); search.closeRequested() }
             }
         }
     }

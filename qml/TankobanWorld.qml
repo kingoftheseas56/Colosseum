@@ -88,13 +88,16 @@ WorldPage {
     property var comicCovers: []            // real covers → the mosaic's art pool
     property var comicRows: []              // populated when this lazy world is first created
     property var comicShelves: []           // catalogue shelf rows (browse-landing): [{label, rows}]
+    property bool _catalogueInitialized: false
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
         ["#3f5a78","#16222e"], ["#78503f","#2e1c16"], ["#5a3f78","#241630"],
         ["#3f785a","#16281e"], ["#78703f","#2e2a16"], ["#783f5a","#301624"],
         ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
     ]
-    Component.onCompleted: {
+    function initializeComicCatalogue() {
+        if (tanko._catalogueInitialized) return
+        tanko._catalogueInitialized = true
         // The curated catalogue rides the ComicsCatalog engine now (P4 seam, 2026-07-18) —
         // behind Main's keep-alive world Loader, same as the old gen.js import was. Root
         // startup never touches this; the multi-megabyte gen.js parse is gone.
@@ -159,6 +162,8 @@ WorldPage {
             tanko.comicCovers = []
         }
     }
+    Component.onCompleted: if (tanko.lifecycleActive) tanko.initializeComicCatalogue()
+    onLifecycleActiveChanged: if (tanko.lifecycleActive) tanko.initializeComicCatalogue()
 
     property string activeTab: "discover"
 
@@ -233,6 +238,7 @@ WorldPage {
         visible: tanko.activeTab === "discover"
         width: parent.width
         height: visible ? Math.max(620, tanko.height - 200) : 0
+        active: tanko.lifecycleActive && visible
         malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
         comicsCatalog: (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null
         extensions: (typeof Extensions !== "undefined") ? Extensions.installed() : []
@@ -281,7 +287,7 @@ WorldPage {
         source: tanko.activeTab === "comics" ? "TankobanComicsTab.qml"
               : tanko.activeTab === "manga" ? "TankobanMangaTab.qml"
               : ""
-        active: tanko.activeTab === "manga" || tanko.activeTab === "comics"
+        active: tanko.lifecycleActive && (tanko.activeTab === "manga" || tanko.activeTab === "comics")
         onLoaded: {
             if (item.collectionOpenRequested) item.collectionOpenRequested.connect(tanko.collectionOpenRequested)
             // Task 8: a See-all pin from either browse tab routes into the in-tab Discover
