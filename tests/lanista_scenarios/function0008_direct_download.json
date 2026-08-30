@@ -1,0 +1,93 @@
+{
+  "name": "function0008-direct-download",
+  "comment": "Assembled-app Direct HTTP download proof. The seed carries one queued Theatre identity and one enabled local stream extension. Production Main.qml resolves the Direct row; DownloadStore must issue the fixture media GET with its addon-owned headers. Wire truth is graded by function0008_lanista_runtime.py after this scenario exits.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated Drive-enabled Lanista session answers",
+      "expect": [
+        { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+        { "path": "gates.drive", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "the app reports the disposable Function 0008 roots",
+      "expect": [
+        { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest-function0008-download-" },
+        { "path": "cacheRoot", "op": "contains", "value": "Colosseum-dltest-function0008-download-" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot completes",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "fresh tagged profile exposes continue-local onboarding",
+      "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue locally without touching a real account",
+      "payload": { "target": "accountWelcomeContinueLocal" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "onboarding dismisses",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the taskbar dock",
+      "payload": { "target": "colosseumTaskbarHomeButton" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Downloads taskbar button is actionable",
+      "payload": { "object": "taskbarDownloads", "prop": "width", "value": 46, "timeout_ms": 5000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open the production Downloads page",
+      "payload": { "target": "taskbarDownloads" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Downloads page is mounted",
+      "payload": { "object": "downloadsPage", "prop": "visible", "value": true, "timeout_ms": 10000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Downloads projection is readable while the Direct job settles",
+      "payload": { "object": "downloadsPage", "props": ["liveJobCount", "attentionCount", "totalsMap"] }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Direct job leaves the live queue",
+      "payload": { "object": "downloadsPage", "prop": "liveJobCount", "value": 0, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "completed Direct download has no attention failure",
+      "payload": { "object": "downloadsPage", "props": ["liveJobCount", "attentionCount", "totalsMap"] },
+      "expect": [
+        { "path": "props.liveJobCount", "op": "==", "value": 0 },
+        { "path": "props.attentionCount", "op": "==", "value": 0 }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "capture final Direct-download state",
+      "payload": { "grab": { "target": "window" } },
+      "expect": [ { "path": "windows.0.visible", "op": "==", "value": true } ]
+    }
+  ]
+}

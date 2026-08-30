@@ -11,6 +11,7 @@ import QtQuick.Controls
 
 Item {
     id: root
+    objectName: "downloadsPage"
     property Item backdrop: null
     signal backRequested()
     signal minimizeRequested()
@@ -638,6 +639,10 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 20
                                         Text {
+                                            // Lanista-only observation seams; behavior and click routing unchanged.
+                                            objectName: (grp.modelData.single ? "downloadsPlayArriving_" : "downloadsPlayArrivingGroup_") + String(grp.modelData.rows[0].id || "")
+                                            readonly property bool diskFirstReady:
+                                                Number(grp.modelData.rows[0].received || 0) > 8 * 1024 * 1024
                                             // play-while-arriving (2026-07-20): a LIVE job can be
                                             // watched now — only once it's actually downloading
                                             // with a resolved url (never queued/resolving).
@@ -868,6 +873,10 @@ Item {
                                                 font.family: theme.ui; font.pixelSize: 13
                                             }
                                             Text {
+                                                // Same Lanista-only observation seams for grouped episode rows.
+                                                objectName: "downloadsPlayArriving_" + String(epRow.modelData.id || "")
+                                                readonly property bool diskFirstReady:
+                                                    Number(epRow.modelData.received || 0) > 8 * 1024 * 1024
                                                 // play-while-arriving (2026-07-20): same gate as the
                                                 // single card — downloading + resolved url only.
                                                 visible: epRow.modelData.canPlay === true
