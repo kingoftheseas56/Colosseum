@@ -803,6 +803,28 @@ add_executable(reader2_autoattach_harness
 target_include_directories(reader2_autoattach_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_autoattach_harness PRIVATE Qt6::Core Qt6::Network)
 
+# Function 0007: focused Reader 2 harness builds must be runnable without first
+# building/deploying the full app. Stage their exact Qt runtime dependencies.
+if(WIN32)
+    add_custom_command(TARGET reader2_stores_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE_DIR:reader2_stores_harness>"
+        VERBATIM)
+    add_custom_command(TARGET reader2_bridge_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:reader2_bridge_harness>"
+        VERBATIM)
+    add_custom_command(TARGET reader2_autoattach_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:reader2_autoattach_harness>"
+        VERBATIM)
+endif()
+
 # Task 5: standalone "first pixels" harness — boots the fresh reader (native QML
 # chrome over the vendored foliate paper) with a book shelf, no Colosseum shell.
 # Links only what the reader seam needs (Reader2Bridge + BookStores) plus the QML

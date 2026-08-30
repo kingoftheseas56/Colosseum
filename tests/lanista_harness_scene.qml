@@ -10,6 +10,53 @@ Window {
     title: "LanistaHarness"
 
     property int clickCount: 0
+    property var openCalls: []
+    property string previousOpenPath: ""
+    property string previousOpenId: ""
+    property string previousOpenTitle: ""
+    property string lastOpenPath: ""
+    property string lastOpenId: ""
+    property string lastOpenTitle: ""
+
+    // Function 0007 bridge contract fixture. This is deliberately a tiny fake
+    // root seam: the native command must invoke the root's production-shaped
+    // openBookSession(path, book) method, never a generic QML mutation surface.
+    function openBookSession(path, book) {
+        var b = book || ({})
+        var calls = win.openCalls.slice()
+        if (calls.length > 0) {
+            win.previousOpenPath = calls[calls.length - 1].path
+            win.previousOpenId = calls[calls.length - 1].book.id || ""
+            win.previousOpenTitle = calls[calls.length - 1].book.title || ""
+        }
+        calls.push({ "path": String(path), "book": b })
+        win.openCalls = calls
+        win.lastOpenPath = String(path)
+        win.lastOpenId = b.id || ""
+        win.lastOpenTitle = b.title || ""
+        bookReaderShell.bookPath = String(path)
+        bookReaderShell.bookReady = false
+        bookReaderShell.pendingSaveBookPath = String(path)
+
+        // The bridge invokes B synchronously at A's pending-save transition.
+        // Emulate the production flush by writing A's Continue record only when
+        // the second open arrives. A timeout metadata title intentionally leaves
+        // B unready so the native timeout/cleanup contract is testable.
+        if (calls.length >= 2 && b.title !== "timeout") {
+            var a = calls[calls.length - 2]
+            if (typeof Progress !== "undefined") {
+                Progress.record({
+                    "id": a.book.id,
+                    "kind": "book",
+                    "caption": a.book.title,
+                    "title": a.book.title,
+                    "progress": 0.42,
+                    "resume": { "path": a.path, "book": a.book }
+                })
+            }
+            bookReaderShell.bookReady = true
+        }
+    }
 
     Rectangle { anchors.fill: parent; color: "#101218" }
 
@@ -96,6 +143,30 @@ Window {
             anchors.fill: parent
             onClicked: keySink.forceActiveFocus()
         }
+    }
+
+    Item {
+        id: bookReaderShell
+        objectName: "bookReaderShell"
+        visible: false
+        property string bookPath: ""
+        property bool bookReady: false
+        // Baseline seam supported by the bridge; Slice 4 adds the replacement
+        // pendingSaveContext property to production ReaderShell.
+        property string pendingSaveBookPath: ""
+        width: 1; height: 1
+    }
+
+    Item {
+        objectName: "reader2RootProbe"
+        property string previousOpenPath: win.previousOpenPath
+        property string previousOpenId: win.previousOpenId
+        property string previousOpenTitle: win.previousOpenTitle
+        property string lastOpenPath: win.lastOpenPath
+        property string lastOpenId: win.lastOpenId
+        property string lastOpenTitle: win.lastOpenTitle
+        visible: false
+        width: 1; height: 1
     }
 
     // ── L1-Bridge structural fixtures (2026-08-13) ──────────────────────────

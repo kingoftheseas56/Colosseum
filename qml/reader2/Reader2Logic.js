@@ -21,6 +21,20 @@ function formatFromPath(p) {
     return s.slice(dot + 1).toLowerCase()
 }
 
+// progressSaveContext(bookId, bookPath, bookMeta) → immutable ownership for one
+// debounced relocation. Copy metadata NOW so a hot A → B switch cannot make A's
+// pending position inherit B's identity/title before flushProgressSave() runs.
+function progressSaveContext(bookId, bookPath, bookMeta) {
+    var src = bookMeta || ({})
+    var meta = ({})
+    for (var k in src) meta[k] = src[k]
+    return {
+        bookId: String(bookId || ""),
+        bookPath: String(bookPath || ""),
+        bookMeta: meta
+    }
+}
+
 // progressRecord(prev, relocated, bookPath) → the store value to SAVE.
 //
 // READ-MODIFY-WRITE: start from `prev` (the existing progress.json entry, or {}),
@@ -917,9 +931,9 @@ function speedLabel(rate) {
 //
 // ReaderShell can't be instantiated offscreen (it needs the WebEngine paper + a dozen
 // context singletons), so EVERY read-along decision lives here as data-in / data-out and
-// ReaderShell's handlers are thin callers. That keeps the wiring honest AND testable:
-// tests/reader2_readalong_harness.qml proves these functions and wires them to fake
-// ReadAlong/paper/audioSession objects exactly as ReaderShell does. When the native
+// ReaderShell's handlers are thin callers. The surviving pure decisions live under the
+// consolidated tests/reader2_logic_harness.qml gate; the old dedicated read-along fixture
+// was intentionally removed with the guided-reading revert. When the native
 // `ReadAlong`/`AudioTextAlignment` context props are ABSENT the reader is DORMANT — every
 // function here has a dormant answer (a plain audio seek), so nothing read-along fires.
 // ---------------------------------------------------------------------------

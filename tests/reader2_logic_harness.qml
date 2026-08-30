@@ -47,6 +47,19 @@ QtObject {
             var r5 = L.progressRecord({}, { cfi: "c", percent: 5, fraction: 0.05, updatedAt: 1780000000000 }, "C:/x/y.epub")
             check(r5.locator.updatedAt === 1780000000000, "updatedAt: caller stamp preserved")
 
+            // 2e. progressSaveContext — the ownership snapshot cannot drift when Main
+            // replaces live metadata for the next book before the pending save flushes.
+            var metaA = { id: "book-a", title: "Book A", author: "Author A" }
+            var ctxA = L.progressSaveContext("key-a", "C:/books/a.epub", metaA)
+            metaA.id = "book-b"
+            metaA.title = "Book B"
+            metaA.author = "Author B"
+            check(ctxA.bookId === "key-a", "save context: captures original bookId")
+            check(ctxA.bookPath === "C:/books/a.epub", "save context: captures original path")
+            check(ctxA.bookMeta.id === "book-a", "save context: metadata id cannot drift to next book")
+            check(ctxA.bookMeta.title === "Book A", "save context: metadata title cannot drift to next book")
+            check(ctxA.bookMeta.author === "Author A", "save context: metadata author cannot drift to next book")
+
             // 3. resumeCfiOf — the position to open at.
             check(L.resumeCfiOf({ locator: { cfi: "epubcfi(/6/12)" } }) === "epubcfi(/6/12)", "resumeCfiOf: reads cfi")
             check(L.resumeCfiOf({}) === "", "resumeCfiOf: empty entry -> ''")

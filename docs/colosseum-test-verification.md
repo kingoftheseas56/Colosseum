@@ -10,6 +10,15 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+### Reader 2 Function 0007 gating update (2026-08-30)
+
+- `reader2_stores_harness`, `reader2_bridge_harness`, and `reader2_autoattach_harness` are now ordinary `unit;reader2` CTest gates.
+- `reader2_logic_harness.qml` is now executed by CTest through the installed Qt `qml` runtime and requires `VERDICT: PASS`.
+- The existing `tests/test_book_reader_minimize_p0.ps1` remains a direct legacy source-contract gate for flush-before-minimize ordering and is intentionally not duplicated as a CTest registration in this slice.
+- The former `test_reader2_readalong.ps1` broken-runner finding is resolved by removal: its fixture was intentionally deleted by the guided-reading revert, so restoring the fixture would have revived superseded behavior.
+- Earlier census counts in this document describe their original audit snapshot and are historical where this update supersedes them.
+- `test_reader2_runtime_p0.ps1` is now the fifth `unit;reader2;windows` gate; at this boundary it owns the QSaveFile atomic-writer contract and the Slice 1 registration/staging/dead-runner checks. The same contract will gain the pending-save race assertions in Slice 4.
+
 ## Headline shape (read this first)
 
 | Fact | Count |

@@ -43,6 +43,30 @@ colosseum_register_harness(manga_image_host_resolver_harness unit;network)
 colosseum_register_harness(comicreader_cache_harness     unit)
 colosseum_register_harness(biblio_catalog_logic_harness  unit)
 colosseum_register_harness(manga_downloader_cancel_harness unit;responsiveness)
+colosseum_register_harness(reader2_stores_harness        unit;reader2)
+colosseum_register_harness(reader2_bridge_harness        unit;reader2)
+colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
+
+if(WIN32)
+    add_test(NAME colosseum.reader2_logic
+        COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"
+                -platform offscreen
+                "${CMAKE_CURRENT_SOURCE_DIR}/reader2_logic_harness.qml")
+    set_tests_properties(colosseum.reader2_logic PROPERTIES
+        LABELS "unit;reader2;windows"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+        PASS_REGULAR_EXPRESSION "VERDICT: PASS"
+        TIMEOUT 120)
+
+    add_test(NAME colosseum.reader2_runtime_contract
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File "${CMAKE_CURRENT_SOURCE_DIR}/test_reader2_runtime_p0.ps1")
+    set_tests_properties(colosseum.reader2_runtime_contract PROPERTIES
+        LABELS "unit;reader2;windows"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+        TIMEOUT 120)
+
+endif()
 # Multi-volume pack demux (Slice 1): parser table + Entry round-trip. No net,
 # QTemporaryDir/isolated-AppData — deterministic, sentinel+exit-code contract.
 colosseum_register_harness(comic_downloader_pack_demux_harness unit)
