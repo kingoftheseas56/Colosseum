@@ -59,9 +59,75 @@ Window {
             win.enrichBiblioCovers()
         }
     }
+    property bool startupIdleWorkArmed: false
+    Timer {
+        id: startupIdleGate
+        interval: 2500
+        repeat: false
+        onTriggered: {
+            if (worldStack.current !== "" || win.immersiveSurfaceOpen) {
+                startupIdleWorkArmed = false
+                win.armStartupIdleWork()
+                return
+            }
+            postFrameStartupWork.start()
+            win.armHomeIntroWidgets()
+        }
+    }
+    function armStartupIdleWork() {
+        if (startupIdleWorkArmed || boot.visible) return
+        startupIdleWorkArmed = true
+        startupIdleGate.start()
+    }
+    // The Home intro board is below the first viewport and each widget owns its own
+    // catalogue requests/poster delegates. Keep their object trees out of Main.qml's
+    // pre-first-frame critical path, then instantiate them asynchronously once the
+    // shell has had a chance to present and accept input.
+    property bool homeIntroWidgetsLoaded: false
+    property int homeIntroWidgetCursor: 0
+    property var homeIntroPendingLoader: null
+    Timer {
+        id: homeIntroWidgetsTimer
+        interval: 850
+        repeat: false
+        onTriggered: win.loadHomeIntroWidgets()
+    }
+    function armHomeIntroWidgets() {
+        if (homeIntroWidgetsLoaded || homeIntroPendingLoader) return
+        if (boot.visible || worldStack.current !== "" || win.immersiveSurfaceOpen) return
+        homeIntroWidgetsTimer.start()
+    }
+    function loadHomeIntroWidgets() {
+        if (homeIntroWidgetsLoaded || homeIntroPendingLoader) return
+        if (worldStack.current !== "" || win.immersiveSurfaceOpen) return
+        var loaders = [homeBookshelfLoader, homeTheatreStripLoader,
+                       homeReadingDeskLoader, homeVaultWidgetLoader]
+        var sources = ["Bookshelf.qml", "TheatreStrip.qml",
+                       "ReadingDesk.qml", "VaultHomeWidget.qml"]
+        if (homeIntroWidgetCursor >= loaders.length) {
+            homeIntroWidgetsLoaded = true
+            return
+        }
+        var loader = loaders[homeIntroWidgetCursor]
+        homeIntroWidgetCursor++
+        homeIntroPendingLoader = loader
+        loader.setSource(sources[homeIntroWidgetCursor - 1], { "backdrop": wall })
+        loader.active = true
+    }
+    function homeIntroWidgetSettled(loader) {
+        if (homeIntroPendingLoader !== loader) return
+        homeIntroPendingLoader = null
+        if (homeIntroWidgetCursor >= 4) {
+            homeIntroWidgetsLoaded = true
+            return
+        }
+        homeIntroWidgetsTimer.restart()
+    }
     Connections {
         target: (typeof GuiStallProbe !== "undefined") ? GuiStallProbe : null
-        function onFirstFrameReady() { postFrameStartupWork.start() }
+        function onFirstFrameReady() {
+            win.armStartupIdleWork()
+        }
     }
     // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
@@ -365,8 +431,9 @@ Window {
         }
         // The production native entry point starts this timer from its first-frame signal. A
         // bare QML harness has no bridge, so retain a deterministic fallback for those fixtures.
-        if (typeof GuiStallProbe === "undefined" || !GuiStallProbe)
-            postFrameStartupWork.start()
+        if (typeof GuiStallProbe === "undefined" || !GuiStallProbe) {
+            win.armStartupIdleWork()
+        }
     }
 
     // locg:<id> → "<gc-tag-slug>|<gc-tagId>", persisted forever (survives restarts)
@@ -491,6 +558,7 @@ Window {
         refreshWallpaper()
         topbar.visible = true
         page.visible = true
+        win.armHomeIntroWidgets()
     }
 
     function openGenre(name) {
@@ -2168,37 +2236,68 @@ Window {
             // ---- 4. MODE-INTRO WIDGETS — the board that introduces each app AND shows what's inside.
             //      First prototype: Tankoban as a BOOKSHELF (manga covers standing on a shelf ledge).
             //      The other modes get their own widget forms next; this is the shape to react to.
-            Bookshelf {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeBookshelfLoader
                 width: parent.width
-                mangaBooks: Catalog.topManga
-                comicsBooks: Catalog.topComics
-                onClicked: win.openWorld("Tankoban")
-                onBookClicked: win.openWorld("Tankoban")
+                height: 400
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.mangaBooks = Qt.binding(function() { return Catalog.topManga })
+                    item.comicsBooks = Qt.binding(function() { return Catalog.topComics })
+                    item.clicked.connect(function() { win.openWorld("Tankoban") })
+                    item.bookClicked.connect(function() { win.openWorld("Tankoban") })
+                    win.homeIntroWidgetSettled(homeBookshelfLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeBookshelfLoader)
             }
 
             // Theatre = the film-strip, Biblio = the reading desk (mock-reviewed 2026-07-04;
             // both self-load their data, so the board wiring stays declarative).
-            TheatreStrip {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeTheatreStripLoader
                 width: parent.width
-                onClicked: win.openWorld("Theatre")
+                height: 400
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.clicked.connect(function() { win.openWorld("Theatre") })
+                    win.homeIntroWidgetSettled(homeTheatreStripLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeTheatreStripLoader)
             }
 
-            ReadingDesk {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeReadingDeskLoader
                 width: parent.width
-                onClicked: win.openWorld("Biblio")
-                onGenrePicked: (name) => { win.openWorld("Biblio"); win.openBiblioGenre(name) }
+                height: 400
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.clicked.connect(function() { win.openWorld("Biblio") })
+                    item.genrePicked.connect(function(name) {
+                        win.openWorld("Biblio")
+                        win.openBiblioGenre(name)
+                    })
+                    win.homeIntroWidgetSettled(homeReadingDeskLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeReadingDeskLoader)
             }
-            VaultHomeWidget {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeVaultWidgetLoader
                 width: parent.width
-                onClicked: win.openVaultPage()
+                height: 520
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.clicked.connect(function() { win.openVaultPage() })
+                    win.homeIntroWidgetSettled(homeVaultWidgetLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeVaultWidgetLoader)
             }
             Item { width: 1; height: 16 }   // bottom breathing room
         }
@@ -3463,6 +3562,12 @@ Window {
         onFinished: bootFade.start()
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
+    }
+    Connections {
+        target: boot
+        function onVisibleChanged() {
+            if (!boot.visible) win.armStartupIdleWork()
+        }
     }
 
     // Account identity flyout, dropped from the topbar medallion.

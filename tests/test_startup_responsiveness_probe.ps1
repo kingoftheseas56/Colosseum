@@ -58,4 +58,36 @@ Need ($qmlMain.Contains('setGuiStallContext("open", "Reader")')) `
 Need ($search.Contains('GuiStallProbe.setContext("search", surf.searchMode)')) `
     'Search dispatch must attribute its world surface to the GUI stall probe.'
 
+# Below-the-fold Home intro widgets must not be instantiated as part of Main.qml's
+# pre-first-frame object tree. They are loaded from one post-frame gate so their
+# provider requests and poster delegates cannot extend the startup critical path.
+Need ($qmlMain.Contains('function loadHomeIntroWidgets()')) `
+    'Home intro widgets must have an explicit post-frame loading function.'
+Need ($qmlMain.Contains('function armHomeIntroWidgets()')) `
+    'Home intro widgets must have a named shell-ready arming gate.'
+Need ($qmlMain.Contains('function armStartupIdleWork()')) `
+    'Post-frame work must have a named idle gate after the splash boundary.'
+Need ($qmlMain.Contains('id: startupIdleGate')) `
+    'Startup work must be delayed by an explicit idle timer.'
+Need ($qmlMain.Contains('startupIdleGate.start()')) `
+    'The first-frame/splash paths must arm the delayed startup work gate.'
+Need ($qmlMain.Contains('function homeIntroWidgetSettled(loader)')) `
+    'Home intro widgets must advance through one settled asynchronous Loader at a time.'
+Need ($qmlMain.Contains('homeIntroPendingLoader')) `
+    'Home intro loading must track the single Loader currently incubating.'
+Need ($qmlMain.Contains('if (!boot.visible) win.armStartupIdleWork()')) `
+    'Home intro loading must wait until the boot splash no longer occludes the shell.'
+Need ($qmlMain.Contains('homeIntroWidgetsTimer')) `
+    'Home intro widgets must be armed by a named post-frame timer.'
+Need ($qmlMain.Contains('homeIntroWidgetsTimer.start()')) `
+    'The first-frame path must arm the deferred Home intro widget load.'
+Need ($qmlMain.Contains('"Bookshelf.qml", "TheatreStrip.qml"')) `
+    'The Home intro widget source list must include the Bookshelf and Theatre loaders.'
+Need ($qmlMain.Contains('"ReadingDesk.qml", "VaultHomeWidget.qml"')) `
+    'The Home intro widget source list must include the ReadingDesk and Vault loaders.'
+Need ($qmlMain.Contains('loader.setSource(sources[homeIntroWidgetCursor - 1]')) `
+    'The Home intro source must be assigned through the selected deferred Loader.'
+Need ($qmlMain.Contains('loader.active = true')) `
+    'The selected Home intro Loader must activate after its deferred source is assigned.'
+
 Write-Host 'Startup responsiveness probe contract: PASS'
