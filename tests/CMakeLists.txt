@@ -42,6 +42,7 @@ colosseum_register_harness(ipv4_pin_store_harness        unit;bootstrap;network)
 colosseum_register_harness(manga_image_host_resolver_harness unit;network)
 colosseum_register_harness(comicreader_cache_harness     unit)
 colosseum_register_harness(biblio_catalog_logic_harness  unit)
+colosseum_register_harness(manga_downloader_cancel_harness unit;responsiveness)
 # Multi-volume pack demux (Slice 1): parser table + Entry round-trip. No net,
 # QTemporaryDir/isolated-AppData — deterministic, sentinel+exit-code contract.
 colosseum_register_harness(comic_downloader_pack_demux_harness unit)
@@ -873,6 +874,14 @@ add_test(NAME colosseum.manga_downloader_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_downloader_responsiveness_contract.ps1")
 set_tests_properties(colosseum.manga_downloader_responsiveness_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
+
+add_test(NAME colosseum.book_torrent_delete_responsiveness_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_book_torrent_delete_responsiveness_contract.ps1")
+set_tests_properties(colosseum.book_torrent_delete_responsiveness_contract PROPERTIES
     LABELS "unit;responsiveness"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)

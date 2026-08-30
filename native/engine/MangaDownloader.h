@@ -29,6 +29,8 @@
 
 #pragma once
 
+#include "DownloadFileOps.h"
+
 #include "MangaResult.h"
 #include "MangaImageHostResolver.h"
 
@@ -58,7 +60,9 @@ public:
     // nam is shared with the rest of the app (carries the IPv4-pin / Host fix),
     // so image fetches use the same proven networking the streaming reader did.
     explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr,
-                             MangaImageHostResolver::Lookup lookup = {});
+                             MangaImageHostResolver::Lookup lookup = {},
+                             // Empty in production; injectable only for deterministic cleanup tests.
+                             DownloadFileOps::Remover cleanupRemover = {});
     ~MangaDownloader() override;
 
     // Host → IPv4 pins (dead-IPv6 machine). Manga art hosts publish AAAA records, so
@@ -209,6 +213,7 @@ private:
 
     QNetworkAccessManager* m_nam = nullptr;
     MangaImageHostResolver m_hostResolver;
+    DownloadFileOps::Remover m_cleanupRemover;
     QHash<QString, QString> m_pins;                // host -> IPv4 (dead-IPv6 machine)
     QSet<QString>          m_pinTried;             // hosts we've already tried to resolve+pin (incl. misses)
     struct PendingImageRequest {

@@ -51,7 +51,7 @@ if ($source -notmatch 'runWhenIndexIdle\(\[this, realDir\]') {
 if ($source -notmatch 'QFutureWatcher<DownloadFileOps::Result>') {
     throw 'Cancelled partial cleanup must use an asynchronous result watcher.'
 }
-if ($source -notmatch 'QtConcurrent::run\(\[dir\]') {
+if ($source -notmatch 'QtConcurrent::run\(\[dir, remover\]') {
     throw 'Cancelled partial cleanup must run the recursive delete on the worker pool.'
 }
 if ($source -match 'if \(!job->dir\.isEmpty\(\)\) QDir\(job->dir\)\.removeRecursively\(\)') {

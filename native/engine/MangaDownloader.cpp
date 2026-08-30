@@ -25,8 +25,10 @@
 // ctor / dtor
 // ---------------------------------------------------------------------------
 MangaDownloader::MangaDownloader(QNetworkAccessManager* nam, QObject* parent,
-                                 MangaImageHostResolver::Lookup lookup)
-    : QObject(parent), m_nam(nam), m_hostResolver(std::move(lookup))
+                                 MangaImageHostResolver::Lookup lookup,
+                                 DownloadFileOps::Remover cleanupRemover)
+    : QObject(parent), m_nam(nam), m_hostResolver(std::move(lookup)),
+      m_cleanupRemover(std::move(cleanupRemover))
 {
     loadIndex();
 }
@@ -416,8 +418,10 @@ void MangaDownloader::finalizeCancel(Job* job)
         cleanupJob(job);
         emit removed(id);
     });
-    watcher->setFuture(QtConcurrent::run([dir]() {
-        return DownloadFileOps::removeTree(dir);
+    const DownloadFileOps::Remover remover = m_cleanupRemover;
+    watcher->setFuture(QtConcurrent::run([dir, remover]() {
+        return remover ? DownloadFileOps::removeTree(dir, remover)
+                        : DownloadFileOps::removeTree(dir);
     }));
 }
 
