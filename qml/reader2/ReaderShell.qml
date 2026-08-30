@@ -59,11 +59,10 @@ FocusScope {
 
     // ---- progress-save debounce (Part B4) — coalesce rapid page turns into ONE store write
     // (~60ms after the last turn) instead of a JSON read+write per turn. The pending relocated
-    // + its book identity are stashed; the timer (or an explicit flush on close / book switch)
-    // writes it. Capturing id/path at stash time keeps a flush correct across a book change.
+    // + one immutable ownership context are stashed; the timer (or an explicit flush on close /
+    // book switch) writes them. Identity/path/metadata are captured together at relocation time.
     property var pendingSave: null
-    property string pendingSaveId: ""
-    property string pendingSaveBookPath: ""
+    property var pendingSaveContext: null
 
     // ---- Your Colosseum reading activity (Slice D8) ----
     // sessionId is a FRESH ProfileActivity.newSessionId() per book open (reset in the 'ready'
@@ -788,31 +787,38 @@ FocusScope {
     function flushProgressSave() {
         progressSaveTimer.stop()
         var pend = shell.pendingSave
-        if (!pend || shell.pendingSaveId === "") { shell.pendingSave = null; return }
-        var id = shell.pendingSaveId
-        var prev = Reader2Bridge.progressGet(id)
-        Reader2Bridge.progressSave(id, L.progressRecord(prev, pend, shell.pendingSaveBookPath))
+        var ctx = shell.pendingSaveContext
+        if (!pend || !ctx || ctx.bookId === "") {
+            shell.pendingSave = null
+            shell.pendingSaveContext = null
+            return
+        }
+        var prev = Reader2Bridge.progressGet(ctx.bookId)
+        Reader2Bridge.progressSave(ctx.bookId, L.progressRecord(prev, pend, ctx.bookPath))
         // Feed the unified home Continue/resume row (old-reader parity — the swap dropped this
         // wire, so Continue went stale and never learned about fresh-reader sessions). Same
         // record shape the old reader wrote; resume carries {path, book} for openBookSession.
         // bookMeta is host-injected; the standalone harness has none and this quietly skips.
-        if (typeof Progress !== "undefined" && shell.pendingSaveBookPath !== "") {
-            var m = shell.bookMeta || ({})
+        // The metadata comes from the SAME relocation snapshot as id/path; never read live
+        // shell.bookMeta here because Main may already have replaced it for the next book.
+        if (typeof Progress !== "undefined" && ctx.bookPath !== "") {
+            var m = ctx.bookMeta || ({})
             var fraction = Number.isFinite(pend.fraction) ? Math.min(1, Math.max(0, pend.fraction)) : 0
             Progress.record({
-                "id": (m.id !== undefined && ("" + m.id).length) ? ("" + m.id) : shell.pendingSaveBookPath,
+                "id": (m.id !== undefined && ("" + m.id).length) ? ("" + m.id) : ctx.bookPath,
                 "kind": "book",
-                "caption": m.title || shell.bookTitle || "",
-                "title": m.title || shell.bookTitle || "",
+                "caption": m.title || "Book",
+                "title": m.title || "Book",
                 "sub": (fraction > 0 ? Math.round(fraction * 100) + "%" : "Reading"),
                 "cover": m.cover || "",
                 "c1": m.c1 !== undefined ? m.c1 : "#2a2440",
                 "c2": m.c2 !== undefined ? m.c2 : "#15111f",
                 "progress": fraction,
-                "resume": { "path": shell.pendingSaveBookPath, "book": m }
+                "resume": { "path": ctx.bookPath, "book": m }
             })
         }
         shell.pendingSave = null
+        shell.pendingSaveContext = null
     }
     // Leave the reader: FLUSH any pending save first (so a page turn within the debounce window
     // isn't lost when the book closes), then tell the embedder. Used everywhere we'd emit closed().
@@ -990,8 +996,7 @@ FocusScope {
                 // final position.
                 p.updatedAt = Date.now()
                 shell.pendingSave = p
-                shell.pendingSaveId = shell.bookId
-                shell.pendingSaveBookPath = shell.bookPath
+                shell.pendingSaveContext = L.progressSaveContext(shell.bookId, shell.bookPath, shell.bookMeta)
                 progressSaveTimer.restart()
 
                 // --- chapter-level follow (Task 13) — DORMANT-ONLY now (Task 6) ---
