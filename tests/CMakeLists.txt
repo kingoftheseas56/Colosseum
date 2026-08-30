@@ -2369,3 +2369,38 @@ set_tests_properties(colosseum.qttest.livestore PROPERTIES
     LABELS "unit;qttest;player"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# Function 0008: video source resolution, download acquisition, and playback handoff.
+# Static contract is deterministic and catches Direct-vs-torrent routing plus HTTP
+# request-header provenance across download and arriving-play seams.
+add_test(NAME colosseum.video_source_handoff_p0
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+            "${CMAKE_CURRENT_SOURCE_DIR}/test_video_source_handoff_p0.ps1")
+set_tests_properties(colosseum.video_source_handoff_p0 PROPERTIES
+    LABELS "unit;contract"
+    TIMEOUT 30)
+
+# Function 0008 wire proof: DownloadStore must send addon-owned HTTP headers.
+add_executable(downloadstore_source_headers_harness
+    downloadstore_source_headers_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.h")
+target_include_directories(downloadstore_source_headers_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(downloadstore_source_headers_harness PRIVATE
+    Qt6::Core Qt6::Network Qt6::Gui)
+set_target_properties(downloadstore_source_headers_harness PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.downloadstore_source_headers_harness
+    COMMAND downloadstore_source_headers_harness)
+set_tests_properties(colosseum.downloadstore_source_headers_harness PROPERTIES
+    LABELS "unit;network;contract"
+    TIMEOUT 15)
+
+# Stage the Qt runtime DLLs required by the standalone Function 0008 harness.
+foreach(_qt_target Qt6::Core Qt6::Network Qt6::Gui)
+    add_custom_command(TARGET downloadstore_source_headers_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:${_qt_target}>"
+                "${CMAKE_CURRENT_BINARY_DIR}/..")
+endforeach()

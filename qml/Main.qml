@@ -930,6 +930,15 @@ Window {
             // engine and fed "" — the job then sat "resolving" forever (the
             // nothing-downloads wedge, diagnosed 2026-07-05). play() is also the
             // player's signal — prefetch keeps downloads out of mpv's ears.
+            var directUrl = best.url ? String(best.url) : ""
+            if (!directUrl.length && String(best.infoHash || "").indexOf("url:") === 0)
+                directUrl = String(best.infoHash).substring(4)
+            if ((best.streamKind === "Direct" || directUrl.length) && directUrl.length) {
+                Download.feedSource(id, directUrl,
+                                    (best.headers && typeof best.headers === "object" && !Array.isArray(best.headers))
+                                    ? best.headers : ({}))
+                return
+            }
             var key = (best.infoHash || "").toLowerCase() + ":" + (best.fileIdx || 0)
             win.pendingFeeds[key] = id
             Stream.prefetch(best.infoHash, best.fileIdx || 0)
@@ -1193,7 +1202,7 @@ Window {
             "appType": "theatre", "contentKind": "movie", "title": job.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(job.id || ""),
                         "streamUrl": job.url, "partPath": part, "id": job.id || "",
-                        "title": job.title || "",
+                        "title": job.title || "", "headers": job.headers || ({}),
                         "art": job.art || "", "kind": job.kind || "", "position": pos }
         })
     }

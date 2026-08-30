@@ -1318,6 +1318,7 @@ Item {
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
         root.arrivingStreamUrl = ""
+        root.arrivingStreamHeaders = ({})
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -1890,8 +1891,12 @@ Item {
             return
         var meta = parseSubtitleMeta()
         var fullTitle = root.mediaTitle || mpv.mediaTitle || "Video"
+        var source = root.currentStreamCandidate()
+        var sourceHeaders = (source.headers && typeof source.headers === "object" && !Array.isArray(source.headers))
+                          ? source.headers : ({})
         Download.startDownload({
             "url": url,
+            "headers": sourceHeaders,
             "title": fullTitle,
             "subtitle": root.mediaSubtitle || "",
             "id": root.subStreamId || "",
@@ -2263,14 +2268,17 @@ Item {
     // needs NO handling: the .part→final rename succeeds under mpv's open handle
     // (verified on this machine 2026-07-31) and the handle keeps reading seamlessly.
     property string arrivingStreamUrl: ""
+    property var arrivingStreamHeaders: ({})
 
     function switchArrivingToStream() {
         var url = root.arrivingStreamUrl
         if (!url.length) return
+        var headers = root.arrivingStreamHeaders
         root.arrivingStreamUrl = ""
+        root.arrivingStreamHeaders = ({})
         var pos = Math.max(0, mpv.position - 2)   // small overlap so the cut lands on a frame he's seen
         root.playRemoteUrl({ "streamUrl": url, "id": root.mediaId, "title": root.mediaTitle,
-                             "art": root.mediaArt,
+                             "art": root.mediaArt, "headers": headers,
                              "kind": root.subStreamType === "series" ? "episode" : "movie",
                              "position": pos })
         root.resumePromptConsumed = true   // mid-watch handover, not a fresh open — never prompt
@@ -2288,6 +2296,7 @@ Item {
                 if (rows[i].id === root.mediaId) { job = rows[i]; break }
             if (!job) {              // landed or cancelled — either way the disk file is all there is
                 root.arrivingStreamUrl = ""
+                root.arrivingStreamHeaders = ({})
                 return
             }
             var ratio = Number(job.ratio || 0)
@@ -2301,6 +2310,8 @@ Item {
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
         root.arrivingStreamUrl = String(t.arrivingUrl || "")
+        root.arrivingStreamHeaders = (t.headers && typeof t.headers === "object" && !Array.isArray(t.headers))
+                                    ? t.headers : ({})
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2365,6 +2376,7 @@ Item {
     function playRemoteUrl(target) {
         var t = target || ({})
         root.arrivingStreamUrl = ""
+        root.arrivingStreamHeaders = ({})
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2412,7 +2424,7 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        mpv.loadFile(root.currentPlaybackUrl)
+        root.loadDirectStreamUrl(root.currentPlaybackUrl, t.headers)
         root.maybeHydrateContext()
     }
 

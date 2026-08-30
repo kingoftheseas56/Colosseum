@@ -51,6 +51,7 @@ public:
     Q_INVOKABLE bool hasVideo(const QString &id) const;   // already in the library
     // resolver handshake (Main.qml answers needResolve with one of these)
     Q_INVOKABLE void feedUrl(const QString &id, const QString &url);
+    Q_INVOKABLE void feedSource(const QString &id, const QString &url, const QVariantMap &headers);
     Q_INVOKABLE void failJob(const QString &id, const QString &reason);
 
     // ── downloaded-videos library ──

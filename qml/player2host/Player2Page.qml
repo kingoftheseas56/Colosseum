@@ -141,7 +141,7 @@ Item {
             // reached a dead end in the integrated build: the signal fired and the app ignored it.
             // A control that appears to work is worse than one that is absent.
             onSwitchSourceRequested: function(index, sourceId) {
-                page._switchToSource(index)
+                page._switchToSource(index, sourceId)
             }
             onPlayEpisodeRequested: function(episodeId) {
                 page._playEpisode(String(episodeId))
@@ -205,9 +205,10 @@ Item {
                 return
             }
             page.mediaId = episodeId   // the shell's currentEpisodeId binds to this
+            page.subStreamId = episodeId
             page.pendingSeekSec = 0        // a different episode starts at its own resume point
-            hostServices.streamCandidates = rows
-            page._switchToSource(0)
+            // The host retained the transport-grade candidates; rows here are display projection only.
+            page._switchToSource(Number(rows[0].sourceIndex || 0), String(rows[0].id || ""))
         }
     }
 
@@ -275,7 +276,8 @@ Item {
         // serves over loopback — the same two transports the shipped player distinguishes.
         var url = page._directUrlFor(streamCandidates, infoHash)
         if (url.length) {
-            page._open(url)
+            var directHeaders = page._directHeadersFor(streamCandidates, infoHash)
+            page._open(url, directHeaders)
             return
         }
         if (String(infoHash || "").length) {
@@ -311,7 +313,7 @@ Item {
         page.mediaArt = t.art || ""
         page.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("arriving:" + String(t.streamUrl || ""))
         page._applyLoaderIdentity(t.playbackContext, t.art)
-        page._open(String(t.streamUrl || ""))
+        page._open(String(t.streamUrl || ""), t.headers)
     }
 
     function stop() {
@@ -408,12 +410,19 @@ Item {
     // the viewer resumes where they were — the shipped player's switch-in-place behaviour. The
     // candidate list is the one the door handed us; picking row N means playing row N's transport,
     // which is a direct URL for debrid/HTTP and the torrent sidecar otherwise.
-    function _switchToSource(index) {
+    function _switchToSource(index, sourceId) {
         var rows = hostServices.streamCandidates || []
         var i = Number(index)
-        if (!(i >= 0 && i < rows.length))
-            return
-        var row = rows[i] || ({})
+        var row = (sourceId && hostServices._candidateForKey)
+                ? hostServices._candidateForKey(String(sourceId)) : null
+        if (!row) {
+            if (!(i >= 0 && i < rows.length))
+                return
+            row = rows[i] || ({})
+        } else {
+            for (var r = 0; r < rows.length; r++)
+                if (rows[r] === row) { i = r; break }
+        }
         page.pendingSeekSec = (backend.session && backend.session.position > 0)
                               ? backend.session.position : 0
         hostServices.currentStreamIndex = i
@@ -423,7 +432,7 @@ Item {
         if (row.url && String(row.url).length) {
             hostServices.mediaResumeHash = String(row.infoHash || "")
             hostServices.mediaResumeFileIdx = Number(row.fileIdx || 0)
-            page._open(String(row.url))
+            page._open(String(row.url), row.headers)
             return
         }
         if (String(row.infoHash || "").length) {
@@ -464,6 +473,17 @@ Item {
         return (hash.indexOf("url:") === 0) ? hash.substring(4) : ""
     }
 
+    function _directHeadersFor(candidates, infoHash) {
+        var rows = candidates || []
+        for (var i = 0; i < rows.length; i++) {
+            var c = rows[i] || ({})
+            if (String(c.infoHash || "") === String(infoHash || "")
+                    && c.headers && typeof c.headers === "object" && !Array.isArray(c.headers))
+                return c.headers
+        }
+        return ({})
+    }
+
     function _fileUrl(path) {
         var p = String(path || "")
         if (!p.length)
@@ -478,14 +498,16 @@ Item {
         page.backendFallback(page.errorText)
     }
 
-    function _open(url) {
+    function _open(url, headers) {
+        var requestHeaders = (headers && typeof headers === "object" && !Array.isArray(headers))
+                           ? headers : ({})
         var request = {
             "url": String(url || ""),
             "mediaId": page.mediaId,
             "title": page.mediaTitle,
             "resumeSeconds": page.pendingSeekSec,
             "live": String(page.subStreamId || "").indexOf("iptv:") === 0,
-            "headers": ({})
+            "headers": requestHeaders
         }
         hostServices.currentPlaybackUrl = request.url
 
@@ -493,9 +515,7 @@ Item {
         if (decision.outcome === "player2")
             return
 
-        // Anything else means Player 2 declined this playback outright (e.g. live/DVR, not yet
-        // built; or no source at all). Nothing has been shown yet, but there is still nowhere else
-        // for it to go — surface it the same as every other decline.
+        // A router decline belongs on the page's one visible failure funnel.
         page._failPlayback(decision.reason || "Player 2 declined this playback")
     }
 }

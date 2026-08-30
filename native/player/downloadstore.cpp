@@ -203,11 +203,16 @@ void DownloadStore::pump() {
 }
 
 void DownloadStore::feedUrl(const QString &id, const QString &url) {
+    feedSource(id, url, {});
+}
+
+void DownloadStore::feedSource(const QString &id, const QString &url, const QVariantMap &headers) {
     const int i = jobIndex(id);
     if (i < 0 || url.isEmpty())
         return;
     Job &j = m_jobs[i];
     j.url = url;
+    j.request.insert(QStringLiteral("headers"), headers);
     if (j.state == QStringLiteral("resolving"))
         startHttp(j);
 }
@@ -295,6 +300,13 @@ void DownloadStore::startHttp(Job &job) {
 
     QNetworkRequest req{QUrl(job.url)};
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum"));
+    const QVariantMap sourceHeaders = job.request.value(QStringLiteral("headers")).toMap();
+    for (auto it = sourceHeaders.constBegin(); it != sourceHeaders.constEnd(); ++it) {
+        const QByteArray name = it.key().toUtf8();
+        const QByteArray value = it.value().toString().toUtf8();
+        if (!name.isEmpty() && !value.isEmpty())
+            req.setRawHeader(name, value);
+    }
     if (tryResume) {
         job.baseOffset = partSize;
         req.setRawHeader(QByteArrayLiteral("Range"),
@@ -433,6 +445,7 @@ QVariantList DownloadStore::jobs() const {
             // play-while-arriving (2026-07-20): the resolved source url, "" until
             // resolved — the Downloads page offers Play only when this is non-empty.
             {QStringLiteral("url"), j.url},
+            {QStringLiteral("headers"), j.request.value(QStringLiteral("headers"))},
             // disk-first arriving play (2026-07-31): the growing .part on disk, so the
             // player can read downloaded bytes instead of re-streaming them.
             {QStringLiteral("partPath"), j.partPath},

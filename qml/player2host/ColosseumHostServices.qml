@@ -156,23 +156,29 @@ QtObject {
     //    session's dead/current marks, which live on the page, not on the row.
     // ---------------------------------------------------------------------------------------------
     function requestAlternateSources(mediaId) {
+        var requestedId = String(mediaId || "")
         var rows = host.streamCandidates || []
-        if (rows.length) {
+        // Reuse the carried candidate list only for the exact media it belongs to. A request for a
+        // different episode must resolve that episode instead of replaying the current one's rows.
+        if (rows.length && (!String(host.subStreamId || "").length
+                            || requestedId === String(host.subStreamId))) {
             host.alternateSourcesResolved(mediaId, host._sourceRows(rows))
             return
         }
 
-        // Bare door (Continue / a downloaded file): no list travelled with us, so fetch one the same
-        // way the shipped picker does — installed stream extensions first, Torrentio as the floor.
+        // Bare door / episode switch: fetch the requested identity through the same source ladder.
         var generation = host._generation
         var type = host.subStreamType || "movie"
-        var id = host.subStreamId || String(mediaId)
+        var id = requestedId.length ? requestedId : String(host.subStreamId || "")
         var exts = AddonClient.streamExtensions(Extensions.installed(), type, id)
 
         function finish(fetched) {
             if (generation !== host._generation)
                 return
-            host.alternateSourcesResolved(mediaId, host._sourceRows(fetched || []))
+            // Keep transport-grade rows authoritative; _sourceRows is display-only projection.
+            host.streamCandidates = fetched || []
+            host.currentStreamIndex = -1
+            host.alternateSourcesResolved(mediaId, host._sourceRows(host.streamCandidates))
         }
 
         if (exts && exts.length) {
@@ -198,6 +204,7 @@ QtObject {
             var key = host._sourceKey(hash, fileIdx, url)
             out.push({
                 "id": key,
+                "sourceIndex": i,
                 "title": String(c.release || c.title || host.mediaTitle || "Stream"),
                 "url": url,
                 "quality": String(c.qualityLine || c.quality || ""),
@@ -320,7 +327,7 @@ QtObject {
     //    (qml/PlayerPage.qml:1672). A debrid/direct link downloads straight from its URL.
     // ---------------------------------------------------------------------------------------------
     function requestDownload(mediaId, sourceId) {
-        var row = host._candidateForKey(sourceId)
+        var row = String(sourceId || "").length ? host._candidateForKey(sourceId) : host._currentCandidate()
         var url = (row && row.url && String(row.url).length) ? String(row.url) : host.currentPlaybackUrl
         if (!url || !String(url).length) {
             host.downloadStateChanged(mediaId, { "sourceId": sourceId, "state": "failed",
@@ -328,8 +335,11 @@ QtObject {
             return
         }
         var meta = host._episodeMeta()
+        var sourceHeaders = (row && row.headers && typeof row.headers === "object" && !Array.isArray(row.headers))
+                          ? row.headers : ({})
         Download.startDownload({
             "url": String(url),
+            "headers": sourceHeaders,
             "title": host.mediaTitle,
             "subtitle": "",
             "id": String(mediaId),
@@ -413,6 +423,22 @@ QtObject {
         if (state === "done") return "ready"
         if (state === "failed") return "failed"
         return "queued"   // queued | resolving | paused all read as "not started yet"
+    }
+
+    function _currentCandidate() {
+        var rows = host.streamCandidates || []
+        if (host.currentStreamIndex >= 0 && host.currentStreamIndex < rows.length)
+            return rows[host.currentStreamIndex] || null
+        for (var i = 0; i < rows.length; i++) {
+            var c = rows[i] || ({})
+            if (c.url && String(c.url) === String(host.currentPlaybackUrl || ""))
+                return c
+            if (host.mediaResumeHash.length
+                    && String(c.infoHash || "") === host.mediaResumeHash
+                    && Number(c.fileIdx || 0) === Number(host.mediaResumeFileIdx || 0))
+                return c
+        }
+        return null
     }
 
     function _candidateForKey(sourceId) {
