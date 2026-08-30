@@ -65,6 +65,7 @@ void DownloadStore::enqueue(const QVariantMap&) {}
 void DownloadStore::enqueueBatch(const QVariantList&) {}
 bool DownloadStore::hasVideo(const QString&) const { return false; }
 void DownloadStore::feedUrl(const QString&, const QString&) {}
+void DownloadStore::feedSource(const QString&, const QString&, const QVariantMap&) {}
 void DownloadStore::failJob(const QString&, const QString&) {}
 QVariantList DownloadStore::downloadedVideos() const { return {}; }
 QVariantList DownloadStore::jobs() const { return {}; }
