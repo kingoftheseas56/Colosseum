@@ -859,6 +859,14 @@ set_tests_properties(colosseum.local_launch_async_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
+add_test(NAME colosseum.manga_downloader_responsiveness_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_downloader_responsiveness_contract.ps1")
+set_tests_properties(colosseum.manga_downloader_responsiveness_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
+
 # ── Vault forensics (Agent Visibility Phase 2, Slice F1-Core) ────────────────
 # VaultForensics — one bounded, read-only projection composing a REAL VaultLibrary (F0's named
 # safe seam, docs/visibility/vault-forensic-owner-thread.md §10 — VaultLibrary, never VaultIndex

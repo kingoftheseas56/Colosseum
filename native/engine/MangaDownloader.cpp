@@ -13,6 +13,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSaveFile>
+#include <QtConcurrent>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
@@ -543,25 +544,55 @@ void MangaDownloader::onPagesReady(Job* job, const QList<PageInfo>& pages)
     job->total = pages.size();
     job->files = QStringList(job->total, QString());
 
-    // resume: count any page already on disk (> 1 KB) from a prior interrupted run
-    QDir dir(job->dir);
-    for (int i = 0; i < job->total; ++i) {
-        const QStringList hits =
-            dir.entryList({QStringLiteral("page_%1.*").arg(i, 3, 10, QChar('0'))}, QDir::Files);
-        for (const QString& name : hits) {
-            const qint64 sz = QFileInfo(dir.filePath(name)).size();
-            if (sz > MIN_VALID_BYTES) {
-                job->files[i] = name;
-                job->done++;
-                job->bytes += sz;
-                break;
+    startResumeScan(job);
+}
+
+void MangaDownloader::startResumeScan(Job* job)
+{
+    const QString dirPath = job->dir;
+    const int total = job->total;
+    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+    auto* watcher = new QFutureWatcher<ResumeScan>(this);
+    connect(watcher, &QFutureWatcher<ResumeScan>::finished, this,
+            [this, watcher, lifetime]() {
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job || job->cancelled) {
+            watcher->deleteLater();
+            return;
+        }
+        const ResumeScan scan = watcher->result();
+        job->files = scan.files;
+        job->done = scan.done;
+        job->bytes = scan.bytes;
+
+        emit progress(job->chapterId, job->done, job->total);
+        if (job->done == job->total) {
+            watcher->deleteLater();
+            finishJob(job);
+            return;
+        }
+        pumpImages(job);
+        watcher->deleteLater();
+    });
+    watcher->setFuture(QtConcurrent::run([dirPath, total]() {
+        ResumeScan scan;
+        scan.files = QStringList(total, QString());
+        const QDir dir(dirPath);
+        for (int i = 0; i < total; ++i) {
+            const QStringList hits = dir.entryList(
+                {QStringLiteral("page_%1.*").arg(i, 3, 10, QChar('0'))}, QDir::Files);
+            for (const QString& name : hits) {
+                const qint64 sz = QFileInfo(dir.filePath(name)).size();
+                if (sz > MIN_VALID_BYTES) {
+                    scan.files[i] = name;
+                    ++scan.done;
+                    scan.bytes += sz;
+                    break;
+                }
             }
         }
-    }
-
-    emit progress(job->chapterId, job->done, job->total);
-    if (job->done == job->total) { finishJob(job); return; }
-    pumpImages(job);
+        return scan;
+    }));
 }
 
 void MangaDownloader::pumpImages(Job* job)

@@ -20,7 +20,9 @@
 //   <appdata>/manga/<series>/<chapter>/page_000.jpg ...
 //   <appdata>/manga/index.json
 //
-// Threading: pure QNetworkAccessManager + QObject lambdas on the main thread.
+// Threading: QNetworkAccessManager + QObject callbacks stay on the owner thread; interrupted
+// download resume scanning is a value-only QtConcurrent job whose completion is published back
+// to that owner thread through a lifetime-guarded watcher.
 
 #pragma once
 
@@ -28,6 +30,7 @@
 #include "MangaImageHostResolver.h"
 
 #include <QObject>
+#include <QFutureWatcher>
 #include <QNetworkReply>
 #include <QHash>
 #include <QList>
@@ -156,10 +159,17 @@ private:
         qint64 addedAt = 0;
     };
 
+    struct ResumeScan {
+        QStringList files;
+        int done = 0;
+        qint64 bytes = 0;
+    };
+
     // queue pump
     void pumpQueue();
     void beginJob(Job* job);
     void onPagesReady(Job* job, const QList<PageInfo>& pages);
+    void startResumeScan(Job* job);
     void pumpImages(Job* job);
     void fetchImage(Job* job, int pageIndex, int attempt);
     void queueImageForHost(Job* job, int pageIndex, int attempt, const QString& host);

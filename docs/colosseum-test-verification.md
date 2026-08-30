@@ -2263,6 +2263,32 @@ Deterministic/static evidence:
   separate first-visit Loader construction from network stalls and to verify Home → Tankoban →
   Home → Tankoban state retention.
 
+The current-master replay (`20260830-140146-b597ff95`) passed isolation and tagged-root checks,
+but the app did not reach the world route: the boot splash cleared after 12,547 ms and the
+onboarding click timed out after 11,091 ms. The evidence is actionable—`QNetworkReplyHttpImpl`
+accounted for 24,821 ms across 61 stall events (worst 4,623 ms), with additional
+`Main_QMLTYPE_151`/`QFutureWatcherBase` stalls. This means cold-world Loader causation is not yet
+proven on the current master; startup/network starvation is the next qualification target. Prior
+bounded route evidence still records first Tankoban visibility at ~2.9 s, Home return, and ~1.0 s
+retained re-entry, with tree count 56 on both visits and `activeTab="discover"` surviving.
+
+## Responsiveness hardening — downloader resume scan (2026-08-30)
+
+`MangaDownloader::onPagesReady()` no longer performs the interrupted-download resume sweep
+(`QDir::entryList()` plus per-file `QFileInfo`) on the owner/UI thread. The scan now runs as a
+value-only QtConcurrent task and publishes its `files/done/bytes` result through a
+`QFutureWatcher`. Completion resolves the existing `JobLifetime` fence and drops canceled or
+reclaimed jobs before touching state, preserving the prior progress/finish/pump behavior.
+
+Evidence:
+
+- `tests/test_manga_downloader_responsiveness_contract.ps1` →
+  `MANGA_DOWNLOADER_RESPONSIVENESS_CONTRACT_OK`.
+- Direct MSVC translation-unit compile of `MangaDownloader.cpp` passed.
+- The remaining per-image `QSaveFile::commit()` and final index persistence are still synchronous
+  owner-thread work. They require a separate publication/lifetime design and remain explicitly
+  tracked rather than being moved speculatively.
+
 The focused native harness was rebuilt with the host's MSVC include/lib environment provisioned
 explicitly (`ninja -C native/build-responsiveness -j2 vault_launch_router_harness`) and passed its
 CTest run 1/1 when Qt and libmpv runtime directories were present on `PATH`. The unprovisioned
