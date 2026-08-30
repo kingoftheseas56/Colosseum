@@ -21,8 +21,10 @@
 //   <appdata>/manga/index.json
 //
 // Threading: QNetworkAccessManager + QObject callbacks stay on the owner thread; interrupted
-// download resume scanning and accepted-image publication are value-only QtConcurrent jobs
-// whose completions are published back to that owner thread through lifetime-guarded watchers.
+// download resume scanning, accepted-image publication, and index persistence are value-only
+// QtConcurrent jobs whose completions are published back to that owner thread through watchers.
+// Index snapshots are serialized by the owner and written one-at-a-time so an older snapshot
+// can never overwrite a newer chapter completion or deletion.
 
 #pragma once
 
@@ -41,6 +43,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <functional>
 #include <memory>
 
 class QNetworkAccessManager;
@@ -170,6 +173,10 @@ private:
         qint64 size = 0;
     };
 
+    struct IndexWriteResult {
+        bool committed = false;
+    };
+
     // queue pump
     void pumpQueue();
     void beginJob(Job* job);
@@ -193,7 +200,9 @@ private:
     static QString safeSeg(const QString& v);      // path-segment sanitiser
     static QString extForContentType(const QString& ct, const QString& fallbackUrl);
     void loadIndex();
-    void saveIndex() const;
+    void saveIndex();
+    void startIndexWrite();
+    void runWhenIndexIdle(std::function<void()> continuation);
     void writeEntry(const Job* job);
 
     QNetworkAccessManager* m_nam = nullptr;
@@ -209,6 +218,8 @@ private:
     QSet<QString> m_pinLookupInFlight;
     QHash<QString, MangaImageHostResolver::RequestId> m_pinLookupRequests;
     QHash<QString, Entry> m_index;                 // chapterId -> entry
+    QByteArray m_pendingIndexSnapshot;              // newest owner-thread snapshot awaiting write
+    bool m_indexWriteInFlight = false;              // at most one QSaveFile worker at a time
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs
 

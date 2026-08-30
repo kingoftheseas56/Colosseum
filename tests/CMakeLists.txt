@@ -211,6 +211,16 @@ set_tests_properties(colosseum.startup_deferral_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Startup responsiveness probe contract: keeps the native first-frame/Biblio ordering and
+# deferred Home Continue rail wiring mechanically covered alongside the existing deferral gate.
+add_test(NAME colosseum.startup_responsiveness_probe
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_startup_responsiveness_probe.ps1")
+set_tests_properties(colosseum.startup_responsiveness_probe PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # World-warmer containment contract: automatic warming is opt-in, while explicit world
 # navigation remains available for normal operation.
 add_test(NAME colosseum.world_warmer_contract

@@ -142,7 +142,7 @@ void MangaDownloader::loadIndex()
     if (healed) saveIndex();   // durable heal: repaired paths stick, ghosts stay gone
 }
 
-void MangaDownloader::saveIndex() const
+void MangaDownloader::saveIndex()
 {
     QJsonObject entries;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
@@ -161,11 +161,59 @@ void MangaDownloader::saveIndex() const
     }
     const QJsonObject root{{QStringLiteral("schemaVersion"), 1},
                            {QStringLiteral("entries"), entries}};
-    // atomic write so a crash mid-save never corrupts the index
-    QSaveFile f(baseDir() + QStringLiteral("/index.json"));
-    if (!f.open(QIODevice::WriteOnly)) return;
-    f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
-    f.commit();
+    // Build the complete value on the owner thread, then publish it through a
+    // single serialized worker. The worker never reaches into m_index or a Job.
+    m_pendingIndexSnapshot = QJsonDocument(root).toJson(QJsonDocument::Indented);
+    if (!m_indexWriteInFlight)
+        startIndexWrite();
+}
+
+void MangaDownloader::startIndexWrite()
+{
+    if (m_pendingIndexSnapshot.isNull()) return;
+
+    const QByteArray payload = std::exchange(m_pendingIndexSnapshot, QByteArray());
+    const QString outputPath = baseDir() + QStringLiteral("/index.json");
+    m_indexWriteInFlight = true;
+
+    auto* watcher = new QFutureWatcher<IndexWriteResult>(this);
+    connect(watcher, &QFutureWatcher<IndexWriteResult>::finished, this,
+            [this, watcher]() {
+        const IndexWriteResult result = watcher->result();
+        watcher->deleteLater();
+        m_indexWriteInFlight = false;
+        if (!result.committed)
+            qWarning("[downloads] index snapshot commit failed");
+        // A completion/delete may have superseded this payload while it was
+        // writing. Start that newest snapshot only after this QSaveFile has
+        // finished, preventing stale snapshots from winning on disk.
+        if (!m_pendingIndexSnapshot.isNull())
+            startIndexWrite();
+    });
+    watcher->setFuture(QtConcurrent::run([outputPath, payload]() {
+        IndexWriteResult result;
+        // Atomic replacement is deliberately retained on the worker: a failed
+        // open/write/commit leaves the previous index intact.
+        QSaveFile file(outputPath);
+        if (file.open(QIODevice::WriteOnly)
+            && file.write(payload) == payload.size()
+            && file.commit()) {
+            result.committed = true;
+        }
+        return result;
+    }));
+}
+
+void MangaDownloader::runWhenIndexIdle(std::function<void()> continuation)
+{
+    if (!m_indexWriteInFlight && m_pendingIndexSnapshot.isNull()) {
+        continuation();
+        return;
+    }
+    QTimer::singleShot(10, this,
+                       [this, continuation = std::move(continuation)]() mutable {
+        runWhenIndexIdle(std::move(continuation));
+    });
 }
 
 void MangaDownloader::writeEntry(const Job* job)
@@ -482,23 +530,27 @@ void MangaDownloader::indexSelfTest()
     m_index.insert(QStringLiteral("selfheal:repair/issue-1"), stale);
 
     saveIndex();
-    m_index.clear();
-    loadIndex();
+    runWhenIndexIdle([this, realDir]() {
+        // The index write is now asynchronous; reload only after the snapshot
+        // containing both fixtures has committed, without blocking the owner.
+        m_index.clear();
+        loadIndex();
 
-    const bool ghostPruned = !m_index.contains(QStringLiteral("selfheal:ghost/issue-1"));
-    const bool staleRepaired = m_index.contains(QStringLiteral("selfheal:repair/issue-1"))
-        && m_index.value(QStringLiteral("selfheal:repair/issue-1")).dir == realDir;
-    if (ghostPruned && staleRepaired)
-        qInfo("INDEX-SELFTEST OK");
-    else
-        qInfo("INDEX-SELFTEST FAILED (ghost pruned=%d, stale repaired=%d)",
-              int(ghostPruned), int(staleRepaired));
+        const bool ghostPruned = !m_index.contains(QStringLiteral("selfheal:ghost/issue-1"));
+        const bool staleRepaired = m_index.contains(QStringLiteral("selfheal:repair/issue-1"))
+            && m_index.value(QStringLiteral("selfheal:repair/issue-1")).dir == realDir;
+        if (ghostPruned && staleRepaired)
+            qInfo("INDEX-SELFTEST OK");
+        else
+            qInfo("INDEX-SELFTEST FAILED (ghost pruned=%d, stale repaired=%d)",
+                  int(ghostPruned), int(staleRepaired));
 
-    // clean up both fixtures (ledger + disk)
-    m_index.remove(QStringLiteral("selfheal:ghost/issue-1"));
-    m_index.remove(QStringLiteral("selfheal:repair/issue-1"));
-    saveIndex();
-    QDir(realDir).removeRecursively();
+        // clean up both fixtures (ledger + disk)
+        m_index.remove(QStringLiteral("selfheal:ghost/issue-1"));
+        m_index.remove(QStringLiteral("selfheal:repair/issue-1"));
+        saveIndex();
+        QDir(realDir).removeRecursively();
+    });
 }
 
 // ---------------------------------------------------------------------------

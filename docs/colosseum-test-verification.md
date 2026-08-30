@@ -137,8 +137,28 @@ splash/idle/sequential slice reached first frame at 35.228 s in one attempt. The
 host remained too variable to complete a green Lanista scenario in the revised attempt (the
 runner failed its tagged isolation handshake before the scenario), so these numbers are evidence
 of the measured startup path, not a claimed qualification budget pass. The next high-confidence
-candidate is the Home Continue rail (`Progress.recent()` plus its visible `ContinueTile` delegates),
-but it should stay behind an A/B run that completes the bridge handshake.
+candidate was the Home Continue rail (`Progress.recent()` plus its visible `ContinueTile` delegates);
+that rail is now staged behind the same shell-idle boundary described below.
+
+## Responsiveness hardening — Home Continue rail staging (2026-08-30)
+
+The Home Continue rail no longer evaluates `Progress.recent()` or constructs its `ContinueTile`
+delegates while `Main.qml` is building its initial object tree. It now lives in an asynchronous
+`Loader` with a fixed 192 px placeholder, armed after splash dismissal and the existing shell-idle
+gate. The loader is guarded while a world or immersive surface is active and is re-armed when Home
+is restored. Resume, detail, and remove signal routes remain unchanged, and the live
+`Progress.revision` dependency is preserved inside the deferred component.
+
+`tests/test_startup_responsiveness_probe.ps1` passes the static loader/wiring contract; `qmllint`
+reports no new syntax errors (only the file's pre-existing comma-expression warnings). A native
+rebuild/runtime route qualification is still required before claiming a startup-budget improvement.
+
+The same packet also moves `BiblioCatalog::refreshIfDue()` out of the pre-`engine.load()` path. The
+cache-backed `BiblioCatalog` object is still published before QML construction, but its synchronous
+SQLite/enqueue coordination is queued after the first-frame callback. This preserves cache-first
+behavior and the once-per-day gate while removing that coordinator from cold-launch work. The
+startup responsiveness contract checks the ordering mechanically; runtime A/B evidence is still
+needed to attribute any first-frame change to this seam.
 
 ## Responsiveness qualification — cold world navigation and hidden Home work (2026-08-29)
 
@@ -199,7 +219,9 @@ items and zero Continue delegates. The seeded first-frame/shell milestones were 
 versus 49.740 s/60.398 s for the empty baseline. Both sessions saw HTTP/2 protocol errors and
 general startup stalls dominated by `Main_QMLTYPE_151`/`QNetworkReplyHttpImpl`; this proves the
 Continue data path and makes the rail a qualified contributor candidate, not the established
-root cause of the startup delay.
+root cause of the startup delay. The follow-on staging packet keeps the same data/signal contract
+but moves its construction behind the shell-idle boundary; a fresh A/B replay is still needed to
+measure that change independently.
 
 ## Build entry
 
@@ -2290,10 +2312,21 @@ Evidence:
   `inFlight` slot held until the commit result arrives, so cancellation cannot remove a directory
   while a worker is committing a file. The `JobLifetime` fence drops completions after cancel or
   reclamation.
-- Final index persistence (`writeEntry()`/`saveIndex()`) remains synchronous owner-thread work.
-  It is deliberately tracked as the next separate snapshot/publication packet rather than moved
-  speculatively, because concurrent chapter completions and cancellation need one atomic ordering
-  rule.
+- Final index persistence now snapshots the owner-thread `m_index` value and publishes it through a
+  serialized QtConcurrent `QSaveFile` worker. Newer completion/delete snapshots replace pending
+  payloads and cannot be overwritten by an older write. The index self-test waits asynchronously
+  for the writer to become idle before reloading, so its durable repair/ghost-prune proof remains
+  valid without a GUI-thread wait.
+
+The downloader's three unpredictable filesystem paths—resume discovery, page-image publication,
+and final index persistence—are now off the UI thread. Owner-thread completions retain all prior
+  ordering, retry, cancellation, and atomic-replacement semantics.
+
+After registering the startup responsiveness contract, the configured Windows build passed
+`ctest -L responsiveness` **11/11**. The full `colosseum` target also rebuilt cleanly with the
+host's explicit MSVC include/lib environment; unprovisioned standard CMake configuration still
+reports the host's pre-existing Qt6TaskTree/Vulkan warnings before falling back to the configured
+toolchain.
 
 The focused native harness was rebuilt with the host's MSVC include/lib environment provisioned
 explicitly (`ninja -C native/build-responsiveness -j2 vault_launch_router_harness`) and passed its
