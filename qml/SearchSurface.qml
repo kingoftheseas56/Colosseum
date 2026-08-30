@@ -179,7 +179,7 @@ Item {
 
     Timer { id: debounce; interval: 220; onTriggered: surf.runSearch() }
 
-    Shortcut { sequences: ["Return", "Enter"]; onActivated: { surf.runSearch(); surf.commitCurrentQuery(); surf.openTop() } }
+    Shortcut { sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); surf.runSearch(); surf.commitCurrentQuery(); surf.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {

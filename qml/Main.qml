@@ -3080,6 +3080,10 @@ Window {
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
         active: false
         visible: active
+        // DownloadsPage is a large, taskbar-only surface. Spread component creation across
+        // frames so opening the download ledger does not synchronously block the world underneath.
+        // The route handlers only touch the item from onLoaded, after construction completes.
+        asynchronous: true
         source: "DownloadsPage.qml"
         onLoaded: {
             item.backdrop = wall
@@ -3107,6 +3111,10 @@ Window {
         z: 56
         active: false
         visible: active
+        // VaultPage is a large, taskbar-only surface. Spread component creation across
+        // frames so opening the folder door does not synchronously block the world underneath.
+        // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
+        asynchronous: true
         source: "VaultPage.qml"
         onLoaded: {
             item.backdrop = wall

@@ -78,4 +78,20 @@ Need ($biblioLibrary.Contains('property bool active: true') -and $biblioLibrary.
 Need ($tankobanLibrary.Contains('property bool active: true') -and $tankobanLibrary.Contains('if (!isActive')) `
     'Tankoban LibraryPage must expose an activation gate before deriving its model.'
 
+# Vault is a large taskbar-only surface. Its Loader must stage construction asynchronously;
+# openVaultPage() only flips active and vaultBack() already handles item-not-yet-loaded.
+$vaultLoaderStart = $main.IndexOf('id: vaultLayer')
+$vaultLoaderEnd = $main.IndexOf('source: "VaultPage.qml"', $vaultLoaderStart)
+Need ($vaultLoaderStart -ge 0 -and $vaultLoaderEnd -gt $vaultLoaderStart `
+      -and $main.Substring($vaultLoaderStart, $vaultLoaderEnd - $vaultLoaderStart).Contains('asynchronous: true')) `
+    'The large VaultPage Loader must construct asynchronously to preserve shell responsiveness.'
+
+# Downloads has the same taskbar-only lifecycle and is also loaded only on demand. Verify its
+# Loader remains frame-friendly; item-dependent route wiring lives exclusively in onLoaded.
+$downloadsLoaderStart = $main.IndexOf('id: downloadsLayer')
+$downloadsLoaderEnd = $main.IndexOf('source: "DownloadsPage.qml"', $downloadsLoaderStart)
+Need ($downloadsLoaderStart -ge 0 -and $downloadsLoaderEnd -gt $downloadsLoaderStart `
+      -and $main.Substring($downloadsLoaderStart, $downloadsLoaderEnd - $downloadsLoaderStart).Contains('asynchronous: true')) `
+    'The large DownloadsPage Loader must construct asynchronously to preserve shell responsiveness.'
+
 Write-Host 'World lifecycle contract: PASS'
