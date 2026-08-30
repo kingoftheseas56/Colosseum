@@ -48,6 +48,18 @@ if ($header -notmatch 'struct IndexWriteResult') {
 if ($source -notmatch 'runWhenIndexIdle\(\[this, realDir\]') {
     throw 'The index self-test must await async persistence without blocking the owner thread.'
 }
+if ($source -notmatch 'QFutureWatcher<DownloadFileOps::Result>') {
+    throw 'Cancelled partial cleanup must use an asynchronous result watcher.'
+}
+if ($source -notmatch 'QtConcurrent::run\(\[dir\]') {
+    throw 'Cancelled partial cleanup must run the recursive delete on the worker pool.'
+}
+if ($source -match 'if \(!job->dir\.isEmpty\(\)\) QDir\(job->dir\)\.removeRecursively\(\)') {
+    throw 'Cancelled partial cleanup must not recurse on the owner thread.'
+}
+if ($header -notmatch 'bool cleanupPending') {
+    throw 'Cancelled cleanup must be idempotent while the worker is in flight.'
+}
 if ($header -notmatch 'struct ResumeScan') {
     throw 'Resume scan result must be a bounded value object.'
 }

@@ -178,7 +178,9 @@ WorldPage {
     // chapter keeps the series in Continue instead (the shared rule, NextUp.js).
     ContinueRow {
         title: "Next Up"
-        items: (Progress.revision, tanko.nextUpRows())
+        // A retained hidden world must not walk Progress/Downloads while its Loader is warming.
+        // Re-evaluating this binding on lifecycle activation preserves the existing row and doors.
+        items: tanko.lifecycleActive ? (Progress.revision, tanko.nextUpRows()) : []
         onResumeRequested: (item) => {
             if (item.resume.downloaded && item.resume.unitId.length)
                 tanko.nextUpReadRequested(item.title, item.id,
@@ -196,7 +198,7 @@ WorldPage {
         // Real resume data — manga + comics BLENDED by true recency and capped like every other
         // row (audit fix: was all-manga-then-all-comics, unbounded). Stays shared above the tabs
         // (the split is browse-only; personal rows blend both halves). Progress.revision keeps it live.
-        items: (Progress.revision, (function() {
+        items: tanko.lifecycleActive ? (Progress.revision, (function() {
             var a = Progress.recent("manga", 12).concat(Progress.recent("comic", 12))
             a.sort(function(x, y) { return (y.updatedAt || 0) - (x.updatedAt || 0) })
             // Tag the comic source so blended tiles read GetComics on the badge; manga untagged.
@@ -205,7 +207,7 @@ WorldPage {
                 if (src.length) e.source = src
                 return e
             })
-        })())
+        })()) : []
         onResumeRequested: (item) => tanko.continueResumeRequested(item)
         onDetailRequested: (item) => tanko.continueDetailRequested(item)
         onSeeAllRequested: tanko.continueSeeAllRequested()

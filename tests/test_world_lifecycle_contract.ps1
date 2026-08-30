@@ -54,5 +54,13 @@ Need ($theatre.Contains('active: theatre.lifecycleActive && visible')) `
     'Theatre must bind Discover activity to world and tab visibility.'
 Need ($tankoban.Contains('active: tanko.lifecycleActive && visible')) `
     'Tankoban must bind Discover activity to world and tab visibility.'
+Need ($tankoban.Contains('items: tanko.lifecycleActive ? (Progress.revision, tanko.nextUpRows()) : []')) `
+    'Hidden Tankoban worlds must not query Progress/Downloads for Next Up.'
+Need ($tankoban.Contains('items: tanko.lifecycleActive ? (Progress.revision, (function()')) `
+    'Hidden Tankoban worlds must not query Progress for Continue Reading.'
+Need ($theatre.Contains('property var continueRows: theatre.lifecycleActive')) `
+    'Hidden Theatre worlds must not query Progress for Continue Watching.'
+Need ($biblio.Contains('items: biblio.lifecycleActive')) `
+    'Hidden Biblio worlds must not query Progress for Continue Reading.'
 
 Write-Host 'World lifecycle contract: PASS'

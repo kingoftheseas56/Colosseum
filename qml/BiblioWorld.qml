@@ -117,7 +117,10 @@ WorldPage {
     ContinueRow {
         objectName: "biblioContinueReading"
         title: "Continue Reading"
-        items: (Progress.revision, VaultApi.recentWithoutVault(Progress, "book", 12))
+        // Do not hydrate the Progress-backed row while this retained world is hidden. The live
+        // binding re-evaluates on activation and keeps the existing Continue signal wiring.
+        items: biblio.lifecycleActive
+               ? (Progress.revision, VaultApi.recentWithoutVault(Progress, "book", 12)) : []
         onResumeRequested: (item) => biblio.continueResumeRequested(item)
         onDetailRequested: (item) => biblio.continueDetailRequested(item)
         onSeeAllRequested: biblio.continueSeeAllRequested()

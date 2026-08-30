@@ -398,11 +398,27 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
 
 void MangaDownloader::finalizeCancel(Job* job)
 {
-    if (!job->dir.isEmpty()) QDir(job->dir).removeRecursively();   // drop partials
+    if (job->cleanupPending) return;
+    job->cleanupPending = true;
     const QString id = job->chapterId;
-    qInfo("[downloads] cancelled '%s'", qUtf8Printable(id));
-    cleanupJob(job);
-    emit removed(id);
+    const QString dir = job->dir;
+    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+    auto* watcher = new QFutureWatcher<DownloadFileOps::Result>(this);
+    connect(watcher, &QFutureWatcher<DownloadFileOps::Result>::finished, this,
+            [this, watcher, lifetime, id]() {
+        const DownloadFileOps::Result result = watcher->result();
+        watcher->deleteLater();
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job) return;
+        if (!result.success)
+            qWarning() << "[downloads] cancel cleanup failed" << id << result.message;
+        qInfo("[downloads] cancelled '%s'", qUtf8Printable(id));
+        cleanupJob(job);
+        emit removed(id);
+    });
+    watcher->setFuture(QtConcurrent::run([dir]() {
+        return DownloadFileOps::removeTree(dir);
+    }));
 }
 
 // ---------------------------------------------------------------------------

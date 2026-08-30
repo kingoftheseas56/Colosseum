@@ -21,8 +21,9 @@
 //   <appdata>/manga/index.json
 //
 // Threading: QNetworkAccessManager + QObject callbacks stay on the owner thread; interrupted
-// download resume scanning, accepted-image publication, and index persistence are value-only
-// QtConcurrent jobs whose completions are published back to that owner thread through watchers.
+// download resume scanning, accepted-image publication, index persistence, and cancelled-job
+// cleanup are value-only QtConcurrent jobs whose completions are published back to that owner
+// thread through watchers.
 // Index snapshots are serialized by the owner and written one-at-a-time so an older snapshot
 // can never overwrite a newer chapter completion or deletion.
 
@@ -149,6 +150,7 @@ private:
         bool failedFlag = false;
         bool cancelled = false;
         bool scraperPending = false;
+        bool cleanupPending = false;
         QList<QNetworkReply*> replies;   // in-flight image GETs, for cancel/abort
     };
 
@@ -192,7 +194,7 @@ private:
     void failJob(Job* job, const QString& reason);
     void finishJob(Job* job);
     void cleanupJob(Job* job);
-    void finalizeCancel(Job* job);   // drop a cancelled job's partials + clean up
+    void finalizeCancel(Job* job);   // async-drop a cancelled job's partials + clean up
 
     // disk + index
     QString baseDir() const;                       // <appdata>/manga
