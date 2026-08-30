@@ -712,11 +712,8 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
             const QString ext = extForContentType(ct, job->pages[pageIndex].imageUrl);
             const QString name = QStringLiteral("page_%1.%2")
                                      .arg(pageIndex, 3, 10, QChar('0')).arg(ext);
-            QSaveFile out(job->dir + QStringLiteral("/") + name);
-            if (out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit()) {
-                onImageSaved(job, pageIndex, name, data.size());
-                return;
-            }
+            saveImageAsync(job, pageIndex, attempt, name, data);
+            return;
         }
 
         // failure path (SoftBlock + Error alike): retry with 2/4/8s backoff, then mark failed
@@ -738,6 +735,53 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
         job->inFlight--;
         pumpImages(job);
     });
+}
+
+void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
+                                     const QString& fileName, const QByteArray& data)
+{
+    const QString outputPath = job->dir + QStringLiteral("/") + fileName;
+    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+    auto* watcher = new QFutureWatcher<ImageSaveResult>(this);
+    connect(watcher, &QFutureWatcher<ImageSaveResult>::finished, this,
+            [this, watcher, lifetime, pageIndex, attempt, fileName]() {
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job || job->cancelled) {
+            if (job) {
+                --job->inFlight;
+                if (job->inFlight == 0)
+                    finalizeCancel(job);
+            }
+            watcher->deleteLater();
+            return;
+        }
+        const ImageSaveResult result = watcher->result();
+        watcher->deleteLater();
+        if (result.success) {
+            onImageSaved(job, pageIndex, fileName, result.size);
+            return;
+        }
+        if (attempt + 1 < MAX_IMAGE_RETRIES) {
+            const int backoffMs = 2000 << attempt;
+            QTimer::singleShot(backoffMs, this,
+                               [this, job, pageIndex, attempt]() {
+                fetchImage(job, pageIndex, attempt + 1);
+            });
+            return;
+        }
+        job->failedFlag = true;
+        --job->inFlight;
+        pumpImages(job);
+    });
+    watcher->setFuture(QtConcurrent::run([outputPath, data]() {
+        QSaveFile out(outputPath);
+        ImageSaveResult result;
+        if (out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit()) {
+            result.success = true;
+            result.size = data.size();
+        }
+        return result;
+    }));
 }
 
 void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,

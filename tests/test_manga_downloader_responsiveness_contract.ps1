@@ -15,6 +15,15 @@ if ($source -notmatch 'lifetime \? lifetime->job : nullptr') {
 if ($source -notmatch 'if \(!job \|\| job->cancelled\)') {
     throw 'Resume completion must drop cancelled/destroyed jobs.'
 }
+if ($source -notmatch 'saveImageAsync\(job, pageIndex, attempt, name, data\)') {
+    throw 'Accepted image bytes must use the asynchronous publication seam.'
+}
+if ($source -notmatch 'QtConcurrent::run\(\[outputPath, data\]') {
+    throw 'Image publication must run QSaveFile on the worker pool.'
+}
+if ($source -notmatch 'onImageSaved\(job, pageIndex, fileName, result\.size\)') {
+    throw 'Image publication must apply Job mutation on the owner thread.'
+}
 if ($header -notmatch 'struct ResumeScan') {
     throw 'Resume scan result must be a bounded value object.'
 }

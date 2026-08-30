@@ -2285,9 +2285,15 @@ Evidence:
 - `tests/test_manga_downloader_responsiveness_contract.ps1` →
   `MANGA_DOWNLOADER_RESPONSIVENESS_CONTRACT_OK`.
 - Direct MSVC translation-unit compile of `MangaDownloader.cpp` passed.
-- The remaining per-image `QSaveFile::commit()` and final index persistence are still synchronous
-  owner-thread work. They require a separate publication/lifetime design and remain explicitly
-  tracked rather than being moved speculatively.
+- The per-image `QSaveFile` publication is now a value-only QtConcurrent task. The owner-thread
+  completion applies `Job` mutation, preserves retry/backoff behavior, and keeps the existing
+  `inFlight` slot held until the commit result arrives, so cancellation cannot remove a directory
+  while a worker is committing a file. The `JobLifetime` fence drops completions after cancel or
+  reclamation.
+- Final index persistence (`writeEntry()`/`saveIndex()`) remains synchronous owner-thread work.
+  It is deliberately tracked as the next separate snapshot/publication packet rather than moved
+  speculatively, because concurrent chapter completions and cancellation need one atomic ordering
+  rule.
 
 The focused native harness was rebuilt with the host's MSVC include/lib environment provisioned
 explicitly (`ninja -C native/build-responsiveness -j2 vault_launch_router_harness`) and passed its

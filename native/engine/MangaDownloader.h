@@ -21,8 +21,8 @@
 //   <appdata>/manga/index.json
 //
 // Threading: QNetworkAccessManager + QObject callbacks stay on the owner thread; interrupted
-// download resume scanning is a value-only QtConcurrent job whose completion is published back
-// to that owner thread through a lifetime-guarded watcher.
+// download resume scanning and accepted-image publication are value-only QtConcurrent jobs
+// whose completions are published back to that owner thread through lifetime-guarded watchers.
 
 #pragma once
 
@@ -165,6 +165,11 @@ private:
         qint64 bytes = 0;
     };
 
+    struct ImageSaveResult {
+        bool success = false;
+        qint64 size = 0;
+    };
+
     // queue pump
     void pumpQueue();
     void beginJob(Job* job);
@@ -172,6 +177,8 @@ private:
     void startResumeScan(Job* job);
     void pumpImages(Job* job);
     void fetchImage(Job* job, int pageIndex, int attempt);
+    void saveImageAsync(Job* job, int pageIndex, int attempt,
+                        const QString& fileName, const QByteArray& data);
     void queueImageForHost(Job* job, int pageIndex, int attempt, const QString& host);
     void removePendingImageRequests(Job* job);
     void onImageSaved(Job* job, int pageIndex, const QString& fileName, qint64 size);
