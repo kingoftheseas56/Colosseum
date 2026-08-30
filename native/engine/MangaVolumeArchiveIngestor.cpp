@@ -4,6 +4,7 @@
 #include <QCollator>
 #include <QDir>
 #include <QDirIterator>
+#include <QFutureWatcher>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -13,11 +14,20 @@
 #include <QSet>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QtConcurrentRun>
 
 #include <algorithm>
 
 namespace MangaTankoban {
 namespace {
+
+struct CbzAdoptResult {
+    QVector<CbzPageEntry> sourceEntries;
+    QVector<CbzPageEntry> stagedEntries;
+    QString error;
+    bool finalAlreadyExists = false;
+    bool copied = false;
+};
 
 // Flush-race tolerance when opening a just-finished torrent's archive (see
 // validateAndAdoptCbz): retry cadence and ceiling mirroring ComicTorrent
@@ -152,73 +162,97 @@ void MangaVolumeArchiveIngestor::startNext()
 void MangaVolumeArchiveIngestor::validateAndAdoptCbz(int attempt)
 {
     if (!m_active) return;
-    QString archiveError;
-    const QVector<CbzPageEntry> sourceEntries =
-        CbzArchive::imageEntries(m_active->archivePath, &archiveError);
-    if (sourceEntries.isEmpty()) {
-        if (attempt < kMaxSourceOpenAttempts) {
-            QTimer::singleShot(kSourceOpenRetryMs, this, [this, attempt]() {
-                if (m_active) validateAndAdoptCbz(attempt + 1);
-            });
-            return;
-        }
-        failActive(QStringLiteral("CBZ validation failed: %1").arg(archiveError));
-        return;
-    }
-
+    const QString sourcePath = m_active->archivePath;
     const QString finalPath = m_index->archivePathFor(m_active->record);
     const QString partPath = finalPath + QStringLiteral(".part");
-    if (QFileInfo::exists(finalPath)) {
-        failActive(QStringLiteral("canonical CBZ already exists"));
-        return;
-    }
-    QDir().mkpath(QFileInfo(finalPath).absolutePath());
-    QFile::remove(partPath);
-    if (!QFile::copy(m_active->archivePath, partPath)) {
-        failActive(QStringLiteral("cannot stage downloaded CBZ"));
-        return;
-    }
-    const QVector<CbzPageEntry> stagedEntries =
-        CbzArchive::imageEntries(partPath, &archiveError);
-    bool stagedMatches = stagedEntries.size() == sourceEntries.size();
-    for (int i = 0; stagedMatches && i < stagedEntries.size(); ++i) {
-        stagedMatches = stagedEntries.at(i).name == sourceEntries.at(i).name
-                        && stagedEntries.at(i).uncompressedBytes
-                            == sourceEntries.at(i).uncompressedBytes;
-    }
-    if (!stagedMatches) {
-        QFile::remove(partPath);
-        failActive(QStringLiteral("staged CBZ validation differs from source: %1")
-                       .arg(archiveError));
-        return;
-    }
-    if (!QFile::rename(partPath, finalPath)) {
-        QFile::remove(partPath);
-        failActive(QStringLiteral("cannot atomically finalize downloaded CBZ"));
-        return;
-    }
+    // Archive central-directory inspection and the source-to-.part copy are
+    // unpredictable disk work from the QML/torrent ingestion boundary. Keep
+    // the source and staging paths value-only in the worker; the owner thread
+    // still performs the final rename, index publication, and source retirement.
+    auto* watcher = new QFutureWatcher<CbzAdoptResult>(this);
+    connect(watcher, &QFutureWatcher<CbzAdoptResult>::finished, this,
+            [this, attempt, watcher, finalPath, partPath]() {
+        const CbzAdoptResult result = watcher->result();
+        watcher->deleteLater();
+        if (!m_active) return;
 
-    QStringList files;
-    QList<int> groups;
-    qint64 bytes = 0;
-    for (const CbzPageEntry& entry : stagedEntries) {
-        files.append(entry.name);
-        groups.append(0);
-        bytes += static_cast<qint64>(entry.uncompressedBytes);
-    }
-    if (!m_index->publishArchive(m_active->record, finalPath, files, groups, bytes)) {
-        QFile::remove(finalPath);
-        QFile::remove(finalPath + QStringLiteral(".json"));
-        failActive(QStringLiteral("index publish rejected the CBZ"));
-        return;
-    }
+        if (result.sourceEntries.isEmpty()) {
+            if (attempt < kMaxSourceOpenAttempts) {
+                QTimer::singleShot(kSourceOpenRetryMs, this, [this, attempt]() {
+                    if (m_active) validateAndAdoptCbz(attempt + 1);
+                });
+                return;
+            }
+            failActive(QStringLiteral("CBZ validation failed: %1").arg(result.error));
+            return;
+        }
+        if (result.finalAlreadyExists) {
+            failActive(QStringLiteral("canonical CBZ already exists"));
+            return;
+        }
+        if (!result.copied) {
+            failActive(QStringLiteral("cannot stage downloaded CBZ: %1").arg(result.error));
+            return;
+        }
+        bool stagedMatches = result.stagedEntries.size() == result.sourceEntries.size();
+        for (int i = 0; stagedMatches && i < result.stagedEntries.size(); ++i) {
+            stagedMatches = result.stagedEntries.at(i).name == result.sourceEntries.at(i).name
+                            && result.stagedEntries.at(i).uncompressedBytes
+                                == result.sourceEntries.at(i).uncompressedBytes;
+        }
+        if (!stagedMatches) {
+            QFile::remove(partPath);
+            failActive(QStringLiteral("staged CBZ validation differs from source: %1")
+                           .arg(result.error));
+            return;
+        }
+        if (!QFile::rename(partPath, finalPath)) {
+            QFile::remove(partPath);
+            failActive(QStringLiteral("cannot atomically finalize downloaded CBZ"));
+            return;
+        }
 
-    const QString id = m_active->record.id;
-    QFile::remove(m_active->archivePath);
-    delete m_active;
-    m_active = nullptr;
-    emit finished(id);
-    startNext();
+        QStringList files;
+        QList<int> groups;
+        qint64 bytes = 0;
+        for (const CbzPageEntry& entry : result.stagedEntries) {
+            files.append(entry.name);
+            groups.append(0);
+            bytes += static_cast<qint64>(entry.uncompressedBytes);
+        }
+        if (!m_index->publishArchiveValidated(m_active->record, finalPath, files, groups, bytes)) {
+            QFile::remove(finalPath);
+            QFile::remove(finalPath + QStringLiteral(".json"));
+            failActive(QStringLiteral("index publish rejected the CBZ"));
+            return;
+        }
+
+        const QString id = m_active->record.id;
+        QFile::remove(m_active->archivePath);
+        delete m_active;
+        m_active = nullptr;
+        emit finished(id);
+        startNext();
+    });
+    watcher->setFuture(QtConcurrent::run([sourcePath, finalPath, partPath]() {
+        CbzAdoptResult result;
+        if (QFileInfo::exists(finalPath)) {
+            result.finalAlreadyExists = true;
+            return result;
+        }
+        result.sourceEntries = CbzArchive::imageEntries(sourcePath, &result.error);
+        if (result.sourceEntries.isEmpty()) return result;
+        QDir().mkpath(QFileInfo(finalPath).absolutePath());
+        QFile::remove(partPath);
+        if (!QFile::copy(sourcePath, partPath)) {
+            result.error = QStringLiteral("copy failed");
+            QFile::remove(partPath);
+            return result;
+        }
+        result.stagedEntries = CbzArchive::imageEntries(partPath, &result.error);
+        result.copied = true;
+        return result;
+    }));
 }
 
 void MangaVolumeArchiveIngestor::runExtractor(int which)
