@@ -251,6 +251,16 @@ set_tests_properties(colosseum.search_cancellation_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Tankoban volume-index recovery must leave construction quickly and publish a
+# single readiness boundary before any index-backed operation is allowed.
+add_test(NAME colosseum.tankoban_startup_recovery_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_tankoban_startup_recovery_contract.ps1")
+set_tests_properties(colosseum.tankoban_startup_recovery_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
 # activeVolumeJobs() plus failed(id, reason), so the test drives the real
 # LocalDownloads retention path without constructing the network/torrent stack.

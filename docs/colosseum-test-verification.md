@@ -166,6 +166,41 @@ still hidden/revealed by the same navigation paths, so returning Home resumes th
 without rebuilding it. A deeper visited-world eviction requires serialized state plus explicit
 callback cancellation and remains a separate qualification packet.
 
+## Responsiveness hardening — defer Tankoban volume recovery (2026-08-30)
+
+`MangaTankobanService` no longer runs `MangaVolumeIndex::heal()` synchronously in its production
+constructor. Recovery now uses a private worker-owned index, then queues a GUI-thread completion
+that reloads the UI-owned index and opens a `recoveryReady` seam. Index-backed operations are
+guarded until that seam opens; transport finishes and the download self-test are buffered and
+drained afterward. `LocalDownloads` bumps its read-model revision on `recoveryReadyChanged`, so
+deferred rows cannot remain invisible after startup. The dependency-injected service harness
+asserts that test instances stay immediately ready and do not emit a spurious transition.
+
+The focused source contract is `tests/test_tankoban_startup_recovery_contract.ps1`, and the
+existing `manga_tankoban_service_harness` gained readiness assertions for its dependency-injected
+path. A candidate rebuild was attempted against the Windows build tree, but this host's
+CMake/Ninja environment stalled during reconfiguration (the same Qt6TaskTree/toolchain issue
+recorded elsewhere); therefore this slice does not claim a newly rebuilt native binary or a
+startup-budget pass. `git diff --check`, the static recovery contract, and the existing prebuilt
+harness remain green.
+
+## Responsiveness qualification — isolated Home Continue rail (2026-08-30)
+
+`tests/lanista_scenarios/continue_home_qualification.json` plus the tagged seed under
+`tests/lanista-seeds/continue-home-qualification-v1/` provide a measurement-only fixture. The
+seed writes one file-backed video Continue record, dismisses onboarding through the real Lanista
+drive path, waits for the shell, and captures only `homePageFlickable`; it does not require a
+provider reply or alter production QML. The paired empty baseline uses the existing stale-index
+seed.
+
+Runtime evidence: the seeded session `20260830-115159-7b75bdd5` passed 7/7 steps, captured 162
+items with exactly one visible `ContinueTile` delegate, and the empty baseline passed 7/7 with 84
+items and zero Continue delegates. The seeded first-frame/shell milestones were 63.572 s/75.519 s
+versus 49.740 s/60.398 s for the empty baseline. Both sessions saw HTTP/2 protocol errors and
+general startup stalls dominated by `Main_QMLTYPE_151`/`QNetworkReplyHttpImpl`; this proves the
+Continue data path and makes the rail a qualified contributor candidate, not the established
+root cause of the startup delay.
+
 ## Build entry
 
 - Active build root: `native/CMakeLists.txt`. All 70 harnesses are plain
