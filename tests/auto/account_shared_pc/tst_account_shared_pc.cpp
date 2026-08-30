@@ -2,10 +2,13 @@
 
 #include "account/HistoryStore.h"
 #include "account/LegacyPersonalStateStorage.h"
+#include "account/ActivityStore.h"
+#include "account/ConsumptionHistoryBridge.h"
 #include "account/ProfilePaths.h"
 #include "account/ProfilePreferencesStore.h"
 #include "account/ProfileStoreRuntime.h"
 #include "account/SharedPcProfileCoordinator.h"
+#include "ProgressStore.h"
 
 #include "SearchHistoryStore.h"
 
@@ -151,6 +154,8 @@ HistoryStore *profileHistory(
         object);
 }
 
+QVariantMap playbackFact(const QString &eventId);
+
 ProfilePreferencesStore *profilePreferences(
     QQmlApplicationEngine *engine) {
     QObject *object =
@@ -160,6 +165,45 @@ ProfilePreferencesStore *profilePreferences(
             .value<QObject *>();
     return qobject_cast<ProfilePreferencesStore *>(
         object);
+}
+
+ConsumptionHistoryBridge *profileConsumptionHistory(
+    QQmlApplicationEngine *engine) {
+    QObject *object =
+        engine->rootContext()
+            ->contextProperty(
+                QStringLiteral("ProfileConsumptionHistory"))
+            .value<QObject *>();
+    return qobject_cast<ConsumptionHistoryBridge *>(object);
+}
+
+QVariantMap consumptionPlaybackFact(
+    const QString &eventId,
+    const QString &itemKey = QStringLiteral("movie:item")) {
+    auto fact = playbackFact(eventId);
+    fact[QStringLiteral("titleKey")] = QStringLiteral("movie:title");
+    fact[QStringLiteral("itemKey")] = itemKey;
+    fact[QStringLiteral("title")] = QStringLiteral("Movie");
+    return fact;
+}
+
+QVariantMap playbackFact(const QString &eventId) {
+    return {{QStringLiteral("eventId"), eventId},
+            {QStringLiteral("sessionId"), QStringLiteral("shared-pc-session")},
+            {QStringLiteral("world"), QStringLiteral("theatre")},
+            {QStringLiteral("kind"), QStringLiteral("movie")},
+            {QStringLiteral("titleKey"), QStringLiteral("movie:shared-pc")},
+            {QStringLiteral("itemKey"), QStringLiteral("movie:shared-pc")},
+            {QStringLiteral("title"), QStringLiteral("Shared PC Movie")},
+            {QStringLiteral("itemLabel"), QString()},
+            {QStringLiteral("cover"), QString()},
+            {QStringLiteral("utcOffsetMinutes"), 330},
+            {QStringLiteral("syncable"), true},
+            {QStringLiteral("source"), QStringLiteral("test")},
+            {QStringLiteral("startAtMs"), qint64(1000)},
+            {QStringLiteral("endAtMs"), qint64(2000)},
+            {QStringLiteral("activeMs"), qint64(1000)},
+            {QStringLiteral("rateMilli"), 1000}};
 }
 }
 
@@ -174,6 +218,7 @@ private slots:
     void directCrossAccountOpenFailsUntilCurrentProfileIsSealed();
     void rememberedAccountRefusesMissingLocalProfile();
     void sealedAccountCanReopenOnlyThroughExplicitSessionPreparation();
+    void consumptionPrivacyAndHistoryRemainOwnedAcrossSharedPcSwitch();
 };
 
 void tst_account_shared_pc::
@@ -643,6 +688,191 @@ sealedAccountCanReopenOnlyThroughExplicitSessionPreparation() {
             ->list(QStringLiteral("manga")),
         QStringList()
             << QStringLiteral("reopen-a"));
+}
+
+void tst_account_shared_pc::
+consumptionPrivacyAndHistoryRemainOwnedAcrossSharedPcSwitch() {
+    SharedPcFixture fixture;
+    fixture.seedAccount(QString::fromLatin1(kAccountA), PersonalStateSnapshot{});
+    fixture.seedAccount(QString::fromLatin1(kAccountB), PersonalStateSnapshot{});
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    SharedPcProfileCoordinator profiles(&runtime, fixture.appDataRoot);
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Sealed);
+    QVERIFY(profileHistory(&engine));
+    QVERIFY(profileHistory(&engine)->records().isEmpty());
+
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Sealed);
+    QVERIFY(profilePreferences(&engine));
+    QCOMPARE(profilePreferences(&engine)->keepActivityHistory(), true);
+    QCOMPARE(profilePreferences(&engine)->syncActivityHistory(), true);
+    QVERIFY(profileHistory(&engine));
+    QVERIFY(profileHistory(&engine)->records().isEmpty());
+
+    QString error;
+    QVERIFY2(profiles.prepareAccountSession(QString::fromLatin1(kAccountA), &error), qPrintable(error));
+    auto *preferencesA = profilePreferences(&engine);
+    auto *activityA = runtime.activityStore();
+    auto *historyA = profileHistory(&engine);
+    auto *progressA = runtime.progressStore();
+    auto *searchA = runtime.searchHistoryStore();
+    auto *coordinatorA = profileConsumptionHistory(&engine);
+    QVERIFY(preferencesA);
+    QVERIFY(activityA);
+    QVERIFY(historyA);
+    QVERIFY(progressA);
+    QVERIFY(searchA);
+    QVERIFY(coordinatorA);
+    QPointer<ProfilePreferencesStore> oldPreferencesA(preferencesA);
+    QPointer<ActivityStore> oldActivityA(activityA);
+    QPointer<HistoryStore> oldHistoryA(historyA);
+    QPointer<ProgressStore> oldProgressA(progressA);
+    QPointer<SearchHistoryStore> oldSearchA(searchA);
+    QPointer<ConsumptionHistoryBridge> oldCoordinatorA(coordinatorA);
+
+    QVERIFY(activityA->recordPlaybackDelta(consumptionPlaybackFact(QStringLiteral("event-a-play"))));
+    QVERIFY(!activityA->historyProjectionFacts().isEmpty());
+    QVERIFY(!historyA->get(QStringLiteral("movie"), QStringLiteral("movie:item")).isEmpty());
+
+    progressA->record({{QStringLiteral("kind"), QStringLiteral("video")},
+                       {QStringLiteral("id"), QStringLiteral("movie:item")},
+                       {QStringLiteral("progress"), 0.42}});
+    progressA->record({{QStringLiteral("kind"), QStringLiteral("video")},
+                       {QStringLiteral("id"), QStringLiteral("movie:item")},
+                       {QStringLiteral("progress"), 0.90}});
+    QVERIFY(historyA->completed(QStringLiteral("movie"), QStringLiteral("movie:item")));
+    QVERIFY(historyA->get(QStringLiteral("movie"), QStringLiteral("movie:item"))
+                .value(QStringLiteral("completedAt")).toLongLong() > 0);
+
+    preferencesA->setKeepActivityHistory(false);
+    auto suppressedFact = consumptionPlaybackFact(
+        QStringLiteral("event-a-suppressed"), QStringLiteral("movie:suppressed"));
+    QVERIFY(activityA->recordPlaybackDelta(suppressedFact));
+    QCOMPARE(activityA->historyProjectionFacts().size(), 1);
+    QVERIFY(historyA->get(QStringLiteral("movie"), QStringLiteral("movie:suppressed")).isEmpty());
+
+    progressA->record({{QStringLiteral("kind"), QStringLiteral("movie")},
+                       {QStringLiteral("id"), QStringLiteral("keep-progress")},
+                       {QStringLiteral("progress"), 0.5}});
+    const auto progressBeforeClear =
+        progressA->get(QStringLiteral("movie"), QStringLiteral("keep-progress"));
+    QVERIFY(coordinatorA->clearAll());
+    QVERIFY(activityA->historyProjectionFacts().isEmpty());
+    QVERIFY(historyA->records().isEmpty());
+    const auto keptProgress = progressA->get(QStringLiteral("movie"), QStringLiteral("keep-progress"));
+    QVERIFY(!keptProgress.isEmpty());
+    QCOMPARE(keptProgress, progressBeforeClear);
+    QCOMPARE(keptProgress.value(QStringLiteral("progress")).toDouble(), 0.5);
+
+    preferencesA->setKeepActivityHistory(true);
+    const auto aSurvivorFact = consumptionPlaybackFact(
+        QStringLiteral("event-a-survivor"), QStringLiteral("movie:a-survivor"));
+    QVERIFY(activityA->recordPlaybackDelta(aSurvivorFact));
+    const auto aProjectionFacts = activityA->historyProjectionFacts();
+    QVERIFY([&]() {
+        for (const QVariantMap &fact : aProjectionFacts) {
+            if (fact.value(QStringLiteral("itemKey")).toString()
+                == QStringLiteral("movie:a-survivor")) {
+                return true;
+            }
+        }
+        return false;
+    }());
+    QVERIFY(!historyA->get(QStringLiteral("movie"), QStringLiteral("movie:a-survivor"))
+                 .isEmpty());
+
+    QVERIFY2(profiles.sealAccountSession(QString::fromLatin1(kAccountA), &error), qPrintable(error));
+    QVERIFY(oldPreferencesA.isNull());
+    QVERIFY(oldActivityA.isNull());
+    QVERIFY(oldHistoryA.isNull());
+    QVERIFY(oldProgressA.isNull());
+    QVERIFY(oldSearchA.isNull());
+    QVERIFY(oldCoordinatorA.isNull());
+    QCOMPARE(runtime.activeProfile().kind(), ProfilePaths::Kind::Sealed);
+    QVERIFY(profileHistory(&engine));
+    QVERIFY(profileHistory(&engine)->records().isEmpty());
+
+    QVERIFY2(profiles.prepareAccountSession(QString::fromLatin1(kAccountB), &error), qPrintable(error));
+    auto *preferencesB = profilePreferences(&engine);
+    auto *activityB = runtime.activityStore();
+    auto *historyB = profileHistory(&engine);
+    auto *progressB = runtime.progressStore();
+    auto *coordinatorB = profileConsumptionHistory(&engine);
+    QVERIFY(preferencesB);
+    QVERIFY(activityB);
+    QVERIFY(historyB);
+    QVERIFY(progressB);
+    QVERIFY(coordinatorB);
+    QCOMPARE(preferencesB->keepActivityHistory(), true);
+    QCOMPARE(preferencesB->rememberSearchHistory(), true);
+    QCOMPARE(preferencesB->syncActivityHistory(), true);
+    QVERIFY(activityB->historyProjectionFacts().isEmpty());
+    QVERIFY(historyB->records().isEmpty());
+    QVERIFY(progressB->syncEntries().isEmpty());
+
+    const auto bFact = consumptionPlaybackFact(
+        QStringLiteral("event-b-play"), QStringLiteral("movie:b-only"));
+    QVERIFY(activityB->recordPlaybackDelta(bFact));
+    const auto bProjectionFacts = activityB->historyProjectionFacts();
+    QVERIFY(!bProjectionFacts.isEmpty());
+    QVERIFY([&]() {
+        for (const QVariantMap &fact : bProjectionFacts) {
+            if (fact.value(QStringLiteral("eventId")).toString()
+                == QStringLiteral("event-b-play")) {
+                return true;
+            }
+        }
+        return false;
+    }());
+    QVERIFY(!historyB->get(QStringLiteral("movie"), QStringLiteral("movie:b-only")).isEmpty());
+    QVERIFY(historyB->get(QStringLiteral("movie"), QStringLiteral("movie:item")).isEmpty());
+    QVERIFY(historyB->get(QStringLiteral("movie"), QStringLiteral("movie:suppressed")).isEmpty());
+    QVERIFY(historyB->get(QStringLiteral("movie"), QStringLiteral("keep-progress")).isEmpty());
+    QVERIFY(historyB->get(QStringLiteral("movie"), QStringLiteral("movie:a-survivor")).isEmpty());
+
+    QVERIFY2(profiles.sealAccountSession(QString::fromLatin1(kAccountB), &error), qPrintable(error));
+    QVERIFY2(profiles.prepareAccountSession(QString::fromLatin1(kAccountA), &error), qPrintable(error));
+    auto *preferencesAReopened = profilePreferences(&engine);
+    auto *activityAReopened = runtime.activityStore();
+    auto *historyAReopened = profileHistory(&engine);
+    auto *progressAReopened = runtime.progressStore();
+    QVERIFY(preferencesAReopened);
+    QVERIFY(activityAReopened);
+    QVERIFY(historyAReopened);
+    QVERIFY(progressAReopened);
+    QCOMPARE(preferencesAReopened->keepActivityHistory(), true);
+    QCOMPARE(preferencesAReopened->rememberSearchHistory(), true);
+    QCOMPARE(preferencesAReopened->syncActivityHistory(), true);
+
+    const auto aReopenedProjectionFacts = activityAReopened->historyProjectionFacts();
+    QVERIFY([&]() {
+        for (const QVariantMap &fact : aReopenedProjectionFacts) {
+            if (fact.value(QStringLiteral("eventId")).toString()
+                == QStringLiteral("event-a-survivor")) {
+                return true;
+            }
+        }
+        return false;
+    }());
+    QVERIFY(!historyAReopened->get(QStringLiteral("movie"), QStringLiteral("movie:a-survivor"))
+                 .isEmpty());
+    const auto reopenedProgress =
+        progressAReopened->get(QStringLiteral("movie"), QStringLiteral("keep-progress"));
+    QCOMPARE(reopenedProgress, progressBeforeClear);
+    QCOMPARE(reopenedProgress.value(QStringLiteral("progress")).toDouble(), 0.5);
+    QVERIFY([&]() {
+        for (const QVariantMap &fact : aReopenedProjectionFacts) {
+            if (fact.value(QStringLiteral("eventId")).toString()
+                == QStringLiteral("event-b-play")) {
+                return false;
+            }
+        }
+        return true;
+    }());
+    QVERIFY(historyAReopened->get(QStringLiteral("movie"), QStringLiteral("movie:b-only")).isEmpty());
 }
 
 QTEST_MAIN(tst_account_shared_pc)

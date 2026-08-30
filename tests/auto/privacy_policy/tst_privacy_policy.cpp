@@ -167,17 +167,26 @@ void tst_privacy_policy::profileSwitchRebindsRetentionPolicy()
     auto *preferencesA = runtime.preferencesStore();
     auto *searchA = runtime.searchHistoryStore();
     auto *activityA = runtime.activityStore();
+    auto *historyA = runtime.historyStore();
+    auto *progressA = runtime.progressStore();
     QVERIFY(preferencesA);
     QVERIFY(searchA);
     QVERIFY(activityA);
+    QVERIFY(historyA);
+    QVERIFY(progressA);
     QPointer<ProfilePreferencesStore> oldPreferencesA(preferencesA);
     QPointer<SearchHistoryStore> oldSearchA(searchA);
     QPointer<ActivityStore> oldActivityA(activityA);
+    QPointer<HistoryStore> oldHistoryA(historyA);
+    QPointer<ProgressStore> oldProgressA(progressA);
 
     preferencesA->setRememberSearchHistory(false);
     preferencesA->setKeepActivityHistory(false);
+    QCOMPARE(preferencesA->syncActivityHistory(), true);
+    preferencesA->setSyncActivityHistory(false);
     QCOMPARE(searchA->retentionEnabled(), false);
     QCOMPARE(activityA->retentionEnabled(), false);
+    QCOMPARE(preferencesA->syncActivityHistory(), false);
     QCOMPARE(searchA->record(QStringLiteral("manga"), QStringLiteral("a-hidden")),
              QStringList());
     QVERIFY(activityA->recordPlaybackDelta(
@@ -188,16 +197,29 @@ void tst_privacy_policy::profileSwitchRebindsRetentionPolicy()
     QVERIFY(oldPreferencesA.isNull());
     QVERIFY(oldSearchA.isNull());
     QVERIFY(oldActivityA.isNull());
+    QVERIFY(oldHistoryA.isNull());
+    QVERIFY(oldProgressA.isNull());
+    auto *sealedHistory = runtime.historyStore();
+    auto *sealedProgress = runtime.progressStore();
     QVERIFY2(runtime.activateAccountProfile(accountB, &error), qPrintable(error));
 
     auto *preferencesB = runtime.preferencesStore();
     auto *searchB = runtime.searchHistoryStore();
     auto *activityB = runtime.activityStore();
+    auto *historyB = runtime.historyStore();
+    auto *progressB = runtime.progressStore();
     QVERIFY(preferencesB);
     QVERIFY(searchB);
     QVERIFY(activityB);
+    QVERIFY(historyB);
+    QVERIFY(progressB);
+    QVERIFY(historyB != sealedHistory);
+    QVERIFY(progressB != sealedProgress);
     QCOMPARE(preferencesB->rememberSearchHistory(), true);
     QCOMPARE(preferencesB->keepActivityHistory(), true);
+    QCOMPARE(preferencesB->syncActivityHistory(), true);
+    QVERIFY(historyB->records().isEmpty());
+    QVERIFY(progressB->recent().isEmpty());
     QCOMPARE(searchB->retentionEnabled(), true);
     QCOMPARE(activityB->retentionEnabled(), true);
     QCOMPARE(searchB->record(QStringLiteral("manga"), QStringLiteral("b-visible")),
@@ -217,6 +239,7 @@ void tst_privacy_policy::profileSwitchRebindsRetentionPolicy()
     QCOMPARE(runtime.preferencesStore()->keepActivityHistory(), false);
     QCOMPARE(runtime.searchHistoryStore()->retentionEnabled(), false);
     QCOMPARE(runtime.activityStore()->retentionEnabled(), false);
+    QCOMPARE(runtime.preferencesStore()->syncActivityHistory(), false);
     QVERIFY(!runtime.searchHistoryStore()->list(QStringLiteral("manga")).contains(
         QStringLiteral("b-visible")));
 }

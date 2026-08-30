@@ -7,6 +7,8 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include <algorithm>
+
 namespace {
 QVariantMap fact(const QString &id, const QString &type, qint64 at, bool syncable = true) {
     QVariantMap m{{QStringLiteral("eventId"), id}, {QStringLiteral("sessionId"), QStringLiteral("s")},
@@ -56,6 +58,14 @@ void tst_consumption_history::playbackDeltaProjectsFirstAndLastActivity() {
     QTemporaryDir d; QVERIFY(d.isValid()); ActivityStore a; HistoryStore h(d.filePath("history.ini")); ProgressStore p(d.filePath("progress.ini")); ConsumptionHistoryBridge b(&a, &p, &h);
     QVERIFY(a.recordPlaybackDelta(fact("p1", "playback_delta", 2000)));
     QVERIFY(a.recordPlaybackDelta(fact("p2", "playback_delta", 1000)));
+    const auto projectionFacts = a.historyProjectionFacts();
+    QCOMPARE(projectionFacts.size(), 2);
+    QVERIFY(std::any_of(projectionFacts.cbegin(), projectionFacts.cend(), [](const QVariantMap &event) {
+        return event.value(QStringLiteral("eventId")).toString() == QStringLiteral("p1");
+    }));
+    QVERIFY(std::any_of(projectionFacts.cbegin(), projectionFacts.cend(), [](const QVariantMap &event) {
+        return event.value(QStringLiteral("eventId")).toString() == QStringLiteral("p2");
+    }));
     const auto r = h.get("movie", "movie:i");
     QCOMPARE(r.value("firstActivityAt").toLongLong(), 1000LL);
     QCOMPARE(r.value("lastActivityAt").toLongLong(), 3000LL);
@@ -80,6 +90,7 @@ void tst_consumption_history::progressMovieThresholdMarksHistoryCompleted() {
     p.record({{"kind", "video"}, {"id", "movie:threshold"}, {"progress", 0.42}});
     p.record({{"kind", "video"}, {"id", "movie:threshold"}, {"progress", 0.90}});
     QVERIFY(h.completed("movie", "movie:threshold"));
+    QVERIFY(h.get("movie", "movie:threshold").value(QStringLiteral("completedAt")).toLongLong() > 0);
 }
 
 void tst_consumption_history::progressEpisodeThresholdMarksHistoryCompletedOnce() {
@@ -126,7 +137,11 @@ void tst_consumption_history::clearRemovesActivityBeforeHistoryAndDoesNotTouchPr
     p.record({{"id", "keep"}, {"kind", "movie"}, {"progress", 0.5}});
     ConsumptionHistoryBridge b(&a, &p, &h); QVERIFY(a.recordReadingDelta(fact("r1", "reading_delta", 9000)));
     QVERIFY(b.clearAll()); QVERIFY(a.historyProjectionFacts().isEmpty()); QVERIFY(h.records().isEmpty());
-    QVERIFY(!p.syncEntries().isEmpty());
+    const auto kept = p.get(QStringLiteral("movie"), QStringLiteral("keep"));
+    QVERIFY(!kept.isEmpty());
+    QCOMPARE(kept.value(QStringLiteral("id")).toString(), QStringLiteral("keep"));
+    QCOMPARE(kept.value(QStringLiteral("kind")).toString(), QStringLiteral("movie"));
+    QCOMPARE(kept.value(QStringLiteral("progress")).toDouble(), 0.5);
 }
 
 QTEST_MAIN(tst_consumption_history)

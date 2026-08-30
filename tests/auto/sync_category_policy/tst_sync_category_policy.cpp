@@ -8,18 +8,30 @@
 #include "account/ProfilePaths.h"
 #include "account/SyncAdapter.h"
 #include "account/SyncAdapterRegistry.h"
-#include "account/SyncEngine.h"
+#include "account/SyncHybridClock.h"
 #include "account/SyncProtocol.h"
+#include "account/SyncStateStore.h"
 
 #include <QDir>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QObject>
+#include <QSet>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QUuid>
 #include <QtTest>
 
+#include <functional>
 #include <utility>
+
+// Test-only access to the engine's persistence callback barrier. All of
+// SyncEngine's prerequisite headers are included above, so this scoped macro
+// cannot rewrite their declarations or any Qt/std headers.
+#define private public
+#include "account/SyncEngine.h"
+#undef private
 
 namespace {
 constexpr auto kAccount = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -302,21 +314,27 @@ struct Replica {
     }
 };
 
-bool quiescent(const SyncEngine &engine, const FixtureTransport &transport,
-               int completedRequestCount, const SyncStateStore &stateStore,
-               const ProfilePaths &profile) {
+bool durableStateCaughtUp(const SyncEngine &engine, const SyncStateStore &stateStore,
+                          const ProfilePaths &profile) {
     QString error;
     const auto persisted = stateStore.load(profile.syncStatePath(), &error);
     if (!persisted.has_value())
         return false;
 
-    return engine.state() == SyncEngine::State::Idle
-        && engine.pendingOutboxCount() == 0
-        && completedRequestCount == transport.requestCount()
-        && persisted->cursor == engine.cursor()
+    return persisted->cursor == engine.cursor()
         && persisted->outbox.isEmpty()
         && persisted->pausedCategories.contains(QStringLiteral("full_history"))
             == !engine.categoryNetworkEnabled(QStringLiteral("full_history"));
+}
+
+bool idleAndCaughtUp(const SyncEngine &engine, const FixtureTransport &transport,
+                     int completedRequestCount, const SyncStateStore &stateStore,
+                     const ProfilePaths &profile) {
+    return completedRequestCount == transport.requestCount()
+        && engine.state() == SyncEngine::State::Idle
+        && engine.pendingOutboxCount() == 0
+        && engine.m_pendingPersistenceGenerations.isEmpty()
+        && durableStateCaughtUp(engine, stateStore, profile);
 }
 
 void waitIdle(SyncEngine &engine, FixtureTransport &transport,
@@ -325,15 +343,32 @@ void waitIdle(SyncEngine &engine, FixtureTransport &transport,
     if (minimumRequestCount > 0)
         QTRY_VERIFY(transport.requestCount() >= minimumRequestCount);
 
-    SyncStateStore stateStore;
-    int stableQuiescentChecks = 0;
-    QTRY_VERIFY([&]() {
-        if (quiescent(engine, transport, completedRequestCount, stateStore, profile))
-            ++stableQuiescentChecks;
-        else
-            stableQuiescentChecks = 0;
-        return stableQuiescentChecks >= 2;
-    }());
+    // FixtureTransport completes synchronously, but AccountClient delivers
+    // completed asynchronously. Persistence commits can also release the next
+    // network phase, so require every observable and durable condition together.
+    SyncStateStore durableReader;
+    QTRY_VERIFY(idleAndCaughtUp(engine, transport, completedRequestCount,
+                                durableReader, profile));
+
+    // The engine gates later network work on persistenceCommitted. Drain the
+    // event loop once after reaching the apparent fixed point, then recheck all
+    // conditions. A queued commit callback may issue another request or change
+    // the runtime/durable state, so repeat when the request count changes.
+    constexpr int kMaxPersistenceRounds = 8;
+    for (int round = 0; round < kMaxPersistenceRounds; ++round) {
+        const int requestCountAfterDrain = transport.requestCount();
+        QCoreApplication::processEvents(QEventLoop::AllEvents);
+
+        if (transport.requestCount() != requestCountAfterDrain)
+            continue;
+
+        QTRY_VERIFY(idleAndCaughtUp(engine, transport, completedRequestCount,
+                                    durableReader, profile));
+        if (transport.requestCount() == requestCountAfterDrain)
+            return;
+    }
+
+    QFAIL("persistence did not reach an observable fixed point");
 }
 
 void waitIdle(Replica &replica) {
