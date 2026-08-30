@@ -195,11 +195,15 @@ WorldPage {
 
     ContinueRow {
         title: "Continue Reading"
-        // Real resume data — manga + comics BLENDED by true recency and capped like every other
-        // row (audit fix: was all-manga-then-all-comics, unbounded). Stays shared above the tabs
-        // (the split is browse-only; personal rows blend both halves). Progress.revision keeps it live.
+        // Real resume data — manga + tankoban + comics BLENDED by true recency and capped like
+        // every other row. A retained hidden world must not walk Progress while its Loader is
+        // warming; the current-master lifecycle gate remains in force. Personal rows blend all
+        // three kinds, while the browse tabs split only catalogue presentation. Progress.revision
+        // keeps the projection live.
         items: tanko.lifecycleActive ? (Progress.revision, (function() {
-            var a = Progress.recent("manga", 12).concat(Progress.recent("comic", 12))
+            var a = Progress.recent("manga", 12)
+                .concat(Progress.recent("tankoban", 12))
+                .concat(Progress.recent("comic", 12))
             a.sort(function(x, y) { return (y.updatedAt || 0) - (x.updatedAt || 0) })
             // Tag the comic source so blended tiles read GetComics on the badge; manga untagged.
             return a.slice(0, 12).map(function(e) {

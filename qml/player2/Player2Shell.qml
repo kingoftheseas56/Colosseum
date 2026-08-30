@@ -72,14 +72,14 @@ Item {
     // Progress cadence (Task 14): the player tells the host where you are so the host can persist a
     // resume point. Throttled to once every few seconds + forced on pause; the host owns the store.
     property real _lastReportedSec: -1
-    function reportProgress(force) {
+    function reportProgress(forceVisible) {
         if (!shell.hostServices || !shell.session || shell.session.duration <= 0)
             return
         var id = shell.currentEpisodeId.length ? shell.currentEpisodeId : shell.rootMediaId
         if (!id.length)
             return
-        if (force || Browser.shouldReportProgress(shell._lastReportedSec, shell.session.position, 5)) {
-            shell.hostServices.reportProgress(id, shell.session.position, shell.session.duration)
+        if (forceVisible || Browser.shouldReportProgress(shell._lastReportedSec, shell.session.position, 5)) {
+            shell.hostServices.reportProgress(id, shell.session.position, shell.session.duration, !forceVisible)
             shell._lastReportedSec = shell.session.position
         }
     }
@@ -108,8 +108,10 @@ Item {
             var st = shell.session ? shell.session.state : -1
             if (st === 3)        // Player2State::Playing
                 shell.activityBeginIfNeeded()
-            else if (st === 6)   // Player2State::Ended
+            else if (st === 6) {  // Player2State::Ended
+                shell.reportProgress(true)
                 shell.activityNaturalEof()
+            }
             else                 // Opening/Buffering/Paused/Seeking/Recovering/Error/Idle entry
                 shell.activityDiscontinuity()
         }
@@ -544,8 +546,8 @@ Item {
             subtitle: shell.mediaSubtitle
             nowClock: shell.nowClock
             shown: shell.controlsShown
-            onBackRequested: { shell.closeAllMenus(); shell.backRequested() }
-            onMinimizeRequested: { shell.closeAllMenus(); shell.minimizeRequested() }
+            onBackRequested: { shell.closeAllMenus(); shell.reportProgress(true); shell.backRequested() }
+            onMinimizeRequested: { shell.closeAllMenus(); shell.reportProgress(true); shell.minimizeRequested() }
             onCloseRequested: { shell.closeAllMenus(); shell.requestClose() }
         }
 
@@ -677,6 +679,7 @@ Item {
         theme: shell.theme
         onConfirmed: {
             closeConfirm.open = false
+            shell.reportProgress(true)
             shell.activityEndSession()   // Activity (§9 Lane B): close/lifecycle exit ends the session
             shell.closeRequested()
         }

@@ -404,6 +404,7 @@ public:
 
 signals:
     void changed();
+    void completionCrossed(const QString &kind, const QString &id, qint64 completedAtMs);
     // Remote-only import notification. Active readers may react to a synced
     // winner without treating ordinary local progress writes as imported resume.
     // Idempotent replay of the same winner does not emit it.
@@ -484,6 +485,7 @@ private:
         if (id.isEmpty() || kind.isEmpty())
             return false;
         const QString key = mapKey(kind, id);
+        const QVariantMap previous = m_map.value(key).toMap();
 
         const double progress = entry.value(QStringLiteral("progress")).toDouble();
         const bool isSeriesEpisode =
@@ -495,6 +497,8 @@ private:
             // setWatchedMark bumps changed(), and a 5s recordSilent() cascade of that is the
             // proven video-stutter source.
             if (m_map.contains(key)) {
+                emit completionCrossed(QStringLiteral("movie"), id,
+                                       QDateTime::currentMSecsSinceEpoch());
                 if (id.startsWith(QStringLiteral("vault:")))
                     setWatchedMark(id, true);
                 m_map.remove(key);
@@ -508,8 +512,12 @@ private:
         QVariantMap rec = entry;
         rec.insert(QStringLiteral("id"), id);
         rec.insert(QStringLiteral("kind"), kind);
-        if (isSeriesEpisode && progress >= 0.90)
+        if (isSeriesEpisode && progress >= 0.90) {
+            if (!previous.value(QStringLiteral("watched")).toBool())
+                emit completionCrossed(QStringLiteral("episode"), id,
+                                       QDateTime::currentMSecsSinceEpoch());
             rec.insert(QStringLiteral("watched"), true);
+        }
         rec.insert(QStringLiteral("updatedAt"), QDateTime::currentMSecsSinceEpoch());
         m_map.insert(key, rec);
         scheduleSave();

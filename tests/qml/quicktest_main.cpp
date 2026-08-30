@@ -18,11 +18,35 @@
 // whole point of tst_comicreader_title_controls). They carry the `qml` CTest
 // label, not `unit`, and are not part of an offscreen gate.
 #include <QtQuickTest/quicktest.h>
+#include <QtQml/qqml.h>
 
 #include <QCoreApplication>
 #include <QObject>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QVariantMap>
+
+// TEST-ONLY seam for the real Player2Shell. The production tracker is deliberately not linked
+// into the shared QML runner; this type only makes the shell's existing calls loadable and inert.
+class TestActivityPlaybackTracker : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QObject *sink READ sink WRITE setSink)
+public:
+    explicit TestActivityPlaybackTracker(QObject *parent = nullptr) : QObject(parent) {}
+
+    QObject *sink() const { return m_sink; }
+    void setSink(QObject *sink) { m_sink = sink; }
+
+    Q_INVOKABLE void begin(const QVariantMap &, const QString &) {}
+    Q_INVOKABLE void sample(qint64, qint64, qint64, bool) {}
+    Q_INVOKABLE void discontinuity(qint64, qint64, qint64) {}
+    Q_INVOKABLE void naturalEof() {}
+    Q_INVOKABLE void endSession() {}
+
+private:
+    QObject *m_sink = nullptr;
+};
 
 class ColosseumQmlTestSetup : public QObject
 {
@@ -30,6 +54,8 @@ class ColosseumQmlTestSetup : public QObject
 public slots:
     void applicationAvailable()
     {
+        qmlRegisterType<TestActivityPlaybackTracker>("Colosseum.Activity", 1, 0,
+                                                     "ActivityPlaybackTracker");
         QCoreApplication::setOrganizationName(QStringLiteral("BrotherhoodTest"));
         QCoreApplication::setOrganizationDomain(QStringLiteral("test.colosseum.brotherhood"));
         QCoreApplication::setApplicationName(QStringLiteral("ColosseumQmlTests"));

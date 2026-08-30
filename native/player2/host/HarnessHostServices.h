@@ -78,7 +78,7 @@ public:
     void requestSkipSegments(const QString &mediaId) override;
     void requestDownload(const QString &mediaId, const QString &sourceId) override;
     void requestMetadata(const QString &mediaId) override;
-    void reportProgress(const QString &mediaId, double position, double duration) override;
+    void reportProgress(const QString &mediaId, double position, double duration, bool silent) override;
 
 signals:
     void metricsChanged();

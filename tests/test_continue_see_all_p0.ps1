@@ -13,6 +13,9 @@ function Read-File($rel) {
 function Assert-Contains($text, $needle, $message) {
     if ($text -notlike "*$needle*") { throw $message }
 }
+function Assert-Matches($text, $pattern, $message) {
+    if ($text -notmatch $pattern) { throw $message }
+}
 function Assert-Lacks($text, $needle, $message) {
     if ($text -like "*$needle*") { throw $message }
 }
@@ -20,11 +23,14 @@ function Assert-Lacks($text, $needle, $message) {
 # --- the page ---
 $pg = Read-File "qml/ContinueSeeAllPage.qml"
 foreach ($n in @('property string scope', 'signal resumeRequested(var item)', 'signal detailRequested(var item)',
-                 'ContinueSeeAll.js', 'Progress.recent("", 0)', 'Progress.recent("manga", 0).concat(Progress.recent("comic", 0))',
+                 'ContinueSeeAll.js', 'Progress.recent("", 0)',
                  'Progress.revision', 'ContinueTile {', 'variant: "world"', 'Progress.forget',
                  'Nothing to continue.', 'Nothing here yet.', 'HouseScrollBar')) {
     Assert-Contains $pg $n "ContinueSeeAllPage must carry: $n"
 }
+Assert-Matches $pg `
+    'scope\s*===\s*"tankoban"\s*\)\s*rawItems\s*=\s*Progress\.recent\("manga",\s*0\)\s*\.concat\s*\(\s*Progress\.recent\("tankoban",\s*0\)\s*\)\s*\.concat\s*\(\s*Progress\.recent\("comic",\s*0\)\s*\)' `
+    "ContinueSeeAllPage must project tankoban scope from manga+tankoban+comic progress with limit 0 in order."
 Assert-Lacks $pg 'label: "Most Watched"' "Most Watched chip must NOT ship without a real watch counter (ratified)."
 
 # --- the logic module is pure ---

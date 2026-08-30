@@ -24,25 +24,26 @@ QtObject {
             { id: "b", kind: "manga", title: "berserk",      updatedAt: 900 },
             { id: "c", kind: "video", title: "Alpha House",  updatedAt: 700, watched: true },
             { id: "d", kind: "comic", caption: "Moon Knight", updatedAt: 800 },
-            { id: "e", kind: "book",  title: "Dune" }
+            { id: "e", kind: "book",  title: "Dune" },
+            { id: "t", kind: "tankoban", title: "Berserk Deluxe", updatedAt: 850 }
         ]
 
         function ids(a) { return a.map(function(e) { return e.id }).join(",") }
 
         // --- recent (default): updatedAt desc, missing updatedAt sinks last ---
-        if (ids(SeeAll.apply(items, "recent", "")) !== "b,d,c,a,e")
+        if (ids(SeeAll.apply(items, "recent", "")) !== "b,t,d,c,a,e")
             throw new Error("recent order wrong: " + ids(SeeAll.apply(items, "recent", "")))
 
         // --- az / za: display label (title falling back to caption), case-insensitive ---
-        if (ids(SeeAll.apply(items, "az", "")) !== "c,b,e,d,a")
+        if (ids(SeeAll.apply(items, "az", "")) !== "c,b,t,e,d,a")
             throw new Error("az order wrong: " + ids(SeeAll.apply(items, "az", "")))
-        if (ids(SeeAll.apply(items, "za", "")) !== "a,d,e,b,c")
+        if (ids(SeeAll.apply(items, "za", "")) !== "a,d,e,t,b,c")
             throw new Error("za order wrong: " + ids(SeeAll.apply(items, "za", "")))
 
         // --- watched / unwatched: filters, recency order kept ---
         if (ids(SeeAll.apply(items, "watched", "")) !== "c")
             throw new Error("watched filter wrong: " + ids(SeeAll.apply(items, "watched", "")))
-        if (ids(SeeAll.apply(items, "unwatched", "")) !== "b,d,a,e")
+        if (ids(SeeAll.apply(items, "unwatched", "")) !== "b,t,d,a,e")
             throw new Error("unwatched filter wrong: " + ids(SeeAll.apply(items, "unwatched", "")))
 
         // --- medium filter (home chips) composes with sort ---
@@ -52,12 +53,16 @@ QtObject {
             throw new Error("video+az compose wrong")
         if (ids(SeeAll.apply(items, "recent", "book")) !== "e")
             throw new Error("book medium filter wrong")
+        var mangaScope = SeeAll.apply(items, "recent", "manga")
+        if (ids(mangaScope) !== "b,t")
+            throw new Error("manga medium must include manga+tankoban and exclude comic: " + ids(mangaScope))
 
-        // --- tankoban merge: manga+comic concat comes back interleaved by recency ---
+        // --- tankoban merge: manga+tankoban+comic concat comes back interleaved by recency ---
         var merged = SeeAll.apply(
             [{ id: "m1", kind: "manga", title: "M1", updatedAt: 100 }].concat(
+            [{ id: "v1", kind: "tankoban", title: "V1", updatedAt: 150 }]).concat(
             [{ id: "c1", kind: "comic", title: "C1", updatedAt: 200 }]), "recent", "")
-        if (ids(merged) !== "c1,m1")
+        if (ids(merged) !== "c1,v1,m1")
             throw new Error("tankoban merge order wrong: " + ids(merged))
 
         // --- empties: never throw, always return an array ---

@@ -190,6 +190,8 @@ QString ActivityStore::newSessionId() const {
 }
 
 bool ActivityStore::insertFact(const QString &type, const QVariantMap &fact) {
+    if (!m_retentionEnabled)
+        return true;
     if (!healthy()) {
         emit integrityError(QStringLiteral("db_unhealthy"),
                             QStringLiteral("ActivityStore database is not open"));
@@ -258,7 +260,47 @@ bool ActivityStore::insertFact(const QString &type, const QVariantMap &fact) {
 
     ++m_revision;
     emit changed();
+    emit factCommitted(event.toVariantMap());
     return true;
+}
+
+QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
+    QList<QVariantMap> facts;
+    if (!healthy())
+        return facts;
+
+    QSqlQuery query(m_db);
+    if (!query.exec(QStringLiteral("SELECT canonical_json FROM events")))
+        return facts;
+    while (query.next()) {
+        const QJsonDocument document =
+            QJsonDocument::fromJson(query.value(0).toString().toUtf8());
+        if (!document.isObject())
+            continue;
+        const QJsonObject event = document.object();
+        try {
+            ActivityProjector::validateEvent(event);
+            facts.append(event.toVariantMap());
+        } catch (const ActivityProjector::ValidationError &) {
+            continue;
+        }
+    }
+    query.finish();
+    std::sort(facts.begin(), facts.end(), [](const QVariantMap &left, const QVariantMap &right) {
+        const QString leftType = left.value(QStringLiteral("type")).toString();
+        const QString rightType = right.value(QStringLiteral("type")).toString();
+        const qint64 leftAt = leftType == QLatin1String("playback_delta")
+            ? left.value(QStringLiteral("startAtMs")).toLongLong()
+            : left.value(QStringLiteral("atMs")).toLongLong();
+        const qint64 rightAt = rightType == QLatin1String("playback_delta")
+            ? right.value(QStringLiteral("startAtMs")).toLongLong()
+            : right.value(QStringLiteral("atMs")).toLongLong();
+        if (leftAt != rightAt)
+            return leftAt < rightAt;
+        return left.value(QStringLiteral("eventId")).toString()
+            < right.value(QStringLiteral("eventId")).toString();
+    });
+    return facts;
 }
 
 bool ActivityStore::insertEventRow(const QJsonObject &event, const QString &canonicalJson,

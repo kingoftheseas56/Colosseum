@@ -263,8 +263,10 @@ void HarnessHostServices::requestMetadata(const QString &mediaId)
     });
 }
 
-void HarnessHostServices::reportProgress(const QString &mediaId, double position, double duration)
+void HarnessHostServices::reportProgress(const QString &mediaId, double position, double duration,
+                                         bool silent)
 {
+    Q_UNUSED(silent);
     appendEvent(QStringLiteral("progress"),
                 QStringLiteral("%1:%2/%3").arg(mediaId).arg(position).arg(duration));
 }

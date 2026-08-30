@@ -237,6 +237,16 @@ bool SyncEngine::start(
     m_persistent =
         *loaded;
 
+    m_disabledCategories = m_requestedDisabledCategories;
+    m_categoryReplayInProgress.clear();
+    for (auto it = m_persistent.pausedCategories.constBegin();
+         it != m_persistent.pausedCategories.constEnd(); ++it) {
+        if (it->replaying && !m_disabledCategories.contains(it.key())) {
+            m_disabledCategories.insert(it.key());
+            m_categoryReplayInProgress = it.key();
+        }
+    }
+
     if (!validateLoadedState(
             &loadError)) {
         m_profile =
@@ -246,6 +256,33 @@ bool SyncEngine::start(
         if (error)
             *error = loadError;
         return false;
+    }
+
+    for (const QString &category : std::as_const(m_requestedDisabledCategories)) {
+        if (m_persistent.pausedCategories.contains(category))
+            continue;
+
+        SyncAdapterSnapshot snapshot;
+        SyncAdapterRegistryError registryError;
+        if (!m_registry->exportSnapshot(category, &snapshot, &registryError)) {
+            m_profile = ProfilePaths::sealed();
+            m_statePath.clear();
+            m_deviceId.clear();
+            if (error) {
+                *error = registryError.detail.isEmpty()
+                    ? registryError.code
+                    : registryError.detail;
+            }
+            return false;
+        }
+
+        SyncPausedCategoryState paused;
+        for (const SyncAdapterRecord &record : snapshot.records) {
+            paused.localBaseline.insert(
+                record.recordKey,
+                SyncMirrorRecord{snapshot.schemaVersion, record.payload});
+        }
+        m_persistent.pausedCategories.insert(category, paused);
     }
 
     m_clock.setDeviceId(
@@ -448,6 +485,93 @@ void SyncEngine::setNetworkEnabled(
             != State::Blocked) {
         requestImmediateSync();
     }
+}
+
+void SyncEngine::setCategoryNetworkEnabled(
+    const QString &categoryId,
+    bool enabled) {
+    const QString category = categoryId.trimmed().toLower();
+    if (category.isEmpty())
+        return;
+
+    if (!enabled)
+        m_requestedDisabledCategories.insert(category);
+    else
+        m_requestedDisabledCategories.remove(category);
+
+    if (!m_active)
+        return;
+
+    if (!enabled) {
+        if (m_disabledCategories.contains(category))
+            return;
+        SyncAdapterSnapshot snapshot;
+        SyncAdapterRegistryError registryError;
+        if (!m_registry->exportSnapshot(category, &snapshot, &registryError)) {
+            setBlocked(QStringLiteral("adapter_snapshot_failed"),
+                       registryError.detail.isEmpty() ? registryError.code : registryError.detail);
+            return;
+        }
+        SyncPausedCategoryState paused;
+        for (const SyncAdapterRecord &record : snapshot.records)
+            paused.localBaseline.insert(record.recordKey,
+                SyncMirrorRecord{snapshot.schemaVersion, record.payload});
+        m_persistent.pausedCategories.insert(category, paused);
+        m_disabledCategories.insert(category);
+        for (int index = m_persistent.outbox.size() - 1; index >= 0; --index)
+            if (m_persistent.outbox.at(index).category == category)
+                m_persistent.outbox.removeAt(index);
+        emit observationChanged(m_state, pendingOutboxCount());
+        persistState();
+        return;
+    }
+
+    if (!m_disabledCategories.contains(category))
+        return;
+    const auto pausedIt = m_persistent.pausedCategories.constFind(category);
+    if (pausedIt == m_persistent.pausedCategories.constEnd())
+        return;
+    SyncAdapterSnapshot snapshot;
+    SyncAdapterRegistryError registryError;
+    if (!m_registry->exportSnapshot(category, &snapshot, &registryError)) {
+        setBlocked(QStringLiteral("adapter_snapshot_failed"),
+                   registryError.detail.isEmpty() ? registryError.code : registryError.detail);
+        return;
+    }
+    SyncPausedCategoryState replay = pausedIt.value();
+    replay.localOverlay.clear();
+    QHash<QString, SyncAdapterRecord> current;
+    for (const SyncAdapterRecord &record : snapshot.records)
+        current.insert(record.recordKey, record);
+    for (auto it = current.constBegin(); it != current.constEnd(); ++it) {
+        const auto old = replay.localBaseline.constFind(it.key());
+        if (old == replay.localBaseline.constEnd()
+            || old->schemaVersion != snapshot.schemaVersion
+            || old->payload != it->payload)
+            replay.localOverlay.insert(it.key(), SyncPausedOverlayRecord{
+                SyncWireOperation::Put, snapshot.schemaVersion, it->payload, it->localOrderMs});
+    }
+    for (auto it = replay.localBaseline.constBegin(); it != replay.localBaseline.constEnd(); ++it)
+        if (!current.contains(it.key()))
+            replay.localOverlay.insert(it.key(), SyncPausedOverlayRecord{
+                SyncWireOperation::Delete, snapshot.schemaVersion, QJsonValue(), -1});
+    replay.replaying = true;
+    m_persistent.pausedCategories.insert(category, replay);
+    m_disabledCategories.insert(category);
+    m_categoryReplayInProgress = category;
+    m_persistent.winners.remove(category);
+    m_persistent.mirrors.remove(category);
+    m_persistent.cursor = 0;
+    m_initialPullPending = true;
+    m_pullHasMore = false;
+    persistState();
+    requestImmediateSync();
+}
+
+bool SyncEngine::categoryNetworkEnabled(const QString &categoryId) const {
+    const QString category = categoryId.trimmed().toLower();
+    return !m_disabledCategories.contains(category)
+        && !m_requestedDisabledCategories.contains(category);
 }
 
 SyncEngine::State SyncEngine::state() const {
@@ -675,6 +799,11 @@ void SyncEngine::handleLocalMutation(
     if (!m_active)
         return;
 
+    if (m_disabledCategories.contains(categoryId)) {
+        persistState();
+        return;
+    }
+
     QString error;
     if (!reconcileCategory(
             categoryId,
@@ -830,6 +959,8 @@ bool SyncEngine::reconcileAllAdapters(
 
     for (const QString &category :
          categories) {
+        if (m_disabledCategories.contains(category))
+            continue;
         if (!reconcileCategory(
                 category,
                 error,
@@ -845,6 +976,9 @@ bool SyncEngine::reconcileCategory(
     const QString &categoryId,
     QString *error,
     bool allowSnapshotDeletes) {
+    if (m_disabledCategories.contains(categoryId))
+        return true;
+
     SyncAdapterSnapshot snapshot;
     SyncAdapterRegistryError registryError;
 
@@ -1151,11 +1285,26 @@ void SyncEngine::beginPush() {
         const SyncWireMutation &mutation =
             m_persistent.outbox.at(index);
 
+        if (m_disabledCategories.contains(mutation.category))
+            continue;
+
         mutations.append(
             syncWireMutationToJson(
                 mutation));
         mutationIds.append(
             mutation.mutationId);
+    }
+
+    if (mutations.isEmpty()) {
+        m_persistent.outbox.erase(
+            std::remove_if(m_persistent.outbox.begin(),
+                           m_persistent.outbox.end(),
+                           [this](const SyncWireMutation &mutation) {
+                               return m_disabledCategories.contains(mutation.category);
+                           }),
+            m_persistent.outbox.end());
+        persistState();
+        return;
     }
 
     m_networkBusy = true;
@@ -1235,6 +1384,11 @@ bool SyncEngine::processPullReply(
 
     if (!m_pullHasMore)
         m_initialPullPending = false;
+
+    if (!m_pullHasMore && !m_categoryReplayInProgress.isEmpty()
+        && !finishCategoryReplay(m_categoryReplayInProgress,
+                                 errorCode, errorMessage))
+        return false;
 
     return true;
 }
@@ -1437,15 +1591,15 @@ bool SyncEngine::applyWinningPullEntry(
     incoming.payload =
         mutation.payload;
 
-    SyncAdapterRegistryError registryError;
-    if (!m_registry->applyRemote(
-            incoming,
-            &registryError)) {
-        if (errorCode)
-            *errorCode = registryError.code;
-        if (errorMessage)
-            *errorMessage = registryError.detail;
-        return false;
+    if (!m_disabledCategories.contains(mutation.category)) {
+        SyncAdapterRegistryError registryError;
+        if (!m_registry->applyRemote(incoming, &registryError)) {
+            if (errorCode)
+                *errorCode = registryError.code;
+            if (errorMessage)
+                *errorMessage = registryError.detail;
+            return false;
+        }
     }
 
     SyncWinner winner;
@@ -1478,6 +1632,71 @@ bool SyncEngine::applyWinningPullEntry(
                 mutation.recordKey);
     }
 
+    return true;
+}
+
+bool SyncEngine::finishCategoryReplay(
+    const QString &categoryId,
+    QString *errorCode,
+    QString *errorMessage) {
+    const auto pausedIt = m_persistent.pausedCategories.constFind(categoryId);
+    if (pausedIt == m_persistent.pausedCategories.constEnd())
+        return true;
+
+    SyncAdapterSnapshot snapshot;
+    SyncAdapterRegistryError registryError;
+    if (!m_registry->exportSnapshot(categoryId, &snapshot, &registryError)) {
+        if (errorCode) *errorCode = registryError.code;
+        if (errorMessage) *errorMessage = registryError.detail;
+        return false;
+    }
+    QHash<QString, SyncAdapterRecord> current;
+    for (const SyncAdapterRecord &record : snapshot.records)
+        current.insert(record.recordKey, record);
+    const auto remote = m_persistent.mirrors.value(categoryId);
+
+    for (auto it = current.constBegin(); it != current.constEnd(); ++it) {
+        const auto remoteIt = remote.constFind(it.key());
+        if (remoteIt != remote.constEnd()
+            && remoteIt->schemaVersion == snapshot.schemaVersion
+            && remoteIt->payload == it->payload)
+            continue;
+        if (!remote.contains(it.key())) {
+            if (!m_registry->applyRemote(SyncAdapterMutation{categoryId, it.key(),
+                    snapshot.schemaVersion, SyncWireOperation::Delete, QJsonValue()}, &registryError)) {
+                if (errorCode) *errorCode = registryError.code;
+                if (errorMessage) *errorMessage = registryError.detail;
+                return false;
+            }
+        }
+    }
+    for (auto it = remote.constBegin(); it != remote.constEnd(); ++it) {
+        if (!m_registry->applyRemote(SyncAdapterMutation{categoryId, it.key(),
+                it->schemaVersion, SyncWireOperation::Put, it->payload}, &registryError)) {
+            if (errorCode) *errorCode = registryError.code;
+            if (errorMessage) *errorMessage = registryError.detail;
+            return false;
+        }
+    }
+
+    const SyncPausedCategoryState replay = pausedIt.value();
+    QStringList overlayKeys = replay.localOverlay.keys();
+    overlayKeys.sort();
+    for (const QString &key : overlayKeys) {
+        const SyncPausedOverlayRecord &overlay = replay.localOverlay.value(key);
+        if (!m_registry->applyRemote(SyncAdapterMutation{categoryId, key,
+                overlay.schemaVersion, overlay.operation, overlay.payload}, &registryError)) {
+            if (errorCode) *errorCode = registryError.code;
+            if (errorMessage) *errorMessage = registryError.detail;
+            return false;
+        }
+        enqueueMutation(categoryId, key, overlay.schemaVersion, overlay.operation,
+                        overlay.payload, overlay.localOrderMs);
+    }
+
+    m_persistent.pausedCategories.remove(categoryId);
+    m_disabledCategories.remove(categoryId);
+    m_categoryReplayInProgress.clear();
     return true;
 }
 

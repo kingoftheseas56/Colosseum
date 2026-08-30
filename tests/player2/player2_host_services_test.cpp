@@ -225,8 +225,11 @@ void downloadBadSourceFailsWithError()
 void reportProgressIsFireAndForget()
 {
     HarnessHostServices host;
+    using ReportProgress = void (HarnessHostServices::*)(const QString &, double, double, bool);
+    const ReportProgress reportProgress = &HarnessHostServices::reportProgress;
+    require(reportProgress != nullptr, "HarnessHostServices must expose the four-argument seam");
     // No signal, no crash: progress persistence is the host's business.
-    host.reportProgress(QStringLiteral("tt-movie"), 42.0, 1800.0);
+    (host.*reportProgress)(QStringLiteral("tt-movie"), 42.0, 1800.0, true);
     require(true, "reportProgress must not throw");
 }
 

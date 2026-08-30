@@ -7,6 +7,9 @@
 namespace {
 constexpr auto kShowExplicitKey =
     "content/showExplicit";
+constexpr auto kRememberSearchHistoryKey = "privacy/rememberSearchHistory";
+constexpr auto kKeepActivityHistoryKey = "privacy/keepActivityHistory";
+constexpr auto kSyncActivityHistoryKey = "privacy/syncActivityHistory";
 }
 
 ProfilePreferencesStore::
@@ -51,12 +54,55 @@ revision() const {
     return m_revision;
 }
 
+bool ProfilePreferencesStore::rememberSearchHistory() const { return m_rememberSearchHistory; }
+bool ProfilePreferencesStore::keepActivityHistory() const { return m_keepActivityHistory; }
+bool ProfilePreferencesStore::syncActivityHistory() const { return m_syncActivityHistory; }
+
 void ProfilePreferencesStore::
 setShowExplicit(
     bool showExplicitValue) {
     commitShowExplicit(
         showExplicitValue,
         true);
+}
+
+void ProfilePreferencesStore::setRememberSearchHistory(bool enabled) {
+    if (m_rememberSearchHistory == enabled)
+        return;
+    m_settings->setValue(QString::fromLatin1(kRememberSearchHistoryKey), enabled);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError)
+        return;
+    m_rememberSearchHistory = enabled;
+    ++m_revision;
+    emit rememberSearchHistoryChanged();
+    emit changed();
+}
+
+void ProfilePreferencesStore::setKeepActivityHistory(bool enabled) {
+    if (m_keepActivityHistory == enabled)
+        return;
+    m_settings->setValue(QString::fromLatin1(kKeepActivityHistoryKey), enabled);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError)
+        return;
+    m_keepActivityHistory = enabled;
+    ++m_revision;
+    emit keepActivityHistoryChanged();
+    emit changed();
+}
+
+void ProfilePreferencesStore::setSyncActivityHistory(bool enabled) {
+    if (m_syncActivityHistory == enabled)
+        return;
+    m_settings->setValue(QString::fromLatin1(kSyncActivityHistoryKey), enabled);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError)
+        return;
+    m_syncActivityHistory = enabled;
+    ++m_revision;
+    emit syncActivityHistoryChanged();
+    emit changed();
 }
 
 bool ProfilePreferencesStore::
@@ -151,4 +197,7 @@ void ProfilePreferencesStore::load() {
                     kShowExplicitKey),
                 false)
             .toBool();
+    m_rememberSearchHistory = m_settings->value(QString::fromLatin1(kRememberSearchHistoryKey), true).toBool();
+    m_keepActivityHistory = m_settings->value(QString::fromLatin1(kKeepActivityHistoryKey), true).toBool();
+    m_syncActivityHistory = m_settings->value(QString::fromLatin1(kSyncActivityHistoryKey), true).toBool();
 }
