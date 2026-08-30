@@ -1392,16 +1392,43 @@ void ComicDownloader::onFinished()
 // preserves that contract for free -- no per-caller special-casing.
 void ComicDownloader::ingestArchiveByProbe(InFlight& f)
 {
-    const MangaTankoban::CbzProbeResult probe = MangaTankoban::CbzArchive::probe(f.archivePath);
-    if (probe.nativelyReadable) {
-        qInfo() << "[ComicDownloader] archive ready id=" << f.id << "bytes=" << f.receivedBytes
-                << "— natively readable, moving into place (no extraction)";
-        finalizeSafeMove(f, probe);
-        return;
-    }
-    qInfo() << "[ComicDownloader] archive ready id=" << f.id << "bytes=" << f.receivedBytes
-            << "— not natively readable, extracting";
-    beginExtract(f);
+    // CbzArchive::probe() opens the archive, walks its central directory, and
+    // samples entries.  It is bounded by the archive size/entry limits, but it
+    // is still unpredictable disk work and used to run inline from both
+    // QNetworkReply::finished and ingestLocalArchive (the QML/torrent boundary).
+    // Keep the InFlight alive while the worker owns the read path: cancellation
+    // and destruction already treat `packing` workers as retired and leave the
+    // source alone until the serial-checked completion path can reclaim it.
+    const QString archivePath = f.archivePath;
+    f.packing = true;
+    f.serial = ++m_nextJobSerial;
+    const quint64 serial = f.serial;
+    runPackOrCopyThenPublish(serial,
+        [archivePath]() -> PackOrCopyResult {
+            PackOrCopyResult result;
+            QString error;
+            result.probe = MangaTankoban::CbzArchive::probe(archivePath, &error);
+            result.error = error;
+            result.ok = true; // probe rejection is the expected extract fallback, not worker failure
+            result.cleanupPathsOnDiscard = {archivePath};
+            return result;
+        },
+        [this](const PackOrCopyResult& result) {
+            if (!m_active) return;
+            InFlight& active = *m_active;
+            active.packing = false;
+            if (result.probe.nativelyReadable) {
+                qInfo() << "[ComicDownloader] archive ready id=" << active.id
+                        << "bytes=" << active.receivedBytes
+                        << "— natively readable, moving into place (no extraction)";
+                finalizeSafeMove(active, result.probe);
+                return;
+            }
+            qInfo() << "[ComicDownloader] archive ready id=" << active.id
+                    << "bytes=" << active.receivedBytes
+                    << "— not natively readable, extracting";
+            beginExtract(active);
+        });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1436,8 +1463,24 @@ void ComicDownloader::runPackOrCopyThenPublish(quint64 serial, std::function<Pac
                 QSet<QString> liveArchivePaths;
                 for (const Entry& e : std::as_const(m_index))
                     if (e.usesArchive()) liveArchivePaths.insert(e.archive);
+                // A cancel-then-redownload of the same id can reuse the
+                // deterministic .archive path before the retired worker's
+                // completion arrives.  The index may not contain the new
+                // job yet, so protect every path currently owned by the
+                // replacement active/queued jobs as well.
+                QSet<QString> inFlightPaths;
+                const auto protect = [&inFlightPaths](const InFlight& job) {
+                    for (const QString& path : {job.archivePath, job.partPath,
+                                                 job.extractTmp, job.assembledStagingDir}) {
+                        if (!path.isEmpty()) inFlightPaths.insert(QDir::cleanPath(path));
+                    }
+                };
+                if (m_active) protect(*m_active);
+                for (const InFlight& queued : std::as_const(m_queue)) protect(queued);
                 for (const QString& path : result.cleanupPathsOnDiscard) {
-                    if (path.isEmpty() || liveArchivePaths.contains(path)) continue;
+                    if (path.isEmpty()
+                        || liveArchivePaths.contains(path)
+                        || inFlightPaths.contains(QDir::cleanPath(path))) continue;
                     if (QFileInfo(path).isDir()) QDir(path).removeRecursively();
                     else QFile::remove(path);
                 }
