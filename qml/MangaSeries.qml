@@ -56,6 +56,10 @@ Item {
 
     // --- resolved state ---
     property string malId: ""    // Slice C: Discover card's MAL id, when the series was opened from one
+    property string seriesIdOverride: ""
+    property string sourceSearchTitle: ""
+    property var sourceSearchAliases: []
+    property var sourceRequiredMarkers: []
     // The catalogue-resolved numeric identity (0 = unresolved). seriesId below is derived
     // from this ("mal:"+resolvedMalId) the moment a single row is found; a title that never
     // resolves to exactly one candidate leaves both at their unresolved value — the honest
@@ -194,7 +198,10 @@ Item {
                         title: rows[i].name || "" })
         TankobanVolumes.prepareSeries({
             seriesId: page.seriesId, title: page.seriesTitle,
-            author: page.author, aliases: []
+            author: page.author, aliases: [],
+            discoveryTitle: page.sourceSearchTitle,
+            discoveryAliases: page.sourceSearchAliases,
+            requiredTitleMarkers: page.sourceRequiredMarkers
         }, vols, [])
         page._rebuildTankobanEntries()
     }
@@ -548,7 +555,7 @@ Item {
             if (Object.keys(row).length > 0) {
                 page.resolvedMalId = id
                 page._applyCatalogRow(row)
-                page.seriesId = "mal:" + id
+                page.seriesId = page.seriesIdOverride.length ? page.seriesIdOverride : ("mal:" + id)
                 // TB-002: silently re-file a legacy title-keyed Collection save under seriesId.
                 page._refileLegacyCollectionEntryIfNeeded()
                 // Catalogue-fed shelf seed (Slice 3) — the sole feed now (purity law).

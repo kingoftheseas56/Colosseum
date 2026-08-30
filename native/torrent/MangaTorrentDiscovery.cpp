@@ -17,14 +17,19 @@ QStringList queryFamily(const SeriesSnapshot& series, const QString& volumeNumbe
             out.append(t);
     };
 
-    // Canonical title first, verbatim through the existing query family so the
-    // no-alias path stays byte-identical to pre-Arc-18 behavior.
-    const QStringList canonical = queryVariants(series.title, volumeNumber);
+    const bool hasDiscoveryProfile = !series.discoveryTitle.trimmed().isEmpty()
+        || !series.discoveryAliases.isEmpty();
+    const QString discoveryTitle = hasDiscoveryProfile ? series.discoveryTitle : series.title;
+    const QStringList discoveryAliases = hasDiscoveryProfile ? series.discoveryAliases : series.aliases;
+
+    // Canonical discovery title first. With no edition profile this remains
+    // byte-identical to the pre-profile title family.
+    const QStringList canonical = queryVariants(discoveryTitle, volumeNumber);
     for (const QString& q : canonical)
         add(q);
 
-    // Then aliases — discovery inputs now, not just validation needles.
-    for (const QString& alias : series.aliases) {
+    // Then only the aliases belonging to the selected discovery profile.
+    for (const QString& alias : discoveryAliases) {
         if (alias.trimmed().isEmpty())
             continue;
         const QStringList aliasVariants = queryVariants(alias, volumeNumber);

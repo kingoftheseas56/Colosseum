@@ -667,16 +667,54 @@ Window {
     function closeTheatreGenreIndex() { theatreGenreIndexLayer.active = false }
 
     // ---- series detail: a layer over the current world page (opened from a Top-10 title tile) ----
-    function openSeries(title, malId) {
+    function clearSeriesEditionProfile() {
+        seriesLayer.malId = ""
+        seriesLayer.seriesIdOverride = ""
+        seriesLayer.sourceSearchTitle = ""
+        seriesLayer.sourceSearchAliases = []
+        seriesLayer.sourceRequiredMarkers = []
+        if (seriesLayer.active && seriesLayer.item) {
+            seriesLayer.item.malId = ""
+            seriesLayer.item.seriesIdOverride = ""
+            seriesLayer.item.sourceSearchTitle = ""
+            seriesLayer.item.sourceSearchAliases = []
+            seriesLayer.item.sourceRequiredMarkers = []
+        }
+    }
+    function applySeriesEditionProfile(profile, fallbackMalId) {
+        clearSeriesEditionProfile()
+        var p = profile || ({})
+        seriesLayer.malId = String(p.malId || fallbackMalId || "")
+        seriesLayer.seriesIdOverride = String(p.seriesId || "")
+        seriesLayer.sourceSearchTitle = String(p.sourceSearchTitle || "")
+        seriesLayer.sourceSearchAliases = p.sourceSearchAliases || []
+        seriesLayer.sourceRequiredMarkers = p.sourceRequiredMarkers || []
+        if (seriesLayer.active && seriesLayer.item) {
+            seriesLayer.item.malId = seriesLayer.malId
+            seriesLayer.item.seriesIdOverride = seriesLayer.seriesIdOverride
+            seriesLayer.item.sourceSearchTitle = seriesLayer.sourceSearchTitle
+            seriesLayer.item.sourceSearchAliases = seriesLayer.sourceSearchAliases
+            seriesLayer.item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
+        }
+    }
+    function restoreSeriesEditionProfile(seriesId) {
+        var sid = String(seriesId || "")
+        if (sid !== "mal:13:color") { clearSeriesEditionProfile(); return }
+        applySeriesEditionProfile({
+            malId: "13", seriesId: sid, sourceSearchTitle: "One Piece Colored",
+            sourceSearchAliases: ["One Piece Digital Colored Comics"],
+            sourceRequiredMarkers: ["colored", "full color", "full colour"]
+        }, "13")
+    }
+    function openSeries(title, malId, profile) {
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
         seriesLayer.resumeVolumeId = ""
+        applySeriesEditionProfile(profile, malId)
         seriesLayer.title = title
-        seriesLayer.malId = malId || ""
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
-            seriesLayer.item.malId = malId || ""       // set BEFORE seriesTitle: that triggers re-resolve
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
     }
@@ -685,6 +723,7 @@ Window {
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
         seriesLayer.resumeVolumeId = ""
+        restoreSeriesEditionProfile(seriesId)
         seriesLayer.title = title
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.seriesTitle = title
@@ -1877,6 +1916,7 @@ Window {
                 seriesLayer.resumeSeriesId = t.seriesId || ""
                 seriesLayer.resumeChapterId = ""
                 seriesLayer.resumeVolumeId = savedComicId
+                restoreSeriesEditionProfile(t.seriesId)
                 seriesLayer.title = t.title
                 if (seriesLayer.active && seriesLayer.item) {
                     seriesLayer.item.seriesTitle = t.title
@@ -1888,6 +1928,7 @@ Window {
             seriesLayer.resumeSeriesId = t.seriesId || ""
             seriesLayer.resumeChapterId = savedComicId
             seriesLayer.resumeVolumeId = ""
+            restoreSeriesEditionProfile(t.seriesId)
             seriesLayer.title = t.title
             if (seriesLayer.active && seriesLayer.item) {
                 seriesLayer.item.seriesTitle = t.title
@@ -2656,6 +2697,10 @@ Window {
         visible: active
         property string title: ""
         property string malId: ""             // Slice C: Discover card's MAL id, threaded to the series page
+        property string seriesIdOverride: ""
+        property string sourceSearchTitle: ""
+        property var sourceSearchAliases: []
+        property var sourceRequiredMarkers: []
         property string resumeSeriesId: ""    // Continue resume: jump straight to this chapter…
         property string resumeChapterId: ""   //   …in this series (set seriesId BEFORE the chapter)
         property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
@@ -2663,6 +2708,10 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.malId = seriesLayer.malId
+            item.seriesIdOverride = seriesLayer.seriesIdOverride
+            item.sourceSearchTitle = seriesLayer.sourceSearchTitle
+            item.sourceSearchAliases = seriesLayer.sourceSearchAliases
+            item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
@@ -3184,11 +3233,17 @@ Window {
             item.watchRequested.connect(win.openTheatreSeries)
             item.bookRequested.connect(win.openBook)
             item.comicsArchiveRequested.connect(win.openUniverseComic)
-            // manga → Tankoban. A weebcentral-sourced entry (One Piece digital-coloured) opens its
-            // own series by ID; an anilist entry opens by title, as before.
+            // manga → Tankoban. Edition-aware entries can carry a discovery/storage
+            // profile while reusing the same catalogue identity as the base manga.
             item.seriesRequested.connect(function(e) {
-                if (e && e.provider === "weebcentral" && e.id) win.openSeriesAt(e.title || "", e.id)
-                else win.openSeries((e && e.title) || e || "")
+                if (e && e.provider === "tankoban") {
+                    win.openSeries(e.title || "", e.malId || "", {
+                        malId: e.malId || "", seriesId: e.seriesId || "",
+                        sourceSearchTitle: e.sourceSearchTitle || "",
+                        sourceSearchAliases: e.sourceSearchAliases || [],
+                        sourceRequiredMarkers: e.sourceRequiredMarkers || []
+                    })
+                } else win.openSeries((e && e.title) || e || "")
             })
         }
     }
