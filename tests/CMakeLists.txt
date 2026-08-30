@@ -57,6 +57,14 @@ if(WIN32)
         PASS_REGULAR_EXPRESSION "VERDICT: PASS"
         TIMEOUT 120)
 
+    add_test(NAME colosseum.reader2_runtime_contract
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File "${CMAKE_CURRENT_SOURCE_DIR}/test_reader2_runtime_p0.ps1")
+    set_tests_properties(colosseum.reader2_runtime_contract PROPERTIES
+        LABELS "unit;reader2;windows"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+        TIMEOUT 120)
+
 endif()
 # Multi-volume pack demux (Slice 1): parser table + Entry round-trip. No net,
 # QTemporaryDir/isolated-AppData — deterministic, sentinel+exit-code contract.

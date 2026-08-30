@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
+#include <QSaveFile>
 #include <QStandardPaths>
 #include <QUuid>
 
@@ -45,9 +46,15 @@ QJsonObject readStore(const QString& fileName)
 
 void writeStore(const QString& fileName, const QJsonObject& all)
 {
-    QFile f(stateDir() + QLatin1Char('/') + fileName);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(all).toJson(QJsonDocument::Compact));
+    const QByteArray payload = QJsonDocument(all).toJson(QJsonDocument::Compact);
+    QSaveFile f(stateDir() + QLatin1Char('/') + fileName);
+    if (!f.open(QIODevice::WriteOnly))
+        return;
+    if (f.write(payload) != payload.size()) {
+        f.cancelWriting();
+        return;
+    }
+    f.commit();
 }
 
 // ── keyed single-object pattern (e.g. progress.json) ──
