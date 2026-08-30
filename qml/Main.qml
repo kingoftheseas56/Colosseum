@@ -3107,6 +3107,10 @@ Window {
         z: 56
         active: false
         visible: active
+        // VaultPage is a large, taskbar-only surface. Spread component creation across
+        // frames so opening the folder door does not synchronously block the world underneath.
+        // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
+        asynchronous: true
         source: "VaultPage.qml"
         onLoaded: {
             item.backdrop = wall
