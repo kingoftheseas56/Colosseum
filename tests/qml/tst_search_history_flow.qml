@@ -45,6 +45,17 @@ TestCase {
         }
     }
 
+    Component {
+        id: otherHistoryComponent
+        QtObject {
+            property var entries: ({ "tankoban": ["Fresh"] })
+            signal changed(string scope)
+            function list(scope) { return (entries[String(scope).trim().toLowerCase()] || []).slice(0) }
+            function record(scope, query) { return list(scope) }
+            function remove(scope, query) { return list(scope) }
+        }
+    }
+
     Component { id: genericSearch; Colosseum.SearchSurface {} }
     Component { id: biblioSearch; Colosseum.BiblioSearch {} }
 
@@ -69,6 +80,28 @@ TestCase {
         return null
     }
 
+    function test_history_owner_rebind_refreshes_recent_immediately() {
+        history.clear("tankoban")
+        history.record("tankoban", "Old")
+        var surface = createGeneric(function(mode, query, callback) { callback([]) })
+        compare(surface.recent, ["Old"])
+        var other = otherHistoryComponent.createObject(testWindow)
+        verify(other !== null)
+        surface.historyStore = other
+        wait(0)
+        compare(surface.recent, ["Fresh"])
+        surface.destroy()
+        other.destroy()
+    }
+
+    function test_provider_failure_is_not_reported_as_zero_results() {
+        var surface = createGeneric(function(mode, query, callback) { callback([], "provider unavailable") })
+        surface.fillAndSearch("Batman")
+        wait(0)
+        compare(surface.searchError, "provider unavailable")
+        surface.destroy()
+    }
+
     function test_neverReturningProviderRecordsAndReopens() {
         history.clear("tankoban")
         var neverReturns = function(mode, query, callback) { }
@@ -88,6 +121,7 @@ TestCase {
         var first = biblioSearch.createObject(testWindow.contentItem, {
             historyStore: history,
             searchDispatcher: zeroResults,
+            audioSearchDispatcher: zeroResults,
             width: testWindow.width,
             height: testWindow.height
         })
@@ -100,6 +134,7 @@ TestCase {
         var recreated = biblioSearch.createObject(testWindow.contentItem, {
             historyStore: history,
             searchDispatcher: zeroResults,
+            audioSearchDispatcher: zeroResults,
             width: testWindow.width,
             height: testWindow.height
         })
@@ -114,6 +149,7 @@ TestCase {
         var surface = biblioSearch.createObject(testWindow.contentItem, {
             historyStore: history,
             searchDispatcher: function(query, callback) { dispatches += 1; callback([]) },
+            audioSearchDispatcher: function(query, callback) { callback([]) },
             width: testWindow.width,
             height: testWindow.height
         })
@@ -129,6 +165,7 @@ TestCase {
         surface = biblioSearch.createObject(testWindow.contentItem, {
             historyStore: history,
             searchDispatcher: function(query, callback) { dispatches += 1; callback([]) },
+            audioSearchDispatcher: function(query, callback) { callback([]) },
             width: testWindow.width,
             height: testWindow.height
         })
@@ -181,5 +218,86 @@ TestCase {
         surface.destroy()
         compare(bookCancellations, 1)
         compare(audioCancellations, 1)
+    }
+
+    function test_runtime_observability_names_and_counts_match_state() {
+        history.clear("tankoban")
+        history.record("tankoban", "Recent")
+        var surface = createGeneric(function(mode, query, callback) {
+            callback([{ title: "Batman", data: { id: "batman" } }], "")
+        })
+        compare(surface.objectName, "tankobanSearchSurface")
+        compare(surface.recentCount, 1)
+        surface.fillAndSearch("Batman")
+        compare(surface.resultCount, 1)
+        compare(surface.showingProviderError, false)
+        compare(surface.showingNoResults, false)
+        surface.destroy()
+
+        var biblio = biblioSearch.createObject(testWindow.contentItem, {
+            historyStore: history,
+            searchDispatcher: function(query, callback) { callback([{ title: "Dune" }], "") },
+            audioSearchDispatcher: function(query, callback) { callback([{ title: "Dune Audio" }], "") },
+            width: testWindow.width,
+            height: testWindow.height
+        })
+        compare(biblio.objectName, "biblioSearchSurface")
+        verify(findItem(biblio, "biblioSearchInput") !== null)
+        biblio.fillAndSearch("Dune")
+        compare(biblio.bookResultCount, 1)
+        compare(biblio.audioResultCount, 1)
+        compare(biblio.showingProviderError, false)
+        compare(biblio.showingNoResults, false)
+        biblio.destroy()
+    }
+
+    function test_provider_failure_and_legitimate_empty_are_distinct() {
+        var failed = createGeneric(function(mode, query, callback) {
+            callback([], "provider unavailable")
+        })
+        failed.fillAndSearch("Batman")
+        compare(failed.searchError, "provider unavailable")
+        compare(failed.showingProviderError, true)
+        compare(failed.showingNoResults, false)
+        failed.destroy()
+
+        var empty = createGeneric(function(mode, query, callback) { callback([], "") })
+        empty.fillAndSearch("Batman")
+        compare(empty.searchError, "")
+        compare(empty.showingProviderError, false)
+        compare(empty.showingNoResults, true)
+        empty.destroy()
+    }
+
+    function test_biblio_partial_failure_keeps_healthy_lane_and_error_truth() {
+        var biblio = biblioSearch.createObject(testWindow.contentItem, {
+            historyStore: history,
+            searchDispatcher: function(query, callback) { callback([{ title: "Dune" }], "") },
+            audioSearchDispatcher: function(query, callback) { callback([], "provider unavailable") },
+            width: testWindow.width,
+            height: testWindow.height
+        })
+        biblio.fillAndSearch("Dune")
+        compare(biblio.bookResultCount, 1)
+        compare(biblio.audioResultCount, 0)
+        compare(biblio.searchError, "provider unavailable")
+        compare(biblio.showingProviderError, true)
+        compare(biblio.showingNoResults, false)
+        biblio.destroy()
+    }
+
+    function test_null_history_owner_is_safe_and_recovers() {
+        history.clear("tankoban")
+        history.record("tankoban", "Back Again")
+        var surface = createGeneric(function(mode, query, callback) { callback([]) })
+        surface.historyStore = null
+        surface.loadRecent()
+        compare(surface.recent, [])
+        surface.fillAndSearch("Batman")
+        surface.removeRecent("Batman")
+        surface.historyStore = history
+        wait(0)
+        compare(surface.recent, ["Back Again"])
+        surface.destroy()
     }
 }

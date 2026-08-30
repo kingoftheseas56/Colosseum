@@ -2164,3 +2164,25 @@ Deterministic evidence from `native/build-responsiveness`:
 - `colosseum_qml_tests` rebuilt cleanly with the new search-history tests. The local runner could
   not execute the QML suite in this environment (the real-window suite exits without a report),
   so runtime QML results are intentionally not claimed here.
+
+## Function 0010 adoption (2026-08-30): search/discovery hardening — P0 contract rewrite + first-ever-runnable foreign targets
+
+- `test_search_history_p0.ps1`: adopted the F0010 repaired source contract (ProfileStoreRuntime
+  composition, live owner bindings rejecting imperative captures, observability names/scalars,
+  Account Centre authority seam, provider-failure truth through both surfaces) plus one assertion
+  authored during adoption: the Theatre hero-enrichment pass must carry failure state
+  (`done(all2, failures > 0 ? PROVIDER_UNAVAILABLE : "")`, F0010-6B) — that line has no offline
+  injection seam (arc 31 evidence 55/56).
+- `tst_search_history_flow.qml` / `tst_privacy_clears.qml`: gained the F0010 Quick Test cases
+  (owner-rebind, observability, null-owner, injected provider-error, remember-authority) as a
+  semantic union that keeps the 2026-08-30 cancellation cases. Known pre-existing red:
+  `SearchHistoryFlow::test_searchDestructionCancelsBookAndAudioRequests` — compares counters
+  immediately after deferred `destroy()`; deterministically red since its landing, never runtime-
+  executed before this tree (arc 31 evidence 43; left for its owning arc).
+- Foreign build unblocks, no test logic changed: `tst_local_downloads_failure` now links
+  `Qt6::Sql`; `tst_capture_runner.cpp` stray literal `\n` at EOF removed; `tst_store_isolation.cpp`
+  gains the `ProgressStoreDetail::progressStoreTaggedIniPath` using-declaration. All three build
+  and pass for the first time on a fresh tree.
+- `colosseum.qml` aggregate on this tree: adoption-owned cases green in every run; remaining reds
+  are the documented pre-existing destruction case plus environment-sensitive Account/Update
+  click-target cases (non-deterministic on this desktop; arc 31 evidence 62b).

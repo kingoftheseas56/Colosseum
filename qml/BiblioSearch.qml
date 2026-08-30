@@ -10,6 +10,7 @@ import "BiblioApi.js" as BiblioApi
 
 Item {
     id: search
+    objectName: "biblioSearchSurface"
     property Item backdrop
     property var results: []
     property bool searching: false
@@ -20,13 +21,24 @@ Item {
     property bool audioExpanded: false
     property var recent: []                          // in-session recent queries
     property string lastDispatchedQuery: ""
-    property var historyStore: null
+    property var historyStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
     property var searchDispatcher: BiblioApi.search
     property var _bookCancel: null
     property var _audioCancel: null
     property int _bookGeneration: 0
     property int _audioGeneration: 0
     property var audioSearchDispatcher: BiblioApi.searchAudiobooks
+    property string bookSearchError: ""
+    property string audioSearchError: ""
+    readonly property string searchError: bookSearchError.length ? bookSearchError : audioSearchError
+    readonly property int bookResultCount: results.length
+    readonly property int audioResultCount: audioResults.length
+    readonly property int recentCount: recent.length
+    readonly property bool showingProviderError: searchError.length > 0
+        && !searching && !audioSearching
+    readonly property bool showingNoResults: searched && results.length === 0
+        && audioResults.length === 0 && !searching && !audioSearching
+        && searchError.length === 0
 
     // Everything after the Top Match falls into the cover grid.
     readonly property var restResults: search.results.length > 1 ? search.results.slice(1) : []
@@ -43,8 +55,6 @@ Item {
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
-        if (!search.historyStore)
-            search.historyStore = SearchHistory
         search.loadRecent()
         queryInput.forceActiveFocus()
     }
@@ -52,6 +62,7 @@ Item {
         search.cancelAllRequests()
         search.commitCurrentQuery()
     }
+    onHistoryStoreChanged: search.loadRecent()
     Connections {
         target: search.historyStore
         function onChanged(scope) {
@@ -98,37 +109,43 @@ Item {
         if (q.length < 2) {
             search.lastDispatchedQuery = ""
             search.results = []; search.audioResults = []; search.searched = false
-            search.searching = false; search.audioSearching = false; return
+            search.searching = false; search.audioSearching = false
+            search.bookSearchError = ""; search.audioSearchError = ""
+            return
         }
         search.lastDispatchedQuery = q
+        search.bookSearchError = ""; search.audioSearchError = ""   // fresh dispatch clears stale lane errors
         search.booksExpanded = false; search.audioExpanded = false   // fresh query → collapse both to one row
         search.searching = true
         var bookGeneration = search._bookGeneration
-        search._bookCancel = search.searchDispatcher(q, function(books) {
+        search._bookCancel = search.searchDispatcher(q, function(books, error) {
             if (bookGeneration !== search._bookGeneration || q !== queryInput.text.trim()) return
-            search.results = books
+            search.results = books || []
+            search.bookSearchError = error || ""
             search.searching = false
             search.searched = true
         })
-        // audiobooks column — same query, same stale-guard, own lane
+        // audiobooks column — same query, same stale-guard, own lane (and own error truth:
+        // one failed lane must not erase the healthy lane's rows)
         search.audioSearching = true
         var audioGeneration = search._audioGeneration
-        search._audioCancel = search.audioSearchDispatcher(q, function(abs) {
+        search._audioCancel = search.audioSearchDispatcher(q, function(abs, error) {
             if (audioGeneration !== search._audioGeneration || q !== queryInput.text.trim()) return
-            search.audioResults = abs
+            search.audioResults = abs || []
+            search.audioSearchError = error || ""
             search.audioSearching = false
         })
     }
-    function loadRecent() { search.recent = search.historyStore.list("biblio") }
+    function loadRecent() { search.recent = search.historyStore ? search.historyStore.list("biblio") : [] }
     function commitCurrentQuery() {
         var q = queryInput.text.trim()
-        if (q.length >= 2 && q === search.lastDispatchedQuery)
+        if (search.historyStore && q.length >= 2 && q === search.lastDispatchedQuery)
             search.recent = search.historyStore.record("biblio", q)
     }
     function fillAndSearch(q) { queryInput.text = q; runAppleSearch(); commitCurrentQuery() }
     function openBook(book) { search.cancelAllRequests(); search.commitCurrentQuery(); search.bookRequested(book) }
     function openTop() { if (search.results.length > 0) search.openBook(search.results[0]) }
-    function removeRecent(q) { search.recent = search.historyStore.remove("biblio", q) }
+    function removeRecent(q) { if (search.historyStore) search.recent = search.historyStore.remove("biblio", q) }
 
     Timer { id: debounce; interval: 200; onTriggered: search.runAppleSearch() }
 
@@ -164,6 +181,7 @@ Item {
         }
         TextInput {
             id: queryInput
+            objectName: "biblioSearchInput"
             anchors.left: glass.right; anchors.leftMargin: 15
             anchors.right: rightCluster.left; anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -496,11 +514,18 @@ Item {
                     onToggled: search.audioExpanded = !search.audioExpanded
                 }
 
+                Text {
+                    visible: search.searchError.length > 0 && !search.searching && !search.audioSearching
+                    text: search.searchError
+                    color: theme.inkDimmer; font.family: theme.display
+                    font.pixelSize: 18; topPadding: 30
+                }
                 // no-results — only once BOTH lanes have returned empty (else it flashes
-                // "No books found" while the slower audiobook lane is still loading)
+                // "No books found" while the slower audiobook lane is still loading), and
+                // only when neither lane actually FAILED (a provider outage is not "no books")
                 Text {
                     visible: search.searched && search.results.length === 0 && search.audioResults.length === 0
-                             && !search.searching && !search.audioSearching
+                             && !search.searching && !search.audioSearching && search.searchError.length === 0
                     text: "No books found"; color: theme.inkDimmer; font.family: theme.display
                     font.pixelSize: 20; topPadding: 30
                 }

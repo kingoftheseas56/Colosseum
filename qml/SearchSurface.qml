@@ -10,6 +10,7 @@ import "WorldSearch.js" as WorldSearch
 
 Item {
     id: surf
+    objectName: searchMode.length ? searchMode.toLowerCase() + "SearchSurface" : "searchSurface"
     property Item backdrop
     property string searchMode: ""                   // "Tankoban" | "Theatre"
     property string placeholder: "Search…"
@@ -20,8 +21,15 @@ Item {
     property var expandedGroups: []   // group names the user opened via "See more" (per query)
     property var recent: []
     property string lastDispatchedQuery: ""
-    property var historyStore: null
+    property var historyStore: typeof SearchHistory !== "undefined" ? SearchHistory : null
     property var searchDispatcher: WorldSearch.searchFor
+    property string searchError: ""
+    property string browseError: ""
+    readonly property int resultCount: results.length
+    readonly property int recentCount: recent.length
+    readonly property bool showingProviderError: searchError.length > 0 && !searching
+    readonly property bool showingNoResults: searched && results.length === 0
+        && !searching && searchError.length === 0
     property var _searchCancel: null
     property var _browseCancel: null
     property var _surpriseCancel: null
@@ -47,8 +55,6 @@ Item {
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
-        if (!surf.historyStore)
-            surf.historyStore = SearchHistory
         surf.loadRecent()
         queryInput.forceActiveFocus()
     }
@@ -60,6 +66,7 @@ Item {
         surf.cancelAllRequests()
         surf.loadRecent()
     }
+    onHistoryStoreChanged: surf.loadRecent()
     Connections {
         target: surf.historyStore
         function onChanged(scope) {
@@ -110,32 +117,35 @@ Item {
         surf.cancelSearch()
         if (q.length < 2) {
             surf.lastDispatchedQuery = ""
+            surf.searchError = ""
             surf.results = []; surf.searched = false; return
         }
         surf.lastDispatchedQuery = q
+        surf.searchError = ""   // fresh dispatch → stale provider error must not linger
         surf.expandedGroups = []   // a NEW query starts collapsed again (See-more state is per-query)
         surf.searching = true
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext("search", surf.searchMode)
         var generation = surf._searchGeneration
-        surf._searchCancel = surf.searchDispatcher(surf.searchMode, q, function(items) {
+        surf._searchCancel = surf.searchDispatcher(surf.searchMode, q, function(items, error) {
             if (generation !== surf._searchGeneration || q !== queryInput.text.trim()) return
-            surf.results = items
+            surf.results = items || []
+            surf.searchError = error || ""
             surf.searching = false
             surf.searched = true
         }, (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null)
     }
     function historyScope() { return surf.searchMode.toLowerCase() }
-    function loadRecent() { surf.recent = surf.historyStore.list(surf.historyScope()) }
+    function loadRecent() { surf.recent = surf.historyStore ? surf.historyStore.list(surf.historyScope()) : [] }
     function commitCurrentQuery() {
         var q = queryInput.text.trim()
-        if (q.length >= 2 && q === surf.lastDispatchedQuery)
+        if (surf.historyStore && q.length >= 2 && q === surf.lastDispatchedQuery)
             surf.recent = surf.historyStore.record(surf.historyScope(), q)
     }
     function fillAndSearch(q) { queryInput.text = q; runSearch(); commitCurrentQuery() }
     function openItem(data) { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.itemRequested(data) }
     function openTop() { if (surf.results.length > 0) surf.openItem(surf.results[0].data) }
-    function removeRecent(q) { surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
+    function removeRecent(q) { if (surf.historyStore) surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
 
     // Harbor's genre-browse: open a genre into an inline grid (guarded so a slow reply for a genre
     // you've since left doesn't paint over the new one).
@@ -143,23 +153,26 @@ Item {
         surf.cancelBrowse()
         surf.browseGenre = g
         surf.browseItems = []
+        surf.browseError = ""
         surf.browseLoading = true
         var generation = surf._browseGeneration
-        surf._browseCancel = WorldSearch.browseGenre(surf.searchMode, g, function(items) {
+        surf._browseCancel = WorldSearch.browseGenre(surf.searchMode, g, function(items, error) {
             if (generation !== surf._browseGeneration || surf.browseGenre !== g) return
-            surf.browseItems = items
+            surf.browseItems = items || []
+            surf.browseError = error || ""
             surf.browseLoading = false
         })
     }
-    function closeGenre() { surf.cancelBrowse(); surf.browseGenre = ""; surf.browseItems = [] }
+    function closeGenre() { surf.cancelBrowse(); surf.browseGenre = ""; surf.browseItems = []; surf.browseError = "" }
     function doSurprise() {
         if (surf.surprising) return
         surf.cancelSurprise()
         surf.surprising = true
         var generation = surf._surpriseGeneration
-        surf._surpriseCancel = WorldSearch.surprise(surf.searchMode, function(item) {
+        surf._surpriseCancel = WorldSearch.surprise(surf.searchMode, function(item, error) {
             if (generation !== surf._surpriseGeneration) return
             surf.surprising = false
+            surf.browseError = error || ""
             if (item && item.data) surf.itemRequested(item.data)
         })
     }
@@ -336,10 +349,19 @@ Item {
                         }
                     }
                     Text {
-                        visible: !surf.browseLoading && surf.browseItems.length === 0
+                        visible: !surf.browseLoading && surf.browseItems.length === 0 && surf.browseError.length === 0
                         text: "Nothing here"; color: theme.inkDimmer; font.family: theme.display
                         font.pixelSize: 18; topPadding: 16
                     }
+                }
+
+                Text {
+                    visible: surf.browseError.length > 0
+                    text: surf.browseError
+                    color: theme.inkDimmer
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
                 }
 
                 // ===== DEFAULT EMPTY VIEW =====
@@ -587,7 +609,13 @@ Item {
                 }
 
                 Text {
-                    visible: surf.searched && surf.results.length === 0 && !surf.searching
+                    visible: surf.searchError.length > 0 && !surf.searching
+                    text: surf.searchError
+                    color: theme.inkDimmer; font.family: theme.display
+                    font.pixelSize: 18; topPadding: 30
+                }
+                Text {
+                    visible: surf.searched && surf.results.length === 0 && !surf.searching && surf.searchError.length === 0
                     text: "No results"; color: theme.inkDimmer; font.family: theme.display
                     font.pixelSize: 20; topPadding: 30
                 }

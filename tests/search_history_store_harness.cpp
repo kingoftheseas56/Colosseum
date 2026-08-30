@@ -116,6 +116,22 @@ void runSuite()
         requireList(reopened.list("world"), {"Untouched World"},
                     "aggregate clear persists across reconstruction (world untouched)");
     }
+
+    {
+        QTemporaryDir privacyTemporary;
+        require(privacyTemporary.isValid(), "privacy policy temporary directory exists");
+        const QString privacyPath = privacyTemporary.filePath("privacy-history.ini");
+        SearchHistoryStore store(privacyPath);
+        require(store.rememberEnabled(), "search history remembers by default");
+        store.setRememberEnabled(false);
+        store.record("biblio", "Private query");
+        requireList(store.list("biblio"), {}, "disabled remembering blocks new records");
+        SearchHistoryStore reopened(privacyPath);
+        require(!reopened.rememberEnabled(), "remember policy persists across reconstruction");
+        reopened.setRememberEnabled(true);
+        requireList(reopened.record("biblio", "Remembered query"), {"Remembered query"},
+                    "re-enabled remembering records queries again");
+    }
 }
 
 } // namespace

@@ -34,6 +34,7 @@ inline QString searchHistoryStoreTaggedIniPath(const QString &storeFileName) {
 class SearchHistoryStore : public QObject {
     Q_OBJECT
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    Q_PROPERTY(bool rememberEnabled READ rememberEnabled WRITE setRememberEnabled NOTIFY rememberEnabledChanged)
 
 public:
     explicit SearchHistoryStore(QObject *parent = nullptr)
@@ -44,14 +45,30 @@ public:
                                                 QStringLiteral("Colosseum"))
                   : std::make_unique<QSettings>(
                         searchHistoryStoreTaggedIniPath(QStringLiteral("search-history-store.ini")),
-                        QSettings::IniFormat)) {}
+                        QSettings::IniFormat)) {
+        m_rememberEnabled = m_settings->value(policyKey(), true).toBool();
+    }
 
     // The explicit INI constructor is deliberately public for the native persistence harness.
     explicit SearchHistoryStore(const QString &iniPath, QObject *parent = nullptr)
         : QObject(parent),
-          m_settings(std::make_unique<QSettings>(iniPath, QSettings::IniFormat)) {}
+          m_settings(std::make_unique<QSettings>(iniPath, QSettings::IniFormat)) {
+        m_rememberEnabled = m_settings->value(policyKey(), true).toBool();
+    }
 
     int revision() const { return m_revision; }
+    bool rememberEnabled() const { return m_rememberEnabled; }
+
+    Q_INVOKABLE void setRememberEnabled(bool enabled) {
+        if (m_rememberEnabled == enabled)
+            return;
+        m_rememberEnabled = enabled;
+        m_settings->setValue(policyKey(), enabled);
+        m_settings->sync();
+        if (m_settings->status() != QSettings::NoError)
+            qWarning() << "Could not persist search-history privacy policy";
+        emit rememberEnabledChanged();
+    }
 
     Q_INVOKABLE QStringList list(const QString &scope) const {
         const QString key = storageKey(scope);
@@ -70,6 +87,8 @@ public:
     Q_INVOKABLE QStringList record(const QString &scope, const QString &query) {
         const QString clean = query.trimmed();
         if (clean.size() < 2)
+            return list(scope);
+        if (!m_rememberEnabled)
             return list(scope);
 
         QStringList next = list(scope);
@@ -124,11 +143,16 @@ public:
 
 signals:
     void changed(const QString &scope);
+    void rememberEnabledChanged();
 
 private:
     static QString normalizedScope(const QString &scope) {
         const QString normalized = scope.trimmed().toLower();
         return normalized.isEmpty() ? QStringLiteral("default") : normalized;
+    }
+
+    static QString policyKey() {
+        return QStringLiteral("searchHistory/rememberEnabled");
     }
 
     static QString storageKey(const QString &scope) {
@@ -176,4 +200,5 @@ private:
 
     std::unique_ptr<QSettings> m_settings;
     int m_revision = 0;
+    bool m_rememberEnabled = true;
 };

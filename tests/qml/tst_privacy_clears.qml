@@ -44,6 +44,7 @@ TestCase {
     Component {
         id: fakeSearchHistoryComponent
         QtObject {
+            property bool rememberEnabled: true
             property var clearAllScopesCalls: []
             function clearAllScopes(scopes) { clearAllScopesCalls.push(scopes) }
             // Present only so a stray future call doesn't fail with "not a function";
@@ -197,6 +198,16 @@ TestCase {
         scrollIntoView(page, confirm)
         mouseClick(confirm, confirm.width / 2, confirm.height / 2)
         wait(0)
+    }
+
+    function test_remember_search_history_request_updates_authoritative_store() {
+        compare(center.privacyRememberSearchHistory, true)
+        center.privacyRememberSearchHistoryChangeRequested(false)
+        compare(fakeSearchHistory.rememberEnabled, false)
+        compare(center.privacyRememberSearchHistory, false)
+        center.privacyRememberSearchHistoryChangeRequested(true)
+        compare(fakeSearchHistory.rememberEnabled, true)
+        compare(center.privacyRememberSearchHistory, true)
     }
 
     function test_search_history_clear_confirm_click_invokes_aggregate_with_real_scopes() {

@@ -7,23 +7,28 @@
 
 var REQUEST_TIMEOUT_MS = 15000;
 
+// stable failure marker: a provider that never answered (HTTP/JSON failure) is NOT an
+// empty result set. Transports pass it as the 2nd callback arg; older callers that
+// ignore the error arg keep working unchanged.
+var PROVIDER_UNAVAILABLE = "provider unavailable";
+
 function noopCancel() {}
 
 function reqJson(url, done) {
     var xhr = new XMLHttpRequest();
     var settled = false;
-    function finish(value) {
+    function finish(value, error) {
         if (settled) return;
         settled = true;
-        done(value);
+        done(value, error);
     }
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status < 200 || xhr.status >= 300) { finish(null); return; }
-        try { finish(JSON.parse(xhr.responseText)); } catch (e) { finish(null); }
+        if (xhr.status < 200 || xhr.status >= 300) { finish(null, PROVIDER_UNAVAILABLE); return; }
+        try { finish(JSON.parse(xhr.responseText), ""); } catch (e) { finish(null, PROVIDER_UNAVAILABLE); }
     };
-    xhr.onerror = function() { finish(null); };
-    xhr.ontimeout = function() { finish(null); };
+    xhr.onerror = function() { finish(null, PROVIDER_UNAVAILABLE); };
+    xhr.ontimeout = function() { finish(null, PROVIDER_UNAVAILABLE); };
     xhr.open("GET", url);
     xhr.timeout = REQUEST_TIMEOUT_MS;
     xhr.send();
@@ -102,9 +107,9 @@ function pickTopMatch(query, all) {
 }
 
 function searchTheatre(query, done) {
-    if (!query || query.trim().length < 2) { done([]); return noopCancel; }
+    if (!query || query.trim().length < 2) { done([], ""); return noopCancel; }
     var q = encodeURIComponent(query.trim());
-    var out = { movie: [], series: [] }, pending = 2;
+    var out = { movie: [], series: [] }, pending = 2, failures = 0;
     var cancelled = false, handles = [];
     function cancel() {
         if (cancelled) return;
@@ -123,8 +128,9 @@ function searchTheatre(query, done) {
         // Show the list IMMEDIATELY — the old code held every result hostage behind a third,
         // serial /meta/ call for the hero's synopsis. Now the grid paints as soon as both
         // catalogs answer, and the hero enriches in a second done() pass when it lands.
+        // One failed lane is a PARTIAL result: healthy rows + failure state, not zero results.
         if (cancelled) return;
-        done(all);
+        done(all, failures > 0 ? PROVIDER_UNAVAILABLE : "");
         if (all.length === 0) return;
         var top = all[0], m = top.data;
         handles.push(reqJson(CINEMETA + "/meta/" + (m.type || "movie") + "/" + m.id + ".json", function(mj) {
@@ -140,16 +146,20 @@ function searchTheatre(query, done) {
             if (f.background && !enriched.backdrop) enriched.backdrop = f.background;
             var all2 = all.slice();
             all2[0] = enriched;
-            done(all2);
+            // the enrichment pass must carry the SAME failure truth as the first pass —
+            // a lane that failed earlier stays failed; success here must not clear it.
+            done(all2, failures > 0 ? PROVIDER_UNAVAILABLE : "");
         }));
     }
-    handles.push(reqJson(CINEMETA + "/catalog/movie/top/search=" + q + ".json", function(j) {
+    handles.push(reqJson(CINEMETA + "/catalog/movie/top/search=" + q + ".json", function(j, error) {
         if (cancelled) return;
+        if (error) failures += 1;
         out.movie = (j && j.metas ? j.metas : []).slice(0, 16).map(function(m) { m.type = "movie"; return m; });
         finish();
     }));
-    handles.push(reqJson(CINEMETA + "/catalog/series/top/search=" + q + ".json", function(j) {
+    handles.push(reqJson(CINEMETA + "/catalog/series/top/search=" + q + ".json", function(j, error) {
         if (cancelled) return;
+        if (error) failures += 1;
         out.series = (j && j.metas ? j.metas : []).slice(0, 16).map(function(m) { m.type = "series"; return m; });
         finish();
     }));
@@ -158,17 +168,17 @@ function searchTheatre(query, done) {
 
 // ── Tankoban: AniList manga search ──
 function searchManga(query, done) {
-    if (!query || query.trim().length < 2) { done([]); return noopCancel; }
+    if (!query || query.trim().length < 2) { done([], ""); return noopCancel; }
     var xhr = new XMLHttpRequest();
     var settled = false;
-    function finish(value) {
+    function finish(value, error) {
         if (settled) return;
         settled = true;
-        done(value);
+        done(value, error);
     }
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status < 200 || xhr.status >= 300) { finish([]); return; }
+        if (xhr.status < 200 || xhr.status >= 300) { finish([], PROVIDER_UNAVAILABLE); return; }
         try {
             var d = JSON.parse(xhr.responseText);
             var media = d.data.Page.media;
@@ -185,11 +195,11 @@ function searchManga(query, done) {
                     group: "Manga",
                     data: { title: t }
                 };
-            }));
-        } catch (e) { finish([]); }
+            }), "");
+        } catch (e) { finish([], PROVIDER_UNAVAILABLE); }
     };
-    xhr.onerror = function() { finish([]); };
-    xhr.ontimeout = function() { finish([]); };
+    xhr.onerror = function() { finish([], PROVIDER_UNAVAILABLE); };
+    xhr.ontimeout = function() { finish([], PROVIDER_UNAVAILABLE); };
     xhr.open("POST", "https://graphql.anilist.co");
     xhr.timeout = REQUEST_TIMEOUT_MS;
     xhr.setRequestHeader("Content-Type", "application/json");
@@ -244,18 +254,19 @@ function mergeSearchLanes(query, manga, catalogDb) {
 }
 
 function searchTankoban(query, done, catalogEngine) {
-    if (!query || query.trim().length < 2) { done([]); return noopCancel; }
-    // Comics answer synchronously from the local catalogue; only manga is async.
+    if (!query || query.trim().length < 2) { done([], ""); return noopCancel; }
+    // Comics answer synchronously from the local catalogue; only manga is async. The local
+    // rows SURVIVE an AniList outage — the lane failure rides along as the error arg.
     var catalogDb = searchCatalogDb(query, catalogEngine);
-    return searchManga(query, function(manga) {
-        done(mergeSearchLanes(query, manga || [], catalogDb));
+    return searchManga(query, function(manga, error) {
+        done(mergeSearchLanes(query, manga || [], catalogDb), error || "");
     });
 }
 
 function searchFor(mode, query, done, catalogEngine) {
     if (mode === "Theatre") return searchTheatre(query, done);
     if (mode === "Tankoban") return searchTankoban(query, done, catalogEngine);
-    done([]);
+    done([], "");
     return noopCancel;
 }
 
@@ -273,7 +284,7 @@ var CINEMETA_CAT = "https://cinemeta-catalogs.strem.io/top";
 
 function browseTheatreGenre(genre, done) {
     var g = encodeURIComponent(genre);
-    var out = { movie: [], series: [] }, pending = 2;
+    var out = { movie: [], series: [] }, pending = 2, failures = 0;
     var cancelled = false, handles = [];
     function cancel() {
         if (cancelled) return;
@@ -290,15 +301,17 @@ function browseTheatreGenre(genre, done) {
             if (out.movie[i]) all.push(out.movie[i]);
             if (out.series[i]) all.push(out.series[i]);
         }
-        if (!cancelled) done(all);
+        if (!cancelled) done(all, failures > 0 ? PROVIDER_UNAVAILABLE : "");
     }
-    handles.push(reqJson(CINEMETA_CAT + "/catalog/movie/top/genre=" + g + ".json", function(j) {
+    handles.push(reqJson(CINEMETA_CAT + "/catalog/movie/top/genre=" + g + ".json", function(j, error) {
         if (cancelled) return;
+        if (error) failures += 1;
         out.movie = (j && j.metas ? j.metas : []).slice(0, 30).map(function(m) { m.type = "movie"; return mapTheatre(m); });
         finish();
     }));
-    handles.push(reqJson(CINEMETA_CAT + "/catalog/series/top/genre=" + g + ".json", function(j) {
+    handles.push(reqJson(CINEMETA_CAT + "/catalog/series/top/genre=" + g + ".json", function(j, error) {
         if (cancelled) return;
+        if (error) failures += 1;
         out.series = (j && j.metas ? j.metas : []).slice(0, 30).map(function(m) { m.type = "series"; return mapTheatre(m); });
         finish();
     }));
@@ -308,14 +321,14 @@ function browseTheatreGenre(genre, done) {
 function browseMangaGenre(genre, done) {
     var xhr = new XMLHttpRequest();
     var settled = false;
-    function finish(value) {
+    function finish(value, error) {
         if (settled) return;
         settled = true;
-        done(value);
+        done(value, error);
     }
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status < 200 || xhr.status >= 300) { finish([]); return; }
+        if (xhr.status < 200 || xhr.status >= 300) { finish([], PROVIDER_UNAVAILABLE); return; }
         try {
             var media = JSON.parse(xhr.responseText).data.Page.media;
             finish(media.map(function(m) {
@@ -323,11 +336,11 @@ function browseMangaGenre(genre, done) {
                 var fmt = m.format ? String(m.format).replace(/_/g, " ") : "Manga";
                 return { cover: m.coverImage ? m.coverImage.large : "", title: t, subtitle: fmt,
                     meta: fmt, synopsis: "", backdrop: "", group: "Manga", data: { title: t } };
-            }));
-        } catch (e) { finish([]); }
+            }), "");
+        } catch (e) { finish([], PROVIDER_UNAVAILABLE); }
     };
-    xhr.onerror = function() { finish([]); };
-    xhr.ontimeout = function() { finish([]); };
+    xhr.onerror = function() { finish([], PROVIDER_UNAVAILABLE); };
+    xhr.ontimeout = function() { finish([], PROVIDER_UNAVAILABLE); };
     xhr.open("POST", "https://graphql.anilist.co");
     xhr.timeout = REQUEST_TIMEOUT_MS;
     xhr.setRequestHeader("Content-Type", "application/json");
@@ -344,7 +357,7 @@ function browseMangaGenre(genre, done) {
 function browseGenre(mode, genre, done) {
     if (mode === "Theatre") return browseTheatreGenre(genre, done);
     if (mode === "Tankoban") return browseMangaGenre(genre, done);
-    done([]);
+    done([], "");
     return noopCancel;
 }
 
@@ -352,8 +365,9 @@ function browseGenre(mode, genre, done) {
 function surprise(mode, done) {
     var gs = genresFor(mode);
     var g = gs[Math.floor(Math.random() * gs.length)];
-    return browseGenre(mode, g, function(items) {
-        if (!items || items.length === 0) { done(null); return; }
-        done(items[Math.floor(Math.random() * Math.min(items.length, 20))]);
+    return browseGenre(mode, g, function(items, error) {
+        if (error) { done(null, error); return; }
+        if (!items || items.length === 0) { done(null, ""); return; }
+        done(items[Math.floor(Math.random() * Math.min(items.length, 20))], "");
     });
 }

@@ -16,6 +16,11 @@ var REQUEST_TIMEOUT_MS = 15000;
 
 function noopCancel() {}
 
+// stable failure marker: an Apple/catalogue transport that never answered (HTTP/JSON
+// failure) is NOT an empty result set. Transports pass it as the 2nd callback arg;
+// older callers that ignore the error arg keep working unchanged.
+var PROVIDER_UNAVAILABLE = "provider unavailable";
+
 var COUNTRY = "us";
 var FEED = "https://itunes.apple.com/" + COUNTRY + "/rss/topebooks";
 
@@ -36,26 +41,26 @@ var palette = [
 function requestJson(url, done) {
     var xhr = new XMLHttpRequest();
     var settled = false;
-    function finish(value) {
+    function finish(value, error) {
         if (settled) return;
         settled = true;
-        done(value);
+        done(value, error);
     }
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE)
             return;
         if (xhr.status < 200 || xhr.status >= 300) {
-            finish(null);
+            finish(null, PROVIDER_UNAVAILABLE);
             return;
         }
         try {
-            finish(JSON.parse(xhr.responseText));
+            finish(JSON.parse(xhr.responseText), "");
         } catch (e) {
-            finish(null);
+            finish(null, PROVIDER_UNAVAILABLE);
         }
     };
-    xhr.onerror = function() { finish(null); };
-    xhr.ontimeout = function() { finish(null); };
+    xhr.onerror = function() { finish(null, PROVIDER_UNAVAILABLE); };
+    xhr.ontimeout = function() { finish(null, PROVIDER_UNAVAILABLE); };
     xhr.open("GET", url);
     xhr.timeout = REQUEST_TIMEOUT_MS;
     xhr.send();
@@ -114,12 +119,12 @@ function mapBook(entry, index) {
 // Base load: ONE request. The overall Top ebooks chart feeds both the Featured carousel
 // (first few) and the Top-10 row. Genres stay static (Catalog.biblioGenres).
 function loadBiblio(done) {
-    return requestJson(FEED + "/limit=12/json", function(json) {
+    return requestJson(FEED + "/limit=12/json", function(json, error) {
         var mapped = entriesOf(json).map(mapBook);
         done({
             featured: mapped.slice(0, 4),
             top: mapped.slice(0, 10)
-        });
+        }, error || "");
     });
 }
 
@@ -238,17 +243,20 @@ function fullBook(r) {
 
 // live search → array of full book objects (powers the search page AND tile→detail)
 function search(query, done) {
-    if (!query) { done([]); return noopCancel; }
+    if (!query) { done([], ""); return noopCancel; }
     var url = "https://itunes.apple.com/search?media=ebook&limit=24&term=" + encodeURIComponent(query);
-    return requestJson(url, function(json) {
+    return requestJson(url, function(json, error) {
         var results = (json && json.results) ? json.results : [];
-        done(results.map(fullBook));
+        done(results.map(fullBook), error || "");
     });
 }
 
 // open-by-title: first match's full detail (so a home tile with only a title can open a detail)
 function lookupBook(title, done) {
-    return search(title, function(books) { done(books.length ? books[0] : null); });
+    return search(title, function(books, error) {
+        if (error) { done(null, error); return; }
+        done(books.length ? books[0] : null, "");
+    });
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -303,11 +311,11 @@ function fullAudiobook(r) {
 
 // live search → array of full audiobook objects (powers the audiobook search column)
 function searchAudiobooks(query, done) {
-    if (!query) { done([]); return noopCancel; }
+    if (!query) { done([], ""); return noopCancel; }
     var url = "https://itunes.apple.com/search?media=audiobook&limit=24&term=" + encodeURIComponent(query);
-    return requestJson(url, function(json) {
+    return requestJson(url, function(json, error) {
         var results = (json && json.results) ? json.results : [];
-        done(results.map(fullAudiobook));
+        done(results.map(fullAudiobook), error || "");
     });
 }
 

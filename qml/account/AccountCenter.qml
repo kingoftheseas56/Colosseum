@@ -90,7 +90,8 @@ Rectangle {
 
     // Data & privacy is presentation-only until its dedicated backend lane
     // supplies authoritative policy values and handles these requests.
-    property bool privacyRememberSearchHistory: true
+    readonly property bool privacyRememberSearchHistory:
+        searchHistoryStore ? searchHistoryStore.rememberEnabled : true
     property bool privacyKeepActivityHistory: true
     property bool privacySyncActivityHistory: true
     property bool privacyRememberSearchHistoryBusy: false
@@ -126,6 +127,11 @@ Rectangle {
     // ever sets searchMode to "Tankoban" or "Theatre". No "all"/"home"/"world" scope exists
     // in production use — E2 clears exactly these three, nothing else.
     readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre"]
+
+    onPrivacyRememberSearchHistoryChangeRequested: function(enabled) {
+        if (searchHistoryStore)
+            searchHistoryStore.rememberEnabled = enabled
+    }
 
     // E2: aggregate local search-history clear via the real SearchHistoryStore owner.
     onPrivacyClearSearchHistoryRequested: {
