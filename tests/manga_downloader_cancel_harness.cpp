@@ -21,6 +21,12 @@
 #define private public
 #include "engine/MangaDownloader.h"
 #undef private
+// MSVC mangles member access into the symbol name, so calling a private method from
+// this TU (seen public above) can never link against a separately compiled
+// MangaDownloader.cpp. The implementation is compiled in here instead; its own
+// header include is guard-no-op'd, so its definitions follow the access this TU
+// already saw and the symbols match.
+#include "engine/MangaDownloader.cpp"
 
 namespace {
 

@@ -1456,7 +1456,7 @@ target_link_libraries(manga_image_host_resolver_harness PRIVATE Qt6::Core Qt6::N
 # network or production data.
 add_executable(manga_downloader_cancel_harness
     ../tests/manga_downloader_cancel_harness.cpp
-    engine/MangaDownloader.cpp
+    # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
     engine/DownloadFileOps.h
     engine/WeebCentralScraper.cpp
@@ -1622,7 +1622,7 @@ add_executable(manga_tankoban_service_harness
 target_include_directories(manga_tankoban_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_tankoban_service_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
-target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql)
+target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 
 # Arc 18 M2 — production metainfo resolver harness. Builds a REAL .torrent
 # offline via libtorrent's create_torrent, then proves enumeration-without-
