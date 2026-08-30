@@ -77,7 +77,9 @@ The opt-in `COLOSSEUM_GUI_STALL_PROBE` now reports fixed `warning` (below 150 ms
 `operation`/`surface` context. The QML-facing `GuiStallProbe` bridge is updated only at
 high-value boundaries: Home/world navigation, Search dispatch, Downloads, Player, and Reader.
 With `COLOSSEUM_STARTUP_PROBE=1`, the native entry path emits `launch`, `first-frame`, and
-`shell-interactive` milestones; the first-frame signal also starts the post-frame startup work.
+`shell-interactive` milestones; the first-frame signal arms a startup-idle gate, while the
+background batches themselves wait until the boot splash has cleared and the shell has had a
+settling window.
 
 `colosseum.qttest.gui_responsiveness_probe` is a pure helper test for milestone formatting,
 severity boundaries, and context escaping. `colosseum.qttest.lanista_timing` is a pure helper
@@ -86,10 +88,10 @@ test for the `colosseum.lanista.timings.v1` milestone/step schema. Lanista accep
 milestones and per-step durations, while the default runner output and behavior are unchanged.
 
 The first confirmed pre-frame GUI blocker was `Main.qml`'s Collection backfill and Biblio cover
-enrichment scan. Those existing idempotent functions now run from a one-shot 350 ms timer after
-the native first-frame signal (bare-QML fixtures retain a fallback timer). This packet measures
-and attributes the work; it does not yet split heavy pages into new QML components or impose
-request-level cancellation/backpressure.
+enrichment scan. The historical 2026-08-29 qualification moved those idempotent functions to a
+one-shot 350 ms timer after the native first-frame signal (bare-QML fixtures retained a fallback
+timer). The follow-on hardening below adds the splash/idle boundary and stages the Home object
+tree; it still does not impose request-level cancellation/backpressure on these batches.
 
 Runtime qualification on the rebuilt tagged app used `app_home.json` with `--timings` and passed
 4/4 steps. One representative run recorded first-frame at 7.765 s and shell-interactive at
@@ -106,6 +108,37 @@ not counted as a green journey qualification. Its diagnostic log still proves th
 surface: startup stalls are labelled `operation=startup surface=qml-load` or
 `surface=first-frame`, and the later heavy events name `QQuickWindowIncubationController`; this
 is the next measured target for QML lifetime/loading work.
+
+## Responsiveness hardening — Home lifetime and startup-idle staging (2026-08-30)
+
+The Home page no longer instantiates its four below-the-fold intro boards (`Bookshelf`,
+`TheatreStrip`, `ReadingDesk`, and `VaultHomeWidget`) as part of the initial `Main.qml` object
+tree. Each keeps its former layout height behind an inactive asynchronous `Loader`; after the
+boot splash is hidden, one loader is activated at a time and the next starts only when the prior
+loader reports `Loaded` (or a terminal `Error`). Existing catalogue/model bindings, backdrop
+properties, and click/genre signal routes are restored in each loader's `onLoaded` handler.
+
+The existing Collection backfill and Biblio cover-enrichment batches now share a named
+`startupIdleGate`: the first-frame signal only arms it, the gate waits for splash dismissal plus
+2.5 seconds, and it stands down while a world or immersive surface is active. This prevents
+post-frame work from racing the Lanista bridge's first `get-state`/snapshot requests and gives the
+shell an actual interaction window before below-the-fold work begins. Returning Home re-arms the
+intro-loader path without evicting retained worlds.
+
+Deterministic verification on `native/build-responsiveness` remains green: the full
+`responsiveness` label passed **7/7** (catalogue cancellation, GUI probe, startup deferral,
+world warmer, hidden Home work, world lifecycle, and search cancellation). `qmllint` on
+`qml/Main.qml` exited 0 with only the file's pre-existing warnings, and `git diff --check` is
+clean.
+
+The real tagged startup probe was repeated with warming disabled. The earlier all-at-once loader
+candidate reached first frame at 43.432 s but then starved a bridge request; the revised
+splash/idle/sequential slice reached first frame at 35.228 s in one attempt. The current Windows
+host remained too variable to complete a green Lanista scenario in the revised attempt (the
+runner failed its tagged isolation handshake before the scenario), so these numbers are evidence
+of the measured startup path, not a claimed qualification budget pass. The next high-confidence
+candidate is the Home Continue rail (`Progress.recent()` plus its visible `ContinueTile` delegates),
+but it should stay behind an A/B run that completes the bridge handshake.
 
 ## Responsiveness qualification — cold world navigation and hidden Home work (2026-08-29)
 

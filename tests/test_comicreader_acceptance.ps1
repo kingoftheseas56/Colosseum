@@ -43,6 +43,8 @@ $qmlGates = @(
     "overlays",     # settings sheet and friends
     "state",        # pure store/reading-mode logic
     "migration",    # the MangaReader -> ComicReaderShell cutover
+    "sync_resume",  # imported Progress resolver/bridge contract
+    "sync_resume_shell", # imported Progress reaches the real active shell
     "fullscreen"    # the transition ordering (needs a REAL window; see its header)
 )
 

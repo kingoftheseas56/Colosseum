@@ -1121,6 +1121,23 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 300)
 
+# Function 0006: imported Tankoban Progress must reach the real active ComicReaderShell.
+add_test(NAME colosseum.comicreader_sync_resume
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_comicreader_sync_resume.ps1")
+set_tests_properties(colosseum.comicreader_sync_resume PROPERTIES
+    LABELS "unit;comicreader"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+add_test(NAME colosseum.comicreader_sync_resume_shell
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_comicreader_sync_resume_shell.ps1")
+set_tests_properties(colosseum.comicreader_sync_resume_shell PROPERTIES
+    LABELS "unit;comicreader"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Deterministic Reading Room contract: qml.exe injects fake service, progress,
 # and download seams, so this gate is safe under the unit label and does not
 # require the live app or network.

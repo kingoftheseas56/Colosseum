@@ -74,6 +74,28 @@ TestCase {
         verify(ComicActivityHelpers.identityFor(undefined, undefined, "manga") === null)
     }
 
+    function test_activityItemIdentity_catalog_entry_is_portable() {
+        var out = ComicActivityHelpers.activityItemIdentity("series-x", "issue-17")
+        compare(out.itemKey, "issue-17")
+        compare(out.syncable, true)
+    }
+
+    function test_activityItemIdentity_filesystem_entry_is_local_only() {
+        var paths = [
+            "C:/Private/volume.cbz",
+            "file:///C:/Private/volume.cbz",
+            "\\\\server\\share\\volume.cbz",
+            "/home/user/volume.cbz",
+            "./volume.cbz",
+            "../volume.cbz"
+        ]
+        for (var i = 0; i < paths.length; ++i) {
+            var out = ComicActivityHelpers.activityItemIdentity("vault:deadbeef", paths[i])
+            compare(out.itemKey, "vault:deadbeef")
+            compare(out.syncable, false)
+        }
+    }
+
     function test_portableCover_allows_http_https_data_only() {
         compare(ComicActivityHelpers.portableCover("https://example.com/cover.jpg"),
                 "https://example.com/cover.jpg")
@@ -253,6 +275,29 @@ TestCase {
     }
 
     // ---- §22 "unrendered request emits zero" / duplicate suppression at the shell seam -------
+
+    function test_vault_path_activity_stays_local_and_uses_portable_identity() {
+        var activity = createTemporaryObject(activityComp, testCase)
+        var path = "C:/Private/volume.cbz"
+        var shell = makeShell({
+            "activity": activity,
+            "pageStore": makeStore(3),
+            "entryKind": "comic",
+            "western": false,
+            "seriesId": "vault:deadbeef",
+            "seriesTitle": "Loose Comic",
+            "chapters": [{ "id": path, "number": 1, "name": "Loose Comic" }],
+            "chapterId": path,
+            "chapterLabel": "Loose Comic"
+        })
+        shell._onActivityPagesPresented([0])
+        compare(activity.readingDeltas.length, 1)
+        var fact = activity.readingDeltas[0]
+        compare(fact.itemKey, "vault:deadbeef")
+        compare(fact.syncable, false)
+        verify(JSON.stringify(fact).indexOf(path) < 0,
+               "raw Vault filesystem path must never enter activity fact")
+    }
 
     function test_empty_or_null_pagekeys_records_nothing() {
         var activity = createTemporaryObject(activityComp, testCase)
