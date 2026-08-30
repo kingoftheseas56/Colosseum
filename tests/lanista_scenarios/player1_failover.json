@@ -1,0 +1,16 @@
+{
+  "name": "player1-failover",
+  "comment": "Function 0009: after the existing one retry is exhausted, retire the current ordinary candidate before alternate selection.",
+  "steps": [
+    {
+      "cmd": "test-player1-failover",
+      "label": "retire the exhausted current candidate before switching",
+      "payload": { "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [
+        { "path": "retiredCurrent", "op": "==", "value": true },
+        { "path": "currentStreamIndex", "op": "==", "value": 1 },
+        { "path": "grabPath", "op": "exists" }
+      ]
+    }
+  ]
+}

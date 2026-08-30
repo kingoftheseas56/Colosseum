@@ -1,0 +1,26 @@
+{
+  "name": "player1-startup-recovery",
+  "comment": "Function 0009: assembled PlayerPage startup watchdog + decoded-zero no-video path. Run only through a disposable tagged `lanista session run --drive --selftest --qml tests/lanista_scenes/player1_runtime.qml` session.",
+  "steps": [
+    {
+      "cmd": "test-player1-loaded-stall",
+      "label": "FILE_LOADED does not retire startup recovery",
+      "payload": { "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [
+        { "path": "starting", "op": "==", "value": false },
+        { "path": "fileReady", "op": "==", "value": true },
+        { "path": "errored", "op": "==", "value": true },
+        { "path": "grabPath", "op": "exists" }
+      ]
+    },
+    {
+      "cmd": "test-player1-no-video",
+      "label": "decoded-zero no-video state enters recovery",
+      "expect": [
+        { "path": "decodedWidth", "op": "==", "value": 0 },
+        { "path": "decodedHeight", "op": "==", "value": 0 },
+        { "path": "errored", "op": "==", "value": true }
+      ]
+    }
+  ]
+}

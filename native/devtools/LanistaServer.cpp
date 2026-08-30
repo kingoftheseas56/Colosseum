@@ -16,9 +16,12 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMetaMethod>
+#include <QMetaProperty>
 #include <QMouseEvent>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlEngine>
+#include <QQmlExpression>
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
 #include <QQuickWindow>
@@ -85,6 +88,52 @@ bool walkVisual(QQuickItem* item, int depth,
 
 // The finder: first item whose objectName matches, or nullptr. findItem() calls
 // this from the main window's content item.
+bool writeRequiredProperty(QObject* object, const char* name,
+                           const QVariant& value, QString* error)
+{
+    if (!object) {
+        if (error) *error = QStringLiteral("null target");
+        return false;
+    }
+    const int index = object->metaObject()->indexOfProperty(name);
+    if (index < 0) {
+        if (error) {
+            *error = QStringLiteral("missing property: ")
+                     + QString::fromLatin1(name);
+        }
+        return false;
+    }
+    const QMetaProperty property = object->metaObject()->property(index);
+    if (!property.isWritable() || !property.write(object, value)) {
+        if (error) {
+            *error = QStringLiteral("property is not writable: ")
+                     + QString::fromLatin1(name);
+        }
+        return false;
+    }
+    return true;
+}
+
+bool evaluateFixedQml(QQuickItem* item, const QString& expressionText,
+                      QVariant* result, QString* error)
+{
+    QQmlContext* context = item ? QQmlEngine::contextForObject(item) : nullptr;
+    if (!context) {
+        if (error) *error = QStringLiteral("target has no QQmlContext");
+        return false;
+    }
+    // expressionText is ALWAYS a source literal from a fixed selftest command below.
+    // No caller/wire text is ever evaluated.
+    QQmlExpression expression(context, item, expressionText);
+    const QVariant value = expression.evaluate();
+    if (expression.hasError()) {
+        if (error) *error = expression.error().toString();
+        return false;
+    }
+    if (result) *result = value;
+    return true;
+}
+
 QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
 {
     QQuickItem* found = nullptr;
@@ -409,7 +458,249 @@ void LanistaServer::registerSelfTestCommands()
     addWrite(QStringLiteral("selftest-write"), [](const QJsonObject&, Replier reply) {
         reply.reply({{QStringLiteral("wrote"), true}});
     });
+
+    // Function 0009: fixed Player 1 fixtures. These commands exist ONLY when this
+    // entire selftest registry exists, and addDrive() gives each the normal central
+    // DRIVE_DISABLED refusal before the handler is reached.
+    addDrive(QStringLiteral("test-player1-setup-resume"),
+             [this](const QJsonObject& p, Replier reply) {
+                 cmdSelfTestPlayer1SetupResume(p, std::move(reply));
+             });
+    addDrive(QStringLiteral("test-player1-loaded-stall"),
+             [this](const QJsonObject& p, Replier reply) {
+                 cmdSelfTestPlayer1LoadedStall(p, std::move(reply));
+             });
+    addDrive(QStringLiteral("test-player1-failover"),
+             [this](const QJsonObject& p, Replier reply) {
+                 cmdSelfTestPlayer1Failover(p, std::move(reply));
+             });
+    addDrive(QStringLiteral("test-player1-no-video"),
+             [this](const QJsonObject& p, Replier reply) {
+                 cmdSelfTestPlayer1NoVideo(p, std::move(reply));
+             });
 }
+
+void LanistaServer::cmdSelfTestPlayer1SetupResume(const QJsonObject& p, Replier reply) const
+{
+    QQuickItem* player = findItem(QStringLiteral("player"));
+    QQuickItem* mpv = findItem(QStringLiteral("playerMpv"));
+    if (!player || !mpv) {
+        reply.fail("NO_SUCH_ITEM",
+                   QStringLiteral("Player 1 selftest scene requires player and playerMpv"));
+        return;
+    }
+
+    const double seconds = p.value(QStringLiteral("seconds")).toDouble(12.5);
+    if (seconds < 0.0 || seconds > 24.0 * 60.0 * 60.0) {
+        reply.fail("CMD_FAILED", QStringLiteral("seconds must be between 0 and 86400"));
+        return;
+    }
+
+    QString error;
+    auto set = [&](QObject* object, const char* name, const QVariant& value) {
+        if (writeRequiredProperty(object, name, value, &error))
+            return true;
+        reply.fail("CMD_FAILED", QStringLiteral("Player 1 setup: ") + error);
+        return false;
+    };
+
+    if (!set(player, "resumeChoiceSec", seconds)
+        || !set(player, "resumeChoiceOpen", true)
+        || !set(player, "resumePromptConsumed", true)
+        || !set(player, "pendingSeekSec", -1.0)
+        || !set(player, "starting", false)
+        || !set(player, "errored", false)
+        || !set(player, "fileReady", true)
+        || !set(player, "statusMsg", QString())
+        || !set(mpv, "pause", true)) {
+        return;
+    }
+
+    reply.reply({
+        {QStringLiteral("resumeChoiceOpen"), player->property("resumeChoiceOpen").toBool()},
+        {QStringLiteral("resumeChoiceSec"), player->property("resumeChoiceSec").toDouble()},
+        {QStringLiteral("starting"), player->property("starting").toBool()},
+        {QStringLiteral("paused"), mpv->property("pause").toBool()},
+    });
+}
+
+void LanistaServer::cmdSelfTestPlayer1LoadedStall(const QJsonObject&, Replier reply) const
+{
+    QQuickItem* player = findItem(QStringLiteral("player"));
+    if (!player) {
+        reply.fail("NO_SUCH_ITEM", QStringLiteral("Player 1 selftest scene requires player"));
+        return;
+    }
+
+    QString error;
+    auto set = [&](const char* name, const QVariant& value) {
+        if (writeRequiredProperty(player, name, value, &error))
+            return true;
+        reply.fail("CMD_FAILED", QStringLiteral("Player 1 loaded-stall setup: ") + error);
+        return false;
+    };
+
+    if (!set("starting", true)
+        || !set("fileReady", true)
+        || !set("errored", false)
+        || !set("statusMsg", QStringLiteral("Buffering..."))
+        || !set("streamRetryCount", 1)
+        || !set("streamCandidates", QVariantList{})
+        || !set("currentStreamIndex", -1)
+        || !set("mediaResumeHash", QString())
+        || !set("mediaLocalPath", QString())
+        || !set("currentPlaybackUrl", QString())
+        || !set("subStreamId", QString())
+        || !set("mediaId", QString())) {
+        return;
+    }
+
+    if (!evaluateFixedQml(player, QStringLiteral("handleStreamWatchdog()"), nullptr, &error)) {
+        reply.fail("CMD_FAILED", QStringLiteral("handleStreamWatchdog failed: ") + error);
+        return;
+    }
+
+    reply.reply({
+        {QStringLiteral("starting"), player->property("starting").toBool()},
+        {QStringLiteral("fileReady"), player->property("fileReady").toBool()},
+        {QStringLiteral("errored"), player->property("errored").toBool()},
+        {QStringLiteral("statusMsg"), player->property("statusMsg").toString()},
+    });
+}
+
+void LanistaServer::cmdSelfTestPlayer1Failover(const QJsonObject&, Replier reply) const
+{
+    QQuickItem* player = findItem(QStringLiteral("player"));
+    if (!player) {
+        reply.fail("NO_SUCH_ITEM", QStringLiteral("Player 1 selftest scene requires player"));
+        return;
+    }
+
+    const QString firstUrl =
+        QStringLiteral("file:///Z:/__colosseum_lanista__/missing-a.mp4");
+    const QString secondUrl =
+        QStringLiteral("file:///Z:/__colosseum_lanista__/missing-b.mp4");
+    const QString firstHash = QStringLiteral("url:") + firstUrl;
+    const QString secondHash = QStringLiteral("url:") + secondUrl;
+
+    auto candidate = [](const QString& hash, const QString& url, const QString& title) {
+        return QVariantMap{
+            {QStringLiteral("infoHash"), hash},
+            {QStringLiteral("fileIdx"), 0},
+            {QStringLiteral("title"), title},
+            {QStringLiteral("quality"), QString()},
+            {QStringLiteral("seeders"), -1},
+            {QStringLiteral("sourceName"), QStringLiteral("Lanista selftest")},
+            {QStringLiteral("streamKind"), QStringLiteral("Direct")},
+            {QStringLiteral("url"), url},
+            {QStringLiteral("headers"), QVariantMap{}},
+        };
+    };
+    const QVariantList candidates{
+        candidate(firstHash, firstUrl, QStringLiteral("Lanista missing A")),
+        candidate(secondHash, secondUrl, QStringLiteral("Lanista missing B")),
+    };
+
+    QString error;
+    auto set = [&](const char* name, const QVariant& value) {
+        if (writeRequiredProperty(player, name, value, &error))
+            return true;
+        reply.fail("CMD_FAILED", QStringLiteral("Player 1 failover setup: ") + error);
+        return false;
+    };
+
+    if (!set("streamCandidates", candidates)
+        || !set("currentStreamIndex", 0)
+        || !set("streamRetryCount", 1)
+        || !set("deadStreamKeys", QVariantMap{})
+        || !set("mediaResumeHash", firstHash)
+        || !set("mediaResumeFileIdx", 0)
+        || !set("mediaLocalPath", QString())
+        || !set("currentPlaybackUrl", firstUrl)
+        || !set("pendingSeekSec", -1.0)
+        || !set("resumePromptConsumed", true)
+        || !set("errored", false)
+        || !set("starting", true)
+        || !set("fileReady", true)) {
+        return;
+    }
+
+    if (!evaluateFixedQml(player,
+                          QStringLiteral("handlePlaybackFailure(\"lanista selftest\")"),
+                          nullptr, &error)) {
+        reply.fail("CMD_FAILED", QStringLiteral("handlePlaybackFailure failed: ") + error);
+        return;
+    }
+
+    QVariant retired;
+    if (!evaluateFixedQml(player, QStringLiteral("isStreamDead(0)"), &retired, &error)) {
+        reply.fail("CMD_FAILED", QStringLiteral("isStreamDead failed: ") + error);
+        return;
+    }
+
+    reply.reply({
+        {QStringLiteral("retiredCurrent"), retired.toBool()},
+        {QStringLiteral("currentStreamIndex"), player->property("currentStreamIndex").toInt()},
+        {QStringLiteral("errored"), player->property("errored").toBool()},
+        {QStringLiteral("statusMsg"), player->property("statusMsg").toString()},
+    });
+}
+
+void LanistaServer::cmdSelfTestPlayer1NoVideo(const QJsonObject&, Replier reply) const
+{
+    QQuickItem* player = findItem(QStringLiteral("player"));
+    QQuickItem* mpv = findItem(QStringLiteral("playerMpv"));
+    if (!player || !mpv) {
+        reply.fail("NO_SUCH_ITEM",
+                   QStringLiteral("Player 1 selftest scene requires player and playerMpv"));
+        return;
+    }
+
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const double graceSeconds = player->property("noVideoGraceSeconds").toDouble();
+
+    QString error;
+    auto set = [&](QObject* object, const char* name, const QVariant& value) {
+        if (writeRequiredProperty(object, name, value, &error))
+            return true;
+        reply.fail("CMD_FAILED", QStringLiteral("Player 1 no-video setup: ") + error);
+        return false;
+    };
+
+    if (!set(player, "starting", false)
+        || !set(player, "fileReady", true)
+        || !set(player, "errored", false)
+        || !set(player, "statusMsg", QString())
+        || !set(player, "streamRetryCount", 1)
+        || !set(player, "streamCandidates", QVariantList{})
+        || !set(player, "currentStreamIndex", -1)
+        || !set(player, "mediaResumeHash", QString())
+        || !set(player, "mediaLocalPath", QString())
+        || !set(player, "currentPlaybackUrl", QString())
+        || !set(player, "subStreamId", QString())
+        || !set(player, "mediaId", QString())
+        || !set(player, "recoverySawVideo", false)
+        || !set(player, "recoveryNoVideoSince",
+                double(now - qint64((graceSeconds + 1.0) * 1000.0)))
+        || !set(player, "recoveryUrlStartedAt", double(now))
+        || !set(player, "recoveryLastMovedAt", double(now))
+        || !set(mpv, "pause", false)) {
+        return;
+    }
+
+    if (!evaluateFixedQml(player, QStringLiteral("tickRecoveryWatch()"), nullptr, &error)) {
+        reply.fail("CMD_FAILED", QStringLiteral("tickRecoveryWatch failed: ") + error);
+        return;
+    }
+
+    reply.reply({
+        {QStringLiteral("decodedWidth"), mpv->property("decodedWidth").toInt()},
+        {QStringLiteral("decodedHeight"), mpv->property("decodedHeight").toInt()},
+        {QStringLiteral("errored"), player->property("errored").toBool()},
+        {QStringLiteral("statusMsg"), player->property("statusMsg").toString()},
+    });
+}
+
 
 void LanistaServer::onNewConnection()
 {

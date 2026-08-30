@@ -192,7 +192,6 @@ private:
     void setupConnections();
     // Shared body of loadFile / loadFileWithHeaders: update currentUrl, emit, issue `loadfile`.
     void issueLoadFile(const QString &file);
-    QString mapEndFileErrorCode(const QString &reason) const;
     void onPropertyChanged(const QString &property, const QVariant &value);
 
     // Latest values of the properties we already observe, so the QML-facing getters can answer from

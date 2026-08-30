@@ -18,19 +18,18 @@ function Assert-Matches($text, $pattern, $message) {
 }
 
 Assert-Contains $mpvHeader "void playbackError(QString code, QString message);" `
-    "MpvItem must emit a typed playback error."
-Assert-Contains $mpvSource "mapEndFileErrorCode" `
-    "MpvItem must map mpv end-file details into stable error codes."
-Assert-Contains $mpvSource "QStringLiteral(`"network`")" `
-    "MpvItem error contract must include network."
-Assert-Contains $mpvSource "QStringLiteral(`"decode`")" `
-    "MpvItem error contract must include decode."
-Assert-Contains $mpvSource "QStringLiteral(`"codec`")" `
-    "MpvItem error contract must include codec."
-Assert-Contains $mpvSource "QStringLiteral(`"source`")" `
-    "MpvItem error contract must include source."
-Assert-Contains $mpvSource "QStringLiteral(`"unknown`")" `
-    "MpvItem error contract must include unknown."
+    "MpvItem must expose playback errors to QML."
+Assert-Contains $mpvSource "Q_EMIT playbackError(QStringLiteral(`"unknown`"), reason);" `
+    "The current MpvQt endFile seam must report an honest generic code."
+if ($mpvSource -like "*mapEndFileErrorCode*") {
+    throw "MpvItem must not claim typed classification from MpvQt's coarse endFile(reason) signal."
+}
+if ($mpvSource -like "*QStringLiteral(`"network`")*" -or
+    $mpvSource -like "*QStringLiteral(`"decode`")*" -or
+    $mpvSource -like "*QStringLiteral(`"codec`")*" -or
+    $mpvSource -like "*QStringLiteral(`"source`")*") {
+    throw "Dead typed-error branches must not masquerade as verified runtime behavior."
+}
 
 Assert-Contains $player "property string lastPlaybackErrorCode" `
     "PlayerPage must store the last typed playback error code."
@@ -69,10 +68,10 @@ Assert-Contains $player "position frozen" `
     "RecoveryWatch must detect frozen position."
 Assert-Contains $player "no video" `
     "RecoveryWatch must detect audio/clock without video frames."
-Assert-Contains $player "mpv.mpvProperty(`"width`")" `
-    "RecoveryWatch must use mpv width stats for no-video detection."
-Assert-Contains $player "mpv.mpvProperty(`"height`")" `
-    "RecoveryWatch must use mpv height stats for no-video detection."
+Assert-Contains $player "mpv.decodedWidth" `
+    "RecoveryWatch must use decoded-frame width truth for no-video detection."
+Assert-Contains $player "mpv.decodedHeight" `
+    "RecoveryWatch must use decoded-frame height truth for no-video detection."
 Assert-Contains $player "root.currentPlaybackUrl.length" `
     "WakeReconnect must reload the current playback URL, not re-resolve a source blindly."
 Assert-Contains $player "mpv.seekExact(pos)" `
