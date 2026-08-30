@@ -7,6 +7,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -270,6 +271,10 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
              [this](const QJsonObject& p, Replier reply) { cmdWindowSetState(p, std::move(reply)); });
     addRead(QStringLiteral("ui-wait-for"),
             [this](const QJsonObject& p, Replier reply) { cmdUiWaitFor(p, std::move(reply)); });
+    addDrive(QStringLiteral("reader2-hot-switch"),
+             [this](const QJsonObject& p, Replier reply) {
+                 cmdReader2HotSwitch(p, std::move(reply));
+             });
 
     // Task 9: invoke-read — curated, allowlisted, read-only organ calls. A READ:
     // it only observes an organ's invokable, and its allowlist is what guarantees
@@ -1284,6 +1289,289 @@ void LanistaServer::cmdUiWaitFor(const QJsonObject& p, Replier reply)
                 }
             });
     timer->start();
+}
+
+// Function 0007 prerequisite — a deliberately narrow runtime reproducer for the
+// Reader 2 pending-save race. This is not a general QML invocation surface: the
+// only callable is the root's production openBookSession(path, book) method, the
+// source must be inside a tagged AppData root, and the command is Drive-gated at
+// registration/dispatch time.
+void LanistaServer::cmdReader2HotSwitch(const QJsonObject& p, Replier reply)
+{
+    const QString tag = qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").trimmed();
+    if (tag.isEmpty()) {
+        reply.fail("ISOLATION_REQUIRED",
+                   QStringLiteral("reader2-hot-switch requires a non-empty "
+                                  "COLOSSEUM_APPDATA_TAG"));
+        return;
+    }
+
+    const QString sourceRelPath = p.value(QStringLiteral("sourceRelPath")).toString();
+    const QJsonObject a = p.value(QStringLiteral("a")).toObject();
+    const QJsonObject b = p.value(QStringLiteral("b")).toObject();
+    const auto validBook = [](const QJsonObject& book) {
+        return !book.value(QStringLiteral("id")).toString().trimmed().isEmpty()
+            && !book.value(QStringLiteral("title")).toString().trimmed().isEmpty();
+    };
+    if (sourceRelPath.isEmpty() || !validBook(a) || !validBook(b)) {
+        reply.fail("HOT_SWITCH_BAD_PAYLOAD",
+                   QStringLiteral("sourceRelPath plus A/B id and title are required"));
+        return;
+    }
+
+    const int timeoutMs = p.value(QStringLiteral("timeoutMs")).toInt(3000);
+    if (timeoutMs < 50 || timeoutMs > 10000) {
+        reply.fail("HOT_SWITCH_BAD_PAYLOAD",
+                   QStringLiteral("timeoutMs must be between 50 and 10000"));
+        return;
+    }
+
+    const QString normalizedRel = QDir::fromNativeSeparators(sourceRelPath);
+    if (QDir::isAbsolutePath(sourceRelPath)
+        || normalizedRel == QStringLiteral("..")
+        || normalizedRel.startsWith(QStringLiteral("../"))) {
+        reply.fail("HOT_SWITCH_SOURCE_NOT_FOUND",
+                   QStringLiteral("sourceRelPath must remain inside tagged AppData"));
+        return;
+    }
+
+    const QString appDataRoot =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    const QString sourcePath = QDir(appDataRoot).filePath(normalizedRel);
+    const QString relativeCheck = QDir(appDataRoot).relativeFilePath(sourcePath);
+    if (relativeCheck == QStringLiteral("..")
+        || relativeCheck.startsWith(QStringLiteral("../"))
+        || QDir::isAbsolutePath(relativeCheck)) {
+        reply.fail("HOT_SWITCH_SOURCE_NOT_FOUND",
+                   QStringLiteral("sourceRelPath escapes tagged AppData"));
+        return;
+    }
+
+    const QFileInfo sourceInfo(sourcePath);
+    if (!sourceInfo.isFile() || sourceInfo.size() <= 0
+        || sourceInfo.suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) != 0) {
+        reply.fail("HOT_SWITCH_SOURCE_NOT_FOUND",
+                   QStringLiteral("sourceRelPath is not a real EPUB file: ") + sourceRelPath);
+        return;
+    }
+
+    QFile source(sourcePath);
+    if (!source.open(QIODevice::ReadOnly)) {
+        reply.fail("HOT_SWITCH_SOURCE_NOT_FOUND",
+                   QStringLiteral("could not read source EPUB: ") + sourcePath);
+        return;
+    }
+    const QByteArray bytes = source.readAll();
+    source.close();
+    if (bytes.isEmpty()) {
+        reply.fail("HOT_SWITCH_SOURCE_NOT_FOUND",
+                   QStringLiteral("source EPUB is empty: ") + sourcePath);
+        return;
+    }
+
+    const QString nonce = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const QString runDir = ensureRunDir();
+    const QString aPath = QDir(runDir).filePath(
+        QStringLiteral("reader2-hot-switch-%1-a.epub").arg(nonce));
+    const QString bPath = QDir(runDir).filePath(
+        QStringLiteral("reader2-hot-switch-%1-b.epub").arg(nonce));
+    const auto writeCopy = [&bytes](const QString& path) {
+        QFile out(path);
+        if (!out.open(QIODevice::WriteOnly))
+            return false;
+        const bool complete = out.write(bytes) == bytes.size();
+        out.close();
+        return complete;
+    };
+    if (!writeCopy(aPath) || !writeCopy(bPath)) {
+        QFile::remove(aPath);
+        QFile::remove(bPath);
+        reply.fail("HOT_SWITCH_COPY_FAILED",
+                   QStringLiteral("could not create disposable A/B EPUB copies"));
+        return;
+    }
+
+    QQuickWindow* window = mainWindow();
+    if (!window) {
+        QFile::remove(aPath);
+        QFile::remove(bPath);
+        reply.fail("HOT_SWITCH_ROOT_UNAVAILABLE",
+                   QStringLiteral("no root QQuickWindow is available"));
+        return;
+    }
+
+    struct HotSwitchState {
+        Replier reply;
+        QPointer<QObject> shell;
+        QString aPath;
+        QString bPath;
+        QJsonObject a;
+        QJsonObject b;
+        bool switched = false;
+        bool finished = false;
+    };
+
+    const auto state = QSharedPointer<HotSwitchState>::create();
+    state->reply = reply;
+    state->aPath = aPath;
+    state->bPath = bPath;
+    state->a = a;
+    state->b = b;
+
+    const auto fail = std::make_shared<std::function<void(const char*, const QString&)>>();
+    *fail = [state](const char* code, const QString& message) {
+        if (state->finished)
+            return;
+        state->finished = true;
+        QFile::remove(state->aPath);
+        QFile::remove(state->bPath);
+        state->reply.fail(code, message);
+    };
+
+    QTimer::singleShot(timeoutMs, this, [fail]() {
+        (*fail)("HOT_SWITCH_TIMEOUT",
+                QStringLiteral("Reader 2 did not reach B bookReady before the deadline"));
+    });
+
+    QObject* root = window;
+    const auto invokeOpenSession = [root](const QString& path, const QJsonObject& book) {
+        const QVariant bookVariant = book.toVariantMap();
+        // QML functions with an untyped path expose either QString or QVariant
+        // depending on the Qt version's generated meta-signature. Try those two
+        // concrete signatures only; no arbitrary method/name/payload is accepted.
+        if (QMetaObject::invokeMethod(root, "openBookSession", Qt::DirectConnection,
+                                      Q_ARG(QString, path), Q_ARG(QVariant, bookVariant))) {
+            return true;
+        }
+        return QMetaObject::invokeMethod(root, "openBookSession", Qt::DirectConnection,
+                                         Q_ARG(QVariant, QVariant(path)),
+                                         Q_ARG(QVariant, bookVariant));
+    };
+
+    const auto pendingReady = [state]() {
+        if (!state->shell)
+            return false;
+        const QVariant context = state->shell->property("pendingSaveContext");
+        if (context.isValid()) {
+            const QVariantMap map = context.toMap();
+            if (!map.isEmpty()) {
+                return !map.value(QStringLiteral("bookId")).toString().isEmpty()
+                    || !map.value(QStringLiteral("bookPath")).toString().isEmpty();
+            }
+        }
+        return !state->shell->property("pendingSaveBookPath").toString().isEmpty();
+    };
+
+    const auto readProgress = [this](const QString& id, QVariantMap* out) {
+        QObject* progress = m_engine->rootContext()
+                                 ->contextProperty(QStringLiteral("Progress"))
+                                 .value<QObject*>();
+        if (!progress)
+            return false;
+        return QMetaObject::invokeMethod(progress, "get", Qt::DirectConnection,
+                                         Q_RETURN_ARG(QVariantMap, *out),
+                                         Q_ARG(QString, QStringLiteral("book")),
+                                         Q_ARG(QString, id));
+    };
+
+    const auto pollReady = std::make_shared<std::function<void()>>();
+    *pollReady = [this, state, fail, readProgress, pollReady]() {
+        if (state->finished)
+            return;
+        if (!state->shell) {
+            (*fail)("HOT_SWITCH_SHELL_UNAVAILABLE",
+                    QStringLiteral("bookReaderShell disappeared during B open"));
+            return;
+        }
+        const bool ready = state->shell->property("bookReady").toBool();
+        const bool onB = state->shell->property("bookPath").toString() == state->bPath;
+        if (!ready || !onB) {
+            QTimer::singleShot(10, this, [pollReady]() { (*pollReady)(); });
+            return;
+        }
+
+        QVariantMap progressA;
+        QVariantMap progressB;
+        if (!readProgress(state->a.value(QStringLiteral("id")).toString(), &progressA)
+            || !readProgress(state->b.value(QStringLiteral("id")).toString(), &progressB)) {
+            (*fail)("HOT_SWITCH_PROGRESS_UNAVAILABLE",
+                    QStringLiteral("Progress.get(book, id) is not available"));
+            return;
+        }
+
+        state->finished = true;
+        state->reply.reply({
+            {QStringLiteral("aPath"), state->aPath},
+            {QStringLiteral("bPath"), state->bPath},
+            {QStringLiteral("progressA"), QJsonObject::fromVariantMap(progressA)},
+            {QStringLiteral("progressB"), QJsonObject::fromVariantMap(progressB)},
+            {QStringLiteral("bookReaderShell"), QJsonObject{
+                {QStringLiteral("bookPath"), state->shell->property("bookPath").toString()},
+                {QStringLiteral("bookReady"), ready}}}
+        });
+    };
+
+    const auto switchToB = std::make_shared<std::function<void()>>();
+    *switchToB = [this, state, fail, invokeOpenSession, pollReady]() {
+        if (state->finished || state->switched)
+            return;
+        state->switched = true;
+        if (!invokeOpenSession(state->bPath, state->b)) {
+            (*fail)("HOT_SWITCH_OPEN_FAILED",
+                    QStringLiteral("root openBookSession(B) could not be invoked"));
+            return;
+        }
+        (*pollReady)();
+    };
+
+    // QML property notify signals are intentionally observed by a bounded
+    // event-loop poll here. This keeps the command compatible with both the
+    // baseline pendingSaveBookPath property and Slice 4's pendingSaveContext
+    // property without using a generic signal/slot or mutation surface.
+    const auto pollPending = std::make_shared<std::function<void()>>();
+    *pollPending = [this, state, pendingReady, switchToB, pollPending]() {
+        if (state->finished)
+            return;
+        if (pendingReady()) {
+            (*switchToB)();
+            return;
+        }
+        QTimer::singleShot(10, this, [pollPending]() { (*pollPending)(); });
+    };
+
+    const auto armShell = [state](QObject* shell) {
+        if (state->finished || state->shell)
+            return;
+        state->shell = shell;
+    };
+
+    const auto pollShell = std::make_shared<std::function<void()>>();
+    *pollShell = [this, state, armShell, pollPending, pollShell]() {
+        if (state->finished || state->shell)
+            return;
+        QQuickItem* item = findItem(QStringLiteral("bookReaderShell"));
+        if (item) {
+            armShell(item);
+            (*pollPending)();
+            return;
+        }
+        QTimer::singleShot(10, this, [pollShell]() { (*pollShell)(); });
+    };
+
+    QQuickItem* existingShell = findItem(QStringLiteral("bookReaderShell"));
+    if (existingShell)
+        armShell(existingShell);
+
+    if (!invokeOpenSession(aPath, a)) {
+        (*fail)("HOT_SWITCH_OPEN_FAILED",
+                QStringLiteral("root openBookSession(A) could not be invoked"));
+        return;
+    }
+
+    if (!state->shell)
+        (*pollShell)();
+    else
+        (*pollPending)();
 }
 
 // ── Task 9: invoke-read ──────────────────────────────────────────────────────

@@ -63,6 +63,15 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `events-tail` | Read | last N lines of the JSONL event log | see "Event log truths" |
 | `log-mark` | Read | append a correlation mark to the event log | the ONLY event type that exists today |
 | `vault-forensics` | Read | one bounded, typed read projection of the live Vault (F1-Core `VaultForensics`, composing `VaultLibrary` only) — F1-Bridge, 2026-08-13 | `scope` required (`summary`/`root`/`node`/`identity`); see "Vault forensics" below |
+| `reader2-hot-switch` | Drive | Function 0007-only A -> B pending-save race reproducer through root `openBookSession(path, book)` | requires non-empty `COLOSSEUM_APPDATA_TAG`; copies only a real tagged-session EPUB to disposable run paths; no generic QML invocation |
+
+### Reader 2 Function 0007 hot-switch prerequisite (2026-08-30)
+
+`reader2-hot-switch` is the one narrow bridge prerequisite for Arc 28's exact pending-save race. It is Drive-gated and refuses `ISOLATION_REQUIRED` unless `COLOSSEUM_APPDATA_TAG` is non-empty, so an agent cannot aim the reproducer at the daily Continue store. Its payload is `sourceRelPath` plus A/B metadata maps (`id`, `title`, optional `author`) and a bounded `timeoutMs`. The source path must be a real `.epub` under the tagged AppData root; the command reads those bytes once and writes identical A/B copies under its own Lanista run directory.
+
+The command invokes only the root QML `openBookSession(path, book)` method, observes the named `bookReaderShell` pending-save seam, invokes B synchronously when A ownership becomes non-empty, then waits by event-loop polling for B's real `bookReady` state. It returns the current shell path/readiness plus `Progress.get("book", id)` for A and B. It does not expose arbitrary QML method names, arbitrary property writes, or a second Continue implementation. A timeout returns `HOT_SWITCH_TIMEOUT` and removes its disposable A/B copies.
+
+The committed no-sleep runtime scenario is `tests/lanista_scenarios/function0007_reader2_hot_switch.json`. It uses the existing `biblio-downloaded-epub-v1` seed, the existing onboarding action, the new command, and a combined `bookReaderShell` grab. The command is considered available only after its native harness contract cases and an assembled-app scenario run are green; the pure bridge harness does not substitute for the real Reader 2 run.
 
 ### Structural dump — L1-Bridge (2026-08-13)
 

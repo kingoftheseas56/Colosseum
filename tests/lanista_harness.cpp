@@ -22,6 +22,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QHash>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -29,8 +30,10 @@
 #include <QList>
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QSet>
+#include <QStandardPaths>
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -45,6 +48,31 @@ static void require(bool cond, const QString& msg)
 {
     if (!cond) { std::cerr << "FAIL: " << qUtf8Printable(msg) << "\n"; std::exit(1); }
 }
+
+// Function 0007 bridge fixture. The command reads the real app's Progress
+// context property through its typed get(kind, id) seam. This probe gives the
+// fake-root contract case the same Q_INVOKABLE shape without constructing the
+// entire production shell.
+class Reader2ProgressProbe final : public QObject
+{
+    Q_OBJECT
+public:
+    Q_INVOKABLE void record(const QVariantMap& entry)
+    {
+        const QString key = entry.value(QStringLiteral("kind")).toString()
+                          + QLatin1Char('/')
+                          + entry.value(QStringLiteral("id")).toString();
+        m_records.insert(key, entry);
+    }
+
+    Q_INVOKABLE QVariantMap get(const QString& kind, const QString& id) const
+    {
+        return m_records.value(kind + QLatin1Char('/') + id);
+    }
+
+private:
+    QHash<QString, QVariantMap> m_records;
+};
 
 // Why the last exchange came back empty/short. Without this a bridge that never
 // came up is indistinguishable from a bridge that answered wrong.
@@ -244,6 +272,8 @@ int main(int argc, char** argv)
     // renders on demand rather than waiting for the loop.
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM"))
         qputenv("QT_QPA_PLATFORM", "offscreen");
+    QStandardPaths::setTestModeEnabled(true);
+    qputenv("COLOSSEUM_APPDATA_TAG", "lanista-harness");
     // House trap (see tests/window_shell_gui_harness.cpp): the windeployqt'd
     // platforms/ dir beside the exe carries ONLY qwindows.dll and shadows the Qt
     // install's plugin dir, so "offscreen" cannot load and the process fail-fasts
@@ -271,6 +301,8 @@ int main(int argc, char** argv)
     qunsetenv("COLOSSEUM_LANISTA_WRITE");
 
     QQmlApplicationEngine engine;
+    Reader2ProgressProbe reader2Progress;
+    engine.rootContext()->setContextProperty(QStringLiteral("Progress"), &reader2Progress);
 #ifdef LANISTA_SCENE_DIR
     const QString scene = QDir::cleanPath(
         QStringLiteral(LANISTA_SCENE_DIR "/lanista_harness_scene.qml"));
@@ -1383,6 +1415,125 @@ int main(int argc, char** argv)
             std::cout << "CASE_OK: vault_forensics_deadline_is_bounded (" << elapsedMs << " ms)\n";
         }
 
+        // ── Function 0007: Reader 2 hot-switch bridge contract ─────────────
+        // The command is a Drive-gated diagnostic prerequisite, never a generic
+        // QML mutation path. Its source must be inside a tagged session root.
+        const QString reader2SeedRel = QStringLiteral("reader2-harness/tiny-book.epub");
+        const QString reader2Seed = QDir(
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
+            .filePath(reader2SeedRel);
+        QDir().mkpath(QFileInfo(reader2Seed).absolutePath());
+        QFile seedFile(reader2Seed);
+        require(seedFile.open(QIODevice::WriteOnly | QIODevice::Truncate),
+                "reader2 hot-switch fake-root seed opens");
+        require(seedFile.write(QByteArrayLiteral("PK\x03\x04\nreader2-real-file")) > 0,
+                "reader2 hot-switch fake-root seed writes");
+        seedFile.close();
+
+        const QJsonObject hotPayload = {
+            {"sourceRelPath", reader2SeedRel},
+            {"a", QJsonObject{{"id", "reader2-a"}, {"title", "Book A"},
+                               {"author", "Author A"}}},
+            {"b", QJsonObject{{"id", "reader2-b"}, {"title", "Book B"},
+                               {"author", "Author B"}}},
+            {"timeoutMs", 2000}
+        };
+
+        qunsetenv("COLOSSEUM_LANISTA_DRIVE");
+        QJsonObject hotDenied = call(pipe, {{"cmd", "reader2-hot-switch"}, {"seq", 120},
+            {"payload", hotPayload}});
+        require(hotDenied.value("type").toString() == "error"
+                    && hotDenied.value("code").toString() == "DRIVE_DISABLED",
+                "reader2-hot-switch is refused with DRIVE closed" + why());
+        std::cout << "CASE_OK: reader2_hot_switch_drive_refusal\n";
+
+        qputenv("COLOSSEUM_LANISTA_DRIVE", "1");
+        const QVariantMap beforeIsolation = reader2Progress.get(
+            QStringLiteral("book"), QStringLiteral("reader2-a"));
+        qunsetenv("COLOSSEUM_APPDATA_TAG");
+        QJsonObject untagged = call(pipe, {{"cmd", "reader2-hot-switch"}, {"seq", 121},
+            {"payload", hotPayload}});
+        require(untagged.value("type").toString() == "error"
+                    && untagged.value("code").toString() == "ISOLATION_REQUIRED",
+                "reader2-hot-switch refuses an untagged session" + why());
+        require(reader2Progress.get(QStringLiteral("book"), QStringLiteral("reader2-a"))
+                    == beforeIsolation,
+                "untagged reader2-hot-switch does not mutate Progress");
+        qputenv("COLOSSEUM_APPDATA_TAG", "lanista-harness");
+        std::cout << "CASE_OK: reader2_hot_switch_isolation_refusal\n";
+
+        QJsonObject missing = hotPayload;
+        missing.insert(QStringLiteral("sourceRelPath"),
+                       QStringLiteral("reader2-harness/missing.epub"));
+        QJsonObject missingReply = call(pipe, {{"cmd", "reader2-hot-switch"}, {"seq", 122},
+            {"payload", missing}});
+        require(missingReply.value("type").toString() == "error"
+                    && missingReply.value("code").toString() == "HOT_SWITCH_SOURCE_NOT_FOUND",
+                "reader2-hot-switch refuses a missing source" + why());
+        std::cout << "CASE_OK: reader2_hot_switch_missing_source\n";
+
+        QJsonObject hot = call(pipe, {{"cmd", "reader2-hot-switch"}, {"seq", 123},
+            {"payload", hotPayload}});
+        require(hot.value("type").toString() == "reply",
+                "reader2-hot-switch fake root replies" + why());
+        const QString aPath = hot.value("aPath").toString();
+        const QString bPath = hot.value("bPath").toString();
+        require(!aPath.isEmpty() && !bPath.isEmpty() && aPath != bPath,
+                "reader2-hot-switch copies distinct A/B paths" + why());
+        require(hot.value("bookReaderShell").toObject().value("bookPath").toString() == bPath,
+                "reader2-hot-switch leaves the fake shell on B" + why());
+        require(hot.value("bookReaderShell").toObject().value("bookReady").toBool(),
+                "reader2-hot-switch waits for B ready" + why());
+        const QJsonObject progressA = hot.value("progressA").toObject();
+        require(progressA.value("id").toString() == QStringLiteral("reader2-a")
+                    && progressA.value("title").toString() == QStringLiteral("Book A"),
+                "reader2-hot-switch reads A Continue identity" + why());
+        require(progressA.value("resume").toObject().value("path").toString() == aPath,
+                "reader2-hot-switch reads A Continue path" + why());
+        const QJsonObject progressB = hot.value("progressB").toObject();
+        require(!progressB.value("resume").toObject().value("path").toString().contains(aPath),
+                "reader2-hot-switch B record cannot contain A path" + why());
+
+        QJsonObject calls = call(pipe, {
+            {"cmd", "qml-get"},
+            {"seq", 124},
+            {"payload", QJsonObject{
+                {"object", "reader2RootProbe"},
+                {"props", QJsonArray{"previousOpenPath", "previousOpenId",
+                                      "previousOpenTitle", "lastOpenPath", "lastOpenId",
+                                      "lastOpenTitle"}}
+            }}
+        });
+        const QJsonObject callProps = calls.value("props").toObject();
+        require(callProps.value("previousOpenPath").toString() == aPath
+                    && callProps.value("previousOpenId").toString() == "reader2-a"
+                    && callProps.value("previousOpenTitle").toString() == "Book A",
+                "fake root received exact A path and metadata" + why());
+        require(callProps.value("lastOpenPath").toString() == bPath
+                    && callProps.value("lastOpenId").toString() == "reader2-b"
+                    && callProps.value("lastOpenTitle").toString() == "Book B",
+                "fake root received exact B path and metadata" + why());
+        std::cout << "CASE_OK: reader2_hot_switch_root_contract\n";
+
+        const QStringList beforeTimeout = QDir(server->runDir()).entryList(
+            QStringList() << QStringLiteral("reader2-hot-switch-*.epub"), QDir::Files);
+        QJsonObject timeoutPayload = hotPayload;
+        timeoutPayload.insert(QStringLiteral("a"),
+            QJsonObject{{"id", "reader2-timeout-a"}, {"title", "Timeout A"}});
+        timeoutPayload.insert(QStringLiteral("b"),
+            QJsonObject{{"id", "reader2-timeout-b"}, {"title", "timeout"}});
+        timeoutPayload.insert(QStringLiteral("timeoutMs"), 150);
+        QJsonObject timeoutReply = call(pipe, {{"cmd", "reader2-hot-switch"}, {"seq", 125},
+            {"payload", timeoutPayload}}, 5000);
+        require(timeoutReply.value("type").toString() == "error"
+                    && timeoutReply.value("code").toString() == "HOT_SWITCH_TIMEOUT",
+                "reader2-hot-switch reports a bounded coded timeout" + why());
+        const QStringList afterTimeout = QDir(server->runDir()).entryList(
+            QStringList() << QStringLiteral("reader2-hot-switch-*.epub"), QDir::Files);
+        require(afterTimeout == beforeTimeout,
+                "reader2-hot-switch timeout cleans disposable A/B files");
+        std::cout << "CASE_OK: reader2_hot_switch_timeout_cleanup\n";
+
         // Close the DRIVE gate again — leave the process as the denial tests found it.
         qunsetenv("COLOSSEUM_LANISTA_DRIVE");
 
@@ -1393,3 +1544,5 @@ int main(int argc, char** argv)
     app.exec();
     return rc;
 }
+
+#include "lanista_harness.moc"
