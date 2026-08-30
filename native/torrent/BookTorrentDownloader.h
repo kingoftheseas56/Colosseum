@@ -12,6 +12,7 @@
 #include <QObject>
 #include <QHash>
 #include <QJsonArray>
+#include <QSet>
 #include <QString>
 #include <QVariantMap>
 
@@ -49,6 +50,11 @@ private:
         bool    picked = false;        // metadata resolved + priorities set
     };
 
+    struct DeferredDownload {
+        QString title;
+        QString author;
+    };
+
     // engine handlers (TorrentEngine's addMagnet -> metadataReady -> progress/finished/error)
     void onMetadataReady(const QString& infoHash, const QString& name, qint64 totalSize, const QJsonArray& files);
     void onEngineProgress(const QString& infoHash, float progress, int dl, int ul, int peers, int seeds);
@@ -70,4 +76,6 @@ private:
     TorrentEngine* m_engine = nullptr;
     QHash<QString, Job*> m_active;       // infoHash(lowercased) -> job
     QHash<QString, Entry> m_index;       // infoHash(lowercased) -> entry
+    QSet<QString> m_deleting;             // hash directories being removed off-thread
+    QHash<QString, DeferredDownload> m_deferredDownloads; // latest request during deletion
 };

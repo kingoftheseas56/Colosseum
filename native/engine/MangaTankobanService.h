@@ -36,11 +36,13 @@
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QVector>
 #include <QVariantList>
 #include <QVariantMap>
 
 class QNetworkAccessManager;
 class TorrentEngine;
+template <typename T> class QFutureWatcher;
 
 namespace MangaTankoban {
 class MangaVolumeArchiveIngestor;
@@ -132,6 +134,7 @@ private:
 
 class MangaTankobanService : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool recoveryReady READ recoveryReady NOTIFY recoveryReadyChanged)
 public:
     // Production: builds every collaborator internally over the shared runtime
     // NAMs and the real TorrentEngine. `rootDir` defaults to AppDataLocation.
@@ -210,6 +213,8 @@ public:
     // <reason>" and exit(2). A 240 s hard backstop guarantees a verdict.
     Q_INVOKABLE void runDownloadSelfTest(const QString& spec);
 
+    bool recoveryReady() const { return m_recoveryReady; }
+
 signals:
     void volumesChanged(const QString& seriesId);
     void sourcesReady(const QString& volumeId, const QVariantList& results);
@@ -218,6 +223,7 @@ signals:
     void failed(const QString& volumeId, const QString& reason);
     void removed(const QString& volumeId);
     void synopsisReady(const QString& volumeId);
+    void recoveryReadyChanged();
 
 private:
     void wireSignals();
@@ -302,4 +308,14 @@ private:
     // Arc 18 M5 refresh bookkeeping.
     QSet<QString> m_indexRefreshPending;   // volumeIds with a discovery/index refresh in flight
     QHash<QString, MetaFetch> m_metaFetches;
+
+    struct PendingTransportFinish {
+        QString volumeId;
+        QString archivePath;
+    };
+    QFutureWatcher<void>* m_recoveryWatcher = nullptr;
+    QVector<PendingTransportFinish> m_pendingTransportFinishes;
+    QVector<QString> m_pendingAcquired;
+    QString m_pendingSelfTestSpec;
+    bool m_recoveryReady = true; // DI collaborators are already caller-recovered.
 };

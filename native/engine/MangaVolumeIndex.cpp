@@ -396,6 +396,25 @@ bool MangaVolumeIndex::publishArchive(const VolumeProvenance& record,
                                       const QList<int>& groups,
                                       qint64 bytes)
 {
+    return publishArchiveImpl(record, archivePath, orderedFiles, groups, bytes, false);
+}
+
+bool MangaVolumeIndex::publishArchiveValidated(const VolumeProvenance& record,
+                                               const QString& archivePath,
+                                               const QStringList& orderedFiles,
+                                               const QList<int>& groups,
+                                               qint64 bytes)
+{
+    return publishArchiveImpl(record, archivePath, orderedFiles, groups, bytes, true);
+}
+
+bool MangaVolumeIndex::publishArchiveImpl(const VolumeProvenance& record,
+                                          const QString& archivePath,
+                                          const QStringList& orderedFiles,
+                                          const QList<int>& groups,
+                                          qint64 bytes,
+                                          bool archiveAlreadyValidated)
+{
     if (record.id.isEmpty() || orderedFiles.isEmpty()
         || !QFileInfo::exists(archivePath))
         return false;
@@ -415,7 +434,7 @@ bool MangaVolumeIndex::publishArchive(const VolumeProvenance& record,
     e.infoHash = record.infoHash;
     e.chapterIds = record.chapterIds;
     e.addedAt = QDateTime::currentMSecsSinceEpoch();
-    if (!entryIntact(e) || !writeSidecar(record.id, e))
+    if ((!archiveAlreadyValidated && !entryIntact(e)) || !writeSidecar(record.id, e))
         return false;
     m_index.insert(record.id, e);
     if (!save()) {

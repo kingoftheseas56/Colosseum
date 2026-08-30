@@ -14,6 +14,11 @@ import "CollectionBackfill.js" as CB
 Item {
     id: root
 
+    // Retained Theatre worlds keep this page instance for filter/scroll state, but the saved
+    // library model is only needed while its tab is active. A hidden page therefore keeps its
+    // shell state without synchronously scanning Collection/Progress/LocalDownloads.
+    property bool active: true
+
     // ── page state (the ledger + quiet bar drive these) ──
     property string sortMode: "lastWatched"   // lastWatched | added | az | year
     property string typeFilter: ""            // "" | movie | series
@@ -24,7 +29,7 @@ Item {
     // ── reactive data (recompute on Collection / Progress change) ──
     property int collRev: (typeof Collection !== "undefined" ? Collection.revision : 0)
     property int progRev: (typeof Progress !== "undefined" ? Progress.revision : 0)
-    property var allRows: computeRows(collRev, progRev)
+    property var allRows: computeRows(collRev, progRev, active)
     property var counts: Api.ledgerCounts(allRows)
     property var visibleRows: Api.sortRows(
         Api.applyFilters(allRows, { stateFilter: stateFilter, typeFilter: typeFilter,
@@ -46,8 +51,8 @@ Item {
 
     Theme { id: theme }
 
-    function computeRows(cr, pr) {
-        if (typeof Collection === "undefined" || typeof Progress === "undefined") return []
+    function computeRows(cr, pr, isActive) {
+        if (!isActive || typeof Collection === "undefined" || typeof Progress === "undefined") return []
         var entries = Collection.items("theatre")
         var plist = Progress.recent("video", 0)
         return Api.buildRows(entries, plist,

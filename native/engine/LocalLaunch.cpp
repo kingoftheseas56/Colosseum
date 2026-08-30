@@ -6,7 +6,9 @@
 #include "player/MediaAdmissionProbe.h"
 
 #include <QFileInfo>
+#include <QMetaObject>
 #include <QUrl>
+#include <QtConcurrent>
 
 LocalLaunch::Family LocalLaunch::classify(const QString& path)
 {
@@ -172,6 +174,16 @@ QVariantMap LocalLaunch::routeInfo(const QString& pathOrUrl)
 {
     const QString path = toLocalPath(pathOrUrl);
     const Route r = route(path);
+    return routeMap(path, r);
+}
+
+void LocalLaunch::routeInfoAsync(const QString& pathOrUrl)
+{
+    startAsyncRoutes({toLocalPath(pathOrUrl)}, AsyncKind::RouteInfo);
+}
+
+QVariantMap LocalLaunch::routeMap(const QString& path, const Route& r) const
+{
     QVariantMap m;
     m[QStringLiteral("path")]     = path;
     m[QStringLiteral("family")]   = familyName(r.family);
@@ -180,6 +192,9 @@ QVariantMap LocalLaunch::routeInfo(const QString& pathOrUrl)
     m[QStringLiteral("vaultId")]  = r.vaultId;
     m[QStringLiteral("detail")]   = r.detail;
     m[QStringLiteral("title")]    = cleanFileTitle(path);
+    // Identity is a GUI-owned state machine: observeFile() may create aliases,
+    // remember a ceremony, and persist identity.json. Keep this small stateful
+    // step on the owner thread; only backend admission runs in the worker.
     if (m_identity && r.accepted) {
         const QFileInfo fi(path);
         const QVariantMap identity = m_identity->observeFile(
@@ -194,6 +209,137 @@ QVariantMap LocalLaunch::routeInfo(const QString& pathOrUrl)
         }
     }
     return m;
+}
+
+void LocalLaunch::openAsync(const QStringList& pathsOrUrls)
+{
+    if (pathsOrUrls.isEmpty()) {
+        invalidateAsyncGeneration();
+        QMetaObject::invokeMethod(this, [this]() { emit openReady(open({})); },
+                                  Qt::QueuedConnection);
+        return;
+    }
+    QVector<QString> paths;
+    paths.reserve(pathsOrUrls.size());
+    for (const QString& raw : pathsOrUrls)
+        paths.append(toLocalPath(raw));
+
+    startAsyncRoutes(paths, AsyncKind::Open);
+}
+
+void LocalLaunch::startAsyncRoutes(const QVector<QString>& paths, AsyncKind kind)
+{
+    const quint64 generation = ++m_routeGeneration;
+    if (m_routeCancel)
+        m_routeCancel->storeRelaxed(1);
+    const auto cancel = QSharedPointer<QAtomicInt>::create(0);
+    m_routeCancel = cancel;
+
+    auto* watcher = new QFutureWatcher<QVector<PendingRoute>>(this);
+    connect(watcher, &QFutureWatcher<QVector<PendingRoute>>::finished, this,
+            [this, watcher, cancel, generation, kind]() {
+        if (generation != m_routeGeneration) {
+            watcher->deleteLater();
+            return;
+        }
+        const QVector<PendingRoute> routes = watcher->result();
+        if (routes.isEmpty()) {
+            watcher->deleteLater();
+            return;
+        }
+        const PendingRoute& first = routes.first();
+        QVariantMap result = routeMap(first.path, first.route);
+        if (kind == AsyncKind::Open) {
+            // Match openSingle(): accepted routes are remembered before QML
+            // decides whether an identity ceremony is needed.
+            if (result.value(QStringLiteral("accepted")).toBool()) {
+                m_recent.record(result.value(QStringLiteral("path")).toString(),
+                                result.value(QStringLiteral("title")).toString(),
+                                result.value(QStringLiteral("family")).toString(),
+                                result.value(QStringLiteral("vaultId")).toString());
+                emit recentChanged();
+            }
+            result[QStringLiteral("ignored")] = routes.size() - 1;
+            for (int i = 1; i < routes.size(); ++i)
+                m_nextToOpen.append(routeMap(routes.at(i).path, routes.at(i).route));
+            if (routes.size() > 1)
+                emit nextToOpenChanged();
+            result[QStringLiteral("staged")] = m_nextToOpen.size();
+            emit openReady(result);
+        } else if (kind == AsyncKind::RouteInfo) {
+            emit routeInfoReady(result);
+        } else {
+            const QString selectedPath = m_pendingStagedPath;
+            const int selectedIndex = m_pendingStagedIndex;
+            m_pendingStagedPath.clear();
+            m_pendingStagedIndex = -1;
+            int removeIndex = selectedIndex;
+            if (removeIndex < 0 || removeIndex >= m_nextToOpen.size()
+                    || m_nextToOpen.at(removeIndex).toMap()
+                           .value(QStringLiteral("path")).toString() != selectedPath) {
+                removeIndex = -1;
+                for (int i = 0; i < m_nextToOpen.size(); ++i) {
+                    if (m_nextToOpen.at(i).toMap().value(QStringLiteral("path")).toString()
+                            == selectedPath) {
+                        removeIndex = i;
+                        break;
+                    }
+                }
+            }
+            if (removeIndex >= 0) {
+                m_nextToOpen.removeAt(removeIndex);
+                emit nextToOpenChanged();
+            }
+            if (result.value(QStringLiteral("accepted")).toBool()) {
+                m_recent.record(result.value(QStringLiteral("path")).toString(),
+                                result.value(QStringLiteral("title")).toString(),
+                                result.value(QStringLiteral("family")).toString(),
+                                result.value(QStringLiteral("vaultId")).toString());
+                emit recentChanged();
+            }
+            result[QStringLiteral("ignored")] = 0;
+            result[QStringLiteral("staged")] = m_nextToOpen.size();
+            emit openNextToOpenReady(result);
+        }
+        watcher->deleteLater();
+    });
+    watcher->setFuture(QtConcurrent::run([paths, cancel]() {
+        QVector<PendingRoute> routes;
+        routes.reserve(paths.size());
+        for (const QString& path : paths) {
+            if (cancel->loadRelaxed())
+                return routes;
+            routes.append({path, route(path)});
+        }
+        return routes;
+    }));
+}
+
+void LocalLaunch::invalidateAsyncGeneration()
+{
+    ++m_routeGeneration;
+    if (m_routeCancel)
+        m_routeCancel->storeRelaxed(1);
+}
+
+void LocalLaunch::openNextToOpenAsync(int index)
+{
+    if (index < 0 || index >= m_nextToOpen.size()) {
+        invalidateAsyncGeneration();
+        QVariantMap result;
+        result[QStringLiteral("accepted")] = false;
+        result[QStringLiteral("reject")] = rejectName(Reject::NotFound);
+        result[QStringLiteral("detail")] = QStringLiteral("staged item not found");
+        result[QStringLiteral("staged")] = m_nextToOpen.size();
+        QMetaObject::invokeMethod(this, [this, result]() {
+            emit openNextToOpenReady(result);
+        }, Qt::QueuedConnection);
+        return;
+    }
+    const QString path = m_nextToOpen.at(index).toMap().value(QStringLiteral("path")).toString();
+    m_pendingStagedPath = path;
+    m_pendingStagedIndex = index;
+    startAsyncRoutes({path}, AsyncKind::OpenNextToOpen);
 }
 
 bool LocalLaunch::decideIdentityCeremony(const QString& relationship, const QString& choice)
@@ -263,6 +409,13 @@ void LocalLaunch::removeNextToOpen(int index)
 {
     if (index < 0 || index >= m_nextToOpen.size())
         return;
+    if (index == m_pendingStagedIndex) {
+        invalidateAsyncGeneration();
+        m_pendingStagedPath.clear();
+        m_pendingStagedIndex = -1;
+    } else if (m_pendingStagedIndex > index) {
+        --m_pendingStagedIndex;
+    }
     m_nextToOpen.removeAt(index);
     emit nextToOpenChanged();
 }

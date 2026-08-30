@@ -1406,13 +1406,14 @@ int main(int argc, char *argv[]) {
     // most once a local day from Apple Books + Open Library. Construction
     // never blocks startup: a prior day's cached snapshot (if any) is already
     // browsable through BiblioCatalog.ready/discoverPage before the first
-    // network reply lands, and refreshIfDue() is fire-and-forget.
+    // network reply lands, and refreshIfDue() is fire-and-forget. The refresh
+    // coordinator is started after first paint below: its synchronous
+    // SQLite/enqueue bookkeeping does not belong on the cold-launch path.
     const QString biblioCatalogPath =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/catalog/biblio-v1.sqlite");
     auto *biblioCatalog = new BiblioCatalog(biblioCatalogPath, nullptr, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioCatalog"), biblioCatalog);
-    biblioCatalog->refreshIfDue();
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
@@ -1764,18 +1765,25 @@ int main(int argc, char *argv[]) {
     QObject* rootObject = engine.rootObjects().constFirst();
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
         QObject::connect(rootWindow, &QQuickWindow::frameSwapped, updateBridge,
-                         [&app, &guiStallProbe, updateBridge, launchArguments] {
+                         [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {
             app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame"));
             app.markFirstFrame();
             guiStallProbe.notifyFirstFrame();
             updateBridge->acknowledgeHealthyBoot(launchArguments);
+            QTimer::singleShot(0, biblioCatalog, [biblioCatalog] {
+                biblioCatalog->refreshIfDue();
+            });
         }, Qt::SingleShotConnection);
     } else {
-        QTimer::singleShot(0, updateBridge, [&app, &guiStallProbe, updateBridge, launchArguments] {
+        QTimer::singleShot(0, updateBridge,
+                           [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {
             app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame-fallback"));
             app.markFirstFrame();
             guiStallProbe.notifyFirstFrame();
             updateBridge->acknowledgeHealthyBoot(launchArguments);
+            QTimer::singleShot(0, biblioCatalog, [biblioCatalog] {
+                biblioCatalog->refreshIfDue();
+            });
         });
     }
 

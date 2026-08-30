@@ -42,6 +42,7 @@ colosseum_register_harness(ipv4_pin_store_harness        unit;bootstrap;network)
 colosseum_register_harness(manga_image_host_resolver_harness unit;network)
 colosseum_register_harness(comicreader_cache_harness     unit)
 colosseum_register_harness(biblio_catalog_logic_harness  unit)
+colosseum_register_harness(manga_downloader_cancel_harness unit;responsiveness)
 # Multi-volume pack demux (Slice 1): parser table + Entry round-trip. No net,
 # QTemporaryDir/isolated-AppData — deterministic, sentinel+exit-code contract.
 colosseum_register_harness(comic_downloader_pack_demux_harness unit)
@@ -211,6 +212,16 @@ set_tests_properties(colosseum.startup_deferral_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Startup responsiveness probe contract: keeps the native first-frame/Biblio ordering and
+# deferred Home Continue rail wiring mechanically covered alongside the existing deferral gate.
+add_test(NAME colosseum.startup_responsiveness_probe
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_startup_responsiveness_probe.ps1")
+set_tests_properties(colosseum.startup_responsiveness_probe PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # World-warmer containment contract: automatic warming is opt-in, while explicit world
 # navigation remains available for normal operation.
 add_test(NAME colosseum.world_warmer_contract
@@ -247,6 +258,16 @@ add_test(NAME colosseum.search_cancellation_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_search_cancellation_contract.ps1")
 set_tests_properties(colosseum.search_cancellation_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Tankoban volume-index recovery must leave construction quickly and publish a
+# single readiness boundary before any index-backed operation is allowed.
+add_test(NAME colosseum.tankoban_startup_recovery_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_tankoban_startup_recovery_contract.ps1")
+set_tests_properties(colosseum.tankoban_startup_recovery_contract PROPERTIES
     LABELS "unit;responsiveness"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
@@ -831,7 +852,7 @@ target_include_directories(vault_launch_router_harness PRIVATE
 target_compile_definitions(vault_launch_router_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/tankoban"
     VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
-target_link_libraries(vault_launch_router_harness PRIVATE Qt6::Core ${Libmpv_LIBRARIES})
+target_link_libraries(vault_launch_router_harness PRIVATE Qt6::Core Qt6::Concurrent ${Libmpv_LIBRARIES})
 set_target_properties(vault_launch_router_harness PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.vault_launch_router_harness
@@ -840,6 +861,46 @@ set_tests_properties(colosseum.vault_launch_router_harness PROPERTIES
     LABELS "unit"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+add_test(NAME colosseum.local_launch_async_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_local_launch_async_contract.ps1")
+set_tests_properties(colosseum.local_launch_async_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
+
+add_test(NAME colosseum.manga_downloader_responsiveness_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_downloader_responsiveness_contract.ps1")
+set_tests_properties(colosseum.manga_downloader_responsiveness_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
+
+add_test(NAME colosseum.book_torrent_delete_responsiveness_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_book_torrent_delete_responsiveness_contract.ps1")
+set_tests_properties(colosseum.book_torrent_delete_responsiveness_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
+
+add_test(NAME colosseum.comic_downloader_probe_responsiveness_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_comic_downloader_probe_responsiveness_contract.ps1")
+set_tests_properties(colosseum.comic_downloader_probe_responsiveness_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
+
+add_test(NAME colosseum.manga_volume_archive_adopt_responsiveness_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_volume_archive_adopt_responsiveness_contract.ps1")
+set_tests_properties(colosseum.manga_volume_archive_adopt_responsiveness_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
 
 # ── Vault forensics (Agent Visibility Phase 2, Slice F1-Core) ────────────────
 # VaultForensics — one bounded, read-only projection composing a REAL VaultLibrary (F0's named

@@ -72,6 +72,7 @@ Window {
             }
             postFrameStartupWork.start()
             win.armHomeIntroWidgets()
+            win.armHomeContinueRail()
         }
     }
     function armStartupIdleWork() {
@@ -96,6 +97,34 @@ Window {
         if (homeIntroWidgetsLoaded || homeIntroPendingLoader) return
         if (boot.visible || worldStack.current !== "" || win.immersiveSurfaceOpen) return
         homeIntroWidgetsTimer.start()
+    }
+
+    // Continue is the only Home rail that queries the Progress store while its delegates are
+    // created. Keep a fixed reservation so loading it later cannot reflow the Home board, but move
+    // the query and ContinueTile object tree behind the post-splash idle boundary.
+    property bool homeContinueRailRequested: false
+    property bool homeContinueRailLoaded: false
+    readonly property int homeContinueRailPlaceholderHeight: 192
+    Timer {
+        id: homeContinueRailTimer
+        interval: 500
+        repeat: false
+        onTriggered: win.loadHomeContinueRail()
+    }
+    function armHomeContinueRail() {
+        if (homeContinueRailLoaded || homeContinueRailRequested) return
+        if (boot.visible || worldStack.current !== "" || win.immersiveSurfaceOpen) return
+        homeContinueRailRequested = true
+        homeContinueRailTimer.start()
+    }
+    function loadHomeContinueRail() {
+        if (homeContinueRailLoaded) return
+        if (worldStack.current !== "" || win.immersiveSurfaceOpen) {
+            homeContinueRailRequested = false
+            return
+        }
+        homeContinueRailLoader.sourceComponent = homeContinueRailComponent
+        homeContinueRailLoader.active = true
     }
     function loadHomeIntroWidgets() {
         if (homeIntroWidgetsLoaded || homeIntroPendingLoader) return
@@ -559,6 +588,7 @@ Window {
         topbar.visible = true
         page.visible = true
         win.armHomeIntroWidgets()
+        win.armHomeContinueRail()
     }
 
     function openGenre(name) {
@@ -1615,11 +1645,12 @@ Window {
     }
     function openLocalMedia(paths) {
         if (!paths || !paths.length) return
-        dispatchLocalRoute(LocalLaunch.open(paths))
+        if (typeof LocalLaunch === "undefined") return
+        LocalLaunch.openAsync(paths)
     }
     function openNextToOpen(index) {
         if (typeof LocalLaunch === "undefined") return
-        dispatchLocalRoute(LocalLaunch.openNextToOpen(index))
+        LocalLaunch.openNextToOpenAsync(index)
     }
     function removeNextToOpen(index) {
         if (typeof LocalLaunch !== "undefined") LocalLaunch.removeNextToOpen(index)
@@ -1630,7 +1661,7 @@ Window {
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
-        dispatchLocalRoute(LocalLaunch.routeInfo(pending.path || ""))
+        LocalLaunch.routeInfoAsync(pending.path || "")
     }
     // Build the player target for a local video, resuming at the saved spot. A finished movie
     // (>=90%) is dropped from Progress, so its lookup is empty → position 0 → restart from the
@@ -2039,6 +2070,60 @@ Window {
         controller: WindowMode
     }
 
+    // Kept as a Component so Progress.recent() and the ContinueTile delegates are not evaluated
+    // while Main.qml's Home object tree is being constructed. The Loader below owns the same
+    // bindings and signals as the former inline rail once the shell is idle.
+    Component {
+        id: homeContinueRailComponent
+        Column {
+            id: contCol
+            width: parent ? parent.width : 0
+            spacing: 14
+            // watched episodes sink below unfinished entries (both halves keep recency order)
+            property var contItems: (Progress.revision, (function() {
+                // 'audiobook' records persist ONLY as resume positions for the reader's
+                // read-along (Hemanth 2026-07-18: audio progress rides the BOOK — the
+                // book's own tile represents both). Never surface them as tiles.
+                var a = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
+                return a.filter(function(e) { return e.watched !== true })
+                        .concat(a.filter(function(e) { return e.watched === true }))
+            })())
+            property bool hasResumeItems: contItems.length > 0
+            visible: hasResumeItems
+            // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
+            WidgetHeader {
+                width: parent.width; title: "Continue"
+                moreLabel: "See all"
+                onMoreClicked: win.openContinueSeeAll("home")
+            }
+            Flickable {
+                id: contFlick
+                width: parent.width; height: 148
+                contentWidth: contRow.width; contentHeight: height
+                clip: true
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                Row {
+                    id: contRow
+                    spacing: 18
+                    Repeater {
+                        model: contCol.contItems
+                        delegate: ContinueTile {
+                            required property var modelData
+                            variant: "home"
+                            entry: modelData
+                            backdrop: wall
+                            track: page.contentY + contFlick.contentX
+                            onResumeRequested: win.resumeContinue(modelData)
+                            onDetailRequested: win.detailContinue(modelData)
+                            onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // ---- pinned top bar is above; everything below SCROLLS (vertical wheel/drag) ----
     Flickable {
         id: page
@@ -2193,52 +2278,23 @@ Window {
             }
 
             // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
-            //      Real resume data from the Progress store; hidden entirely until there's
-            //      something to resume. (Naming Progress.revision keeps the binding live.)
-            Column {
-                id: contCol
+            //      Reserve the old rail footprint until the idle Loader resolves its data. If
+            //      there is no resume history, the reservation collapses after the same check that
+            //      previously hid this entire Column.
+            Loader {
+                id: homeContinueRailLoader
                 width: parent.width
-                spacing: 14
-                // watched episodes sink below unfinished entries (both halves keep recency order)
-                property var contItems: (Progress.revision, (function() {
-                    // 'audiobook' records persist ONLY as resume positions for the reader's
-                    // read-along (Hemanth 2026-07-18: audio progress rides the BOOK — the
-                    // book's own tile represents both). Never surface them as tiles.
-                    var a = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
-                    return a.filter(function(e) { return e.watched !== true })
-                            .concat(a.filter(function(e) { return e.watched === true }))
-                })())
-                visible: contItems.length > 0
-                // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
-                WidgetHeader {
-                    width: parent.width; title: "Continue"
-                    moreLabel: "See all"
-                    onMoreClicked: win.openContinueSeeAll("home")
+                height: !homeContinueRailLoaded
+                         || (item && item.hasResumeItems)
+                         ? homeContinueRailPlaceholderHeight : 0
+                asynchronous: true
+                onLoaded: {
+                    homeContinueRailRequested = false
+                    homeContinueRailLoaded = true
                 }
-                Flickable {
-                    id: contFlick
-                    width: parent.width; height: 148
-                    contentWidth: contRow.width; contentHeight: height
-                    clip: true
-                    flickableDirection: Flickable.HorizontalFlick
-                    boundsBehavior: Flickable.StopAtBounds
-                    Row {
-                        id: contRow
-                        spacing: 18
-                        Repeater {
-                            model: contCol.contItems
-                            delegate: ContinueTile {
-                                required property var modelData
-                                variant: "home"
-                                entry: modelData
-                                backdrop: wall
-                                track: page.contentY + contFlick.contentX
-                                onResumeRequested: win.resumeContinue(modelData)
-                                onDetailRequested: win.detailContinue(modelData)
-                                onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
-                            }
-                        }
-                    }
+                onStatusChanged: if (status === Loader.Error) {
+                    homeContinueRailRequested = false
+                    homeContinueRailLoaded = true
                 }
             }
 
@@ -3024,6 +3080,10 @@ Window {
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
         active: false
         visible: active
+        // DownloadsPage is a large, taskbar-only surface. Spread component creation across
+        // frames so opening the download ledger does not synchronously block the world underneath.
+        // The route handlers only touch the item from onLoaded, after construction completes.
+        asynchronous: true
         source: "DownloadsPage.qml"
         onLoaded: {
             item.backdrop = wall
@@ -3051,6 +3111,10 @@ Window {
         z: 56
         active: false
         visible: active
+        // VaultPage is a large, taskbar-only surface. Spread component creation across
+        // frames so opening the folder door does not synchronously block the world underneath.
+        // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
+        asynchronous: true
         source: "VaultPage.qml"
         onLoaded: {
             item.backdrop = wall
@@ -3472,6 +3536,13 @@ Window {
         }
         onOpenRequested: (index, entry) => win.openNextToOpen(index)
         onRemoveRequested: (index, entry) => win.removeNextToOpen(index)
+    }
+
+    Connections {
+        target: (typeof LocalLaunch !== "undefined") ? LocalLaunch : null
+        function onOpenReady(result) { win.dispatchLocalRoute(result) }
+        function onRouteInfoReady(result) { win.dispatchLocalRoute(result) }
+        function onOpenNextToOpenReady(result) { win.dispatchLocalRoute(result) }
     }
 
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.

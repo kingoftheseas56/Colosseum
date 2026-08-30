@@ -30,6 +30,15 @@ $ack = $main.IndexOf('acknowledgeHealthyBoot(launchArguments)', $frame)
 Need ($frame -ge 0 -and $first -gt $frame -and $ack -gt $first) `
     'First-frame measurement must precede the healthy-boot acknowledgement.'
 
+# BiblioCatalog is cache-first, but refreshIfDue() still performs synchronous SQLite/enqueue
+# bookkeeping before issuing its asynchronous requests. Keep that coordinator off engine.load().
+$engineLoad = $main.IndexOf('engine.load(QUrl::fromLocalFile(qmlPath));')
+$biblioRefresh = $main.IndexOf('biblioCatalog->refreshIfDue();')
+Need ($engineLoad -ge 0 -and $biblioRefresh -gt $engineLoad) `
+    'Biblio refresh must be initiated after engine.load and first-frame wiring.'
+Need ($main.Contains('QTimer::singleShot(0, biblioCatalog, [biblioCatalog]')) `
+    'Biblio refresh must be queued after first-frame notification.'
+
 $boot = $main.IndexOf('findChild<QQuickItem*>(QStringLiteral("bootSplash"))')
 if ($boot -lt 0) { $boot = $main.IndexOf('findChild<QObject*>(QStringLiteral("bootSplash"))') }
 $interactive = $main.IndexOf('app.markShellInteractive()', $boot)
@@ -89,5 +98,30 @@ Need ($qmlMain.Contains('loader.setSource(sources[homeIntroWidgetCursor - 1]')) 
     'The Home intro source must be assigned through the selected deferred Loader.'
 Need ($qmlMain.Contains('loader.active = true')) `
     'The selected Home intro Loader must activate after its deferred source is assigned.'
+
+# The Home Continue rail must keep its visual footprint while deferring the synchronous Progress
+# snapshot and ContinueTile delegate construction until after the shell idle boundary.
+Need ($qmlMain.Contains('function armHomeContinueRail()')) `
+    'The Home Continue rail must have a named shell-ready arming gate.'
+Need ($qmlMain.Contains('function loadHomeContinueRail()')) `
+    'The Home Continue rail must have an explicit deferred loading function.'
+Need ($qmlMain.Contains('id: homeContinueRailTimer')) `
+    'The Home Continue rail must use a named post-splash timer.'
+Need ($qmlMain.Contains('id: homeContinueRailLoader')) `
+    'The Home Continue rail must be owned by a deferred Loader.'
+Need ($qmlMain.Contains('homeContinueRailPlaceholderHeight: 192')) `
+    'The Home Continue rail must reserve its existing fixed-height footprint before loading.'
+Need ($qmlMain.Contains('homeContinueRailLoader.sourceComponent = homeContinueRailComponent')) `
+    'The Home Continue rail source must be assigned only from its deferred loading function.'
+Need ($qmlMain.Contains('property var contItems: (Progress.revision')) `
+    'The deferred Continue rail must preserve its live Progress.revision binding.'
+Need ($qmlMain.Contains('model: contCol.contItems')) `
+    'The deferred Continue rail must preserve the ContinueTile repeater model.'
+Need ($qmlMain.Contains('onResumeRequested: win.resumeContinue(modelData)')) `
+    'The deferred Continue rail must preserve resume routing.'
+Need ($qmlMain.Contains('onDetailRequested: win.detailContinue(modelData)')) `
+    'The deferred Continue rail must preserve detail routing.'
+Need ($qmlMain.Contains('onRemoveRequested: Progress.forget(modelData.kind, modelData.id)')) `
+    'The deferred Continue rail must preserve remove routing.'
 
 Write-Host 'Startup responsiveness probe contract: PASS'

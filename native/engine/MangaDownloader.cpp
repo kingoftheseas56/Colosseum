@@ -13,6 +13,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSaveFile>
+#include <QtConcurrent>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
@@ -24,8 +25,10 @@
 // ctor / dtor
 // ---------------------------------------------------------------------------
 MangaDownloader::MangaDownloader(QNetworkAccessManager* nam, QObject* parent,
-                                 MangaImageHostResolver::Lookup lookup)
-    : QObject(parent), m_nam(nam), m_hostResolver(std::move(lookup))
+                                 MangaImageHostResolver::Lookup lookup,
+                                 DownloadFileOps::Remover cleanupRemover)
+    : QObject(parent), m_nam(nam), m_hostResolver(std::move(lookup)),
+      m_cleanupRemover(std::move(cleanupRemover))
 {
     loadIndex();
 }
@@ -141,7 +144,7 @@ void MangaDownloader::loadIndex()
     if (healed) saveIndex();   // durable heal: repaired paths stick, ghosts stay gone
 }
 
-void MangaDownloader::saveIndex() const
+void MangaDownloader::saveIndex()
 {
     QJsonObject entries;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
@@ -160,11 +163,59 @@ void MangaDownloader::saveIndex() const
     }
     const QJsonObject root{{QStringLiteral("schemaVersion"), 1},
                            {QStringLiteral("entries"), entries}};
-    // atomic write so a crash mid-save never corrupts the index
-    QSaveFile f(baseDir() + QStringLiteral("/index.json"));
-    if (!f.open(QIODevice::WriteOnly)) return;
-    f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
-    f.commit();
+    // Build the complete value on the owner thread, then publish it through a
+    // single serialized worker. The worker never reaches into m_index or a Job.
+    m_pendingIndexSnapshot = QJsonDocument(root).toJson(QJsonDocument::Indented);
+    if (!m_indexWriteInFlight)
+        startIndexWrite();
+}
+
+void MangaDownloader::startIndexWrite()
+{
+    if (m_pendingIndexSnapshot.isNull()) return;
+
+    const QByteArray payload = std::exchange(m_pendingIndexSnapshot, QByteArray());
+    const QString outputPath = baseDir() + QStringLiteral("/index.json");
+    m_indexWriteInFlight = true;
+
+    auto* watcher = new QFutureWatcher<IndexWriteResult>(this);
+    connect(watcher, &QFutureWatcher<IndexWriteResult>::finished, this,
+            [this, watcher]() {
+        const IndexWriteResult result = watcher->result();
+        watcher->deleteLater();
+        m_indexWriteInFlight = false;
+        if (!result.committed)
+            qWarning("[downloads] index snapshot commit failed");
+        // A completion/delete may have superseded this payload while it was
+        // writing. Start that newest snapshot only after this QSaveFile has
+        // finished, preventing stale snapshots from winning on disk.
+        if (!m_pendingIndexSnapshot.isNull())
+            startIndexWrite();
+    });
+    watcher->setFuture(QtConcurrent::run([outputPath, payload]() {
+        IndexWriteResult result;
+        // Atomic replacement is deliberately retained on the worker: a failed
+        // open/write/commit leaves the previous index intact.
+        QSaveFile file(outputPath);
+        if (file.open(QIODevice::WriteOnly)
+            && file.write(payload) == payload.size()
+            && file.commit()) {
+            result.committed = true;
+        }
+        return result;
+    }));
+}
+
+void MangaDownloader::runWhenIndexIdle(std::function<void()> continuation)
+{
+    if (!m_indexWriteInFlight && m_pendingIndexSnapshot.isNull()) {
+        continuation();
+        return;
+    }
+    QTimer::singleShot(10, this,
+                       [this, continuation = std::move(continuation)]() mutable {
+        runWhenIndexIdle(std::move(continuation));
+    });
 }
 
 void MangaDownloader::writeEntry(const Job* job)
@@ -349,11 +400,29 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
 
 void MangaDownloader::finalizeCancel(Job* job)
 {
-    if (!job->dir.isEmpty()) QDir(job->dir).removeRecursively();   // drop partials
+    if (job->cleanupPending) return;
+    job->cleanupPending = true;
     const QString id = job->chapterId;
-    qInfo("[downloads] cancelled '%s'", qUtf8Printable(id));
-    cleanupJob(job);
-    emit removed(id);
+    const QString dir = job->dir;
+    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+    auto* watcher = new QFutureWatcher<DownloadFileOps::Result>(this);
+    connect(watcher, &QFutureWatcher<DownloadFileOps::Result>::finished, this,
+            [this, watcher, lifetime, id]() {
+        const DownloadFileOps::Result result = watcher->result();
+        watcher->deleteLater();
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job) return;
+        if (!result.success)
+            qWarning() << "[downloads] cancel cleanup failed" << id << result.message;
+        qInfo("[downloads] cancelled '%s'", qUtf8Printable(id));
+        cleanupJob(job);
+        emit removed(id);
+    });
+    const DownloadFileOps::Remover remover = m_cleanupRemover;
+    watcher->setFuture(QtConcurrent::run([dir, remover]() {
+        return remover ? DownloadFileOps::removeTree(dir, remover)
+                        : DownloadFileOps::removeTree(dir);
+    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -481,23 +550,27 @@ void MangaDownloader::indexSelfTest()
     m_index.insert(QStringLiteral("selfheal:repair/issue-1"), stale);
 
     saveIndex();
-    m_index.clear();
-    loadIndex();
+    runWhenIndexIdle([this, realDir]() {
+        // The index write is now asynchronous; reload only after the snapshot
+        // containing both fixtures has committed, without blocking the owner.
+        m_index.clear();
+        loadIndex();
 
-    const bool ghostPruned = !m_index.contains(QStringLiteral("selfheal:ghost/issue-1"));
-    const bool staleRepaired = m_index.contains(QStringLiteral("selfheal:repair/issue-1"))
-        && m_index.value(QStringLiteral("selfheal:repair/issue-1")).dir == realDir;
-    if (ghostPruned && staleRepaired)
-        qInfo("INDEX-SELFTEST OK");
-    else
-        qInfo("INDEX-SELFTEST FAILED (ghost pruned=%d, stale repaired=%d)",
-              int(ghostPruned), int(staleRepaired));
+        const bool ghostPruned = !m_index.contains(QStringLiteral("selfheal:ghost/issue-1"));
+        const bool staleRepaired = m_index.contains(QStringLiteral("selfheal:repair/issue-1"))
+            && m_index.value(QStringLiteral("selfheal:repair/issue-1")).dir == realDir;
+        if (ghostPruned && staleRepaired)
+            qInfo("INDEX-SELFTEST OK");
+        else
+            qInfo("INDEX-SELFTEST FAILED (ghost pruned=%d, stale repaired=%d)",
+                  int(ghostPruned), int(staleRepaired));
 
-    // clean up both fixtures (ledger + disk)
-    m_index.remove(QStringLiteral("selfheal:ghost/issue-1"));
-    m_index.remove(QStringLiteral("selfheal:repair/issue-1"));
-    saveIndex();
-    QDir(realDir).removeRecursively();
+        // clean up both fixtures (ledger + disk)
+        m_index.remove(QStringLiteral("selfheal:ghost/issue-1"));
+        m_index.remove(QStringLiteral("selfheal:repair/issue-1"));
+        saveIndex();
+        QDir(realDir).removeRecursively();
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -543,25 +616,55 @@ void MangaDownloader::onPagesReady(Job* job, const QList<PageInfo>& pages)
     job->total = pages.size();
     job->files = QStringList(job->total, QString());
 
-    // resume: count any page already on disk (> 1 KB) from a prior interrupted run
-    QDir dir(job->dir);
-    for (int i = 0; i < job->total; ++i) {
-        const QStringList hits =
-            dir.entryList({QStringLiteral("page_%1.*").arg(i, 3, 10, QChar('0'))}, QDir::Files);
-        for (const QString& name : hits) {
-            const qint64 sz = QFileInfo(dir.filePath(name)).size();
-            if (sz > MIN_VALID_BYTES) {
-                job->files[i] = name;
-                job->done++;
-                job->bytes += sz;
-                break;
+    startResumeScan(job);
+}
+
+void MangaDownloader::startResumeScan(Job* job)
+{
+    const QString dirPath = job->dir;
+    const int total = job->total;
+    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+    auto* watcher = new QFutureWatcher<ResumeScan>(this);
+    connect(watcher, &QFutureWatcher<ResumeScan>::finished, this,
+            [this, watcher, lifetime]() {
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job || job->cancelled) {
+            watcher->deleteLater();
+            return;
+        }
+        const ResumeScan scan = watcher->result();
+        job->files = scan.files;
+        job->done = scan.done;
+        job->bytes = scan.bytes;
+
+        emit progress(job->chapterId, job->done, job->total);
+        if (job->done == job->total) {
+            watcher->deleteLater();
+            finishJob(job);
+            return;
+        }
+        pumpImages(job);
+        watcher->deleteLater();
+    });
+    watcher->setFuture(QtConcurrent::run([dirPath, total]() {
+        ResumeScan scan;
+        scan.files = QStringList(total, QString());
+        const QDir dir(dirPath);
+        for (int i = 0; i < total; ++i) {
+            const QStringList hits = dir.entryList(
+                {QStringLiteral("page_%1.*").arg(i, 3, 10, QChar('0'))}, QDir::Files);
+            for (const QString& name : hits) {
+                const qint64 sz = QFileInfo(dir.filePath(name)).size();
+                if (sz > MIN_VALID_BYTES) {
+                    scan.files[i] = name;
+                    ++scan.done;
+                    scan.bytes += sz;
+                    break;
+                }
             }
         }
-    }
-
-    emit progress(job->chapterId, job->done, job->total);
-    if (job->done == job->total) { finishJob(job); return; }
-    pumpImages(job);
+        return scan;
+    }));
 }
 
 void MangaDownloader::pumpImages(Job* job)
@@ -681,11 +784,8 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
             const QString ext = extForContentType(ct, job->pages[pageIndex].imageUrl);
             const QString name = QStringLiteral("page_%1.%2")
                                      .arg(pageIndex, 3, 10, QChar('0')).arg(ext);
-            QSaveFile out(job->dir + QStringLiteral("/") + name);
-            if (out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit()) {
-                onImageSaved(job, pageIndex, name, data.size());
-                return;
-            }
+            saveImageAsync(job, pageIndex, attempt, name, data);
+            return;
         }
 
         // failure path (SoftBlock + Error alike): retry with 2/4/8s backoff, then mark failed
@@ -707,6 +807,53 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
         job->inFlight--;
         pumpImages(job);
     });
+}
+
+void MangaDownloader::saveImageAsync(Job* job, int pageIndex, int attempt,
+                                     const QString& fileName, const QByteArray& data)
+{
+    const QString outputPath = job->dir + QStringLiteral("/") + fileName;
+    const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+    auto* watcher = new QFutureWatcher<ImageSaveResult>(this);
+    connect(watcher, &QFutureWatcher<ImageSaveResult>::finished, this,
+            [this, watcher, lifetime, pageIndex, attempt, fileName]() {
+        Job* job = lifetime ? lifetime->job : nullptr;
+        if (!job || job->cancelled) {
+            if (job) {
+                --job->inFlight;
+                if (job->inFlight == 0)
+                    finalizeCancel(job);
+            }
+            watcher->deleteLater();
+            return;
+        }
+        const ImageSaveResult result = watcher->result();
+        watcher->deleteLater();
+        if (result.success) {
+            onImageSaved(job, pageIndex, fileName, result.size);
+            return;
+        }
+        if (attempt + 1 < MAX_IMAGE_RETRIES) {
+            const int backoffMs = 2000 << attempt;
+            QTimer::singleShot(backoffMs, this,
+                               [this, job, pageIndex, attempt]() {
+                fetchImage(job, pageIndex, attempt + 1);
+            });
+            return;
+        }
+        job->failedFlag = true;
+        --job->inFlight;
+        pumpImages(job);
+    });
+    watcher->setFuture(QtConcurrent::run([outputPath, data]() {
+        QSaveFile out(outputPath);
+        ImageSaveResult result;
+        if (out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit()) {
+            result.success = true;
+            result.size = data.size();
+        }
+        return result;
+    }));
 }
 
 void MangaDownloader::queueImageForHost(Job* job, int pageIndex, int attempt,

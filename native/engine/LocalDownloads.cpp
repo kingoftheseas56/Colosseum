@@ -140,6 +140,7 @@ void LocalDownloads::initialize() {
         connect(m_videos, &DownloadStore::libraryChanged, this, arm);
     }
     if (m_volumes) {
+        connect(m_volumes, &MangaTankobanService::recoveryReadyChanged, this, arm);
         connect(m_volumes, &MangaTankobanService::progress, this,
                 [this, arm](const QString &id, double, double) {
                     clearFailure(QStringLiteral("tankoban"), id); arm();

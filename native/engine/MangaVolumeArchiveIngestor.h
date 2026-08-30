@@ -61,8 +61,10 @@ private:
     };
 
     void startNext();
-    // CBZ/ZIP fast path, retried on transient open failures of the source
-    // archive (flush race — see the constants block in the .cpp).
+    // CBZ/ZIP fast path. Source/staged archive inspection and the source copy
+    // run as a value-only worker; the owner thread retains final rename/index
+    // publication. Retries cover transient source-open failures (flush race —
+    // see the constants block in the .cpp).
     void validateAndAdoptCbz(int attempt);
     void runExtractor(int which);          // 0 = bsdtar, 1 = 7-Zip
     void onExtractDone(int exitCode, int which);

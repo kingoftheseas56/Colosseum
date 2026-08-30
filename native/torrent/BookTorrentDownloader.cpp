@@ -10,10 +10,12 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QtConcurrent>
 #include <QVector>
 
 namespace {
@@ -57,6 +59,13 @@ void BookTorrentDownloader::download(const QString& infoHashIn, const QString& t
 {
     const QString infoHash = infoHashIn.trimmed().toLower();
     if (infoHash.size() != 40) { emit failed(infoHash, QStringLiteral("bad infoHash")); return; }
+    if (m_deleting.contains(infoHash)) {
+        // The old hash directory is still being removed on the worker. Retain
+        // the latest replacement request so it starts only after that worker
+        // has settled, avoiding a stale delete racing a new download.
+        m_deferredDownloads.insert(infoHash, DeferredDownload{title, author});
+        return;
+    }
     if (isDownloaded(infoHash)) { emit finished(infoHash, m_index.value(infoHash).path); return; }
     if (m_active.contains(infoHash)) return;                 // already in flight
     if (!m_engine) { emit failed(infoHash, QStringLiteral("torrent engine unavailable")); return; }
@@ -195,13 +204,32 @@ void BookTorrentDownloader::cancelDownload(const QString& infoHash)
 void BookTorrentDownloader::deleteDownload(const QString& infoHash)
 {
     const QString h = infoHash.toLower();
+    if (m_deleting.contains(h)) return;
     if (Job* j = m_active.take(h)) {           // still downloading → stop + drop engine files
         if (m_engine) m_engine->removeTorrent(h, /*deleteFiles=*/true);
         delete j;
     }
     if (m_index.remove(h)) saveIndex();        // drop from the completed index
-    QDir(dirFor(h)).removeRecursively();       // wipe the on-disk copy
-    emit removed(h);
+    const QString path = dirFor(h);
+    m_deleting.insert(h);
+    auto* watcher = new QFutureWatcher<bool>(this);
+    connect(watcher, &QFutureWatcher<bool>::finished, this,
+            [this, watcher, h]() {
+        const bool deleted = watcher->result();
+        watcher->deleteLater();
+        m_deleting.remove(h);
+        if (!deleted)
+            qWarning() << "[BookTorrentDownloader] delete failed" << h;
+        emit removed(h);
+        const bool hasDeferred = m_deferredDownloads.contains(h);
+        const auto deferred = m_deferredDownloads.take(h);
+        if (hasDeferred)
+            download(h, deferred.title, deferred.author);
+    });
+    watcher->setFuture(QtConcurrent::run([path]() {
+        if (path.isEmpty() || !QDir(path).exists()) return true;
+        return QDir(path).removeRecursively() && !QDir(path).exists();
+    }));
 }
 
 // ── disk + index ────────────────────────────────────────────────────────────────

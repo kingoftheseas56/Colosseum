@@ -20,14 +20,22 @@
 //   <appdata>/manga/<series>/<chapter>/page_000.jpg ...
 //   <appdata>/manga/index.json
 //
-// Threading: pure QNetworkAccessManager + QObject lambdas on the main thread.
+// Threading: QNetworkAccessManager + QObject callbacks stay on the owner thread; interrupted
+// download resume scanning, accepted-image publication, index persistence, and cancelled-job
+// cleanup are value-only QtConcurrent jobs whose completions are published back to that owner
+// thread through watchers.
+// Index snapshots are serialized by the owner and written one-at-a-time so an older snapshot
+// can never overwrite a newer chapter completion or deletion.
 
 #pragma once
+
+#include "DownloadFileOps.h"
 
 #include "MangaResult.h"
 #include "MangaImageHostResolver.h"
 
 #include <QObject>
+#include <QFutureWatcher>
 #include <QNetworkReply>
 #include <QHash>
 #include <QList>
@@ -38,6 +46,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <functional>
 #include <memory>
 
 class QNetworkAccessManager;
@@ -51,7 +60,9 @@ public:
     // nam is shared with the rest of the app (carries the IPv4-pin / Host fix),
     // so image fetches use the same proven networking the streaming reader did.
     explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr,
-                             MangaImageHostResolver::Lookup lookup = {});
+                             MangaImageHostResolver::Lookup lookup = {},
+                             // Empty in production; injectable only for deterministic cleanup tests.
+                             DownloadFileOps::Remover cleanupRemover = {});
     ~MangaDownloader() override;
 
     // Host → IPv4 pins (dead-IPv6 machine). Manga art hosts publish AAAA records, so
@@ -143,6 +154,7 @@ private:
         bool failedFlag = false;
         bool cancelled = false;
         bool scraperPending = false;
+        bool cleanupPending = false;
         QList<QNetworkReply*> replies;   // in-flight image GETs, for cancel/abort
     };
 
@@ -156,19 +168,37 @@ private:
         qint64 addedAt = 0;
     };
 
+    struct ResumeScan {
+        QStringList files;
+        int done = 0;
+        qint64 bytes = 0;
+    };
+
+    struct ImageSaveResult {
+        bool success = false;
+        qint64 size = 0;
+    };
+
+    struct IndexWriteResult {
+        bool committed = false;
+    };
+
     // queue pump
     void pumpQueue();
     void beginJob(Job* job);
     void onPagesReady(Job* job, const QList<PageInfo>& pages);
+    void startResumeScan(Job* job);
     void pumpImages(Job* job);
     void fetchImage(Job* job, int pageIndex, int attempt);
+    void saveImageAsync(Job* job, int pageIndex, int attempt,
+                        const QString& fileName, const QByteArray& data);
     void queueImageForHost(Job* job, int pageIndex, int attempt, const QString& host);
     void removePendingImageRequests(Job* job);
     void onImageSaved(Job* job, int pageIndex, const QString& fileName, qint64 size);
     void failJob(Job* job, const QString& reason);
     void finishJob(Job* job);
     void cleanupJob(Job* job);
-    void finalizeCancel(Job* job);   // drop a cancelled job's partials + clean up
+    void finalizeCancel(Job* job);   // async-drop a cancelled job's partials + clean up
 
     // disk + index
     QString baseDir() const;                       // <appdata>/manga
@@ -176,11 +206,14 @@ private:
     static QString safeSeg(const QString& v);      // path-segment sanitiser
     static QString extForContentType(const QString& ct, const QString& fallbackUrl);
     void loadIndex();
-    void saveIndex() const;
+    void saveIndex();
+    void startIndexWrite();
+    void runWhenIndexIdle(std::function<void()> continuation);
     void writeEntry(const Job* job);
 
     QNetworkAccessManager* m_nam = nullptr;
     MangaImageHostResolver m_hostResolver;
+    DownloadFileOps::Remover m_cleanupRemover;
     QHash<QString, QString> m_pins;                // host -> IPv4 (dead-IPv6 machine)
     QSet<QString>          m_pinTried;             // hosts we've already tried to resolve+pin (incl. misses)
     struct PendingImageRequest {
@@ -192,6 +225,8 @@ private:
     QSet<QString> m_pinLookupInFlight;
     QHash<QString, MangaImageHostResolver::RequestId> m_pinLookupRequests;
     QHash<QString, Entry> m_index;                 // chapterId -> entry
+    QByteArray m_pendingIndexSnapshot;              // newest owner-thread snapshot awaiting write
+    bool m_indexWriteInFlight = false;              // at most one QSaveFile worker at a time
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs
 

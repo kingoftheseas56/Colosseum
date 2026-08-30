@@ -78,6 +78,13 @@ public:
     bool publishArchive(const VolumeProvenance& record, const QString& archivePath,
                         const QStringList& orderedFiles, const QList<int>& groups,
                         qint64 bytes);
+    // Same publication, for a worker that has already validated the exact
+    // archive at `archivePath` and handed over its ordered entry names by
+    // value. This keeps the owner-thread tail to sidecar/ledger persistence;
+    // callers must not use it before an atomic hand-off from that worker.
+    bool publishArchiveValidated(const VolumeProvenance& record, const QString& archivePath,
+                                 const QStringList& orderedFiles, const QList<int>& groups,
+                                 qint64 bytes);
 
     // Reader shape: one map per page {index, archive, entry, group}, index
     // ascending from 0. Returns [] unless the archive and ordered members verify.
@@ -131,6 +138,9 @@ private:
     QString indexPath() const;
     void load();
     bool save() const;
+    bool publishArchiveImpl(const VolumeProvenance& record, const QString& archivePath,
+                            const QStringList& orderedFiles, const QList<int>& groups,
+                            qint64 bytes, bool archiveAlreadyValidated);
     bool entryIntact(const Entry& e) const;
     bool writeSidecar(const QString& id, const Entry& e) const;
     bool reconcileSidecar(const QString& id, Entry& e) const;

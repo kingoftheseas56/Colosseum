@@ -14,6 +14,11 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
+#ifdef HAS_LIBTORRENT
+#include <QFutureWatcher>
+#include <QMetaObject>
+#include <QtConcurrent>
+#endif
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSettings>
@@ -21,6 +26,7 @@
 #include <QStringList>
 #include <QTimer>
 #include <QVariant>
+#include <utility>
 
 #ifdef HAS_LIBTORRENT
 #include "engine/WeebCentralScraper.h"
@@ -191,10 +197,11 @@ MangaTankobanService::MangaTankobanService(QNetworkAccessManager* searchNam,
         this);
 
     m_index    = new MangaVolumeIndex(base, this);
-    // Startup is the recovery boundary: reconcile durable sidecars, repair
-    // legacy ledger drift from each volume's manifest, and migrate every valid
-    // loose-page Tankoban payload to the canonical CBZ-only layout.
-    m_index->heal();
+    // Startup recovery is deliberately detached from construction. The worker
+    // owns a private index instance, so the UI-owned index never crosses thread
+    // affinity; the queued completion reloads its repaired ledger before the
+    // readiness seam opens index-backed operations.
+    m_recoveryReady = false;
     m_ingestor = new MangaVolumeArchiveIngestor(m_index, this);
     // Synopsis lookups (Apple Books / Open Library) MUST ride the IPv4-pinned searchNam,
     // not the bare dlNam — those hosts publish a dead AAAA on this ISP, so an unpinned
@@ -217,6 +224,32 @@ MangaTankobanService::MangaTankobanService(QNetworkAccessManager* searchNam,
         qWarning() << "[tankoban] torrent identity store failed to open — index-first lookup off";
 
     wireSignals();
+
+    m_recoveryWatcher = new QFutureWatcher<void>(this);
+    connect(m_recoveryWatcher, &QFutureWatcher<void>::finished, this, [this]() {
+        m_index->reload();
+        m_recoveryReady = true;
+        emit recoveryReadyChanged();
+
+        const auto pending = std::exchange(m_pendingTransportFinishes,
+                                            QVector<PendingTransportFinish>{});
+        for (const PendingTransportFinish& finish : pending)
+            onTransportFinished(finish.volumeId, finish.archivePath);
+
+        const auto pendingAcquired = std::exchange(m_pendingAcquired, QVector<QString>{});
+        for (const QString& volumeId : pendingAcquired)
+            onAcquired(volumeId);
+
+        const QString selfTest = std::exchange(m_pendingSelfTestSpec, QString{});
+        if (!selfTest.isEmpty())
+            QMetaObject::invokeMethod(this, [this, selfTest]() {
+                runDownloadSelfTest(selfTest);
+            }, Qt::QueuedConnection);
+    });
+    m_recoveryWatcher->setFuture(QtConcurrent::run([base]() {
+        MangaVolumeIndex recovered(base);
+        recovered.heal();
+    }));
 }
 #endif // HAS_LIBTORRENT
 
@@ -450,6 +483,10 @@ void MangaTankobanService::searchSeriesSources(QString key, QString seriesTitle)
 
 void MangaTankobanService::downloadNyaa(QString volumeId, QString infoHash)
 {
+    if (!m_recoveryReady) {
+        emit failed(volumeId, QStringLiteral("Local volume index is still recovering."));
+        return;
+    }
     if (!m_volumes.contains(volumeId)) {
         emit failed(volumeId, QStringLiteral("Unknown volume."));
         return;
@@ -494,6 +531,11 @@ void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString info
 {
     if (volumeIds.isEmpty())
         return;
+    if (!m_recoveryReady) {
+        for (const QString& volumeId : volumeIds)
+            emit failed(volumeId, QStringLiteral("Local volume index is still recovering."));
+        return;
+    }
     // The engine has NO range search — every search is per volume — so a batch
     // searched exactly one volume and the candidate cache is populated for that
     // probe volume alone. Validate the hash ONCE against it. The guard that stops
@@ -574,6 +616,10 @@ void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString info
 
 void MangaTankobanService::compileWeebCentral(QString volumeId)
 {
+    if (!m_recoveryReady) {
+        emit failed(volumeId, QStringLiteral("Local volume index is still recovering."));
+        return;
+    }
     if (!m_packer || !m_volumes.contains(volumeId)) {
         emit failed(volumeId, QStringLiteral("WeebCentral fallback is unavailable."));
         return;
@@ -613,6 +659,8 @@ void MangaTankobanService::cancel(QString volumeId)
 
 QVariantMap MangaTankobanService::remove(QString volumeId)
 {
+    if (!m_recoveryReady)
+        return DownloadFileOps::toMap({false, QStringLiteral("Local volume index is still recovering.")});
     const bool inflight = m_acq.contains(volumeId);
     const bool ready = m_index->statusOf(volumeId).value(QStringLiteral("state")).toString()
                            == QStringLiteral("ready");
@@ -647,9 +695,11 @@ QVariantMap MangaTankobanService::remove(QString volumeId)
 QVariantMap MangaTankobanService::statusOf(QString volumeId) const
 {
     // The index is authoritative for a published (ready) volume.
-    const QVariantMap idx = m_index->statusOf(volumeId);
-    if (idx.value(QStringLiteral("state")).toString() == QStringLiteral("ready"))
-        return idx;
+    if (m_recoveryReady) {
+        const QVariantMap idx = m_index->statusOf(volumeId);
+        if (idx.value(QStringLiteral("state")).toString() == QStringLiteral("ready"))
+            return idx;
+    }
     // Otherwise the façade's own in-flight bookkeeping (resolving / downloading /
     // ingesting / packing / failed) is the single source of truth.
     if (m_acq.contains(volumeId))
@@ -668,12 +718,12 @@ QVariantMap MangaTankobanService::statusOf(QString volumeId) const
 
 QVariantList MangaTankobanService::localPages(QString volumeId) const
 {
-    return m_index->localPages(volumeId);
+    return m_recoveryReady ? m_index->localPages(volumeId) : QVariantList{};
 }
 
 QVariantList MangaTankobanService::downloadedVolumes() const
 {
-    return m_index->downloadedVolumes();
+    return m_recoveryReady ? m_index->downloadedVolumes() : QVariantList{};
 }
 
 QVariantList MangaTankobanService::activeVolumeJobs() const
@@ -712,6 +762,10 @@ QVariantList MangaTankobanService::activeVolumeJobs() const
 
 void MangaTankobanService::runDownloadSelfTest(const QString& spec)
 {
+    if (!m_recoveryReady) {
+        m_pendingSelfTestSpec = spec;
+        return;
+    }
     // Spec: "<magnet-or-infohash>|<seriesId>|<seriesTitle>|<volumeNumber>".
     const QStringList parts = spec.split(QLatin1Char('|'));
     if (parts.size() != 4) {
@@ -864,6 +918,10 @@ void MangaTankobanService::onSourcesFound(const QString& volumeId,
 
 void MangaTankobanService::onTransportFinished(const QString& volumeId, const QString& archivePath)
 {
+    if (!m_recoveryReady) {
+        m_pendingTransportFinishes.append({volumeId, archivePath});
+        return;
+    }
     if (m_tornDown.contains(volumeId))
         return; // cancelled/removed before the transfer finished — never ingest
 
@@ -898,6 +956,10 @@ void MangaTankobanService::onTransportFinished(const QString& volumeId, const QS
 
 void MangaTankobanService::onAcquired(const QString& volumeId)
 {
+    if (!m_recoveryReady) {
+        m_pendingAcquired.append(volumeId);
+        return;
+    }
     m_acq.remove(volumeId); // the index now reports this volume ready
     if (m_tornDown.contains(volumeId)) {
         // The user cancelled/removed while acquisition was in flight and a stray

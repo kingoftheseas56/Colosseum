@@ -1428,6 +1428,24 @@ add_executable(manga_image_host_resolver_harness
 target_include_directories(manga_image_host_resolver_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manga_image_host_resolver_harness PRIVATE Qt6::Core Qt6::Network)
 
+# Deterministic runtime proof for MangaDownloader cancellation cleanup. The
+# harness injects only the recursive-delete callback so it can hold the worker
+# at the filesystem boundary and assert lifetime/signal ordering without live
+# network or production data.
+add_executable(manga_downloader_cancel_harness
+    ../tests/manga_downloader_cancel_harness.cpp
+    engine/MangaDownloader.cpp
+    engine/MangaDownloader.h
+    engine/DownloadFileOps.h
+    engine/WeebCentralScraper.cpp
+    engine/WeebCentralScraper.h
+    engine/MangaScraper.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
+target_include_directories(manga_downloader_cancel_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
+
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp
     torrent/MangaVolumeFilePicker.cpp

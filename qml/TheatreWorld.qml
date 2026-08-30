@@ -34,7 +34,11 @@ WorldPage {
     // Real "Continue Watching" from the Progress store (what you actually started).
     property int progressRevision: Progress.revision
     // §9: local (vault:) rows keep to the Vault Continue rail — strip them here before the cap.
-    property var continueRows: VaultApi.recentWithoutVault(Progress, "video", 12)
+    // Retained hidden worlds must not query Progress while their Loader is warming. The binding
+    // rehydrates the same row when lifecycleActive becomes true; the activation handler also
+    // refreshes it after the world has settled.
+    property var continueRows: theatre.lifecycleActive
+                                 ? VaultApi.recentWithoutVault(Progress, "video", 12) : []
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
@@ -262,6 +266,7 @@ WorldPage {
     // Library — the fifth tab (Stage 2). The saved shelf, life-marked, with the ⋮ menu.
     LibraryPage {
         visible: theatre.activeTab === "library"
+        active: theatre.lifecycleActive && visible
         width: parent.width
         height: visible ? Math.max(620, theatre.height - 200) : 0
         onResumeRequested: (e) => theatre.libraryResumeRequested(e)

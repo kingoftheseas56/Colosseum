@@ -301,7 +301,7 @@ private:
         bool stagedRetrySource = false;
         QString extractTmp;
 
-        // Task 4 (CBZ-in-place plan) -- background copy/pack safety:
+        // Task 4 (CBZ-in-place plan) -- background archive inspection/copy/pack safety:
         // `serial` is stamped from `m_nextJobSerial` when this InFlight becomes
         // `m_active`. A background worker (the fast path's cross-volume copy,
         // or the fallback's repack) captures it BY VALUE; its GUI-thread
@@ -311,7 +311,8 @@ private:
         // redownload the same issue id", which an id-only comparison would miss
         // (a NEW InFlight with the SAME id would wrongly accept a stale future).
         // `packing` is true for the whole window such a worker may be reading
-        // `extractTmp`/`archivePath` on another thread -- cancelDownload() and
+        // `extractTmp`/`archivePath` on another thread (including the initial
+        // archive probe) -- cancelDownload() and
         // ~ComicDownloader() must not delete either while it's set; the
         // worker's own completion handler owns that cleanup instead (on the
         // GUI thread, after the serial check tells it whether to publish or
