@@ -394,6 +394,13 @@ int main(int argc, char** argv)
 
     // The façade drives a REAL packer here so #5 (packer terminal path) is proven.
     MangaTankobanService service(&search, &transport, &index, &ingestor, &enricher, &packer);
+    bool recoveryReadyChanged = false;
+    QObject::connect(&service, &MangaTankobanService::recoveryReadyChanged, &app,
+                     [&recoveryReadyChanged]() { recoveryReadyChanged = true; });
+    require(service.recoveryReady(),
+            "dependency-injected service starts ready (startup recovery is production-only)");
+    require(!recoveryReadyChanged,
+            "dependency-injected service does not emit a spurious recovery transition");
 
     // Signal trackers (no fatal handler — expected failures are asserted by delta).
     QStringList failures, finishedIds, removedIds;

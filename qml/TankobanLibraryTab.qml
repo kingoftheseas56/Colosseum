@@ -17,6 +17,10 @@ import "TankobanLibraryApi.js" as Api
 Item {
     id: root
 
+    // The retained Library tab keeps its filter state, but hidden worlds must not scan all three
+    // Progress lanes or probe Downloads while the tab is not visible.
+    property bool active: true
+
     // ── reactive data (recompute on Collection OR Progress OR Downloads change).
     //    Progress.revision is one global counter across all kinds, so naming it in the
     //    binding is enough to pick up manga progress writes. Downloads has no revision
@@ -27,7 +31,7 @@ Item {
     property int collRev: (typeof Collection !== "undefined" ? Collection.revision : 0)
     property int progRev: (typeof Progress !== "undefined" ? Progress.revision : 0)
     property int dlRev: 0
-    property var allRows: computeRows(collRev, progRev, dlRev)
+    property var allRows: computeRows(collRev, progRev, dlRev, active)
 
     // ── TB-005 toolbar state: filter chip + sort mode + search needle ──
     // Filter values: "" (All) | "inProgress" | "downloaded". Sort values: "lastRead"
@@ -46,8 +50,8 @@ Item {
     // ignoredSignals lets the harness construct without a real Downloads singleton.
     Connections {
         target: (typeof Downloads !== "undefined") ? Downloads : null
-        function onFinished(cid) { root.dlRev = root.dlRev + 1 }
-        function onRemoved(cid)  { root.dlRev = root.dlRev + 1 }
+        function onFinished(cid) { if (root.active) root.dlRev = root.dlRev + 1 }
+        function onRemoved(cid)  { if (root.active) root.dlRev = root.dlRev + 1 }
     }
 
     // Card tap (no menu yet). TB-001 routed every tap to Details; TB-002 branches: a
@@ -70,8 +74,8 @@ Item {
 
     Theme { id: theme }
 
-    function computeRows(cr, pr, dr) {
-        if (typeof Collection === "undefined") return []
+    function computeRows(cr, pr, dr, isActive) {
+        if (!isActive || typeof Collection === "undefined") return []
         var entries = Collection.items("tankoban")
         var mp = (typeof Progress !== "undefined") ? Progress.recent("manga", 0) : []
         var vp = (typeof Progress !== "undefined") ? Progress.recent("tankoban", 0) : []

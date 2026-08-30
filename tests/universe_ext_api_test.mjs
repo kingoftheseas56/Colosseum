@@ -212,6 +212,16 @@ console.log('\nload(): real bundled payloads survive end-to-end through the read
   eq(dcauN, rawDcauN, 'dcau entries survive through the reader seam');
   eq(onePieceN, 54, 'one-piece = 54 entries');
   eq(dcauN, 31, 'dcau = 31 entries');
+  const color = onePieceResult.sections.find(s => s.id === 'manga').entries
+    .find(e => e.id === 'one-piece-color');
+  eq(color.provider, 'tankoban', 'One Piece Color uses Tankoban');
+  eq(color.malId, '13', 'One Piece Color reuses MAL 13 catalogue identity');
+  eq(color.seriesId, 'mal:13:color', 'One Piece Color durable identity is isolated');
+  eq(color.sourceSearchTitle, 'One Piece Colored', 'One Piece Color discovery title survives');
+  eq(JSON.stringify(color.sourceSearchAliases), JSON.stringify(['One Piece Digital Colored Comics']),
+     'One Piece Color discovery alias survives');
+  eq(JSON.stringify(color.sourceRequiredMarkers), JSON.stringify(['colored', 'full color', 'full colour']),
+     'One Piece Color marker gate survives');
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green');

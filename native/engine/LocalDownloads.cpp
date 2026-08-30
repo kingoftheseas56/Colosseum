@@ -140,6 +140,7 @@ void LocalDownloads::initialize() {
         connect(m_videos, &DownloadStore::libraryChanged, this, arm);
     }
     if (m_volumes) {
+        connect(m_volumes, &MangaTankobanService::recoveryReadyChanged, this, arm);
         connect(m_volumes, &MangaTankobanService::progress, this,
                 [this, arm](const QString &id, double, double) {
                     clearFailure(QStringLiteral("tankoban"), id); arm();
@@ -516,6 +517,12 @@ QVariantList LocalDownloads::activeJobs() const {
                 // live row can open the player on the same source it's pulling.
                 {QStringLiteral("art"), j.value(QStringLiteral("art"))},
                 {QStringLiteral("url"), j.value(QStringLiteral("url"))},
+                // Function 0008 arriving-play continuity: DownloadStore::jobs() exports
+                // Direct request headers + the growing .part path; forward both so
+                // Main.qml::routeArrivingPlay(job) can hand the player the header-valid
+                // source and the disk-first .part it is already pulling.
+                {QStringLiteral("headers"), j.value(QStringLiteral("headers"))},
+                {QStringLiteral("partPath"), j.value(QStringLiteral("partPath"))},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("error"), j.value(QStringLiteral("error"))},
                 {QStringLiteral("canRetry"), j.value(QStringLiteral("state")).toString()

@@ -18,6 +18,10 @@ import "BiblioLibraryApi.js" as Api
 Item {
     id: root
 
+    // Keep the retained page's filters and scroll position, but defer its potentially large
+    // Collection/Progress derivation until the Library tab is actually shown.
+    property bool active: true
+
     // ── page state ──
     property string sortMode: "added"          // added | lastRead | az
     property string stateFilter: ""            // "" | inProgress
@@ -26,7 +30,7 @@ Item {
     // ── reactive data (recompute on Collection / Progress change) ──
     property int collRev: (typeof Collection !== "undefined" ? Collection.revision : 0)
     property int progRev: (typeof Progress !== "undefined" ? Progress.revision : 0)
-    property var allRows: computeRows(collRev, progRev)
+    property var allRows: computeRows(collRev, progRev, active)
     property int rowCount: allRows.length
     property var visibleRows: Api.sortBiblioRows(
         Api.applyBiblioFilters(allRows, { stateFilter: stateFilter, query: query }),
@@ -47,8 +51,8 @@ Item {
 
     Theme { id: theme }
 
-    function computeRows(cr, pr) {
-        if (typeof Collection === "undefined" || typeof Progress === "undefined") return []
+    function computeRows(cr, pr, isActive) {
+        if (!isActive || typeof Collection === "undefined" || typeof Progress === "undefined") return []
         var entries = Collection.items("biblio")
         var plist = Progress.recent("book", 200)
         return Api.buildBiblioRows(entries, plist)

@@ -15,10 +15,14 @@
 // (Slice 14); this slice ships the router + adapters and their tests.
 
 #include <QObject>
+#include <QAtomicInt>
+#include <QFutureWatcher>
+#include <QSharedPointer>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QVector>
 
 #include "VaultRecent.h"
 
@@ -69,13 +73,18 @@ public:
     // the door explicitly. { path, family, accepted, reject, vaultId, detail,
     // title, ignored, staged }
     Q_INVOKABLE QVariantMap routeInfo(const QString& pathOrUrl);
+    Q_INVOKABLE void routeInfoAsync(const QString& pathOrUrl);
     Q_INVOKABLE QVariantMap open(const QStringList& pathsOrUrls);
+    // Async counterpart for OS/picker opens. Validation runs off the GUI thread;
+    // the result is emitted on this object's thread and stale requests are dropped.
+    Q_INVOKABLE void openAsync(const QStringList& pathsOrUrls);
     void setIdentity(VaultIdentity* identity) { m_identity = identity; }
     Q_INVOKABLE bool decideIdentityCeremony(const QString& relationship, const QString& choice);
     // Slice 20: temporary, non-persistent, never-auto-advancing Next-to-Open tray.
     Q_INVOKABLE QVariantList nextToOpenItems() const { return m_nextToOpen; }
     Q_INVOKABLE int stagedCount() const { return m_nextToOpen.size(); }
     Q_INVOKABLE QVariantMap openNextToOpen(int index);
+    Q_INVOKABLE void openNextToOpenAsync(int index);
     Q_INVOKABLE void removeNextToOpen(int index);
 
     // A dropped folder is NOT a file to route — the folder→Vault gesture is Slice 10, so
@@ -93,11 +102,29 @@ public:
 signals:
     void recentChanged();
     void nextToOpenChanged();
+    void openReady(const QVariantMap& result);
+    void routeInfoReady(const QVariantMap& result);
+    void openNextToOpenReady(const QVariantMap& result);
 
 private:
+    struct PendingRoute {
+        QString path;
+        Route route;
+    };
+
+    enum class AsyncKind { Open, RouteInfo, OpenNextToOpen };
+
+    void startAsyncRoutes(const QVector<QString>& paths, AsyncKind kind);
+    void invalidateAsyncGeneration();
+
+    QVariantMap routeMap(const QString& path, const Route& route) const;
     QVariantMap openSingle(const QString& pathOrUrl);
 
     VaultRecent m_recent;
     QVariantList m_nextToOpen;
     VaultIdentity* m_identity = nullptr; // non-owning; shared with VaultLibrary
+    QSharedPointer<QAtomicInt> m_routeCancel;
+    quint64 m_routeGeneration = 0;
+    QString m_pendingStagedPath;
+    int m_pendingStagedIndex = -1;
 };

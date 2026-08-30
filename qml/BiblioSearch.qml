@@ -149,7 +149,7 @@ Item {
 
     Timer { id: debounce; interval: 200; onTriggered: search.runAppleSearch() }
 
-    Shortcut { sequences: ["Return", "Enter"]; onActivated: { search.runAppleSearch(); search.commitCurrentQuery(); search.openTop() } }
+    Shortcut { sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); search.runAppleSearch(); search.commitCurrentQuery(); search.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {

@@ -34,6 +34,9 @@ struct SeriesSnapshot {
     QString author;
     QStringList aliases;
     QList<VolumeRecord> volumes;
+    QString discoveryTitle;
+    QStringList discoveryAliases;
+    QStringList requiredTitleMarkers;
 };
 
 } // namespace MangaTankoban

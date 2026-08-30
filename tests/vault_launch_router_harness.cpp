@@ -17,9 +17,11 @@
 #include "engine/VaultPageStore.h"
 
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QFile>
 #include <QString>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QVariantMap>
 
 #include <cstdio>
@@ -210,6 +212,93 @@ int main(int argc, char** argv)
               "only explicitly opened files enter Open Recent");
         LocalLaunch restarted(trayDir.path());
         check(restarted.stagedCount() == 0, "tray state must disappear on restart");
+    }
+
+    // The expensive admission path is also reachable through the queued
+    // production seam. Two back-to-back requests cancel the stale result;
+    // only the newest route may be delivered.
+    {
+        LocalLaunch launch;
+        int readyCount = 0;
+        QVariantMap asyncResult;
+        QEventLoop loop;
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        QObject::connect(&launch, &LocalLaunch::openReady, &app,
+                         [&](const QVariantMap& result) {
+            ++readyCount;
+            asyncResult = result;
+            loop.quit();
+        });
+        QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+        const QString bookPath = vx + QStringLiteral("/mixed-root/Dune/Dune.epub");
+        const QString missingPath = vx + QStringLiteral("/missing/second.epub");
+        launch.openAsync({bookPath, missingPath});
+        launch.openAsync({bookPath});
+        timeout.start(10000);
+        loop.exec();
+        check(readyCount == 1, "only the newest queued local-open request may complete");
+        check(asyncResult.value(QStringLiteral("accepted")).toBool()
+                  && asyncResult.value(QStringLiteral("family")).toString() == QStringLiteral("book"),
+              "queued local-open result preserves book routing semantics");
+        check(launch.stagedCount() == 0,
+              "a superseded multi-file request must not publish stale staged entries");
+
+        int nextReadyCount = 0;
+        QVariantMap nextResult;
+        QObject::connect(&launch, &LocalLaunch::openNextToOpenReady, &app,
+                         [&](const QVariantMap& result) {
+            ++nextReadyCount;
+            nextResult = result;
+            loop.quit();
+        });
+        launch.openAsync({bookPath, missingPath});
+        timeout.start(10000);
+        loop.exec();
+        check(launch.stagedCount() == 1
+                  && launch.nextToOpenItems().first().toMap().value(QStringLiteral("path"))
+                         == missingPath,
+              "queued local-open preserves input order in the staged tray");
+        launch.openNextToOpenAsync(0);
+        launch.removeNextToOpen(0);
+        timeout.start(1000);
+        loop.exec();
+        check(nextReadyCount == 0 && launch.stagedCount() == 0,
+              "removing a selected staged entry cancels its pending validation");
+        launch.openAsync({bookPath, missingPath});
+        timeout.start(10000);
+        loop.exec();
+        launch.openNextToOpenAsync(0);
+        launch.openAsync({bookPath});
+        timeout.start(10000);
+        loop.exec();
+        check(launch.stagedCount() == 1
+                  && launch.nextToOpenItems().first().toMap().value(QStringLiteral("path"))
+                         == missingPath,
+              "a superseded staged-open request must retain its tray entry");
+        launch.openNextToOpenAsync(0);
+        timeout.start(10000);
+        loop.exec();
+        check(nextReadyCount == 1 && !nextResult.value(QStringLiteral("accepted")).toBool()
+                  && launch.stagedCount() == 0,
+              "queued staged recheck emits its rejection and removes the selected entry");
+
+        int routeInfoReadyCount = 0;
+        QVariantMap routeInfoResult;
+        QObject::connect(&launch, &LocalLaunch::routeInfoReady, &app,
+                         [&](const QVariantMap& result) {
+            ++routeInfoReadyCount;
+            routeInfoResult = result;
+            loop.quit();
+        });
+        launch.routeInfoAsync(bookPath);
+        timeout.start(10000);
+        loop.exec();
+        check(routeInfoReadyCount == 1
+                  && routeInfoResult.value(QStringLiteral("accepted")).toBool()
+                  && routeInfoResult.value(QStringLiteral("family")).toString()
+                         == QStringLiteral("book"),
+              "queued route-info recheck preserves identity-ceremony routing semantics");
     }
 
     if (g_fails == 0) {

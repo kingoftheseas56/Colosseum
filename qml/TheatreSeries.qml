@@ -346,9 +346,11 @@ Item {
         var h = String(pick.infoHash || "");
         var direct = pick.url ? String(pick.url)
                    : (h.indexOf("url:") === 0 ? h.substring(4) : "");
-        if (direct.length)
+        if (direct.length) {
             req["url"] = direct;
-        else if (h.length) {
+            req["headers"] = (pick.headers && typeof pick.headers === "object" && !Array.isArray(pick.headers))
+                             ? pick.headers : ({});
+        } else if (h.length) {
             req["infoHash"] = h;
             req["fileIdx"] = Number(pick.fileIdx || 0);
         }

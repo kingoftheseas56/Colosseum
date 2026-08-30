@@ -967,11 +967,31 @@ function loadAnimeRowPage(pin, offset, limit, options, done) {
     var showExplicit = options.showExplicit === true;
     var def = findDef("anime", pin.rowKey);
     if (!def) { done({ generation: generation, items: [], hasMore: false, error: "unknown row: " + pin.rowKey }); return; }
-    if (!mal || !mal.ready || !mal.ready()) {
-        done({ generation: generation, items: [], hasMore: false, error: "anime catalogue offline" }); return;
-    }
     if (def.recipe.kind === "trending") {
         done({ generation: generation, items: [], hasMore: false, error: "" }); return;
+    }
+    if (LIVE_ANIME[pin.rowKey]) {
+        var spec = LIVE_ANIME[pin.rowKey];
+        var page = Math.floor(offset / limit) + 1;
+        var params = {};
+        for (var p in spec.params) params[p] = spec.params[p];
+        params.page = page;
+        return jikanFetch(spec.path, params, limit, function(items) {
+            if (items && items.length) {
+                if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
+                done({ generation: generation, items: items, hasMore: items.length >= limit, error: "" });
+            } else if (mal && mal.ready && mal.ready()) {
+                var rows = malRowsFor(mal, def.recipe, offset, limit);
+                var fbItems = rows.map(mapJikan);
+                if (explicitFilter) fbItems = fbItems.filter(function(it) { return explicitFilter(it, showExplicit); });
+                done({ generation: generation, items: fbItems, hasMore: rows.length >= limit, error: "" });
+            } else {
+                done({ generation: generation, items: [], hasMore: false, error: "anime catalogue offline" });
+            }
+        });
+    }
+    if (!mal || !mal.ready || !mal.ready()) {
+        done({ generation: generation, items: [], hasMore: false, error: "anime catalogue offline" }); return;
     }
     var rows = malRowsFor(mal, def.recipe, offset, limit);
     var items = rows.map(mapJikan);

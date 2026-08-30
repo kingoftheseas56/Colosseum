@@ -13,6 +13,9 @@ $biblioExplore = Get-Content (Join-Path $root 'qml/BiblioExplorePage.qml') -Raw
 $biblio = Get-Content (Join-Path $root 'qml/BiblioWorld.qml') -Raw
 $theatre = Get-Content (Join-Path $root 'qml/TheatreWorld.qml') -Raw
 $tankoban = Get-Content (Join-Path $root 'qml/TankobanWorld.qml') -Raw
+$theatreLibrary = Get-Content (Join-Path $root 'qml/LibraryPage.qml') -Raw
+$biblioLibrary = Get-Content (Join-Path $root 'qml/BiblioLibraryPage.qml') -Raw
+$tankobanLibrary = Get-Content (Join-Path $root 'qml/TankobanLibraryTab.qml') -Raw
 
 function Need([bool]$condition, [string]$message) {
     if (-not $condition) { throw $message }
@@ -54,5 +57,41 @@ Need ($theatre.Contains('active: theatre.lifecycleActive && visible')) `
     'Theatre must bind Discover activity to world and tab visibility.'
 Need ($tankoban.Contains('active: tanko.lifecycleActive && visible')) `
     'Tankoban must bind Discover activity to world and tab visibility.'
+Need ($tankoban.Contains('items: tanko.lifecycleActive ? (Progress.revision, tanko.nextUpRows()) : []')) `
+    'Hidden Tankoban worlds must not query Progress/Downloads for Next Up.'
+Need ($tankoban.Contains('items: tanko.lifecycleActive ? (Progress.revision, (function()')) `
+    'Hidden Tankoban worlds must not query Progress for Continue Reading.'
+Need ($theatre.Contains('property var continueRows: theatre.lifecycleActive')) `
+    'Hidden Theatre worlds must not query Progress for Continue Watching.'
+Need ($biblio.Contains('items: biblio.lifecycleActive')) `
+    'Hidden Biblio worlds must not query Progress for Continue Reading.'
+Need ($theatre.Contains('active: theatre.lifecycleActive && visible')) `
+    'Theatre must gate its retained Library model behind lifecycle and tab visibility.'
+Need ($biblio.Contains('active: biblio.lifecycleActive && visible')) `
+    'Biblio must gate its retained Library model behind lifecycle and tab visibility.'
+Need ($tankoban.Contains('active: tanko.lifecycleActive && visible')) `
+    'Tankoban must gate its retained Library model behind lifecycle and tab visibility.'
+Need ($theatreLibrary.Contains('property bool active: true') -and $theatreLibrary.Contains('if (!isActive')) `
+    'Theatre LibraryPage must expose an activation gate before deriving its model.'
+Need ($biblioLibrary.Contains('property bool active: true') -and $biblioLibrary.Contains('if (!isActive')) `
+    'Biblio LibraryPage must expose an activation gate before deriving its model.'
+Need ($tankobanLibrary.Contains('property bool active: true') -and $tankobanLibrary.Contains('if (!isActive')) `
+    'Tankoban LibraryPage must expose an activation gate before deriving its model.'
+
+# Vault is a large taskbar-only surface. Its Loader must stage construction asynchronously;
+# openVaultPage() only flips active and vaultBack() already handles item-not-yet-loaded.
+$vaultLoaderStart = $main.IndexOf('id: vaultLayer')
+$vaultLoaderEnd = $main.IndexOf('source: "VaultPage.qml"', $vaultLoaderStart)
+Need ($vaultLoaderStart -ge 0 -and $vaultLoaderEnd -gt $vaultLoaderStart `
+      -and $main.Substring($vaultLoaderStart, $vaultLoaderEnd - $vaultLoaderStart).Contains('asynchronous: true')) `
+    'The large VaultPage Loader must construct asynchronously to preserve shell responsiveness.'
+
+# Downloads has the same taskbar-only lifecycle and is also loaded only on demand. Verify its
+# Loader remains frame-friendly; item-dependent route wiring lives exclusively in onLoaded.
+$downloadsLoaderStart = $main.IndexOf('id: downloadsLayer')
+$downloadsLoaderEnd = $main.IndexOf('source: "DownloadsPage.qml"', $downloadsLoaderStart)
+Need ($downloadsLoaderStart -ge 0 -and $downloadsLoaderEnd -gt $downloadsLoaderStart `
+      -and $main.Substring($downloadsLoaderStart, $downloadsLoaderEnd - $downloadsLoaderStart).Contains('asynchronous: true')) `
+    'The large DownloadsPage Loader must construct asynchronously to preserve shell responsiveness.'
 
 Write-Host 'World lifecycle contract: PASS'

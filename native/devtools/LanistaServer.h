@@ -215,6 +215,9 @@ private:
     void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
     void cmdUiScroll(const QJsonObject& p, Replier reply) const;
     void cmdUiWaitFor(const QJsonObject& p, Replier reply);
+    // Function 0007 prerequisite: one typed, tagged-session-only diagnostic
+    // that drives the real root openBookSession() path for an A -> B switch.
+    void cmdReader2HotSwitch(const QJsonObject& p, Replier reply);
     // J1-Tray-Bridge (2026-08-14): the one command that can restore a
     // minimized/hidden root window — QWindow::showNormal()/showMinimized()/
     // hide(), the REAL product path a titlebar minimize or a taskbar/tray

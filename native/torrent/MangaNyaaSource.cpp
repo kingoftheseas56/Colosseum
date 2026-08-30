@@ -136,6 +136,19 @@ bool strongSeriesMatch(const QString& title, const SeriesSnapshot& series)
     return false;
 }
 
+bool matchesRequiredTitleMarker(const QString& title, const QStringList& requiredMarkers)
+{
+    if (requiredMarkers.isEmpty())
+        return true;
+    const QString hay = foldWords(title);
+    for (const QString& marker : requiredMarkers) {
+        const QString needle = foldWords(marker);
+        if (!needle.isEmpty() && hay.contains(needle))
+            return true;
+    }
+    return false;
+}
+
 // Does the [lo,hi] coverage include the exact target volume? Rebuilt as a
 // VolumeCoverage and answered by the shared grammar: exact decimal-string
 // comparison for singles (numeric by value, named by folded text — never a
@@ -310,6 +323,8 @@ QList<MangaNyaaCandidate> MangaNyaaSource::filterAndRank(const SeriesSnapshot& s
             continue;                       // raw / untranslated Japanese release
         if (!strongSeriesMatch(c.title, series))
             continue;                       // weak series-title / alias match
+        if (!matchesRequiredTitleMarker(c.title, series.requiredTitleMarkers))
+            continue;                       // wrong edition (e.g. B&W result for Color)
         // Series mode has no volume to target — every strongly-matched, kept
         // release is in scope regardless of what it covers.
         if (!seriesMode && !coverageIncludesTarget(c.coverageLo, c.coverageHi, targetVolume))

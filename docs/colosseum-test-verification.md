@@ -10,6 +10,15 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+### Reader 2 Function 0007 gating update (2026-08-30)
+
+- `reader2_stores_harness`, `reader2_bridge_harness`, and `reader2_autoattach_harness` are now ordinary `unit;reader2` CTest gates.
+- `reader2_logic_harness.qml` is now executed by CTest through the installed Qt `qml` runtime and requires `VERDICT: PASS`.
+- The existing `tests/test_book_reader_minimize_p0.ps1` remains a direct legacy source-contract gate for flush-before-minimize ordering and is intentionally not duplicated as a CTest registration in this slice.
+- The former `test_reader2_readalong.ps1` broken-runner finding is resolved by removal: its fixture was intentionally deleted by the guided-reading revert, so restoring the fixture would have revived superseded behavior.
+- Earlier census counts in this document describe their original audit snapshot and are historical where this update supersedes them.
+- `test_reader2_runtime_p0.ps1` is now the fifth `unit;reader2;windows` gate; at this boundary it owns the QSaveFile atomic-writer contract and the Slice 1 registration/staging/dead-runner checks. The same contract will gain the pending-save race assertions in Slice 4.
+
 ## Headline shape (read this first)
 
 | Fact | Count |
@@ -77,7 +86,9 @@ The opt-in `COLOSSEUM_GUI_STALL_PROBE` now reports fixed `warning` (below 150 ms
 `operation`/`surface` context. The QML-facing `GuiStallProbe` bridge is updated only at
 high-value boundaries: Home/world navigation, Search dispatch, Downloads, Player, and Reader.
 With `COLOSSEUM_STARTUP_PROBE=1`, the native entry path emits `launch`, `first-frame`, and
-`shell-interactive` milestones; the first-frame signal also starts the post-frame startup work.
+`shell-interactive` milestones; the first-frame signal arms a startup-idle gate, while the
+background batches themselves wait until the boot splash has cleared and the shell has had a
+settling window.
 
 `colosseum.qttest.gui_responsiveness_probe` is a pure helper test for milestone formatting,
 severity boundaries, and context escaping. `colosseum.qttest.lanista_timing` is a pure helper
@@ -86,10 +97,10 @@ test for the `colosseum.lanista.timings.v1` milestone/step schema. Lanista accep
 milestones and per-step durations, while the default runner output and behavior are unchanged.
 
 The first confirmed pre-frame GUI blocker was `Main.qml`'s Collection backfill and Biblio cover
-enrichment scan. Those existing idempotent functions now run from a one-shot 350 ms timer after
-the native first-frame signal (bare-QML fixtures retain a fallback timer). This packet measures
-and attributes the work; it does not yet split heavy pages into new QML components or impose
-request-level cancellation/backpressure.
+enrichment scan. The historical 2026-08-29 qualification moved those idempotent functions to a
+one-shot 350 ms timer after the native first-frame signal (bare-QML fixtures retained a fallback
+timer). The follow-on hardening below adds the splash/idle boundary and stages the Home object
+tree; it still does not impose request-level cancellation/backpressure on these batches.
 
 Runtime qualification on the rebuilt tagged app used `app_home.json` with `--timings` and passed
 4/4 steps. One representative run recorded first-frame at 7.765 s and shell-interactive at
@@ -106,6 +117,57 @@ not counted as a green journey qualification. Its diagnostic log still proves th
 surface: startup stalls are labelled `operation=startup surface=qml-load` or
 `surface=first-frame`, and the later heavy events name `QQuickWindowIncubationController`; this
 is the next measured target for QML lifetime/loading work.
+
+## Responsiveness hardening — Home lifetime and startup-idle staging (2026-08-30)
+
+The Home page no longer instantiates its four below-the-fold intro boards (`Bookshelf`,
+`TheatreStrip`, `ReadingDesk`, and `VaultHomeWidget`) as part of the initial `Main.qml` object
+tree. Each keeps its former layout height behind an inactive asynchronous `Loader`; after the
+boot splash is hidden, one loader is activated at a time and the next starts only when the prior
+loader reports `Loaded` (or a terminal `Error`). Existing catalogue/model bindings, backdrop
+properties, and click/genre signal routes are restored in each loader's `onLoaded` handler.
+
+The existing Collection backfill and Biblio cover-enrichment batches now share a named
+`startupIdleGate`: the first-frame signal only arms it, the gate waits for splash dismissal plus
+2.5 seconds, and it stands down while a world or immersive surface is active. This prevents
+post-frame work from racing the Lanista bridge's first `get-state`/snapshot requests and gives the
+shell an actual interaction window before below-the-fold work begins. Returning Home re-arms the
+intro-loader path without evicting retained worlds.
+
+Deterministic verification on `native/build-responsiveness` remains green: the full
+`responsiveness` label passed **7/7** (catalogue cancellation, GUI probe, startup deferral,
+world warmer, hidden Home work, world lifecycle, and search cancellation). `qmllint` on
+`qml/Main.qml` exited 0 with only the file's pre-existing warnings, and `git diff --check` is
+clean.
+
+The real tagged startup probe was repeated with warming disabled. The earlier all-at-once loader
+candidate reached first frame at 43.432 s but then starved a bridge request; the revised
+splash/idle/sequential slice reached first frame at 35.228 s in one attempt. The current Windows
+host remained too variable to complete a green Lanista scenario in the revised attempt (the
+runner failed its tagged isolation handshake before the scenario), so these numbers are evidence
+of the measured startup path, not a claimed qualification budget pass. The next high-confidence
+candidate was the Home Continue rail (`Progress.recent()` plus its visible `ContinueTile` delegates);
+that rail is now staged behind the same shell-idle boundary described below.
+
+## Responsiveness hardening — Home Continue rail staging (2026-08-30)
+
+The Home Continue rail no longer evaluates `Progress.recent()` or constructs its `ContinueTile`
+delegates while `Main.qml` is building its initial object tree. It now lives in an asynchronous
+`Loader` with a fixed 192 px placeholder, armed after splash dismissal and the existing shell-idle
+gate. The loader is guarded while a world or immersive surface is active and is re-armed when Home
+is restored. Resume, detail, and remove signal routes remain unchanged, and the live
+`Progress.revision` dependency is preserved inside the deferred component.
+
+`tests/test_startup_responsiveness_probe.ps1` passes the static loader/wiring contract; `qmllint`
+reports no new syntax errors (only the file's pre-existing comma-expression warnings). A native
+rebuild/runtime route qualification is still required before claiming a startup-budget improvement.
+
+The same packet also moves `BiblioCatalog::refreshIfDue()` out of the pre-`engine.load()` path. The
+cache-backed `BiblioCatalog` object is still published before QML construction, but its synchronous
+SQLite/enqueue coordination is queued after the first-frame callback. This preserves cache-first
+behavior and the once-per-day gate while removing that coordinator from cold-launch work. The
+startup responsiveness contract checks the ordering mechanically; runtime A/B evidence is still
+needed to attribute any first-frame change to this seam.
 
 ## Responsiveness qualification — cold world navigation and hidden Home work (2026-08-29)
 
@@ -132,6 +194,43 @@ Home's 6.5 s hero timer on `page.visible && !win.immersiveSurfaceOpen`. Home's e
 still hidden/revealed by the same navigation paths, so returning Home resumes the retained index
 without rebuilding it. A deeper visited-world eviction requires serialized state plus explicit
 callback cancellation and remains a separate qualification packet.
+
+## Responsiveness hardening — defer Tankoban volume recovery (2026-08-30)
+
+`MangaTankobanService` no longer runs `MangaVolumeIndex::heal()` synchronously in its production
+constructor. Recovery now uses a private worker-owned index, then queues a GUI-thread completion
+that reloads the UI-owned index and opens a `recoveryReady` seam. Index-backed operations are
+guarded until that seam opens; transport finishes and the download self-test are buffered and
+drained afterward. `LocalDownloads` bumps its read-model revision on `recoveryReadyChanged`, so
+deferred rows cannot remain invisible after startup. The dependency-injected service harness
+asserts that test instances stay immediately ready and do not emit a spurious transition.
+
+The focused source contract is `tests/test_tankoban_startup_recovery_contract.ps1`, and the
+existing `manga_tankoban_service_harness` gained readiness assertions for its dependency-injected
+path. A candidate rebuild was attempted against the Windows build tree, but this host's
+CMake/Ninja environment stalled during reconfiguration (the same Qt6TaskTree/toolchain issue
+recorded elsewhere); therefore this slice does not claim a newly rebuilt native binary or a
+startup-budget pass. `git diff --check`, the static recovery contract, and the existing prebuilt
+harness remain green.
+
+## Responsiveness qualification — isolated Home Continue rail (2026-08-30)
+
+`tests/lanista_scenarios/continue_home_qualification.json` plus the tagged seed under
+`tests/lanista-seeds/continue-home-qualification-v1/` provide a measurement-only fixture. The
+seed writes one file-backed video Continue record, dismisses onboarding through the real Lanista
+drive path, waits for the shell, and captures only `homePageFlickable`; it does not require a
+provider reply or alter production QML. The paired empty baseline uses the existing stale-index
+seed.
+
+Runtime evidence: the seeded session `20260830-115159-7b75bdd5` passed 7/7 steps, captured 162
+items with exactly one visible `ContinueTile` delegate, and the empty baseline passed 7/7 with 84
+items and zero Continue delegates. The seeded first-frame/shell milestones were 63.572 s/75.519 s
+versus 49.740 s/60.398 s for the empty baseline. Both sessions saw HTTP/2 protocol errors and
+general startup stalls dominated by `Main_QMLTYPE_151`/`QNetworkReplyHttpImpl`; this proves the
+Continue data path and makes the rail a qualified contributor candidate, not the established
+root cause of the startup delay. The follow-on staging packet keeps the same data/signal contract
+but moves its construction behind the shell-idle boundary; a fresh A/B replay is still needed to
+measure that change independently.
 
 ## Build entry
 
@@ -2164,6 +2263,87 @@ Deterministic evidence from `native/build-responsiveness`:
 - `colosseum_qml_tests` rebuilt cleanly with the new search-history tests. The local runner could
   not execute the QML suite in this environment (the real-window suite exits without a report),
   so runtime QML results are intentionally not claimed here.
+
+## Responsiveness hardening — asynchronous local-media admission (2026-08-30)
+
+The production local-media route no longer performs CBZ archive inspection or decoded-video
+admission on the QML/UI call stack. `Main.qml` now uses `LocalLaunch.openAsync()`,
+`routeInfoAsync()`, and `openNextToOpenAsync()`; validation runs through the Qt thread pool and
+results return through queued signals. A generation/token fence cancels superseded work and drops
+late completions. The Next-to-Open tray keeps a selected entry until its current validation
+finishes, so a newer open cannot silently lose user state. Empty opens and invalid tray indexes
+also invalidate older completions.
+
+`VaultIdentity::observeFile()` intentionally remains on its owning thread after admission. It is a
+stateful identity/ceremony operation that mutates shared aliases and may persist `identity.json`;
+moving it into the worker would race ceremony decisions and violate QObject ownership. The
+unpredictable media inspection is therefore off-thread, while the owner-thread identity hand-off
+keeps the existing ceremony semantics.
+
+Deterministic/static evidence:
+
+- `tests/test_local_launch_async_contract.ps1` → `LOCAL_LAUNCH_ASYNC_CONTRACT_OK`.
+- `git diff --check` passes.
+- `qmllint` on the touched `qml/Main.qml` exits 0; output contains only pre-existing warnings.
+- Responsiveness/unit label: `ctest -L responsiveness` → **9/9 passed** (including the new
+  async contract and the existing startup/world/search/recovery gates).
+- `colosseum.vault_launch_router_harness` rebuilt and passed **1/1**, including async routing,
+  stale-generation cancellation, staged ordering/retention, and identity recheck coverage.
+- `tests/lanista_scenarios/world_cold_navigation_qualification.json` adds a measurement-only
+  cold-world navigation/retained-Loader journey for `COLOSSEUM_WORLD_WARMER=0`. It is designed to
+  separate first-visit Loader construction from network stalls and to verify Home → Tankoban →
+  Home → Tankoban state retention.
+
+The current-master replay (`20260830-140146-b597ff95`) passed isolation and tagged-root checks,
+but the app did not reach the world route: the boot splash cleared after 12,547 ms and the
+onboarding click timed out after 11,091 ms. The evidence is actionable—`QNetworkReplyHttpImpl`
+accounted for 24,821 ms across 61 stall events (worst 4,623 ms), with additional
+`Main_QMLTYPE_151`/`QFutureWatcherBase` stalls. This means cold-world Loader causation is not yet
+proven on the current master; startup/network starvation is the next qualification target. Prior
+bounded route evidence still records first Tankoban visibility at ~2.9 s, Home return, and ~1.0 s
+retained re-entry, with tree count 56 on both visits and `activeTab="discover"` surviving.
+
+## Responsiveness hardening — downloader resume scan (2026-08-30)
+
+`MangaDownloader::onPagesReady()` no longer performs the interrupted-download resume sweep
+(`QDir::entryList()` plus per-file `QFileInfo`) on the owner/UI thread. The scan now runs as a
+value-only QtConcurrent task and publishes its `files/done/bytes` result through a
+`QFutureWatcher`. Completion resolves the existing `JobLifetime` fence and drops canceled or
+reclaimed jobs before touching state, preserving the prior progress/finish/pump behavior.
+
+Evidence:
+
+- `tests/test_manga_downloader_responsiveness_contract.ps1` →
+  `MANGA_DOWNLOADER_RESPONSIVENESS_CONTRACT_OK`.
+- Direct MSVC translation-unit compile of `MangaDownloader.cpp` passed.
+- The per-image `QSaveFile` publication is now a value-only QtConcurrent task. The owner-thread
+  completion applies `Job` mutation, preserves retry/backoff behavior, and keeps the existing
+  `inFlight` slot held until the commit result arrives, so cancellation cannot remove a directory
+  while a worker is committing a file. The `JobLifetime` fence drops completions after cancel or
+  reclamation.
+- Final index persistence now snapshots the owner-thread `m_index` value and publishes it through a
+  serialized QtConcurrent `QSaveFile` worker. Newer completion/delete snapshots replace pending
+  payloads and cannot be overwritten by an older write. The index self-test waits asynchronously
+  for the writer to become idle before reloading, so its durable repair/ghost-prune proof remains
+  valid without a GUI-thread wait.
+
+The downloader's three unpredictable filesystem paths—resume discovery, page-image publication,
+and final index persistence—are now off the UI thread. Owner-thread completions retain all prior
+  ordering, retry, cancellation, and atomic-replacement semantics.
+
+After registering the startup responsiveness contract, the configured Windows build passed
+`ctest -L responsiveness` **11/11**. The full `colosseum` target also rebuilt cleanly with the
+host's explicit MSVC include/lib environment; unprovisioned standard CMake configuration still
+reports the host's pre-existing Qt6TaskTree/Vulkan warnings before falling back to the configured
+toolchain.
+
+The focused native harness was rebuilt with the host's MSVC include/lib environment provisioned
+explicitly (`ninja -C native/build-responsiveness -j2 vault_launch_router_harness`) and passed its
+CTest run 1/1 when Qt and libmpv runtime directories were present on `PATH`. The unprovisioned
+standard CMake invocation still fails before compilation because this host does not export the
+MSVC standard-library include path; that is an environment limitation, not a source failure. No
+runtime result is claimed yet for the cold-world Lanista scenario itself; it still needs a
+disposable app session with `COLOSSEUM_WORLD_WARMER=0`.
 
 ## Function 0010 adoption (2026-08-30): search/discovery hardening — P0 contract rewrite + first-ever-runnable foreign targets
 

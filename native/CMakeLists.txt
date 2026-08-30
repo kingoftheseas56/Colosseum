@@ -803,6 +803,28 @@ add_executable(reader2_autoattach_harness
 target_include_directories(reader2_autoattach_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_autoattach_harness PRIVATE Qt6::Core Qt6::Network)
 
+# Function 0007: focused Reader 2 harness builds must be runnable without first
+# building/deploying the full app. Stage their exact Qt runtime dependencies.
+if(WIN32)
+    add_custom_command(TARGET reader2_stores_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE_DIR:reader2_stores_harness>"
+        VERBATIM)
+    add_custom_command(TARGET reader2_bridge_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:reader2_bridge_harness>"
+        VERBATIM)
+    add_custom_command(TARGET reader2_autoattach_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:reader2_autoattach_harness>"
+        VERBATIM)
+endif()
+
 # Task 5: standalone "first pixels" harness — boots the fresh reader (native QML
 # chrome over the vendored foliate paper) with a book shelf, no Colosseum shell.
 # Links only what the reader seam needs (Reader2Bridge + BookStores) plus the QML
@@ -1427,6 +1449,24 @@ add_executable(manga_image_host_resolver_harness
 )
 target_include_directories(manga_image_host_resolver_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(manga_image_host_resolver_harness PRIVATE Qt6::Core Qt6::Network)
+
+# Deterministic runtime proof for MangaDownloader cancellation cleanup. The
+# harness injects only the recursive-delete callback so it can hold the worker
+# at the filesystem boundary and assert lifetime/signal ordering without live
+# network or production data.
+add_executable(manga_downloader_cancel_harness
+    ../tests/manga_downloader_cancel_harness.cpp
+    engine/MangaDownloader.cpp
+    engine/MangaDownloader.h
+    engine/DownloadFileOps.h
+    engine/WeebCentralScraper.cpp
+    engine/WeebCentralScraper.h
+    engine/MangaScraper.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+)
+target_include_directories(manga_downloader_cancel_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
 
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp

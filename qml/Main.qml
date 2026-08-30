@@ -59,9 +59,104 @@ Window {
             win.enrichBiblioCovers()
         }
     }
+    property bool startupIdleWorkArmed: false
+    Timer {
+        id: startupIdleGate
+        interval: 2500
+        repeat: false
+        onTriggered: {
+            if (worldStack.current !== "" || win.immersiveSurfaceOpen) {
+                startupIdleWorkArmed = false
+                win.armStartupIdleWork()
+                return
+            }
+            postFrameStartupWork.start()
+            win.armHomeIntroWidgets()
+            win.armHomeContinueRail()
+        }
+    }
+    function armStartupIdleWork() {
+        if (startupIdleWorkArmed || boot.visible) return
+        startupIdleWorkArmed = true
+        startupIdleGate.start()
+    }
+    // The Home intro board is below the first viewport and each widget owns its own
+    // catalogue requests/poster delegates. Keep their object trees out of Main.qml's
+    // pre-first-frame critical path, then instantiate them asynchronously once the
+    // shell has had a chance to present and accept input.
+    property bool homeIntroWidgetsLoaded: false
+    property int homeIntroWidgetCursor: 0
+    property var homeIntroPendingLoader: null
+    Timer {
+        id: homeIntroWidgetsTimer
+        interval: 850
+        repeat: false
+        onTriggered: win.loadHomeIntroWidgets()
+    }
+    function armHomeIntroWidgets() {
+        if (homeIntroWidgetsLoaded || homeIntroPendingLoader) return
+        if (boot.visible || worldStack.current !== "" || win.immersiveSurfaceOpen) return
+        homeIntroWidgetsTimer.start()
+    }
+
+    // Continue is the only Home rail that queries the Progress store while its delegates are
+    // created. Keep a fixed reservation so loading it later cannot reflow the Home board, but move
+    // the query and ContinueTile object tree behind the post-splash idle boundary.
+    property bool homeContinueRailRequested: false
+    property bool homeContinueRailLoaded: false
+    readonly property int homeContinueRailPlaceholderHeight: 192
+    Timer {
+        id: homeContinueRailTimer
+        interval: 500
+        repeat: false
+        onTriggered: win.loadHomeContinueRail()
+    }
+    function armHomeContinueRail() {
+        if (homeContinueRailLoaded || homeContinueRailRequested) return
+        if (boot.visible || worldStack.current !== "" || win.immersiveSurfaceOpen) return
+        homeContinueRailRequested = true
+        homeContinueRailTimer.start()
+    }
+    function loadHomeContinueRail() {
+        if (homeContinueRailLoaded) return
+        if (worldStack.current !== "" || win.immersiveSurfaceOpen) {
+            homeContinueRailRequested = false
+            return
+        }
+        homeContinueRailLoader.sourceComponent = homeContinueRailComponent
+        homeContinueRailLoader.active = true
+    }
+    function loadHomeIntroWidgets() {
+        if (homeIntroWidgetsLoaded || homeIntroPendingLoader) return
+        if (worldStack.current !== "" || win.immersiveSurfaceOpen) return
+        var loaders = [homeBookshelfLoader, homeTheatreStripLoader,
+                       homeReadingDeskLoader, homeVaultWidgetLoader]
+        var sources = ["Bookshelf.qml", "TheatreStrip.qml",
+                       "ReadingDesk.qml", "VaultHomeWidget.qml"]
+        if (homeIntroWidgetCursor >= loaders.length) {
+            homeIntroWidgetsLoaded = true
+            return
+        }
+        var loader = loaders[homeIntroWidgetCursor]
+        homeIntroWidgetCursor++
+        homeIntroPendingLoader = loader
+        loader.setSource(sources[homeIntroWidgetCursor - 1], { "backdrop": wall })
+        loader.active = true
+    }
+    function homeIntroWidgetSettled(loader) {
+        if (homeIntroPendingLoader !== loader) return
+        homeIntroPendingLoader = null
+        if (homeIntroWidgetCursor >= 4) {
+            homeIntroWidgetsLoaded = true
+            return
+        }
+        homeIntroWidgetsTimer.restart()
+    }
     Connections {
         target: (typeof GuiStallProbe !== "undefined") ? GuiStallProbe : null
-        function onFirstFrameReady() { postFrameStartupWork.start() }
+        function onFirstFrameReady() {
+            win.armStartupIdleWork()
+        }
     }
     // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
@@ -365,8 +460,9 @@ Window {
         }
         // The production native entry point starts this timer from its first-frame signal. A
         // bare QML harness has no bridge, so retain a deterministic fallback for those fixtures.
-        if (typeof GuiStallProbe === "undefined" || !GuiStallProbe)
-            postFrameStartupWork.start()
+        if (typeof GuiStallProbe === "undefined" || !GuiStallProbe) {
+            win.armStartupIdleWork()
+        }
     }
 
     // locg:<id> → "<gc-tag-slug>|<gc-tagId>", persisted forever (survives restarts)
@@ -491,6 +587,8 @@ Window {
         refreshWallpaper()
         topbar.visible = true
         page.visible = true
+        win.armHomeIntroWidgets()
+        win.armHomeContinueRail()
     }
 
     function openGenre(name) {
@@ -569,16 +667,54 @@ Window {
     function closeTheatreGenreIndex() { theatreGenreIndexLayer.active = false }
 
     // ---- series detail: a layer over the current world page (opened from a Top-10 title tile) ----
-    function openSeries(title, malId) {
+    function clearSeriesEditionProfile() {
+        seriesLayer.malId = ""
+        seriesLayer.seriesIdOverride = ""
+        seriesLayer.sourceSearchTitle = ""
+        seriesLayer.sourceSearchAliases = []
+        seriesLayer.sourceRequiredMarkers = []
+        if (seriesLayer.active && seriesLayer.item) {
+            seriesLayer.item.malId = ""
+            seriesLayer.item.seriesIdOverride = ""
+            seriesLayer.item.sourceSearchTitle = ""
+            seriesLayer.item.sourceSearchAliases = []
+            seriesLayer.item.sourceRequiredMarkers = []
+        }
+    }
+    function applySeriesEditionProfile(profile, fallbackMalId) {
+        clearSeriesEditionProfile()
+        var p = profile || ({})
+        seriesLayer.malId = String(p.malId || fallbackMalId || "")
+        seriesLayer.seriesIdOverride = String(p.seriesId || "")
+        seriesLayer.sourceSearchTitle = String(p.sourceSearchTitle || "")
+        seriesLayer.sourceSearchAliases = p.sourceSearchAliases || []
+        seriesLayer.sourceRequiredMarkers = p.sourceRequiredMarkers || []
+        if (seriesLayer.active && seriesLayer.item) {
+            seriesLayer.item.malId = seriesLayer.malId
+            seriesLayer.item.seriesIdOverride = seriesLayer.seriesIdOverride
+            seriesLayer.item.sourceSearchTitle = seriesLayer.sourceSearchTitle
+            seriesLayer.item.sourceSearchAliases = seriesLayer.sourceSearchAliases
+            seriesLayer.item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
+        }
+    }
+    function restoreSeriesEditionProfile(seriesId) {
+        var sid = String(seriesId || "")
+        if (sid !== "mal:13:color") { clearSeriesEditionProfile(); return }
+        applySeriesEditionProfile({
+            malId: "13", seriesId: sid, sourceSearchTitle: "One Piece Colored",
+            sourceSearchAliases: ["One Piece Digital Colored Comics"],
+            sourceRequiredMarkers: ["colored", "full color", "full colour"]
+        }, "13")
+    }
+    function openSeries(title, malId, profile) {
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
         seriesLayer.resumeVolumeId = ""
+        applySeriesEditionProfile(profile, malId)
         seriesLayer.title = title
-        seriesLayer.malId = malId || ""
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
-            seriesLayer.item.malId = malId || ""       // set BEFORE seriesTitle: that triggers re-resolve
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
     }
@@ -587,6 +723,7 @@ Window {
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
         seriesLayer.resumeVolumeId = ""
+        restoreSeriesEditionProfile(seriesId)
         seriesLayer.title = title
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.seriesTitle = title
@@ -930,6 +1067,15 @@ Window {
             // engine and fed "" — the job then sat "resolving" forever (the
             // nothing-downloads wedge, diagnosed 2026-07-05). play() is also the
             // player's signal — prefetch keeps downloads out of mpv's ears.
+            var directUrl = best.url ? String(best.url) : ""
+            if (!directUrl.length && String(best.infoHash || "").indexOf("url:") === 0)
+                directUrl = String(best.infoHash).substring(4)
+            if ((best.streamKind === "Direct" || directUrl.length) && directUrl.length) {
+                Download.feedSource(id, directUrl,
+                                    (best.headers && typeof best.headers === "object" && !Array.isArray(best.headers))
+                                    ? best.headers : ({}))
+                return
+            }
             var key = (best.infoHash || "").toLowerCase() + ":" + (best.fileIdx || 0)
             win.pendingFeeds[key] = id
             Stream.prefetch(best.infoHash, best.fileIdx || 0)
@@ -1193,7 +1339,7 @@ Window {
             "appType": "theatre", "contentKind": "movie", "title": job.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(job.id || ""),
                         "streamUrl": job.url, "partPath": part, "id": job.id || "",
-                        "title": job.title || "",
+                        "title": job.title || "", "headers": job.headers || ({}),
                         "art": job.art || "", "kind": job.kind || "", "position": pos }
         })
     }
@@ -1538,11 +1684,12 @@ Window {
     }
     function openLocalMedia(paths) {
         if (!paths || !paths.length) return
-        dispatchLocalRoute(LocalLaunch.open(paths))
+        if (typeof LocalLaunch === "undefined") return
+        LocalLaunch.openAsync(paths)
     }
     function openNextToOpen(index) {
         if (typeof LocalLaunch === "undefined") return
-        dispatchLocalRoute(LocalLaunch.openNextToOpen(index))
+        LocalLaunch.openNextToOpenAsync(index)
     }
     function removeNextToOpen(index) {
         if (typeof LocalLaunch !== "undefined") LocalLaunch.removeNextToOpen(index)
@@ -1553,7 +1700,7 @@ Window {
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
-        dispatchLocalRoute(LocalLaunch.routeInfo(pending.path || ""))
+        LocalLaunch.routeInfoAsync(pending.path || "")
     }
     // Build the player target for a local video, resuming at the saved spot. A finished movie
     // (>=90%) is dropped from Progress, so its lookup is empty → position 0 → restart from the
@@ -1769,6 +1916,7 @@ Window {
                 seriesLayer.resumeSeriesId = t.seriesId || ""
                 seriesLayer.resumeChapterId = ""
                 seriesLayer.resumeVolumeId = savedComicId
+                restoreSeriesEditionProfile(t.seriesId)
                 seriesLayer.title = t.title
                 if (seriesLayer.active && seriesLayer.item) {
                     seriesLayer.item.seriesTitle = t.title
@@ -1780,6 +1928,7 @@ Window {
             seriesLayer.resumeSeriesId = t.seriesId || ""
             seriesLayer.resumeChapterId = savedComicId
             seriesLayer.resumeVolumeId = ""
+            restoreSeriesEditionProfile(t.seriesId)
             seriesLayer.title = t.title
             if (seriesLayer.active && seriesLayer.item) {
                 seriesLayer.item.seriesTitle = t.title
@@ -1962,6 +2111,60 @@ Window {
         controller: WindowMode
     }
 
+    // Kept as a Component so Progress.recent() and the ContinueTile delegates are not evaluated
+    // while Main.qml's Home object tree is being constructed. The Loader below owns the same
+    // bindings and signals as the former inline rail once the shell is idle.
+    Component {
+        id: homeContinueRailComponent
+        Column {
+            id: contCol
+            width: parent ? parent.width : 0
+            spacing: 14
+            // watched episodes sink below unfinished entries (both halves keep recency order)
+            property var contItems: (Progress.revision, (function() {
+                // 'audiobook' records persist ONLY as resume positions for the reader's
+                // read-along (Hemanth 2026-07-18: audio progress rides the BOOK — the
+                // book's own tile represents both). Never surface them as tiles.
+                var a = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
+                return a.filter(function(e) { return e.watched !== true })
+                        .concat(a.filter(function(e) { return e.watched === true }))
+            })())
+            property bool hasResumeItems: contItems.length > 0
+            visible: hasResumeItems
+            // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
+            WidgetHeader {
+                width: parent.width; title: "Continue"
+                moreLabel: "See all"
+                onMoreClicked: win.openContinueSeeAll("home")
+            }
+            Flickable {
+                id: contFlick
+                width: parent.width; height: 148
+                contentWidth: contRow.width; contentHeight: height
+                clip: true
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                Row {
+                    id: contRow
+                    spacing: 18
+                    Repeater {
+                        model: contCol.contItems
+                        delegate: ContinueTile {
+                            required property var modelData
+                            variant: "home"
+                            entry: modelData
+                            backdrop: wall
+                            track: page.contentY + contFlick.contentX
+                            onResumeRequested: win.resumeContinue(modelData)
+                            onDetailRequested: win.detailContinue(modelData)
+                            onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // ---- pinned top bar is above; everything below SCROLLS (vertical wheel/drag) ----
     Flickable {
         id: page
@@ -2116,89 +2319,91 @@ Window {
             }
 
             // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
-            //      Real resume data from the Progress store; hidden entirely until there's
-            //      something to resume. (Naming Progress.revision keeps the binding live.)
-            Column {
-                id: contCol
+            //      Reserve the old rail footprint until the idle Loader resolves its data. If
+            //      there is no resume history, the reservation collapses after the same check that
+            //      previously hid this entire Column.
+            Loader {
+                id: homeContinueRailLoader
                 width: parent.width
-                spacing: 14
-                // watched episodes sink below unfinished entries (both halves keep recency order)
-                property var contItems: (Progress.revision, (function() {
-                    // 'audiobook' records persist ONLY as resume positions for the reader's
-                    // read-along (Hemanth 2026-07-18: audio progress rides the BOOK — the
-                    // book's own tile represents both). Never surface them as tiles.
-                    var a = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
-                    return a.filter(function(e) { return e.watched !== true })
-                            .concat(a.filter(function(e) { return e.watched === true }))
-                })())
-                visible: contItems.length > 0
-                // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
-                WidgetHeader {
-                    width: parent.width; title: "Continue"
-                    moreLabel: "See all"
-                    onMoreClicked: win.openContinueSeeAll("home")
+                height: !homeContinueRailLoaded
+                         || (item && item.hasResumeItems)
+                         ? homeContinueRailPlaceholderHeight : 0
+                asynchronous: true
+                onLoaded: {
+                    homeContinueRailRequested = false
+                    homeContinueRailLoaded = true
                 }
-                Flickable {
-                    id: contFlick
-                    width: parent.width; height: 148
-                    contentWidth: contRow.width; contentHeight: height
-                    clip: true
-                    flickableDirection: Flickable.HorizontalFlick
-                    boundsBehavior: Flickable.StopAtBounds
-                    Row {
-                        id: contRow
-                        spacing: 18
-                        Repeater {
-                            model: contCol.contItems
-                            delegate: ContinueTile {
-                                required property var modelData
-                                variant: "home"
-                                entry: modelData
-                                backdrop: wall
-                                track: page.contentY + contFlick.contentX
-                                onResumeRequested: win.resumeContinue(modelData)
-                                onDetailRequested: win.detailContinue(modelData)
-                                onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
-                            }
-                        }
-                    }
+                onStatusChanged: if (status === Loader.Error) {
+                    homeContinueRailRequested = false
+                    homeContinueRailLoaded = true
                 }
             }
 
             // ---- 4. MODE-INTRO WIDGETS — the board that introduces each app AND shows what's inside.
             //      First prototype: Tankoban as a BOOKSHELF (manga covers standing on a shelf ledge).
             //      The other modes get their own widget forms next; this is the shape to react to.
-            Bookshelf {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeBookshelfLoader
                 width: parent.width
-                mangaBooks: Catalog.topManga
-                comicsBooks: Catalog.topComics
-                onClicked: win.openWorld("Tankoban")
-                onBookClicked: win.openWorld("Tankoban")
+                height: 400
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.mangaBooks = Qt.binding(function() { return Catalog.topManga })
+                    item.comicsBooks = Qt.binding(function() { return Catalog.topComics })
+                    item.clicked.connect(function() { win.openWorld("Tankoban") })
+                    item.bookClicked.connect(function() { win.openWorld("Tankoban") })
+                    win.homeIntroWidgetSettled(homeBookshelfLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeBookshelfLoader)
             }
 
             // Theatre = the film-strip, Biblio = the reading desk (mock-reviewed 2026-07-04;
             // both self-load their data, so the board wiring stays declarative).
-            TheatreStrip {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeTheatreStripLoader
                 width: parent.width
-                onClicked: win.openWorld("Theatre")
+                height: 400
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.clicked.connect(function() { win.openWorld("Theatre") })
+                    win.homeIntroWidgetSettled(homeTheatreStripLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeTheatreStripLoader)
             }
 
-            ReadingDesk {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeReadingDeskLoader
                 width: parent.width
-                onClicked: win.openWorld("Biblio")
-                onGenrePicked: (name) => { win.openWorld("Biblio"); win.openBiblioGenre(name) }
+                height: 400
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.clicked.connect(function() { win.openWorld("Biblio") })
+                    item.genrePicked.connect(function(name) {
+                        win.openWorld("Biblio")
+                        win.openBiblioGenre(name)
+                    })
+                    win.homeIntroWidgetSettled(homeReadingDeskLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeReadingDeskLoader)
             }
-            VaultHomeWidget {
-                backdrop: wall
-                track: page.contentY
+            Loader {
+                id: homeVaultWidgetLoader
                 width: parent.width
-                onClicked: win.openVaultPage()
+                height: 520
+                active: false
+                asynchronous: true
+                onLoaded: {
+                    item.track = Qt.binding(function() { return page.contentY })
+                    item.clicked.connect(function() { win.openVaultPage() })
+                    win.homeIntroWidgetSettled(homeVaultWidgetLoader)
+                }
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeVaultWidgetLoader)
             }
             Item { width: 1; height: 16 }   // bottom breathing room
         }
@@ -2492,6 +2697,10 @@ Window {
         visible: active
         property string title: ""
         property string malId: ""             // Slice C: Discover card's MAL id, threaded to the series page
+        property string seriesIdOverride: ""
+        property string sourceSearchTitle: ""
+        property var sourceSearchAliases: []
+        property var sourceRequiredMarkers: []
         property string resumeSeriesId: ""    // Continue resume: jump straight to this chapter…
         property string resumeChapterId: ""   //   …in this series (set seriesId BEFORE the chapter)
         property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
@@ -2499,6 +2708,10 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.malId = seriesLayer.malId
+            item.seriesIdOverride = seriesLayer.seriesIdOverride
+            item.sourceSearchTitle = seriesLayer.sourceSearchTitle
+            item.sourceSearchAliases = seriesLayer.sourceSearchAliases
+            item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
@@ -2916,6 +3129,10 @@ Window {
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
         active: false
         visible: active
+        // DownloadsPage is a large, taskbar-only surface. Spread component creation across
+        // frames so opening the download ledger does not synchronously block the world underneath.
+        // The route handlers only touch the item from onLoaded, after construction completes.
+        asynchronous: true
         source: "DownloadsPage.qml"
         onLoaded: {
             item.backdrop = wall
@@ -2943,6 +3160,10 @@ Window {
         z: 56
         active: false
         visible: active
+        // VaultPage is a large, taskbar-only surface. Spread component creation across
+        // frames so opening the folder door does not synchronously block the world underneath.
+        // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
+        asynchronous: true
         source: "VaultPage.qml"
         onLoaded: {
             item.backdrop = wall
@@ -3012,11 +3233,17 @@ Window {
             item.watchRequested.connect(win.openTheatreSeries)
             item.bookRequested.connect(win.openBook)
             item.comicsArchiveRequested.connect(win.openUniverseComic)
-            // manga → Tankoban. A weebcentral-sourced entry (One Piece digital-coloured) opens its
-            // own series by ID; an anilist entry opens by title, as before.
+            // manga → Tankoban. Edition-aware entries can carry a discovery/storage
+            // profile while reusing the same catalogue identity as the base manga.
             item.seriesRequested.connect(function(e) {
-                if (e && e.provider === "weebcentral" && e.id) win.openSeriesAt(e.title || "", e.id)
-                else win.openSeries((e && e.title) || e || "")
+                if (e && e.provider === "tankoban") {
+                    win.openSeries(e.title || "", e.malId || "", {
+                        malId: e.malId || "", seriesId: e.seriesId || "",
+                        sourceSearchTitle: e.sourceSearchTitle || "",
+                        sourceSearchAliases: e.sourceSearchAliases || [],
+                        sourceRequiredMarkers: e.sourceRequiredMarkers || []
+                    })
+                } else win.openSeries((e && e.title) || e || "")
             })
         }
     }
@@ -3366,6 +3593,13 @@ Window {
         onRemoveRequested: (index, entry) => win.removeNextToOpen(index)
     }
 
+    Connections {
+        target: (typeof LocalLaunch !== "undefined") ? LocalLaunch : null
+        function onOpenReady(result) { win.dispatchLocalRoute(result) }
+        function onRouteInfoReady(result) { win.dispatchLocalRoute(result) }
+        function onOpenNextToOpenReady(result) { win.dispatchLocalRoute(result) }
+    }
+
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.
     VaultIdentityCeremonyDialog {
         id: identityCeremonyDialog
@@ -3463,6 +3697,12 @@ Window {
         onFinished: bootFade.start()
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
+    }
+    Connections {
+        target: boot
+        function onVisibleChanged() {
+            if (!boot.visible) win.armStartupIdleWork()
+        }
     }
 
     // Account identity flyout, dropped from the topbar medallion.

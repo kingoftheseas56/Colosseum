@@ -205,6 +205,10 @@ AWS_REGION=auto
 
 The security keys are independent deployment secrets. `SESSION_WRAP_KEY` and `SYNC_DATA_KEY` must each decode to exactly 32 bytes; the HMAC keys must decode to at least 32 bytes. The 600-second future-skew default is an operational reference default, not a product promise; operators may override it with a positive value.
 
-## Fly bootstrap
+## Deployment target
 
-Operational resource names are deliberately not hard-coded. Create/attach the Fly app, Managed Postgres, and Tigris resources outside source control; then supply their real environment/secrets during deployment.
+Operational resource names are deliberately not hard-coded. The active deployment target
+is Cloud Run (compute) plus Neon (PostgreSQL) — see `DEPLOYMENT.md` for the full runbook
+and the reasoning. `fly.toml` remains in the tree as a fallback reference only; it is not
+the active target. Create/attach whatever resources the chosen stack needs outside source
+control, then supply their real environment/secrets during deployment.
