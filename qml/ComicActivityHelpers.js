@@ -52,6 +52,30 @@ function portableCover(url) {
     return /^(https?|data):/i.test(u) ? u : ""
 }
 
+// Activity item identity is portable only when the entry id is itself portable. Vault uses a
+// filesystem path as its LOCAL page-store key, so that path must collapse to the stable logical
+// series id and the fact must remain local-only. Fail closed when no entry id exists.
+function _looksLikeFilesystemPath(value) {
+    var s = String(value || "").trim()
+    if (!s.length) return false
+    var lower = s.toLowerCase()
+    if (lower.indexOf("file:/") === 0 || lower.indexOf("qrc:/") === 0) return true
+    if (/^[a-zA-Z]:[\\/]/.test(s)) return true
+    if (/^[\\]{2}/.test(s)) return true
+    if (/^\//.test(s)) return true
+    if (/^(\.\.\/|\.\/|\.\.\\|\.\\)/.test(s)) return true
+    return false
+}
+
+function activityItemIdentity(seriesId, entryId) {
+    var sid = String(seriesId || "")
+    var eid = String(entryId || "")
+    if (!eid.length) return { itemKey: "", syncable: false }
+    if (_looksLikeFilesystemPath(eid))
+        return { itemKey: sid, syncable: false }
+    return { itemKey: eid, syncable: true }
+}
+
 // The stable physical page-key format every surface + the shell's coverage check share.
 // 0-based, namespaced by the caller's kind+itemKey scope — §10's dedupe key is exactly
 // sessionId+kind+itemKey+pageKey, so the key string itself only has to be unique WITHIN one

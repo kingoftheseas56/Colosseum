@@ -1,4 +1,3 @@
-# PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 # Comic Reader — imported Tankoban resume bridge gate (Bundle 8B).
 
 $ErrorActionPreference = "Stop"
@@ -9,6 +8,7 @@ if (!(Test-Path -LiteralPath $qmlExe)) {
     exit 1
 }
 
+$env:QT_FORCE_STDERR_LOGGING = "1"
 $harness = Join-Path $PSScriptRoot "comicreader_sync_resume_acceptance.qml"
 if (!(Test-Path -LiteralPath $harness)) {
     Write-Host "FAIL: imported-resume harness not found at $harness"
