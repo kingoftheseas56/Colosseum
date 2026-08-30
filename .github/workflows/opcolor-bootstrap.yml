@@ -1,0 +1,124 @@
+name: opcolor-bootstrap
+
+on:
+  push:
+    branches:
+      - feature/one-piece-color-shelf
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: opcolor-bootstrap-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  patch-and-focused-verify:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Apply fail-closed One Piece Color patch
+        shell: pwsh
+        run: |
+          python scripts/opcolor_bootstrap.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Universe payload focused test
+        shell: pwsh
+        run: |
+          node tests/universe_ext_api_test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: MangaSeries focused QML test
+        shell: pwsh
+        run: |
+          $env:QT_FORCE_STDERR_LOGGING = "1"
+          $env:QT_LOGGING_RULES = "qt.qml.*=false"
+          $qml = Join-Path $env:QT_ROOT_DIR "bin/qml.exe"
+          $output = & $qml -platform offscreen tests/manga_series_catalogue_harness.qml 2>&1 | Out-String
+          Write-Output $output
+          if ($LASTEXITCODE -ne 0 -or $output -notmatch "MANGA_SERIES_CATALOGUE_OK") {
+            throw "MangaSeries catalogue harness failed"
+          }
+      - name: Parse changed QML
+        shell: pwsh
+        run: |
+          $qmlformat = Join-Path $env:QT_ROOT_DIR "bin/qmlformat.exe"
+          & $qmlformat qml/Main.qml | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Main.qml parse failed" }
+          & $qmlformat qml/MangaSeries.qml | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "MangaSeries.qml parse failed" }
+      - name: Diff hygiene and exact scope
+        shell: pwsh
+        run: |
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $expected = @(
+            'assets/universes/one-piece.json',
+            'native/engine/MangaTankobanLogic.cpp',
+            'native/engine/MangaTankobanTypes.h',
+            'native/torrent/MangaNyaaSource.cpp',
+            'native/torrent/MangaTorrentDiscovery.cpp',
+            'qml/Main.qml',
+            'qml/MangaSeries.qml',
+            'tests/manga_series_catalogue_harness.qml',
+            'tests/manga_tankoban_logic_harness.cpp',
+            'tests/universe_ext_api_test.mjs'
+          ) | Sort-Object
+          $actual = @(git diff --name-only) | Sort-Object
+          if (($actual -join "`n") -ne ($expected -join "`n")) {
+            Write-Output "Expected:"; $expected
+            Write-Output "Actual:"; $actual
+            throw "One Piece Color patch changed an unexpected file set"
+          }
+      - name: Commit verified source patch and remove bootstrap
+        shell: pwsh
+        run: |
+          $paths = @(
+            'assets/universes/one-piece.json',
+            'native/engine/MangaTankobanLogic.cpp',
+            'native/engine/MangaTankobanTypes.h',
+            'native/torrent/MangaNyaaSource.cpp',
+            'native/torrent/MangaTorrentDiscovery.cpp',
+            'qml/Main.qml',
+            'qml/MangaSeries.qml',
+            'tests/manga_series_catalogue_harness.qml',
+            'tests/manga_tankoban_logic_harness.cpp',
+            'tests/universe_ext_api_test.mjs'
+          )
+          git rm .github/workflows/opcolor-bootstrap.yml scripts/opcolor_bootstrap.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git add -- $paths
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $expectedStaged = @($paths + '.github/workflows/opcolor-bootstrap.yml' + 'scripts/opcolor_bootstrap.py') | Sort-Object
+          $actualStaged = @(git diff --cached --name-only) | Sort-Object
+          if (($actualStaged -join "`n") -ne ($expectedStaged -join "`n")) {
+            Write-Output "Expected staged:"; $expectedStaged
+            Write-Output "Actual staged:"; $actualStaged
+            throw "Unexpected staged file set"
+          }
+          git config user.name "One Piece Color CI"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "feat(tankoban): add One Piece color shelf"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git push origin HEAD:feature/one-piece-color-shelf
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
