@@ -107,5 +107,3 @@ void CaptureRunnerTest::controllerUsesConfiguredOutputRoot()
 
 QTEST_GUILESS_MAIN(CaptureRunnerTest)
 #include "tst_capture_runner.moc"
-
-\n

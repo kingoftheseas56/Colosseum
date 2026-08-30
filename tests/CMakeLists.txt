@@ -266,7 +266,7 @@ add_executable(tst_local_downloads_failure
     "${COLOSSEUM_NATIVE_DIR}/player/downloadstore.h")
 target_include_directories(tst_local_downloads_failure PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_local_downloads_failure PRIVATE
-    Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui Qt6::Test)
+    Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Gui Qt6::Sql Qt6::Test)
 set_target_properties(tst_local_downloads_failure PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_local_downloads_failure POST_BUILD

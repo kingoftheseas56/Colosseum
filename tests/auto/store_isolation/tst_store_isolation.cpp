@@ -33,6 +33,10 @@
 #include "CollectionStore.h"
 #include "ProgressStore.h"
 
+// ProgressStore.h keeps its gate helper in a named namespace (main.cpp includes both
+// store headers, so the symbols must stay distinct); this test calls it unqualified.
+using ProgressStoreDetail::progressStoreTaggedIniPath;
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
