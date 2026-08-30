@@ -1615,11 +1615,12 @@ Window {
     }
     function openLocalMedia(paths) {
         if (!paths || !paths.length) return
-        dispatchLocalRoute(LocalLaunch.open(paths))
+        if (typeof LocalLaunch === "undefined") return
+        LocalLaunch.openAsync(paths)
     }
     function openNextToOpen(index) {
         if (typeof LocalLaunch === "undefined") return
-        dispatchLocalRoute(LocalLaunch.openNextToOpen(index))
+        LocalLaunch.openNextToOpenAsync(index)
     }
     function removeNextToOpen(index) {
         if (typeof LocalLaunch !== "undefined") LocalLaunch.removeNextToOpen(index)
@@ -1630,7 +1631,7 @@ Window {
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
-        dispatchLocalRoute(LocalLaunch.routeInfo(pending.path || ""))
+        LocalLaunch.routeInfoAsync(pending.path || "")
     }
     // Build the player target for a local video, resuming at the saved spot. A finished movie
     // (>=90%) is dropped from Progress, so its lookup is empty → position 0 → restart from the
@@ -3472,6 +3473,13 @@ Window {
         }
         onOpenRequested: (index, entry) => win.openNextToOpen(index)
         onRemoveRequested: (index, entry) => win.removeNextToOpen(index)
+    }
+
+    Connections {
+        target: (typeof LocalLaunch !== "undefined") ? LocalLaunch : null
+        function onOpenReady(result) { win.dispatchLocalRoute(result) }
+        function onRouteInfoReady(result) { win.dispatchLocalRoute(result) }
+        function onOpenNextToOpenReady(result) { win.dispatchLocalRoute(result) }
     }
 
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.

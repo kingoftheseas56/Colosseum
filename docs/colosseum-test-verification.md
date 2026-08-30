@@ -2232,3 +2232,41 @@ Deterministic evidence from `native/build-responsiveness`:
 - `colosseum_qml_tests` rebuilt cleanly with the new search-history tests. The local runner could
   not execute the QML suite in this environment (the real-window suite exits without a report),
   so runtime QML results are intentionally not claimed here.
+
+## Responsiveness hardening — asynchronous local-media admission (2026-08-30)
+
+The production local-media route no longer performs CBZ archive inspection or decoded-video
+admission on the QML/UI call stack. `Main.qml` now uses `LocalLaunch.openAsync()`,
+`routeInfoAsync()`, and `openNextToOpenAsync()`; validation runs through the Qt thread pool and
+results return through queued signals. A generation/token fence cancels superseded work and drops
+late completions. The Next-to-Open tray keeps a selected entry until its current validation
+finishes, so a newer open cannot silently lose user state. Empty opens and invalid tray indexes
+also invalidate older completions.
+
+`VaultIdentity::observeFile()` intentionally remains on its owning thread after admission. It is a
+stateful identity/ceremony operation that mutates shared aliases and may persist `identity.json`;
+moving it into the worker would race ceremony decisions and violate QObject ownership. The
+unpredictable media inspection is therefore off-thread, while the owner-thread identity hand-off
+keeps the existing ceremony semantics.
+
+Deterministic/static evidence:
+
+- `tests/test_local_launch_async_contract.ps1` → `LOCAL_LAUNCH_ASYNC_CONTRACT_OK`.
+- `git diff --check` passes.
+- `qmllint` on the touched `qml/Main.qml` exits 0; output contains only pre-existing warnings.
+- Responsiveness/unit label: `ctest -L responsiveness` → **9/9 passed** (including the new
+  async contract and the existing startup/world/search/recovery gates).
+- `colosseum.vault_launch_router_harness` rebuilt and passed **1/1**, including async routing,
+  stale-generation cancellation, staged ordering/retention, and identity recheck coverage.
+- `tests/lanista_scenarios/world_cold_navigation_qualification.json` adds a measurement-only
+  cold-world navigation/retained-Loader journey for `COLOSSEUM_WORLD_WARMER=0`. It is designed to
+  separate first-visit Loader construction from network stalls and to verify Home → Tankoban →
+  Home → Tankoban state retention.
+
+The focused native harness was rebuilt with the host's MSVC include/lib environment provisioned
+explicitly (`ninja -C native/build-responsiveness -j2 vault_launch_router_harness`) and passed its
+CTest run 1/1 when Qt and libmpv runtime directories were present on `PATH`. The unprovisioned
+standard CMake invocation still fails before compilation because this host does not export the
+MSVC standard-library include path; that is an environment limitation, not a source failure. No
+runtime result is claimed yet for the cold-world Lanista scenario itself; it still needs a
+disposable app session with `COLOSSEUM_WORLD_WARMER=0`.

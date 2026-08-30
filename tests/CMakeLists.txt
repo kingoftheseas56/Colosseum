@@ -841,7 +841,7 @@ target_include_directories(vault_launch_router_harness PRIVATE
 target_compile_definitions(vault_launch_router_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/tankoban"
     VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
-target_link_libraries(vault_launch_router_harness PRIVATE Qt6::Core ${Libmpv_LIBRARIES})
+target_link_libraries(vault_launch_router_harness PRIVATE Qt6::Core Qt6::Concurrent ${Libmpv_LIBRARIES})
 set_target_properties(vault_launch_router_harness PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.vault_launch_router_harness
@@ -850,6 +850,14 @@ set_tests_properties(colosseum.vault_launch_router_harness PROPERTIES
     LABELS "unit"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+add_test(NAME colosseum.local_launch_async_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_local_launch_async_contract.ps1")
+set_tests_properties(colosseum.local_launch_async_contract PROPERTIES
+    LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 30)
 
 # ── Vault forensics (Agent Visibility Phase 2, Slice F1-Core) ────────────────
 # VaultForensics — one bounded, read-only projection composing a REAL VaultLibrary (F0's named
