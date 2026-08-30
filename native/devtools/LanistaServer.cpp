@@ -1320,9 +1320,9 @@ void LanistaServer::cmdReader2HotSwitch(const QJsonObject& p, Replier reply)
     }
 
     const int timeoutMs = p.value(QStringLiteral("timeoutMs")).toInt(3000);
-    if (timeoutMs < 50 || timeoutMs > 10000) {
+    if (timeoutMs < 50 || timeoutMs > 60000) {
         reply.fail("HOT_SWITCH_BAD_PAYLOAD",
-                   QStringLiteral("timeoutMs must be between 50 and 10000"));
+                   QStringLiteral("timeoutMs must be between 50 and 60000"));
         return;
     }
 
@@ -1479,9 +1479,16 @@ void LanistaServer::cmdReader2HotSwitch(const QJsonObject& p, Replier reply)
         if (state->finished)
             return;
         if (!state->shell) {
-            (*fail)("HOT_SWITCH_SHELL_UNAVAILABLE",
-                    QStringLiteral("bookReaderShell disappeared during B open"));
-            return;
+            // Production openBookSession may destroy A's shell and materialize a
+            // fresh shell for B. Re-resolve the named item on each event-loop
+            // turn; the bounded command timeout, rather than a guessed lifetime,
+            // decides when the replacement genuinely failed to appear.
+            if (QQuickItem* replacement = findItem(QStringLiteral("bookReaderShell")))
+                state->shell = replacement;
+            else {
+                QTimer::singleShot(10, this, [pollReady]() { (*pollReady)(); });
+                return;
+            }
         }
         const bool ready = state->shell->property("bookReady").toBool();
         const bool onB = state->shell->property("bookPath").toString() == state->bPath;

@@ -749,8 +749,10 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing,
             // the old flat 10 s client cap as a phantom INFRA while the server is still
             // honestly polling. Server timeout + 5 s slack, floor 10 s.
             int stepTimeout = 10000;
-            const int waitMs = step.value(QStringLiteral("payload")).toObject()
-                                   .value(QStringLiteral("timeout_ms")).toInt(0);
+            const QJsonObject stepPayload = step.value(QStringLiteral("payload")).toObject();
+            int waitMs = stepPayload.value(QStringLiteral("timeout_ms")).toInt(0);
+            if (waitMs <= 0)
+                waitMs = stepPayload.value(QStringLiteral("timeoutMs")).toInt(0);
             if (waitMs > 0) stepTimeout = qMax(stepTimeout, waitMs + 5000);
             const QJsonObject reply = call(req, stepTimeout);
             if (g_verbose)
