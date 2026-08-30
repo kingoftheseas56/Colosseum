@@ -95,6 +95,11 @@ SeriesSnapshot prepareSeries(const QVariantMap& descriptor,
     snap.author = descriptor.value(QStringLiteral("author")).toString();
     for (const QVariant& a : descriptor.value(QStringLiteral("aliases")).toList())
         snap.aliases << a.toString();
+    snap.discoveryTitle = descriptor.value(QStringLiteral("discoveryTitle")).toString();
+    for (const QVariant& a : descriptor.value(QStringLiteral("discoveryAliases")).toList())
+        snap.discoveryAliases << a.toString();
+    for (const QVariant& marker : descriptor.value(QStringLiteral("requiredTitleMarkers")).toList())
+        snap.requiredTitleMarkers << marker.toString();
 
     // Build one canonical record per volume row — none is ever dropped.
     QHash<QString, int> byNumber; // normalized number -> first record index

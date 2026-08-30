@@ -51,7 +51,7 @@
       ]},
       { "id": "manga", "title": "Manga", "kind": "manga", "entries": [
         { "id": "30013",  "provider": "anilist", "title": "One Piece", "year": "1997" },
-        { "id": "01J76XYAQSGEJPXCSCVPQ3MHZM", "provider": "weebcentral", "title": "One Piece (Color)" },
+        { "id": "one-piece-color", "provider": "tankoban", "title": "One Piece (Color)", "malId": "13", "seriesId": "mal:13:color", "sourceSearchTitle": "One Piece Colored", "sourceSearchAliases": ["One Piece Digital Colored Comics"], "sourceRequiredMarkers": ["colored", "full color", "full colour"] },
         { "id": "44414",  "provider": "anilist", "title": "One Piece Log Book Omake", "year": "1999" },
         { "id": "47152",  "provider": "anilist", "title": "ONE PIECE: STRONG WORLD (Chapter 0)", "year": "2009" },
         { "id": "82353",  "provider": "anilist", "title": "Chopperman", "year": "2010" },

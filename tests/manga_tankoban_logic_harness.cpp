@@ -111,6 +111,22 @@ int main()
     require(snap.seriesId == QStringLiteral("s1") && snap.title == QStringLiteral("Series"),
             "series descriptor retained");
 
+    const auto colorSnap = prepareSeries(
+        QVariantMap{{"seriesId", "mal:13:color"}, {"title", "One Piece"},
+                    {"discoveryTitle", "One Piece Colored"},
+                    {"discoveryAliases", QVariantList{QVariant(QStringLiteral("One Piece Digital Colored Comics"))}},
+                    {"requiredTitleMarkers", QVariantList{QVariant(QStringLiteral("colored")),
+                                                            QVariant(QStringLiteral("full color")),
+                                                            QVariant(QStringLiteral("full colour"))}}},
+        QVariantList{}, QVariantList{});
+    require(colorSnap.seriesId == QStringLiteral("mal:13:color"),
+            "edition descriptor keeps its durable series id");
+    require(colorSnap.discoveryTitle == QStringLiteral("One Piece Colored")
+                && colorSnap.discoveryAliases == QStringList{QStringLiteral("One Piece Digital Colored Comics")},
+            "edition descriptor carries discovery title + aliases");
+    require(colorSnap.requiredTitleMarkers.size() == 3,
+            "edition descriptor carries required title markers");
+
     // ── Volume assembly: chapterStart/chapterEnd range fallback ───────────
     const QVariantList rangeVols{
         {QVariantMap{{"number", "1"}, {"chapterStart", "1"}, {"chapterEnd", "3"}}},
@@ -300,6 +316,23 @@ int main()
         require(seriesWide.contains(QStringLiteral("Grand Blue Dreaming"))
                     && seriesWide.contains(QStringLiteral("Grand Blue")),
                 "series-wide family searches bare title and bare alias");
+
+        SeriesSnapshot color;
+        color.seriesId = QStringLiteral("mal:13:color");
+        color.title = QStringLiteral("One Piece");
+        color.discoveryTitle = QStringLiteral("One Piece Colored");
+        color.discoveryAliases = QStringList{QStringLiteral("One Piece Digital Colored Comics")};
+        color.requiredTitleMarkers = QStringList{QStringLiteral("colored"),
+                                                 QStringLiteral("full color"),
+                                                 QStringLiteral("full colour")};
+        const QStringList colorFamily = MangaTorrentDiscovery::queryFamily(color, QStringLiteral("2"));
+        require(colorFamily.contains(QStringLiteral("One Piece Colored 2")),
+                "Color queries use the colored discovery title");
+        require(colorFamily.contains(QStringLiteral("One Piece Digital Colored Comics 2")),
+                "Color queries include the colored alias");
+        require(!colorFamily.contains(QStringLiteral("One Piece 2"))
+                    && !colorFamily.contains(QStringLiteral("One Piece")),
+                "Color queries never fall back to broad One Piece discovery");
     }
 
     // ── Arc 18 M2: RSS link retention + provenance stamping seam ────────────
@@ -353,6 +386,28 @@ int main()
         require(order.size() == 2, "both editions survive filtering");
         require(order[0].digitalHint && !order[1].digitalHint,
                 "digital/official edition ordered ahead of the plain scan");
+    }
+
+    // ── Edition marker gate: Color must reject ordinary B&W releases ────────
+    {
+        SeriesSnapshot color;
+        color.seriesId = QStringLiteral("mal:13:color");
+        color.title = QStringLiteral("One Piece");
+        color.requiredTitleMarkers = QStringList{QStringLiteral("colored"),
+                                                 QStringLiteral("full color"),
+                                                 QStringLiteral("full colour")};
+        const auto plainRows = MangaNyaaSource::parseRss(
+            rssItem("One Piece Volume 2 (Digital)", "someone",
+                    "1010101010101010101010101010101010101010"));
+        const auto colorRows = MangaNyaaSource::parseRss(
+            rssItem("One Piece Digital Colored Comics Volume 2 (Digital)", "someone",
+                    "2020202020202020202020202020202020202020"));
+        QList<MangaNyaaCandidate> candidates = plainRows;
+        candidates.append(colorRows);
+        const auto ranked = MangaNyaaSource::filterAndRank(color, "2", candidates, TrustTable{});
+        require(ranked.size() == 1, "Color marker gate rejects the ordinary B&W release");
+        require(ranked.front().title.contains(QStringLiteral("Colored")),
+                "Color marker gate keeps the colored release");
     }
 
     // ── I1: an inclusive pack written as "v01-v12" (both bounds v-marked) ─────

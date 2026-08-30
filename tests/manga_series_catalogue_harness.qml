@@ -88,7 +88,7 @@ Item {
     }
 
     property var pageComp: null
-    function makePage(malId, seriesTitle) {
+    function makePage(malId, seriesTitle, profile) {
         if (!pageComp) {
             pageComp = Qt.createComponent("../qml/MangaSeries.qml")
             if (pageComp.status === Component.Error)
@@ -100,8 +100,13 @@ Item {
             "tankobanVolumesRef": volService
         })
         if (!p) throw new Error("MangaSeries createObject returned null")
-        // Mirror production's exact sequencing (Main.qml: malId set BEFORE seriesTitle —
-        // that is what triggers the one resolve() via onSeriesTitleChanged).
+        // Mirror production sequencing: the edition profile and malId must be
+        // present BEFORE seriesTitle triggers resolve().
+        var pr = profile || ({})
+        p.seriesIdOverride = pr.seriesIdOverride || ""
+        p.sourceSearchTitle = pr.sourceSearchTitle || ""
+        p.sourceSearchAliases = pr.sourceSearchAliases || []
+        p.sourceRequiredMarkers = pr.sourceRequiredMarkers || []
         p.malId = malId || ""
         p.seriesTitle = seriesTitle || ""
         return p
@@ -160,6 +165,32 @@ Item {
             ck(p2.seriesId === "mal:1", "case2: exact-title resolve must set seriesId mal:1")
             ck(p2.author === "Naoki Urasawa", "case2: masthead facts must come from mangaById after title resolve")
             ck(p2.hasShelf === true, "case2: exact-title resolve must still see the catalogue shelf")
+
+            // ── Case 2c: One Piece Color reuses MAL 13 but owns a distinct durable id ──
+            var colorRow = {
+                "mal_id": 13, "title": "One Piece", "title_english": "One Piece",
+                "score": 9.2, "status": "Publishing", "year": 1997,
+                "images": { "jpg": { "large_image_url": "http://cover/13" } },
+                "synopsis": "Pirates.", "authors": [ { "name": "Eiichiro Oda" } ],
+                "genres": [ { "name": "Adventure" } ]
+            }
+            malCatalog.rows = ({ "1": monsterRow, "13": colorRow })
+            tankCatalog.infoMap = ({ "13": { "volumeCount": 113, "countBasis": "mal" } })
+            volService.volMap = ({ "mal:13:color": [] })
+            var pc = makePage("13", "One Piece (Color)", {
+                "seriesIdOverride": "mal:13:color",
+                "sourceSearchTitle": "One Piece Colored",
+                "sourceSearchAliases": ["One Piece Digital Colored Comics"],
+                "sourceRequiredMarkers": ["colored", "full color", "full colour"]
+            })
+            ck(pc.resolvedMalId === 13, "case2c: Color must resolve through MAL 13")
+            ck(pc.seriesId === "mal:13:color", "case2c: Color durable id must stay isolated")
+            ck(pc.hasShelf === true, "case2c: Color must reuse MAL 13's 113-volume shelf")
+            ck(pc.sourceSearchTitle === "One Piece Colored", "case2c: colored discovery title retained")
+            ck(pc.sourceSearchAliases.length === 1
+               && pc.sourceSearchAliases[0] === "One Piece Digital Colored Comics",
+               "case2c: colored discovery alias retained")
+            ck(pc.sourceRequiredMarkers.length === 3, "case2c: colored marker gate retained")
 
             // ── Case 3: ambiguous / unmatched title -> the honest shelf-less page ──
             malCatalog.titleMap = ({ "Ambiguous Title": [1, 2] })
