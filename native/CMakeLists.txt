@@ -1525,7 +1525,7 @@ add_executable(manga_volume_index_harness
 target_include_directories(manga_volume_index_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_volume_index_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
-target_link_libraries(manga_volume_index_harness PRIVATE Qt6::Core)
+target_link_libraries(manga_volume_index_harness PRIVATE Qt6::Core Qt6::Concurrent)
 
 add_executable(cbz_archive_harness
     ../tests/cbz_archive_harness.cpp
@@ -1571,7 +1571,7 @@ add_executable(manga_volume_packer_harness
 target_include_directories(manga_volume_packer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_volume_packer_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
-target_link_libraries(manga_volume_packer_harness PRIVATE Qt6::Core Qt6::Network)
+target_link_libraries(manga_volume_packer_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
 
 add_executable(manga_volume_torrent_harness
     ../tests/manga_volume_torrent_harness.cpp
