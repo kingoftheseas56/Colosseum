@@ -266,6 +266,7 @@ WorldPage {
     // Library — the fifth tab (Stage 2). The saved shelf, life-marked, with the ⋮ menu.
     LibraryPage {
         visible: theatre.activeTab === "library"
+        active: theatre.lifecycleActive && visible
         width: parent.width
         height: visible ? Math.max(620, theatre.height - 200) : 0
         onResumeRequested: (e) => theatre.libraryResumeRequested(e)

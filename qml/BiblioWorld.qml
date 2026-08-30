@@ -209,6 +209,7 @@ WorldPage {
         id: libraryPage
         objectName: "biblioLibraryPage"
         visible: biblio.activeTab === "library"
+        active: biblio.lifecycleActive && visible
         width: parent.width
         height: visible ? Math.max(620, biblio.height - 200) : 0
         onResumeRequested: (record) => biblio.continueResumeRequested(record)

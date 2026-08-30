@@ -13,6 +13,9 @@ $biblioExplore = Get-Content (Join-Path $root 'qml/BiblioExplorePage.qml') -Raw
 $biblio = Get-Content (Join-Path $root 'qml/BiblioWorld.qml') -Raw
 $theatre = Get-Content (Join-Path $root 'qml/TheatreWorld.qml') -Raw
 $tankoban = Get-Content (Join-Path $root 'qml/TankobanWorld.qml') -Raw
+$theatreLibrary = Get-Content (Join-Path $root 'qml/LibraryPage.qml') -Raw
+$biblioLibrary = Get-Content (Join-Path $root 'qml/BiblioLibraryPage.qml') -Raw
+$tankobanLibrary = Get-Content (Join-Path $root 'qml/TankobanLibraryTab.qml') -Raw
 
 function Need([bool]$condition, [string]$message) {
     if (-not $condition) { throw $message }
@@ -62,5 +65,17 @@ Need ($theatre.Contains('property var continueRows: theatre.lifecycleActive')) `
     'Hidden Theatre worlds must not query Progress for Continue Watching.'
 Need ($biblio.Contains('items: biblio.lifecycleActive')) `
     'Hidden Biblio worlds must not query Progress for Continue Reading.'
+Need ($theatre.Contains('active: theatre.lifecycleActive && visible')) `
+    'Theatre must gate its retained Library model behind lifecycle and tab visibility.'
+Need ($biblio.Contains('active: biblio.lifecycleActive && visible')) `
+    'Biblio must gate its retained Library model behind lifecycle and tab visibility.'
+Need ($tankoban.Contains('active: tanko.lifecycleActive && visible')) `
+    'Tankoban must gate its retained Library model behind lifecycle and tab visibility.'
+Need ($theatreLibrary.Contains('property bool active: true') -and $theatreLibrary.Contains('if (!isActive')) `
+    'Theatre LibraryPage must expose an activation gate before deriving its model.'
+Need ($biblioLibrary.Contains('property bool active: true') -and $biblioLibrary.Contains('if (!isActive')) `
+    'Biblio LibraryPage must expose an activation gate before deriving its model.'
+Need ($tankobanLibrary.Contains('property bool active: true') -and $tankobanLibrary.Contains('if (!isActive')) `
+    'Tankoban LibraryPage must expose an activation gate before deriving its model.'
 
 Write-Host 'World lifecycle contract: PASS'

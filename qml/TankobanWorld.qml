@@ -266,6 +266,7 @@ WorldPage {
     TankobanLibraryTab {
         id: libraryPage
         visible: tanko.activeTab === "library"
+        active: tanko.lifecycleActive && visible
         width: parent.width
         height: visible ? Math.max(620, tanko.height - 200) : 0
         onDetailRequested: function(entry) { tanko.collectionOpenRequested(entry) }
