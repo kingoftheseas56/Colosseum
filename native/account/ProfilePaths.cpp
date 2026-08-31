@@ -132,11 +132,26 @@ QString ProfilePaths::accountStagingRoot() const {
     return QDir::cleanPath(m_profileRoot + QLatin1String(".adopting"));
 }
 
+QString ProfilePaths::accountReplacementBackupRoot() const {
+    if (m_kind != Kind::Account)
+        return QString();
+    return QDir::cleanPath(m_profileRoot + QLatin1String(".pre-attachment"));
+}
+
 QString ProfilePaths::adoptionJournalPath() const {
     if (m_kind != Kind::Account)
         return QString();
     return QDir::cleanPath(m_appDataRoot
                            + QLatin1String("/profile-adoption/")
+                           + m_profileId
+                           + QLatin1String(".json"));
+}
+
+QString ProfilePaths::localAttachmentJournalPath() const {
+    if (m_kind != Kind::Account)
+        return QString();
+    return QDir::cleanPath(m_appDataRoot
+                           + QLatin1String("/profile-attachment/")
                            + m_profileId
                            + QLatin1String(".json"));
 }

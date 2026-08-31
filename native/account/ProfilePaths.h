@@ -39,7 +39,9 @@ public:
     QString syncMetaIniPath() const;
 
     QString accountStagingRoot() const;
+    QString accountReplacementBackupRoot() const;
     QString adoptionJournalPath() const;
+    QString localAttachmentJournalPath() const;
     QString adoptionBackupRoot() const;
 
     bool isManagedProfilePath(const QString &path) const;

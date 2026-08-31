@@ -27,6 +27,10 @@ public:
         const QString &accountId,
         QString *error = nullptr);
 
+    bool attachLocalProfileToAccount(
+        const QString &accountId,
+        QString *error = nullptr);
+
     bool prepareRememberedAccount(
         const QString &accountId,
         QString *error = nullptr);
