@@ -24,6 +24,19 @@ struct SyncWinner {
         SyncWireOperation::Put;
 };
 
+struct SyncPausedOverlayRecord {
+    SyncWireOperation operation = SyncWireOperation::Put;
+    int schemaVersion = 0;
+    QJsonValue payload;
+    qint64 localOrderMs = -1;
+};
+
+struct SyncPausedCategoryState {
+    QHash<QString, SyncMirrorRecord> localBaseline;
+    QHash<QString, SyncPausedOverlayRecord> localOverlay;
+    bool replaying = false;
+};
+
 struct SyncPersistentState {
     quint64 cursor = 0;
     qint64 hlcPhysicalMs = 0;
@@ -41,6 +54,8 @@ struct SyncPersistentState {
         QString,
         QHash<QString, SyncWinner>>
         winners;
+
+    QHash<QString, SyncPausedCategoryState> pausedCategories;
 };
 
 class SyncStateStore final : public QObject {

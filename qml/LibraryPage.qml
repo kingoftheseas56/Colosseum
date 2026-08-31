@@ -57,6 +57,11 @@ Item {
         var plist = Progress.recent("video", 0)
         return Api.buildRows(entries, plist,
             function (id) { return Progress.watchedMark(id) },
+            function (entry) {
+                if (!entry || entry.type === "series") return false
+                if (typeof ProfileHistory === "undefined" || !ProfileHistory) return false
+                return ProfileHistory.completed("movie", String(entry.id))
+            },
             downloadedIds(), Date.now())
     }
 

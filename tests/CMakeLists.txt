@@ -1182,6 +1182,95 @@ set_tests_properties(colosseum.qttest.window_set_state PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Function 0009 Player 1 selftest bridge. This intentionally reuses the exact
+# LanistaServer/Vault/MpvQt source and deploy closure proven by tst_window_set_state:
+# the command registry is the unit under test, and LanistaServer still names
+# VaultForensics in this no-Vault fixture even though the Player1 cases never call it.
+add_executable(tst_player1_selftest_bridge
+    auto/lanista/tst_player1_selftest_bridge.cpp
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.h"
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLibrary.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultCacheKey.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultArtworkResolver.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicCoverId.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseDetail.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseDetail.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseEmpty.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
+target_include_directories(tst_player1_selftest_bridge PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
+# House trap (native/CMakeLists.txt's lanista_harness target; tests/window_shell_gui_harness.cpp):
+# the windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and shadows the real
+# Qt install's plugin dir, so bare QT_QPA_PLATFORM=offscreen fail-fasts silently. Bake the real
+# platforms path in at configure time; the test applies it only when
+# QT_QPA_PLATFORM_PLUGIN_PATH is unset (same conditional, same reasoning).
+get_target_property(_p1st_qmake Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(_p1st_qtbin "${_p1st_qmake}" DIRECTORY)
+get_filename_component(_p1st_qtprefix "${_p1st_qtbin}" DIRECTORY)
+target_compile_definitions(tst_player1_selftest_bridge PRIVATE
+    PLAYER1_SELFTEST_QT_PLATFORMS_DIR="${_p1st_qtprefix}/plugins/platforms")
+target_link_libraries(tst_player1_selftest_bridge PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Sql Qt6::Concurrent Qt6::Test
+    MpvQt::MpvQt)
+set_target_properties(tst_player1_selftest_bridge PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_player1_selftest_bridge POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.player1_selftest_bridge
+         COMMAND tst_player1_selftest_bridge)
+set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
+    LABELS "unit;windows;qttest;lanista"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+
 # ── Qt Quick Test runner (slice 4) ───────────────────────────────────────────
 # One repo-built runner over tests/qml/tst_*.qml, replacing the Qt-install
 # qmltestrunner.exe path hardcoded in the legacy .ps1 gates. -input points at
@@ -1197,13 +1286,29 @@ set_target_properties(colosseum_qml_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:Qt6::QuickTest>" "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE:Qt6::Core>"
+            "$<TARGET_FILE:Qt6::Gui>"
+            "$<TARGET_FILE:Qt6::Network>"
+            "$<TARGET_FILE:Qt6::OpenGL>"
+            "$<TARGET_FILE:Qt6::Qml>"
+            "$<TARGET_FILE:Qt6::QmlMeta>"
+            "$<TARGET_FILE:Qt6::QmlModels>"
+            "$<TARGET_FILE:Qt6::QmlWorkerScript>"
+            "$<TARGET_FILE:Qt6::Quick>"
+            "$<TARGET_FILE:Qt6::QuickTest>"
+            "$<TARGET_FILE:Qt6::Test>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET colosseum_qml_tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../platforms")
 add_test(NAME colosseum.qml
          COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml")
 set_tests_properties(colosseum.qml PROPERTIES
     LABELS "qml;windows"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
 
 # Function 0006: imported Tankoban Progress must reach the real active ComicReaderShell.
@@ -1222,6 +1327,59 @@ set_tests_properties(colosseum.comicreader_sync_resume_shell PROPERTIES
     LABELS "unit;comicreader"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# Arc 26 Task 3 RED: local privacy retention and coordinator contract.
+add_executable(tst_privacy_policy
+    auto/privacy_policy/tst_privacy_policy.cpp
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h")
+target_include_directories(tst_privacy_policy PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_privacy_policy PRIVATE Qt6::Core Qt6::Qml Qt6::Sql Qt6::Test)
+set_target_properties(tst_privacy_policy PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_privacy_policy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_privacy_policy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Qml>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_privacy_policy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Network>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_privacy_policy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.privacy_policy COMMAND tst_privacy_policy)
+set_tests_properties(colosseum.qttest.privacy_policy PROPERTIES
+    LABELS "unit;qttest;privacy" ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 180)
 
 # Deterministic Reading Room contract: qml.exe injects fake service, progress,
 # and download seams, so this gate is safe under the unit label and does not
@@ -1362,6 +1520,7 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
     # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
@@ -1572,6 +1731,42 @@ set_tests_properties(colosseum.qttest.activity_store PROPERTIES
 # tst_activity_store; reuses the same ACTIVITY_FIXTURES_DIR definition even
 # though this target does not load fixtures directly (kept for symmetry/
 # possible future differential use, harmless if unused).
+add_executable(tst_consumption_history
+    auto/consumption_history/tst_consumption_history.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+target_include_directories(tst_consumption_history PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_consumption_history PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_consumption_history PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Sql>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Core>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_consumption_history POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${Qt6_DIR}/../../../plugins/sqldrivers/qsqlite.dll"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/qsqlite.dll")
+add_test(NAME colosseum.qttest.consumption_history COMMAND tst_consumption_history)
+set_tests_properties(colosseum.qttest.consumption_history PROPERTIES
+    LABELS "unit;qttest;activity;history;profile"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 240)
+
 add_executable(tst_activity_playback_tracker
     auto/activity/tst_activity_playback_tracker.cpp
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityPlaybackTracker.cpp"
@@ -1674,6 +1869,7 @@ add_executable(tst_account_adoption
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
@@ -1733,6 +1929,7 @@ add_executable(tst_account_shared_pc
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
@@ -1764,6 +1961,14 @@ add_custom_command(TARGET tst_account_shared_pc POST_BUILD
 add_custom_command(TARGET tst_account_shared_pc POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_shared_pc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Qml>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_shared_pc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Network>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.account_shared_pc
          COMMAND tst_account_shared_pc)
@@ -1804,6 +2009,7 @@ add_executable(tst_profile_activity_isolation
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
@@ -2111,6 +2317,54 @@ set_tests_properties(colosseum.qttest.history_sync PROPERTIES
     TIMEOUT 240)
 
 
+# ── Category-level full_history pause/replay RED contract (Task 4) ──
+add_executable(tst_sync_category_policy
+    auto/sync_category_policy/tst_sync_category_policy.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.h")
+target_include_directories(tst_sync_category_policy PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_sync_category_policy PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_sync_category_policy PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_sync_category_policy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.sync_category_policy
+         COMMAND tst_sync_category_policy)
+set_tests_properties(colosseum.qttest.sync_category_policy PROPERTIES
+    LABELS "unit;qttest;sync;category-policy;history"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 240)
+
+
 # ── Profile-owned explicit-content preference sync (Bundle 8C, Slice 14C) ──
 add_executable(tst_profile_preferences_sync
     auto/profile_preferences_sync/tst_profile_preferences_sync.cpp
@@ -2151,6 +2405,40 @@ add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Test>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Qml>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QmlMeta>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QmlModels>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Network>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::OpenGL>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Gui>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Quick>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../platforms")
 add_test(NAME colosseum.qttest.profile_preferences_sync
          COMMAND tst_profile_preferences_sync)
 set_tests_properties(colosseum.qttest.profile_preferences_sync PROPERTIES
@@ -2506,3 +2794,29 @@ foreach(_qt_target Qt6::Core Qt6::Network Qt6::Gui)
                 "$<TARGET_FILE:${_qt_target}>"
                 "${CMAKE_CURRENT_BINARY_DIR}/..")
 endforeach()
+
+# Function 0009: deterministic Player 1 source contracts. No network, mpv process,
+# or GUI is required; assembled runtime proof remains a separate Lanista gate.
+add_test(NAME colosseum.player1_runtime_recovery
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_player1_runtime_recovery_p0.ps1")
+set_tests_properties(colosseum.player1_runtime_recovery PROPERTIES
+    LABELS "unit;player"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+add_test(NAME colosseum.player1_resume_choice
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_player_resume_choice_p0.ps1")
+set_tests_properties(colosseum.player1_resume_choice PROPERTIES
+    LABELS "unit;player"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+add_test(NAME colosseum.player1_error_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_player_typed_recovery_p0.ps1")
+set_tests_properties(colosseum.player1_error_contract PROPERTIES
+    LABELS "unit;player"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)

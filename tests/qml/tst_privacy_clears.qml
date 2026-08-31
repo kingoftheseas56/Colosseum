@@ -10,7 +10,7 @@
 //     by grepping every SearchHistoryStore record()/list() call site in qml/: BiblioSearch
 //     hardcodes "biblio", SearchSurface derives searchMode.toLowerCase() and Main.qml only
 //     ever sets searchMode to "Tankoban"/"Theatre" — no "all"/"home"/"world" scope exists);
-//   - "Clear activity history" confirm invokes activityStore.clearAll() exactly once;
+//   - "Clear activity history" confirm invokes historyCoordinator.clearAll() exactly once;
 //   - the two clears are independent of each other;
 //   - neither clear ever reaches a ProgressStore/CollectionStore-shaped seam. Negative
 //     control: fakes for both stay untouched, and AccountCenter exposes no
@@ -18,10 +18,10 @@
 //     clearCollectionRequested signal at all — the same absence-proof idiom
 //     tst_account_data_privacy.qml already uses for AccountDataPrivacyPage itself.
 //
-// searchHistoryStore/activityStore are ordinary AccountCenter properties (default: the
-// typeof-guarded native SearchHistory/ProfileActivity context property, same pattern as
-// the existing colosseumEarliestMonthKey binding), so this Quick Test runner — which links
-// no native C++ and therefore has neither context property — can inject fakes via
+// searchHistoryStore/historyCoordinator are ordinary AccountCenter properties (default:
+// the typeof-guarded native SearchHistory/ProfileConsumptionHistory context properties),
+// so this Quick Test runner — which links no native C++ and therefore has neither context
+// property — can inject fakes via
 // createObject() the same way tst_account_center_composed.qml already injects
 // recoveryPresenter/yourColosseumMonthName.
 import QtQuick 2.15
@@ -56,7 +56,7 @@ TestCase {
     }
 
     Component {
-        id: fakeActivityStoreComponent
+        id: fakeHistoryCoordinatorComponent
         QtObject {
             property int clearAllCallCount: 0
             function clearAll() { clearAllCallCount = clearAllCallCount + 1; return true }
@@ -86,7 +86,7 @@ TestCase {
 
     property var center: null
     property var fakeSearchHistory: null
-    property var fakeActivityStore: null
+    property var fakeHistoryCoordinator: null
     property var fakeProgress: null
     property var fakeCollection: null
 
@@ -106,11 +106,11 @@ TestCase {
 
     function init() {
         fakeSearchHistory = fakeSearchHistoryComponent.createObject(testWindow)
-        fakeActivityStore = fakeActivityStoreComponent.createObject(testWindow)
+        fakeHistoryCoordinator = fakeHistoryCoordinatorComponent.createObject(testWindow)
         fakeProgress = fakeProgressComponent.createObject(testWindow)
         fakeCollection = fakeCollectionComponent.createObject(testWindow)
         verify(fakeSearchHistory !== null)
-        verify(fakeActivityStore !== null)
+        verify(fakeHistoryCoordinator !== null)
         verify(fakeProgress !== null)
         verify(fakeCollection !== null)
 
@@ -118,7 +118,7 @@ TestCase {
             "width": 1280,
             "height": 900,
             "searchHistoryStore": fakeSearchHistory,
-            "activityStore": fakeActivityStore
+            "historyCoordinator": fakeHistoryCoordinator
         })
         verify(center !== null)
         wait(0)
@@ -129,15 +129,15 @@ TestCase {
             center.destroy()
         if (fakeSearchHistory)
             fakeSearchHistory.destroy()
-        if (fakeActivityStore)
-            fakeActivityStore.destroy()
+        if (fakeHistoryCoordinator)
+            fakeHistoryCoordinator.destroy()
         if (fakeProgress)
             fakeProgress.destroy()
         if (fakeCollection)
             fakeCollection.destroy()
         center = null
         fakeSearchHistory = null
-        fakeActivityStore = null
+        fakeHistoryCoordinator = null
         fakeProgress = null
         fakeCollection = null
     }
@@ -218,15 +218,15 @@ TestCase {
         compare(JSON.stringify(fakeSearchHistory.clearAllScopesCalls[0]),
                 JSON.stringify(["biblio", "tankoban", "theatre"]))
 
-        // Independence: the search clear never touches the activity store.
-        compare(fakeActivityStore.clearAllCallCount, 0)
+        // Independence: the search clear never touches the history coordinator.
+        compare(fakeHistoryCoordinator.clearAllCallCount, 0)
     }
 
     function test_activity_history_clear_confirm_click_invokes_clear_all_exactly_once() {
         var page = openPrivacyPage()
         clickConfirm(page, "privacyClearActivityButton", "privacyClearActivityCommit")
 
-        compare(fakeActivityStore.clearAllCallCount, 1)
+        compare(fakeHistoryCoordinator.clearAllCallCount, 1)
 
         // Independence: the activity clear never touches the search-history store.
         compare(fakeSearchHistory.clearAllScopesCalls.length, 0)
@@ -249,7 +249,7 @@ TestCase {
 
         // Sanity: the scenario above actually fired both real clears...
         compare(fakeSearchHistory.clearAllScopesCalls.length, 1)
-        compare(fakeActivityStore.clearAllCallCount, 1)
+        compare(fakeHistoryCoordinator.clearAllCallCount, 1)
         // ...yet the never-wired Progress/Collection fakes recorded nothing.
         compare(fakeProgress.forgetCallCount, 0)
         compare(fakeCollection.clearCallCount, 0)
@@ -257,15 +257,15 @@ TestCase {
 
     function test_default_stores_are_null_without_a_native_context_property() {
         // Without an explicit override, this Quick Test process has neither a real
-        // SearchHistoryStore nor ActivityStore context property — the same typeof-guarded
-        // default colosseumEarliestMonthKey already relies on for ProfileActivity.
+        // SearchHistoryStore nor ProfileConsumptionHistory context property — the same
+        // typeof-guarded default colosseumEarliestMonthKey already relies on for ProfileActivity.
         var bare = centerComponent.createObject(testWindow.contentItem, {
             "width": 1280,
             "height": 900
         })
         verify(bare !== null)
         compare(bare.searchHistoryStore, null)
-        compare(bare.activityStore, null)
+        compare(bare.historyCoordinator, null)
 
         // Triggering both requests with no store wired must not throw.
         bare.privacyClearSearchHistoryRequested()

@@ -19,10 +19,15 @@ function stamp(e) {
     return isNaN(n) ? 0 : n;    // missing/garbage timestamps sink to the back
 }
 
+function matchesMedium(e, medium) {
+    if (!medium) return true;
+    if (medium === "manga") return e.kind === "manga" || e.kind === "tankoban";
+    return e.kind === medium;
+}
+
 function apply(items, sort, medium) {
     var out = (items || []).slice();
-    if (medium)
-        out = out.filter(function(e) { return e.kind === medium; });
+    out = out.filter(function(e) { return matchesMedium(e, medium); });
     if (sort === "watched")
         out = out.filter(function(e) { return e.watched === true; });
     else if (sort === "unwatched")

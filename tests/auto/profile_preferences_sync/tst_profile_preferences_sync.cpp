@@ -368,6 +368,7 @@ class tst_profile_preferences_sync final
     Q_OBJECT
 
 private slots:
+    void privacyFieldsAreLocalOnlyAndExcludedFromSyncProjection();
     void localMutationPersistsAndSignalsSyncDirty();
     void remoteMutationPersistsWithoutLocalSyncDirty();
     void untouchedDefaultDoesNotMaterializeLocalChoice();
@@ -377,6 +378,23 @@ private slots:
     void qmlFacadeReactsOnceToRemoteOwnerChange();
     void twoReplicasConvergeExplicitPreference();
 };
+
+void tst_profile_preferences_sync::
+privacyFieldsAreLocalOnlyAndExcludedFromSyncProjection() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    ProfilePreferencesStore store(temp.filePath(QStringLiteral("preferences.ini")));
+    QSignalSpy dirty(&store, &ProfilePreferencesStore::syncDirty);
+    store.setRememberSearchHistory(false);
+    store.setKeepActivityHistory(false);
+    store.setSyncActivityHistory(false);
+    QCOMPARE(dirty.count(), 0);
+
+    ProfilePreferencesSyncAdapter adapter(&store);
+    SyncAdapterExport snapshot;
+    QVERIFY(adapter.exportSnapshot(&snapshot));
+    QVERIFY(snapshot.records.isEmpty());
+}
 
 void tst_profile_preferences_sync::
 localMutationPersistsAndSignalsSyncDirty() {

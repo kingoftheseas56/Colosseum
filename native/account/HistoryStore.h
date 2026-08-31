@@ -45,6 +45,11 @@ public:
         const QString &id,
         qint64 activityAtMs);
 
+    Q_INVOKABLE bool completed(const QString &kind, const QString &id) const;
+
+    bool recordActivityRange(const QString &kind, const QString &id,
+                             qint64 firstActivityAtMs, qint64 lastActivityAtMs);
+
     Q_INVOKABLE bool markCompleted(
         const QString &kind,
         const QString &id,
@@ -55,6 +60,8 @@ public:
     Q_INVOKABLE bool remove(
         const QString &kind,
         const QString &id);
+
+    Q_INVOKABLE bool clearAll();
 
     // Native sync/export seam.
     QVariantList syncEntries() const;

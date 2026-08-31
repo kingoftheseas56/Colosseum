@@ -27,6 +27,30 @@ TestCase {
         Account.AccountCenter {}
     }
 
+    Component {
+        id: fakePreferencesComponent
+        QtObject {
+            property bool rememberSearchHistory: true
+            property bool keepActivityHistory: true
+            property bool syncActivityHistory: true
+            property int rememberCalls: 0
+            property int keepCalls: 0
+            property int syncCalls: 0
+            function setRememberSearchHistory(value) {
+                rememberCalls++
+                rememberSearchHistory = value
+            }
+            function setKeepActivityHistory(value) {
+                keepCalls++
+                keepActivityHistory = value
+            }
+            function setSyncActivityHistory(value) {
+                syncCalls++
+                syncActivityHistory = value
+            }
+        }
+    }
+
     property var page: null
 
     SignalSpy {
@@ -210,13 +234,16 @@ TestCase {
         verify(confirmBox.visible)
         compare(clearSearchSpy.count, 0)
 
+        scrollIntoView(cancel)
         mouseClick(cancel, cancel.width / 2, cancel.height / 2)
         wait(0)
         verify(!confirmBox.visible)
         compare(clearSearchSpy.count, 0)
 
+        scrollIntoView(open)
         mouseClick(open, open.width / 2, open.height / 2)
         wait(0)
+        scrollIntoView(confirm)
         mouseClick(confirm, confirm.width / 2, confirm.height / 2)
         compare(clearSearchSpy.count, 1)
 
@@ -242,8 +269,10 @@ TestCase {
         mouseClick(cancel, cancel.width / 2, cancel.height / 2)
         compare(clearActivitySpy.count, 0)
 
+        scrollIntoView(open)
         mouseClick(open, open.width / 2, open.height / 2)
         wait(0)
+        scrollIntoView(confirm)
         mouseClick(confirm, confirm.width / 2, confirm.height / 2)
         compare(clearActivitySpy.count, 1)
 
@@ -336,9 +365,11 @@ TestCase {
     }
 
     function test_account_center_selects_data_privacy_surface() {
+        var preferences = fakePreferencesComponent.createObject(testWindow.contentItem)
         var center = centerComponent.createObject(testWindow.contentItem, {
             "width": 1240,
-            "height": 900
+            "height": 900,
+            "preferencesStore": preferences
         })
         verify(center !== null)
 
@@ -349,6 +380,24 @@ TestCase {
         verify(embedded !== null)
         verify(embedded.visible)
 
+        var search = byName(embedded, "privacySearchHistorySwitch")
+        verify(search !== null)
+        mouseClick(search, search.width / 2, search.height / 2)
+        compare(preferences.rememberCalls, 1)
+        compare(embedded.rememberSearchHistory, false)
+
+        var activity = byName(embedded, "privacyActivityHistorySwitch")
+        var sync = byName(embedded, "privacySyncHistorySwitch")
+        verify(activity !== null)
+        verify(sync !== null)
+        mouseClick(activity, activity.width / 2, activity.height / 2)
+        mouseClick(sync, sync.width / 2, sync.height / 2)
+        compare(preferences.keepCalls, 1)
+        compare(preferences.syncCalls, 1)
+        compare(embedded.keepActivityHistory, false)
+        compare(embedded.syncActivityHistory, false)
+
         center.destroy()
+        preferences.destroy()
     }
 }

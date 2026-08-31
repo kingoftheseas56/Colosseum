@@ -219,6 +219,7 @@ struct SessionSpec {
     QString seedDir;             // optional fixture tree copied into the AppData root pre-launch
     QStringList appArgs;         // optional arguments appended after the QML path
     bool drive = false;          // COLOSSEUM_LANISTA_DRIVE=1
+    bool selftest = false;       // COLOSSEUM_LANISTA_SELFTEST=1 in this disposable child only
     int readyMs = 30000;         // ping-until-ready deadline
     int captureWidth = 1280;
     int captureHeight = 720;
@@ -331,6 +332,8 @@ static void startSession(Session& s)
     env.insert(QStringLiteral("COLOSSEUM_APPDATA_TAG"), s.spec.tag);
     if (s.spec.drive)
         env.insert(QStringLiteral("COLOSSEUM_LANISTA_DRIVE"), QStringLiteral("1"));
+    if (s.spec.selftest)
+        env.insert(QStringLiteral("COLOSSEUM_LANISTA_SELFTEST"), QStringLiteral("1"));
     if (s.spec.trailerCapture) {
         env.insert(QStringLiteral("COLOSSEUM_TRAILER_MODE"), QStringLiteral("1"));
         env.insert(QStringLiteral("COLOSSEUM_TRAILER_WIDTH"),
@@ -423,6 +426,7 @@ static void startSession(Session& s)
         {QStringLiteral("qml"), s.spec.qml},
         {QStringLiteral("pid"), double(pid)},
         {QStringLiteral("drive"), s.spec.drive},
+        {QStringLiteral("selftest"), s.spec.selftest},
         {QStringLiteral("seedDir"), s.spec.seedDir},
         {QStringLiteral("launchedAt"), launchedAt},
         {QStringLiteral("readyAt"), readyAt},
@@ -869,7 +873,7 @@ static void printUsage(std::ostream& os)
        << "  lanista suite [--dir <scenarioDir>] [--out <reportDir>] [--timings]\n"
        << "  lanista brief <arcName> [--from <runDir>]\n"
        << "  lanista session run <scenario.json> [--exe <path>] [--qml <path>] [--tag <t>] [--timings]\n"
-       << "                      [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going]\n"
+       << "                      [--drive] [--selftest] [--seed <dir>] [--ready-ms <n>] [--keep-going]\n"
        << "                      [--capture-width <px>] [--capture-height <px>]\n"
        << "                      [--capture-out <dir>]\n"
        << "     (launches a DISPOSABLE tagged app on a unique pipe, proves isolation,\n"
@@ -914,13 +918,14 @@ int main(int argc, char** argv)
     if (verb == QStringLiteral("session")) {
         if (args.isEmpty() || args.takeFirst() != QStringLiteral("run")) {
             std::cerr << "session run <scenario.json> [--exe <path>] [--qml <path>] "
-                         "[--tag <t>] [--drive] [--seed <dir>] [--ready-ms <n>] [--keep-going] "
+                         "[--tag <t>] [--drive] [--selftest] [--seed <dir>] [--ready-ms <n>] [--keep-going] "
                          "[--capture-width <px>] [--capture-height <px>] [--capture-out <dir>]\n";
             return 2;
         }
         SessionSpec spec;
         const bool keep = args.removeAll(QStringLiteral("--keep-going")) > 0;
         spec.drive = args.removeAll(QStringLiteral("--drive")) > 0;
+        spec.selftest = args.removeAll(QStringLiteral("--selftest")) > 0;
         auto takeOpt = [&args](const QString& flag) -> QString {
             const int i = args.indexOf(flag);
             if (i < 0 || i + 1 >= args.size()) return {};

@@ -144,6 +144,39 @@ QVariantMap HistoryStore::get(
         .toMap();
 }
 
+bool HistoryStore::completed(const QString &kind, const QString &id) const {
+    return get(kind, id).value(QStringLiteral("completedAt")).toLongLong() > 0;
+}
+
+bool HistoryStore::recordActivityRange(const QString &kind, const QString &id,
+                                       qint64 firstActivityAtMs, qint64 lastActivityAtMs) {
+    const QString normalizedKind = kind.trimmed();
+    const QString normalizedId = id.trimmed();
+    if (!validIdentity(normalizedKind, normalizedId) || firstActivityAtMs <= 0
+        || lastActivityAtMs < firstActivityAtMs)
+        return false;
+    const QString key = recordKey(normalizedKind, normalizedId);
+    const QVariantMap current = m_records.value(key).toMap();
+    const qint64 existingFirst = current.value(QStringLiteral("firstActivityAt")).toLongLong();
+    const qint64 existingLast = current.value(QStringLiteral("lastActivityAt")).toLongLong();
+    const QVariantMap normalized = canonicalRecord(
+        normalizedKind, normalizedId,
+        existingFirst > 0 ? qMin(existingFirst, firstActivityAtMs) : firstActivityAtMs,
+        qMax(existingLast, lastActivityAtMs),
+        current.value(QStringLiteral("completedAt")).toLongLong());
+    if (current == normalized)
+        return true;
+    QVariantMap next = m_records;
+    next.insert(key, normalized);
+    return commit(next, true);
+}
+
+bool HistoryStore::clearAll() {
+    if (m_records.isEmpty())
+        return true;
+    return commit(QVariantMap(), true);
+}
+
 bool HistoryStore::recordActivity(
     const QString &kind,
     const QString &id,

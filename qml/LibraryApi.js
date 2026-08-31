@@ -4,7 +4,7 @@
 // ALL inputs are passed in (Progress/Collection/meta live in C++/QML, never here), so
 // this whole module is provable headless. Proven by tests/library_api_harness.qml.
 
-// watchState — the one truth-order: manual mark > movie-auto > episode progress.
+// watchState — the one truth-order: manual mark > History completion > movie-auto > episode progress.
 // ctx = { progress: 0..1, mark: -1|0|1, isSeries: bool }. An ONGOING series is never
 // auto-completed by episode %: buildRows feeds a series-aware progress here, but even
 // raw a series at ≥0.90 with no mark reads "unwatched" (not "watched") by design.
@@ -13,6 +13,7 @@ function watchState(entry, ctx) {
     if (ctx.mark === 1) return "watched";
     if (ctx.mark === -1)
         return (ctx.progress > 0 && ctx.progress < 0.90) ? "progress" : "unwatched";
+    if (ctx.completed === true) return "watched";
     if (!ctx.isSeries && ctx.progress >= 0.90) return "watched";
     if (ctx.progress > 0 && ctx.progress < 0.90) return "progress";
     return "unwatched";
@@ -123,7 +124,7 @@ function sortRows(rows, mode) {
 //   progressList = Progress.recent("video", 0)   (one representative per series group)
 //   markFn(id)   = Progress.watchedMark           (-1|0|1)
 //   downloadedIds = array of Collection ids with >=1 episode on disk
-function buildRows(entries, progressList, markFn, downloadedIds, nowMs) {
+function buildRows(entries, progressList, markFn, completedFn, downloadedIds, nowMs) {
     entries = entries || [];
     progressList = progressList || [];
     var dl = _asSet(downloadedIds);
@@ -139,10 +140,13 @@ function buildRows(entries, progressList, markFn, downloadedIds, nowMs) {
         var lastWatchedAt = pm ? Number(pm.updatedAt || 0) : 0;
         if (!lastWatchedAt) lastWatchedAt = Number(e.addedAt || 0);
         var mark = markFn ? markFn(e.id) : 0;
+        var completed = completedFn ? completedFn(e) : false;
         // Ongoing series never auto-complete on episode %: feed the state calc an in-band
         // value so a caught-up show still reads "in progress" — raw progress stays for the bar.
         var stateProgress = (isSeries && rawProgress >= 0.90) ? 0.5 : rawProgress;
-        var state = watchState(e, { progress: stateProgress, mark: mark, isSeries: isSeries });
+        var state = watchState(e, {
+            progress: stateProgress, mark: mark, completed: completed, isSeries: isSeries
+        });
         var notifOff = (payload.libNotif === false);
         var newCount = notifOff ? 0 : Math.max(0, Number(payload.libNewCount || 0));
         if (isNaN(newCount)) newCount = 0;

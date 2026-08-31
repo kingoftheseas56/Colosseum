@@ -1,7 +1,7 @@
 // ContinueSeeAllPage — the Continue backlog, whole (spec: haven docs/superpowers/specs/
 // 2026-07-11-colosseum-continue-see-all-design.md · mock option A ratified 2026-07-11).
 // One page, four doors: every Continue row's "See all ›" opens it scoped to that row —
-// home ("", + medium chips), Theatre (video), Tankoban (manga+comic), Biblio (book).
+// home ("", + medium chips), Theatre (video), Tankoban (manga+tankoban+comic: chapter+volume+comic), Biblio (book).
 // One grid + exclusive sort chips: Last Watched · A–Z · Z–A · Watched · Not Watched.
 // ("Most Watched" returns only when the store grows a real watch counter — ratified.)
 // Tiles are the SAME ContinueTile (circle resumes, tile opens detail, hover ✕ forgets);
@@ -47,7 +47,9 @@ Item {
         if (typeof Progress === "undefined") { rawItems = []; return }
         if (scope === "video")         rawItems = Progress.recent("video", 0)
         else if (scope === "book")     rawItems = Progress.recent("book", 0)
-        else if (scope === "tankoban") rawItems = Progress.recent("manga", 0).concat(Progress.recent("comic", 0))
+        else if (scope === "tankoban") rawItems = Progress.recent("manga", 0)
+                                      .concat(Progress.recent("tankoban", 0))
+                                      .concat(Progress.recent("comic", 0))
         // all-scope: 'audiobook' records are resume positions for the reader's read-along,
         // never tiles — the book's own tile represents both (Hemanth 2026-07-18).
         else                           rawItems = Progress.recent("", 0).filter(function(e) { return e.kind !== "audiobook" })

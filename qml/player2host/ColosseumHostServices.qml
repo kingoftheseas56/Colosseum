@@ -520,7 +520,7 @@ QtObject {
     // 8. Progress. The real ProgressStore, with production's guards and entry shape verbatim
     //    (qml/PlayerPage.qml:1768) so both players write Continue-Watching rows the same way.
     // ---------------------------------------------------------------------------------------------
-    function reportProgress(mediaId, position, duration) {
+    function reportProgress(mediaId, position, duration, silent) {
         if (!mediaId || String(mediaId) === "" || duration <= 0 || position <= 0)
             return
         // Anti-clutter floor: an accidental few-second open never leaves a Continue card behind.
@@ -532,7 +532,7 @@ QtObject {
         var meta = host._episodeMeta()
         var epPrefix = meta.isEpisode ? ("S" + meta.season + " · E" + meta.episode + " · ") : ""
 
-        Progress.record({
+        var entry = {
             "id": String(mediaId),
             "kind": "video",
             "caption": host.mediaTitle,
@@ -547,7 +547,11 @@ QtObject {
                         "subType": host.subStreamType,
                         "subId": host.subStreamId,
                         "position": position }
-        })
+        }
+        if (silent)
+            Progress.recordSilent(entry)
+        else
+            Progress.record(entry)
     }
 
     // ---- small shared helpers -------------------------------------------------------------------

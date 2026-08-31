@@ -19,6 +19,7 @@ $main_qml  = Read-File 'qml/Main.qml'
 $cmake     = Read-File 'native/CMakeLists.txt'
 $main_cpp  = Read-File 'native/main.cpp'
 $seam_h    = Read-File 'native/player2/host/Player2HostServices.h'
+$shell_qml = Read-File 'qml/player2/Player2Shell.qml'
 $demux_cpp = Read-File 'native/player2/core/DemuxSession.cpp'
 $http_cpp  = Read-File 'native/player2/network/HttpMediaSource.cpp'
 
@@ -28,6 +29,7 @@ foreach ($pair in @(@('qml/player2host/ColosseumHostServices.qml', $host_qml),
                     @('native/CMakeLists.txt', $cmake),
                     @('native/main.cpp', $main_cpp),
                     @('native/player2/host/Player2HostServices.h', $seam_h),
+                    @('qml/player2/Player2Shell.qml', $shell_qml),
                     @('native/player2/core/DemuxSession.cpp', $demux_cpp),
                     @('native/player2/network/HttpMediaSource.cpp', $http_cpp))) {
     if ($null -eq $pair[1]) { $violations += "missing file: $($pair[0])" }
@@ -55,6 +57,40 @@ foreach ($name in $requests) {
         $violations += "production host does not implement '$name' (the shell would call into nothing)"
     }
 }
+
+# Task 5: progress visibility is part of the seam, not an implementation detail. The shell's
+# ordinary cadence must be able to request a silent write while lifecycle boundaries request a
+# visible write, and the production host must preserve that distinction into Progress.
+if ($seam_h -notmatch 'reportProgress\s*\(\s*const QString\s*&mediaId\s*,\s*double\s+position\s*,\s*double\s+duration\s*,\s*bool\s+silent\s*\)') {
+    $violations += 'Player2HostServices::reportProgress must carry the four-argument (mediaId, position, duration, silent) contract'
+}
+if ($host_qml -notmatch 'function\s+reportProgress\s*\(\s*mediaId\s*,\s*position\s*,\s*duration\s*,\s*silent\s*\)[\s\S]{0,2500}Progress\.recordSilent\s*\([\s\S]{0,1200}Progress\.record\s*\(') {
+    $violations += 'production host reportProgress must accept silent visibility'
+}
+if ($host_qml -notmatch 'function\s+reportProgress\s*\(\s*mediaId\s*,\s*position\s*,\s*duration\s*,\s*silent\s*\)[\s\S]{0,2500}if\s*\(\s*silent\s*\)[\s\S]{0,300}Progress\.recordSilent\s*\([\s\S]{0,1200}else\s*Progress\.record\s*\(') {
+    $violations += 'production host reportProgress must branch silent writes to recordSilent and visible writes to record'
+}
+if ($shell_qml -notmatch 'function\s+reportProgress\s*\(\s*forceVisible\s*\)[\s\S]{0,1200}reportProgress\s*\([\s\S]{0,500}!forceVisible') {
+    $violations += 'Player2Shell must pass !forceVisible as the four-argument host visibility flag'
+}
+if ($shell_qml -notmatch 'onTriggered\s*:\s*\{[\s\S]{0,250}shell\.reportProgress\s*\(\s*false\s*\)') {
+    $violations += 'ordinary Player2 timer cadence must request a silent progress write'
+}
+if ($shell_qml -notmatch 'onPausedChanged\s*:\s*if\s*\(\s*shell\.paused\s*\)\s*reportProgress\s*\(\s*true\s*\)') {
+    $violations += 'entering Paused must request a visible progress write'
+}
+if ($shell_qml -notmatch 'onBackRequested\s*:\s*\{[\s\S]{0,300}reportProgress\s*\(\s*true\s*\)[\s\S]{0,300}shell\.backRequested\s*\(\s*\)') {
+    $violations += 'TopBar Back forwarding must report final visible progress before emitting shell.backRequested'
+}
+if ($shell_qml -notmatch 'onMinimizeRequested\s*:\s*\{[\s\S]{0,300}reportProgress\s*\(\s*true\s*\)[\s\S]{0,300}shell\.minimizeRequested\s*\(\s*\)') {
+    $violations += 'TopBar Minimize forwarding must report final visible progress before emitting shell.minimizeRequested'
+}
+if ($shell_qml -notmatch 'onConfirmed\s*:\s*\{[\s\S]{0,400}reportProgress\s*\(\s*true\s*\)[\s\S]{0,300}shell\.closeRequested\s*\(\s*\)') {
+    $violations += 'confirmed Close must report final visible progress before emitting closeRequested'
+}
+if ($shell_qml -notmatch 'function\s+onStateChanged\s*\([^)]*\)[\s\S]{0,300}Ended[\s\S]{0,300}reportProgress\s*\(\s*true\s*\)[\s\S]{0,500}activityNaturalEof\s*\(\s*\)') {
+    $violations += 'Ended must report visible progress before retaining the activityNaturalEof path'
+}
 foreach ($name in $signals) {
     if ($host_qml -notmatch "signal\s+$([regex]::Escape($name))\s*\(") {
         $violations += "production host does not declare signal '$name' (requests would never resolve)"
@@ -78,11 +114,10 @@ foreach ($name in @('backRequested', 'minimizeRequested', 'fullscreenRequested',
 
 # 3. Opt-in only, and never routable into a binary that lacks the backend.
 # NOTE: the option's description itself contains parentheses, so this must not stop at the first ')'.
-# TASK 18: the flag now defaults ON - the app ships and boots the new engine. What must still hold is
-# that the OLD player is reachable, because that is the whole basis on which the flip was approved:
-# one environment variable back to mpv, and the choice remains a BOOT choice both ways.
-if ($cmake -notmatch 'option\(COLOSSEUM_PLAYER2_IN_APP.*ON\)') {
-    $violations += 'COLOSSEUM_PLAYER2_IN_APP must exist (Task 18: it defaults ON - the app ships the new engine)'
+# TASK 18: the flag is opt-in and defaults OFF. What must still hold is that the OLD player is
+# reachable, because the choice remains a BOOT choice both ways: one environment variable back to mpv.
+if ($cmake -notmatch 'option\(COLOSSEUM_PLAYER2_IN_APP.*OFF\)') {
+    $violations += 'COLOSSEUM_PLAYER2_IN_APP must exist and default OFF (Player 2 is discontinued/opt-in)'
 }
 if ($main_cpp -notmatch '#ifdef COLOSSEUM_PLAYER2') {
     $violations += 'main.cpp must guard every Player 2 reference behind #ifdef COLOSSEUM_PLAYER2'

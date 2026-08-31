@@ -122,8 +122,10 @@ void MpvItem::setupConnections()
             this, [this](const QString &reason) {
         Q_EMIT endFile(reason);
         if (reason == QLatin1String("error") || reason == QLatin1String("other")) {
-            const QString code = mapEndFileErrorCode(reason);
-            Q_EMIT playbackError(code, reason);
+            // Installed MpvQt exposes only the coarse end-file reason string here;
+            // it does not forward mpv_event_end_file.error. Report that limitation
+            // honestly instead of manufacturing network/codec/decode classifications.
+            Q_EMIT playbackError(QStringLiteral("unknown"), reason);
         }
     }, Qt::QueuedConnection);
 
@@ -269,42 +271,6 @@ QString MpvItem::formatTime(const double time) const
         QStringLiteral("%1:%2:%3").arg(hours, 2, 10, QLatin1Char('0')).arg(minutes, 2, 10, QLatin1Char('0')).arg(seconds, 2, 10, QLatin1Char('0'));
 
     return timeString;
-}
-
-// Maps mpv end-file reasons into stable, small error codes for the QML recovery layer.
-//
-// HONEST LIMITATION (2026-07-07): the vendored mpvqt MpvController::endFile forwards only the
-// COARSE reason enum ("eof"/"stop"/"error"/...), never mpv_event_end_file.error's descriptive
-// text. So the substring branches below can never match on today's inputs and this always
-// returns "unknown". That is INTENTIONALLY harmless: PlayerPage.handlePlaybackFailure ignores
-// the code, so stream recovery works identically. What is NOT yet delivered is the spec's
-// "better error messages" — that stays generic until mpvqt is patched to forward prop->error
-// (via mpv_error_string), at which point this mapper starts producing real codes with no other
-// change. Left in place as that plug-point; not expanded, since it is inert until then. [Feature 3]
-QString MpvItem::mapEndFileErrorCode(const QString &reason) const
-{
-    const QString r = reason.toLower();
-    if (r.contains(QStringLiteral("network")) ||
-        r.contains(QStringLiteral("http")) ||
-        r.contains(QStringLiteral("timeout")) ||
-        r.contains(QStringLiteral("connection"))) {
-        return QStringLiteral("network");
-    }
-    if (r.contains(QStringLiteral("codec")) ||
-        r.contains(QStringLiteral("unsupported"))) {
-        return QStringLiteral("codec");
-    }
-    if (r.contains(QStringLiteral("decode")) ||
-        r.contains(QStringLiteral("demux")) ||
-        r.contains(QStringLiteral("no streams"))) {
-        return QStringLiteral("decode");
-    }
-    if (r.contains(QStringLiteral("file")) ||
-        r.contains(QStringLiteral("open")) ||
-        r.contains(QStringLiteral("source"))) {
-        return QStringLiteral("source");
-    }
-    return QStringLiteral("unknown");
 }
 
 void MpvItem::loadFile(const QString &file)

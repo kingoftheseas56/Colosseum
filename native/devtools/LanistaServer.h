@@ -169,6 +169,13 @@ private:
     void addCommand(Gate gate, const QString& name, Handler fn);
 
     void registerSelfTestCommands();   // COLOSSEUM_LANISTA_SELFTEST=1 only
+    // Function 0009: fixed Player 1 fixtures for disposable selftest sessions only.
+    // Registration remains behind COLOSSEUM_LANISTA_SELFTEST=1; each command is
+    // additionally Drive-gated by dispatch(), so the daily/read-only bridge never exposes them.
+    void cmdSelfTestPlayer1SetupResume(const QJsonObject& p, Replier reply) const;
+    void cmdSelfTestPlayer1LoadedStall(const QJsonObject& p, Replier reply) const;
+    void cmdSelfTestPlayer1Failover(const QJsonObject& p, Replier reply) const;
+    void cmdSelfTestPlayer1NoVideo(const QJsonObject& p, Replier reply) const;
 
     static bool driveOpen();
     static bool writeOpen();
