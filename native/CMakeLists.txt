@@ -23,6 +23,23 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)   # compile app_resources.qrc (embeds the .ico for setWindowIcon)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+option(COLOSSEUM_NO_COMPILER_CACHE
+    "Disable automatic compiler-cache launcher discovery"
+    OFF)
+if(NOT COLOSSEUM_NO_COMPILER_CACHE)
+    find_program(SCCACHE_PROGRAM NAMES sccache)
+    if(SCCACHE_PROGRAM AND EXISTS "${SCCACHE_PROGRAM}")
+        set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
+        message(STATUS "Compiler cache: sccache (${SCCACHE_PROGRAM})")
+    else()
+        message(STATUS "Compiler cache: sccache not found; building without compiler cache")
+    endif()
+else()
+    message(STATUS "Compiler cache: disabled by COLOSSEUM_NO_COMPILER_CACHE=ON")
+endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
 
