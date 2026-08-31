@@ -40,6 +40,9 @@ void StreamServer::setEngineUnavailable(bool unavailable)
 
 void StreamServer::markEngineUnavailable(const QString &message)
 {
+    // Requests queued before a terminal startup failure belong to the failed
+    // attempt. Do not replay them later if the installation is repaired.
+    m_pending.clear();
     setEngineUnavailable(true);
     Q_EMIT streamError(message);
 }
