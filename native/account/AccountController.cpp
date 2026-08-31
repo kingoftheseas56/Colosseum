@@ -1666,12 +1666,11 @@ void AccountController::handleCreateAccountReply(
 void AccountController::handleSignInReply(
     const AccountTransportReply &reply) {
     if (!isSuccess(reply)) {
-        const bool returnToLocal = m_attachLocalProfilePending;
-        m_attachLocalProfilePending = false;
-        if (returnToLocal)
-            enterLocalOnlyMode();
-        else
-            setMode(Mode::SignedOut);
+        // A recoverable credential failure must leave the transient sign-in
+        // surface open so the user can correct the password. Preserve the
+        // local-profile attachment intent as well: a later successful retry
+        // from this same flow still needs to attach the local device profile.
+        setMode(Mode::SignedOut);
         setErrorFromReply(reply);
         return;
     }

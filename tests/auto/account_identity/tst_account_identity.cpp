@@ -5,6 +5,7 @@
 #include "account/AccountController.h"
 #include "account/AccountDeviceIdentity.h"
 #include "account/AccountHttpTransport.h"
+#include "account/WindowsAccountCredentialStore.h"
 #include "AccountFixtureTransport.h"
 #include "MemoryAccountCredentialStore.h"
 #include "MemoryAccountOneTimeSecretSink.h"
@@ -302,6 +303,8 @@ private slots:
     void initTestCase();
 
     void fixtureTransportRefusesUntaggedUse();
+    void credentialTargetsPreserveProductionNamesWithoutTag();
+    void credentialTargetsAreIsolatedForTaggedSessions();
     void httpTransportRejectsUnsafeBaseUrls();
     void httpTransportDoesNotFollowRedirects();
     void httpTransportTimesOutStalledReply();
@@ -325,6 +328,7 @@ private slots:
 
     void createAccountKeepsSecretsOutOfOrdinaryState();
     void secureStoreFailureFailsClosed();
+    void localOnlySignInFailureKeepsAuthenticationFlowOpen();
     void staleSignInReplyCannotUndoLocalOnlyChoice();
     void protectedSignInPersistsNothingBeforeApproval();
     void trustedRecoveryUsesNativeOnlySecretSink();
@@ -366,6 +370,39 @@ void tst_account_identity::fixtureTransportRefusesUntaggedUse() {
 
     QVERIFY(!AccountFixtureTransport::testModeAllowed());
     QVERIFY(AccountFixtureTransport::create() == nullptr);
+}
+
+void tst_account_identity::credentialTargetsPreserveProductionNamesWithoutTag() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    qunsetenv("COLOSSEUM_APPDATA_TAG");
+
+    QCOMPARE(
+        WindowsAccountCredentialStore::activeTargetName(),
+        QStringLiteral("Brotherhood.Colosseum.Account.Active.v1"));
+    QCOMPARE(
+        WindowsAccountCredentialStore::pendingTargetPrefix(),
+        QStringLiteral("Brotherhood.Colosseum.Account.PendingRevoke.v1."));
+}
+
+void tst_account_identity::credentialTargetsAreIsolatedForTaggedSessions() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-create-alpha"));
+    const QString activeAlpha = WindowsAccountCredentialStore::activeTargetName();
+    const QString pendingAlpha = WindowsAccountCredentialStore::pendingTargetPrefix();
+
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-signin-beta"));
+    const QString activeBeta = WindowsAccountCredentialStore::activeTargetName();
+    const QString pendingBeta = WindowsAccountCredentialStore::pendingTargetPrefix();
+
+    QVERIFY(activeAlpha != activeBeta);
+    QVERIFY(pendingAlpha != pendingBeta);
+    QVERIFY(activeAlpha != QStringLiteral("Brotherhood.Colosseum.Account.Active.v1"));
+    QVERIFY(pendingAlpha != QStringLiteral("Brotherhood.Colosseum.Account.PendingRevoke.v1."));
+
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-create-alpha"));
+    QCOMPARE(WindowsAccountCredentialStore::activeTargetName(), activeAlpha);
+    QCOMPARE(WindowsAccountCredentialStore::pendingTargetPrefix(), pendingAlpha);
 }
 
 void tst_account_identity::httpTransportRejectsUnsafeBaseUrls() {
@@ -1585,6 +1622,37 @@ void tst_account_identity::secureStoreFailureFailsClosed() {
             QStringLiteral(
                 "/v1/sessions/revoke-refresh")),
         0);
+}
+
+void tst_account_identity::localOnlySignInFailureKeepsAuthenticationFlowOpen() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+
+    fixture.controller->continueWithoutAccount();
+    QCOMPARE(fixture.controller->mode(), QStringLiteral("localOnly"));
+
+    fixture.controller->returnToSignIn();
+    QCOMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
+
+    fixture.transport->enqueueReply(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/sessions"),
+        errorReply(
+            401,
+            QStringLiteral("invalid_credentials"),
+            QStringLiteral("The credentials were not accepted.")));
+
+    fixture.controller->signIn(
+        QStringLiteral("Hemanth56"),
+        QStringLiteral("Definitely-Wrong-Password!"));
+
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
+    QCOMPARE(
+        fixture.controller->lastErrorMessage(),
+        QStringLiteral("The credentials were not accepted."));
+
+    fixture.controller->cancelPendingAuthentication();
+    QCOMPARE(fixture.controller->mode(), QStringLiteral("localOnly"));
 }
 
 void tst_account_identity::staleSignInReplyCannotUndoLocalOnlyChoice() {
