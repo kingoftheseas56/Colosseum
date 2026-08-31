@@ -30,12 +30,14 @@ class StreamServer : public QObject
     Q_OBJECT
     Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
     Q_PROPERTY(bool starting READ starting NOTIFY startingChanged)
+    Q_PROPERTY(bool engineUnavailable READ engineUnavailable NOTIFY engineUnavailableChanged)
 public:
     explicit StreamServer(QObject *parent = nullptr);
     ~StreamServer() override;
 
     bool ready() const { return m_port > 0; }
     bool starting() const { return m_starting; }
+    bool engineUnavailable() const { return m_engineUnavailable; }
 
     // Start the stream (spawning the runtime if needed) and emit streamReady when the
     // torrent is registered and a playable URL exists.
@@ -72,6 +74,7 @@ public:
 Q_SIGNALS:
     void readyChanged();
     void startingChanged();
+    void engineUnavailableChanged();
     void streamReady(const QString &url, const QString &infoHash, int fileIdx);
     void fetchReady(const QString &url, const QString &infoHash, int fileIdx);
     void streamError(const QString &message);
@@ -87,6 +90,8 @@ private:
 
     void ensureStarted();                 // adopt a running official server, else launch our own
     void launchChild();                   // spawn stremio-runtime.exe server.js ourselves
+    void setEngineUnavailable(bool unavailable);
+    void markEngineUnavailable(const QString &message);
     QString findRuntimeDir() const;       // first dir that contains stremio-runtime.exe
     void onStdout();                      // scrape the "EngineFS server started at …:<port>" line
     void flushPending();
@@ -98,6 +103,7 @@ private:
     QNetworkAccessManager *m_nam = nullptr;
     int m_port = -1;
     bool m_starting = false;
+    bool m_engineUnavailable = false;
     QString m_stdoutBuf;
     QList<Pending> m_pending;
     QTimer *m_statsTimer = nullptr;
