@@ -15,6 +15,18 @@ Item {
         && (controller.mode === "signedIn" || controller.mode === "offline")
     readonly property bool onlineAccount: controller
         && controller.mode === "signedIn"
+    readonly property bool localOnly: controller
+        && controller.mode === "localOnly"
+
+    property real anchorRight: -1
+    property real anchorBottom: -1
+    property int edgeMargin: 16
+    property int anchorGap: 8
+
+    signal signInRequested()
+    signal createAccountRequested()
+    signal yourColosseumRequested()
+    signal privacyRequested()
 
     visible: false
     anchors.fill: parent
@@ -45,11 +57,29 @@ Item {
     function open() { root.visible = true }
     function close() { root.visible = false }
     function toggle() { root.visible = !root.visible }
+    function openAt(right, bottom) {
+        root.anchorRight = right
+        root.anchorBottom = bottom
+        root.visible = true
+    }
+    function toggleAt(right, bottom) {
+        root.anchorRight = right
+        root.anchorBottom = bottom
+        root.visible = !root.visible
+    }
 
     Rectangle {
         id: card
-        x: parent.width - width - 58
-        y: 66
+        x: root.anchorRight >= 0
+            ? Math.max(root.edgeMargin,
+                       Math.min(root.width - width - root.edgeMargin,
+                                root.anchorRight - width))
+            : parent.width - width - 58
+        y: root.anchorBottom >= 0
+            ? Math.max(root.edgeMargin,
+                       Math.min(root.height - height - root.edgeMargin,
+                                root.anchorBottom + root.anchorGap))
+            : 66
         width: 296
         height: col.implicitHeight + 44
         radius: 16
@@ -70,6 +100,7 @@ Item {
             spacing: 14
 
             Row {
+                objectName: root.localOnly ? "accountFlyoutLocalIdentity" : ""
                 spacing: 12
                 Rectangle {
                     width: 40; height: 40; radius: 20
@@ -78,7 +109,7 @@ Item {
                     border.color: Qt.rgba(0.94, 0.77, 0.29, 0.75)
                     Text {
                         anchors.centerIn: parent
-                        text: root.initial
+                        text: root.localOnly ? "D" : root.initial
                         color: "#f0df9a"
                         font.family: "Inter"
                         font.pixelSize: 17
@@ -89,17 +120,23 @@ Item {
                     spacing: 2
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
-                        objectName: "accountFlyoutUsername"
-                        text: root.accountPresent
-                              ? (controller ? controller.username : "")
-                              : qsTr("Not signed in")
+                        objectName: root.localOnly
+                            ? "accountFlyoutLocalDeviceLabel"
+                            : "accountFlyoutUsername"
+                        text: root.localOnly && root.controller
+                            ? root.controller.localDeviceLabel
+                            : (root.accountPresent
+                                ? (root.controller ? root.controller.username : "")
+                                : qsTr("Not signed in"))
                         color: "#f2f2ef"
                         font.family: "Inter"
                         font.pixelSize: 15
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: qsTr("Colosseum account")
+                        text: root.localOnly
+                            ? qsTr("Local Colosseum · this device")
+                            : qsTr("Colosseum account")
                         color: "#8f8b80"
                         font.family: "Inter"
                         font.pixelSize: 11
@@ -180,8 +217,103 @@ Item {
                 }
             }
 
+            Column {
+                width: parent.width
+                spacing: 2
+                visible: root.localOnly
+
+                Button {
+                    id: localYourColosseumButton
+                    objectName: "accountFlyoutLocalYourColosseum"
+                    width: parent.width
+                    height: 34
+                    padding: 0
+                    Accessible.name: qsTr("Your Colosseum")
+                    background: Rectangle {
+                        radius: 8
+                        color: localYourColosseumButton.hovered
+                            ? Qt.rgba(1, 1, 1, 0.06)
+                            : "transparent"
+                    }
+                    contentItem: Text {
+                        text: qsTr("Your Colosseum")
+                        color: localYourColosseumButton.hovered ? "#f2f2ef" : "#b7b3a6"
+                        font.family: "Inter"
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    onClicked: {
+                        root.close()
+                        root.yourColosseumRequested()
+                    }
+                }
+
+                Button {
+                    id: localPrivacyButton
+                    objectName: "accountFlyoutLocalPrivacy"
+                    width: parent.width
+                    height: 34
+                    padding: 0
+                    Accessible.name: qsTr("Data & privacy")
+                    background: Rectangle {
+                        radius: 8
+                        color: localPrivacyButton.hovered
+                            ? Qt.rgba(1, 1, 1, 0.06)
+                            : "transparent"
+                    }
+                    contentItem: Text {
+                        text: qsTr("Data & privacy")
+                        color: localPrivacyButton.hovered ? "#f2f2ef" : "#b7b3a6"
+                        font.family: "Inter"
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    onClicked: {
+                        root.close()
+                        root.privacyRequested()
+                    }
+                }
+
+                Item { width: 1; height: 6 }
+                Rectangle { width: parent.width; height: 1; color: "#26231d" }
+                Item { width: 1; height: 8 }
+
+                Row {
+                    width: parent.width
+                    spacing: 8
+
+                    AccountButton {
+                        objectName: "accountFlyoutLocalSignIn"
+                        width: (parent.width - parent.spacing) / 2
+                        height: 36
+                        text: qsTr("Sign in")
+                        variant: "primary"
+                        Accessible.name: qsTr("Sign in")
+                        onClicked: {
+                            root.close()
+                            root.signInRequested()
+                        }
+                    }
+
+                    AccountButton {
+                        objectName: "accountFlyoutLocalCreateAccount"
+                        width: (parent.width - parent.spacing) / 2
+                        height: 36
+                        text: qsTr("Create account")
+                        Accessible.name: qsTr("Create account")
+                        onClicked: {
+                            root.close()
+                            root.createAccountRequested()
+                        }
+                    }
+                }
+            }
+
             Button {
                 objectName: "accountFlyoutSessionAction"
+                visible: !root.localOnly
                 width: parent.width
                 height: 38
                 background: Rectangle {
