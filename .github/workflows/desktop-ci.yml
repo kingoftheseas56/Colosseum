@@ -29,7 +29,9 @@ jobs:
   windows-desktop:
     needs: public-trust
     runs-on: windows-2025
-    timeout-minutes: 90
+    # Dependency setup, CodeQL, clang-tidy, and the ASAN probe build exceed
+    # the default 90-minute window on the hosted Windows runner.
+    timeout-minutes: 150
     permissions:
       contents: read
       actions: read
