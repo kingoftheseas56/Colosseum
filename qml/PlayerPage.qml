@@ -1477,8 +1477,11 @@ Item {
             root.recoveryLastMovedAt = now
         }
 
-        var width = Number(mpv.mpvProperty("width") || 0)
-        var height = Number(mpv.mpvProperty("height") || 0)
+        // Recovery must use decoded-frame truth, not container/header dimensions.
+        // `width`/`height` can be known before a frame renders; dwidth/dheight are
+        // already cached by MpvItem as decodedWidth/decodedHeight for this purpose.
+        var width = Number(mpv.decodedWidth || 0)
+        var height = Number(mpv.decodedHeight || 0)
         if (width > 0 && height > 0) {
             root.recoverySawVideo = true
             root.recoveryNoVideoSince = 0
@@ -1575,6 +1578,10 @@ Item {
             root.retryCurrentStream()
             return
         }
+        // The current candidate has now failed twice. Retire it before walking the
+        // ladder, otherwise A -> B -> C eventually wraps back to A and can loop forever.
+        if (root.currentStreamIndex >= 0 && root.currentStreamIndex < root.streamCandidates.length)
+            root.markStreamDead(root.currentStreamIndex, reason || "playback_failed")
         if (root.streamCandidates.length > 1) {
             root.pickAnotherStream()
             return
@@ -1586,7 +1593,9 @@ Item {
     }
 
     function handleStreamWatchdog() {
-        if (!root.starting || root.fileReady)
+        // FILE_LOADED is not playback proof. `starting` retires only after position
+        // genuinely advances, so a loaded-but-frozen/black source must still time out.
+        if (!root.starting)
             return
         root.statusMsg = "This source did not start. Trying another stream..."
         root.handlePlaybackFailure("source did not start")
@@ -2487,25 +2496,35 @@ Item {
         return true
     }
 
-    function acceptResumeChoice() {
-        // The file is already loaded and paused — onFileLoaded has fired and will NOT fire
-        // again on unpause, so we must seek here directly (setting pendingSeekSec would be a
-        // dead write with no consumer). [review fix 2026-07-07]
-        if (root.resumeChoiceSec > 0)
-            mpv.seekExact(root.resumeChoiceSec)
-        root.resumeChoiceOpen = false
-        root.resumeChoiceSec = -1
+    function armPlaybackAfterResumeChoice(label, seekSec) {
+        // prepareResumeChoice() deliberately retired the initial start state while UI owned
+        // the decision. Re-arm BEFORE the seek so that seek-driven position notifications
+        // cannot certify playback as started; only later post-unpause advancement may clear it.
+        root.starting = true
+        root.errored = false
+        root.statusMsg = label || "Resuming playback..."
+        root.resetRecoveryWatch()
+        streamWatchdog.restart()
+        if (seekSec >= 0)
+            mpv.seekExact(seekSec)
         if (mpv.pause)
             mpv.pause = false
+    }
+
+    function acceptResumeChoice() {
+        // The file is already loaded and paused — onFileLoaded has fired and will NOT fire
+        // again on unpause, so re-arm startup proof, then seek/unpause through one path.
+        var seekSec = root.resumeChoiceSec > 0 ? root.resumeChoiceSec : -1
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        root.armPlaybackAfterResumeChoice("Resuming playback...", seekSec)
     }
 
     function startOverFromResumeChoice() {
         root.pendingSeekSec = 0
         root.resumeChoiceOpen = false
         root.resumeChoiceSec = -1
-        mpv.seekExact(0)
-        if (mpv.pause)
-            mpv.pause = false
+        root.armPlaybackAfterResumeChoice("Starting playback...", 0)
     }
 
     function stop() {
@@ -3315,6 +3334,7 @@ Item {
     }
     MpvItem {
         id: mpv
+        objectName: "playerMpv"
         anchors.fill: parent
         z: 0
         Component.onCompleted: {
@@ -3920,8 +3940,18 @@ Item {
                 }
                 Row {
                     spacing: 10
-                    ResumeChoiceButton { label: "Resume";    primary: true;  onClicked: root.acceptResumeChoice() }
-                    ResumeChoiceButton { label: "Start over"; primary: false; onClicked: root.startOverFromResumeChoice() }
+                    ResumeChoiceButton {
+                        objectName: "playerResumeChoiceResume"
+                        label: "Resume"
+                        primary: true
+                        onClicked: root.acceptResumeChoice()
+                    }
+                    ResumeChoiceButton {
+                        objectName: "playerResumeChoiceStartOver"
+                        label: "Start over"
+                        primary: false
+                        onClicked: root.startOverFromResumeChoice()
+                    }
                 }
             }
         }

@@ -1,0 +1,67 @@
+{
+  "name": "player1-resume-choice",
+  "comment": "Function 0009: real Resume and Start over controls must re-arm startup proof before their seek.",
+  "steps": [
+    {
+      "cmd": "test-player1-setup-resume",
+      "label": "seed the real Resume overlay",
+      "payload": { "seconds": 12.5 },
+      "expect": [
+        { "path": "resumeChoiceOpen", "op": "==", "value": true },
+        { "path": "starting", "op": "==", "value": false },
+        { "path": "paused", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "capture the Resume choice before clicking it",
+      "payload": {
+        "object": "player",
+        "props": ["resumeChoiceOpen", "resumeChoiceSec", "starting"],
+        "grab": { "target": "window", "timeoutMs": 4000 }
+      },
+      "expect": [
+        { "path": "props.resumeChoiceOpen", "op": "==", "value": true },
+        { "path": "grabPath", "op": "exists" }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "click the real Resume control",
+      "payload": { "target": "playerResumeChoiceResume" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Resume re-arms startup proof",
+      "payload": { "object": "player", "prop": "starting", "value": true, "timeout_ms": 2000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "test-player1-setup-resume",
+      "label": "seed the real Start over choice",
+      "payload": { "seconds": 12.5 },
+      "expect": [ { "path": "resumeChoiceOpen", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "capture the Start over choice before clicking it",
+      "payload": {
+        "object": "player",
+        "props": ["resumeChoiceOpen", "resumeChoiceSec", "starting"],
+        "grab": { "target": "window", "timeoutMs": 4000 }
+      },
+      "expect": [ { "path": "grabPath", "op": "exists" } ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "click the real Start over control",
+      "payload": { "target": "playerResumeChoiceStartOver" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Start over re-arms startup proof",
+      "payload": { "object": "player", "prop": "starting", "value": true, "timeout_ms": 2000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    }
+  ]
+}
