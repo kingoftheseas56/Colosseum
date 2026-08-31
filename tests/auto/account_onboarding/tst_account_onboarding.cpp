@@ -301,7 +301,7 @@ void tst_account_onboarding::freshInstallRequiresOnboarding() {
 
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
+        QStringLiteral("localOnly"));
     QVERIFY(fixture.controller->onboardingRequired());
 }
 
@@ -561,7 +561,7 @@ offlineLogoutQueuesRevocationAndSealsProfile() {
         QString::fromLatin1(kAccountId));
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
+        QStringLiteral("localOnly"));
     QVERIFY(
         !fixture.credentials
              .loadActive()

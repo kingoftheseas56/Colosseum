@@ -1774,7 +1774,7 @@ void tst_account_identity::offlineLogoutQueuesDurablePendingRevocation() {
 
     QTRY_COMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
+        QStringLiteral("localOnly"));
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QCOMPARE(
         fixture.credentials.pendingRevocations(),
@@ -1802,7 +1802,7 @@ void tst_account_identity::restartedOfflineLogoutRevokesRememberedRefresh() {
 
     fixture.controller->logoutCurrent();
 
-    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("localOnly"));
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QTRY_COMPARE(
         fixture.transport->pendingReplyCount(
@@ -1833,7 +1833,7 @@ void tst_account_identity::logoutEverywhereSessionInvalidStillSignsOutExplicitly
 
     QTRY_COMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
+        QStringLiteral("localOnly"));
     QCOMPARE(lockedSpy.count(), 0);
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QVERIFY(fixture.client->accessToken().isEmpty());
@@ -1887,7 +1887,7 @@ void tst_account_identity::failedCredentialClearTombstonePreventsResurrection() 
 
     QTRY_COMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
+        QStringLiteral("localOnly"));
     QVERIFY(fixture.bootstrapStore->credentialClearPending());
 
     fixture.controller.reset();
