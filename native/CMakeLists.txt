@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.1.4 LANGUAGES C CXX)
+project(colosseum VERSION 1.1.5 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()

@@ -48,9 +48,21 @@ real video player. Browsing is catalogue-first and discovery-rich; downloaded me
 so reading and listening can continue offline.
 
 > [!IMPORTANT]
-> Colosseum 1.1.3 is the current Windows 10/11 desktop release. The 1.1.4 release was withdrawn.
+> Colosseum 1.1.5 is the current Windows 10/11 desktop release.
 > Download the installer from [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for
 > a per-user install — no administrator required. Building from source is documented below.
+
+## What's new in 1.1.5
+
+- **Streaming fails cleanly.** If the bundled Stremio stream engine cannot start, Colosseum now
+  reports an actionable repair message and stops retrying a dead engine instead of leaving the
+  player in an endless retry/switch loop.
+- **Stale stream requests are discarded.** Requests queued during a failed startup cannot replay
+  after the runtime is repaired or replaced.
+- **A properly branded installer.** The installer and uninstaller use the Colosseum product name
+  and branded application icon while keeping the version in the file name and Windows app metadata.
+
+Full release notes: [docs/release-notes/v1.1.5.md](docs/release-notes/v1.1.5.md).
 
 ## What's new in 1.1.3
 

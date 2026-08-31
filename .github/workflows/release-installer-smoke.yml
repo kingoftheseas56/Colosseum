@@ -11,12 +11,11 @@ on:
       source_sha:
         description: Exact Colosseum source commit to package
         required: true
-        default: "5df10d8fc2c57414756a4a298ecc6696972233bc"
         type: string
       expected_version:
         description: Expected installed Colosseum version
         required: true
-        default: "1.1.4"
+        default: "1.1.5"
         type: string
 
 permissions:
@@ -30,8 +29,8 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 120
     env:
-      SOURCE_SHA: ${{ inputs.source_sha || '5df10d8fc2c57414756a4a298ecc6696972233bc' }}
-      VERSION: ${{ inputs.expected_version || '1.1.4' }}
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      VERSION: ${{ inputs.expected_version || '1.1.5' }}
       VCPKG_TAG: "2026.07.29"
       MPV_RELEASE: "20260814"
       MPV_VERSION: "20260814-git-7b8915bc1d"
@@ -196,7 +195,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           if (!(Test-Path $makensis)) { throw "makensis missing after install" }
-      - name: Package canonical 1.1.4 installer
+      - name: Package canonical 1.1.5 installer
         shell: bash
         run: |
           set -euo pipefail
@@ -229,7 +228,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     env:
-      VERSION: ${{ inputs.expected_version || '1.1.4' }}
+      VERSION: ${{ inputs.expected_version || '1.1.5' }}
     steps:
       - uses: actions/checkout@v7
       - name: Download canonical installer artifact
