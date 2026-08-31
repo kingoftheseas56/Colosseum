@@ -2,4 +2,7 @@
 # Any line movement or message/check change intentionally requires re-review.
 native/main.cpp|874|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
 native/main.cpp|1236|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
-native/engine/ComicDownloader.cpp|1449|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/engine/ComicDownloader.cpp|1492|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/engine/MangaDownloader.cpp|426|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/engine/MangaDownloader.cpp|857|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/engine/MangaVolumeArchiveIngestor.cpp|256|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
