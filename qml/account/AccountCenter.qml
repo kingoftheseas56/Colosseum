@@ -145,11 +145,6 @@ Rectangle {
     // in production use — E2 clears exactly these three, nothing else.
     readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre"]
 
-    onPrivacyRememberSearchHistoryChangeRequested: function(enabled) {
-        if (searchHistoryStore)
-            searchHistoryStore.rememberEnabled = enabled
-    }
-
     // E2: aggregate local search-history clear via the real SearchHistoryStore owner.
     onPrivacyClearSearchHistoryRequested: {
         if (searchHistoryStore)
