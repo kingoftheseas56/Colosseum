@@ -36,8 +36,10 @@ function Manifest-FromOutput([string]$output) {
 Write-Host "[account-auth] phase 1: static/service contracts"
 $required = @(
     'tests/mock-account-service/server.mjs',
+    'tests/lanista_scenarios/account_local_device_happy_path.json',
     'tests/lanista_scenarios/account_create_happy_path.json',
     'tests/lanista_scenarios/account_signin_happy_path.json',
+    'qml/account/AccountFlyout.qml',
     'qml/account/AccountCreate.qml',
     'qml/account/AccountSignIn.qml',
     'tests/test_account_lanista_selector_contract.ps1'
@@ -146,17 +148,30 @@ function Run-WarningGate($run) {
 }
 
 $runId = [guid]::NewGuid().ToString('N').Substring(0, 10)
-$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
-$listener.Start()
-$port = ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port
-$listener.Stop()
-$mockOut = Join-Path $env:TEMP "colosseum-account-mock-$runId.out.log"
-$mockErr = Join-Path $env:TEMP "colosseum-account-mock-$runId.err.log"
 $mock = $null
+$hadServiceUrl = Test-Path Env:COLOSSEUM_ACCOUNT_SERVICE_URL
 $oldServiceUrl = $env:COLOSSEUM_ACCOUNT_SERVICE_URL
 
 try {
-    Write-Host "[account-auth] phase 2: start disposable mock on 127.0.0.1:$port"
+    Write-Host '[account-auth] phase 2: backend-free local-device proof'
+    Remove-Item Env:COLOSSEUM_ACCOUNT_SERVICE_URL -ErrorAction SilentlyContinue
+
+    $localTag = "account-local-$runId"
+    $localRun = Run-Scenario 'tests/lanista_scenarios/account_local_device_happy_path.json' $localTag
+    if ([string]$localRun.Manifest.tag -ne $localTag) { Fail 'local-device manifest tag mismatch' }
+    if (-not [bool]$localRun.Manifest.drive) {
+        Fail 'Lanista drive gate was not enabled for local-device session'
+    }
+    Run-WarningGate $localRun
+
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    $listener.Start()
+    $port = ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port
+    $listener.Stop()
+    $mockOut = Join-Path $env:TEMP "colosseum-account-mock-$runId.out.log"
+    $mockErr = Join-Path $env:TEMP "colosseum-account-mock-$runId.err.log"
+
+    Write-Host "[account-auth] phase 3: start disposable mock on 127.0.0.1:$port"
     $mock = Start-Process node -ArgumentList @(
         'tests/mock-account-service/server.mjs', '--port', $port
     ) -WorkingDirectory $root -PassThru `
@@ -181,24 +196,41 @@ try {
     if ([string]$createRun.Manifest.tag -ne $createTag) { Fail 'create manifest tag mismatch' }
     if ([string]$signinRun.Manifest.tag -ne $signinTag) { Fail 'sign-in manifest tag mismatch' }
     if (-not [bool]$createRun.Manifest.drive -or -not [bool]$signinRun.Manifest.drive) {
-        Fail 'Lanista drive gate was not enabled for both sessions'
-    }
-    if ([string]$createRun.Manifest.appDataRoot -eq [string]$signinRun.Manifest.appDataRoot) {
-        Fail 'create and sign-in sessions reused the same AppData root'
-    }
-    if ([string]$createRun.Manifest.pipe -eq [string]$signinRun.Manifest.pipe) {
-        Fail 'create and sign-in sessions reused the same named pipe'
+        Fail 'Lanista drive gate was not enabled for both account sessions'
     }
 
-    Write-Host '[account-auth] phase 3: warning gates'
+    $appDataRoots = @(
+        [string]$localRun.Manifest.appDataRoot,
+        [string]$createRun.Manifest.appDataRoot,
+        [string]$signinRun.Manifest.appDataRoot
+    )
+    if (($appDataRoots | Sort-Object -Unique).Count -ne 3) {
+        Fail 'local, create, and sign-in sessions must use three isolated AppData roots'
+    }
+
+    $pipes = @(
+        [string]$localRun.Manifest.pipe,
+        [string]$createRun.Manifest.pipe,
+        [string]$signinRun.Manifest.pipe
+    )
+    if (($pipes | Sort-Object -Unique).Count -ne 3) {
+        Fail 'local, create, and sign-in sessions must use three isolated named pipes'
+    }
+
+    Write-Host '[account-auth] phase 4: account warning gates'
     Run-WarningGate $createRun
     Run-WarningGate $signinRun
 
+    Write-Host ("LOCAL_DEVICE_MANIFEST=" + $localRun.ManifestPath)
     Write-Host ("CREATE_MANIFEST=" + $createRun.ManifestPath)
     Write-Host ("SIGNIN_MANIFEST=" + $signinRun.ManifestPath)
     Write-Host 'ACCOUNT_AUTH_JOURNEYS_OK'
 } finally {
-    $env:COLOSSEUM_ACCOUNT_SERVICE_URL = $oldServiceUrl
+    if ($hadServiceUrl) {
+        $env:COLOSSEUM_ACCOUNT_SERVICE_URL = $oldServiceUrl
+    } else {
+        Remove-Item Env:COLOSSEUM_ACCOUNT_SERVICE_URL -ErrorAction SilentlyContinue
+    }
     if ($mock -and -not $mock.HasExited) {
         Stop-Process -Id $mock.Id -Force -ErrorAction SilentlyContinue
         Wait-Process -Id $mock.Id -Timeout 5 -ErrorAction SilentlyContinue
