@@ -63,7 +63,12 @@ class CodeQualityWorkflowContract(unittest.TestCase):
             self.assertIn(check, gate)
             self.assertIn(check, policy)
         self.assertNotIn("portability-avoid-pragma-once", policy)
-        self.assertIn("ComicDownloader.cpp|1449|clang-analyzer-cplusplus.NewDeleteLeaks", allowlist)
+        for ownership_false_positive in (
+                "native/engine/ComicDownloader.cpp|1492|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaDownloader.cpp|426|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaDownloader.cpp|857|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaVolumeArchiveIngestor.cpp|256|clang-analyzer-cplusplus.NewDeleteLeaks"):
+            self.assertIn(ownership_false_positive, allowlist)
 
     def test_address_sanitizer_gate_builds_and_runs_high_risk_native_probes(self):
         desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")
