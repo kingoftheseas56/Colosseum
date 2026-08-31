@@ -739,6 +739,13 @@ add_executable(search_history_store_harness
 target_include_directories(search_history_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(search_history_store_harness PRIVATE Qt6::Core)
 
+add_executable(session_store_harness
+    ../tests/session_store_harness.cpp
+    SessionStore.h
+)
+target_include_directories(session_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(session_store_harness PRIVATE Qt6::Core)
+
 add_executable(background_work_coordinator_harness
     ../tests/background_work_coordinator_harness.cpp
     work/BackgroundWorkCoordinator.cpp

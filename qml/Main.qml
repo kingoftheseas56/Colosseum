@@ -1876,9 +1876,9 @@ Window {
         // surface must come down here when closing the active one (else it lingers on screen).
         if (id === Sessions.activeId) win.teardownSession(rec)
         // a real close ends the stream for good — minimize keeps the movie warm, close does not.
-        if (rec && rec.contentKind === "movie") {
+        if (rec && rec.contentKind === "movie" && win.warmPlayerSessionId === id) {
             if (playerLayer.item) playerLayer.item.stop()
-            if (win.warmPlayerSessionId === id) win.warmPlayerSessionId = ""
+            win.warmPlayerSessionId = ""
         }
         Sessions.close(id)
     }

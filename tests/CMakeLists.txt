@@ -27,6 +27,7 @@ endfunction()
 # ── Pilot set (ledger: "Migration candidates — pilot CTest registration") ────
 colosseum_register_harness(window_state_policy_harness   unit;windows)
 colosseum_register_harness(search_history_store_harness  unit)
+colosseum_register_harness(session_store_harness unit;session)
 colosseum_register_harness(background_work_coordinator_harness unit)
 colosseum_register_harness(background_activity_registry_harness unit)
 colosseum_register_harness(background_work_composition_harness unit;composition)
@@ -86,6 +87,14 @@ add_test(NAME colosseum.catalogue_cancellation_contract
                  -File "${CMAKE_CURRENT_SOURCE_DIR}/test_catalogue_cancellation_contract.ps1")
 set_tests_properties(colosseum.catalogue_cancellation_contract PROPERTIES
     LABELS "unit;responsiveness"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+add_test(NAME colosseum.session_model_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_session_model_p0.ps1")
+set_tests_properties(colosseum.session_model_contract PROPERTIES
+    LABELS "unit;session"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
