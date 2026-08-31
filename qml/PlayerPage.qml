@@ -2995,6 +2995,14 @@ Item {
         root.shortcutsOpen = false
         root.browserOpen = false
     }
+    // One Escape contract for both the player's focused key handler and Main.qml's
+    // application Shortcut: temporary controls close first, otherwise Back minimizes
+    // through the existing session-aware player seam.
+    function requestEscape() {
+        if (root.shortcutsOpen) { root.shortcutsOpen = false; return }
+        if (root.anyMenuOpen) root.closeMenus()
+        else root.backRequested()
+    }
     function wakeChrome() {
         root.controlsShown = true
         hideTimer.restart()
@@ -3050,13 +3058,7 @@ Item {
             root.spaceHoldFired = false
             spaceHoldTimer.restart()
             return
-        case "escape":
-            if (root.shortcutsOpen) { root.shortcutsOpen = false; return }
-            if (root.anyMenuOpen)
-                root.closeMenus()
-            else
-                root.backRequested()
-            return
+        case "escape": root.requestEscape(); return
         case "seekBack": root.requestUserSeekStep(-root.seekBackSeconds); return
         case "seekForward": root.requestUserSeekStep(root.seekForwardSeconds); return
         case "frameBack": if (mpv.pause) mpv.frameBackStep(); else root.requestUserSeekStep(-30); return

@@ -26,6 +26,7 @@ import "EpisodeBrowser.js" as EpisodeBrowser
 import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
+import "ShellBackPolicy.js" as ShellBackPolicy
 
 Window {
     id: win
@@ -478,40 +479,147 @@ Window {
         onTriggered: { var c = _cb; _cb = null; if (c) c() }
     }
 
-    // Esc: close the series page if open, else leave a world page, else quit. Ctrl+Q always quits.
-    Shortcut { sequences: ["Escape"]; onActivated: {
+    // Escape has one shell entry point. ShellBackPolicy owns precedence; each selected
+    // surface still owns the meaning of Back/Escape so session, progress and overlay
+    // semantics cannot be bypassed by a parallel root-level close path.
+    function shellEscapeState() {
+        var rec = (typeof Sessions !== "undefined" && Sessions && Sessions.activeId)
+                ? Sessions.get(Sessions.activeId) : ({})
+        return {
+            transitioning: fullscreenTransition.transitioning,
+            bootVisible: boot.visible,
+            accountHostVisible: accountHost.visible,
+            identityCeremonyOpen: identityCeremonyDialog.opened,
+            watchPartyJoinOpen: watchPartyJoinSheet.opened,
+            wallpaperActive: wallpaperLayer.active,
+            accountFlyoutVisible: accountFlyout.visible,
+            accountCenterVisible: accountCenter.visible,
+            openRecentOpen: openRecentPanel.open,
+            taskbarOpen: taskbar.open,
+            activeSessionKind: rec && rec.contentKind ? String(rec.contentKind) : "",
+            playerOpen: win.playerOpen,
+            bookReaderActive: bookReaderLayer.active,
+            vaultComicActive: vaultComicLayer.active,
+            comicReaderActive: win.embeddedComicReaderOpen(),
+            updateActive: updateLayer.active,
+            settingsActive: settingsLayer.active,
+            extensionsActive: extensionsLayer.active,
+            vaultActive: vaultLayer.active,
+            downloadsActive: downloadsLayer.active,
+            bookActive: bookLayer.active,
+            theatreSeriesActive: theatreSeriesLayer.active,
+            westernActive: westernLayer.active,
+            seriesActive: seriesLayer.active,
+            universeActive: universeLayer.active,
+            universeHallActive: universeHallLayer.active,
+            searchActive: searchLayer.active,
+            worldSearchActive: worldSearchLayer.active,
+            comicSeriesActive: comicSeriesLayer.active,
+            locgPublisherActive: locgPublisherLayer.active,
+            comicIndexActive: comicIndexLayer.active,
+            comicBoardActive: comicBoardLayer.active,
+            continueSeeAllActive: continueSeeAllLayer.active,
+            theatreGenreActive: theatreGenreLayer.active,
+            theatreGenreIndexActive: theatreGenreIndexLayer.active,
+            biblioGenreActive: biblioGenreLayer.active,
+            biblioGenreIndexActive: biblioGenreIndexLayer.active,
+            genreActive: genreLayer.active,
+            genreIndexActive: genreIndexLayer.active,
+            worldOpen: worldStack.current !== ""
+        }
+    }
+    function embeddedComicReaderOpen() {
+        return !!((seriesLayer.active && seriesLayer.item && String(seriesLayer.item.openChapterId || "").length)
+               || (westernLayer.active && westernLayer.item && String(westernLayer.item.openChapterId || "").length)
+               || (comicSeriesLayer.active && comicSeriesLayer.item && String(comicSeriesLayer.item.openChapterId || "").length))
+    }
+    function requestPlayerEscape() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (playerLayer.active && playerLayer.item && playerLayer.item.requestEscape) {
+            playerLayer.item.requestEscape()
+            return
+        }
+        if (rec && rec.contentKind === "movie") { win.minimizePlayer(); return }
         if (win.playerOpen) win.closePlayer()
-        else if (bookReaderLayer.active) win.closeBookReader()
-        // Taskbar full-pages sit at z:56, above every browsing/detail page — so back must
-        // close them BEFORE the pages they cover, else ESC "does nothing" visibly while
-        // silently closing the page underneath. Only one of the five is ever active.
-        else if (downloadsLayer.active) win.closeDownloadsPage()
-        else if (extensionsLayer.active) win.closeExtensionsPage()
-        else if (settingsLayer.active) win.closeSettingsPage()
-        else if (updateLayer.active) win.closeUpdatePage()
-        else if (vaultLayer.active) win.vaultBack()
-        else if (bookLayer.active) win.closeBook()
-        else if (biblioGenreLayer.active) win.closeBiblioGenre()
-        else if (biblioGenreIndexLayer.active) win.closeBiblioGenreIndex()
-        else if (searchLayer.active) win.closeSearch()
-        else if (worldSearchLayer.active) win.closeWorldSearch()
-        else if (theatreSeriesLayer.active) win.closeTheatreSeries()
-        else if (seriesLayer.active) win.closeSeries()
-        else if (westernLayer.active) win.closeWestern()
-        else if (universeLayer.active) win.closeUniverse()
-        else if (universeHallLayer.active) win.closeUniverseHall()
-        else if (comicSeriesLayer.active) win.closeComicSeries()
-        else if (locgPublisherLayer.active) win.closeLocgPublisher()
-        else if (comicBoardLayer.active) win.closeComicArchiveBoard()
-        else if (comicIndexLayer.active) win.closeComicArchive()
-        else if (continueSeeAllLayer.active) win.closeContinueSeeAll()
-        else if (theatreGenreLayer.active) win.closeTheatreGenre()
-        else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
-        else if (genreLayer.active) win.closeGenre()
-        else if (genreIndexLayer.active) win.closeGenreIndex()
-        else if (worldStack.current !== "") win.closeWorld()
-        else Qt.quit()
-    } }
+    }
+    function requestBookReaderEscape() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (bookReaderLayer.active && bookReaderLayer.item && bookReaderLayer.item.requestEscape) {
+            bookReaderLayer.item.requestEscape()
+            return
+        }
+        if (rec && rec.contentKind === "book") { win.closeBookReaderSession(); return }
+        if (bookReaderLayer.active) win.closeBookReader()
+    }
+    function requestComicReaderEscape() {
+        if (vaultComicLayer.active && vaultComicLayer.item && vaultComicLayer.item.requestEscape) {
+            vaultComicLayer.item.requestEscape(); return
+        }
+        if (comicSeriesLayer.active && comicSeriesLayer.item
+                && String(comicSeriesLayer.item.openChapterId || "").length
+                && comicSeriesLayer.item.requestReaderEscape) {
+            comicSeriesLayer.item.requestReaderEscape(); return
+        }
+        if (westernLayer.active && westernLayer.item
+                && String(westernLayer.item.openChapterId || "").length
+                && westernLayer.item.requestReaderEscape) {
+            westernLayer.item.requestReaderEscape(); return
+        }
+        if (seriesLayer.active && seriesLayer.item
+                && String(seriesLayer.item.openChapterId || "").length
+                && seriesLayer.item.requestReaderEscape) {
+            seriesLayer.item.requestReaderEscape(); return
+        }
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
+    }
+    function cancelPendingIdentityCeremony() {
+        win.pendingIdentityRoute = null
+        identityCeremonyDialog.close()
+    }
+    function handleEscape() {
+        var action = ShellBackPolicy.actionFor(win.shellEscapeState())
+        switch (action) {
+        case "consume": return
+        case "cancelIdentityCeremony": identityCeremonyDialog.cancelRequested(); return
+        case "watchPartyJoin": watchPartyJoinSheet.close(); return
+        case "wallpaper": win.closeWallpaperSearch(); return
+        case "accountFlyout": accountFlyout.close(); return
+        case "accountCenter": accountCenter.close(); return
+        case "openRecent": openRecentPanel.open = false; return
+        case "taskbar": taskbar.open = false; return
+        case "player": win.requestPlayerEscape(); return
+        case "bookReader": win.requestBookReaderEscape(); return
+        case "comicReader": win.requestComicReaderEscape(); return
+        case "update": win.closeUpdatePage(); return
+        case "settings": win.closeSettingsPage(); return
+        case "extensions": win.closeExtensionsPage(); return
+        case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
+        case "downloads": win.closeDownloadsPage(); return
+        case "book": win.closeBook(); return
+        case "theatreSeries": win.closeTheatreSeries(); return
+        case "western": win.closeWestern(); return
+        case "series": win.closeSeries(); return
+        case "universe": win.closeUniverse(); return
+        case "universeHall": win.closeUniverseHall(); return
+        case "search": win.closeSearch(); return
+        case "worldSearch": win.closeWorldSearch(); return
+        case "comicSeries": win.closeComicSeries(); return
+        case "locgPublisher": win.closeLocgPublisher(); return
+        case "comicIndex": win.closeComicArchive(); return
+        case "comicBoard": win.closeComicArchiveBoard(); return
+        case "continueSeeAll": win.closeContinueSeeAll(); return
+        case "theatreGenre": win.closeTheatreGenre(); return
+        case "theatreGenreIndex": win.closeTheatreGenreIndex(); return
+        case "biblioGenre": win.closeBiblioGenre(); return
+        case "biblioGenreIndex": win.closeBiblioGenreIndex(); return
+        case "genre": win.closeGenre(); return
+        case "genreIndex": win.closeGenreIndex(); return
+        case "world": win.closeWorld(); return
+        default: Qt.quit(); return
+        }
+    }
+    Shortcut { sequences: ["Escape"]; onActivated: win.handleEscape() }
     Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
 
     // The secret developer door: F11 flips the whole shell between fullscreen (Colosseum's
@@ -1010,6 +1118,7 @@ Window {
     // remain visible underneath that surface.
     readonly property bool immersiveSurfaceOpen: win.playerOpen
         || bookReaderLayer.active
+        || vaultComicLayer.active
         || seriesLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
@@ -1767,9 +1876,9 @@ Window {
         // surface must come down here when closing the active one (else it lingers on screen).
         if (id === Sessions.activeId) win.teardownSession(rec)
         // a real close ends the stream for good — minimize keeps the movie warm, close does not.
-        if (rec && rec.contentKind === "movie") {
+        if (rec && rec.contentKind === "movie" && win.warmPlayerSessionId === id) {
             if (playerLayer.item) playerLayer.item.stop()
-            if (win.warmPlayerSessionId === id) win.warmPlayerSessionId = ""
+            win.warmPlayerSessionId = ""
         }
         Sessions.close(id)
     }
@@ -3606,6 +3715,7 @@ Window {
         anchors.centerIn: parent
         z: 960
         onChoiceMade: (relationship, choice) => win.decidePendingIdentity(choice)
+        onCancelRequested: win.cancelPendingIdentityCeremony()
     }
 
     // A quiet, no-color status pill for local-open feedback: a categorized rejection, or the

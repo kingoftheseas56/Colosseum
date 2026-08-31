@@ -58,6 +58,15 @@ public:
                 m_sessions[i] = rec;
                 bump();
                 emit targetReplaced(id);
+            } else if (rec.value(QStringLiteral("title")) != desc.value(QStringLiteral("title"))
+                       || rec.value(QStringLiteral("target")) != desc.value(QStringLiteral("target"))) {
+                // Exact-content reopen: refresh transport/path/metadata while preserving
+                // captured state. A parked session must reactivate from the newest target,
+                // but its resume position still belongs to this exact content identity.
+                rec.insert(QStringLiteral("title"), desc.value(QStringLiteral("title")));
+                rec.insert(QStringLiteral("target"), desc.value(QStringLiteral("target")));
+                m_sessions[i] = rec;
+                bump();
             }
             setActive(id);
             return id;
@@ -253,15 +262,37 @@ private:
              + desc.value(QStringLiteral("contentKind")).toString() + QStringLiteral("\x1f") + tk;
     }
 
-    // The pre-2026-07-11 per-content chain — on a key match this tells "same show,
-    // different content" (replace) apart from "the exact same thing" (reuse).
+    // The per-content chain — on a show-key match this tells "same show, different
+    // content" (replace) apart from "the exact same thing" (reuse). Every production
+    // lane must resolve to content identity, never presentation text.
     static QString contentKeyFor(const QVariantMap &desc) {
         const QVariantMap target = desc.value(QStringLiteral("target")).toMap();
         QString tk = target.value(QStringLiteral("id")).toString();
         if (tk.isEmpty())
             tk = target.value(QStringLiteral("path")).toString();
         if (tk.isEmpty())
-            tk = target.value(QStringLiteral("infoHash")).toString();
+            tk = target.value(QStringLiteral("subId")).toString();
+        if (tk.isEmpty()) {
+            const QString chapterId = target.value(QStringLiteral("chapterId")).toString();
+            if (!chapterId.isEmpty()) {
+                QString seriesId = target.value(QStringLiteral("seriesId")).toString();
+                if (seriesId.isEmpty())
+                    seriesId = desc.value(QStringLiteral("title")).toString();
+                QString entryKind = target.value(QStringLiteral("entryKind")).toString();
+                if (entryKind.isEmpty())
+                    entryKind = QStringLiteral("chapter");
+                tk = QStringLiteral("comic\x1e") + seriesId + QStringLiteral("\x1e")
+                   + entryKind + QStringLiteral("\x1e") + chapterId;
+            }
+        }
+        if (tk.isEmpty()) {
+            const QString infoHash = target.value(QStringLiteral("infoHash")).toString();
+            if (!infoHash.isEmpty()) {
+                tk = infoHash;
+                if (target.contains(QStringLiteral("fileIdx")))
+                    tk += QStringLiteral("\x1e") + QString::number(target.value(QStringLiteral("fileIdx")).toInt());
+            }
+        }
         if (tk.isEmpty())
             tk = desc.value(QStringLiteral("title")).toString();
         return tk;

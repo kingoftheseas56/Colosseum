@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import http.server
 import json
 import struct
 import threading
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -19,47 +21,23 @@ EXPECTED_REQUEST_HEADERS = {
 NEGATIVE_HEADER = "X-Function-0008-Negative-Control"
 NEGATIVE_VALUE = "response-only-do-not-forward"
 FAST_PREFIX_BYTES = 8 * 1024 * 1024 + 768 * 1024
+DOWNLOAD_CHUNK_BYTES = 256 * 1024
+DOWNLOAD_CHUNK_DELAY_SECONDS = 0.015
+MP4_BASE64 = """AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAN3bW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAFfkAAEHrAAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAqJ0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAEHrAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAUAAAAC0AAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEABB6wAAAAAAABAAAAAAIabWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAFfkAAEHrBVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABxW1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAYVzdGJsAAAAuXN0c2QAAAAAAAAAAQAAAKlhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAUAAtABIAAAASAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAAL2F2Y0MBQsAL/+EAGGdCwAvaBQZ+fARAAAADAEAAAAMDI8UKqAEABGjOD8gAAAAQcGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAAt0AAALdAAAAAYc3R0cwAAAAAAAAABAAAAEgAAOpgAAAAgc3RzcwAAAAAAAAAEAAAAAQAAAAcAAAAKAAAAEAAAABxzdHNjAAAAAAAAAAEAAAABAAAAEgAAAAEAAABcc3RzegAAAAAAAAAAAAAAEgAAA5AAAAAoAAAAKQAAACkAAAApAAAAKQAAATUAAAAoAAAAKQAABeMAAABEAAAARAAAAEUAAABFAAAARQAAA4oAAABEAAAARAAAABRzdGNvAAAAAAAAAAEAAAOnAAAAYXVkdGEAAABZbWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAsaWxzdAAAACSpdG9vAAAAHGRhdGEAAAABAAAAAExhdmY2My4xLjEwMQAAAAhmcmVlAAARNm1kYXQAAAACCfAAAAAYZ0LAC9oFBn58BEAAAAMAQAAAAwMjxQqoAAAABGjOD8gAAAJaBgX//1bcRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY1IHIzMjIzIDA0ODBjYjAgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDI1IC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MCByZWY9MSBkZWJsb2NrPTA6MDowIGFuYWx5c2U9MDowIG1lPWRpYSBzdWJtZT0wIHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTAgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0wIDh4OGRjdD0wIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PTAgdGhyZWFkcz0zIGxvb2thaGVhZF90aHJlYWRzPTMgc2xpY2VkX3RocmVhZHM9MSBzbGljZXM9MyBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTYga2V5aW50X21pbj0xIHNjZW5lY3V0PTAgaW50cmFfcmVmcmVzaD0wIHJjPWNyZiBtYnRyZWU9MCBjcmY9MjMuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0wAIAAAABTZYiEOhGKAAIJccAAQlI4AAhjScnJycnJycnJycnJycnJycnJyddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeAAAABUZQKIiEOhGKAAIJccAAQlI4AAhjScnJycnJycnJycnJycnJycnJyddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeAAAAVWUBQiIQ6EYoAAglxwABCUjgACGNJycnJycnJycnJycnJycnJycnJ1111111111111111111111111111111111111111111111111111111111114AAAAACCfAAAAAGQZogPoCjAAAACEECiaID6AowAAAACEEBQmiA+gKMAAAAAgnwAAAAB0GaQBCgKMAAAAAIQQKJpAEKAowAAAAIQQFCaQBCgKMAAAACCfAAAAAHQZpgEKAowAAAAAhBAommAQoCjAAAAAhBAUJpgEKAowAAAAIJ8AAAAAdBmoAQoCjAAAAACEECiagBCgKMAAAACEEBQmoAQoCjAAAAAgnwAAAAB0GaoBCgKMAAAAAIQQKJqgEKAowAAAAIQQFCaoBCgKMAAAACCfAAAAAYZ0LAC9oFBn58BEAAAAMAQAAAAwMjxQqoAAAABGjOD8gAAABUZYiCAQoRigACO/HAAEzaOAAKD0nJycnJycnJycnJycnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXgAAAAVWUCiIggEKEYoAAjvxwABM2jgACg9JycnJycnJycnJycnJycnJycnJ1111111111111111111111111111111111111111111111111111111111114AAABWZQFCIggEKEYoAAjvxwABM2jgACg9JycnJycnJycnJycnJycnJycnJ1111111111111111111111111111111111111111111111111111111111114AAAAACCfAAAAAGQZogPoCjAAAACEECiaID6AowAAAACEEBQmiA+gKMAAAAAgnwAAAAB0GaQBCgKMAAAAAIQQKJpAEKAowAAAAIQQFCaQBCgKMAAAACCfAAAAAZZ0LAFtoCgL/lwEQAAAMABAAAAwAyPFi6gAAAAARozg/IAAACWgYF//9W3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NSByMzIyMyAwNDgwY2IwIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyNSAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTAgcmVmPTEgZGVibG9jaz0wOjA6MCBhbmFseXNlPTA6MCBtZT1kaWEgc3VibWU9MCBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MCA4eDhkY3Q9MCBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9NSBsb29rYWhlYWRfdGhyZWFkcz01IHNsaWNlZF90aHJlYWRzPTEgc2xpY2VzPTUgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD02IGtleWludF9taW49MSBzY2VuZWN1dD0wIGludHJhX3JlZnJlc2g9MCByYz1jcmYgbWJ0cmVlPTAgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MACAAAAAsmWIhDoRigACFZHAAEDyOAAIecnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeAAAACWZQGSIhDoRigACFZHAAEDyOAAIecnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeAAAAAtGUAtIiEOhGKAAIVkcAAQPI4AAh5ycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111114AAAAJZlAEYiIQ6EYoAAhWRwABA8jgACHnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXgAAAC0ZQBaIiEOhGKAAIVkcAAQPI4AAh5ycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJ11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111114AAAAAgnwAAAAB0GaID6AZMAAAAAIQQGSaID6AUMAAAAJQQC0miA+gGTAAAAACUEARiaID6AUMAAAAAlBAFomiA+gGTAAAAACCfAAAAAHQZpAPoBkwAAAAAhBAZJpAPoBQwAAAAlBALSaQD6AZMAAAAAJQQBGJpAPoBQwAAAACUEAWiaQD6AZMAAAAAIJ8AAAAAdBmmAQoBkwAAAACUEBkmmAQoBQwAAAAAlBALSaYBCgGTAAAAAJQQBGJpgEKAUMAAAACUEAWiaYBCgGTAAAAAIJ8AAAAAdBmoAQoBkwAAAACUEBkmoAQoBQwAAAAAlBALSagBCgGTAAAAAJQQBGJqAEKAUMAAAACUEAWiagBCgGTAAAAAIJ8AAAAAdBmqAQoBkwAAAACUEBkmqAQoBQwAAAAAlBALSaoBCgGTAAAAAJQQBGJqgEKAUMAAAACUEAWiaoBCgGTAAAAAIJ8AAAABlnQsAW2gKAv+XARAAAAwAEAAADADI8WLqAAAAABGjOD8gAAACzZYiCAQoRigACdhHAAEZSOAAKeMnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeAAAACXZQGSIggEKEYoAAnYRwABGUjgACnjJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXgAAAALVlALSIggEKEYoAAnYRwABGUjgACnjJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXgAAAAl2UARiIggEKEYoAAnYRwABGUjgACnjJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXgAAAC1ZQBaIiCAQoRigACdhHAAEZSOAAKeMnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddeAAAAAIJ8AAAAAdBmiA+gGTAAAAACEEBkmiA+gFDAAAACUEAtJogPoBkwAAAAAlBAEYmiA+gFDAAAAAJQQBaJogPoBkwAAAAAgnwAAAAB0GaQD6AZMAAAAAIQQGSaQD6AUMAAAAJQQC0mkA+gGTAAAAACUEARiaQD6AUMAAAAAlBAFomkA+gGTA="""
 
+def _mp4_box(tag: bytes, payload: bytes) -> bytes:
+    return struct.pack(">I4s", len(payload) + 8, tag) + payload
 
-def _riff_chunk(tag: bytes, payload: bytes) -> bytes:
-    padded = payload + (b"\0" if len(payload) & 1 else b"")
-    return tag + struct.pack("<I", len(payload)) + padded
-
-
-def _riff_list(kind: bytes, payload: bytes) -> bytes:
-    return _riff_chunk(b"LIST", kind + payload)
-
-
-def build_fixture_avi(width: int = 320, height: int = 180, fps: int = 6,
-                      seconds: int = 10) -> bytes:
-    """Build a dependency-free uncompressed AVI with real decodable video frames."""
-    frame_count = fps * seconds
-    frame_size = width * height * 3
-    avih = struct.pack(
-        "<14I",
-        int(1_000_000 / fps), frame_size * fps, 0, 0,
-        frame_count, 0, 1, frame_size, width, height, 0, 0, 0, 0,
-    )
-    strh = struct.pack(
-        "<4s4sIHHIIIIIIIIhhhh",
-        b"vids", b"DIB ", 0, 0, 0, 0, 1, fps, 0, frame_count,
-        frame_size, 0xFFFFFFFF, 0, 0, 0, width, height,
-    )
-    strf = struct.pack(
-        "<IiiHHIIiiII",
-        40, width, height, 1, 24, 0, frame_size, 0, 0, 0, 0,
-    )
-    strl = _riff_list(b"strl", _riff_chunk(b"strh", strh) + _riff_chunk(b"strf", strf))
-    hdrl = _riff_list(b"hdrl", _riff_chunk(b"avih", avih) + strl)
-
-    frames = []
-    pixels = width * height
-    for index in range(frame_count):
-        bgr = bytes(((index * 17) & 0xFF, (index * 31) & 0xFF, (index * 47) & 0xFF))
-        frames.append(_riff_chunk(b"00db", bgr * pixels))
-    movi = _riff_list(b"movi", b"".join(frames))
-    payload = b"AVI " + hdrl + movi
-    return b"RIFF" + struct.pack("<I", len(payload)) + payload
+def build_fixture_mp4() -> bytes:
+    """Build a fast-start MP4 whose playable media is complete before the held padding tail."""
+    base = __import__("base64").b64decode(MP4_BASE64)
+    if base[4:8] != b"ftyp" or b"moov" not in base[:2048] or b"mdat" not in base[:4096]:
+        raise RuntimeError("embedded fixture must be a fast-start MP4")
+    target = FAST_PREFIX_BYTES + 2 * 1024 * 1024
+    free_size = target - len(base)
+    if free_size < 8:
+        raise RuntimeError("fixture padding target is too small")
+    return base + _mp4_box(b"free", b"\0" * (free_size - 8))
 
 
 @dataclass(frozen=True)
@@ -155,7 +133,7 @@ class _FixtureHandler(http.server.BaseHTTPRequestHandler):
 
         self.fixture.record("/video.mp4", role, 206 if partial else 200, True, self.headers)
         self.send_response(206 if partial else 200)
-        self.send_header("Content-Type", "video/x-msvideo")
+        self.send_header("Content-Type", "video/mp4")
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(end - start + 1))
         if partial:
@@ -166,8 +144,14 @@ class _FixtureHandler(http.server.BaseHTTPRequestHandler):
         try:
             if role == "download" and start == 0 and self.fixture.hold_download:
                 prefix_end = min(end + 1, FAST_PREFIX_BYTES)
-                self.wfile.write(body[:prefix_end])
-                self.wfile.flush()
+                sent = 0
+                while sent < prefix_end:
+                    chunk_end = min(prefix_end, sent + DOWNLOAD_CHUNK_BYTES)
+                    self.wfile.write(body[sent:chunk_end])
+                    self.wfile.flush()
+                    sent = chunk_end
+                    if sent < prefix_end:
+                        time.sleep(DOWNLOAD_CHUNK_DELAY_SECONDS)
                 self.fixture.download_prefix_sent.set()
                 if not self.fixture.release_download.wait(timeout=180):
                     return
@@ -182,11 +166,13 @@ class _FixtureHandler(http.server.BaseHTTPRequestHandler):
 
 class Function0008Fixture:
     def __init__(self, *, hold_download: bool = False) -> None:
-        self.media = build_fixture_avi()
+        self.media = build_fixture_mp4()
         self.hold_download = hold_download
         self.negative_control = False
         if len(self.media) <= FAST_PREFIX_BYTES:
             raise RuntimeError("fixture media must cross the disk-first threshold")
+        if self.media[4:8] != b"ftyp" or b"moov" not in self.media[:FAST_PREFIX_BYTES]:
+            raise RuntimeError("fixture MP4 must expose fast-start metadata before the held frontier")
         self.release_download = threading.Event()
         self.download_prefix_sent = threading.Event()
         self.playback_request_seen = threading.Event()
@@ -340,7 +326,7 @@ def self_test() -> None:
         good = dict(EXPECTED_REQUEST_HEADERS)
         good["Range"] = "bytes=0-255"
         status, body = _urlopen(fixture.video_url, good)
-        assert status == 206 and body.startswith(b"RIFF")
+        assert status == 206 and body[4:8] == b"ftyp"
 
         missing = dict(EXPECTED_REQUEST_HEADERS)
         missing.pop("Origin")
@@ -354,12 +340,17 @@ def self_test() -> None:
         restored = dict(EXPECTED_REQUEST_HEADERS)
         restored["Range"] = "bytes=0-31"
         status, restored_body = _urlopen(fixture.video_url, restored)
-        assert status == 206 and restored_body.startswith(b"RIFF")
+        assert status == 206 and restored_body[4:8] == b"ftyp"
 
         records = fixture.records()
         assert any(row["accepted"] and row["status"] in (200, 206) for row in records)
         assert any(row["status"] == 403 for row in records)
-        print(f"FUNCTION0008_FIXTURE_OK port={fixture.port} bytes={len(fixture.media)} records={len(records)}")
+        assert fixture.media[4:8] == b"ftyp"
+        assert b"moov" in fixture.media[:FAST_PREFIX_BYTES]
+        print(
+            f"FUNCTION0008_FIXTURE_OK port={fixture.port} bytes={len(fixture.media)} "
+            f"moov={fixture.media.find(b'moov')} records={len(records)}"
+        )
 
 
 def main() -> int:

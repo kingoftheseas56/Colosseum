@@ -688,6 +688,9 @@ Item {
     // ---- reader overlay: Comics store + comic progress; chapters = newest-first ----
     property string openChapterId: ""
     property string openChapterLabel: ""
+    function requestReaderEscape() {
+        if (readerLayer.visible) readerLayer.closeTop()
+    }
     MangaReader {
         id: readerLayer
         anchors.fill: parent; z: 60

@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -57,7 +58,7 @@ def make_paths(journey: str) -> Paths:
     root = expected_appdata_root(tag)
     fixture_root = root / "function0008-fixture"
     return Paths(
-        tag, root, fixture_root, fixture_root / "video.avi",
+        tag, root, fixture_root, fixture_root / "video.mp4",
         fixture_root / "negative-control.jsonl", fixture_root / "requests.jsonl",
         fixture_root / "journey-manifest.json", fixture_root / "lanista-driver.stdout.txt",
         fixture_root / "lanista-driver.stderr.txt",
@@ -82,6 +83,17 @@ def validate_scenario(path: pathlib.Path) -> None:
             raise ProofError(f"{path.name} step {index} uses non-ledger command {cmd!r}")
 
 
+def scenario_timeout_seconds(path: pathlib.Path, ready_ms: int) -> int:
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    steps = doc.get("steps", [])
+    total_ms = max(0, int(ready_ms)) + 30_000
+    for step in steps:
+        payload = step.get("payload", {}) if isinstance(step, dict) else {}
+        wait_ms = int(payload.get("timeout_ms", 0) or 0)
+        total_ms += max(10_000, wait_ms + 5_000 if wait_ms > 0 else 10_000)
+    return max(180, (total_ms + 999) // 1000)
+
+
 def negative_control(fixture: Function0008Fixture, log_path: pathlib.Path) -> None:
     fixture.hold_download = False
     fixture.set_negative_control(True)
@@ -92,8 +104,8 @@ def negative_control(fixture: Function0008Fixture, log_path: pathlib.Path) -> No
     restored = dict(EXPECTED_REQUEST_HEADERS)
     restored["Range"] = "bytes=0-31"
     status, body = _urlopen(fixture.video_url, restored)
-    if status != 206 or not body.startswith(b"RIFF"):
-        raise ProofError(f"negative-control restore failed: status={status}, RIFF={body[:4]!r}")
+    if status != 206 or body[4:8] != b"ftyp":
+        raise ProofError(f"negative-control restore failed: status={status}, ftyp={body[4:8]!r}")
     write_jsonl(log_path, fixture.records())
     fixture.reset_runtime_records()
 
@@ -191,11 +203,11 @@ def session_artifacts(session_id: str) -> tuple[pathlib.Path | None, list[str], 
 
 
 def run_process(command: list[str], *, arriving: bool,
-                fixture: Function0008Fixture) -> tuple[int, str, str, bool]:
+                fixture: Function0008Fixture, timeout_s: int) -> tuple[int, str, str, bool]:
     if not arriving:
         completed = subprocess.run(
             command, cwd=REPO, text=True, capture_output=True,
-            timeout=150, check=False,
+            timeout=timeout_s, check=False,
         )
         return completed.returncode, completed.stdout, completed.stderr, True
 
@@ -203,23 +215,24 @@ def run_process(command: list[str], *, arriving: bool,
         command, cwd=REPO, text=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
-    player_request_before_release = fixture.playback_request_seen.wait(timeout=45)
+    deadline = time.monotonic() + timeout_s
+    player_request_before_release = False
+    while time.monotonic() < deadline:
+        if fixture.playback_request_seen.wait(timeout=0.25):
+            player_request_before_release = True
+            break
+        if process.poll() is not None:
+            break
     fixture.release_download.set()
+    remaining_s = max(1.0, deadline - time.monotonic())
     try:
-        stdout, stderr = process.communicate(timeout=150)
+        stdout, stderr = process.communicate(timeout=remaining_s)
     except subprocess.TimeoutExpired:
         process.kill()
         stdout, stderr = process.communicate(timeout=10)
-        return 124, stdout, stderr + "\nDRIVER: session timed out after cleanup release\n", player_request_before_release
+        return 124, stdout, stderr + f"\nDRIVER: session timed out after {timeout_s}s cleanup release\n", player_request_before_release
     return process.returncode, stdout, stderr, player_request_before_release
 
-
-def known_arriving_blocker() -> str:
-    return (
-        "dd576634 native/engine/LocalDownloads.cpp projects DownloadStore jobs to DownloadsPage "
-        "without headers or partPath; routeArrivingPlay(job) therefore cannot receive the "
-        "DownloadStore provenance/disk-first fields. Arc 33 does not repair this by design."
-    )
 
 
 def run_journey(journey: str, lanista: pathlib.Path, exe: pathlib.Path,
@@ -249,7 +262,8 @@ def run_journey(journey: str, lanista: pathlib.Path, exe: pathlib.Path,
             build_seed(seed, fixture, paths)
             command = session_command(lanista, exe, qml, scenario, seed, paths.tag, ready_ms)
             code, stdout, stderr, player_before_release = run_process(
-                command, arriving=arriving, fixture=fixture
+                command, arriving=arriving, fixture=fixture,
+                timeout_s=scenario_timeout_seconds(scenario, ready_ms),
             )
         paths.lanista_stdout.write_text(stdout, encoding="utf-8")
         paths.lanista_stderr.write_text(stderr, encoding="utf-8")
@@ -307,10 +321,7 @@ def run_journey(journey: str, lanista: pathlib.Path, exe: pathlib.Path,
         "lanistaArtifacts": artifact_names,
         "objectReads": object_reads,
         "failures": failures,
-        "integratedRuntimeStillOwnedByClaude": True,
     }
-    if arriving:
-        result["currentDd576634Prerequisite"] = known_arriving_blocker()
     paths.driver_manifest.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps({
         "journey": journey,
