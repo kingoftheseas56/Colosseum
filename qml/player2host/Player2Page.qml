@@ -35,6 +35,9 @@ Item {
     // Player 2 died with the picture already up. No hot swap — the app surfaces it and starts clean.
     signal backendRestartRequired(string reason)
 
+    // Main.qml calls the same interface on either player backend.
+    function requestEscape() { shell.requestEscape() }
+
     // --- what we're playing -------------------------------------------------------------------
     property string mediaId: ""
     property string mediaTitle: ""

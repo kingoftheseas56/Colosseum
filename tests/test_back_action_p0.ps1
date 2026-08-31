@@ -1,10 +1,11 @@
+param([string]$RootOverride = "")
 $ErrorActionPreference = "Stop"
 
 # Back-navigation unification contract (spec: haven docs/superpowers/specs/
 # 2026-07-05-colosseum-back-navigation-design.md). One BackAction component, one vector
 # chevron; no font-glyph back arrows; player minimize is honestly labelled.
 
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($RootOverride) { $RootOverride } else { Split-Path -Parent $PSScriptRoot }
 function Read-File($rel) {
     $p = Join-Path $root $rel
     if (-not (Test-Path $p)) { throw "MISSING FILE: $rel" }
@@ -66,7 +67,11 @@ foreach ($f in @("qml/SearchSurface.qml", "qml/BiblioSearch.qml")) {
 $pp = Read-File "qml/PlayerPage.qml"
 Assert-Contains $pp 'icon: "minimizeToBar"' "Player top-left control must wear the minimize icon."
 Assert-Contains $pp 'tooltip: "Minimize' "Player top-left tooltip must say Minimize, not Back."
-Assert-Contains $pp 'kind === "minimizeToBar"' "Player Canvas must paint the minimizeToBar glyph."
+Assert-Contains $pp 'PlayerIcon {' "Player RoundButton must render ordinary controls through PlayerIcon."
+Assert-Contains $pp 'kind: rb.icon' "Player RoundButton must pass its semantic icon kind into PlayerIcon."
+$playerIcon = Read-File "qml/PlayerIcon.qml"
+Assert-Contains $playerIcon 'case "minimizeToBar":  return "minus"' `
+    "PlayerIcon must map minimizeToBar to the vendored minus glyph."
 Assert-Contains $pp 'root.minimizeRequested()' "Player top-left control must emit minimizeRequested."
 
 # --- fresh EPUB reader keeps a visible vector back action ---

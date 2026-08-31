@@ -313,6 +313,12 @@ Item {
         shortcutsSheet.open = false
         closeConfirm.open = false
     }
+    // Same public Escape contract as Player 1. A temporary player surface owns the
+    // first press; only a clean player asks the host for Back/minimize.
+    function requestEscape() {
+        if (shell.menusOpen) shell.closeAllMenus()
+        else shell.backRequested()
+    }
 
     // The viewer asked to leave. Prompt first only if something is actively playing (Browser gate);
     // otherwise leave straight away. The host wires onCloseRequested to the real close.
@@ -471,8 +477,7 @@ Item {
             // "?" raises (and toggles) the keyboard-shortcuts sheet; Esc/tap also close it.
             shortcutsSheet.open = !shortcutsSheet.open; event.accepted = true; break
         case Qt.Key_Escape:
-            if (shell.menusOpen) { shell.closeAllMenus(); event.accepted = true }
-            break
+            shell.requestEscape(); event.accepted = true; break
         }
     }
 

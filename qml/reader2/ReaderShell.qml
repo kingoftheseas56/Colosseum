@@ -823,6 +823,16 @@ FocusScope {
     // Leave the reader: FLUSH any pending save first (so a page turn within the debounce window
     // isn't lost when the book closes), then tell the embedder. Used everywhere we'd emit closed().
     function goBack() { shell.flushProgressSave(); shell.closed() }
+    // One Escape cascade shared by the web paper and the application-level shell shortcut.
+    // Reader-local cards/panels always get the first press; only a clean reader leaves,
+    // through goBack(), so the pending progress write is flushed before the session closes.
+    function requestEscape() {
+        if (shell.dictShown) shell.dismissDict()
+        else if (shell.footnoteShown) shell.dismissFootnote()
+        else if (shell.selMenuShown) shell.dismissSelectionMenu()
+        else if (chrome.anyPanelOpen) chrome.closeAnyPanel()
+        else shell.goBack()
+    }
     // Minimize: flush the position, then let the embedder park the session (the resume seam
     // brings the book back to this exact page when the taskbar tile reopens it).
     function goMinimize() { shell.flushProgressSave(); shell.minimized() }
@@ -894,14 +904,7 @@ FocusScope {
                 else if (chrome.anyPanelOpen) chrome.closeAnyPanel()
                 else chrome.toggle()
             } else if (name === "escape") {
-                // Esc from the glue's in-page keyboard. Cascading close, same order the old
-                // reader uses: the pen's floating cards first (dict/footnote), then the
-                // selection popover, then the left panel, then the book.
-                if (shell.dictShown) shell.dismissDict()
-                else if (shell.footnoteShown) shell.dismissFootnote()
-                else if (shell.selMenuShown) shell.dismissSelectionMenu()
-                else if (chrome.anyPanelOpen) chrome.closeAnyPanel()   // left/right panel OR search sheet
-                else shell.goBack()                                    // flushes the pending save, then closes
+                shell.requestEscape()
             } else if (name === "footnote") {
                 // Superseded open OR the pre-ready window (openBook fired, new 'ready' not yet
                 // adopted — currentGen still the OLD book's, so the gen check alone can't tell)
@@ -1253,7 +1256,7 @@ FocusScope {
         color: Qt.rgba(Theme.scrim.r, Theme.scrim.g, Theme.scrim.b, 0.97)
         focus: shell.openErrorShown
         onVisibleChanged: if (visible) forceActiveFocus()
-        Keys.onEscapePressed: shell.goBack()
+        Keys.onEscapePressed: shell.requestEscape()
         // swallow clicks + wheel so nothing reaches the dead paper beneath (declared FIRST → the
         // Column below sits on top and still gets its button clicks).
         MouseArea { anchors.fill: parent; onWheel: (w) => { w.accepted = true } }

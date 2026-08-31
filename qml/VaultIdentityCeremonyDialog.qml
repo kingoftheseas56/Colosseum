@@ -9,6 +9,10 @@ Popup {
     objectName: "vaultIdentityCeremonyDialog"
     modal: true
     focus: true
+    // The owning shell/page must clear its pending identity state when this closes.
+    // Escape therefore routes through the owner instead of Popup auto-close silently
+    // leaving pendingIdentityRoute / identityCeremonyDismissed out of sync.
+    closePolicy: Popup.NoAutoClose
     width: 520
     height: 250
 
@@ -19,6 +23,7 @@ Popup {
     property alias useExistingStateButton: useExistingStateRect
     property alias separateCopyButton: separateCopyRect
     signal choiceMade(string relationship, string choice)
+    signal cancelRequested()
 
     function openCeremony(value) {
         if (value !== undefined) dialog.ceremony = value || ({})

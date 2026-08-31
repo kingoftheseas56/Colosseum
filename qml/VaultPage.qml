@@ -144,6 +144,27 @@ Item {
     }
     function closeDetailSheet() { root.detailSheetVisible = false }
 
+    // One semantic Back door for the whole Vault. The shell's Escape dispatcher and
+    // the visible BackAction both call this, so a topmost Vault-local surface is never
+    // skipped in favour of deactivating the entire page underneath it.
+    function handleBack() {
+        if (identifyDialog.opened) { identifyDialog.close(); return }
+        if (identityCeremonyDialog.opened) {
+            root.identityCeremonyDismissed = true
+            identityCeremonyDialog.close()
+            return
+        }
+        if (cardContextMenu.opened) { cardContextMenu.close(); return }
+        if (root.detailSheetVisible) { root.closeDetailSheet(); return }
+        if (root.folderDetailOpen) { root.closeFolder(); return }
+        if (root.cardVisible) {
+            if (typeof VaultLibrary !== "undefined") VaultLibrary.dismissCard()
+            return
+        }
+        if (root.hiddenViewActive || root.crumbStack.length > 1) { root.ascendBrowse(); return }
+        root.backRequested()
+    }
+
     readonly property var displayedCrumbStack: root.searchViewActive
         ? [{ key: "search:", displayTitle: "Search" }]
         : root.hiddenViewActive
@@ -1915,14 +1936,9 @@ Item {
         anchors.left: parent.left
         anchors.topMargin: 21
         anchors.leftMargin: theme.margin - 10
-        // The top-left Back steps UP one browse level first (or out of the hidden view), and only
-        // leaves the Vault entirely once there is nowhere left to ascend — matching the crumb trail
-        // and Backspace's own ascendBrowse(). Previously it always emitted backRequested() →
-        // closeVaultPage(), so one click from any depth jumped straight out to the library.
-        onTriggered: {
-            if (root.hiddenViewActive || root.crumbStack.length > 1) root.ascendBrowse()
-            else root.backRequested()
-        }
+        // The visible Back control and shell Escape share the exact same Vault-local
+        // arbitration, including sheets, folder detail and browse ancestry.
+        onTriggered: root.handleBack()
     }
 
     // ── the founding-ceremony confirmation card: a modal over the Vault once a census yields a
@@ -2019,6 +2035,10 @@ Item {
                 root.identityCeremonyDismissed = true
                 close()
             }
+        }
+        onCancelRequested: {
+            root.identityCeremonyDismissed = true
+            close()
         }
     }
     Connections {

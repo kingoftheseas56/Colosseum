@@ -1007,6 +1007,9 @@ Item {
     // MangaSeries' reader. `western: true` flips its page/download source to Comics.
     property string openChapterId: ""
     property string openChapterLabel: ""
+    function requestReaderEscape() {
+        if (readerLayer.visible) readerLayer.closeTop()
+    }
     // Transient: when non-null, the reader binds THIS as its chapters array instead of
     // chaptersModel. Set by _openRelease() when an extra is clicked (single-entry — no crossing).
     // Cleared (null) when a main is clicked, restoring the full mains-descending chain.

@@ -758,6 +758,11 @@ Item {
     // visible:false removes it from input.
     property string openChapterId: ""
     property string openChapterLabel: ""
+    // Shell Escape is not reader Back. ComicReaderShell owns Escape as a local
+    // overlay/chrome close, while the visible Back control keeps raising readerBackRequested.
+    function requestReaderEscape() {
+        if (readerLayer.visible) readerLayer.closeTop()
+    }
     MangaReader {
         id: readerLayer
         anchors.fill: parent; z: 60

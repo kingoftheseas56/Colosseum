@@ -1423,6 +1423,21 @@ set_tests_properties(colosseum.manga_volume_flow PROPERTIES
 # key (counterpart to kUpdateTestPublicKey, selected under COLOSSEUM_UPDATE_TESTING).
 # Same deploy pattern as tst_window_state_policy: land beside the app's Qt DLLs
 # and stage Qt6Test.dll, or the exe dies 0xc0000135 before main().
+# Function 0003 shell arbitration hardening: deterministic source contracts for
+# one Escape authority, every immersive comic-reader lane, visible Back semantics,
+# and aggregate download-reveal arbitration. No live app or network is required.
+foreach(_f3_test IN ITEMS
+        shell_back_arbitration_p0
+        taskbar_immersive_readers_p0
+        back_action_p0
+        taskbar_download_reveal_p0)
+    add_test(NAME "colosseum.${_f3_test}"
+             COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                     "${CMAKE_CURRENT_SOURCE_DIR}/test_${_f3_test}.ps1")
+    set_tests_properties("colosseum.${_f3_test}" PROPERTIES
+        LABELS "unit;shell"
+        TIMEOUT 60)
+endforeach()
 add_executable(tst_installed_chronicle
     auto/update/tst_installed_chronicle.cpp
     "${COLOSSEUM_NATIVE_DIR}/update/InstalledChronicle.cpp"

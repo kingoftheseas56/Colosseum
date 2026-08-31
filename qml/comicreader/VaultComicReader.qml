@@ -19,6 +19,10 @@ Item {
     signal backRequested()
     signal fullscreenRequested()
 
+    // Standalone Vault comics preserve ComicReaderShell's Escape law too: Escape
+    // dismisses reader-local chrome/overlays; the visible Back control closes the session.
+    function requestEscape() { shell.closeTop() }
+
     // The injected store: delegate localPages to the real C++ VaultPageStore, and supply the
     // no-op acquisition seams + download-line signals the shell's Connections expect. A local
     // file is always "ready" (localPages returns the pages), so the download path never fires —
