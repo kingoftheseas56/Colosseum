@@ -262,7 +262,7 @@ class tst_account_onboarding : public QObject {
 private slots:
     void initTestCase();
 
-    void freshInstallRequiresOnboarding();
+    void freshInstallSettlesIntoLocalOnly();
     void continueLocalCompletesOnboardingDurably();
     void rememberedLocalOnlyPreparesProfileOwnership();
     void accountCreationCompletesOnboardingAfterSecretHandoff();
@@ -290,7 +290,7 @@ void tst_account_onboarding::initTestCase() {
     qRegisterMetaType<AccountTransportReply>();
 }
 
-void tst_account_onboarding::freshInstallRequiresOnboarding() {
+void tst_account_onboarding::freshInstallSettlesIntoLocalOnly() {
     ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
     ControllerFixture fixture;
 
@@ -302,7 +302,9 @@ void tst_account_onboarding::freshInstallRequiresOnboarding() {
     QCOMPARE(
         fixture.controller->mode(),
         QStringLiteral("localOnly"));
-    QVERIFY(fixture.controller->onboardingRequired());
+    QVERIFY(!fixture.controller->onboardingRequired());
+    QVERIFY(fixture.bootstrap->onboardingCompleted());
+    QVERIFY(fixture.bootstrap->localOnlyChosen());
 }
 
 void tst_account_onboarding::continueLocalCompletesOnboardingDurably() {

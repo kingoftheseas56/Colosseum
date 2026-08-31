@@ -1914,7 +1914,7 @@ void tst_account_identity::failedCredentialClearTombstonePreventsResurrection() 
 
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
+        QStringLiteral("localOnly"));
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QVERIFY(!fixture.bootstrapStore->credentialClearPending());
     QCOMPARE(
