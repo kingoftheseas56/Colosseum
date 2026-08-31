@@ -30,6 +30,14 @@ bool SharedPcProfileCoordinator::prepareAccountSession(
         error);
 }
 
+bool SharedPcProfileCoordinator::attachLocalProfileToAccount(
+    const QString &accountId,
+    QString *error) {
+    return m_firstAccount.attachLocalProfileToAccount(
+        accountId,
+        error);
+}
+
 bool SharedPcProfileCoordinator::prepareRememberedAccount(
     const QString &accountId,
     QString *error) {

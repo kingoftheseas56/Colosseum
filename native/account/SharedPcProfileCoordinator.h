@@ -24,6 +24,10 @@ public:
         const QString &accountId,
         QString *error = nullptr) override;
 
+    bool attachLocalProfileToAccount(
+        const QString &accountId,
+        QString *error = nullptr) override;
+
     bool prepareRememberedAccount(
         const QString &accountId,
         QString *error = nullptr) override;

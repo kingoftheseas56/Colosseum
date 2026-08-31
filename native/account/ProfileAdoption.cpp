@@ -16,6 +16,24 @@ QString normalizedDigest(const QString &digest) {
     return digest.trimmed().toLower();
 }
 
+QString operationName(ProfileAdoption::Operation operation) {
+    switch (operation) {
+    case ProfileAdoption::Operation::FirstAccount:
+        return QStringLiteral("first_account");
+    case ProfileAdoption::Operation::LocalAttachment:
+        return QStringLiteral("local_attachment");
+    }
+    return QString();
+}
+
+std::optional<ProfileAdoption::Operation> operationFromName(const QString &name) {
+    if (name.isEmpty() || name == QLatin1String("first_account"))
+        return ProfileAdoption::Operation::FirstAccount;
+    if (name == QLatin1String("local_attachment"))
+        return ProfileAdoption::Operation::LocalAttachment;
+    return std::nullopt;
+}
+
 std::optional<ProfileAdoption::State> stateFromName(const QString &name) {
     if (name == QLatin1String("preparing"))
         return ProfileAdoption::State::Preparing;
@@ -93,7 +111,10 @@ std::optional<ProfileAdoption> ProfileAdoption::begin(const ProfilePaths &paths,
     snapshot.finalRoot = finalRoot;
     snapshot.legacyBackupRoot = paths.adoptionBackupRoot();
 
-    ProfileAdoption adoption(paths, snapshot);
+    ProfileAdoption adoption(
+        paths,
+        snapshot,
+        paths.adoptionJournalPath());
     if (!adoption.writeSnapshot(error)) {
         removeManagedTree(paths, stagingRoot, nullptr);
         QFile::remove(journalPath);
@@ -104,18 +125,128 @@ std::optional<ProfileAdoption> ProfileAdoption::begin(const ProfilePaths &paths,
 
 std::optional<ProfileAdoption> ProfileAdoption::open(const ProfilePaths &paths,
                                                      QString *error) {
-    const auto snapshot = readSnapshot(paths, error);
+    const QString journalPath = paths.adoptionJournalPath();
+    const auto snapshot = readSnapshot(
+        paths,
+        journalPath,
+        Operation::FirstAccount,
+        error);
     if (!snapshot.has_value())
         return std::nullopt;
 
-    ProfileAdoption adoption(paths, *snapshot);
+    ProfileAdoption adoption(paths, *snapshot, journalPath);
     if (!adoption.reconcileInterruptedPromotion(error))
         return std::nullopt;
     return adoption;
 }
 
+std::optional<ProfileAdoption> ProfileAdoption::beginLocalAttachment(
+    const ProfilePaths &paths,
+    const QString &sourceSemanticDigest,
+    const QString &previousTargetSemanticDigest,
+    const QString &previousTargetActivityDigest,
+    QString *error) {
+    if (paths.kind() != ProfilePaths::Kind::Account) {
+        setError(error, QStringLiteral("Local profile attachment requires an account profile."));
+        return std::nullopt;
+    }
+
+    const QString sourceDigest = normalizedDigest(sourceSemanticDigest);
+    if (sourceDigest.isEmpty()) {
+        setError(error, QStringLiteral("Local profile attachment requires a source semantic digest."));
+        return std::nullopt;
+    }
+
+    const QString journalPath = paths.localAttachmentJournalPath();
+    const QString stagingRoot = paths.accountStagingRoot();
+    const QString finalRoot = paths.profileRoot();
+    const QString replacementBackupRoot = paths.accountReplacementBackupRoot();
+    if (journalPath.isEmpty() || stagingRoot.isEmpty() || finalRoot.isEmpty()
+        || replacementBackupRoot.isEmpty()) {
+        setError(error, QStringLiteral("Local profile attachment paths are incomplete."));
+        return std::nullopt;
+    }
+
+    if (!paths.isManagedProfilePath(stagingRoot)
+        || !paths.isManagedProfilePath(finalRoot)
+        || !paths.isManagedProfilePath(replacementBackupRoot)) {
+        setError(error, QStringLiteral("Local profile attachment resolved outside the managed profile root."));
+        return std::nullopt;
+    }
+
+    if (QFileInfo::exists(journalPath)) {
+        setError(error, QStringLiteral("A local profile attachment journal already exists for this account."));
+        return std::nullopt;
+    }
+    if (QFileInfo::exists(stagingRoot) || QFileInfo::exists(replacementBackupRoot)) {
+        setError(error, QStringLiteral("A stale local profile attachment staging or rollback tree already exists."));
+        return std::nullopt;
+    }
+
+    const bool finalExists = QFileInfo::exists(finalRoot);
+    const QString previousDigest = normalizedDigest(previousTargetSemanticDigest);
+    if (finalExists != !previousDigest.isEmpty()) {
+        setError(error, QStringLiteral("The account profile baseline does not match local attachment state."));
+        return std::nullopt;
+    }
+
+    if (!QDir().mkpath(stagingRoot)) {
+        setError(error, QStringLiteral("Could not create the staged account profile attachment."));
+        return std::nullopt;
+    }
+
+    const QFileInfo journalInfo(journalPath);
+    if (!QDir().mkpath(journalInfo.absolutePath())) {
+        removeManagedTree(paths, stagingRoot, nullptr);
+        setError(error, QStringLiteral("Could not create the local profile attachment journal directory."));
+        return std::nullopt;
+    }
+
+    Snapshot snapshot;
+    snapshot.accountId = paths.profileId();
+    snapshot.operation = Operation::LocalAttachment;
+    snapshot.state = State::Preparing;
+    snapshot.sourceSemanticDigest = sourceDigest;
+    snapshot.stagingRoot = stagingRoot;
+    snapshot.finalRoot = finalRoot;
+    snapshot.legacyBackupRoot = paths.adoptionBackupRoot();
+    snapshot.previousTargetSemanticDigest = previousDigest;
+    snapshot.previousTargetActivityDigest = normalizedDigest(previousTargetActivityDigest);
+    snapshot.replacementBackupRoot = replacementBackupRoot;
+
+    ProfileAdoption attachment(paths, snapshot, journalPath);
+    if (!attachment.writeSnapshot(error)) {
+        removeManagedTree(paths, stagingRoot, nullptr);
+        QFile::remove(journalPath);
+        return std::nullopt;
+    }
+    return attachment;
+}
+
+std::optional<ProfileAdoption> ProfileAdoption::openLocalAttachment(
+    const ProfilePaths &paths,
+    QString *error) {
+    const QString journalPath = paths.localAttachmentJournalPath();
+    const auto snapshot = readSnapshot(
+        paths,
+        journalPath,
+        Operation::LocalAttachment,
+        error);
+    if (!snapshot.has_value())
+        return std::nullopt;
+
+    ProfileAdoption attachment(paths, *snapshot, journalPath);
+    if (!attachment.reconcileInterruptedLocalAttachment(error))
+        return std::nullopt;
+    return attachment;
+}
+
 ProfileAdoption::Snapshot ProfileAdoption::snapshot() const {
     return m_snapshot;
+}
+
+ProfileAdoption::Operation ProfileAdoption::operation() const {
+    return m_snapshot.operation;
 }
 
 ProfileAdoption::State ProfileAdoption::state() const {
@@ -130,8 +261,10 @@ bool ProfileAdoption::markTargetVerified(const QString &targetSemanticDigest,
     const QString targetDigest = normalizedDigest(targetSemanticDigest);
     if (targetDigest.isEmpty())
         return setError(error, QStringLiteral("Target verification requires a semantic digest."));
-    if (targetDigest != m_snapshot.sourceSemanticDigest)
+    if (m_snapshot.operation == Operation::FirstAccount
+        && targetDigest != m_snapshot.sourceSemanticDigest) {
         return setError(error, QStringLiteral("The staged profile does not match the source semantic digest."));
+    }
     const QFileInfo stagingInfo(m_snapshot.stagingRoot);
     if (!stagingInfo.exists() || !stagingInfo.isDir())
         return setError(error, QStringLiteral("The staged profile no longer exists."));
@@ -155,10 +288,11 @@ bool ProfileAdoption::markActivityTargetVerified(const QString &activitySourceDi
     const QString sourceDigest = normalizedDigest(activitySourceDigest);
     const QString targetDigest = normalizedDigest(activityTargetDigest);
 
-    // Both empty is the deliberate "no legacy activity ledger" sentinel —
-    // valid, not a verification failure. Otherwise the two must match
-    // exactly (a raw file hash has no "legacy v1 format" fuzz to allow).
-    if (sourceDigest != targetDigest) {
+    // First-account adoption is a byte-preserving migration, so source and
+    // target must match. Local attachment intentionally produces a merged
+    // account ledger and records that merged digest instead.
+    if (m_snapshot.operation == Operation::FirstAccount
+        && sourceDigest != targetDigest) {
         return setError(error, QStringLiteral(
             "The staged activity ledger does not match the source activity digest."));
     }
@@ -177,20 +311,47 @@ bool ProfileAdoption::promote(QString *error) {
     }
     if (!QFileInfo::exists(m_snapshot.stagingRoot))
         return setError(error, QStringLiteral("The verified staged profile no longer exists."));
-    if (QFileInfo::exists(m_snapshot.finalRoot))
-        return setError(error, QStringLiteral("The final account profile already exists."));
 
-    QDir parent(QFileInfo(m_snapshot.stagingRoot).absolutePath());
-    if (!parent.rename(QFileInfo(m_snapshot.stagingRoot).fileName(),
-                       QFileInfo(m_snapshot.finalRoot).fileName())) {
-        return setError(error, QStringLiteral("Could not promote the verified account profile."));
+    if (m_snapshot.operation == Operation::LocalAttachment) {
+        if (!ensureManagedPath(m_snapshot.replacementBackupRoot, error))
+            return false;
+        if (QFileInfo::exists(m_snapshot.replacementBackupRoot))
+            return setError(error, QStringLiteral("The account rollback profile already exists."));
+
+        const bool expectedExistingProfile =
+            !m_snapshot.previousTargetSemanticDigest.isEmpty();
+        if (QFileInfo::exists(m_snapshot.finalRoot) != expectedExistingProfile) {
+            return setError(error, QStringLiteral("The account profile changed before local attachment promotion."));
+        }
+
+        QDir parent(QFileInfo(m_snapshot.finalRoot).absolutePath());
+        const QString finalName = QFileInfo(m_snapshot.finalRoot).fileName();
+        const QString stagingName = QFileInfo(m_snapshot.stagingRoot).fileName();
+        const QString backupName = QFileInfo(m_snapshot.replacementBackupRoot).fileName();
+
+        if (expectedExistingProfile
+            && !parent.rename(finalName, backupName)) {
+            return setError(error, QStringLiteral("Could not preserve the previous account profile for rollback."));
+        }
+
+        if (!parent.rename(stagingName, finalName)) {
+            if (expectedExistingProfile)
+                parent.rename(backupName, finalName);
+            return setError(error, QStringLiteral("Could not promote the merged account profile."));
+        }
+    } else {
+        if (QFileInfo::exists(m_snapshot.finalRoot))
+            return setError(error, QStringLiteral("The final account profile already exists."));
+
+        QDir parent(QFileInfo(m_snapshot.stagingRoot).absolutePath());
+        if (!parent.rename(QFileInfo(m_snapshot.stagingRoot).fileName(),
+                           QFileInfo(m_snapshot.finalRoot).fileName())) {
+            return setError(error, QStringLiteral("Could not promote the verified account profile."));
+        }
     }
 
     m_snapshot.state = State::Promoted;
-    if (writeSnapshot(error))
-        return true;
-
-    return false;
+    return writeSnapshot(error);
 }
 
 bool ProfileAdoption::markLegacyQuarantined(const QString &backupSemanticDigest,
@@ -252,6 +413,85 @@ bool ProfileAdoption::commit(QString *error) {
 
     m_snapshot.state = State::Committed;
     return writeSnapshot(error);
+}
+
+bool ProfileAdoption::commitLocalAttachment(QString *error) {
+    if (m_snapshot.operation != Operation::LocalAttachment)
+        return setError(error, QStringLiteral("This profile transaction is not a local attachment."));
+    if (m_snapshot.state != State::Promoted)
+        return setError(error, QStringLiteral("Local profile attachment cannot commit before promotion."));
+    if (!QFileInfo::exists(m_snapshot.finalRoot))
+        return setError(error, QStringLiteral("The merged account profile no longer exists."));
+    if (m_snapshot.targetSemanticDigest.isEmpty())
+        return setError(error, QStringLiteral("Local profile attachment semantic verification is incomplete."));
+
+    m_snapshot.state = State::Committed;
+    return writeSnapshot(error);
+}
+
+bool ProfileAdoption::cleanupLocalAttachment(QString *error) {
+    if (m_snapshot.operation != Operation::LocalAttachment)
+        return setError(error, QStringLiteral("This profile transaction is not a local attachment."));
+    if (m_snapshot.state != State::Committed)
+        return setError(error, QStringLiteral("Only a committed local profile attachment can be cleaned up."));
+
+    if (QFileInfo::exists(m_snapshot.replacementBackupRoot)
+        && !removeManagedTree(m_paths, m_snapshot.replacementBackupRoot, error)) {
+        return false;
+    }
+    if (QFileInfo::exists(m_snapshot.stagingRoot)
+        && !removeManagedTree(m_paths, m_snapshot.stagingRoot, error)) {
+        return false;
+    }
+    if (!QFile::remove(m_journalPath) && QFileInfo::exists(m_journalPath))
+        return setError(error, QStringLiteral("Could not remove the committed local profile attachment journal."));
+    return true;
+}
+
+bool ProfileAdoption::rollbackLocalAttachment(QString *error) {
+    if (m_snapshot.operation != Operation::LocalAttachment)
+        return setError(error, QStringLiteral("This profile transaction is not a local attachment."));
+
+    if (!ensureManagedPath(m_snapshot.stagingRoot, error)
+        || !ensureManagedPath(m_snapshot.finalRoot, error)
+        || !ensureManagedPath(m_snapshot.replacementBackupRoot, error)) {
+        return false;
+    }
+
+    if (QFileInfo::exists(m_snapshot.stagingRoot)
+        && !removeManagedTree(m_paths, m_snapshot.stagingRoot, error)) {
+        return false;
+    }
+
+    const bool hadPreviousProfile = !m_snapshot.previousTargetSemanticDigest.isEmpty();
+    const bool backupExists = QFileInfo::exists(m_snapshot.replacementBackupRoot);
+
+    if (backupExists) {
+        if (QFileInfo::exists(m_snapshot.finalRoot)
+            && !removeManagedTree(m_paths, m_snapshot.finalRoot, error)) {
+            return false;
+        }
+
+        QDir parent(QFileInfo(m_snapshot.finalRoot).absolutePath());
+        if (!parent.rename(
+                QFileInfo(m_snapshot.replacementBackupRoot).fileName(),
+                QFileInfo(m_snapshot.finalRoot).fileName())) {
+            return setError(error, QStringLiteral("Could not restore the previous account profile after attachment failure."));
+        }
+    } else if (!hadPreviousProfile
+               && QFileInfo::exists(m_snapshot.finalRoot)
+               && (m_snapshot.state == State::Promoted
+                   || m_snapshot.state == State::Committed)) {
+        if (!removeManagedTree(m_paths, m_snapshot.finalRoot, error))
+            return false;
+    } else if (hadPreviousProfile
+               && !QFileInfo::exists(m_snapshot.finalRoot)) {
+        return setError(error, QStringLiteral("The previous account profile rollback copy is missing."));
+    }
+
+    if (!QFile::remove(m_journalPath) && QFileInfo::exists(m_journalPath))
+        return setError(error, QStringLiteral("Could not remove the local profile attachment journal during rollback."));
+    return true;
 }
 
 bool ProfileAdoption::rollbackBeforeLegacyQuarantine(QString *error) {
@@ -351,44 +591,56 @@ QString ProfileAdoption::stateName(State state) {
     return QString();
 }
 
-ProfileAdoption::ProfileAdoption(const ProfilePaths &paths, const Snapshot &snapshot)
+ProfileAdoption::ProfileAdoption(
+    const ProfilePaths &paths,
+    const Snapshot &snapshot,
+    const QString &journalPath)
     : m_paths(paths),
-      m_snapshot(snapshot) {}
+      m_snapshot(snapshot),
+      m_journalPath(journalPath) {}
 
-std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(const ProfilePaths &paths,
-                                                                       QString *error) {
+std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(
+    const ProfilePaths &paths,
+    const QString &journalPath,
+    Operation expectedOperation,
+    QString *error) {
     if (paths.kind() != ProfilePaths::Kind::Account) {
-        setError(error, QStringLiteral("Profile adoption journal requires an account profile."));
+        setError(error, QStringLiteral("Profile transaction journal requires an account profile."));
         return std::nullopt;
     }
 
-    QFile file(paths.adoptionJournalPath());
+    QFile file(journalPath);
     if (!file.open(QIODevice::ReadOnly)) {
-        setError(error, QStringLiteral("Could not open the profile adoption journal."));
+        setError(error, QStringLiteral("Could not open the profile transaction journal."));
         return std::nullopt;
     }
 
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
     if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        setError(error, QStringLiteral("The profile adoption journal is malformed."));
+        setError(error, QStringLiteral("The profile transaction journal is malformed."));
         return std::nullopt;
     }
 
     const QJsonObject object = document.object();
     if (object.value(QStringLiteral("version")).toInt() != kManifestVersion) {
-        setError(error, QStringLiteral("The profile adoption journal version is unsupported."));
+        setError(error, QStringLiteral("The profile transaction journal version is unsupported."));
         return std::nullopt;
     }
 
-    const auto parsedState = stateFromName(object.value(QStringLiteral("state")).toString());
-    if (!parsedState.has_value()) {
-        setError(error, QStringLiteral("The profile adoption journal state is invalid."));
+    const auto parsedOperation = operationFromName(
+        object.value(QStringLiteral("operation")).toString());
+    const auto parsedState = stateFromName(
+        object.value(QStringLiteral("state")).toString());
+    if (!parsedOperation.has_value() || *parsedOperation != expectedOperation
+        || !parsedState.has_value()) {
+        setError(error, QStringLiteral("The profile transaction journal kind or state is invalid."));
         return std::nullopt;
     }
 
     Snapshot snapshot;
     snapshot.accountId = object.value(QStringLiteral("account_id")).toString();
+    snapshot.operation = *parsedOperation;
     snapshot.state = *parsedState;
     snapshot.sourceSemanticDigest = object.value(QStringLiteral("source_semantic_digest")).toString();
     snapshot.targetSemanticDigest = object.value(QStringLiteral("target_semantic_digest")).toString();
@@ -396,19 +648,24 @@ std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(const Pro
     snapshot.legacyBackupRoot = object.value(QStringLiteral("legacy_backup_root")).toString();
     snapshot.stagingRoot = object.value(QStringLiteral("staging_root")).toString();
     snapshot.finalRoot = object.value(QStringLiteral("final_root")).toString();
-    // Absent on a journal written before activity migration existed —
-    // toString() on a missing/undefined QJsonValue is "" already, matching
-    // the "no activity data" sentinel.
+    snapshot.previousTargetSemanticDigest = object.value(QStringLiteral("previous_target_semantic_digest")).toString();
+    snapshot.previousTargetActivityDigest = object.value(QStringLiteral("previous_target_activity_digest")).toString();
+    snapshot.replacementBackupRoot = object.value(QStringLiteral("replacement_backup_root")).toString();
     snapshot.activitySourceDigest = object.value(QStringLiteral("activity_source_digest")).toString();
     snapshot.activityTargetDigest = object.value(QStringLiteral("activity_target_digest")).toString();
     snapshot.activityLegacyBackupDigest = object.value(QStringLiteral("activity_legacy_backup_digest")).toString();
 
-    if (snapshot.accountId != paths.profileId()
+    const bool commonMismatch =
+        snapshot.accountId != paths.profileId()
         || snapshot.stagingRoot != paths.accountStagingRoot()
         || snapshot.finalRoot != paths.profileRoot()
-        || snapshot.legacyBackupRoot != paths.adoptionBackupRoot()
-        || snapshot.sourceSemanticDigest.isEmpty()) {
-        setError(error, QStringLiteral("The profile adoption journal does not match the requested account profile."));
+        || snapshot.sourceSemanticDigest.isEmpty();
+    const bool operationMismatch =
+        snapshot.operation == Operation::FirstAccount
+            ? snapshot.legacyBackupRoot != paths.adoptionBackupRoot()
+            : snapshot.replacementBackupRoot != paths.accountReplacementBackupRoot();
+    if (commonMismatch || operationMismatch) {
+        setError(error, QStringLiteral("The profile transaction journal does not match the requested account profile."));
         return std::nullopt;
     }
 
@@ -418,6 +675,7 @@ std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(const Pro
 bool ProfileAdoption::writeSnapshot(QString *error) const {
     QJsonObject object;
     object.insert(QStringLiteral("version"), kManifestVersion);
+    object.insert(QStringLiteral("operation"), operationName(m_snapshot.operation));
     object.insert(QStringLiteral("account_id"), m_snapshot.accountId);
     object.insert(QStringLiteral("state"), stateName(m_snapshot.state));
     object.insert(QStringLiteral("source_semantic_digest"), m_snapshot.sourceSemanticDigest);
@@ -426,19 +684,22 @@ bool ProfileAdoption::writeSnapshot(QString *error) const {
     object.insert(QStringLiteral("legacy_backup_root"), m_snapshot.legacyBackupRoot);
     object.insert(QStringLiteral("staging_root"), m_snapshot.stagingRoot);
     object.insert(QStringLiteral("final_root"), m_snapshot.finalRoot);
+    object.insert(QStringLiteral("previous_target_semantic_digest"), m_snapshot.previousTargetSemanticDigest);
+    object.insert(QStringLiteral("previous_target_activity_digest"), m_snapshot.previousTargetActivityDigest);
+    object.insert(QStringLiteral("replacement_backup_root"), m_snapshot.replacementBackupRoot);
     object.insert(QStringLiteral("activity_source_digest"), m_snapshot.activitySourceDigest);
     object.insert(QStringLiteral("activity_target_digest"), m_snapshot.activityTargetDigest);
     object.insert(QStringLiteral("activity_legacy_backup_digest"), m_snapshot.activityLegacyBackupDigest);
 
     const QByteArray payload = QJsonDocument(object).toJson(QJsonDocument::Compact);
 
-    QSaveFile file(m_paths.adoptionJournalPath());
+    QSaveFile file(m_journalPath);
     if (!file.open(QIODevice::WriteOnly))
-        return setError(error, QStringLiteral("Could not open the profile adoption journal for writing."));
+        return setError(error, QStringLiteral("Could not open the profile transaction journal for writing."));
     if (file.write(payload) != payload.size())
-        return setError(error, QStringLiteral("Could not write the profile adoption journal."));
+        return setError(error, QStringLiteral("Could not write the profile transaction journal."));
     if (!file.commit())
-        return setError(error, QStringLiteral("Could not commit the profile adoption journal."));
+        return setError(error, QStringLiteral("Could not commit the profile transaction journal."));
     return true;
 }
 
@@ -463,6 +724,63 @@ bool ProfileAdoption::reconcileInterruptedPromotion(QString *error) {
          || m_snapshot.state == State::Committed)
         && !finalExists) {
         return setError(error, QStringLiteral("The promoted account profile is missing."));
+    }
+
+    return true;
+}
+
+bool ProfileAdoption::reconcileInterruptedLocalAttachment(QString *error) {
+    if (m_snapshot.operation != Operation::LocalAttachment)
+        return setError(error, QStringLiteral("The profile transaction is not a local attachment."));
+
+    const bool stagingExists = QFileInfo::exists(m_snapshot.stagingRoot);
+    const bool finalExists = QFileInfo::exists(m_snapshot.finalRoot);
+    const bool backupExists = QFileInfo::exists(m_snapshot.replacementBackupRoot);
+    const bool hadPreviousProfile = !m_snapshot.previousTargetSemanticDigest.isEmpty();
+
+    if (m_snapshot.state == State::Preparing)
+        return true;
+
+    if (m_snapshot.state == State::TargetVerified) {
+        if (!hadPreviousProfile) {
+            if (!stagingExists && finalExists) {
+                m_snapshot.state = State::Promoted;
+                return writeSnapshot(error);
+            }
+            return stagingExists && !finalExists
+                ? true
+                : setError(error, QStringLiteral("The interrupted local attachment target state is inconsistent."));
+        }
+
+        if (stagingExists && finalExists && !backupExists)
+            return true;
+
+        QDir parent(QFileInfo(m_snapshot.finalRoot).absolutePath());
+        const QString finalName = QFileInfo(m_snapshot.finalRoot).fileName();
+        const QString stagingName = QFileInfo(m_snapshot.stagingRoot).fileName();
+        const QString backupName = QFileInfo(m_snapshot.replacementBackupRoot).fileName();
+
+        if (stagingExists && !finalExists && backupExists) {
+            if (!parent.rename(stagingName, finalName)) {
+                parent.rename(backupName, finalName);
+                return setError(error, QStringLiteral("Could not finish interrupted local attachment promotion."));
+            }
+            m_snapshot.state = State::Promoted;
+            return writeSnapshot(error);
+        }
+
+        if (!stagingExists && finalExists && backupExists) {
+            m_snapshot.state = State::Promoted;
+            return writeSnapshot(error);
+        }
+
+        return setError(error, QStringLiteral("The interrupted local attachment rollback state is inconsistent."));
+    }
+
+    if ((m_snapshot.state == State::Promoted
+         || m_snapshot.state == State::Committed)
+        && !finalExists) {
+        return setError(error, QStringLiteral("The merged account profile is missing."));
     }
 
     return true;

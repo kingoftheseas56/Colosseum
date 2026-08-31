@@ -10,6 +10,11 @@
 
 class ProfileAdoption {
 public:
+    enum class Operation {
+        FirstAccount,
+        LocalAttachment
+    };
+
     enum class State {
         Preparing,
         TargetVerified,
@@ -21,6 +26,7 @@ public:
 
     struct Snapshot {
         QString accountId;
+        Operation operation = Operation::FirstAccount;
         State state = State::Preparing;
         QString sourceSemanticDigest;
         QString targetSemanticDigest;
@@ -29,14 +35,17 @@ public:
         QString stagingRoot;
         QString finalRoot;
 
+        // Existing-account attachment keeps the previous account profile in a
+        // same-parent rollback directory until the verified merged profile is
+        // committed. The local source remains untouched throughout.
+        QString previousTargetSemanticDigest;
+        QString previousTargetActivityDigest;
+        QString replacementBackupRoot;
+
         // Activity-ledger digests (CPP-PORT-CONTRACT §17), parallel to the
-        // three digests above but tracked separately: the activity.sqlite
-        // file rides inside stagingRoot/finalRoot and is promoted by the same
-        // directory rename, so these are auxiliary verification facts, not a
-        // second state machine. Empty string is the deliberate "no legacy
-        // activity ledger to migrate" sentinel on both sides — a fresh
-        // installation predating this feature has nothing to digest, and
-        // that must compare equal, not fail verification.
+        // personal-state digests. First-account adoption requires source and
+        // target to match exactly because it is a byte-preserving migration.
+        // Local attachment records a merged target digest instead.
         QString activitySourceDigest;
         QString activityTargetDigest;
         QString activityLegacyBackupDigest;
@@ -48,19 +57,23 @@ public:
     static std::optional<ProfileAdoption> open(const ProfilePaths &paths,
                                                QString *error = nullptr);
 
+    static std::optional<ProfileAdoption> beginLocalAttachment(
+        const ProfilePaths &paths,
+        const QString &sourceSemanticDigest,
+        const QString &previousTargetSemanticDigest,
+        const QString &previousTargetActivityDigest,
+        QString *error = nullptr);
+    static std::optional<ProfileAdoption> openLocalAttachment(
+        const ProfilePaths &paths,
+        QString *error = nullptr);
+
     Snapshot snapshot() const;
+    Operation operation() const;
     State state() const;
 
     bool markTargetVerified(const QString &targetSemanticDigest,
                             QString *error = nullptr);
 
-    // Parallel activity-ledger verification (CPP-PORT-CONTRACT §17), called
-    // alongside markTargetVerified() (either order) while still Preparing —
-    // it does NOT itself transition state, only records/persists the two
-    // digests. Both empty is valid ("no activity data to migrate"); a
-    // non-empty pair must match exactly. This is a separate method rather
-    // than extra markTargetVerified() parameters so existing two-argument
-    // call sites (targetDigest, error) keep compiling unchanged.
     bool markActivityTargetVerified(const QString &activitySourceDigest,
                                     const QString &activityTargetDigest,
                                     QString *error = nullptr);
@@ -68,29 +81,34 @@ public:
     bool promote(QString *error = nullptr);
     bool markLegacyQuarantined(const QString &backupSemanticDigest,
                                QString *error = nullptr);
-
-    // Parallel activity-ledger quarantine verification, called alongside
-    // markLegacyQuarantined() while Promoted — same non-breaking-overload
-    // reasoning as markActivityTargetVerified() above.
     bool markActivityLegacyQuarantined(const QString &activityLegacyBackupDigest,
                                        QString *error = nullptr);
 
     bool commit(QString *error = nullptr);
+    bool commitLocalAttachment(QString *error = nullptr);
+    bool cleanupLocalAttachment(QString *error = nullptr);
 
     bool rollbackBeforeLegacyQuarantine(QString *error = nullptr);
     bool rollbackAfterLegacyRestore(
         const QString &restoredSemanticDigest,
         QString *error = nullptr);
+    bool rollbackLocalAttachment(QString *error = nullptr);
 
     static QString stateName(State state);
 
 private:
-    ProfileAdoption(const ProfilePaths &paths, const Snapshot &snapshot);
+    ProfileAdoption(const ProfilePaths &paths,
+                    const Snapshot &snapshot,
+                    const QString &journalPath);
 
-    static std::optional<Snapshot> readSnapshot(const ProfilePaths &paths,
-                                                QString *error);
+    static std::optional<Snapshot> readSnapshot(
+        const ProfilePaths &paths,
+        const QString &journalPath,
+        Operation expectedOperation,
+        QString *error);
     bool writeSnapshot(QString *error) const;
     bool reconcileInterruptedPromotion(QString *error);
+    bool reconcileInterruptedLocalAttachment(QString *error);
     bool ensureManagedPath(const QString &path, QString *error) const;
     static bool removeManagedTree(const ProfilePaths &paths,
                                   const QString &path,
@@ -99,4 +117,5 @@ private:
 
     ProfilePaths m_paths;
     Snapshot m_snapshot;
+    QString m_journalPath;
 };
