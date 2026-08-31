@@ -2191,7 +2191,8 @@ Window {
     //      activeMedium "" → HOME: no pill selected (the no-selection rule). Tapping a pill
     //      enters that world. ----
     TopBar {
-        onAccountClicked: accountFlyout.toggle()
+        onAccountClicked: (anchorRight, anchorBottom) =>
+            accountFlyout.toggleAt(anchorRight, anchorBottom)
         id: topbar
         z: 20
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
@@ -2654,7 +2655,9 @@ Window {
                     if (item.fullscreenClicked) item.fullscreenClicked.connect(win.toggleFullscreenShell)
                     item.minimizeClicked.connect(win.minimizeShell)
                     item.powerClicked.connect(function() { Qt.quit() })
-                    if (item.accountClicked) item.accountClicked.connect(function() { accountFlyout.toggle() })
+                    if (item.accountClicked) item.accountClicked.connect(function(anchorRight, anchorBottom) {
+                        accountFlyout.toggleAt(anchorRight, anchorBottom)
+                    })
                 }
             }
         }
@@ -3821,6 +3824,8 @@ Window {
         objectName: "accountCenter"
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
+        onSignInRequested: accountHost.openSignIn()
+        onCreateAccountRequested: accountHost.openCreateAccount()
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
@@ -3832,6 +3837,10 @@ Window {
         id: accountFlyout
         objectName: "accountFlyout"
         controller: typeof AccountController !== "undefined" ? AccountController : null
+        onSignInRequested: accountHost.openSignIn()
+        onCreateAccountRequested: accountHost.openCreateAccount()
+        onYourColosseumRequested: accountCenter.open("colosseum")
+        onPrivacyRequested: accountCenter.open("privacy")
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";

@@ -18,8 +18,26 @@ Rectangle {
         && (controller.mode === "signedIn" || controller.mode === "offline")
     readonly property bool onlineAccount: controller
         && controller.mode === "signedIn"
+    readonly property bool localOnly: controller
+        && controller.mode === "localOnly"
     property string initial: "?"
     property string activeSection: "colosseum"
+    readonly property var railModel: root.localOnly
+        ? [
+            { id: "colosseum", label: qsTr("Your Colosseum"), glyph: "▥" },
+            { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
+        ]
+        : [
+            { id: "profile", label: qsTr("Profile"), glyph: "◌" },
+            { id: "colosseum", label: qsTr("Your Colosseum"), glyph: "▥" },
+            { id: "security", label: qsTr("Security"), glyph: "◇" },
+            { id: "devices", label: qsTr("Devices"), glyph: "▣" },
+            { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
+            { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
+        ]
+
+    signal signInRequested()
+    signal createAccountRequested()
 
     // Your Colosseum: bound to the native ProfileActivity projection (CPP-PORT-CONTRACT.md
     // arcs/02-profile-account-centre/activity-engine/reference, section 14 "QML model
@@ -186,8 +204,11 @@ Rectangle {
             colosseumCurrentMonthKey = colosseumMonthKey
         }
         // Preserve old flyout callers while Your library finishes migrating to
-        // the locked Your Colosseum destination.
-        if (section === "library")
+        // the locked Your Colosseum destination. Local-only mode exposes only
+        // Your Colosseum and Data & privacy.
+        if (root.localOnly)
+            activeSection = section === "privacy" ? "privacy" : "colosseum"
+        else if (section === "library")
             activeSection = "colosseum"
         else if (section)
             activeSection = section
@@ -196,6 +217,23 @@ Rectangle {
 
     function close() {
         root.visible = false
+    }
+
+    onActiveSectionChanged: {
+        if (root.localOnly
+            && root.activeSection !== "colosseum"
+            && root.activeSection !== "privacy")
+            root.activeSection = "colosseum"
+    }
+
+    Connections {
+        target: root.controller
+        function onModeChanged() {
+            if (root.localOnly
+                && root.activeSection !== "colosseum"
+                && root.activeSection !== "privacy")
+                root.activeSection = "colosseum"
+        }
     }
 
     Keys.onEscapePressed: root.close()
@@ -239,7 +277,7 @@ Rectangle {
 
                         Text {
                             anchors.centerIn: parent
-                            text: root.accountPresent ? root.initial : "?"
+                            text: root.localOnly ? "D" : (root.accountPresent ? root.initial : "?")
                             color: "#f0df9a"
                             font.family: "Inter"
                             font.pixelSize: 16
@@ -253,9 +291,11 @@ Rectangle {
 
                         Text {
                             objectName: "accountCenterUsername"
-                            text: root.accountPresent && root.controller
-                                ? root.controller.username
-                                : qsTr("Not signed in")
+                            text: root.localOnly && root.controller
+                                ? root.controller.localDeviceLabel
+                                : (root.accountPresent && root.controller
+                                    ? root.controller.username
+                                    : qsTr("Not signed in"))
                             color: "#f2f2ef"
                             font.family: "Inter"
                             font.pixelSize: 14
@@ -263,7 +303,9 @@ Rectangle {
                         }
 
                         Text {
-                            text: qsTr("Colosseum account")
+                            text: root.localOnly
+                                ? qsTr("Local Colosseum · this device")
+                                : qsTr("Colosseum account")
                             color: "#7d7a6f"
                             font.family: "Inter"
                             font.pixelSize: 10
@@ -272,14 +314,7 @@ Rectangle {
                 }
 
                 Repeater {
-                    model: [
-                        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
-                        { id: "colosseum", label: qsTr("Your Colosseum"), glyph: "▥" },
-                        { id: "security", label: qsTr("Security"), glyph: "◇" },
-                        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
-                        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
-                        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
-                    ]
+                    model: root.railModel
 
                     Rectangle {
                         objectName: "accountCenterRail_" + modelData.id
@@ -331,6 +366,7 @@ Rectangle {
                 Item { width: 1; height: 14 }
 
                 Text {
+                    visible: !root.localOnly
                     text: root.accountPresent ? qsTr("Sign out") : qsTr("Sign in")
                     color: railOutMa.containsMouse ? "#d8d4c8" : "#8f8b80"
                     font.family: "Inter"
@@ -390,7 +426,7 @@ Rectangle {
                 y: 64
                 width: parent.width - 68
                 height: parent.height - 96
-                active: root.visible && root.activeSection === "profile"
+                active: root.visible && !root.localOnly && root.activeSection === "profile"
                 visible: active
                 controller: root.controller
             }
@@ -402,6 +438,10 @@ Rectangle {
                 height: parent.height - 96
                 active: root.visible && root.activeSection === "colosseum"
                 visible: active
+                localOnly: root.localOnly
+                localDeviceLabel: root.localOnly && root.controller
+                    ? root.controller.localDeviceLabel
+                    : ""
 
                 monthName: root.yourColosseumMonthName
                 monthYear: root.yourColosseumMonthYear
@@ -418,6 +458,8 @@ Rectangle {
                     root.yourColosseumPreviousMonthRequested()
                 onNextMonthRequested:
                     root.yourColosseumNextMonthRequested()
+                onSignInRequested: root.signInRequested()
+                onCreateAccountRequested: root.createAccountRequested()
             }
 
             AccountSecurityPage {
@@ -425,7 +467,7 @@ Rectangle {
                 y: 64
                 width: parent.width - 68
                 height: parent.height - 96
-                active: root.visible && root.activeSection === "security"
+                active: root.visible && !root.localOnly && root.activeSection === "security"
                 visible: active
                 controller: root.controller
             }
@@ -435,7 +477,7 @@ Rectangle {
                 y: 64
                 width: parent.width - 68
                 height: parent.height - 96
-                active: root.visible && root.activeSection === "devices"
+                active: root.visible && !root.localOnly && root.activeSection === "devices"
                 visible: active
                 controller: root.controller
             }
@@ -445,7 +487,7 @@ Rectangle {
                 y: 64
                 width: parent.width - 68
                 height: parent.height - 96
-                active: root.visible && root.activeSection === "recovery"
+                active: root.visible && !root.localOnly && root.activeSection === "recovery"
                 visible: active
                 controller: root.controller
                 presenter: root.recoveryPresenter
@@ -459,6 +501,7 @@ Rectangle {
                 height: parent.height - 96
                 active: root.visible && root.activeSection === "privacy"
                 visible: active
+                localOnly: root.localOnly
 
                 rememberSearchHistory: root.privacyRememberSearchHistory
                 keepActivityHistory: root.privacyKeepActivityHistory
