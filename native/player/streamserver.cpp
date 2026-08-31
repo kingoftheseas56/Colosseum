@@ -30,6 +30,20 @@ StreamServer::~StreamServer()
     }
 }
 
+void StreamServer::setEngineUnavailable(bool unavailable)
+{
+    if (m_engineUnavailable == unavailable)
+        return;
+    m_engineUnavailable = unavailable;
+    Q_EMIT engineUnavailableChanged();
+}
+
+void StreamServer::markEngineUnavailable(const QString &message)
+{
+    setEngineUnavailable(true);
+    Q_EMIT streamError(message);
+}
+
 QString StreamServer::findRuntimeDir() const
 {
     const QString exe = QStringLiteral("stremio-runtime.exe");
@@ -68,6 +82,10 @@ void StreamServer::ensureStarted()
     if (m_proc || m_starting || m_port > 0)
         return;
 
+    // A previous failed attempt may have happened before the user repaired the
+    // installation or started the official service. A new attempt gets a clean
+    // state; a successful adoption/launch clears it again below.
+    setEngineUnavailable(false);
     m_starting = true;
     Q_EMIT startingChanged();
 
@@ -82,6 +100,7 @@ void StreamServer::ensureStarted()
         r->deleteLater();
         if (r->error() == QNetworkReply::NoError) {
             m_port = 11470;
+            setEngineUnavailable(false);
             m_starting = false;
             qInfo("[stream] adopted the running Stremio server on port %d", m_port);
             Q_EMIT readyChanged();
@@ -99,7 +118,8 @@ void StreamServer::launchChild()
     if (dir.isEmpty()) {
         m_starting = false;
         Q_EMIT startingChanged();
-        Q_EMIT streamError(QStringLiteral("Stream engine not found (stremio-runtime.exe missing)."));
+        markEngineUnavailable(
+            QStringLiteral("Streaming engine unavailable. Repair or reinstall Colosseum."));
         return;
     }
 
@@ -121,12 +141,41 @@ void StreamServer::launchChild()
     m_proc->setProcessChannelMode(QProcess::MergedChannels);
 
     connect(m_proc, &QProcess::readyReadStandardOutput, this, &StreamServer::onStdout);
-    connect(m_proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
-        if (m_port <= 0 && m_proc)
-            Q_EMIT streamError(QStringLiteral("Stream engine failed to start: %1").arg(m_proc->errorString()));
+    QProcess *process = m_proc;
+    const auto failBeforeReady = [this](QProcess *failedProcess) {
+        if (m_proc != failedProcess || !failedProcess || m_port > 0)
+            return;
+        m_port = -1;
+        m_starting = false;
+        m_proc->deleteLater();
+        m_proc = nullptr;
+        Q_EMIT readyChanged();
+        Q_EMIT startingChanged();
+        if (!m_engineUnavailable)
+            markEngineUnavailable(
+                QStringLiteral("Streaming engine unavailable. Repair or reinstall Colosseum."));
+    };
+
+    connect(process, &QProcess::errorOccurred, this,
+            [this, process, failBeforeReady](QProcess::ProcessError error) {
+        // FailedToStart can report only errorOccurred(), without a finished()
+        // signal. Clean up the terminal process here so a later play() can retry.
+        if (m_proc == process && process->state() == QProcess::NotRunning) {
+            qWarning("[stream] engine failed before ready: %s", qUtf8Printable(process->errorString()));
+            failBeforeReady(process);
+        } else if (error == QProcess::FailedToStart) {
+            qWarning("[stream] engine reported FailedToStart while still active");
+        }
     });
-    connect(m_proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-            [this](int, QProcess::ExitStatus) {
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+            [this, process, failBeforeReady](int, QProcess::ExitStatus) {
+                if (m_proc != process)
+                    return;
+                const bool failedBeforeReady = m_port <= 0;
+                if (failedBeforeReady) {
+                    failBeforeReady(process);
+                    return;
+                }
                 m_port = -1;
                 m_starting = false;
                 // Reset the handle so a later play() can relaunch the engine. Without this,
@@ -152,6 +201,7 @@ void StreamServer::onStdout()
         const auto m = re.match(m_stdoutBuf);
         if (m.hasMatch()) {
             m_port = m.captured(1).toInt();
+            setEngineUnavailable(false);
             m_starting = false;
             qInfo("[stream] ready on port %d", m_port);
             Q_EMIT readyChanged();

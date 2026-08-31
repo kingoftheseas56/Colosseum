@@ -3580,6 +3580,16 @@ Item {
         }
         function onStreamError(message) {
             root.statusMsg = message
+            if (typeof Stream !== "undefined" && Stream.engineUnavailable) {
+                // Missing packaged runtime is an installation/deployment failure,
+                // not a bad candidate. Do not burn through every source and hide
+                // the actionable error behind the retry ladder.
+                streamWatchdog.stop()
+                root.errored = true
+                root.starting = false
+                root.wakeChrome()
+                return
+            }
             root.handlePlaybackFailure("stream")
         }
     }
