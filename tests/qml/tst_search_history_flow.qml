@@ -154,6 +154,7 @@ TestCase {
             height: testWindow.height
         })
         wait(0)
+        waitForRendering(surface)
         var removeTarget = findItem(surface, "biblioRecentRemove")
         verify(removeTarget !== null)
         mouseClick(removeTarget, removeTarget.width / 2, removeTarget.height / 2)
@@ -170,6 +171,7 @@ TestCase {
             height: testWindow.height
         })
         wait(0)
+        waitForRendering(surface)
         var bodyTarget = findItem(surface, "biblioRecentBody")
         verify(bodyTarget !== null)
         mouseClick(bodyTarget, bodyTarget.width / 2, bodyTarget.height / 2)
