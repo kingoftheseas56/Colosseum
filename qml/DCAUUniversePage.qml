@@ -48,7 +48,7 @@ Item {
     }
     function openHub(id) { root.currentHubId = id }
 
-    Rectangle { id: pageBackdrop; anchors.fill: parent; color: "#07090d" }
+    DCAULandingBackdrop { id: pageBackdrop; anchors.fill: parent }
 
     Item {
         id: landing
@@ -56,10 +56,36 @@ Item {
         visible: root.currentHubId.length === 0
         property int selectedIndex: 0
 
+        function centerPortal(i) {
+            var item = portalRepeater.itemAt(i)
+            if (!item) return
+            var target = portalRow.x + item.x + item.width / 2 - portalFlick.width / 2
+            var maxX = Math.max(0, portalFlick.contentWidth - portalFlick.width)
+            portalFlick.contentX = Math.max(0, Math.min(target, maxX))
+        }
+        function selectPortal(i, focusItem) {
+            landing.selectedIndex = (i + DCAU.hubs.length) % DCAU.hubs.length
+            var item = portalRepeater.itemAt(landing.selectedIndex)
+            if (item && focusItem) item.forceActiveFocus()
+            Qt.callLater(function() { landing.centerPortal(landing.selectedIndex) })
+        }
+        function syncClosestPortal() {
+            var center = portalFlick.contentX + portalFlick.width / 2
+            var best = landing.selectedIndex
+            var distance = Number.MAX_VALUE
+            for (var i = 0; i < DCAU.hubs.length; ++i) {
+                var item = portalRepeater.itemAt(i)
+                if (!item) continue
+                var d = Math.abs(portalRow.x + item.x + item.width / 2 - center)
+                if (d < distance) { distance = d; best = i }
+            }
+            landing.selectedIndex = best
+        }
+
         Column {
             id: continueCol
             x: theme.margin
-            y: 82
+            y: 30
             width: parent.width - theme.margin * 2
             spacing: 14
             visible: root.continueItems.length > 0
@@ -69,14 +95,14 @@ Item {
                 id: continueFlick
                 width: parent.width
                 height: 148
-                contentWidth: continueRow.width
+                contentWidth: continueRow.width + 26
                 contentHeight: height
                 clip: true
                 flickableDirection: Flickable.HorizontalFlick
                 boundsBehavior: Flickable.StopAtBounds
                 Row {
                     id: continueRow
-                    spacing: 18
+                    spacing: 20
                     Repeater {
                         model: root.continueItems
                         delegate: ContinueTile {
@@ -97,42 +123,69 @@ Item {
 
         Item {
             id: portalStage
-            x: theme.margin
-            width: parent.width - theme.margin * 2
-            y: continueCol.visible ? continueCol.y + continueCol.implicitHeight + 26 : 104
-            height: parent.height - y - 30
+            x: 0
+            width: parent.width
+            y: continueCol.visible ? continueCol.y + continueCol.implicitHeight + 18 : 30
+            height: parent.height - y - 24
 
-            Row {
-                id: portalRow
-                anchors.centerIn: parent
-                spacing: 24
-                Repeater {
-                    id: portalRepeater
-                    model: DCAU.hubs
-                    delegate: DCAUWorldPortal {
-                        required property var modelData
-                        required property int index
-                        width: Math.min(300, Math.max(220, (portalStage.width - portalRow.spacing * 3) / 4))
-                        title: modelData.title
-                        selected: landing.selectedIndex === index
-                        imageSources: [
-                            Qt.resolvedUrl("../assets/universes/dcau/portals/" + modelData.portal)
-                        ]
-                        onSelectionRequested: landing.selectedIndex = index
-                        onActivated: root.openHub(modelData.id)
-                        onPreviousRequested: {
-                            landing.selectedIndex = (index + DCAU.hubs.length - 1) % DCAU.hubs.length
-                            var prev = portalRepeater.itemAt(landing.selectedIndex)
-                            if (prev) prev.forceActiveFocus()
-                        }
-                        onNextRequested: {
-                            landing.selectedIndex = (index + 1) % DCAU.hubs.length
-                            var next = portalRepeater.itemAt(landing.selectedIndex)
-                            if (next) next.forceActiveFocus()
+            Flickable {
+                id: portalFlick
+                anchors.fill: parent
+                clip: true
+                contentWidth: Math.max(width, portalRow.x + portalRow.width + portalStage.width * 0.07)
+                contentHeight: height
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                onMovementEnded: landing.syncClosestPortal()
+
+                Row {
+                    id: portalRow
+                    x: portalStage.width * 0.07
+                    y: Math.max(4, (portalFlick.height - height) / 2)
+                    spacing: 24
+                    Repeater {
+                        id: portalRepeater
+                        model: DCAU.hubs
+                        delegate: DCAUWorldPortal {
+                            required property var modelData
+                            required property int index
+                            width: portalStage.width <= 900
+                                   ? portalStage.width * 0.48
+                                   : Math.min(300, portalStage.width * 0.24)
+                            ordinal: index < 9 ? "0" + String(index + 1) : String(index + 1)
+                            title: modelData.title
+                            selected: landing.selectedIndex === index
+                            imageSources: [
+                                Qt.resolvedUrl("../assets/universes/dcau/portals/" + modelData.portal)
+                            ]
+                            onSelectionRequested: landing.selectPortal(index, false)
+                            onActivated: root.openHub(modelData.id)
+                            onPreviousRequested: landing.selectPortal(index - 1, true)
+                            onNextRequested: landing.selectPortal(index + 1, true)
                         }
                     }
                 }
             }
+
+            DCAUPortalArrow {
+                z: 10
+                visible: portalStage.width > 900
+                anchors.left: parent.left
+                anchors.leftMargin: 18
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: "\u2039"
+                onTriggered: landing.selectPortal(landing.selectedIndex - 1, true)
+            }
+            DCAUPortalArrow {
+                z: 10
+                visible: portalStage.width > 900
+                anchors.right: parent.right
+                anchors.rightMargin: 18
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: "\u203a"
+                onTriggered: landing.selectPortal(landing.selectedIndex + 1, true)
+            }
+
         }
     }
 

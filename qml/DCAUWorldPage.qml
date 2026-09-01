@@ -52,7 +52,7 @@ Item {
         id: page
         anchors.fill: parent
         contentWidth: width
-        contentHeight: content.implicitHeight + 54
+        contentHeight: 128 + content.implicitHeight + 50
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         ScrollBar.vertical: HouseScrollBar { flick: page }
@@ -61,36 +61,35 @@ Item {
         Column {
             id: content
             width: page.width
+            y: 128
             spacing: 38
-
-            Item { width: 1; height: 128 }
 
             Column {
                 id: tankobanShelf
                 x: theme.margin
                 width: page.width - theme.margin * 2
                 spacing: 18
-                WidgetHeader { width: parent.width; title: "Tankoban"; moreLabel: "" }
+                WidgetHeader { width: parent.width; title: "Tankoban"; moreLabel: ""; navigable: false }
                 Flickable {
                     width: parent.width
-                    height: 282
-                    contentWidth: tankobanRow.width
+                    height: 278
+                    contentWidth: tankobanRow.width + 32
                     contentHeight: height
                     clip: true
                     flickableDirection: Flickable.HorizontalFlick
                     boundsBehavior: Flickable.StopAtBounds
                     Row {
                         id: tankobanRow
+                        x: 6
                         spacing: 24
                         Repeater {
                             model: root.comicItems
-                            delegate: PortraitTile {
+                            delegate: DCAUTankCard {
                                 objectName: "dcauComic_" + String(modelData.gcdId || 0) + "_" + String((modelData.posts && modelData.posts.length) ? modelData.posts[0] : 0)
                                 required property var modelData
-                                posterWidth: 180
                                 caption: modelData.title || ""
                                 cover: root.comicCover(modelData)
-                                onClicked: root.comicRequested(root.comicRoute(modelData))
+                                onActivated: root.comicRequested(root.comicRoute(modelData))
                             }
                         }
                     }
@@ -102,29 +101,26 @@ Item {
                 x: theme.margin
                 width: page.width - theme.margin * 2
                 spacing: 18
-                WidgetHeader { width: parent.width; title: "Theatre"; moreLabel: "" }
+                WidgetHeader { width: parent.width; title: "Theatre"; moreLabel: ""; navigable: false }
                 Flickable {
                     width: parent.width
                     height: 352
-                    contentWidth: theatreRow.width
+                    contentWidth: theatreRow.width + 32
                     contentHeight: height
                     clip: true
                     flickableDirection: Flickable.HorizontalFlick
                     boundsBehavior: Flickable.StopAtBounds
                     Row {
                         id: theatreRow
+                        x: 6
                         spacing: 26
                         Repeater {
                             model: root.theatreItems
-                            delegate: CataloguePosterCard {
+                            delegate: DCAUTheatreCard {
                                 objectName: "dcauVideo_" + String(modelData.id || "")
                                 required property var modelData
-                                width: 200
-                                height: 352
-                                visualProfile: "gallery"
-                                hoverSourceText: "IMDb"
-                                item: ({ title: modelData.title || "", year: modelData.year || "",
-                                         cover: root.videoCover(modelData) })
+                                item: ({ title: modelData.title || "", year: modelData.year || "" })
+                                cover: root.videoCover(modelData)
                                 onActivated: root.watchRequested(root.videoRoute(modelData))
                             }
                         }
@@ -132,7 +128,6 @@ Item {
                 }
             }
 
-            Item { width: 1; height: 24 }
         }
     }
 }

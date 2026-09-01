@@ -6,7 +6,7 @@ var hubs = [
       comicPosts: [11366,153724,50187,15941,10470,183948,80956] },
     { id: "metropolis", title: "Metropolis", environment: "metropolis", portal: "metropolis.jpg", portalImdb: "tt0115378",
       videoIds: ["tt0115378","tt6075386"], comicPosts: [14615] },
-    { id: "justice", title: "Watchtower", environment: "space", portal: "watchtower.jpg", portalImdb: "tt0275137",
+    { id: "justice", title: "Justice League", environment: "space", portal: "watchtower.jpg", portalImdb: "tt0275137",
       videoIds: ["tt0247729","tt0275137","tt6025022","tt8752474"], comicPosts: [48881,10563,8823] },
     { id: "future", title: "Future Gotham", environment: "future", portal: "future-gotham.jpg", portalImdb: "tt0147746",
       videoIds: ["tt0147746","tt0231237","tt0233298","tt0260662"], comicPosts: [190572,163954,282726] }
