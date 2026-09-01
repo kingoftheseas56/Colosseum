@@ -202,16 +202,19 @@ bool AccountRuntime::installCoreSyncAdapters(
         m_profileStores.progressStore();
     HistoryStore *history =
         m_profileStores.historyStore();
+    ActivityStore *activity =
+        m_profileStores.activityStore();
     ProfilePreferencesStore *preferences =
         m_profileStores.preferencesStore();
 
     if (!collection
         || !progress
         || !history
+        || !activity
         || !preferences) {
         if (error) {
             *error = QStringLiteral(
-                "The Collection, Continue/progress, History, or profile preference owner is unavailable.");
+                "The Collection, Continue/progress, History, Activity, or profile preference owner is unavailable.");
         }
         return false;
     }
@@ -232,6 +235,10 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::make_unique<
             HistorySyncAdapter>(
                 history);
+    auto activityAdapter =
+        std::make_unique<
+            ActivitySyncAdapter>(
+                activity);
     auto preferencesAdapter =
         std::make_unique<
             ProfilePreferencesSyncAdapter>(
@@ -304,8 +311,25 @@ bool AccountRuntime::installCoreSyncAdapters(
     }
 
     if (!m_syncRegistry.registerAdapter(
+            activityAdapter.get(),
+            &registryError)) {
+        m_syncRegistry.unregisterAdapter(QStringLiteral("full_history"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("watch_state"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("continue_progress"));
+        m_syncRegistry.unregisterAdapter(QStringLiteral("collection"));
+        if (error) {
+            *error = registryError.detail.isEmpty()
+                ? registryError.code
+                : registryError.detail;
+        }
+        return false;
+    }
+
+    if (!m_syncRegistry.registerAdapter(
             preferencesAdapter.get(),
             &registryError)) {
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral("activity_fact"));
         m_syncRegistry.unregisterAdapter(
             QStringLiteral(
                 "full_history"));
@@ -334,20 +358,32 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::move(watchStateAdapter);
     m_historySyncAdapter =
         std::move(historyAdapter);
+    m_activitySyncAdapter =
+        std::move(activityAdapter);
     m_preferencesSyncAdapter =
         std::move(preferencesAdapter);
 
+    const bool syncActivityHistory =
+        preferences->syncActivityHistory();
     m_syncEngine.setCategoryNetworkEnabled(
         QStringLiteral("full_history"),
-        preferences->syncActivityHistory());
+        syncActivityHistory);
+    m_syncEngine.setCategoryNetworkEnabled(
+        QStringLiteral("activity_fact"),
+        syncActivityHistory);
     connect(
         preferences,
         &ProfilePreferencesStore::syncActivityHistoryChanged,
         this,
         [this, preferences]() {
+            const bool enabled =
+                preferences->syncActivityHistory();
             m_syncEngine.setCategoryNetworkEnabled(
                 QStringLiteral("full_history"),
-                preferences->syncActivityHistory());
+                enabled);
+            m_syncEngine.setCategoryNetworkEnabled(
+                QStringLiteral("activity_fact"),
+                enabled);
         });
     return true;
 }
@@ -364,10 +400,13 @@ void AccountRuntime::clearCoreSyncAdapters() {
         QStringLiteral(
             "full_history"));
     m_syncRegistry.unregisterAdapter(
+        QStringLiteral("activity_fact"));
+    m_syncRegistry.unregisterAdapter(
         QStringLiteral(
             "explicit_content_preference"));
 
     m_preferencesSyncAdapter.reset();
+    m_activitySyncAdapter.reset();
     m_historySyncAdapter.reset();
     m_watchStateSyncAdapter.reset();
     m_progressSyncAdapter.reset();

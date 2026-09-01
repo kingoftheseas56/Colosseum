@@ -4,6 +4,7 @@
 #include "AccountClient.h"
 #include "AccountController.h"
 #include "ProgressSyncAdapter.h"
+#include "ActivitySyncAdapter.h"
 #include "WatchStateSyncAdapter.h"
 #include "HistorySyncAdapter.h"
 #include "ProfilePreferencesSyncAdapter.h"
@@ -70,6 +71,8 @@ private:
         m_watchStateSyncAdapter;
     std::unique_ptr<HistorySyncAdapter>
         m_historySyncAdapter;
+    std::unique_ptr<ActivitySyncAdapter>
+        m_activitySyncAdapter;
     std::unique_ptr<ProfilePreferencesSyncAdapter>
         m_preferencesSyncAdapter;
     SyncEngine m_syncEngine;
