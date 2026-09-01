@@ -38,6 +38,19 @@ Item {
         return ""
     }
 
+    function hasText(root, value) {
+        if (!root)
+            return false
+        if (root.text !== undefined && root.text === value)
+            return true
+        const children = root.children || []
+        for (let i = 0; i < children.length; ++i) {
+            if (hasText(children[i], value))
+                return true
+        }
+        return false
+    }
+
     function emitFirstClicked(root) {
         if (!root)
             return false
@@ -101,6 +114,8 @@ Item {
         ok(username !== null, "flyout username selector must exist")
         ok(username && username.text === "OfflineOwner",
            "offline flyout must show remembered username")
+        ok(hasText(flyout, "Waiting for the account service…"),
+           "offline flyout must render the current retrying sync observation")
         ok(sessionAction !== null, "flyout session action selector must exist")
         ok(actionText(sessionAction) === "Sign out",
            "offline flyout session action must be Sign out")
@@ -110,6 +125,12 @@ Item {
            "offline Sign out must call logoutCurrent exactly once")
         ok(fakeController.returnToSignInCalls === 0,
            "offline Sign out must not call returnToSignIn")
+
+        fakeController.pendingOutboxCount = 2
+        flyout.open()
+        ok(hasText(flyout, "Syncing — 2 changes pending"),
+           "flyout must render the current pending outbox observation")
+        fakeController.pendingOutboxCount = 0
 
         flyout.close()
         fakeController.mode = "localOnly"

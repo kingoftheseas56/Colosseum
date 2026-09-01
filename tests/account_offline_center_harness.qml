@@ -41,6 +41,20 @@ Item {
         return null
     }
 
+    function hasTextContaining(root, fragment) {
+        if (!root)
+            return false
+        if (root.text !== undefined
+            && String(root.text).indexOf(fragment) !== -1)
+            return true
+        const children = root.children || []
+        for (let i = 0; i < children.length; ++i) {
+            if (hasTextContaining(children[i], fragment))
+                return true
+        }
+        return false
+    }
+
     function clickTextAction(textItem) {
         if (!textItem)
             return false
@@ -198,6 +212,18 @@ Item {
            "account data group must be hidden locally")
         ok(dangerZone !== null && !dangerZone.visible,
            "danger zone must be hidden locally")
+        ok(hasTextContaining(
+               privacyPage,
+               "Search history, files, downloads, caches, paths and machine state stay on this device."),
+           "local privacy copy must keep search, files, downloads, paths and machine state local")
+        ok(hasTextContaining(
+               privacyPage,
+               "Filesystem paths, local media locations, downloads, caches and other machine-owned state stay on this device."),
+           "local privacy copy must keep machine-owned state local")
+        ok(hasTextContaining(
+               privacyPage,
+               "Local files and filesystem locations."),
+           "local privacy map must identify local files and filesystem locations")
 
         center.open("profile")
         ok(center.activeSection === "colosseum",
