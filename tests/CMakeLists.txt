@@ -1612,6 +1612,34 @@ set_tests_properties(colosseum.qttest.account_core PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── Crash-safe cloud attachment receipt (Arc 36 Wave 4A lane N-14) ───────────
+# AccountAttachmentReceipt — the durable record that lets an existing-account
+# cloud attachment survive crashes, restarts, and response loss without losing
+# the identity of the local source that still must be retired. Persistence
+# only: ProfilePaths account-kind gating + QSaveFile atomic JSON + fail-closed
+# validation that distinguishes Missing from Invalid. Pure Qt6::Core, GUILESS;
+# QTemporaryDir profile fixtures per run, no net.
+add_executable(tst_account_attachment
+    auto/account_attachment/tst_account_attachment.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h")
+target_include_directories(tst_account_attachment PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_attachment PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_account_attachment PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_attachment
+         COMMAND tst_account_attachment)
+set_tests_properties(colosseum.qttest.account_attachment PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 add_executable(tst_sync_core
     auto/sync/tst_sync_core.cpp
     support/account/AccountFixtureTransport.cpp

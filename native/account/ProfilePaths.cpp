@@ -126,6 +126,12 @@ QString ProfilePaths::syncMetaIniPath() const {
     return childPath(QStringLiteral("sync/meta.ini"));
 }
 
+QString ProfilePaths::cloudAttachmentReceiptPath() const {
+    if (m_kind != Kind::Account)
+        return QString();
+    return childPath(QStringLiteral("cloud-attachment/receipt.json"));
+}
+
 QString ProfilePaths::accountStagingRoot() const {
     if (m_kind != Kind::Account)
         return QString();

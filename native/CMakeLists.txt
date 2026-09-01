@@ -162,6 +162,8 @@ endif()
 add_executable(colosseum
     main.cpp
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
+    # Arc 36 Wave 4A N-14: crash-safe cloud attachment receipt (persistence only).
+    account/AccountAttachmentReceipt.cpp
     account/AccountBootstrapStore.cpp
     account/AccountClient.cpp
     account/AccountController.cpp
@@ -204,6 +206,7 @@ add_executable(colosseum
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
     account/WindowsAccountSensitiveClipboard.cpp
+    account/AccountAttachmentReceipt.h
     account/AccountBootstrapStore.h
     account/AccountClient.h
     account/AccountController.h
