@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/account"
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/avatar"
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/config"
@@ -49,7 +51,11 @@ func run(logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	if err := database.RunMigrations(rootCtx, pool); err != nil {
+	if err := runDatabaseMigrations(
+		rootCtx,
+		pool,
+		cfg.RunDatabaseMigrations,
+		database.RunMigrations); err != nil {
 		return err
 	}
 
@@ -99,6 +105,7 @@ func run(logger *slog.Logger) error {
 		SessionCipher:           sessionCipher,
 		SyncCipher:              syncCipher,
 		SyncMaxFutureSkew:       cfg.SyncMaxFutureSkew,
+		DatabaseAcquireTimeout:  cfg.DatabaseAcquireTimeout,
 		RateLimiter:             rateLimiter,
 		AvatarStore:             avatarStore,
 		Clock:                   account.SystemClock{},
@@ -162,6 +169,18 @@ func run(logger *slog.Logger) error {
 	}
 
 	return nil
+}
+
+func runDatabaseMigrations(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	enabled bool,
+	migrate func(context.Context, *pgxpool.Pool) error,
+) error {
+	if !enabled {
+		return nil
+	}
+	return migrate(ctx, pool)
 }
 
 func runAvatarCleanup(

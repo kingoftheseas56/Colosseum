@@ -71,6 +71,9 @@ func TestLoadUsesApprovedDefaults(t *testing.T) {
 	if cfg.HTTPAddr != ":8080" {
 		t.Fatalf("HTTPAddr = %q, want :8080", cfg.HTTPAddr)
 	}
+	if !cfg.RunDatabaseMigrations {
+		t.Fatal("RunDatabaseMigrations = false, want true outside production")
+	}
 	if cfg.DatabaseMaxConnections != 8 {
 		t.Fatalf("DatabaseMaxConnections = %d, want 8", cfg.DatabaseMaxConnections)
 	}
@@ -85,5 +88,41 @@ func TestLoadUsesApprovedDefaults(t *testing.T) {
 	}
 	if cfg.AvatarRegion != "auto" {
 		t.Fatalf("AvatarRegion = %q, want auto", cfg.AvatarRegion)
+	}
+}
+
+func TestLoadDisablesDatabaseMigrationsInProduction(t *testing.T) {
+	setRequiredTestEnvironment(t)
+	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
+	t.Setenv("BUCKET_NAME", "avatars")
+	t.Setenv("AWS_ENDPOINT_URL_S3", "https://storage.example.invalid")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.RunDatabaseMigrations {
+		t.Fatal("RunDatabaseMigrations = true, want false in production")
+	}
+}
+
+func TestLoadMigrationRequiresOnlyMigrationDatabaseURL(t *testing.T) {
+	t.Setenv("MIGRATION_DATABASE_URL", "")
+	t.Setenv("DATABASE_URL", "")
+	if _, err := LoadMigration(); err == nil {
+		t.Fatal("LoadMigration() succeeded without MIGRATION_DATABASE_URL")
+	}
+
+	t.Setenv("MIGRATION_DATABASE_URL", "postgres://migration-user:migration-secret@example.invalid/db")
+	t.Setenv("MIGRATION_TIMEOUT_SECONDS", "")
+	cfg, err := LoadMigration()
+	if err != nil {
+		t.Fatalf("LoadMigration() error = %v", err)
+	}
+	if cfg.DatabaseURL != "postgres://migration-user:migration-secret@example.invalid/db" {
+		t.Fatalf("DatabaseURL = %q, want migration URL", cfg.DatabaseURL)
+	}
+	if cfg.Timeout != 5*time.Minute {
+		t.Fatalf("Timeout = %v, want 5m", cfg.Timeout)
 	}
 }

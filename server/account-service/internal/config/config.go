@@ -14,6 +14,7 @@ const (
 	defaultHTTPAddr               = ":8080"
 	defaultDatabaseMaxConnections = 8
 	defaultDatabaseAcquireTimeout = 2 * time.Second
+	defaultMigrationTimeout       = 5 * time.Minute
 	defaultReadinessTimeout       = 2 * time.Second
 	defaultShutdownTimeout        = 10 * time.Second
 	defaultRegistrationGlobal10m  = 500
@@ -26,6 +27,7 @@ type Config struct {
 	DatabaseURL                string
 	DatabaseMaxConnections     int32
 	DatabaseAcquireTimeout     time.Duration
+	RunDatabaseMigrations      bool
 	ReadinessTimeout           time.Duration
 	ShutdownTimeout            time.Duration
 	RecoveryHMACKey            []byte
@@ -38,6 +40,11 @@ type Config struct {
 	AvatarBucketName           string
 	AvatarEndpoint             string
 	AvatarRegion               string
+}
+
+type MigrationConfig struct {
+	DatabaseURL string
+	Timeout     time.Duration
 }
 
 func Load() (Config, error) {
@@ -118,6 +125,7 @@ func Load() (Config, error) {
 		DatabaseURL:                databaseURL,
 		DatabaseMaxConnections:     maxConnections,
 		DatabaseAcquireTimeout:     defaultDatabaseAcquireTimeout,
+		RunDatabaseMigrations:      environment != "production",
 		ReadinessTimeout:           defaultReadinessTimeout,
 		ShutdownTimeout:            defaultShutdownTimeout,
 		RecoveryHMACKey:            recoveryHMACKey,
@@ -130,6 +138,24 @@ func Load() (Config, error) {
 		AvatarBucketName:           avatarBucketName,
 		AvatarEndpoint:             avatarEndpoint,
 		AvatarRegion:               avatarRegion,
+	}, nil
+}
+
+func LoadMigration() (MigrationConfig, error) {
+	databaseURL := strings.TrimSpace(os.Getenv("MIGRATION_DATABASE_URL"))
+	if databaseURL == "" {
+		return MigrationConfig{}, errors.New("MIGRATION_DATABASE_URL is required")
+	}
+
+	timeoutSeconds, err := positiveIntEnv(
+		"MIGRATION_TIMEOUT_SECONDS",
+		int(defaultMigrationTimeout/time.Second))
+	if err != nil {
+		return MigrationConfig{}, err
+	}
+	return MigrationConfig{
+		DatabaseURL: databaseURL,
+		Timeout:     time.Duration(timeoutSeconds) * time.Second,
 	}, nil
 }
 
