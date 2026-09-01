@@ -1,4 +1,5 @@
-import fs from 'fs';
+﻿import fs from 'fs';
+import crypto from 'crypto';
 
 let failed = 0;
 const ok = m => console.log('  ok   ' + m);
@@ -15,6 +16,10 @@ const metroPath = 'assets/universes/dcau/environments/metropolis-v11.svg';
 const futurePath = 'assets/universes/dcau/environments/future-v11.svg';
 const gothamPath = 'assets/universes/dcau/environments/gotham-v11-bg.png';
 const justicePath = 'assets/universes/dcau/environments/justice-v11-bg.png';
+const metroPortalPath = 'assets/universes/dcau/portals/metropolis.jpg';
+const metroPortalHash = crypto.createHash('sha256').update(fs.readFileSync(metroPortalPath)).digest('hex');
+if (metroPortalHash === '21d5be9c50c2fb4adc805c032fa7ac10c40ec5c60785d227330a0554e891b458') ok('Metropolis portal retains the v11 oracle-derived art');
+else { console.log('  FAIL Metropolis portal asset diverged from the v11 oracle-derived art'); failed++; }
 const metroQml = fs.readFileSync('qml/DCAUEnvironmentMetropolis.qml', 'utf8');
 const futureQml = fs.readFileSync('qml/DCAUEnvironmentFutureGotham.qml', 'utf8');
 const gothamQml = fs.readFileSync('qml/DCAUEnvironmentGotham.qml', 'utf8');
