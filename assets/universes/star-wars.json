@@ -1,0 +1,1638 @@
+{
+  "universe": {
+    "id": "star-wars",
+    "title": "Star Wars",
+    "logo": "https://images.metahub.space/logo/medium/tt0076759/img",
+    "background": "https://images.metahub.space/background/medium/tt0080684/img",
+    "meta": "Canon eras · films, series, novels & comics · Visions, Vintage & LEGO",
+    "sections": [
+      {
+        "id": "high-republic-screen",
+        "title": "High Republic · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt20674124",
+            "type": "series",
+            "title": "Star Wars: Young Jedi Adventures",
+            "year": "2023–2025"
+          },
+          {
+            "id": "tt27791497",
+            "type": "series",
+            "title": "Star Wars: Young Jedi Adventures Shorts",
+            "year": "2023–2024"
+          },
+          {
+            "id": "tt12262202",
+            "type": "series",
+            "title": "The Acolyte",
+            "year": "2024"
+          }
+        ]
+      },
+      {
+        "id": "fall-of-the-jedi-screen",
+        "title": "Fall of the Jedi · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt0120915",
+            "type": "movie",
+            "title": "Star Wars: Episode I - The Phantom Menace",
+            "year": "1999"
+          },
+          {
+            "id": "tt0121765",
+            "type": "movie",
+            "title": "Star Wars: Episode II - Attack of the Clones",
+            "year": "2002"
+          },
+          {
+            "id": "tt1185834",
+            "type": "movie",
+            "title": "Star Wars: The Clone Wars",
+            "year": "2008",
+            "note": "FILM"
+          },
+          {
+            "id": "tt0458290",
+            "type": "series",
+            "title": "Star Wars: The Clone Wars",
+            "year": "2008–2020",
+            "note": "SERIES"
+          },
+          {
+            "id": "tt0121766",
+            "type": "movie",
+            "title": "Star Wars: Episode III - Revenge of the Sith",
+            "year": "2005"
+          }
+        ]
+      },
+      {
+        "id": "canon-anthologies-screen",
+        "title": "Canon Anthologies · Cross-Era",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt20723374",
+            "type": "series",
+            "title": "Star Wars: Tales of the Jedi",
+            "year": "2022"
+          },
+          {
+            "id": "tt32019314",
+            "type": "series",
+            "title": "Star Wars: Tales of the Empire",
+            "year": "2024"
+          },
+          {
+            "id": "tt36414431",
+            "type": "series",
+            "title": "Star Wars: Tales of the Underworld",
+            "year": "2025"
+          },
+          {
+            "id": "tt6779076",
+            "type": "series",
+            "title": "Star Wars: Forces of Destiny",
+            "year": "2017–2018"
+          }
+        ]
+      },
+      {
+        "id": "reign-of-the-empire-screen",
+        "title": "Reign of the Empire · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt12708542",
+            "type": "series",
+            "title": "Star Wars: The Bad Batch",
+            "year": "2021–2024"
+          },
+          {
+            "id": "tt36594331",
+            "type": "series",
+            "title": "Star Wars: Maul - Shadow Lord",
+            "year": "2026–"
+          },
+          {
+            "id": "tt3778644",
+            "type": "movie",
+            "title": "Solo: A Star Wars Story",
+            "year": "2018"
+          },
+          {
+            "id": "tt8466564",
+            "type": "series",
+            "title": "Obi-Wan Kenobi",
+            "year": "2022"
+          },
+          {
+            "id": "tt9253284",
+            "type": "series",
+            "title": "Andor",
+            "year": "2022–2025"
+          },
+          {
+            "id": "tt2930604",
+            "type": "series",
+            "title": "Star Wars Rebels",
+            "year": "2014–2018"
+          }
+        ]
+      },
+      {
+        "id": "age-of-rebellion-screen",
+        "title": "Age of Rebellion · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt3748528",
+            "type": "movie",
+            "title": "Rogue One: A Star Wars Story",
+            "year": "2016"
+          },
+          {
+            "id": "tt0076759",
+            "type": "movie",
+            "title": "Star Wars: Episode IV - A New Hope",
+            "year": "1977"
+          },
+          {
+            "id": "tt0080684",
+            "type": "movie",
+            "title": "Star Wars: Episode V - The Empire Strikes Back",
+            "year": "1980"
+          },
+          {
+            "id": "tt0086190",
+            "type": "movie",
+            "title": "Star Wars: Episode VI - Return of the Jedi",
+            "year": "1983"
+          }
+        ]
+      },
+      {
+        "id": "new-republic-screen",
+        "title": "New Republic · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt8111088",
+            "type": "series",
+            "title": "The Mandalorian",
+            "year": "2019–"
+          },
+          {
+            "id": "tt13668894",
+            "type": "series",
+            "title": "The Book of Boba Fett",
+            "year": "2021–2022"
+          },
+          {
+            "id": "tt13622776",
+            "type": "series",
+            "title": "Ahsoka",
+            "year": "2023–"
+          },
+          {
+            "id": "tt20600980",
+            "type": "series",
+            "title": "Skeleton Crew",
+            "year": "2024–2025"
+          },
+          {
+            "id": "tt30825738",
+            "type": "movie",
+            "title": "Star Wars: The Mandalorian and Grogu",
+            "year": "2026"
+          }
+        ]
+      },
+      {
+        "id": "rise-first-order-screen",
+        "title": "Rise of the First Order · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt8336340",
+            "type": "series",
+            "title": "Star Wars: Resistance",
+            "year": "2018–2020"
+          },
+          {
+            "id": "tt2488496",
+            "type": "movie",
+            "title": "Star Wars: Episode VII - The Force Awakens",
+            "year": "2015"
+          },
+          {
+            "id": "tt2527336",
+            "type": "movie",
+            "title": "Star Wars: Episode VIII - The Last Jedi",
+            "year": "2017"
+          },
+          {
+            "id": "tt2527338",
+            "type": "movie",
+            "title": "Star Wars: Episode IX - The Rise of Skywalker",
+            "year": "2019"
+          }
+        ]
+      },
+      {
+        "id": "beyond-skywalker-screen",
+        "title": "Beyond the Skywalker Saga · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt28069611",
+            "type": "movie",
+            "title": "Star Wars: Starfighter",
+            "year": "2027"
+          }
+        ]
+      },
+      {
+        "id": "high-republic-books",
+        "title": "High Republic · Canon Novels",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "1499290530",
+            "provider": "applebooks",
+            "title": "Star Wars: Light of the Jedi (The High Republic)",
+            "year": "2021",
+            "author": "Charles Soule"
+          },
+          {
+            "id": "1534662473",
+            "provider": "applebooks",
+            "title": "Star Wars: The Rising Storm (The High Republic)",
+            "year": "2021",
+            "author": "Cavan Scott"
+          },
+          {
+            "id": "1577461835",
+            "provider": "applebooks",
+            "title": "Star Wars: The Fallen Star (The High Republic)",
+            "year": "2022",
+            "author": "Claudia Gray"
+          },
+          {
+            "id": "1608643265",
+            "provider": "applebooks",
+            "title": "Star Wars: Convergence (The High Republic)",
+            "year": "2022",
+            "author": "Zoraida Cordova"
+          },
+          {
+            "id": "1624319365",
+            "provider": "applebooks",
+            "title": "Star Wars: The Battle of Jedha (The High Republic)",
+            "year": "2023",
+            "author": "George Mann"
+          },
+          {
+            "id": "6443087994",
+            "provider": "applebooks",
+            "title": "Star Wars: Cataclysm (The High Republic)",
+            "year": "2023",
+            "author": "Lydia Kang"
+          },
+          {
+            "id": "6446918408",
+            "provider": "applebooks",
+            "title": "Star Wars: The Eye of Darkness (The High Republic)",
+            "year": "2023",
+            "author": "George Mann"
+          },
+          {
+            "id": "6470878446",
+            "provider": "applebooks",
+            "title": "Star Wars: Temptation of the Force (The High Republic)",
+            "year": "2024",
+            "author": "Tessa Gratton"
+          },
+          {
+            "id": "6695728695",
+            "provider": "applebooks",
+            "title": "Star Wars: Trials of the Jedi (The High Republic)",
+            "year": "2025",
+            "author": "Charles Soule"
+          },
+          {
+            "id": "6532594389",
+            "provider": "applebooks",
+            "title": "Star Wars: The Acolyte: Wayseeker",
+            "year": "2025",
+            "author": "Justina Ireland"
+          }
+        ]
+      },
+      {
+        "id": "high-republic-ya",
+        "title": "High Republic · Young Adult Canon",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "6745338803",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Into the Dark",
+            "year": "2021",
+            "author": "Claudia Gray"
+          },
+          {
+            "id": "6745338108",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Out of the Shadows",
+            "year": "2021",
+            "author": "Justina Ireland"
+          },
+          {
+            "id": "6745338922",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Midnight Horizon",
+            "year": "2022",
+            "author": "Daniel José Older"
+          },
+          {
+            "id": "6745337616",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Path of Deceit",
+            "year": "2022",
+            "author": "Tessa Gratton"
+          },
+          {
+            "id": "6745339434",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Path of Vengeance",
+            "year": "2023",
+            "author": "Cavan Scott"
+          },
+          {
+            "id": "6745338845",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Defy the Storm",
+            "year": "2024",
+            "author": "Tessa Gratton"
+          },
+          {
+            "id": "6745338600",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Tears of the Nameless",
+            "year": "2024",
+            "author": "George Mann"
+          },
+          {
+            "id": "6745337944",
+            "provider": "applebooks",
+            "title": "Star Wars: The High Republic: Into the Light",
+            "year": "2025",
+            "author": "Claudia Gray"
+          }
+        ]
+      },
+      {
+        "id": "republic-books",
+        "title": "Republic & Clone Wars · Canon Novels",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "1412494000",
+            "provider": "applebooks",
+            "title": "Master & Apprentice (Star Wars)",
+            "year": "2019",
+            "author": "Claudia Gray"
+          },
+          {
+            "id": "6455259025",
+            "provider": "applebooks",
+            "title": "Star Wars: The Living Force",
+            "year": "2024",
+            "author": "John Jackson Miller"
+          },
+          {
+            "id": "6473468247",
+            "provider": "applebooks",
+            "title": "Star Wars: Mace Windu: The Glass Abyss",
+            "year": "2024",
+            "author": "Steven Barnes"
+          },
+          {
+            "id": "1582741712",
+            "provider": "applebooks",
+            "title": "Star Wars: Brotherhood",
+            "year": "2022",
+            "author": "Mike Chen"
+          },
+          {
+            "id": "965638840",
+            "provider": "applebooks",
+            "title": "Dark Disciple: Star Wars",
+            "year": "2015",
+            "author": "Christie Golden"
+          },
+          {
+            "id": "1481770891",
+            "provider": "applebooks",
+            "title": "Star Wars: Thrawn Ascendancy (Book I: Chaos Rising)",
+            "year": "2020",
+            "author": "Timothy Zahn"
+          },
+          {
+            "id": "1534499609",
+            "provider": "applebooks",
+            "title": "Star Wars: Thrawn Ascendancy (Book II: Greater Good)",
+            "year": "2021",
+            "author": "Timothy Zahn"
+          },
+          {
+            "id": "1559138860",
+            "provider": "applebooks",
+            "title": "Star Wars: Thrawn Ascendancy (Book III: Lesser Evil)",
+            "year": "2021",
+            "author": "Timothy Zahn"
+          }
+        ]
+      },
+      {
+        "id": "imperial-books",
+        "title": "Imperial Era · Canon Novels",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "6443478489",
+            "provider": "applebooks",
+            "title": "Star Wars: Inquisitor: Rise of the Red Blade",
+            "year": "2023",
+            "author": "Delilah S Dawson"
+          },
+          {
+            "id": "6442953771",
+            "provider": "applebooks",
+            "title": "Star Wars Jedi: Battle Scars",
+            "year": "2023",
+            "author": "Sam Maggs"
+          },
+          {
+            "id": "1145101044",
+            "provider": "applebooks",
+            "title": "Star Wars - Tarkin",
+            "year": "2016",
+            "author": "James Luceno"
+          },
+          {
+            "id": "908014323",
+            "provider": "applebooks",
+            "title": "Lords of the Sith: Star Wars",
+            "year": "2015",
+            "author": "Paul S. Kemp"
+          },
+          {
+            "id": "870090157",
+            "provider": "applebooks",
+            "title": "A New Dawn: Star Wars",
+            "year": "2014",
+            "author": "John Jackson Miller"
+          },
+          {
+            "id": "1135541469",
+            "provider": "applebooks",
+            "title": "Thrawn (Star Wars)",
+            "year": "2017",
+            "author": "Timothy Zahn"
+          },
+          {
+            "id": "1294049153",
+            "provider": "applebooks",
+            "title": "Thrawn: Alliances (Star Wars)",
+            "year": "2018",
+            "author": "Timothy Zahn"
+          },
+          {
+            "id": "1446212171",
+            "provider": "applebooks",
+            "title": "Thrawn: Treason (Star Wars)",
+            "year": "2019",
+            "author": "Timothy Zahn"
+          },
+          {
+            "id": "1095175028",
+            "provider": "applebooks",
+            "title": "Catalyst (Star Wars)",
+            "year": "2016",
+            "author": "James Luceno"
+          },
+          {
+            "id": "6479835136",
+            "provider": "applebooks",
+            "title": "Star Wars: The Mask of Fear (Reign of the Empire)",
+            "year": "2025",
+            "author": "Alexander Freed"
+          },
+          {
+            "id": "6756596169",
+            "provider": "applebooks",
+            "title": "Star Wars: Edge of the Abyss (Reign of the Empire)",
+            "year": "2026",
+            "author": "Rebecca Roanhorse"
+          },
+          {
+            "id": "6743728574",
+            "provider": "applebooks",
+            "title": "Star Wars: Master of Evil",
+            "year": "2025",
+            "author": "Adam Christopher"
+          },
+          {
+            "id": "6738598139",
+            "provider": "applebooks",
+            "title": "Star Wars: Sanctuary (A Bad Batch Novel)",
+            "year": "2025",
+            "author": "Lamar Giles"
+          }
+        ]
+      },
+      {
+        "id": "rebellion-new-republic-books",
+        "title": "Rebellion & New Republic · Canon Novels",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "908013975",
+            "provider": "applebooks",
+            "title": "Heir to the Jedi: Star Wars",
+            "year": "2015",
+            "author": "Kevin Hearne"
+          },
+          {
+            "id": "1003001155",
+            "provider": "applebooks",
+            "title": "Battlefront: Twilight Company (Star Wars)",
+            "year": "2015",
+            "author": "Alexander Freed"
+          },
+          {
+            "id": "1207622075",
+            "provider": "applebooks",
+            "title": "Battlefront II: Inferno Squad (Star Wars)",
+            "year": "2017",
+            "author": "Christie Golden"
+          },
+          {
+            "id": "1608643263",
+            "provider": "applebooks",
+            "title": "Star Wars: The Princess and the Scoundrel",
+            "year": "2022",
+            "author": "Beth Revis"
+          },
+          {
+            "id": "6792189557",
+            "provider": "applebooks",
+            "title": "Star Wars: Twin Crossroads",
+            "year": "2027",
+            "author": "Beth Revis"
+          },
+          {
+            "id": "975895781",
+            "provider": "applebooks",
+            "title": "Aftermath (Star Wars)",
+            "year": "2015",
+            "author": "Chuck Wendig"
+          },
+          {
+            "id": "1066432122",
+            "provider": "applebooks",
+            "title": "Life Debt: Aftermath (Star Wars)",
+            "year": "2016",
+            "author": "Chuck Wendig"
+          },
+          {
+            "id": "1115028977",
+            "provider": "applebooks",
+            "title": "Empire's End: Aftermath (Star Wars)",
+            "year": "2017",
+            "author": "Chuck Wendig"
+          },
+          {
+            "id": "1438348861",
+            "provider": "applebooks",
+            "title": "Alphabet Squadron (Star Wars)",
+            "year": "2019",
+            "author": "Alexander Freed"
+          },
+          {
+            "id": "1481770890",
+            "provider": "applebooks",
+            "title": "Shadow Fall (Star Wars)",
+            "year": "2020",
+            "author": "Alexander Freed"
+          },
+          {
+            "id": "1526997205",
+            "provider": "applebooks",
+            "title": "Victory's Price (Star Wars)",
+            "year": "2021",
+            "author": "Alexander Freed"
+          },
+          {
+            "id": "1350150783",
+            "provider": "applebooks",
+            "title": "Last Shot (Star Wars)",
+            "year": "2018",
+            "author": "Daniel José Older"
+          }
+        ]
+      },
+      {
+        "id": "first-order-books",
+        "title": "First Order · Canon Novels",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "1054855517",
+            "provider": "applebooks",
+            "title": "Bloodline (Star Wars)",
+            "year": "2016",
+            "author": "Claudia Gray"
+          },
+          {
+            "id": "1451462534",
+            "provider": "applebooks",
+            "title": "Galaxy's Edge: Black Spire (Star Wars)",
+            "year": "2019",
+            "author": "Delilah S Dawson"
+          },
+          {
+            "id": "1588175054",
+            "provider": "applebooks",
+            "title": "Star Wars: Shadow of the Sith",
+            "year": "2022",
+            "author": "Adam Christopher"
+          },
+          {
+            "id": "1369372751",
+            "provider": "applebooks",
+            "title": "Star Wars - Phasma",
+            "year": "2018",
+            "author": "Delilah S Dawson"
+          },
+          {
+            "id": "1462582622",
+            "provider": "applebooks",
+            "title": "Resistance Reborn (Star Wars)",
+            "year": "2019",
+            "author": "Rebecca Roanhorse"
+          },
+          {
+            "id": "6753763463",
+            "provider": "applebooks",
+            "title": "Star Wars: Legacy",
+            "year": "2026",
+            "author": "Madeleine Roux"
+          }
+        ]
+      },
+      {
+        "id": "young-adult-books",
+        "title": "Skywalker Saga · Young Adult Canon",
+        "kind": "book",
+        "entries": [
+          {
+            "id": "6745338794",
+            "provider": "applebooks",
+            "title": "Star Wars: Lost Stars",
+            "year": "2015",
+            "author": "Claudia Gray"
+          },
+          {
+            "id": "6745338203",
+            "provider": "applebooks",
+            "title": "Star Wars: Ahsoka",
+            "year": "2016",
+            "author": "E. K. Johnston"
+          },
+          {
+            "id": "6745338785",
+            "provider": "applebooks",
+            "title": "Star Wars: Leia, Princess of Alderaan",
+            "year": "2017",
+            "author": "Claudia Gray"
+          },
+          {
+            "id": "6745338842",
+            "provider": "applebooks",
+            "title": "Star Wars: Rebel Rising",
+            "year": "2017",
+            "author": "Beth Revis"
+          },
+          {
+            "id": "6745338899",
+            "provider": "applebooks",
+            "title": "Star Wars: Most Wanted",
+            "year": "2018",
+            "author": "Rae Carson"
+          },
+          {
+            "id": "6745339211",
+            "provider": "applebooks",
+            "title": "Star Wars: Queen's Shadow",
+            "year": "2019",
+            "author": "E.K. Johnston"
+          },
+          {
+            "id": "6745835717",
+            "provider": "applebooks",
+            "title": "Star Wars: Galaxy's Edge: A Crash of Fate",
+            "year": "2019",
+            "author": "Zoraida Cordova"
+          },
+          {
+            "id": "6745834081",
+            "provider": "applebooks",
+            "title": "Journey to Star Wars: The Rise of Skywalker: Force Collector",
+            "year": "2019",
+            "author": "Kevin Shinick"
+          },
+          {
+            "id": "6745338394",
+            "provider": "applebooks",
+            "title": "Queen's Peril",
+            "year": "2020",
+            "author": "E.K. Johnston"
+          },
+          {
+            "id": "6745338962",
+            "provider": "applebooks",
+            "title": "Star Wars: Poe Dameron: Free Fall",
+            "year": "2020",
+            "author": "Alex Segura"
+          },
+          {
+            "id": "6745338362",
+            "provider": "applebooks",
+            "title": "Queen's Hope",
+            "year": "2022",
+            "author": "E.K. Johnston"
+          },
+          {
+            "id": "6745339006",
+            "provider": "applebooks",
+            "title": "Star Wars: Padawan",
+            "year": "2022",
+            "author": "Kiersten White"
+          },
+          {
+            "id": "6745337868",
+            "provider": "applebooks",
+            "title": "Crimson Climb",
+            "year": "2023",
+            "author": "E.K. Johnston"
+          },
+          {
+            "id": "6743356420",
+            "provider": "applebooks",
+            "title": "Star Wars: The Acolyte: The Crystal Crown",
+            "year": "2025",
+            "author": "Tessa Gratton"
+          },
+          {
+            "id": "6751082373",
+            "provider": "applebooks",
+            "title": "Star Wars: The Last Order",
+            "year": "2025",
+            "author": "Kwame Mbalia"
+          }
+        ]
+      },
+      {
+        "id": "high-republic-comics",
+        "title": "High Republic · Canon Comics",
+        "kind": "comic",
+        "entries": [
+          {
+            "provider": "getcomics",
+            "title": "The High Republic · Phase I",
+            "year": "2021–2022",
+            "posts": [
+              214639,
+              267513,
+              282584
+            ],
+            "note": "3 COLLECTED VOLUMES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic: Trail of Shadows",
+            "year": "2021–2022",
+            "posts": [
+              276678
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic: Eye of the Storm",
+            "year": "2022",
+            "posts": [
+              264449,
+              268758
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic: Shadows of Starlight",
+            "year": "2023–2024",
+            "posts": [
+              340727
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic · Phase II",
+            "year": "2022–2023",
+            "posts": [
+              319606,
+              314666
+            ],
+            "note": "2 COLLECTED VOLUMES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic Adventures · Complete Phase I",
+            "year": "2021–2023",
+            "posts": [
+              318128
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic: Edge of Balance",
+            "year": "2021–2025",
+            "posts": [
+              338383
+            ],
+            "note": "VOLS 1–4"
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic: Edge of Balance - Precedent",
+            "year": "2023",
+            "posts": [
+              328774
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic: The Blade",
+            "year": "2022–2023",
+            "posts": [
+              310048
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic · Phase III",
+            "year": "2023–2025",
+            "posts": [
+              343451,
+              355781,
+              381518
+            ],
+            "note": "3 COLLECTED VOLUMES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "The High Republic: The Finale",
+            "year": "2025",
+            "posts": [
+              374787
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fall-empire-comics",
+        "title": "Fall of the Jedi & Imperial Era · Canon Comics",
+        "kind": "comic",
+        "entries": [
+          {
+            "provider": "getcomics",
+            "title": "Star Wars: Jedi Knights",
+            "year": "2025–2026",
+            "posts": [
+              383037,
+              394958
+            ],
+            "note": "VOLS 1–2"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Darth Maul",
+            "year": "2017",
+            "posts": [
+              65203
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Obi-Wan & Anakin",
+            "year": "2016",
+            "posts": [
+              39568
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Age of Republic",
+            "year": "2018–2019",
+            "posts": [
+              159051
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Darth Maul: Son of Dathomir",
+            "year": "2014",
+            "posts": [
+              7004
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Darth Vader by Charles Soule",
+            "year": "2017–2018",
+            "posts": [
+              277237
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Kanan",
+            "year": "2015–2016",
+            "posts": [
+              156988
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Jedi: Fallen Order - Dark Temple",
+            "year": "2019",
+            "posts": [
+              179898
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Obi-Wan: A Jedi’s Purpose",
+            "year": "2022",
+            "posts": [
+              294073
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Han Solo: Imperial Cadet",
+            "year": "2018–2019",
+            "posts": [
+              131538
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Lando: Double or Nothing",
+            "year": "2018",
+            "posts": [
+              112833
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "TIE Fighter",
+            "year": "2019",
+            "posts": [
+              143338
+            ]
+          }
+        ]
+      },
+      {
+        "id": "rebellion-comics",
+        "title": "Age of Rebellion · Canon Comics",
+        "kind": "comic",
+        "entries": [
+          {
+            "provider": "getcomics",
+            "title": "Star Wars (2015)",
+            "year": "2015–2019",
+            "posts": [
+              26442
+            ],
+            "note": "75 ISSUES + ANNUALS"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Darth Vader (2015)",
+            "year": "2015–2016",
+            "posts": [
+              118465
+            ],
+            "note": "25 ISSUES + ANNUAL"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Doctor Aphra (2016)",
+            "year": "2016–2020",
+            "posts": [
+              157677
+            ],
+            "note": "40 ISSUES + TPBS"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Princess Leia",
+            "year": "2015",
+            "posts": [
+              158373
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Lando",
+            "year": "2015",
+            "posts": [
+              158347
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Chewbacca",
+            "year": "2015–2016",
+            "posts": [
+              158330
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Han Solo",
+            "year": "2016",
+            "posts": [
+              39352
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Age of Rebellion",
+            "year": "2019",
+            "posts": [
+              161969
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Star Wars (2020)",
+            "year": "2020–2024",
+            "posts": [
+              150155,
+              152263,
+              154924,
+              157105,
+              169192,
+              172859,
+              174250,
+              176296,
+              179010,
+              180959,
+              183092,
+              185699,
+              190899,
+              193815,
+              197347,
+              199242,
+              214681,
+              220198,
+              261436,
+              264443,
+              268752,
+              271806,
+              273256,
+              275878,
+              278993,
+              281216,
+              282827,
+              286523,
+              288388,
+              293823,
+              297549,
+              298657,
+              302126,
+              304100,
+              306395,
+              308361,
+              311728,
+              314278,
+              318399,
+              319847,
+              323294,
+              326955,
+              330836,
+              332185,
+              334681,
+              339224,
+              340313,
+              343625,
+              346368,
+              348055
+            ],
+            "note": "50 ISSUES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Darth Vader (2020)",
+            "year": "2020–2024",
+            "posts": [
+              152957,
+              156383,
+              168535,
+              169844,
+              172863,
+              174806,
+              176790,
+              179484,
+              181464,
+              183792,
+              189748,
+              191885,
+              194381,
+              196770,
+              199913,
+              212906,
+              218973,
+              233637,
+              263178,
+              267222,
+              270325,
+              271809,
+              275416,
+              277402,
+              278999,
+              281826,
+              284861,
+              287159,
+              291129,
+              294400,
+              296961,
+              301111,
+              304103,
+              304530,
+              306993,
+              309004,
+              312458,
+              314981,
+              317147,
+              320466,
+              325019,
+              326353,
+              330213,
+              332693,
+              335090,
+              337975,
+              340833,
+              344214,
+              345815,
+              348661
+            ],
+            "note": "50 ISSUES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Bounty Hunters",
+            "year": "2020–2024",
+            "posts": [
+              156380,
+              157882,
+              165648,
+              170571,
+              173329,
+              175223,
+              177373,
+              180190,
+              182544,
+              186172,
+              188517,
+              191291,
+              193148,
+              195534,
+              197902,
+              213809,
+              220201,
+              233634,
+              263567,
+              264446,
+              270856,
+              271338,
+              275413,
+              276405,
+              278481,
+              280707,
+              284025,
+              288391,
+              292275,
+              295328,
+              297552,
+              300042,
+              302719,
+              305054,
+              307376,
+              309001,
+              313698,
+              315747,
+              317144,
+              321871,
+              324171,
+              327712
+            ],
+            "note": "42 ISSUES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Doctor Aphra (2020)",
+            "year": "2020–2024",
+            "posts": [
+              158743,
+              168023,
+              171254,
+              173768,
+              175774,
+              178035,
+              181895,
+              186637,
+              189181,
+              191888,
+              194925,
+              196114,
+              199916,
+              212269,
+              216744,
+              221688,
+              263897,
+              265089,
+              270328,
+              274193,
+              277405,
+              279526,
+              281829,
+              285365,
+              287730,
+              289655,
+              293243,
+              295881,
+              298041,
+              302722,
+              304106,
+              306066,
+              307820,
+              309695,
+              312959,
+              316499,
+              319073,
+              321076,
+              325022,
+              328897
+            ],
+            "note": "40 ISSUES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "War of the Bounty Hunters",
+            "year": "2021",
+            "posts": [
+              264204
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Crimson Reign",
+            "year": "2021–2022",
+            "posts": [
+              283345
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Hidden Empire",
+            "year": "2022–2023",
+            "posts": [
+              312076
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Dark Droids",
+            "year": "2023–2024",
+            "posts": [
+              335553
+            ]
+          }
+        ]
+      },
+      {
+        "id": "new-republic-first-order-comics",
+        "title": "New Republic & First Order · Canon Comics",
+        "kind": "comic",
+        "entries": [
+          {
+            "provider": "getcomics",
+            "title": "Shattered Empire",
+            "year": "2015",
+            "posts": [
+              158343
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The Battle of Jakku",
+            "year": "2024–2025",
+            "posts": [
+              370531
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Age of Resistance",
+            "year": "2019",
+            "posts": [
+              179892
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Captain Phasma",
+            "year": "2017",
+            "posts": [
+              66476
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The Rise of Kylo Ren",
+            "year": "2019–2020",
+            "posts": [
+              156957
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Galaxy's Edge",
+            "year": "2019",
+            "posts": [
+              143931
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "The Halcyon Legacy",
+            "year": "2022",
+            "posts": [
+              292041
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Star Wars (2025)",
+            "year": "2025–2026",
+            "posts": [
+              367547,
+              370871,
+              373646,
+              376436,
+              378935,
+              380089,
+              383315,
+              386732,
+              388727,
+              390735
+            ],
+            "note": "10 VERIFIED ISSUES"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Legacy of Vader",
+            "year": "2025–2026",
+            "posts": [
+              380917,
+              393980
+            ],
+            "note": "VOLS 1–2"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Han Solo: Hunt for the Falcon",
+            "year": "2025–2026",
+            "posts": [
+              396815
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Boba Fett: Black, White & Red",
+            "year": "2025",
+            "posts": [
+              378938,
+              382286,
+              384650,
+              387223
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Doctor Aphra: Chaos Agent",
+            "year": "2025–2026",
+            "posts": [
+              397350
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Tales from the Nightlands",
+            "year": "2025",
+            "posts": [
+              378409,
+              381841,
+              385744
+            ]
+          },
+          {
+            "provider": "getcomics",
+            "title": "Galaxy's Edge: Echoes of the Empire",
+            "year": "2026",
+            "posts": [
+              395170,
+              397582,
+              399585,
+              401249,
+              403779
+            ]
+          }
+        ]
+      },
+      {
+        "id": "visions-screen",
+        "title": "Visions · Alternate Continuity",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt13622982",
+            "type": "series",
+            "title": "Star Wars: Visions",
+            "year": "2021–",
+            "note": "NON-CANON"
+          },
+          {
+            "id": "tt43337681",
+            "type": "series",
+            "title": "Star Wars: Visions Presents - The Ninth Jedi",
+            "year": "2026",
+            "note": "NON-CANON"
+          }
+        ]
+      },
+      {
+        "id": "visions-manga",
+        "title": "Visions · Manga",
+        "kind": "manga",
+        "entries": [
+          {
+            "id": "01J76XYH9A1Q8SN0BX2T162VTM",
+            "provider": "weebcentral",
+            "title": "Star Wars: Visions: The Manga Anthology",
+            "year": "2022",
+            "note": "ANILIST 148967"
+          }
+        ]
+      },
+      {
+        "id": "vintage-screen",
+        "title": "Vintage & Legends · Screen",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt0361243",
+            "type": "series",
+            "title": "Star Wars: Clone Wars",
+            "year": "2003–2005",
+            "note": "LEGENDS"
+          },
+          {
+            "id": "tt0088510",
+            "type": "series",
+            "title": "Star Wars: Droids",
+            "year": "1985–1986",
+            "note": "VINTAGE"
+          },
+          {
+            "id": "tt0088515",
+            "type": "series",
+            "title": "Star Wars: Ewoks",
+            "year": "1985–1995",
+            "note": "VINTAGE"
+          },
+          {
+            "id": "tt0087225",
+            "type": "movie",
+            "title": "The Ewok Adventure",
+            "year": "1984",
+            "note": "VINTAGE"
+          },
+          {
+            "id": "tt0089110",
+            "type": "movie",
+            "title": "Ewoks: The Battle for Endor",
+            "year": "1985",
+            "note": "VINTAGE"
+          },
+          {
+            "id": "tt0193524",
+            "type": "movie",
+            "title": "The Star Wars Holiday Special",
+            "year": "1978",
+            "note": "VINTAGE"
+          }
+        ]
+      },
+      {
+        "id": "lego-screen",
+        "title": "LEGO Star Wars · Alternate Continuity",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt32306451",
+            "type": "series",
+            "title": "Lego Star Wars: Rebuild the Galaxy",
+            "year": "2024–2025",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt5459566",
+            "type": "series",
+            "title": "Lego Star Wars: The Freemaker Adventures",
+            "year": "2016–2017",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt9297164",
+            "type": "series",
+            "title": "Lego Star Wars: All-Stars",
+            "year": "2018",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt4855868",
+            "type": "series",
+            "title": "Lego Star Wars: Droid Tales",
+            "year": "2015",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt3014650",
+            "type": "series",
+            "title": "Lego Star Wars: The Yoda Chronicles",
+            "year": "2013–2014",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt8352934",
+            "type": "series",
+            "title": "LEGO Star Wars: The Resistance Rises",
+            "year": "2016",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt12885438",
+            "type": "movie",
+            "title": "The Lego Star Wars Holiday Special",
+            "year": "2020",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt15164924",
+            "type": "movie",
+            "title": "Lego Star Wars Terrifying Tales",
+            "year": "2021",
+            "note": "LEGO"
+          },
+          {
+            "id": "tt20784210",
+            "type": "movie",
+            "title": "Lego Star Wars Summer Vacation",
+            "year": "2022",
+            "note": "LEGO"
+          }
+        ]
+      }
+    ]
+  }
+}

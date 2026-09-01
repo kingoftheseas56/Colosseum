@@ -32,7 +32,7 @@ constexpr int kDescriptionCap = 400;
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 10;
+constexpr int kHouseDefaultsVersion = 11;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -298,6 +298,10 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         universe("com.colosseum.universe.dcau", "DC Animated Universe",
                  "https://images.metahub.space/logo/medium/tt0103359/img",
                  "https://images.metahub.space/background/medium/tt0103359/img"));
+    add("com.colosseum.universe.starwars", "colosseum://universe/starwars", false,
+        universe("com.colosseum.universe.starwars", "Star Wars",
+                 "https://images.metahub.space/logo/medium/tt0076759/img",
+                 "https://images.metahub.space/background/medium/tt0076759/img"));
 
     return touched;
 }
