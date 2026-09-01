@@ -109,7 +109,7 @@ need(portalQml, 'anchors.leftMargin: 22', 'DCAU portal label keeps v11 22px inse
 need(portalQml, 'anchors.bottomMargin: 18', 'DCAU portal label keeps v11 18px bottom inset');
 need(portalQml, 'scale: hover.hovered ? 1.018 : 1.0', 'DCAU portal art keeps v11 hover zoom');
 reject(portalQml, 'onHoveredChanged: if (hovered) root.selectionRequested()', 'hover does not change the v11 active portal');
-need(dataQml, 'title: "Justice League"', 'third landing portal keeps the v11 Justice League label');
+need(dataQml, 'title: "Watch Tower"', 'third landing portal uses the Watch Tower location label');
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green');
 process.exit(failed ? 1 : 0);
