@@ -151,6 +151,7 @@ func (s *Service) pushOneActivityFact(
 	auth AuthenticatedSession,
 	parsed parsedSyncMutation,
 	fact parsedActivityFact,
+	attachmentID string,
 	now time.Time,
 ) (SyncPushResult, error) {
 	result := SyncPushResult{
@@ -228,6 +229,11 @@ func (s *Service) pushOneActivityFact(
 		return result, fmt.Errorf("encrypt activity payload: %w", err)
 	}
 
+	var attachmentParam any
+	if attachmentID != "" {
+		attachmentParam = attachmentID
+	}
+
 	var serverSeq int64
 	err = tx.QueryRow(ctx, `
         INSERT INTO account_activity_facts(
@@ -240,11 +246,12 @@ func (s *Service) pushOneActivityFact(
             payload_ciphertext,
             hlc_physical_ms,
             hlc_counter,
-            received_at
+            received_at,
+            attachment_id
         )
         VALUES(
             $1::uuid, $2::uuid, $3::uuid, $4::uuid,
-            $5, $6, $7, $8, $9, $10
+            $5, $6, $7, $8, $9, $10, $11::uuid
         )
         RETURNING server_seq
     `,
@@ -257,7 +264,8 @@ func (s *Service) pushOneActivityFact(
 		ciphertext,
 		parsed.HLCPhysicalMS,
 		int64(parsed.HLCCounter),
-		now).Scan(&serverSeq)
+		now,
+		attachmentParam).Scan(&serverSeq)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -269,6 +277,13 @@ func (s *Service) pushOneActivityFact(
 				ctx, auth, parsed, fact)
 		}
 		return result, fmt.Errorf("insert activity fact: %w", err)
+	}
+
+	// The first accepted attached Activity fact atomically advances the
+	// attachment open -> uploaded alongside the fact row.
+	if err := markAttachmentUploadedTx(
+		ctx, tx, auth.Account.ID, attachmentID, now); err != nil {
+		return result, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {

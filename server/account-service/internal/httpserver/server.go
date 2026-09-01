@@ -70,6 +70,10 @@ func New(
 	protected.HandleFunc("POST /v1/approvals/{kind}/{challengeID}", handler.decideApproval)
 	protected.HandleFunc("POST /v1/sync/push", handler.pushSync)
 	protected.HandleFunc("GET /v1/sync/pull", handler.pullSync)
+	protected.HandleFunc("GET /v1/sync/snapshot", handler.pullSyncSnapshot)
+	protected.HandleFunc("POST /v1/profile/attachments", handler.beginProfileAttachment)
+	protected.HandleFunc("GET /v1/profile/attachments/{attachmentID}", handler.getProfileAttachment)
+	protected.HandleFunc("POST /v1/profile/attachments/{attachmentID}/commit", handler.commitProfileAttachment)
 
 	mux.Handle("/v1/", handler.requireAuthFallback(protected))
 	return securityHeaders(mux)
