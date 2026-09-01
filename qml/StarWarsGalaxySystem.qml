@@ -11,6 +11,7 @@ FocusScope {
     property real orbitTime: 0
     readonly property real viewportScale: Math.min(1.0, Math.max(.72, Math.min(width/1600, height/900)))
     signal destinationActivated(string destinationId)
+    signal skywalkerActivated()
 
     Theme { id: theme }
 
@@ -101,13 +102,28 @@ FocusScope {
         font.family: theme.display; font.pixelSize: Math.max(44, Math.round(58 * root.viewportScale))
         font.weight: Font.Normal
     }
-    Item {
+    FocusScope {
         id: sun
         property var p: root.projectPoint(0,0,0)
         property real r: Math.max(23, 66 * p.scale)
+        property bool hot: activeFocus || sunMa.containsMouse
+        activeFocusOnTab: true
         x: p.x - r; y: p.y - r
         width: r*2; height: r*2
-        z: 3
+        z: 5
+        MouseArea {
+            id: sunMa
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                sun.forceActiveFocus()
+                root.skywalkerActivated()
+            }
+        }
+        Keys.onReturnPressed: function(event) { root.skywalkerActivated(); event.accepted = true }
+        Keys.onEnterPressed: function(event) { root.skywalkerActivated(); event.accepted = true }
         Rectangle {
             anchors.centerIn: parent
             width: parent.width*2.7; height: width; radius: width/2
@@ -116,7 +132,8 @@ FocusScope {
         Rectangle {
             anchors.fill: parent; radius: width/2
             color: "#3e240b"
-            border.width: 1; border.color: Qt.rgba(255/255,225/255,128/255,.22)
+            border.width: sun.hot ? 1.5 : 1
+            border.color: sun.hot ? theme.gold : Qt.rgba(255/255,225/255,128/255,.22)
         }
         Rectangle {
             width: parent.width*.86; height: width; radius: width/2
@@ -132,9 +149,9 @@ FocusScope {
             x: parent.width + 10
             y: parent.height/2 - height/2 - 1
             spacing: 7
-            Rectangle { width: 6; height: 6; radius: 3; color: theme.gold; opacity: .62 }
+            Rectangle { width: 6; height: 6; radius: 3; color: theme.gold; opacity: sun.hot ? 1.0 : .62 }
             Text {
-                text: "SKYWALKER SAGA"; color: theme.ink
+                text: "SKYWALKER SAGA"; color: sun.hot ? theme.gold : theme.ink
                 font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
                 font.letterSpacing: .8
             }
@@ -252,9 +269,11 @@ FocusScope {
 
             MouseArea {
                 id: ma
-                x: -8; y: -8
-                width: Math.max(gate.r*2 + labelRow.width + 24, 44)
-                height: Math.max(gate.r*2 + 16, 44)
+                property real bodyPad: Math.max(8, (44 - gate.r*2) / 2)
+                x: Math.min(-bodyPad, labelRow.x - 8)
+                y: Math.min(-bodyPad, labelRow.y - 8)
+                width: Math.max(gate.r*2 + bodyPad, labelRow.x + labelRow.width + 8) - x
+                height: Math.max(gate.r*2 + bodyPad, labelRow.y + labelRow.height + 8) - y
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     gate.forceActiveFocus()

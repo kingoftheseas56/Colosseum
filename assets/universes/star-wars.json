@@ -71,6 +71,67 @@
         ]
       },
       {
+        "id": "skywalker-saga-screen",
+        "title": "Skywalker Saga ? Episodes I?IX",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt0120915",
+            "type": "movie",
+            "title": "Star Wars: Episode I - The Phantom Menace",
+            "year": "1999"
+          },
+          {
+            "id": "tt0121765",
+            "type": "movie",
+            "title": "Star Wars: Episode II - Attack of the Clones",
+            "year": "2002"
+          },
+          {
+            "id": "tt0121766",
+            "type": "movie",
+            "title": "Star Wars: Episode III - Revenge of the Sith",
+            "year": "2005"
+          },
+          {
+            "id": "tt0076759",
+            "type": "movie",
+            "title": "Star Wars: Episode IV - A New Hope",
+            "year": "1977"
+          },
+          {
+            "id": "tt0080684",
+            "type": "movie",
+            "title": "Star Wars: Episode V - The Empire Strikes Back",
+            "year": "1980"
+          },
+          {
+            "id": "tt0086190",
+            "type": "movie",
+            "title": "Star Wars: Episode VI - Return of the Jedi",
+            "year": "1983"
+          },
+          {
+            "id": "tt2488496",
+            "type": "movie",
+            "title": "Star Wars: Episode VII - The Force Awakens",
+            "year": "2015"
+          },
+          {
+            "id": "tt2527336",
+            "type": "movie",
+            "title": "Star Wars: Episode VIII - The Last Jedi",
+            "year": "2017"
+          },
+          {
+            "id": "tt2527338",
+            "type": "movie",
+            "title": "Star Wars: Episode IX - The Rise of Skywalker",
+            "year": "2019"
+          }
+        ]
+      },
+      {
         "id": "canon-anthologies-screen",
         "title": "Canon Anthologies · Cross-Era",
         "kind": "video",

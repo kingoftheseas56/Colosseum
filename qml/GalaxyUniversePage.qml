@@ -37,11 +37,17 @@ Item {
         { id:"across", name:"ACROSS THE ERAS", title:"Across the Eras", world:"CANON · CROSS-ERA", radius:820, angle:2.72, y:30, node:true, shelves:[ {ids:["canon-anthologies-screen"],medium:"Theatre",note:"Canon anthologies"}, {ids:["young-adult-books"],medium:"Biblio",note:"Young adult stories across eras"} ] },
         { id:"outside", name:"BEYOND CANON", title:"Beyond Canon", world:"ADJACENT CONTINUITIES", radius:760, angle:-.17, y:26, node:true, shelves:[ {ids:["visions-screen","vintage-screen","lego-screen"],medium:"Theatre",note:"Visions · Vintage & Legends · LEGO"}, {ids:["visions-manga"],medium:"Tankoban",note:"Visions manga"} ] }
     ]
+    readonly property var skywalkerDestination: ({
+        id:"skywalker", name:"SKYWALKER SAGA", title:"Skywalker Saga",
+        world:"EPISODES I–IX", env:"",
+        shelves:[ {ids:["skywalker-saga-screen"],medium:"Theatre",note:"Episodes I–IX"} ]
+    })
 
     readonly property var currentDestination: destinationById(selectedDestinationId)
     readonly property var currentShelves: currentDestination ? currentDestination.shelves : []
 
     function destinationById(id) {
+        if (id === "skywalker") return skywalkerDestination
         for (var i = 0; i < destinations.length; ++i)
             if (destinations[i].id === id) return destinations[i]
         return null
@@ -109,6 +115,7 @@ Item {
         destinations: root.destinations
         reducedMotion: root.reducedMotion
         onDestinationActivated: function(destinationId) { root.openDestination(destinationId) }
+        onSkywalkerActivated: root.openDestination("skywalker")
     }
 
     Item {
