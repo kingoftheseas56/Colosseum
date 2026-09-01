@@ -202,6 +202,55 @@ public:
         return out;
     }
 
+    QHash<QString, int> syncWatchedMarks() const {
+        const QString prefix =
+            QStringLiteral("video/watchedMark/");
+        QHash<QString, int> out;
+
+        const QStringList keys = m_settings->allKeys();
+        for (const QString &key : keys) {
+            if (!key.startsWith(prefix))
+                continue;
+
+            const QString id = key.mid(prefix.size());
+            if (id.isEmpty())
+                continue;
+
+            bool ok = false;
+            const int mark =
+                m_settings->value(key).toInt(&ok);
+            if (ok && (mark == -1 || mark == 1))
+                out.insert(id, mark);
+        }
+
+        return out;
+    }
+
+    QHash<QString, int> syncLastSeasons() const {
+        const QString prefix =
+            QStringLiteral("video/lastSeason/");
+        QHash<QString, int> out;
+
+        const QStringList keys = m_settings->allKeys();
+        for (const QString &key : keys) {
+            if (!key.startsWith(prefix))
+                continue;
+
+            const QString seriesId =
+                key.mid(prefix.size());
+            if (seriesId.isEmpty())
+                continue;
+
+            bool ok = false;
+            const int season =
+                m_settings->value(key).toInt(&ok);
+            if (ok && season > 0)
+                out.insert(seriesId, season);
+        }
+
+        return out;
+    }
+
     // Upsert one resume entry, persist it, and refresh the Continue row. Use for lifecycle
     // writes (open / stop / forget, and the player's stop / stream-death / playback-failure /
     // episode-advance / EOF sites) where the visible Continue data genuinely changes. The payload
@@ -361,6 +410,96 @@ public:
         m_settings->remove(QStringLiteral("video/watchedMark/") + seriesRootId(id));
         m_settings->sync();
         bump();
+    }
+
+    bool applySyncedWatchedMark(
+        const QString &id,
+        int mark) {
+        if (id.isEmpty()
+            || (mark != -1 && mark != 1)) {
+            return false;
+        }
+
+        const QString key =
+            QStringLiteral("video/watchedMark/")
+            + seriesRootId(id);
+
+        bool ok = false;
+        const int current =
+            m_settings->value(key).toInt(&ok);
+        if (ok && current == mark)
+            return true;
+
+        m_settings->setValue(key, mark);
+        m_settings->sync();
+        bump();
+        return true;
+    }
+
+    bool removeSyncedWatchedMark(
+        const QString &id) {
+        if (id.isEmpty())
+            return false;
+
+        const QString key =
+            QStringLiteral("video/watchedMark/")
+            + seriesRootId(id);
+        if (!m_settings->contains(key))
+            return true;
+
+        bool ok = false;
+        const int current =
+            m_settings->value(key).toInt(&ok);
+        m_settings->remove(key);
+        m_settings->sync();
+
+        if (ok && (current == -1 || current == 1))
+            bump();
+        return true;
+    }
+
+    bool applySyncedLastSeason(
+        const QString &seriesId,
+        int season) {
+        if (seriesId.isEmpty() || season <= 0)
+            return false;
+
+        const QString key =
+            QStringLiteral("video/lastSeason/")
+            + seriesId;
+
+        bool ok = false;
+        const int current =
+            m_settings->value(key).toInt(&ok);
+        if (ok && current == season)
+            return true;
+
+        m_settings->setValue(key, season);
+        m_settings->sync();
+        bump();
+        return true;
+    }
+
+    bool removeSyncedLastSeason(
+        const QString &seriesId) {
+        if (seriesId.isEmpty())
+            return false;
+
+        const QString key =
+            QStringLiteral("video/lastSeason/")
+            + seriesId;
+        if (!m_settings->contains(key))
+            return true;
+
+        bool ok = false;
+        const int current =
+            m_settings->value(key).toInt(&ok);
+        m_settings->remove(key);
+        m_settings->sync();
+
+        if (ok && current > 0)
+            bump();
+        return true;
     }
 
     // ---- native remote-import seam (sync) ----

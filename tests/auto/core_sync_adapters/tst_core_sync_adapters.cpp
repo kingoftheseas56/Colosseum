@@ -508,6 +508,8 @@ private slots:
     void cleanup();
     void projectionStripsLocalOnlyNestedMaterial();
     void projectionExcludesFilesystemIdentity();
+    void watchStateProjectionKeysRoundTrip();
+    void watchStateProjectionKeysRejectMalformed();
     void collectionRemotePutPreservesLocalOnlyOverlay();
     void collectionAdapterRoundTripsAndTombstones();
     void progressSnapshotKeepsRawSiblingRecords();
@@ -603,6 +605,98 @@ projectionExcludesFilesystemIdentity() {
         projected.disposition,
         CoreStateSyncProjection::
             Disposition::LocalOnly);
+}
+
+void tst_core_sync_adapters::
+watchStateProjectionKeysRoundTrip() {
+    const QString watchedId =
+        QStringLiteral("tt123:Season 2/\u00c9pisode 7? [\u65e5\u672c]");
+    const QString seasonId =
+        QStringLiteral("series:\u0394 & finale/part#2");
+
+    const QString watchedEncoded =
+        QString::fromLatin1(
+            watchedId.toUtf8().toBase64(
+                QByteArray::Base64UrlEncoding
+                | QByteArray::OmitTrailingEquals));
+    const QString seasonEncoded =
+        QString::fromLatin1(
+            seasonId.toUtf8().toBase64(
+                QByteArray::Base64UrlEncoding
+                | QByteArray::OmitTrailingEquals));
+
+    const QString watchedKey =
+        CoreStateSyncProjection::watchedMarkKey(watchedId);
+    const QString seasonKey =
+        CoreStateSyncProjection::lastSeasonKey(seasonId);
+
+    QCOMPARE(
+        watchedKey,
+        QStringLiteral("watch/mark/") + watchedEncoded);
+    QCOMPARE(
+        seasonKey,
+        QStringLiteral("watch/season/") + seasonEncoded);
+
+    QString decoded;
+    QVERIFY(
+        CoreStateSyncProjection::decodeWatchedMarkKey(
+            watchedKey,
+            &decoded));
+    QCOMPARE(decoded, watchedId);
+
+    decoded.clear();
+    QVERIFY(
+        CoreStateSyncProjection::decodeLastSeasonKey(
+            seasonKey,
+            &decoded));
+    QCOMPARE(decoded, seasonId);
+}
+
+void tst_core_sync_adapters::
+watchStateProjectionKeysRejectMalformed() {
+    const QString canonicalId = QStringLiteral("f");
+    const QString canonical =
+        CoreStateSyncProjection::watchedMarkKey(canonicalId);
+    QCOMPARE(canonical, QStringLiteral("watch/mark/Zg"));
+
+    const QStringList invalidWatched{
+        QString(),
+        QStringLiteral("watch/mark/"),
+        QStringLiteral("watch/mark/Zg=="),
+        QStringLiteral("watch/mark/!!!"),
+        QStringLiteral("watch/mark/Zg/extra"),
+        QStringLiteral("watch/mark/Zg/"),
+        QStringLiteral("watch/season/Zg"),
+        QStringLiteral("progress/mark/Zg")
+    };
+
+    for (const QString &key : invalidWatched) {
+        QString decoded = QStringLiteral("unchanged");
+        QVERIFY2(
+            !CoreStateSyncProjection::decodeWatchedMarkKey(
+                key,
+                &decoded),
+            qPrintable(key));
+        QCOMPARE(decoded, QStringLiteral("unchanged"));
+    }
+
+    const QStringList invalidSeason{
+        QStringLiteral("watch/season/"),
+        QStringLiteral("watch/season/Zg=="),
+        QStringLiteral("watch/season/Zg/extra"),
+        QStringLiteral("watch/mark/Zg"),
+        QStringLiteral("watch/season/!!!")
+    };
+
+    for (const QString &key : invalidSeason) {
+        QString decoded = QStringLiteral("unchanged");
+        QVERIFY2(
+            !CoreStateSyncProjection::decodeLastSeasonKey(
+                key,
+                &decoded),
+            qPrintable(key));
+        QCOMPARE(decoded, QStringLiteral("unchanged"));
+    }
 }
 
 void tst_core_sync_adapters::
