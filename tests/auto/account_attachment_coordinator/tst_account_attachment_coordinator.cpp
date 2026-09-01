@@ -26,10 +26,13 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <functional>
 #include <memory>
 
 namespace {
@@ -95,6 +98,12 @@ public:
             .state;
     }
 
+    bool hasAttachment(
+        const QString &attachmentId) const {
+        return m_attachments.contains(
+            attachmentId);
+    }
+
     const QStringList &pushAttachmentIds() const {
         return m_pushAttachmentIds;
     }
@@ -106,6 +115,10 @@ public:
                 ++count;
         }
         return count;
+    }
+
+    int acceptedMutationCount() const {
+        return m_journal.size();
     }
 
     int firstEvent(const QString &prefix) const {
@@ -664,6 +677,17 @@ public:
         m_dropNextCommit = true;
     }
 
+    // The service processes begin or an attached upload, but the client sees
+    // a lost response. These are the crash boundaries immediately after the
+    // server has durably accepted the operation.
+    void dropNextBeginResponse() {
+        m_dropNextBegin = true;
+    }
+
+    void dropNextPushResponse() {
+        m_dropNextPush = true;
+    }
+
     void send(
         quint64 requestId,
         const AccountTransportRequest &request) override {
@@ -705,8 +729,7 @@ public:
         if (request.method
                 == QByteArrayLiteral("POST")
             && request.path == beginPath) {
-            emit finished(
-                requestId,
+            const AccountTransportReply beginReply =
                 m_service->begin(
                     request.body
                         .value(
@@ -722,7 +745,20 @@ public:
                         .value(
                             QStringLiteral(
                                 "source_semantic_digest"))
-                        .toString()));
+                        .toString());
+            if (m_dropNextBegin) {
+                m_dropNextBegin = false;
+                AccountTransportReply dropped;
+                dropped.networkError = true;
+                dropped.errorCode =
+                    QStringLiteral("offline");
+                dropped.errorMessage =
+                    QStringLiteral(
+                        "fixture lost begin response");
+                emit finished(requestId, dropped);
+                return;
+            }
+            emit finished(requestId, beginReply);
             return;
         }
 
@@ -783,8 +819,7 @@ public:
             && request.path
                 == QLatin1String(
                        "/v1/sync/push")) {
-            emit finished(
-                requestId,
+            const AccountTransportReply pushReply =
                 m_service->push(
                     request.body
                         .value(
@@ -795,7 +830,20 @@ public:
                         .value(
                             QStringLiteral(
                                 "attachment_id"))
-                        .toString()));
+                        .toString());
+            if (m_dropNextPush) {
+                m_dropNextPush = false;
+                AccountTransportReply dropped;
+                dropped.networkError = true;
+                dropped.errorCode =
+                    QStringLiteral("offline");
+                dropped.errorMessage =
+                    QStringLiteral(
+                        "fixture lost push response");
+                emit finished(requestId, dropped);
+                return;
+            }
+            emit finished(requestId, pushReply);
             return;
         }
 
@@ -877,6 +925,8 @@ private:
     FixtureAttachmentService *m_service =
         nullptr;
     bool m_online = true;
+    bool m_dropNextBegin = false;
+    bool m_dropNextPush = false;
     bool m_dropNextCommit = false;
 };
 
@@ -886,8 +936,12 @@ class SyntheticAdapter final
 
 public:
     explicit SyntheticAdapter(
+        const QString &persistencePath = QString(),
         QObject *parent = nullptr)
-        : SyncAdapter(parent) {}
+        : SyncAdapter(parent),
+          m_persistencePath(persistencePath) {
+        loadPersisted();
+    }
 
     QString categoryId() const override {
         return QStringLiteral(
@@ -965,6 +1019,7 @@ public:
 
         ++m_revision;
         ++m_remoteApplyCount;
+        persist();
         return true;
     }
 
@@ -982,6 +1037,7 @@ public:
             });
 
         ++m_revision;
+        persist();
         emit localMutationAvailable(
             m_revision);
     }
@@ -1004,10 +1060,60 @@ public:
     }
 
 private:
+    void loadPersisted() {
+        if (m_persistencePath.isEmpty())
+            return;
+
+        QFile file(m_persistencePath);
+        if (!file.open(QIODevice::ReadOnly))
+            return;
+
+        QJsonParseError parseError;
+        const QJsonDocument document =
+            QJsonDocument::fromJson(
+                file.readAll(),
+                &parseError);
+        if (parseError.error
+                != QJsonParseError::NoError
+            || !document.isObject()) {
+            return;
+        }
+
+        const QJsonObject object =
+            document.object();
+        for (auto it = object.constBegin();
+             it != object.constEnd(); ++it) {
+            m_records.insert(it.key(), it.value());
+        }
+    }
+
+    void persist() const {
+        if (m_persistencePath.isEmpty())
+            return;
+
+        QSaveFile file(m_persistencePath);
+        if (!file.open(QIODevice::WriteOnly))
+            return;
+
+        QJsonObject object;
+        QStringList keys = m_records.keys();
+        keys.sort();
+        for (const QString &key : keys) {
+            object.insert(key, m_records.value(key));
+        }
+
+        const QByteArray bytes =
+            QJsonDocument(object).toJson(
+                QJsonDocument::Compact);
+        if (file.write(bytes) == bytes.size())
+            file.commit();
+    }
+
     QHash<QString, QJsonValue>
         m_records;
     quint64 m_revision = 0;
     int m_remoteApplyCount = 0;
+    QString m_persistencePath;
 };
 
 ProfilePaths accountProfile(
@@ -1276,6 +1382,11 @@ private slots:
     void invalidReceiptFailsClosedUntouched();
     void mismatchedIdentityFailsClosed();
     void retirementWriteFailureKeepsReceiptAndSource();
+
+    // Arc 36 Wave 4B lane N-18 — fresh-stack crash/restart proofs at the
+    // durable receipt, begin, attached-upload, and cloud-verification edges.
+    void crashRestartMatrixUsesDurableReceiptAndEngineState();
+    void abandonedAttachmentKeepsSourceAndAccountUnchanged();
 };
 
 // Input validation refuses before any durable or server side effect.
@@ -3088,6 +3199,502 @@ void tst_account_attachment_coordinator::
             .status,
         AccountAttachmentReceipt::
             ReadStatus::Missing);
+}
+
+// Every client-visible crash edge below is followed by a fresh transport,
+// client, engine, coordinator, and persistent synthetic local store. The
+// fixture service is the durable server side; the receipt and SyncStateStore
+// are the durable desktop side. These are intentionally separate scopes so a
+// passing result cannot depend on a still-live coordinator object.
+void tst_account_attachment_coordinator::
+    crashRestartMatrixUsesDurableReceiptAndEngineState() {
+    // Receipt written, but the begin request never reached the server.
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+
+        FixtureAttachmentService service;
+        qint64 now = service.serverTimeMs;
+        const ProfilePaths profile =
+            accountProfile(&temp);
+        const QString adapterPath =
+            QDir(temp.path()).filePath(
+                QStringLiteral("adapter.json"));
+
+        FixtureSnapshotPage page;
+        page.cursor = 0;
+        page.hasMore = false;
+        service.setSnapshotPages({page});
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            adapter.putLocal(
+                QStringLiteral("manga/local"),
+                QStringLiteral("source"));
+            QTRY_COMPARE(
+                run.engine.pendingOutboxCount(),
+                1);
+
+            run.transport.setOnline(false);
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+
+            QString error;
+            QVERIFY2(
+                coordinator.start(
+                    QString::fromLatin1(kAttachmentId),
+                    validSource(),
+                    &error),
+                qPrintable(error));
+            QTRY_COMPARE(recording.finishedCount, 1);
+            QVERIFY(!recording.succeeded);
+            QCOMPARE(
+                recording.errorCode,
+                QStringLiteral("server_begin_failed"));
+            QCOMPARE(service.eventCount(
+                         QStringLiteral("begin")),
+                     0);
+            QCOMPARE(
+                AccountAttachmentReceipt::read(profile)
+                    .status,
+                AccountAttachmentReceipt::ReadStatus::Ok);
+        }
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+            coordinator.setCloudStateVerifier(
+                [](QString *) { return true; });
+
+            QString error;
+            QVERIFY2(
+                coordinator.resumePending(&error),
+                qPrintable(error));
+            run.engine.setNetworkEnabled(true);
+            QTRY_COMPARE(recording.finishedCount, 1);
+            QVERIFY(recording.succeeded);
+            QCOMPARE(
+                service.eventCount(
+                    QStringLiteral("begin")),
+                1);
+            QCOMPARE(
+                service.attachmentState(
+                    QString::fromLatin1(kAttachmentId)),
+                QStringLiteral("committed"));
+            QCOMPARE(
+                AccountAttachmentReceipt::read(profile)
+                    .status,
+                AccountAttachmentReceipt::ReadStatus::Missing);
+            QVERIFY(adapter.contains(
+                QStringLiteral("manga/local")));
+        }
+    }
+
+    // The server accepted begin, but its response was lost before the crash.
+    // Restart must query the existing open attachment rather than re-begin it.
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+
+        FixtureAttachmentService service;
+        qint64 now = service.serverTimeMs;
+        const ProfilePaths profile =
+            accountProfile(&temp);
+        const QString adapterPath =
+            QDir(temp.path()).filePath(
+                QStringLiteral("adapter.json"));
+        FixtureSnapshotPage page;
+        page.cursor = 0;
+        page.hasMore = false;
+        service.setSnapshotPages({page});
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            run.transport.dropNextBeginResponse();
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+
+            QString error;
+            QVERIFY2(
+                coordinator.start(
+                    QString::fromLatin1(kAttachmentId),
+                    validSource(),
+                    &error),
+                qPrintable(error));
+            QTRY_COMPARE(recording.finishedCount, 1);
+            QVERIFY(!recording.succeeded);
+            QCOMPARE(
+                service.eventCount(
+                    QStringLiteral("begin")),
+                1);
+            QCOMPARE(
+                service.attachmentState(
+                    QString::fromLatin1(kAttachmentId)),
+                QStringLiteral("open"));
+            QVERIFY(
+                !AccountAttachmentReceipt::read(profile)
+                     .data.sourceRetired);
+        }
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+            coordinator.setCloudStateVerifier(
+                [](QString *) { return true; });
+
+            QString error;
+            QVERIFY2(
+                coordinator.resumePending(&error),
+                qPrintable(error));
+            run.engine.setNetworkEnabled(true);
+            QTRY_COMPARE(recording.finishedCount, 1);
+            QVERIFY(recording.succeeded);
+            QCOMPARE(
+                service.eventCount(
+                    QStringLiteral("begin")),
+                1);
+            QCOMPARE(
+                service.attachmentState(
+                    QString::fromLatin1(kAttachmentId)),
+                QStringLiteral("committed"));
+            QCOMPARE(
+                AccountAttachmentReceipt::read(profile)
+                    .status,
+                AccountAttachmentReceipt::ReadStatus::Missing);
+        }
+    }
+
+    // An attached upload was accepted, but the response was lost. The fresh
+    // engine replays the same mutation idempotently and then completes.
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+
+        FixtureAttachmentService service;
+        qint64 now = service.serverTimeMs;
+        const ProfilePaths profile =
+            accountProfile(&temp);
+        const QString adapterPath =
+            QDir(temp.path()).filePath(
+                QStringLiteral("adapter.json"));
+        FixtureSnapshotPage page;
+        page.cursor = 0;
+        page.hasMore = false;
+        service.setSnapshotPages({page});
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            adapter.putLocal(
+                QStringLiteral("manga/local"),
+                QStringLiteral("source"));
+            QTRY_COMPARE(
+                run.engine.pendingOutboxCount(),
+                1);
+
+            run.transport.dropNextPushResponse();
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+            coordinator.setCloudStateVerifier(
+                [](QString *) { return true; });
+
+            QString error;
+            QVERIFY2(
+                coordinator.start(
+                    QString::fromLatin1(kAttachmentId),
+                    validSource(),
+                    &error),
+                qPrintable(error));
+            run.engine.setNetworkEnabled(true);
+            QTRY_COMPARE(
+                service.eventCount(
+                    QStringLiteral("push:")),
+                1);
+            QTest::qWait(50);
+            QCOMPARE(recording.finishedCount, 0);
+            QCOMPARE(
+                service.attachmentState(
+                    QString::fromLatin1(kAttachmentId)),
+                QStringLiteral("uploaded"));
+            QVERIFY(
+                !AccountAttachmentReceipt::read(profile)
+                     .data.sourceRetired);
+        }
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            QVERIFY(run.engine.attachmentModeActive());
+            QVERIFY(run.engine.pendingOutboxCount() > 0);
+
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+            coordinator.setCloudStateVerifier(
+                [](QString *) { return true; });
+
+            QString error;
+            QVERIFY2(
+                coordinator.resumePending(&error),
+                qPrintable(error));
+            run.engine.setNetworkEnabled(true);
+            QTRY_COMPARE(recording.finishedCount, 1);
+            QVERIFY(recording.succeeded);
+            QCOMPARE(
+                service.eventCount(
+                    QStringLiteral("push:")),
+                2);
+            QCOMPARE(
+                service.acceptedMutationCount(),
+                1);
+            QCOMPARE(
+                service.attachmentState(
+                    QString::fromLatin1(kAttachmentId)),
+                QStringLiteral("committed"));
+            QVERIFY(adapter.contains(
+                QStringLiteral("manga/local")));
+        }
+    }
+
+    // The cloud verifier returned success, but the commit request failed
+    // before reaching the server. A fresh stack must retry from uploaded,
+    // preserving the receipt and source until commit really succeeds.
+    {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+
+        FixtureAttachmentService service;
+        qint64 now = service.serverTimeMs;
+        const ProfilePaths profile =
+            accountProfile(&temp);
+        const QString adapterPath =
+            QDir(temp.path()).filePath(
+                QStringLiteral("adapter.json"));
+        FixtureSnapshotPage page;
+        page.cursor = 0;
+        page.hasMore = false;
+        service.setSnapshotPages({page});
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            adapter.putLocal(
+                QStringLiteral("manga/local"),
+                QStringLiteral("source"));
+            QTRY_COMPARE(
+                run.engine.pendingOutboxCount(),
+                1);
+
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+            coordinator.setCloudStateVerifier(
+                [&](QString *) {
+                    service.events << QStringLiteral(
+                        "verify");
+                    run.transport.setOnline(false);
+                    return true;
+                });
+
+            QString error;
+            QVERIFY2(
+                coordinator.start(
+                    QString::fromLatin1(kAttachmentId),
+                    validSource(),
+                    &error),
+                qPrintable(error));
+            run.engine.setNetworkEnabled(true);
+            QTRY_COMPARE(recording.finishedCount, 1);
+            QVERIFY(!recording.succeeded);
+            QCOMPARE(
+                recording.errorCode,
+                QStringLiteral("commit_failed"));
+            QCOMPARE(
+                service.eventCount(
+                    QStringLiteral("verify")),
+                1);
+            QCOMPARE(
+                service.eventCount(
+                    QStringLiteral("commit")),
+                0);
+            QVERIFY(
+                !AccountAttachmentReceipt::read(profile)
+                     .data.sourceRetired);
+        }
+
+        {
+            SyntheticAdapter adapter(adapterPath);
+            EngineRun run(
+                &service,
+                &adapter,
+                profile,
+                &now);
+            AccountAttachmentCoordinator coordinator(
+                &run.client,
+                &run.engine,
+                profile);
+            Recording recording;
+            recordProgress(&coordinator, &recording);
+            coordinator.setCloudStateVerifier(
+                [](QString *) { return true; });
+
+            QString error;
+            QVERIFY2(
+                coordinator.resumePending(&error),
+                qPrintable(error));
+            run.engine.setNetworkEnabled(true);
+            QTRY_COMPARE(recording.finishedCount, 1);
+            QVERIFY(recording.succeeded);
+            QCOMPARE(
+                service.eventCount(
+                    QStringLiteral("commit")),
+                1);
+            QCOMPARE(
+                service.attachmentState(
+                    QString::fromLatin1(kAttachmentId)),
+                QStringLiteral("committed"));
+            QCOMPARE(
+                AccountAttachmentReceipt::read(profile)
+                    .status,
+                AccountAttachmentReceipt::ReadStatus::Missing);
+        }
+    }
+}
+
+// An attachment abandoned before any server work leaves the original local
+// source usable after a fresh stack and leaves the account side untouched.
+void tst_account_attachment_coordinator::
+    abandonedAttachmentKeepsSourceAndAccountUnchanged() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureAttachmentService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile =
+        accountProfile(&temp);
+    const QString adapterPath =
+        QDir(temp.path()).filePath(
+            QStringLiteral("adapter.json"));
+
+    {
+        SyntheticAdapter adapter(adapterPath);
+        EngineRun run(
+            &service,
+            &adapter,
+            profile,
+            &now);
+        adapter.putLocal(
+            QStringLiteral("manga/local"),
+            QStringLiteral("source"));
+        QTRY_COMPARE(
+            run.engine.pendingOutboxCount(),
+            1);
+
+        run.transport.setOnline(false);
+        AccountAttachmentCoordinator coordinator(
+            &run.client,
+            &run.engine,
+            profile);
+        Recording recording;
+        recordProgress(&coordinator, &recording);
+
+        QString error;
+        QVERIFY2(
+            coordinator.start(
+                QString::fromLatin1(kAttachmentId),
+                validSource(),
+                &error),
+            qPrintable(error));
+        QTRY_COMPARE(recording.finishedCount, 1);
+        QVERIFY(!recording.succeeded);
+        QCOMPARE(service.events.size(), 0);
+        QCOMPARE(service.acceptedMutationCount(), 0);
+        QVERIFY(adapter.contains(
+            QStringLiteral("manga/local")));
+        QCOMPARE(
+            adapter.value(
+                QStringLiteral("manga/local")),
+            QStringLiteral("source"));
+        QVERIFY(
+            !AccountAttachmentReceipt::read(profile)
+                 .data.sourceRetired);
+    }
+
+    // The persistent synthetic store is reopened independently, matching the
+    // original source's usable-after-abandonment requirement.
+    SyntheticAdapter reopened(adapterPath);
+    QVERIFY(reopened.contains(
+        QStringLiteral("manga/local")));
+    QCOMPARE(
+        reopened.value(
+            QStringLiteral("manga/local")),
+        QStringLiteral("source"));
+    QVERIFY(!service.hasAttachment(
+        QString::fromLatin1(kAttachmentId)));
+    QCOMPARE(
+        AccountAttachmentReceipt::read(profile)
+            .status,
+        AccountAttachmentReceipt::ReadStatus::Ok);
 }
 
 QTEST_GUILESS_MAIN(
