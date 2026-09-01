@@ -223,6 +223,12 @@ private slots:
     void hasFixedCoverageVacuousWhenNoneRequired();
     void clearAllIsTransactionalAndSignals();
     void restartPersistsAndProjectsDeterministically();
+    void portableSyncFactsExportOnlySyncableSortedAndDeterministic();
+    void portableSyncFactsSanitizeMachineLocalCover();
+    void applySyncedPortableFactImportsAndProjects();
+    void applySyncedPortableFactIdempotentAgainstRicherLocalPresentation();
+    void applySyncedPortableFactConflictDoesNotMutate();
+    void applySyncedPortableFactRejectsMalformedBeforeMutation();
     void unhealthyDatabasePath_data();
     void unhealthyDatabasePath();
 };
@@ -470,6 +476,211 @@ void tst_activity_store::restartPersistsAndProjectsDeterministically() {
     const QVariantMap again = reopened->projectMonth(QStringLiteral("2026-08"));
     QCOMPARE(QJsonDocument(QJsonObject::fromVariantMap(again)).toJson(QJsonDocument::Compact),
              reopenedProjectionJson);
+}
+
+void tst_activity_store::portableSyncFactsExportOnlySyncableSortedAndDeterministic() {
+    ActivityStore store;
+
+    QVariantMap later = playbackFact(
+        QStringLiteral("s-later"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:later"), QStringLiteral("movie:later"), QStringLiteral("Later"),
+        localMs(2026, 8, 15, 12, 0, 0), 10000, 1000, 330,
+        QStringLiteral("BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB"));
+    QVariantMap earlier = readingFact(
+        QStringLiteral("s-earlier"), QStringLiteral("tankoban"), QStringLiteral("manga_chapter"),
+        QStringLiteral("manga:earlier"), QStringLiteral("chapter:1"), QStringLiteral("Earlier"),
+        localMs(2026, 8, 14, 12, 0, 0), QStringLiteral("fixed"),
+        QStringList{QStringLiteral("p1")}, 0, 330,
+        QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));
+    QVariantMap localOnly = completionFact(
+        QStringLiteral("s-local"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:local"), QStringLiteral("movie:local"), QStringLiteral("Local"),
+        localMs(2026, 8, 16, 12, 0, 0), QStringLiteral("eof"), 330,
+        QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc"));
+    localOnly[QStringLiteral("syncable")] = false;
+
+    QVERIFY(store.recordPlaybackDelta(later));
+    QVERIFY(store.recordReadingDelta(earlier));
+    QVERIFY(store.recordCompletion(localOnly));
+
+    QString error;
+    const QList<QVariantMap> first = store.portableSyncFacts(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(first.size(), 2);
+    QCOMPARE(first.at(0).value(QStringLiteral("eventId")).toString(),
+             QStringLiteral("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));
+    QCOMPARE(first.at(1).value(QStringLiteral("eventId")).toString(),
+             QStringLiteral("BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB"));
+    QVERIFY(first.at(0).value(QStringLiteral("syncable")).toBool());
+    QVERIFY(first.at(1).value(QStringLiteral("syncable")).toBool());
+
+    QVariantList firstList;
+    for (const QVariantMap &fact : first)
+        firstList.append(fact);
+    const QByteArray firstJson = QJsonDocument(QJsonArray::fromVariantList(firstList))
+        .toJson(QJsonDocument::Compact);
+
+    const QList<QVariantMap> second = store.portableSyncFacts(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QVariantList secondList;
+    for (const QVariantMap &fact : second)
+        secondList.append(fact);
+    QCOMPARE(QJsonDocument(QJsonArray::fromVariantList(secondList)).toJson(QJsonDocument::Compact),
+             firstJson);
+}
+
+void tst_activity_store::portableSyncFactsSanitizeMachineLocalCover() {
+    ActivityStore store;
+    QVariantMap fact = playbackFact(
+        QStringLiteral("s1"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:x"), QStringLiteral("movie:x"), QStringLiteral("X"),
+        localMs(2026, 8, 15, 10, 0, 0), 20000, 1000, 330,
+        QStringLiteral("11111111-1111-4111-8111-111111111111"));
+    fact[QStringLiteral("cover")] = QStringLiteral("C:\\Users\\Suprabha\\Pictures\\cover.jpg");
+    QVERIFY(store.recordPlaybackDelta(fact));
+
+    QString error;
+    const QList<QVariantMap> portable = store.portableSyncFacts(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(portable.size(), 1);
+    QCOMPARE(portable.first().value(QStringLiteral("cover")).toString(), QString());
+    QCOMPARE(portable.first().value(QStringLiteral("eventId")).toString(),
+             QStringLiteral("11111111-1111-4111-8111-111111111111"));
+    QCOMPARE(portable.first().value(QStringLiteral("titleKey")).toString(), QStringLiteral("movie:x"));
+    QCOMPARE(portable.first().value(QStringLiteral("activeMs")).toLongLong(), qint64(20000));
+
+    const QList<QVariantMap> local = store.historyProjectionFacts();
+    QCOMPARE(local.size(), 1);
+    QCOMPARE(local.first().value(QStringLiteral("cover")).toString(),
+             QStringLiteral("C:\\Users\\Suprabha\\Pictures\\cover.jpg"));
+}
+
+void tst_activity_store::applySyncedPortableFactImportsAndProjects() {
+    ActivityStore source;
+    ActivityStore target;
+    QVERIFY(source.recordReadingDelta(readingFact(
+        QStringLiteral("s-read"), QStringLiteral("biblio"), QStringLiteral("book"),
+        QStringLiteral("book:x"), QStringLiteral("book:x"), QStringLiteral("Book X"),
+        localMs(2026, 8, 20, 18, 0, 0), QStringLiteral("reflowable"), QStringList{},
+        420000, 330, QStringLiteral("22222222-2222-4222-8222-222222222222"))));
+    QVERIFY(source.recordPlaybackDelta(playbackFact(
+        QStringLiteral("s-play"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:y"), QStringLiteral("movie:y"), QStringLiteral("Movie Y"),
+        localMs(2026, 8, 20, 19, 0, 0), 18000, 1250, 330,
+        QStringLiteral("66666666-6666-4666-8666-666666666666"))));
+    QVERIFY(source.recordCompletion(completionFact(
+        QStringLiteral("s-complete"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:z"), QStringLiteral("movie:z"), QStringLiteral("Movie Z"),
+        localMs(2026, 8, 20, 20, 0, 0), QStringLiteral("eof"), 330,
+        QStringLiteral("77777777-7777-4777-8777-777777777777"))));
+
+    QString error;
+    const QList<QVariantMap> portable = source.portableSyncFacts(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(portable.size(), 3);
+    for (const QVariantMap &portableFact : portable)
+        QVERIFY2(target.applySyncedPortableFact(portableFact, &error), qPrintable(error));
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+
+    const QJsonObject sourceProjection = QJsonObject::fromVariantMap(
+        source.projectMonth(QStringLiteral("2026-08")));
+    const QJsonObject targetProjection = QJsonObject::fromVariantMap(
+        target.projectMonth(QStringLiteral("2026-08")));
+    QStringList diffs;
+    compareJson(targetProjection, sourceProjection, QStringLiteral("$"), diffs);
+    if (!diffs.isEmpty())
+        QFAIL(qPrintable(diffs.join(QStringLiteral("\n"))));
+
+    const QList<QVariantMap> imported = target.portableSyncFacts(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(imported, portable);
+    QCOMPARE(imported.at(2).value(QStringLiteral("reason")).toString(), QStringLiteral("eof"));
+}
+
+void tst_activity_store::applySyncedPortableFactIdempotentAgainstRicherLocalPresentation() {
+    ActivityStore store;
+    QVariantMap local = playbackFact(
+        QStringLiteral("s1"), QStringLiteral("theatre"), QStringLiteral("episode"),
+        QStringLiteral("series:x"), QStringLiteral("episode:x:1"), QStringLiteral("Series X"),
+        localMs(2026, 8, 21, 20, 0, 0), 15000, 1000, 330,
+        QStringLiteral("33333333-3333-4333-8333-333333333333"));
+    local[QStringLiteral("cover")] = QStringLiteral("qrc:/covers/series-x.jpg");
+    QVERIFY(store.recordPlaybackDelta(local));
+    QCOMPARE(store.revision(), quint64(1));
+
+    QString error;
+    const QList<QVariantMap> portable = store.portableSyncFacts(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(portable.size(), 1);
+    QCOMPARE(portable.first().value(QStringLiteral("cover")).toString(), QString());
+
+    QSignalSpy changedSpy(&store, &ActivityStore::changed);
+    QVERIFY2(store.applySyncedPortableFact(portable.first(), &error), qPrintable(error));
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(store.revision(), quint64(1));
+    QCOMPARE(changedSpy.count(), 0);
+
+    const QList<QVariantMap> localFacts = store.historyProjectionFacts();
+    QCOMPARE(localFacts.size(), 1);
+    QCOMPARE(localFacts.first().value(QStringLiteral("cover")).toString(),
+             QStringLiteral("qrc:/covers/series-x.jpg"));
+}
+
+void tst_activity_store::applySyncedPortableFactConflictDoesNotMutate() {
+    ActivityStore store;
+    QVariantMap local = playbackFact(
+        QStringLiteral("s1"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:x"), QStringLiteral("movie:x"), QStringLiteral("X"),
+        localMs(2026, 8, 22, 20, 0, 0), 10000, 1000, 330,
+        QStringLiteral("44444444-4444-4444-8444-444444444444"));
+    local[QStringLiteral("cover")] = QStringLiteral("file:///C:/covers/x.jpg");
+    QVERIFY(store.recordPlaybackDelta(local));
+
+    QString error;
+    const QList<QVariantMap> before = store.portableSyncFacts(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(before.size(), 1);
+
+    QVariantMap conflicting = before.first();
+    conflicting[QStringLiteral("activeMs")] = qint64(12000);
+    conflicting[QStringLiteral("endAtMs")] =
+        conflicting.value(QStringLiteral("startAtMs")).toLongLong() + 12000;
+
+    QSignalSpy changedSpy(&store, &ActivityStore::changed);
+    QVERIFY(!store.applySyncedPortableFact(conflicting, &error));
+    QCOMPARE(error, QStringLiteral("activity_event_conflict"));
+    QCOMPARE(store.revision(), quint64(1));
+    QCOMPARE(changedSpy.count(), 0);
+
+    QString afterError;
+    const QList<QVariantMap> after = store.portableSyncFacts(&afterError);
+    QVERIFY2(afterError.isEmpty(), qPrintable(afterError));
+    QCOMPARE(after, before);
+}
+
+void tst_activity_store::applySyncedPortableFactRejectsMalformedBeforeMutation() {
+    ActivityStore store;
+    QVariantMap malformed = playbackFact(
+        QStringLiteral("s1"), QStringLiteral("theatre"), QStringLiteral("movie"),
+        QStringLiteral("movie:x"), QStringLiteral("movie:x"), QStringLiteral("X"),
+        localMs(2026, 8, 23, 20, 0, 0), 10000, 1000, 330,
+        QStringLiteral("55555555-5555-4555-8555-555555555555"));
+    malformed.remove(QStringLiteral("title"));
+    malformed[QStringLiteral("v")] = 1;
+    malformed[QStringLiteral("type")] = QStringLiteral("playback_delta");
+
+    QSignalSpy changedSpy(&store, &ActivityStore::changed);
+    QString error;
+    QVERIFY(!store.applySyncedPortableFact(malformed, &error));
+    QVERIFY(!error.isEmpty());
+    QCOMPARE(store.revision(), quint64(0));
+    QCOMPARE(changedSpy.count(), 0);
+
+    QString exportError;
+    QVERIFY(store.portableSyncFacts(&exportError).isEmpty());
+    QVERIFY2(exportError.isEmpty(), qPrintable(exportError));
+    const QVariantMap projection = store.projectMonth(QStringLiteral("2026-08"));
+    QCOMPARE(projection.value(QStringLiteral("watchSeconds")).toInt(), 0);
 }
 
 void tst_activity_store::unhealthyDatabasePath_data() {
