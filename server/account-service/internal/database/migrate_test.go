@@ -80,6 +80,119 @@ func TestRunMigrationsFromEmptyDatabase(t *testing.T) {
 	}
 }
 
+func TestMigration0006ActivityFactHLC(t *testing.T) {
+	pool := testdb.Open(t)
+	testdb.ResetPublicSchema(t, pool)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	if err := RunMigrations(ctx, pool); err != nil {
+		t.Fatalf("RunMigrations() first pass error = %v", err)
+	}
+	if err := RunMigrations(ctx, pool); err != nil {
+		t.Fatalf("RunMigrations() second pass error = %v", err)
+	}
+
+	var appliedCount int
+	if err := pool.QueryRow(ctx, `
+        SELECT count(*)
+        FROM schema_migrations
+        WHERE name = '0006_activity_fact_hlc.sql'
+    `).Scan(&appliedCount); err != nil {
+		t.Fatalf("count migration 0006 applications: %v", err)
+	}
+	if appliedCount != 1 {
+		t.Fatalf("migration 0006 application count = %d, want exactly 1", appliedCount)
+	}
+
+	for _, column := range []string{"hlc_physical_ms", "hlc_counter"} {
+		var dataType, nullable string
+		if err := pool.QueryRow(ctx, `
+            SELECT data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'account_activity_facts'
+              AND column_name = $1
+        `, column).Scan(&dataType, &nullable); err != nil {
+			t.Fatalf("read account_activity_facts.%s: %v", column, err)
+		}
+		if dataType != "bigint" || nullable != "NO" {
+			t.Fatalf("account_activity_facts.%s = (%s, nullable=%s), want bigint NOT NULL", column, dataType, nullable)
+		}
+	}
+
+	for _, constraint := range []string{
+		"account_activity_facts_hlc_physical_ck",
+		"account_activity_facts_hlc_counter_ck",
+	} {
+		var exists bool
+		if err := pool.QueryRow(ctx, `
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conrelid = 'public.account_activity_facts'::regclass
+                  AND conname = $1
+                  AND contype = 'c'
+            )
+        `, constraint).Scan(&exists); err != nil {
+			t.Fatalf("check constraint %s: %v", constraint, err)
+		}
+		if !exists {
+			t.Fatalf("required constraint %s missing", constraint)
+		}
+	}
+
+	var accountID, deviceID string
+	if _, err := pool.Exec(ctx, `
+        INSERT INTO username_reservations(canonical_username, reserved_at)
+        VALUES ('migration-0006-user', now())
+    `); err != nil {
+		t.Fatalf("insert username reservation: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `
+        INSERT INTO accounts(
+            canonical_username, display_username, password_hash,
+            recovery_key_verifier, created_at, updated_at
+        ) VALUES ($1, $2, $3, decode('01', 'hex'), now(), now())
+        RETURNING id::text
+    `, "migration-0006-user", "Migration 0006", "test-hash").Scan(&accountID); err != nil {
+		t.Fatalf("insert account: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `
+        INSERT INTO devices(
+            account_id, install_id, label, platform, created_at, last_seen_at
+        ) VALUES ($1::uuid, gen_random_uuid(), 'Device 000006', 'windows', now(), now())
+        RETURNING id::text
+    `, accountID).Scan(&deviceID); err != nil {
+		t.Fatalf("insert device: %v", err)
+	}
+
+	insertFact := func(physical, counter int64) error {
+		_, err := pool.Exec(ctx, `
+            INSERT INTO account_activity_facts(
+                account_id, event_id, mutation_id, origin_device_id,
+                schema_version, event_type, payload_ciphertext,
+                hlc_physical_ms, hlc_counter, received_at
+            ) VALUES (
+                $1::uuid, gen_random_uuid(), gen_random_uuid(), $2::uuid,
+                1, 'playback_delta', decode('03', 'hex'), $3, $4, now()
+            )
+        `, accountID, deviceID, physical, counter)
+		return err
+	}
+
+	if err := insertFact(123, 4); err != nil {
+		t.Fatalf("insert valid activity HLC: %v", err)
+	}
+	if err := insertFact(-1, 0); err == nil {
+		t.Fatal("negative hlc_physical_ms was accepted")
+	}
+	if err := insertFact(0, -1); err == nil {
+		t.Fatal("negative hlc_counter was accepted")
+	}
+}
+
 func TestMigration0005PortableProfileSync(t *testing.T) {
 	pool := testdb.Open(t)
 	testdb.ResetPublicSchema(t, pool)
@@ -323,10 +436,11 @@ func TestMigration0005PortableProfileSync(t *testing.T) {
 	if _, err := pool.Exec(ctx, `
         INSERT INTO account_activity_facts(
             account_id, event_id, mutation_id, origin_device_id,
-            schema_version, event_type, payload_ciphertext, received_at
+            schema_version, event_type, payload_ciphertext,
+            hlc_physical_ms, hlc_counter, received_at
         ) VALUES (
             $1::uuid, gen_random_uuid(), gen_random_uuid(), $2::uuid,
-            1, 'playback_delta', decode('03', 'hex'), now()
+            1, 'playback_delta', decode('03', 'hex'), 1, 0, now()
         )
     `, accountID, deviceID); err != nil {
 		t.Fatalf("insert activity fact: %v", err)
