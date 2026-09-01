@@ -36,6 +36,8 @@ Item {
 
     // --- resolved state ---
     property string malId: ""    // Slice C: Discover card's MAL id, when the series was opened from one
+    property string requestedVolumeNumber: ""
+    onRequestedVolumeNumberChanged: Qt.callLater(page.openRequestedVolume)
     property string seriesId: ""
     property string seriesUrl: ""
     property string banner: ""
@@ -163,6 +165,23 @@ Item {
             author: page.author, aliases: []
         }, page.volumes, page.chaptersModel)
         page._rebuildTankobanEntries()
+        Qt.callLater(page.openRequestedVolume)
+    }
+
+    function openRequestedVolume() {
+        var want = String(page.requestedVolumeNumber || "")
+        if (!want.length) return
+        var rows = readingRoom.library.volumeRows || []
+        for (var i = 0; i < rows.length; i++) {
+            if (String(rows[i].number) === want) {
+                var volumeId = String(rows[i].id)
+                var ready = readingRoom.library.effectiveState(rows[i]) === "ready"
+                page.requestedVolumeNumber = ""
+                if (ready) page._openVolume(volumeId)
+                else readingRoom.library.chooseSource(volumeId)
+                return
+            }
+        }
     }
 
     // --- reader entry kind: "manga" (chapters) or "tankoban" (volumes). The one
@@ -273,7 +292,11 @@ Item {
     Connections {
         target: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
         ignoreUnknownSignals: true
-        function onVolumesChanged(sid) { if (sid === page.seriesId) page._rebuildTankobanEntries() }
+        function onVolumesChanged(sid) {
+            if (sid !== page.seriesId) return
+            page._rebuildTankobanEntries()
+            Qt.callLater(page.openRequestedVolume)
+        }
     }
 
     // --- volumes (Comick volume DB via MangaVolumes.js; complete ranges or none — gated) ---

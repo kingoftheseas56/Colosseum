@@ -60,6 +60,8 @@ Item {
     property string sourceSearchTitle: ""
     property var sourceSearchAliases: []
     property var sourceRequiredMarkers: []
+    property string requestedVolumeNumber: "" // temporary universe volume landing
+    onRequestedVolumeNumberChanged: Qt.callLater(page.openRequestedVolume)
     // The catalogue-resolved numeric identity (0 = unresolved). seriesId below is derived
     // from this ("mal:"+resolvedMalId) the moment a single row is found; a title that never
     // resolves to exactly one candidate leaves both at their unresolved value — the honest
@@ -204,6 +206,21 @@ Item {
             requiredTitleMarkers: page.sourceRequiredMarkers
         }, vols, [])
         page._rebuildTankobanEntries()
+        Qt.callLater(page.openRequestedVolume)
+    }
+
+    function openRequestedVolume() {
+        var want = String(page.requestedVolumeNumber || "")
+        var svc = page.tankobanVolumesRef
+        if (!want.length || !svc || !page.seriesId.length) return
+        var rows = svc.volumesForSeries(page.seriesId) || []
+        for (var i = 0; i < rows.length; i++) {
+            if (String(rows[i].number) === want) {
+                page.requestedVolumeNumber = ""
+                page._readVolume(String(rows[i].id))
+                return
+            }
+        }
     }
 
     // --- reader entry kind: "manga" (chapters) or "tankoban" (volumes). The one
@@ -416,7 +433,11 @@ Item {
     Connections {
         target: page.tankobanVolumesRef
         ignoreUnknownSignals: true
-        function onVolumesChanged(sid) { if (sid === page.seriesId) page._rebuildTankobanEntries() }
+        function onVolumesChanged(sid) {
+            if (sid !== page.seriesId) return
+            page._rebuildTankobanEntries()
+            Qt.callLater(page.openRequestedVolume)
+        }
         function onFinished(volumeId) {
             if (!page.pendingReadActive || page._pendingReadViaSources) return
             if (String(volumeId) !== page.pendingReadVolumeId) return

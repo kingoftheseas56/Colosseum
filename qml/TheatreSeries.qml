@@ -782,7 +782,18 @@ Item {
     function onMetaLoaded() {
         if (mediaType === "series") {
             seasons = computeSeasons(videos);
-            activeSeason = defaultSeason();
+            var requestedSeason = Number((itemData && itemData.requestedSeason) || -1)
+            var requestedEpisode = Number((itemData && itemData.requestedEpisode) || 0)
+            activeSeason = (requestedSeason >= 0 && seasonExists(requestedSeason))
+                           ? requestedSeason : defaultSeason();
+            if (requestedEpisode > 0) {
+                Qt.callLater(function() {
+                    var requestedIdx = page.episodeIndex(requestedEpisode)
+                    if (requestedIdx >= 0)
+                        page.scrollToEpisodeIndex(requestedIdx)
+                })
+                return
+            }
             // Open on next-up, not episode 1 (Hemanth, scroll-UX rework 2026-08-24). If
             // everything is unwatched, next-up IS episode 1 (index 0) — leave the page at
             // the top so the hero stays visible instead of "scrolling" nowhere.

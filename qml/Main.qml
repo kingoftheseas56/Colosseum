@@ -814,23 +814,41 @@ Window {
             sourceRequiredMarkers: ["colored", "full color", "full colour"]
         }, "13")
     }
-    function openSeries(title, malId, profile) {
+    function openSeries(title, malId, profile, requestedVolumeNumber) {
+        if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
         seriesLayer.resumeVolumeId = ""
+        seriesLayer.requestedVolumeNumber = String(requestedVolumeNumber || "")
         applySeriesEditionProfile(profile, malId)
         seriesLayer.title = title
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
+            seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
     }
+    // Direct provider compatibility for the returning WeebCentral colored edition.
+    function openWeebCentralSeries(title, requestedVolumeNumber) {
+        if (seriesLayer.active) seriesLayer.active = false
+        clearSeriesEditionProfile()
+        seriesLayer.legacyWeebCentral = true
+        seriesLayer.resumeSeriesId = ""
+        seriesLayer.resumeChapterId = ""
+        seriesLayer.resumeVolumeId = ""
+        seriesLayer.requestedVolumeNumber = String(requestedVolumeNumber || "")
+        seriesLayer.title = title || ""
+        seriesLayer.active = true
+    }
+
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
     function openSeriesAt(title, seriesId, chapterId) {
+        if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
         seriesLayer.resumeVolumeId = ""
+        seriesLayer.requestedVolumeNumber = ""
         restoreSeriesEditionProfile(seriesId)
         seriesLayer.title = title
         if (seriesLayer.active && seriesLayer.item) {
@@ -1381,6 +1399,7 @@ Window {
         universeLayer.active = true
     }
     function closeUniverse() { universeLayer.active = false }
+    function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
     function openUniverseHall() { universeHallLayer.active = true }
     function closeUniverseHall() { universeHallLayer.active = false }
 
@@ -2841,7 +2860,9 @@ Window {
         property string resumeSeriesId: ""    // Continue resume: jump straight to this chapter…
         property string resumeChapterId: ""   //   …in this series (set seriesId BEFORE the chapter)
         property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
-        source: "MangaSeries.qml"
+        property string requestedVolumeNumber: "" // temporary arc-volume landing; chapter catalogue follows
+        property bool legacyWeebCentral: false
+        source: legacyWeebCentral ? "MangaSeriesThumbnailMock.qml" : "MangaSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.malId = seriesLayer.malId
@@ -2849,6 +2870,7 @@ Window {
             item.sourceSearchTitle = seriesLayer.sourceSearchTitle
             item.sourceSearchAliases = seriesLayer.sourceSearchAliases
             item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
+            item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
@@ -3343,7 +3365,7 @@ Window {
         function onChanged() { TheatreApi.setShowExplicit(contentPreferences.showExplicit) }
     }
 
-    // ---- Universes: the ONE extension-driven page + the Hall of Worlds ----
+    // ---- Universes: extension-backed bespoke pages + generic fallback ----
     Loader {
         id: universeLayer
         anchors.fill: parent
@@ -3355,14 +3377,19 @@ Window {
         property string universeName: ""
         source: extensionId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
-                : "UniverseExtensionPage.qml"
+                : (extensionId === "com.colosseum.universe.onepiece"
+                   ? "OnePieceUniversePage.qml"
+                   : "UniverseExtensionPage.qml")
         onLoaded: {
             // NO item.backdrop — UniverseExtensionPage has no such property; it paints its
             // own flat #0c0e11 instead of sampling the shared wallpaper.
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
-            if (universeLayer.extensionId === "com.colosseum.universe.dcau")
+            if (universeLayer.extensionId === "com.colosseum.universe.dcau" ||
+                    universeLayer.extensionId === "com.colosseum.universe.onepiece")
                 item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+            if (universeLayer.extensionId === "com.colosseum.universe.onepiece")
+                item.installedExtensions = Qt.binding(function() { return win.installedExtensions })
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -3372,7 +3399,7 @@ Window {
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
             item.watchRequested.connect(win.openTheatreSeries)
-if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
+            if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
                 item.comicRequested.connect(win.openGcdSeries)
                 item.continueResumeRequested.connect(win.resumeContinue)
                 item.continueDetailRequested.connect(win.detailContinue)
@@ -3382,15 +3409,21 @@ if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
                 // manga → Tankoban. Edition-aware entries can carry a discovery/storage
                 // profile while reusing the same catalogue identity as the base manga.
                 item.seriesRequested.connect(function(e) {
-                    if (e && e.provider === "tankoban") {
-                        win.openSeries(e.title || "", e.malId || "", {
-                            malId: e.malId || "", seriesId: e.seriesId || "",
-                            sourceSearchTitle: e.sourceSearchTitle || "",
-                            sourceSearchAliases: e.sourceSearchAliases || [],
-                            sourceRequiredMarkers: e.sourceRequiredMarkers || []
-                        })
-                    } else win.openSeries((e && e.title) || e || "")
+                    var requested = (e && e.requestedVolumeNumber) ? String(e.requestedVolumeNumber) : ""
+                    if (e && e.provider === "weebcentral") win.openWeebCentralSeries(e.title || "", requested)
+                    else if (e && e.provider === "tankoban") win.openSeries(e.title || "", e.malId || "", {
+                        malId: e.malId || "", seriesId: e.seriesId || "",
+                        sourceSearchTitle: e.sourceSearchTitle || "",
+                        sourceSearchAliases: e.sourceSearchAliases || [],
+                        sourceRequiredMarkers: e.sourceRequiredMarkers || []
+                    }, requested)
+                    else win.openSeries((e && e.title) || e || "", "", null, requested)
                 })
+                if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
+                    item.onePaceRequested.connect(win.openOnePaceArc)
+                    item.continueResumeRequested.connect(win.resumeContinue)
+                    item.continueDetailRequested.connect(win.detailContinue)
+                }
             }
         }
     }
