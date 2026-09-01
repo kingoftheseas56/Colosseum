@@ -162,6 +162,8 @@ endif()
 add_executable(colosseum
     main.cpp
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
+    # Arc 36 Wave 4B N-16: resumable attachment flow orchestrator.
+    account/AccountAttachmentCoordinator.cpp
     # Arc 36 Wave 4A N-14: crash-safe cloud attachment receipt (persistence only).
     account/AccountAttachmentReceipt.cpp
     account/AccountBootstrapStore.cpp
@@ -206,6 +208,8 @@ add_executable(colosseum
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
     account/WindowsAccountSensitiveClipboard.cpp
+    # Arc 36 Wave 4B N-16: Q_OBJECT — moc needs the header listed.
+    account/AccountAttachmentCoordinator.h
     account/AccountAttachmentReceipt.h
     account/AccountBootstrapStore.h
     account/AccountClient.h
