@@ -29,6 +29,12 @@ Need $page 'marks/rebel.svg' 'Rebellion era mark must be present.'
 Need $page 'marks/new-republic.png' 'New Republic era mark must be present.'
 Need $page 'marks/first-order.svg' 'First Order era mark must be present.'
 Need $page 'marks/new-jedi-order.png' 'Beyond Skywalker era mark must be present.'
+$eraEnvironments = @('valo.jpg','coruscant.jpg','mustafar.jpg','hoth.jpg','nevarro.jpg','jakku.jpg','ahch-to.jpg')
+foreach ($name in $eraEnvironments) {
+    Need $page ("../assets/universes/star-wars/" + $name) ("Era destination must bind environment " + $name)
+    if (-not (Test-Path (Join-Path $root ("assets\universes\star-wars\" + $name)))) { throw "Missing Star Wars environment file: $name" }
+}
+Need $page 'String(root.currentDestination.env || "").length > 0' 'Environment visibility must tolerate destinations without a wallpaper.'
 Need $page 'radius:820, angle:2.72, y:30' 'Across the Eras must clear the title at laptop viewports.'
 $payload = Get-Content (Join-Path $root 'assets\universes\star-wars.json') -Raw | ConvertFrom-Json
 $saga = @($payload.universe.sections | Where-Object { $_.id -eq 'skywalker-saga-screen' })
