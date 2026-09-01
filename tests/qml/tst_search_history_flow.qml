@@ -216,6 +216,7 @@ TestCase {
         verify(bookCallback !== undefined)
         verify(audioCallback !== undefined)
         surface.destroy()
+        wait(0)
         compare(bookCancellations, 1)
         compare(audioCancellations, 1)
     }

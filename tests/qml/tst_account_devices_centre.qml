@@ -100,6 +100,7 @@ TestCase {
         })
         verify(page !== null)
         wait(0)
+        waitForRendering(page)
         controller.refreshCalls = 0
     }
 
@@ -136,6 +137,7 @@ TestCase {
         verify(revoke !== null)
         mouseClick(revoke, revoke.width / 2, revoke.height / 2)
         wait(0)
+        waitForRendering(page)
 
         compare(page.revokeTargetId, newerId)
         compare(controller.revokeCalls, 0)
@@ -145,6 +147,7 @@ TestCase {
     function test_cancel_does_not_revoke() {
         page.openRevoke(newerId)
         wait(0)
+        waitForRendering(page)
         var cancel = byName(page, "deviceRevokeCancel_" + newerId)
         mouseClick(cancel, cancel.width / 2, cancel.height / 2)
         compare(controller.revokeCalls, 0)
@@ -154,6 +157,7 @@ TestCase {
     function test_confirm_uses_server_device_id_once() {
         page.openRevoke(newerId)
         wait(0)
+        waitForRendering(page)
         var confirm = byName(page, "deviceRevokeConfirm_" + newerId)
         mouseClick(confirm, confirm.width / 2, confirm.height / 2)
 
