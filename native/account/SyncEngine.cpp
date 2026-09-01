@@ -1367,8 +1367,8 @@ bool SyncEngine::processPullReply(
             entry.mutation.hlc,
             nowMs());
 
-        if (entry.won
-            && !applyWinningPullEntry(
+        if ((entry.canonical || entry.won)
+            && !applyPullEntry(
                 entry,
                 errorCode,
                 errorMessage)) {
@@ -1552,30 +1552,32 @@ bool SyncEngine::processPushReply(
     return true;
 }
 
-bool SyncEngine::applyWinningPullEntry(
+bool SyncEngine::applyPullEntry(
     const SyncWirePullEntry &entry,
     QString *errorCode,
     QString *errorMessage) {
     const SyncWireMutation &mutation =
         entry.mutation;
 
-    const auto categoryIt =
-        m_persistent.winners.constFind(
-            mutation.category);
+    if (!entry.canonical) {
+        const auto categoryIt =
+            m_persistent.winners.constFind(
+                mutation.category);
 
-    if (categoryIt
-        != m_persistent.winners.constEnd()) {
-        const auto winnerIt =
-            categoryIt->constFind(
-                mutation.recordKey);
+        if (categoryIt
+            != m_persistent.winners.constEnd()) {
+            const auto winnerIt =
+                categoryIt->constFind(
+                    mutation.recordKey);
 
-        if (winnerIt
-                != categoryIt->constEnd()
-            && compareSyncWireHlc(
-                   winnerIt->hlc,
-                   mutation.hlc)
-                >= 0) {
-            return true;
+            if (winnerIt
+                    != categoryIt->constEnd()
+                && compareSyncWireHlc(
+                       winnerIt->hlc,
+                       mutation.hlc)
+                    >= 0) {
+                return true;
+            }
         }
     }
 

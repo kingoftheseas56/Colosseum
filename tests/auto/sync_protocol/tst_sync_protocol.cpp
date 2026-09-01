@@ -37,6 +37,7 @@ private slots:
     void invalidRecordKeysAreRejected();
     void pushResultParsesClockSkewCurrentMetadata();
     void pullEntryParsesJournalEnvelope();
+    void pullEntryParsesCanonicalCompatibilityFlag();
     void fullResponseEnvelopesParseServiceTimeAndAscendingCursorOrder();
     void recordKeyLimitUsesUtf8Bytes();
     void accountClientPushUsesAuthenticatedEndpoint();
@@ -331,9 +332,60 @@ pullEntryParsesJournalEnvelope() {
     QVERIFY(parsed.has_value());
     QCOMPARE(parsed->serverSeq, quint64(27));
     QVERIFY(parsed->won);
+    QVERIFY(!parsed->canonical);
     QCOMPARE(
         parsed->mutation.recordKey,
         mutation.recordKey);
+}
+
+void tst_sync_protocol::
+pullEntryParsesCanonicalCompatibilityFlag() {
+    SyncWireMutation mutation;
+    mutation.mutationId =
+        QStringLiteral(
+            "ffffffff-ffff-4fff-8fff-ffffffffffff");
+    mutation.deviceId =
+        QStringLiteral(
+            "11111111-1111-4111-8111-111111111111");
+    mutation.category =
+        QStringLiteral("collection");
+    mutation.recordKey =
+        QStringLiteral("manga/item-canonical");
+    mutation.schemaVersion = 1;
+    mutation.hlc = SyncWireHlc{
+        5100,
+        0,
+        mutation.deviceId};
+    mutation.operation =
+        SyncWireOperation::Put;
+    mutation.payload =
+        QJsonObject{
+            {
+                QStringLiteral("value"),
+                QStringLiteral("canonical")
+            }
+        };
+
+    QJsonObject entry;
+    entry.insert(
+        QStringLiteral("server_seq"),
+        QStringLiteral("28"));
+    entry.insert(
+        QStringLiteral("won"),
+        false);
+    entry.insert(
+        QStringLiteral("canonical"),
+        true);
+    entry.insert(
+        QStringLiteral("mutation"),
+        syncWireMutationToJson(mutation));
+
+    const auto parsed =
+        syncWirePullEntryFromJson(entry);
+    QVERIFY(parsed.has_value());
+    QCOMPARE(parsed->serverSeq, quint64(28));
+    QVERIFY(!parsed->won);
+    QVERIFY(parsed->canonical);
 }
 
 void tst_sync_protocol::

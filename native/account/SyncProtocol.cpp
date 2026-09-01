@@ -485,6 +485,10 @@ syncWirePullEntryFromJson(
         object.value(
             QStringLiteral("won"))
             .toBool(false);
+    entry.canonical =
+        object.value(
+            QStringLiteral("canonical"))
+            .toBool(false);
     entry.mutation =
         *mutation;
     return entry;

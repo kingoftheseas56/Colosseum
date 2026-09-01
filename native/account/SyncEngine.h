@@ -134,7 +134,7 @@ private:
         QString *errorCode,
         QString *errorMessage);
 
-    bool applyWinningPullEntry(
+    bool applyPullEntry(
         const SyncWirePullEntry &entry,
         QString *errorCode,
         QString *errorMessage);

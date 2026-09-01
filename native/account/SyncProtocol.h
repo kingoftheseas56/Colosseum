@@ -53,6 +53,7 @@ struct SyncWirePushResult {
 struct SyncWirePullEntry {
     quint64 serverSeq = 0;
     bool won = false;
+    bool canonical = false;
     SyncWireMutation mutation;
 };
 
