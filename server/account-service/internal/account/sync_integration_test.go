@@ -1256,6 +1256,270 @@ func TestSyncUnifiedPullPaginatesMixedStream(t *testing.T) {
 	}
 }
 
+func TestAttachedPushTagsRowsWithoutChangingMutationIdentity(t *testing.T) {
+	fixture := newServiceFixture(t)
+	accountResult := createFixtureAccount(t, fixture, "AttachPushTags")
+	auth := authenticateFixtureSession(t, fixture, accountResult.Session)
+	now := fixture.clock.Now().UnixMilli()
+
+	// A mutation first pushed without an attachment keeps its identity when
+	// the attached envelope replays it: same mutation id, same server_seq,
+	// and the journal row is never re-tagged.
+	ordinary := fixtureSyncMutation(
+		"8a000000-0000-4000-8000-000000000001",
+		auth.Device.ID, "attach-push/ordinary", "v0", now, 0)
+	ordinaryPush, err := fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{ordinary})
+	if err != nil || !ordinaryPush.Results[0].Accepted {
+		t.Fatalf("PushSync(ordinary) = %+v err %v", ordinaryPush.Results, err)
+	}
+	ordinarySeq := ordinaryPush.Results[0].ServerSeq
+
+	const attachmentID = "8b000000-0000-4000-8000-000000000001"
+	if _, err := fixture.service.BeginProfileAttachment(
+		context.Background(), auth,
+		BeginProfileAttachmentInput{
+			AttachmentID:         attachmentID,
+			SourceKind:           "local_only",
+			SourceSemanticDigest: "digest-attach-push",
+		}); err != nil {
+		t.Fatalf("BeginProfileAttachment() error = %v", err)
+	}
+	fixture.clock.Advance(3 * time.Minute)
+
+	attachedMutable := fixtureSyncMutation(
+		"8a000000-0000-4000-8000-000000000002",
+		auth.Device.ID, "attach-push/attached", "v1", fixture.clock.Now().UnixMilli(), 0)
+	const activityEventID = "8a000000-0000-4000-8000-0000000000aa"
+	attachedActivity := activityMutation(
+		"8a000000-0000-4000-8000-0000000000bb",
+		auth.Device.ID,
+		activityEventID,
+		activityPlaybackPayload(activityEventID))
+
+	push, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, attachmentID,
+		[]SyncMutationInput{attachedMutable, attachedActivity})
+	if err != nil {
+		t.Fatalf("PushSyncWithAttachment() error = %v", err)
+	}
+	if len(push.Results) != 2 ||
+		!push.Results[0].Accepted || !push.Results[1].Accepted ||
+		push.Results[0].ServerSeq == 0 || push.Results[1].ServerSeq == 0 {
+		t.Fatalf("attached push results = %+v", push.Results)
+	}
+
+	var journalAttachment, ordinaryJournalAttachment *string
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT attachment_id::text FROM account_sync_journal
+		 WHERE account_id = $1::uuid AND mutation_id = $2::uuid`,
+		auth.Account.ID, attachedMutable.MutationID).Scan(&journalAttachment); err != nil {
+		t.Fatalf("load attached journal row: %v", err)
+	}
+	if journalAttachment == nil || *journalAttachment != attachmentID {
+		t.Fatalf("attached journal attachment_id = %v, want %s", journalAttachment, attachmentID)
+	}
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT attachment_id::text FROM account_sync_journal
+		 WHERE account_id = $1::uuid AND mutation_id = $2::uuid`,
+		auth.Account.ID, ordinary.MutationID).Scan(&ordinaryJournalAttachment); err != nil {
+		t.Fatalf("load ordinary journal row: %v", err)
+	}
+	if ordinaryJournalAttachment != nil {
+		t.Fatalf("ordinary journal row was re-tagged: %v", ordinaryJournalAttachment)
+	}
+
+	var factAttachment *string
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT attachment_id::text FROM account_activity_facts
+		 WHERE account_id = $1::uuid AND event_id = $2::uuid`,
+		auth.Account.ID, activityEventID).Scan(&factAttachment); err != nil {
+		t.Fatalf("load attached activity fact: %v", err)
+	}
+	if factAttachment == nil || *factAttachment != attachmentID {
+		t.Fatalf("attached activity attachment_id = %v, want %s", factAttachment, attachmentID)
+	}
+
+	var state string
+	var createdAt, updatedAt time.Time
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT state, created_at, updated_at FROM account_device_attachments
+		 WHERE id = $1::uuid`, attachmentID).Scan(&state, &createdAt, &updatedAt); err != nil {
+		t.Fatalf("load attachment after push: %v", err)
+	}
+	if state != "uploaded" {
+		t.Fatalf("attachment state = %s, want uploaded after first accepted mutation", state)
+	}
+	if !updatedAt.After(createdAt) {
+		t.Fatalf("attachment updated_at = %v, want refreshed after created_at %v", updatedAt, createdAt)
+	}
+
+	// Retries keep mutation identity stable: envelope attachment_id never
+	// changes the mutation, and replays do not churn attachment state.
+	fixture.clock.Advance(3 * time.Minute)
+	retry, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, attachmentID,
+		[]SyncMutationInput{attachedMutable, attachedActivity})
+	if err != nil {
+		t.Fatalf("PushSyncWithAttachment(retry) error = %v", err)
+	}
+	if retry.Results[0].ServerSeq != push.Results[0].ServerSeq ||
+		retry.Results[1].ServerSeq != push.Results[1].ServerSeq {
+		t.Fatalf("attached retry seqs = %+v, want original %+v", retry.Results, push.Results)
+	}
+
+	var journalCount, factCount int
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT count(*) FROM account_sync_journal WHERE account_id = $1::uuid`,
+		auth.Account.ID).Scan(&journalCount); err != nil {
+		t.Fatalf("count journal: %v", err)
+	}
+	if journalCount != 2 {
+		t.Fatalf("journal rows = %d, want 2", journalCount)
+	}
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT count(*) FROM account_activity_facts WHERE account_id = $1::uuid`,
+		auth.Account.ID).Scan(&factCount); err != nil {
+		t.Fatalf("count facts: %v", err)
+	}
+	if factCount != 1 {
+		t.Fatalf("activity fact rows = %d, want 1", factCount)
+	}
+
+	var stateAfterRetry string
+	var updatedAtAfterRetry time.Time
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT state, updated_at FROM account_device_attachments WHERE id = $1::uuid`,
+		attachmentID).Scan(&stateAfterRetry, &updatedAtAfterRetry); err != nil {
+		t.Fatalf("load attachment after retry: %v", err)
+	}
+	if stateAfterRetry != "uploaded" || !updatedAtAfterRetry.Equal(updatedAt) {
+		t.Fatalf("attachment after retry = %s@%v, want uploaded@%v (no churn)",
+			stateAfterRetry, updatedAtAfterRetry, updatedAt)
+	}
+
+	// The unattached envelope replay of the same mutation id also stays
+	// idempotent with the original server_seq.
+	unattachedReplay, err := fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{attachedMutable})
+	if err != nil {
+		t.Fatalf("PushSync(unattached replay) error = %v", err)
+	}
+	if unattachedReplay.Results[0].ServerSeq != push.Results[0].ServerSeq {
+		t.Fatalf("unattached replay seq = %d, want %d",
+			unattachedReplay.Results[0].ServerSeq, push.Results[0].ServerSeq)
+	}
+
+	// Replaying the originally-unattached mutation through the attached
+	// envelope must not re-tag its journal row (identity is frozen at first
+	// acceptance).
+	attachedReplay, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, attachmentID, []SyncMutationInput{ordinary})
+	if err != nil {
+		t.Fatalf("PushSyncWithAttachment(ordinary replay) error = %v", err)
+	}
+	if attachedReplay.Results[0].ServerSeq != ordinarySeq {
+		t.Fatalf("attached ordinary replay seq = %d, want %d",
+			attachedReplay.Results[0].ServerSeq, ordinarySeq)
+	}
+	if err := fixture.pool.QueryRow(
+		context.Background(),
+		`SELECT attachment_id::text FROM account_sync_journal
+		 WHERE account_id = $1::uuid AND mutation_id = $2::uuid`,
+		auth.Account.ID, ordinary.MutationID).Scan(&ordinaryJournalAttachment); err != nil {
+		t.Fatalf("reload ordinary journal row: %v", err)
+	}
+	if ordinaryJournalAttachment != nil {
+		t.Fatalf("replay re-tagged the ordinary journal row: %v", ordinaryJournalAttachment)
+	}
+}
+
+func TestAttachedPushRejectsForeignOrTerminalAttachments(t *testing.T) {
+	fixture := newServiceFixture(t)
+	accountResult := createFixtureAccount(t, fixture, "AttachPushRejects")
+	auth := authenticateFixtureSession(t, fixture, accountResult.Session)
+	deviceB := signInSecondDevice(t, fixture, "AttachPushRejects")
+
+	const ownAttachmentID = "8c000000-0000-4000-8000-000000000001"
+	const otherDeviceAttachmentID = "8c000000-0000-4000-8000-000000000002"
+	if _, err := fixture.service.BeginProfileAttachment(
+		context.Background(), auth,
+		BeginProfileAttachmentInput{
+			AttachmentID:         ownAttachmentID,
+			SourceKind:           "local_only",
+			SourceSemanticDigest: "digest-own",
+		}); err != nil {
+		t.Fatalf("BeginProfileAttachment(own) error = %v", err)
+	}
+	if _, err := fixture.service.BeginProfileAttachment(
+		context.Background(), deviceB,
+		BeginProfileAttachmentInput{
+			AttachmentID:         otherDeviceAttachmentID,
+			SourceKind:           "local_only",
+			SourceSemanticDigest: "digest-other-device",
+		}); err != nil {
+		t.Fatalf("BeginProfileAttachment(device B) error = %v", err)
+	}
+
+	sampleMutation := func(id string) SyncMutationInput {
+		return fixtureSyncMutation(
+			id, auth.Device.ID, "attach-reject/record", "value",
+			fixture.clock.Now().UnixMilli(), 0)
+	}
+
+	if _, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, otherDeviceAttachmentID,
+		[]SyncMutationInput{sampleMutation(
+			"8c000000-0000-4000-8000-000000000003")}); err == nil {
+		t.Fatal("attached push accepted another device's attachment")
+	} else {
+		requireErrorIs(t, err, ErrAttachmentNotFound)
+	}
+
+	if _, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, "8c000000-0000-4000-8000-00000000ffff",
+		[]SyncMutationInput{sampleMutation(
+			"8c000000-0000-4000-8000-000000000004")}); err == nil {
+		t.Fatal("attached push accepted an unknown attachment")
+	} else {
+		requireErrorIs(t, err, ErrAttachmentNotFound)
+	}
+
+	if _, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, "not-a-uuid",
+		[]SyncMutationInput{sampleMutation(
+			"8c000000-0000-4000-8000-000000000005")}); err == nil {
+		t.Fatal("attached push accepted an invalid attachment id")
+	} else {
+		requireErrorIs(t, err, ErrAttachmentInvalid)
+	}
+
+	if _, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, ownAttachmentID, nil); err == nil {
+		t.Fatal("attached push accepted an empty batch")
+	}
+
+	if _, err := fixture.service.CommitProfileAttachment(
+		context.Background(), auth, ownAttachmentID); err != nil {
+		t.Fatalf("CommitProfileAttachment() error = %v", err)
+	}
+	if _, err := fixture.service.PushSyncWithAttachment(
+		context.Background(), auth, ownAttachmentID,
+		[]SyncMutationInput{sampleMutation(
+			"8c000000-0000-4000-8000-000000000006")}); err == nil {
+		t.Fatal("attached push accepted a committed attachment")
+	} else {
+		requireErrorIs(t, err, ErrAttachmentNotActive)
+	}
+}
+
 func TestSyncUnifiedPullKeepsMutableTombstonesAlongsideActivity(t *testing.T) {
 	fixture := newServiceFixture(t)
 	accountResult := createFixtureAccount(t, fixture, "SyncUnifiedTombstone")

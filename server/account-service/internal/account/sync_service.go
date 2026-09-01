@@ -31,6 +31,37 @@ func (s *Service) PushSync(
 	auth AuthenticatedSession,
 	inputs []SyncMutationInput,
 ) (SyncPushResponse, error) {
+	return s.pushSyncMutations(ctx, auth, "", inputs)
+}
+
+// PushSyncWithAttachment processes a push envelope carrying an
+// attachment_id. The envelope tags newly accepted journal and Activity rows
+// with the attachment and never changes mutation identity: replays return
+// their original results untouched. Only an attachment owned by the
+// authenticated account/device and still in open or uploaded state is
+// accepted.
+func (s *Service) PushSyncWithAttachment(
+	ctx context.Context,
+	auth AuthenticatedSession,
+	attachmentID string,
+	inputs []SyncMutationInput,
+) (SyncPushResponse, error) {
+	normalized, err := normalizeProfileAttachmentID(attachmentID)
+	if err != nil {
+		return SyncPushResponse{}, err
+	}
+	if err := s.loadOwnedActiveAttachment(ctx, auth, normalized); err != nil {
+		return SyncPushResponse{}, err
+	}
+	return s.pushSyncMutations(ctx, auth, normalized, inputs)
+}
+
+func (s *Service) pushSyncMutations(
+	ctx context.Context,
+	auth AuthenticatedSession,
+	attachmentID string,
+	inputs []SyncMutationInput,
+) (SyncPushResponse, error) {
 	now := s.clock.Now().UTC()
 	response := SyncPushResponse{
 		ServerTimeMS: now.UnixMilli(),
@@ -85,6 +116,7 @@ func (s *Service) PushSync(
 				auth,
 				parsed,
 				fact,
+				attachmentID,
 				now)
 			if err != nil {
 				return response, err
@@ -97,6 +129,7 @@ func (s *Service) PushSync(
 			ctx,
 			auth,
 			parsed,
+			attachmentID,
 			now)
 		if err != nil {
 			return response, err
@@ -111,6 +144,7 @@ func (s *Service) pushOneSyncMutation(
 	ctx context.Context,
 	auth AuthenticatedSession,
 	parsed parsedSyncMutation,
+	attachmentID string,
 	now time.Time,
 ) (SyncPushResult, error) {
 	tx, err := s.pool.Begin(ctx)
@@ -148,6 +182,11 @@ func (s *Service) pushOneSyncMutation(
 		}
 	}
 
+	var attachmentParam any
+	if attachmentID != "" {
+		attachmentParam = attachmentID
+	}
+
 	var serverSeq int64
 	err = tx.QueryRow(ctx, `
         INSERT INTO account_sync_journal(
@@ -162,11 +201,12 @@ func (s *Service) pushOneSyncMutation(
             operation,
             payload_ciphertext,
             won,
-            received_at
+            received_at,
+            attachment_id
         )
         VALUES(
             $1::uuid, $2::uuid, $3::uuid, $4, $5, $6,
-            $7, $8, $9, $10, false, $11
+            $7, $8, $9, $10, false, $11, $12::uuid
         )
         ON CONFLICT(account_id, mutation_id) DO NOTHING
         RETURNING server_seq
@@ -181,7 +221,8 @@ func (s *Service) pushOneSyncMutation(
 		int64(parsed.HLCCounter),
 		parsed.Operation,
 		ciphertext,
-		now).Scan(&serverSeq)
+		now,
+		attachmentParam).Scan(&serverSeq)
 
 	if err == pgx.ErrNoRows {
 		existing, found, loadErr := loadJournalByMutationIDTx(
@@ -208,6 +249,13 @@ func (s *Service) pushOneSyncMutation(
 	}
 	if err != nil {
 		return SyncPushResult{}, fmt.Errorf("insert sync journal: %w", err)
+	}
+
+	// The first accepted attached mutation atomically advances the
+	// attachment open -> uploaded in the same transaction as its journal row.
+	if err := markAttachmentUploadedTx(
+		ctx, tx, auth.Account.ID, attachmentID, now); err != nil {
+		return SyncPushResult{}, err
 	}
 
 	recordLockKey :=
