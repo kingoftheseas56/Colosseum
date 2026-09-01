@@ -80,7 +80,7 @@ const worldPath='qml/DCAUWorldPage.qml';
 eq(fs.existsSync(worldPath),true,'DCAUWorldPage.qml exists');
 if (fs.existsSync(worldPath)) {
  const q=fs.readFileSync(worldPath,'utf8');
- for (const n of ['PortraitTile','CataloguePosterCard','visualProfile: "gallery"','posterWidth: 180','width: 200'])
+ for (const n of ['DCAUTankCard','DCAUTheatreCard','x: 6','height: 278','height: 352'])
    eq(q.includes(n),true,`DCAU world page contains ${n}`);
 }
 
