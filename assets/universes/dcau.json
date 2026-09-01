@@ -5,45 +5,292 @@
     "logo": "https://images.metahub.space/logo/medium/tt0103359/img",
     "background": "https://images.metahub.space/background/medium/tt0103359/img",
     "sections": [
-      { "id": "tv", "title": "TV Shows", "kind": "video", "entries": [
-        { "id": "tt0103359", "type": "series", "title": "Batman: The Animated Series", "year": "1992" },
-        { "id": "tt0115378", "type": "series", "title": "Superman: The Animated Series", "year": "1996" },
-        { "id": "tt0118266", "type": "series", "title": "The New Batman Adventures", "year": "1997" },
-        { "id": "tt0147746", "type": "series", "title": "Batman Beyond", "year": "1999" },
-        { "id": "tt0247729", "type": "series", "title": "Static Shock", "year": "2000" },
-        { "id": "tt0260662", "type": "series", "title": "The Zeta Project", "year": "2001" },
-        { "id": "tt0275137", "type": "series", "title": "Justice League", "year": "2001" },
-        { "id": "tt6025022", "type": "series", "title": "Justice League Unlimited", "year": "2004" }
-      ]},
-      { "id": "shorts", "title": "Web Shorts", "kind": "video", "entries": [
-        { "id": "tt6075386", "type": "series", "title": "Lobo", "year": "2000", "note": "14 episodes" },
-        { "id": "tt0337763", "type": "series", "title": "Gotham Girls", "year": "2000", "note": "31 episodes" }
-      ]},
-      { "id": "movies", "title": "Movies", "kind": "video", "entries": [
-        { "id": "tt0106364", "type": "movie", "title": "Batman: Mask of the Phantasm", "year": "1993" },
-        { "id": "tt0143127", "type": "movie", "title": "Batman & Mr. Freeze: SubZero", "year": "1998" },
-        { "id": "tt0231237", "type": "movie", "title": "Batman Beyond: The Movie", "year": "1999" },
-        { "id": "tt0233298", "type": "movie", "title": "Batman Beyond: Return of the Joker", "year": "2000" },
-        { "id": "tt0346578", "type": "movie", "title": "Batman: Mystery of the Batwoman", "year": "2003" },
-        { "id": "tt6556890", "type": "movie", "title": "Batman and Harley Quinn", "year": "2017" },
-        { "id": "tt8752474", "type": "movie", "title": "Justice League vs. the Fatal Five", "year": "2019" }
-      ]},
-      { "id": "comics", "title": "Comics", "kind": "comic", "entries": [
-        { "provider": "getcomics", "title": "The Batman Adventures", "year": "1992", "posts": [11366] },
-        { "provider": "getcomics", "title": "The Batman Adventures: Mad Love", "year": "1994", "posts": [153724] },
-        { "provider": "getcomics", "title": "Mad Love Deluxe Edition", "year": "2015", "posts": [80956] },
-        { "provider": "getcomics", "title": "Batman & Robin Adventures", "year": "1995", "posts": [50187] },
-        { "provider": "getcomics", "title": "Superman Adventures", "year": "1996", "posts": [14615] },
-        { "provider": "getcomics", "title": "Adventures in the DC Universe", "year": "1997", "posts": [48881] },
-        { "provider": "getcomics", "title": "Batman: Gotham Adventures", "year": "1998", "posts": [15941] },
-        { "provider": "getcomics", "title": "Batman Beyond", "year": "1999", "posts": [190572] },
-        { "provider": "getcomics", "title": "Batman Beyond (TV tie-ins)", "year": "2000", "posts": [163954] },
-        { "provider": "getcomics", "title": "Batman Beyond: Return of the Joker", "year": "2001", "posts": [282726] },
-        { "provider": "getcomics", "title": "Justice League Adventures", "year": "2002", "posts": [10563] },
-        { "provider": "getcomics", "title": "Gotham Girls", "year": "2002", "posts": [10470] },
-        { "provider": "getcomics", "title": "Batman Adventures Vol. 2", "year": "2003", "posts": [183948] },
-        { "provider": "getcomics", "title": "Justice League Unlimited", "year": "2004", "posts": [8823] }
-      ]}
+      {
+        "id": "tv",
+        "title": "TV Shows",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt0103359",
+            "type": "series",
+            "title": "Batman: The Animated Series",
+            "year": "1992"
+          },
+          {
+            "id": "tt0115378",
+            "type": "series",
+            "title": "Superman: The Animated Series",
+            "year": "1996"
+          },
+          {
+            "id": "tt0118266",
+            "type": "series",
+            "title": "The New Batman Adventures",
+            "year": "1997"
+          },
+          {
+            "id": "tt0147746",
+            "type": "series",
+            "title": "Batman Beyond",
+            "year": "1999"
+          },
+          {
+            "id": "tt0247729",
+            "type": "series",
+            "title": "Static Shock",
+            "year": "2000"
+          },
+          {
+            "id": "tt0260662",
+            "type": "series",
+            "title": "The Zeta Project",
+            "year": "2001"
+          },
+          {
+            "id": "tt0275137",
+            "type": "series",
+            "title": "Justice League",
+            "year": "2001"
+          },
+          {
+            "id": "tt6025022",
+            "type": "series",
+            "title": "Justice League Unlimited",
+            "year": "2004"
+          }
+        ]
+      },
+      {
+        "id": "shorts",
+        "title": "Web Shorts",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt6075386",
+            "type": "series",
+            "title": "Lobo",
+            "year": "2000",
+            "note": "14 episodes"
+          },
+          {
+            "id": "tt0337763",
+            "type": "series",
+            "title": "Gotham Girls",
+            "year": "2000",
+            "note": "31 episodes"
+          }
+        ]
+      },
+      {
+        "id": "movies",
+        "title": "Movies",
+        "kind": "video",
+        "entries": [
+          {
+            "id": "tt0106364",
+            "type": "movie",
+            "title": "Batman: Mask of the Phantasm",
+            "year": "1993"
+          },
+          {
+            "id": "tt0143127",
+            "type": "movie",
+            "title": "Batman & Mr. Freeze: SubZero",
+            "year": "1998"
+          },
+          {
+            "id": "tt0231237",
+            "type": "movie",
+            "title": "Batman Beyond: The Movie",
+            "year": "1999"
+          },
+          {
+            "id": "tt0233298",
+            "type": "movie",
+            "title": "Batman Beyond: Return of the Joker",
+            "year": "2000"
+          },
+          {
+            "id": "tt0346578",
+            "type": "movie",
+            "title": "Batman: Mystery of the Batwoman",
+            "year": "2003"
+          },
+          {
+            "id": "tt6556890",
+            "type": "movie",
+            "title": "Batman and Harley Quinn",
+            "year": "2017"
+          },
+          {
+            "id": "tt8752474",
+            "type": "movie",
+            "title": "Justice League vs. the Fatal Five",
+            "year": "2019"
+          }
+        ]
+      },
+      {
+        "id": "comics",
+        "title": "Comics",
+        "kind": "comic",
+        "entries": [
+          {
+            "provider": "getcomics",
+            "title": "The Batman Adventures",
+            "year": "1992",
+            "posts": [
+              11366
+            ],
+            "id": "gcd:4374",
+            "gcdId": 4374,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/08/Batman-Adventures-Collection.jpg?fit=480%2C757&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "The Batman Adventures: Mad Love",
+            "year": "1994",
+            "posts": [
+              153724
+            ],
+            "id": "gcd:4943",
+            "gcdId": 4943,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2025/01/Batman-Adventures-Mad-Love-1-1994.jpg?fit=400%2C615&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Mad Love Deluxe Edition",
+            "year": "2015",
+            "posts": [
+              80956
+            ],
+            "id": "gcd:4943",
+            "gcdId": 4943,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2018/04/The-Batman-Adventures-Mad-Love-Deluxe-Edition-2015.jpg?fit=400%2C617&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Batman & Robin Adventures",
+            "year": "1995",
+            "posts": [
+              50187
+            ],
+            "id": "gcd:5222",
+            "gcdId": 5222,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2017/04/Batman-and-Robin-Adventures-1-25-Annuals-Sub-Zero-1995-1997.jpg?fit=400%2C612&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Superman Adventures",
+            "year": "1996",
+            "posts": [
+              14615
+            ],
+            "id": "gcd:5531",
+            "gcdId": 5531,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/10/Superman-Adventures-1-66-Extras-1966-2002.jpg?fit=400%2C615&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Adventures in the DC Universe",
+            "year": "1997",
+            "posts": [
+              48881
+            ],
+            "id": "gcd:5719",
+            "gcdId": 5719,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2017/03/Adventures-In-the-DC-Universe-1-19-Annual-1997-1998.jpg?fit=400%2C610&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Batman: Gotham Adventures",
+            "year": "1998",
+            "posts": [
+              15941
+            ],
+            "id": "gcd:5954",
+            "gcdId": 5954,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/10/Batman-Gotham-Adventures-1-60.jpg?fit=480%2C743&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Batman Beyond",
+            "year": "1999",
+            "posts": [
+              190572
+            ],
+            "id": "gcd:6259",
+            "gcdId": 6259,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2021/05/Batman-Beyond-1-24-1999-2001.jpg?fit=400%2C615&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Batman Beyond (TV tie-ins)",
+            "year": "2000",
+            "posts": [
+              163954
+            ],
+            "id": "gcd:6261",
+            "gcdId": 6261,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2020/06/Batman-Beyond-TV-Tie-ins-2000-2002.jpg?fit=400%2C388&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Batman Beyond: Return of the Joker",
+            "year": "2001",
+            "posts": [
+              282726
+            ],
+            "id": "gcd:18999",
+            "gcdId": 18999,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2022/09/Batman-Beyond-Return-of-the-Joker-2001.jpg?fit=400%2C615&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Justice League Adventures",
+            "year": "2002",
+            "posts": [
+              10563
+            ],
+            "id": "gcd:10924",
+            "gcdId": 10924,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/07/Justice-League-Adventures-1-34-2002-2004.jpg?fit=400%2C615&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Gotham Girls",
+            "year": "2002",
+            "posts": [
+              10470
+            ],
+            "id": "gcd:13050",
+            "gcdId": 13050,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/07/Gotham-Girls-1-5-2002-2003.jpg?fit=400%2C615&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Batman Adventures Vol. 2",
+            "year": "2003",
+            "posts": [
+              183948
+            ],
+            "id": "gcd:15821",
+            "gcdId": 15821,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2021/02/Batman-Adventures-Vol.-2-1-17-2003-2004.jpg?fit=400%2C615&ssl=1"
+          },
+          {
+            "provider": "getcomics",
+            "title": "Justice League Unlimited",
+            "year": "2004",
+            "posts": [
+              8823
+            ],
+            "id": "gcd:11988",
+            "gcdId": 11988,
+            "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/06/Justice-League-Unlimited-1-46.jpg?fit=480%2C730&ssl=1"
+          }
+        ]
+      }
     ]
   }
 }

@@ -722,14 +722,42 @@ Window {
 
     // ---- catalogue run page: the western shelf in baked mode (spec 2026-07-17).
     //      d: { gcdId, title?, cover?, resumeChapterId? } ----
+    function _openPinnedGcdSeries(d) {
+        var gcdId = Number((d && d.gcdId) || 0)
+        var posts = (d && d.posts) || []
+        if (!gcdId || !posts.length) return false
+        var rel = []
+        for (var i = 0; i < posts.length; i++)
+            rel.push({ id: String(posts[i]), url: "https://getcomics.org/?p=" + posts[i],
+                       name: (d && d.title) || "", cover: "", year: Number((d && d.year) || 0),
+                       sizeMB: 0, synopsis: "", date: "", collection: true })
+        westernLayer.baked = { gcdId: gcdId, releases: rel, cover: (d && d.cover) || "" }
+        westernLayer.title = (d && d.title) || ""
+        westernLayer.tagSlug = ""; westernLayer.tagId = 0
+        westernLayer.resumeChapterId = (d && d.resumeChapterId) || ""
+        if (westernLayer.active && westernLayer.item) {
+            var it = westernLayer.item
+            it.bakedReleases = null
+            it.seriesTitle = westernLayer.title
+            it.poster = westernLayer.baked.cover || ""
+            it.gcdId = gcdId
+            it.bakedReleases = rel
+            it.tagId = 0; it.tagSlug = ""
+            it.openChapterId = westernLayer.resumeChapterId || ""
+        } else westernLayer.active = true
+        return true
+    }
+
     function openGcdSeries(d) {
         if (typeof ComicsCatalog === "undefined" || !ComicsCatalog.ready()) {
-            if (d && d.title) win.openWestern({ title: d.title })   // graceful: live shelf
+            if (_openPinnedGcdSeries(d)) return
+            if (d && d.title) win.openWestern({ title: d.title })
             return
         }
         var gcdId = Number((d && d.gcdId) || 0)
         var s = ComicsCatalog.series(gcdId)
         if (!s || s.gcdId === undefined) {
+            if (_openPinnedGcdSeries(d)) return
             if (d && d.title) win.openWestern({ title: d.title })
             return
         }
@@ -3103,12 +3131,16 @@ Window {
         asynchronous: true
         property string extensionId: ""
         property string universeName: ""
-        source: "UniverseExtensionPage.qml"
+        source: extensionId === "com.colosseum.universe.dcau"
+                ? "DCAUUniversePage.qml"
+                : "UniverseExtensionPage.qml"
         onLoaded: {
             // NO item.backdrop — UniverseExtensionPage has no such property; it paints its
             // own flat #0c0e11 instead of sampling the shared wallpaper.
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
+            if (universeLayer.extensionId === "com.colosseum.universe.dcau")
+                item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -3118,14 +3150,18 @@ Window {
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
             item.watchRequested.connect(win.openTheatreSeries)
-            item.bookRequested.connect(win.openBook)
-            item.comicsArchiveRequested.connect(win.openUniverseComic)
-            // manga → Tankoban. A weebcentral-sourced entry (One Piece digital-coloured) opens its
-            // own series by ID; an anilist entry opens by title, as before.
-            item.seriesRequested.connect(function(e) {
-                if (e && e.provider === "weebcentral" && e.id) win.openSeriesAt(e.title || "", e.id)
-                else win.openSeries((e && e.title) || e || "")
-            })
+            if (universeLayer.extensionId === "com.colosseum.universe.dcau") {
+                item.comicRequested.connect(win.openGcdSeries)
+                item.continueResumeRequested.connect(win.resumeContinue)
+                item.continueDetailRequested.connect(win.detailContinue)
+            } else {
+                item.bookRequested.connect(win.openBook)
+                item.comicsArchiveRequested.connect(win.openUniverseComic)
+                item.seriesRequested.connect(function(e) {
+                    if (e && e.provider === "weebcentral" && e.id) win.openSeriesAt(e.title || "", e.id)
+                    else win.openSeries((e && e.title) || e || "")
+                })
+            }
         }
     }
     Loader {
