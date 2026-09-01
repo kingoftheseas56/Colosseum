@@ -69,6 +69,30 @@ func (s *Service) PushSync(
 			continue
 		}
 
+		if parsed.Category == "activity_fact" {
+			fact, activityCode, activityMessage := parseActivityFact(parsed)
+			if activityCode != "" {
+				response.Results = append(response.Results, SyncPushResult{
+					MutationID: parsed.MutationID,
+					Accepted:   false,
+					Code:       activityCode,
+					Message:    activityMessage,
+				})
+				continue
+			}
+			result, err := s.pushOneActivityFact(
+				ctx,
+				auth,
+				parsed,
+				fact,
+				now)
+			if err != nil {
+				return response, err
+			}
+			response.Results = append(response.Results, result)
+			continue
+		}
+
 		result, err := s.pushOneSyncMutation(
 			ctx,
 			auth,
