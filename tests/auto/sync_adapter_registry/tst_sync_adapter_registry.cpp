@@ -32,6 +32,10 @@ public:
         return m_revision;
     }
 
+    bool missingRecordsAreDeletes() const override {
+        return m_missingRecordsAreDeletes;
+    }
+
     bool exportSnapshot(
         SyncAdapterExport *snapshot,
         QString *error) const override {
@@ -149,6 +153,11 @@ public:
             enabled;
     }
 
+    void setMissingRecordsAreDeletes(
+        bool enabled) {
+        m_missingRecordsAreDeletes = enabled;
+    }
+
     int exportCalls() const {
         return m_exportCalls;
     }
@@ -225,6 +234,7 @@ private:
     bool m_exportResult = true;
     bool m_applyResult = true;
     bool m_emitDuringApply = false;
+    bool m_missingRecordsAreDeletes = true;
 
     mutable int m_exportCalls = 0;
     int m_applyCalls = 0;
@@ -240,6 +250,7 @@ QStringList contractRegisterableCategories() {
         QStringLiteral("continue_progress"),
         QStringLiteral("watch_state"),
         QStringLiteral("full_history"),
+        QStringLiteral("activity_fact"),
         QStringLiteral(
             "explicit_content_preference"),
         QStringLiteral(
@@ -301,6 +312,7 @@ private slots:
     void registeredCategoriesAreSorted();
 
     void exportSnapshotContainsRecordKeysAndRevision();
+    void exportSnapshotCarriesDeletionPolicy();
     void duplicateExportRecordKeyIsRejected();
     void invalidExportRecordKeyIsRejected();
     void exportFailureIsReported();
@@ -621,6 +633,25 @@ exportSnapshotContainsRecordKeysAndRevision() {
     }
     QVERIFY(found);
     QCOMPARE(adapter.exportCalls(), 1);
+}
+
+void tst_sync_adapter_registry::
+exportSnapshotCarriesDeletionPolicy() {
+    SyncAdapterRegistry registry;
+    FakeSyncAdapter adapter(
+        QStringLiteral("collection"));
+    adapter.setMissingRecordsAreDeletes(false);
+    QVERIFY(registry.registerAdapter(&adapter));
+
+    SyncAdapterSnapshot snapshot;
+    SyncAdapterRegistryError error;
+    QVERIFY2(
+        registry.exportSnapshot(
+            QStringLiteral("collection"),
+            &snapshot,
+            &error),
+        qPrintable(error.detail));
+    QVERIFY(!snapshot.missingRecordsAreDeletes);
 }
 
 void tst_sync_adapter_registry::

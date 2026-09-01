@@ -542,6 +542,10 @@ public:
         return m_revision;
     }
 
+    bool missingRecordsAreDeletes() const override {
+        return m_missingRecordsAreDeletes;
+    }
+
     bool exportSnapshot(
         SyncAdapterExport *snapshot,
         QString *error) const override {
@@ -669,6 +673,11 @@ public:
             enabled;
     }
 
+    void setMissingRecordsAreDeletes(
+        bool enabled) {
+        m_missingRecordsAreDeletes = enabled;
+    }
+
     int remoteApplyCount() const {
         return m_remoteApplyCount;
     }
@@ -678,6 +687,7 @@ private:
         m_records;
     quint64 m_revision = 0;
     bool m_emitDuringRemoteApply = false;
+    bool m_missingRecordsAreDeletes = true;
     int m_remoteApplyCount = 0;
 };
 
@@ -711,7 +721,8 @@ struct Replica {
         FixtureSyncService *service,
         const ProfilePaths &profileValue,
         const QString &deviceId,
-        qint64 *now)
+        qint64 *now,
+        bool missingRecordsAreDeletes = true)
         : transport(service),
           client(&transport),
           engine(
@@ -724,6 +735,8 @@ struct Replica {
         client.setAccessToken(
             QByteArrayLiteral(
                 "fixture-access"));
+        adapter.setMissingRecordsAreDeletes(
+            missingRecordsAreDeletes);
 
         if (!registry.registerAdapter(
                 &adapter)) {
@@ -797,6 +810,9 @@ private slots:
     void duplicatePushAfterLostResponseIsIdempotent();
     void twoReplicasConvergeByHLCTuple();
     void tombstoneBeatsOlderOfflinePut();
+    void immutableSnapshotNeverInfersDelete();
+    void immutablePausedReplayNeverSynthesizesDelete();
+    void immutablePausedReplayRequeuesUnsyncedBaselineFact();
     void remoteImportDoesNotEchoIntoOutbox();
     void futureClockIsRebasedAndRetried();
     void canonicalOlderHlcAppliesByServerSeqAndPreservesPendingOutbox();
@@ -1408,6 +1424,115 @@ tombstoneBeatsOlderOfflinePut() {
         !b.adapter.contains(
             QStringLiteral(
                 "manga/item")));
+}
+
+void tst_sync_engine::
+immutableSnapshotNeverInfersDelete() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    FixtureSyncService service;
+    qint64 now = 2100000;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now,
+        false);
+
+    replica.adapter.putLocal(
+        QStringLiteral("immutable/item"),
+        QStringLiteral("present"));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setNetworkEnabled(true);
+    replica.engine.requestImmediateSync();
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    const int acceptedBeforeDelete =
+        service.acceptedMutationCount();
+
+    replica.engine.setNetworkEnabled(false);
+    replica.adapter.deleteLocal(
+        QStringLiteral("immutable/item"));
+
+    QCOMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(
+        service.acceptedMutationCount(),
+        acceptedBeforeDelete);
+}
+
+void tst_sync_engine::
+immutablePausedReplayNeverSynthesizesDelete() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    FixtureSyncService service;
+    qint64 now = 2200000;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now,
+        false);
+
+    replica.adapter.putLocal(
+        QStringLiteral("immutable/paused"),
+        QStringLiteral("present"));
+    replica.engine.setNetworkEnabled(true);
+    replica.engine.requestImmediateSync();
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    const int acceptedBeforePause =
+        service.acceptedMutationCount();
+
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        false);
+    replica.adapter.deleteLocal(
+        QStringLiteral("immutable/paused"));
+    QVERIFY(!replica.adapter.contains(
+        QStringLiteral("immutable/paused")));
+
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        true);
+    QTRY_VERIFY(replica.adapter.contains(
+        QStringLiteral("immutable/paused")));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(
+        service.acceptedMutationCount(),
+        acceptedBeforePause);
+}
+
+void tst_sync_engine::
+immutablePausedReplayRequeuesUnsyncedBaselineFact() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    FixtureSyncService service;
+    qint64 now = 2250000;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now,
+        false);
+
+    replica.adapter.putLocal(
+        QStringLiteral("immutable/offline"),
+        QStringLiteral("local"));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        false);
+    QCOMPARE(replica.engine.pendingOutboxCount(), 0);
+
+    replica.engine.setNetworkEnabled(true);
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        true);
+
+    QTRY_COMPARE(service.acceptedMutationCount(), 1);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QVERIFY(replica.adapter.contains(
+        QStringLiteral("immutable/offline")));
 }
 
 void tst_sync_engine::

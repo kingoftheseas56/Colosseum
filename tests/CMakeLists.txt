@@ -1548,6 +1548,8 @@ add_executable(account_first_light
     # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
     # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
@@ -1740,6 +1742,36 @@ add_test(NAME colosseum.qttest.activity_store
          COMMAND tst_activity_store)
 set_tests_properties(colosseum.qttest.activity_store PROPERTIES
     LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Arc 36 N-09: immutable Activity fact sync adapter ───────────────────
+add_executable(tst_activity_sync
+    auto/activity_sync/tst_activity_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h")
+target_include_directories(tst_activity_sync PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_activity_sync PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_activity_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.activity_sync COMMAND tst_activity_sync)
+set_tests_properties(colosseum.qttest.activity_sync PROPERTIES
+    LABELS "unit;qttest;sync;activity"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 

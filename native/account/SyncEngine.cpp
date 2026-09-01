@@ -551,10 +551,16 @@ void SyncEngine::setCategoryNetworkEnabled(
             replay.localOverlay.insert(it.key(), SyncPausedOverlayRecord{
                 SyncWireOperation::Put, snapshot.schemaVersion, it->payload, it->localOrderMs});
     }
-    for (auto it = replay.localBaseline.constBegin(); it != replay.localBaseline.constEnd(); ++it)
-        if (!current.contains(it.key()))
-            replay.localOverlay.insert(it.key(), SyncPausedOverlayRecord{
-                SyncWireOperation::Delete, snapshot.schemaVersion, QJsonValue(), -1});
+    if (snapshot.missingRecordsAreDeletes) {
+        for (auto it = replay.localBaseline.constBegin();
+             it != replay.localBaseline.constEnd();
+             ++it) {
+            if (!current.contains(it.key())) {
+                replay.localOverlay.insert(it.key(), SyncPausedOverlayRecord{
+                    SyncWireOperation::Delete, snapshot.schemaVersion, QJsonValue(), -1});
+            }
+        }
+    }
     replay.replaying = true;
     m_persistent.pausedCategories.insert(category, replay);
     m_disabledCategories.insert(category);
@@ -1092,8 +1098,10 @@ bool SyncEngine::reconcileCategory(
         previous.keys();
     previousKeys.sort();
 
-    if (!allowSnapshotDeletes)
+    if (!allowSnapshotDeletes
+        || !snapshot.missingRecordsAreDeletes) {
         return true;
+    }
 
     for (const QString &recordKey :
          previousKeys) {
@@ -1656,6 +1664,7 @@ bool SyncEngine::finishCategoryReplay(
     for (const SyncAdapterRecord &record : snapshot.records)
         current.insert(record.recordKey, record);
     const auto remote = m_persistent.mirrors.value(categoryId);
+    const SyncPausedCategoryState replay = pausedIt.value();
 
     for (auto it = current.constBegin(); it != current.constEnd(); ++it) {
         const auto remoteIt = remote.constFind(it.key());
@@ -1664,11 +1673,16 @@ bool SyncEngine::finishCategoryReplay(
             && remoteIt->payload == it->payload)
             continue;
         if (!remote.contains(it.key())) {
-            if (!m_registry->applyRemote(SyncAdapterMutation{categoryId, it.key(),
-                    snapshot.schemaVersion, SyncWireOperation::Delete, QJsonValue()}, &registryError)) {
-                if (errorCode) *errorCode = registryError.code;
-                if (errorMessage) *errorMessage = registryError.detail;
-                return false;
+            if (snapshot.missingRecordsAreDeletes) {
+                if (!m_registry->applyRemote(SyncAdapterMutation{categoryId, it.key(),
+                        snapshot.schemaVersion, SyncWireOperation::Delete, QJsonValue()}, &registryError)) {
+                    if (errorCode) *errorCode = registryError.code;
+                    if (errorMessage) *errorMessage = registryError.detail;
+                    return false;
+                }
+            } else if (!replay.localOverlay.contains(it.key())) {
+                enqueueMutation(categoryId, it.key(), snapshot.schemaVersion,
+                                SyncWireOperation::Put, it->payload, it->localOrderMs);
             }
         }
     }
@@ -1681,11 +1695,14 @@ bool SyncEngine::finishCategoryReplay(
         }
     }
 
-    const SyncPausedCategoryState replay = pausedIt.value();
     QStringList overlayKeys = replay.localOverlay.keys();
     overlayKeys.sort();
     for (const QString &key : overlayKeys) {
         const SyncPausedOverlayRecord &overlay = replay.localOverlay.value(key);
+        if (overlay.operation == SyncWireOperation::Delete
+            && !snapshot.missingRecordsAreDeletes) {
+            continue;
+        }
         if (!m_registry->applyRemote(SyncAdapterMutation{categoryId, key,
                 overlay.schemaVersion, overlay.operation, overlay.payload}, &registryError)) {
             if (errorCode) *errorCode = registryError.code;

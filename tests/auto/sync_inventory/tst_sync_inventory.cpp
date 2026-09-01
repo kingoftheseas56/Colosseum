@@ -16,6 +16,7 @@ QStringList approvedInventoryIds() {
         QStringLiteral("continue_progress"),
         QStringLiteral("watch_state"),
         QStringLiteral("full_history"),
+        QStringLiteral("activity_fact"),
         QStringLiteral("per_world_customization"),
         QStringLiteral("wallpaper_personalization"),
         QStringLiteral("explicit_content_preference"),
@@ -93,6 +94,7 @@ private slots:
     void inventoryContainsEveryFrozenCategoryExactlyOnce();
     void everyExcludedCategoryCarriesAnExplicitDenial();
     void fullHistoryHasDedicatedCumulativeOwner();
+    void activityFactsHaveImmutablePortableOwner();
     void searchHistoryIsHardLocalOnly();
     void progressPreservesSilentMutationWarning();
     void watchStateIsPortableAndSeparateFromContinue();
@@ -243,6 +245,37 @@ fullHistoryHasDedicatedCumulativeOwner() {
         history->note.contains(
             QStringLiteral(
                 "Continue/progress remains separate")));
+}
+
+void tst_sync_inventory::
+activityFactsHaveImmutablePortableOwner() {
+    const SyncOwnershipEntry *activity =
+        SyncOwnershipInventory::find(
+            QStringLiteral("activity_fact"));
+    QVERIFY(activity);
+    QCOMPARE(
+        activity->disposition,
+        SyncDisposition::Syncable);
+    QCOMPARE(
+        activity->ownerStatus,
+        SyncOwnerStatus::Confirmed);
+    QVERIFY(activity->ordinaryPayloadEligible);
+    QVERIFY(activity->liveOwner.contains(
+        QStringLiteral("ActivityStore")));
+    QVERIFY(activity->readSeam.contains(
+        QStringLiteral("portableSyncFacts")));
+    QVERIFY(activity->writeSeam.contains(
+        QStringLiteral("applySyncedPortableFact")));
+    QVERIFY(activity->changeSeam.contains(
+        QStringLiteral("factCommitted")));
+    QVERIFY(activity->note.contains(
+        QStringLiteral("immutable"),
+        Qt::CaseInsensitive));
+    QVERIFY(activity->note.contains(
+        QStringLiteral("PUT")));
+    QVERIFY(activity->note.contains(
+        QStringLiteral("delete"),
+        Qt::CaseInsensitive));
 }
 
 void tst_sync_inventory::
@@ -443,6 +476,7 @@ confirmedSafeOrdinaryCategoriesCanPass() {
         QStringLiteral("continue_progress"),
         QStringLiteral("watch_state"),
         QStringLiteral("full_history"),
+        QStringLiteral("activity_fact"),
         QStringLiteral("explicit_content_preference"),
         QStringLiteral("theatre_track_preferences"),
         QStringLiteral("theatre_row_customization"),
