@@ -63,6 +63,10 @@ public:
         return m_journal;
     }
 
+    void setCanonicalCurrentPullMode(bool enabled) {
+        m_canonicalCurrentPullMode = enabled;
+    }
+
     void appendRemote(
         const SyncWireMutation &mutation,
         bool won,
@@ -313,6 +317,11 @@ public:
             if (entry.serverSeq <= after)
                 continue;
 
+            if (m_canonicalCurrentPullMode
+                && !entry.won) {
+                continue;
+            }
+
             if (entries.size() >= 200) {
                 hasMore = true;
                 break;
@@ -327,7 +336,8 @@ public:
             object.insert(
                 QStringLiteral("won"),
                 entry.won);
-            if (entry.canonical) {
+            if (m_canonicalCurrentPullMode
+                || entry.canonical) {
                 object.insert(
                     QStringLiteral("canonical"),
                     true);
@@ -360,6 +370,7 @@ private:
         m_idempotency;
     QHash<QString, SyncWireMutation>
         m_current;
+    bool m_canonicalCurrentPullMode = false;
 };
 
 class FixtureSyncTransport final
@@ -789,6 +800,8 @@ private slots:
     void remoteImportDoesNotEchoIntoOutbox();
     void futureClockIsRebasedAndRetried();
     void canonicalOlderHlcAppliesByServerSeqAndPreservesPendingOutbox();
+    void canonicalPullThenPendingPushLossKeepsServerCanonical();
+    void canonicalPullThenPendingPushWinRepullsLocalWinner();
     void legacyNonCanonicalOlderHlcRemainsSuppressed();
     void unknownCanonicalCategoryDoesNotAdvanceCursor();
     void unknownWinningCategoryDoesNotAdvanceCursor();
@@ -1584,6 +1597,109 @@ canonicalOlderHlcAppliesByServerSeqAndPreservesPendingOutbox() {
                 QStringLiteral("server-canonical")
             }
         }));
+}
+
+void tst_sync_engine::
+canonicalPullThenPendingPushLossKeepsServerCanonical() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    service.setCanonicalCurrentPullMode(true);
+    qint64 now = service.serverTimeMs;
+
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("f1000000-0000-4000-8000-000000000001"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/item"),
+            QString::fromLatin1(kDeviceB),
+            now + 1000,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("value"),
+                    QStringLiteral("server-newer")
+                }
+            }),
+        true,
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("local-pending"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(
+        replica.adapter.value(QStringLiteral("manga/item")),
+        QStringLiteral("server-newer"));
+    QCOMPARE(replica.engine.cursor(), quint64(1));
+    QCOMPARE(service.acceptedMutationCount(), 1);
+    QCOMPARE(service.journal().size(), 2);
+    QVERIFY(!service.journal().constLast().won);
+}
+
+void tst_sync_engine::
+canonicalPullThenPendingPushWinRepullsLocalWinner() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    service.setCanonicalCurrentPullMode(true);
+    qint64 now = service.serverTimeMs;
+
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("f2000000-0000-4000-8000-000000000002"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/item"),
+            QString::fromLatin1(kDeviceB),
+            now - 1000,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("value"),
+                    QStringLiteral("server-older")
+                }
+            }),
+        true,
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("local-winner"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QTRY_COMPARE(replica.engine.cursor(), quint64(2));
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
+    QCOMPARE(
+        replica.adapter.value(QStringLiteral("manga/item")),
+        QStringLiteral("local-winner"));
+    QCOMPARE(service.acceptedMutationCount(), 1);
+    QCOMPARE(service.journal().size(), 2);
+    QVERIFY(service.journal().constLast().won);
+    QCOMPARE(replica.adapter.remoteApplyCount(), 2);
 }
 
 void tst_sync_engine::
