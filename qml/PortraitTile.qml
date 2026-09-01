@@ -23,13 +23,14 @@ Item {
     property color c1: "#444"
     property color c2: "#111"
     property real progress: -1        // < 0 → no progress bar
+    property real posterWidth: Metrics.gallery.posterWidth // opt-in larger universe shelves; default unchanged
     property url cover: ""            // remote cover art; the c1→c2 tint shows through until it loads (or if it fails)
     signal clicked()
 
     // gallery geometry — read from the frozen tokens; never a local copy of these numbers.
     readonly property real _r: Metrics.gallery.posterRadius
-    width: Metrics.gallery.posterWidth
-    height: Math.round(Metrics.gallery.posterWidth * Metrics.gallery.posterRatio)
+    width: tile.posterWidth
+    height: Math.round(tile.posterWidth * Metrics.gallery.posterRatio)
 
     Theme { id: theme }
 
