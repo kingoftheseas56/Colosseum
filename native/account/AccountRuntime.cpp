@@ -224,6 +224,10 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::make_unique<
             ProgressSyncAdapter>(
                 progress);
+    auto watchStateAdapter =
+        std::make_unique<
+            WatchStateSyncAdapter>(
+                progress);
     auto historyAdapter =
         std::make_unique<
             HistorySyncAdapter>(
@@ -262,8 +266,28 @@ bool AccountRuntime::installCoreSyncAdapters(
     }
 
     if (!m_syncRegistry.registerAdapter(
+            watchStateAdapter.get(),
+            &registryError)) {
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral(
+                "continue_progress"));
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral("collection"));
+
+        if (error) {
+            *error =
+                registryError.detail.isEmpty()
+                ? registryError.code
+                : registryError.detail;
+        }
+        return false;
+    }
+
+    if (!m_syncRegistry.registerAdapter(
             historyAdapter.get(),
             &registryError)) {
+        m_syncRegistry.unregisterAdapter(
+            QStringLiteral("watch_state"));
         m_syncRegistry.unregisterAdapter(
             QStringLiteral(
                 "continue_progress"));
@@ -286,6 +310,8 @@ bool AccountRuntime::installCoreSyncAdapters(
             QStringLiteral(
                 "full_history"));
         m_syncRegistry.unregisterAdapter(
+            QStringLiteral("watch_state"));
+        m_syncRegistry.unregisterAdapter(
             QStringLiteral(
                 "continue_progress"));
         m_syncRegistry.unregisterAdapter(
@@ -304,6 +330,8 @@ bool AccountRuntime::installCoreSyncAdapters(
         std::move(collectionAdapter);
     m_progressSyncAdapter =
         std::move(progressAdapter);
+    m_watchStateSyncAdapter =
+        std::move(watchStateAdapter);
     m_historySyncAdapter =
         std::move(historyAdapter);
     m_preferencesSyncAdapter =
@@ -331,6 +359,8 @@ void AccountRuntime::clearCoreSyncAdapters() {
         QStringLiteral(
             "continue_progress"));
     m_syncRegistry.unregisterAdapter(
+        QStringLiteral("watch_state"));
+    m_syncRegistry.unregisterAdapter(
         QStringLiteral(
             "full_history"));
     m_syncRegistry.unregisterAdapter(
@@ -339,6 +369,7 @@ void AccountRuntime::clearCoreSyncAdapters() {
 
     m_preferencesSyncAdapter.reset();
     m_historySyncAdapter.reset();
+    m_watchStateSyncAdapter.reset();
     m_progressSyncAdapter.reset();
     m_collectionSyncAdapter.reset();
 }

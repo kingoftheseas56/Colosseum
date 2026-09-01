@@ -3,10 +3,11 @@
   "bundle": "8C",
   "status": "uncompiled / untested / unexecuted / unadopted / unverified",
   "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
-  "production_registry_policy": "8C supplies the Tankoban preference codec/adapter contract but keeps production registration blocked until a concrete profile-scoped Tankoban-only durable owner can enumerate the shared ComicReader series store safely while headless",
+  "production_registry_policy": "Only explicitly frozen production adapters may register. Arc 36 N-07 adds watch_state over the frozen ProgressStore seam; 8C Tankoban preference registration remains blocked until a concrete profile-scoped Tankoban-only durable owner can enumerate the shared ComicReader series store safely while headless",
   "registered_production_adapters": [
     "collection",
     "continue_progress",
+    "watch_state",
     "full_history",
     "explicit_content_preference"
   ],
@@ -24,6 +25,17 @@
     },
     {
       "category": "continue_progress",
+      "classification": "syncable",
+      "owner_status": "confirmed",
+      "ordinary_payload_eligible": true,
+      "live_owner": "native/ProgressStore.h",
+      "domain_slice": 14,
+      "production_adapter_status": "present",
+      "registry_status": "registered",
+      "registration_error": ""
+    },
+    {
+      "category": "watch_state",
       "classification": "syncable",
       "owner_status": "confirmed",
       "ordinary_payload_eligible": true,

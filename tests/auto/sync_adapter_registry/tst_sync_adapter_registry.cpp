@@ -238,6 +238,7 @@ QStringList contractRegisterableCategories() {
     return {
         QStringLiteral("collection"),
         QStringLiteral("continue_progress"),
+        QStringLiteral("watch_state"),
         QStringLiteral("full_history"),
         QStringLiteral(
             "explicit_content_preference"),

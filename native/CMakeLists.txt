@@ -190,6 +190,7 @@ add_executable(colosseum
     account/ProfileStoreRuntime.cpp
     account/ConsumptionHistoryBridge.cpp
     account/ProgressSyncAdapter.cpp
+    account/WatchStateSyncAdapter.cpp
     account/SharedPcProfileCoordinator.cpp
     account/SyncAdapterRegistry.cpp
     account/SyncEngine.cpp
@@ -233,6 +234,7 @@ add_executable(colosseum
     account/ProfileStoreRuntime.h
     account/ConsumptionHistoryBridge.h
     account/ProgressSyncAdapter.h
+    account/WatchStateSyncAdapter.h
     account/SharedPcProfileCoordinator.h
     account/SyncAdapter.h
     account/SyncAdapterRegistry.h
@@ -2205,4 +2207,14 @@ include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")
+
+    # Arc 36 N-07 owns CMake registration but not tests/CMakeLists.txt. Add the
+    # watch-state production source to the existing focused domain-adapter target
+    # after that child directory has defined it.
+    target_sources(tst_core_sync_adapters PRIVATE
+        account/WatchStateSyncAdapter.cpp
+        account/WatchStateSyncAdapter.h)
+    target_sources(account_first_light PRIVATE
+        account/WatchStateSyncAdapter.cpp
+        account/WatchStateSyncAdapter.h)
 endif()

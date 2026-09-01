@@ -53,6 +53,25 @@
       ]
     },
     {
+      "id": "watch_state",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/ProgressStore.h",
+      "cumulative_owner": "ProfileStoreRuntime -> ProgressStore",
+      "read_seam": "syncWatchedMarks() / syncLastSeasons()",
+      "write_seam": "applySyncedWatchedMark/removeSyncedWatchedMark / applySyncedLastSeason/removeSyncedLastSeason",
+      "change_seam": "revision + changed(); remote apply is idempotent and WatchStateSyncAdapter suppresses remote echo",
+      "future_slice": 14,
+      "note": "Manual watched overrides (-1/1) and positive last-season state are portable watch_state records separate from continue_progress resume payloads; absence is represented by record deletion.",
+      "denial_code": "",
+      "inspection_base_commit": "1672c0f29e91880077173edd873b10dee9179fed",
+      "fields": [
+        "watched_mark",
+        "last_season"
+      ]
+    },
+    {
       "id": "full_history",
       "disposition": "syncable",
       "owner_status": "confirmed",

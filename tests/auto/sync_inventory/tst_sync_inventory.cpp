@@ -14,6 +14,7 @@ QStringList approvedInventoryIds() {
     return {
         QStringLiteral("collection"),
         QStringLiteral("continue_progress"),
+        QStringLiteral("watch_state"),
         QStringLiteral("full_history"),
         QStringLiteral("per_world_customization"),
         QStringLiteral("wallpaper_personalization"),
@@ -94,6 +95,7 @@ private slots:
     void fullHistoryHasDedicatedCumulativeOwner();
     void searchHistoryIsHardLocalOnly();
     void progressPreservesSilentMutationWarning();
+    void watchStateIsPortableAndSeparateFromContinue();
     void tankobanOwnershipIsFrozenButActivationRemainsScoped();
     void confirmedSafeOrdinaryCategoriesCanPass();
     void unresolvedSyncableCategoriesFailClosed();
@@ -298,6 +300,83 @@ progressPreservesSilentMutationWarning() {
 }
 
 void tst_sync_inventory::
+watchStateIsPortableAndSeparateFromContinue() {
+    const SyncOwnershipEntry *watchState =
+        SyncOwnershipInventory::find(
+            QStringLiteral("watch_state"));
+    QVERIFY(watchState);
+    QCOMPARE(
+        watchState->disposition,
+        SyncDisposition::Syncable);
+    QCOMPARE(
+        watchState->ownerStatus,
+        SyncOwnerStatus::Confirmed);
+    QVERIFY(watchState->ordinaryPayloadEligible);
+    QVERIFY(
+        watchState->liveOwner.contains(
+            QStringLiteral("ProgressStore")));
+    QVERIFY(
+        watchState->readSeam.contains(
+            QStringLiteral("syncWatchedMarks")));
+    QVERIFY(
+        watchState->readSeam.contains(
+            QStringLiteral("syncLastSeasons")));
+    QVERIFY(
+        watchState->writeSeam.contains(
+            QStringLiteral("applySyncedWatchedMark")));
+    QVERIFY(
+        watchState->writeSeam.contains(
+            QStringLiteral("removeSyncedLastSeason")));
+    QVERIFY(
+        watchState->note.contains(
+            QStringLiteral("continue_progress")));
+
+    const SyncPayloadValidation watched =
+        SyncPayloadFirewall::validate(
+            QStringLiteral("watch_state"),
+            QJsonObject{
+                {
+                    QStringLiteral("id"),
+                    QStringLiteral("movie-1")
+                },
+                {
+                    QStringLiteral("mark"),
+                    1
+                }
+            });
+    QVERIFY2(
+        watched.allowed,
+        qPrintable(watched.code));
+    const SyncPayloadValidation forbiddenField =
+        SyncPayloadFirewall::validate(
+            QStringLiteral("watch_state"),
+            QJsonObject{
+                {
+                    QStringLiteral("path"),
+                    QStringLiteral("C:\\Private\\watch-state.json")
+                }
+            });
+    QVERIFY(!forbiddenField.allowed);
+    QCOMPARE(
+        forbiddenField.code,
+        QStringLiteral("forbidden_field"));
+
+    const SyncPayloadValidation filesystemValue =
+        SyncPayloadFirewall::validate(
+            QStringLiteral("watch_state"),
+            QJsonObject{
+                {
+                    QStringLiteral("logicalValue"),
+                    QStringLiteral("C:\\Private\\watch-state.json")
+                }
+            });
+    QVERIFY(!filesystemValue.allowed);
+    QCOMPARE(
+        filesystemValue.code,
+        QStringLiteral("filesystem_path_value"));
+}
+
+void tst_sync_inventory::
 tankobanOwnershipIsFrozenButActivationRemainsScoped() {
     const SyncOwnershipEntry *position =
         SyncOwnershipInventory::find(
@@ -362,6 +441,7 @@ confirmedSafeOrdinaryCategoriesCanPass() {
     const QStringList categories = {
         QStringLiteral("collection"),
         QStringLiteral("continue_progress"),
+        QStringLiteral("watch_state"),
         QStringLiteral("full_history"),
         QStringLiteral("explicit_content_preference"),
         QStringLiteral("theatre_track_preferences"),
