@@ -404,6 +404,12 @@ Window {
         // dev harness (COLOSSEUM_OPEN_WORLD="Theatre"): boot straight into a world
         if (typeof DevOpenWorld !== "undefined" && String(DevOpenWorld).length)
             win.openWorld(String(DevOpenWorld))
+        // dev harness (COLOSSEUM_OPEN_UNIVERSE="starwars"): boot straight into a universe
+        if (typeof DevOpenUniverse !== "undefined" && String(DevOpenUniverse).length) {
+            var devUniverse = String(DevOpenUniverse).toLowerCase()
+            if (devUniverse === "starwars" || devUniverse === "star-wars")
+                win.openUniverse("com.colosseum.universe.starwars", "Star Wars")
+        }
         // bakeoff harness (COLOSSEUM_BAKEOFF_STRIP=<dir>): page-only production
         // MangaReader over the canonical fixture (long-strip bakeoff spec §10)
         if (typeof DevBakeoffStripPages !== "undefined" && DevBakeoffStripPages.length)
@@ -3377,15 +3383,18 @@ Window {
         property string universeName: ""
         source: extensionId === "com.colosseum.universe.dcau"
                 ? "DCAUUniversePage.qml"
-                : (extensionId === "com.colosseum.universe.onepiece"
-                   ? "OnePieceUniversePage.qml"
-                   : "UniverseExtensionPage.qml")
+                : (extensionId === "com.colosseum.universe.starwars"
+                   ? "GalaxyUniversePage.qml"
+                   : (extensionId === "com.colosseum.universe.onepiece"
+                      ? "OnePieceUniversePage.qml"
+                      : "UniverseExtensionPage.qml"))
         onLoaded: {
             // NO item.backdrop — UniverseExtensionPage has no such property; it paints its
             // own flat #0c0e11 instead of sampling the shared wallpaper.
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
             if (universeLayer.extensionId === "com.colosseum.universe.dcau" ||
+                    universeLayer.extensionId === "com.colosseum.universe.starwars" ||
                     universeLayer.extensionId === "com.colosseum.universe.onepiece")
                 item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             if (universeLayer.extensionId === "com.colosseum.universe.onepiece")

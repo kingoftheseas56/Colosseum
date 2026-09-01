@@ -1,335 +1,234 @@
-// GalaxyUniversePage — the GALAXY universe template (Star Wars). Born 2026-07-12: the
-// generic page starved empty here (modern shows don't carry "Star Wars" in their names, so
-// the relevance filter killed the canon). This page is built the saga way — curated canon,
-// live sources only dress it — and shaped like the thing itself:
-//
-//   THE SKYWALKER SAGA — a trilogy TRIPTYCH: Prequels / Originals / Sequels standing side
-//   by side, each era a column of three episode plates (roman numerals, the era's rhythm).
-//   THE STANDALONE STORIES — Rogue One and Solo on their own shelf.
-//   THE SERIES — two rails: live-action, then animated.
-//
-// Watch = Episode IV (the beginning). Everything routes to A4's TheatreSeries.
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
-import "SagaApi.js" as Saga
-import "ComicsApi.js" as ComicsApi
+import "UniverseExtApi.js" as UniverseExtApi
 
 Item {
     id: root
     anchors.fill: parent
+    focus: true
 
-    // shell contract (watch-first — no read verbs on this universe yet)
     property Item backdrop: null
-    property string universeName: ""
+    property string extensionId: ""
+    property string universeName: "Star Wars"
+    property var payload: null
+    property string selectedDestinationId: ""
+
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
-    signal searchClicked()
-    signal watchRequested(var item)
-    signal comicsArchiveRequested(var box)   // the comics door → the GC archive index
+    signal watchRequested(var payload)
+    signal seriesRequested(var entry)
+    signal bookRequested(var payload)
+    signal comicsArchiveRequested(var payload)
 
     Theme { id: theme }
-    property var uni: ({ name: "", blurb: "", banner: "", metaline: "",
-                         trilogies: [], standalones: [], liveShows: [], animatedShows: [],
-                         comics: null, firstWatch: null })
 
-    // the pinned archive resolved live (real GC name + release count); curated pin = fallback
-    property var comicsBox: null
-    onUniChanged: {
-        if (root.uni.comics && root.uni.comics.tagId && !root.comicsBox)
-            ComicsApi.tagBox(root.uni.comics.tagId, function(b) { if (b) root.comicsBox = b })
-    }
-    function comicsDoor() {
-        return root.comicsBox || { name: root.uni.name, tag: root.uni.comics.tag,
-                                   tagId: root.uni.comics.tagId, count: 0 }
-    }
+    property bool reducedMotion: false
+    readonly property var destinations: [
+        { id:"high", name:"HIGH REPUBLIC", title:"High Republic", world:"VALO", orbit:170, angle:3.4915926536, speed:.000030, size:27, y:5, light:"#e8e4d8", mid:"#9d9a91", dark:"#242525", mark:"../assets/universes/star-wars/marks/high-republic.png", shelves:[ {ids:["high-republic-screen"],medium:"Theatre",note:"High Republic series"}, {ids:["high-republic-books","high-republic-ya"],medium:"Biblio",note:"Canon novels + young adult"}, {ids:["high-republic-comics"],medium:"Tankoban",note:"Collected comic lines"} ] },
+        { id:"fall", name:"FALL OF THE JEDI", title:"Fall of the Jedi", world:"CORUSCANT", orbit:245, angle:2.36, speed:.000024, size:32, y:-4, light:"#b9a08a", mid:"#6f5747", dark:"#211918", mark:"../assets/universes/star-wars/marks/republic.svg", shelves:[ {ids:["fall-of-the-jedi-screen"],medium:"Theatre",note:"Republic era"}, {ids:["republic-books"],medium:"Biblio",note:"Republic era novels"}, {ids:["fall-empire-comics"],medium:"Tankoban",note:"Spans Fall of the Jedi + Reign of the Empire"} ] },
+        { id:"empire", name:"REIGN OF THE EMPIRE", title:"Reign of the Empire", world:"MUSTAFAR", orbit:330, angle:4.56, speed:.000019, size:42, y:8, light:"#858b93", mid:"#343a40", dark:"#0f1215", mark:"../assets/universes/star-wars/marks/empire.svg", shelves:[ {ids:["reign-of-the-empire-screen"],medium:"Theatre",note:"Imperial era"}, {ids:["imperial-books"],medium:"Biblio",note:"Imperial era novels"}, {ids:["fall-empire-comics"],medium:"Tankoban",note:"Spans Fall of the Jedi + Reign of the Empire"} ] },
+        { id:"rebellion", name:"AGE OF REBELLION", title:"Age of Rebellion", world:"HOTH", orbit:420, angle:1.22, speed:.000015, size:37, y:-8, light:"#a38762", mid:"#534233", dark:"#191514", mark:"../assets/universes/star-wars/marks/rebel.svg", shelves:[ {ids:["age-of-rebellion-screen"],medium:"Theatre",note:"Rebellion era"}, {ids:["rebellion-new-republic-books"],medium:"Biblio",note:"Spans Age of Rebellion + New Republic"}, {ids:["rebellion-comics"],medium:"Tankoban",note:"Rebellion era comics"} ] },
+        { id:"newrep", name:"NEW REPUBLIC", title:"New Republic", world:"NEVARRO", orbit:510, angle:3.42, speed:.000012, size:32, y:5, light:"#9cacab", mid:"#4c5d5e", dark:"#151d1e", mark:"../assets/universes/star-wars/marks/new-republic.png", shelves:[ {ids:["new-republic-screen"],medium:"Theatre",note:"New Republic era"}, {ids:["rebellion-new-republic-books"],medium:"Biblio",note:"Spans Age of Rebellion + New Republic"}, {ids:["new-republic-first-order-comics"],medium:"Tankoban",note:"Spans New Republic + Rise of the First Order"} ] },
+        { id:"firstorder", name:"RISE OF THE FIRST ORDER", title:"Rise of the First Order", world:"JAKKU", orbit:605, angle:5.48, speed:.000010, size:30, y:-4, light:"#89939f", mid:"#3b444f", dark:"#131920", mark:"../assets/universes/star-wars/marks/first-order.svg", shelves:[ {ids:["rise-first-order-screen"],medium:"Theatre",note:"First Order era"}, {ids:["first-order-books"],medium:"Biblio",note:"First Order era novels"}, {ids:["new-republic-first-order-comics"],medium:"Tankoban",note:"Spans New Republic + Rise of the First Order"} ] },
+        { id:"beyond", name:"BEYOND THE SKYWALKER SAGA", title:"Beyond the Skywalker Saga", world:"AHCH-TO", orbit:700, angle:.92, speed:.000008, size:24, y:11, light:"#b9bec8", mid:"#555966", dark:"#111217", mark:"../assets/universes/star-wars/marks/new-jedi-order.png", shelves:[ {ids:["beyond-skywalker-screen"],medium:"Theatre",note:"Beyond the Skywalker Saga"} ] },
+        { id:"across", name:"ACROSS THE ERAS", title:"Across the Eras", world:"CANON · CROSS-ERA", radius:820, angle:2.72, y:30, node:true, shelves:[ {ids:["canon-anthologies-screen"],medium:"Theatre",note:"Canon anthologies"}, {ids:["young-adult-books"],medium:"Biblio",note:"Young adult stories across eras"} ] },
+        { id:"outside", name:"BEYOND CANON", title:"Beyond Canon", world:"ADJACENT CONTINUITIES", radius:760, angle:-.17, y:26, node:true, shelves:[ {ids:["visions-screen","vintage-screen","lego-screen"],medium:"Theatre",note:"Visions · Vintage & Legends · LEGO"}, {ids:["visions-manga"],medium:"Tankoban",note:"Visions manga"} ] }
+    ]
 
-    function reload() {
-        if (!root.universeName.length) return      // never load a default universe
-        root.comicsBox = null
-        Saga.loadGalaxy(root.universeName, function(u) { if (u) root.uni = u; })
-    }
-    Component.onCompleted: reload()
-    onUniverseNameChanged: reload()
+    readonly property var currentDestination: destinationById(selectedDestinationId)
+    readonly property var currentShelves: currentDestination ? currentDestination.shelves : []
 
-    // ---- the deep field the page floats over ----
-    Item {
-        anchors.fill: parent
-        ShaderEffectSource {
-            anchors.fill: parent
-            sourceItem: root.backdrop
-            live: true
-            hideSource: false
-            visible: root.backdrop !== null
+    function destinationById(id) {
+        for (var i = 0; i < destinations.length; ++i)
+            if (destinations[i].id === id) return destinations[i]
+        return null
+    }
+    function sectionById(id) {
+        var sections = payload ? payload.sections : []
+        for (var i = 0; i < sections.length; ++i)
+            if (sections[i].id === id) return sections[i]
+        return null
+    }
+    function entriesFor(ids) {
+        var out = []
+        for (var i = 0; i < ids.length; ++i) {
+            var s = sectionById(ids[i])
+            if (!s) continue
+            for (var j = 0; j < s.entries.length; ++j) out.push(s.entries[j])
         }
-        Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/captured-motion.jpg"
-                fillMode: Image.PreserveAspectCrop; cache: true }
-        Rectangle { anchors.fill: parent; color: Qt.rgba(0.015, 0.02, 0.04, 0.9) }
+        return out
+    }
+    function kindFor(ids) {
+        for (var i = 0; i < ids.length; ++i) {
+            var s = sectionById(ids[i])
+            if (s) return s.kind
+        }
+        return "video"
+    }
+    function reload() {
+        if (!extensionId.length) { payload = null; return }
+        UniverseExtApi.load(extensionId, function(p) { root.payload = p })
+    }
+    function openDestination(id) {
+        if (!destinationById(id)) return
+        selectedDestinationId = id
+        destinationPage.contentY = 0
+    }
+    function closeDestination() {
+        selectedDestinationId = ""
+        root.forceActiveFocus()
+    }
+    function openEntry(kind, entry) {
+        if (!entry) return
+        if (kind === "video")
+            root.watchRequested({ id: entry.id, type: entry.type, title: entry.title, cover: "" })
+        else if (kind === "book")
+            root.bookRequested({ id: entry.id, title: entry.title })
+        else if (kind === "manga")
+            root.seriesRequested(entry)
+        else if (kind === "comic")
+            root.comicsArchiveRequested({ title: entry.title, posts: entry.posts, year: entry.year })
     }
 
-    Flickable {
-        id: page
+    Component.onCompleted: reload()
+    onExtensionIdChanged: reload()
+    Keys.onEscapePressed: function(event) {
+        if (selectedDestinationId.length) closeDestination()
+        else backRequested()
+        event.accepted = true
+    }
+
+    Rectangle { anchors.fill: parent; color: "#03050a" }
+    StarWarsGalaxySystem {
+        id: galaxyView
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: col.implicitHeight
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: page }
-        ScrollGlide { flick: page }
+        visible: root.selectedDestinationId === ""
+        destinations: root.destinations
+        reducedMotion: root.reducedMotion
+        onDestinationActivated: function(destinationId) { root.openDestination(destinationId) }
+    }
 
-        Column {
-            id: col
-            width: page.width
-            spacing: 0
-
-            // ===== BANNER =====
-            Item {
-                width: parent.width; height: 360
-                Image {
-                    anchors.fill: parent
-                    source: root.uni.banner
-                    fillMode: Image.PreserveAspectCrop
-                    cache: true
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(0.015,0.02,0.04,0.14) }
-                        GradientStop { position: 0.5; color: Qt.rgba(0.015,0.02,0.04,0.05) }
-                        GradientStop { position: 1.0; color: Qt.rgba(0.015,0.02,0.04,0.93) }
-                    }
-                }
-                Column {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.leftMargin: 54; anchors.rightMargin: 54; anchors.bottomMargin: 28
-                    spacing: 9
-                    Text { text: "UNIVERSE  ·  THE GALAXY"; color: theme.gold; font.family: theme.ui
-                           font.pixelSize: 12; font.letterSpacing: 4; font.bold: true }
-                    Text { text: root.uni.name; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 62 }
-                    Text { text: root.uni.metaline; color: theme.inkDimmer
-                           font.family: theme.ui; font.pixelSize: 14 }
-                }
+    Item {
+        id: destinationView
+        anchors.fill: parent
+        visible: root.selectedDestinationId !== ""
+        opacity: visible ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 180 } }
+        Rectangle {
+            anchors.fill: parent
+            color: "#05070c"
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: "#05070c" }
+                GradientStop { position: 1; color: "#090b12" }
             }
+        }
+        Image {
+            id: environment
+            anchors.fill: parent
+            visible: root.currentDestination && root.currentDestination.env.length > 0
+            source: visible ? root.currentDestination.env : ""
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true; cache: true
+            sourceSize.width: 1920
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(.012,.018,.03,.96) }
+                GradientStop { position: 0.34; color: Qt.rgba(.012,.018,.03,.72) }
+                GradientStop { position: 0.68; color: Qt.rgba(.012,.018,.03,.22) }
+                GradientStop { position: 1.0; color: Qt.rgba(.012,.018,.03,.34) }
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(.012,.018,.03,.10) }
+                GradientStop { position: 0.52; color: Qt.rgba(.012,.018,.03,.24) }
+                GradientStop { position: 0.78; color: Qt.rgba(.012,.018,.03,.82) }
+                GradientStop { position: 1.0; color: "#03050a" }
+            }
+        }
 
-            // ===== BODY =====
+        Flickable {
+            id: destinationPage
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: destinationColumn.implicitHeight + 90
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: HouseScrollBar { flick: destinationPage }
+            ScrollGlide { flick: destinationPage }
             Column {
-                x: 54; width: parent.width - 108; spacing: 0
-                topPadding: 24
+                id: destinationColumn
+                x: theme.margin
+                width: destinationPage.width - theme.margin * 2
+                spacing: 0
 
-                Row {
-                    width: parent.width
-                    bottomPadding: 30
-                    spacing: 30
+                Item {
+                    width: parent.width; height: 168
                     Text {
-                        width: parent.width - beginBtn.width - 30
-                        text: root.uni.blurb
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
-                        lineHeight: 1.5; wrapMode: Text.WordWrap
-                        maximumLineCount: 3; elide: Text.ElideRight
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    // the golden path — where the galaxy begins
-                    Rectangle {
-                        id: beginBtn
-                        radius: 12; height: 50; width: beginRow.implicitWidth + 46
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !!root.uni.firstWatch
-                        gradient: Gradient {
-                            GradientStop { position: 0; color: beginMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
-                            GradientStop { position: 1; color: beginMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
-                        }
-                        border.width: 1
-                        border.color: beginMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
-                        Behavior on border.color { ColorAnimation { duration: 160 } }
-                        Row {
-                            id: beginRow; anchors.centerIn: parent; spacing: 10
-                            Text { text: "Begin the saga — A New Hope"; color: theme.ink
-                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "→"; color: theme.gold; font.pixelSize: 16
-                                anchors.verticalCenter: parent.verticalCenter }
-                        }
-                        MouseArea {
-                            id: beginMa; anchors.fill: parent
-                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: if (root.uni.firstWatch) root.watchRequested(root.uni.firstWatch)
-                        }
+                        anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 96
+                        text: "In a galaxy far far away"
+                        color: Qt.rgba(247/255,247/255,245/255,.09)
+                        font.family: theme.display; font.pixelSize: 34
                     }
                 }
+                Text {
+                    text: root.currentDestination ? root.currentDestination.world : ""
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 12
+                    font.weight: Font.DemiBold; font.letterSpacing: 2.2
+                }
+                Text {
+                    width: Math.min(parent.width * .58, 760)
+                    topPadding: 10
+                    text: root.currentDestination ? root.currentDestination.title : ""
+                    color: theme.ink
+                    font.family: theme.display; font.pixelSize: 62
+                    wrapMode: Text.WordWrap; lineHeight: .98
+                }
+                Item { width: 1; height: 48 }
+                Rectangle { width: parent.width; height: 1; color: Qt.rgba(1,1,1,.10) }
+                Item { width: 1; height: 30 }
 
-                // ===== THE SKYWALKER SAGA — the trilogy triptych =====
-                Column {
-                    width: parent.width
-                    spacing: 18
-                    visible: root.uni.trilogies.length > 0
-                    Row {
-                        spacing: 12
-                        Text { text: "The Skywalker Saga"; color: theme.ink
-                               font.family: theme.display; font.pixelSize: 25 }
-                        Text { text: "nine episodes  ·  three eras"
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                               anchors.baseline: parent.children[0].baseline }
-                    }
-                    Row {
-                        id: triptych
-                        width: parent.width
-                        spacing: 22
-                        readonly property real colW: (width - spacing * 2) / 3
-                        Repeater {
-                            model: root.uni.trilogies
-                            delegate: Rectangle {
-                                id: era
-                                required property var modelData
-                                required property int index
-                                width: triptych.colW
-                                height: 460
-                                radius: 16
-                                color: Qt.rgba(1, 1, 1, 0.045)
-                                border.width: 1; border.color: Qt.rgba(0.97, 0.97, 0.96, 0.09)
-                                Column {
-                                    anchors.fill: parent
-                                    anchors.margins: 18
-                                    spacing: 12
-                                    Text { text: era.modelData.era; color: theme.gold
-                                           font.family: theme.display; font.italic: true; font.pixelSize: 19 }
-                                    Repeater {
-                                        model: era.modelData.films
-                                        delegate: Rectangle {
-                                            id: ep
-                                            required property var modelData
-                                            required property int index
-                                            width: parent.width; height: 118
-                                            radius: 10; clip: true
-                                            color: ep.modelData.c1 || "#10141f"
-                                            border.width: 1
-                                            border.color: epMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
-                                                                             : Qt.rgba(0.97,0.97,0.96,0.10)
-                                            Image {
-                                                anchors.fill: parent
-                                                source: ep.modelData.art || ep.modelData.cover || ""
-                                                asynchronous: true; cache: true
-                                                fillMode: Image.PreserveAspectCrop
-                                                opacity: status === Image.Ready ? (epMa.containsMouse ? 0.75 : 0.5) : 0
-                                                Behavior on opacity { NumberAnimation { duration: 220 } }
-                                            }
-                                            Rectangle {
-                                                anchors.fill: parent
-                                                gradient: Gradient {
-                                                    orientation: Gradient.Horizontal
-                                                    GradientStop { position: 0; color: Qt.rgba(0,0,0,0.72) }
-                                                    GradientStop { position: 1; color: Qt.rgba(0,0,0,0.15) }
-                                                }
-                                            }
-                                            Row {
-                                                anchors.left: parent.left; anchors.leftMargin: 16
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                spacing: 14
-                                                Text {   // the episode numeral — the saga's spine
-                                                    text: ["I","II","III","IV","V","VI","VII","VIII","IX"][era.index * 3 + ep.index] || ""
-                                                    color: Qt.rgba(0.94, 0.77, 0.29, 0.85)
-                                                    font.family: theme.display; font.italic: true; font.pixelSize: 34
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                }
-                                                Text {
-                                                    width: ep.width - 100
-                                                    // episode subtitle only — the numeral already says the rest
-                                                    text: String(ep.modelData.title).replace(/^Star Wars: Episode [IVX]+ - /, "")
-                                                    color: theme.ink; font.family: theme.display; font.pixelSize: 18
-                                                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                }
-                                            }
-                                            MouseArea {
-                                                id: epMa
-                                                anchors.fill: parent
-                                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.watchRequested(ep.modelData)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                Repeater {
+                    model: root.currentShelves
+                    delegate: Column {
+                        id: shelfBlock
+                        required property var modelData
+                        width: destinationColumn.width
+                        property var shelfEntries: root.entriesFor(modelData.ids)
+                        visible: shelfEntries.length > 0
+                        spacing: 0
+
+                        StarWarsMediaShelf {
+                            width: parent.width
+                            mediumTitle: shelfBlock.modelData.medium
+                            note: shelfBlock.modelData.note
+                            kind: root.kindFor(shelfBlock.modelData.ids)
+                            entries: shelfBlock.shelfEntries
+                            onActivated: function(entry, kind) { root.openEntry(kind, entry) }
                         }
+                        Item { width: 1; height: 46 }
                     }
                 }
-
-                Item { width: 1; height: 44 }
-
-                // ===== THE STANDALONE STORIES + THE SERIES =====
-                GalaxyRow { width: parent.width; title: "The Standalone Stories"; items: root.uni.standalones }
-                GalaxyRow { width: parent.width; title: "The Series — Live Action"; items: root.uni.liveShows }
-                GalaxyRow { width: parent.width; title: "The Series — Animated";    items: root.uni.animatedShows }
-
-                Item { width: 1; height: 34; visible: !!root.uni.comics }
-
-                // ===== THE COMICS DOOR — the canon in print (curated GC pin, 2026-07-13) =====
-                Rectangle {
-                    width: parent.width; height: 108
-                    radius: 12; clip: true
-                    visible: !!root.uni.comics
-                    color: "#241813"
-                    border.width: 1
-                    border.color: galaxyComicsMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
-                                                               : Qt.rgba(0.97,0.97,0.96,0.10)
-                    Image {
-                        anchors.fill: parent
-                        source: root.uni.banner
-                        asynchronous: true; cache: true
-                        fillMode: Image.PreserveAspectCrop
-                        opacity: status === Image.Ready ? (galaxyComicsMa.containsMouse ? 0.5 : 0.28) : 0
-                        Behavior on opacity { NumberAnimation { duration: 220 } }
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.76) }
-                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.30) }
-                        }
-                    }
-                    Column {
-                        anchors.left: parent.left; anchors.leftMargin: 26
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 7
-                        Text { text: "GETCOMICS ARCHIVE"; color: theme.gold
-                               font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                        Text {
-                            text: (root.uni.comics && root.uni.comics.line) || "The canon continues in print."
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 19
-                        }
-                    }
-                    Row {
-                        anchors.right: parent.right; anchors.rightMargin: 26
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 8
-                        Text { text: root.comicsBox && root.comicsBox.count
-                                     ? "Browse " + root.comicsBox.count + " releases"
-                                     : "Browse the archive"
-                               color: theme.ink; font.family: theme.ui
-                               font.pixelSize: 13; font.weight: Font.DemiBold }
-                        Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
-                    }
-                    MouseArea {
-                        id: galaxyComicsMa
-                        anchors.fill: parent
-                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.comicsArchiveRequested(root.comicsDoor())
-                    }
-                }
-
                 Item { width: 1; height: 60 }
             }
         }
     }
-
     ChromeScrim { z: 16 }
     BackAction {
         x: theme.margin; y: 28; z: 20
-        onTriggered: root.backRequested()
+        onTriggered: {
+            if (root.selectedDestinationId.length) root.closeDestination()
+            else root.backRequested()
+        }
     }
     Row {
         z: 30
@@ -344,25 +243,16 @@ Item {
                 onClicked: root.minimizeRequested() }
         }
         Item {
-            width: 22
-            height: 22
+            width: 22; height: 22
             Image {
                 anchors.fill: parent
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg"
-                        : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22
-                sourceSize.height: 22
-                fillMode: Image.PreserveAspectFit
+                        ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
-            MouseArea {
-                id: fsMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.fullscreenRequested()
-            }
+            MouseArea { id: fsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: root.fullscreenRequested() }
         }
         Item {
             width: 22; height: 22
@@ -371,84 +261,6 @@ Item {
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: root.closeRequested() }
-        }
-    }
-
-    // ---- one horizontal rail of watch tiles (canon-ordered) ----
-    component GalaxyRow: Column {
-        id: grow
-        property string title
-        property var items: []
-        spacing: 16
-        visible: items && items.length > 0
-        bottomPadding: 34
-        Row {
-            spacing: 12
-            Text { text: grow.title; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 25 }
-            Text { text: (grow.items ? grow.items.length : 0) + (grow.items && grow.items.length === 1 ? " title" : " titles")
-                   color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                   anchors.baseline: parent.children[0].baseline }
-        }
-        Flickable {
-            width: parent.width; height: 238
-            contentWidth: railRow.width; contentHeight: height
-            clip: true
-            flickableDirection: Flickable.HorizontalFlick
-            boundsBehavior: Flickable.StopAtBounds
-            Row {
-                id: railRow
-                spacing: 18
-                Repeater {
-                    model: grow.items
-                    delegate: Item {
-                        id: gTile
-                        required property var modelData
-                        width: 150; height: 232
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 8; clip: true
-                            color: "#131a28"
-                            border.width: 1
-                            border.color: gMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
-                                                            : Qt.rgba(0.97,0.97,0.96,0.12)
-                            Image {
-                                anchors.fill: parent
-                                source: gTile.modelData.cover || ""
-                                asynchronous: true; cache: true
-                                fillMode: Image.PreserveAspectCrop
-                                opacity: status === Image.Ready ? 1 : 0
-                                Behavior on opacity { NumberAnimation { duration: 220 } }
-                            }
-                            Rectangle {
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: 52
-                                gradient: Gradient {
-                                    GradientStop { position: 0; color: "transparent" }
-                                    GradientStop { position: 1; color: Qt.rgba(0,0,0,0.86) }
-                                }
-                            }
-                            Text {
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                anchors.margins: 9
-                                text: gTile.modelData.title
-                                color: theme.ink; font.family: theme.ui
-                                font.pixelSize: 12; font.weight: Font.DemiBold
-                                wrapMode: Text.WordWrap; maximumLineCount: 2
-                                elide: Text.ElideRight
-                            }
-                        }
-                        MouseArea {
-                            id: gMa
-                            anchors.fill: parent
-                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: root.watchRequested(gTile.modelData)
-                        }
-                    }
-                }
-            }
         }
     }
 }

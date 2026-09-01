@@ -1539,6 +1539,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("DevOpenWorld"),
         qEnvironmentVariable("COLOSSEUM_OPEN_WORLD"));
+    // dev harness: COLOSSEUM_OPEN_UNIVERSE="starwars" boots straight into a universe.
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DevOpenUniverse"),
+        qEnvironmentVariable("COLOSSEUM_OPEN_UNIVERSE"));
     // bakeoff harness (long-strip reader bakeoff, spec 2026-07-15): point
     // COLOSSEUM_BAKEOFF_STRIP at an extracted fixture page directory and the shell
     // boots a page-only MangaReader over those exact bytes. Adapter only — the

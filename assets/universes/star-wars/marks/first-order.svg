@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="457" height="527" version="1.1">
+<path d="M228,8.5l222,126v258l-222,126l-221-126v-258z" fill="#fff" stroke="#000" stroke-width="14"/>
+<circle cx="228.5" cy="263.5" r="190"/>
+<g id="pt8">
+<g id="pt4">
+<g id="pt2">
+<path d="M207.5,264.4l4-176a176,176 0 0 1 35.5,0l4,176" fill="#fff" id="pt"/>
+<use xlink:href="#pt" transform="rotate(21.1765 228.5 263.5)"/>
+</g>
+<use xlink:href="#pt2" transform="rotate(42.353 228.5 263.5)"/>
+</g>
+<use xlink:href="#pt4" transform="rotate(84.706 228.5 263.5)"/>
+</g>
+<use xlink:href="#pt8" transform="rotate(169.412 228.5 263.5)"/>
+<use xlink:href="#pt8" transform="rotate(-21.1765 228.5 263.5)"/>
+</svg>

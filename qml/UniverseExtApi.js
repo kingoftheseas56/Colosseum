@@ -17,7 +17,8 @@ var KINDS = { video: true, manga: true, comic: true, book: true };
 // this becomes the extension's transportUrl base + "/universe.json".
 var FILES = {
     "com.colosseum.universe.onepiece": "one-piece",
-    "com.colosseum.universe.dcau":     "dcau"
+    "com.colosseum.universe.dcau":     "dcau",
+    "com.colosseum.universe.starwars": "star-wars"
 };
 function fileFor(extensionId) { return FILES[extensionId] || ""; }
 
