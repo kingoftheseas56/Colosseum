@@ -3,9 +3,51 @@
 
 #include <QJsonObject>
 #include <QSignalSpy>
+#include <QVariantList>
 #include <QtTest>
 
 namespace {
+QVariantMap readingDeltaFact(const QString &eventId) {
+    QVariantMap fact;
+    fact.insert(QStringLiteral("eventId"), eventId);
+    fact.insert(QStringLiteral("sessionId"), QStringLiteral("session-reading"));
+    fact.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
+    fact.insert(QStringLiteral("kind"), QStringLiteral("manga_chapter"));
+    fact.insert(QStringLiteral("titleKey"), QStringLiteral("manga:fixture"));
+    fact.insert(QStringLiteral("itemKey"), QStringLiteral("chapter:1"));
+    fact.insert(QStringLiteral("title"), QStringLiteral("Fixture Chapter"));
+    fact.insert(QStringLiteral("itemLabel"), QString());
+    fact.insert(QStringLiteral("cover"), QString());
+    fact.insert(QStringLiteral("utcOffsetMinutes"), 0);
+    fact.insert(QStringLiteral("syncable"), true);
+    fact.insert(QStringLiteral("source"), QStringLiteral("test"));
+    fact.insert(QStringLiteral("atMs"), qint64(2000));
+    fact.insert(QStringLiteral("readingForm"), QStringLiteral("fixed"));
+    fact.insert(QStringLiteral("pageKeys"),
+                QVariantList{QStringLiteral("p1"), QStringLiteral("p2")});
+    fact.insert(QStringLiteral("progressMicros"), qint64(500000));
+    return fact;
+}
+
+QVariantMap completionFactHelper(const QString &eventId) {
+    QVariantMap fact;
+    fact.insert(QStringLiteral("eventId"), eventId);
+    fact.insert(QStringLiteral("sessionId"), QStringLiteral("session-completion"));
+    fact.insert(QStringLiteral("world"), QStringLiteral("theatre"));
+    fact.insert(QStringLiteral("kind"), QStringLiteral("movie"));
+    fact.insert(QStringLiteral("titleKey"), QStringLiteral("movie:complete"));
+    fact.insert(QStringLiteral("itemKey"), QStringLiteral("movie:complete"));
+    fact.insert(QStringLiteral("title"), QStringLiteral("Fixture Completion"));
+    fact.insert(QStringLiteral("itemLabel"), QString());
+    fact.insert(QStringLiteral("cover"), QString());
+    fact.insert(QStringLiteral("utcOffsetMinutes"), 0);
+    fact.insert(QStringLiteral("syncable"), true);
+    fact.insert(QStringLiteral("source"), QStringLiteral("test"));
+    fact.insert(QStringLiteral("atMs"), qint64(3000));
+    fact.insert(QStringLiteral("reason"), QStringLiteral("eof"));
+    return fact;
+}
+
 QVariantMap playbackFact(
     const QString &eventId,
     bool syncable = true) {
@@ -50,6 +92,7 @@ private slots:
     void exportUsesLowercaseEventKeyAndPortablePayload();
     void remotePutIsIdempotentAndDoesNotEcho();
     void rejectsDeleteMalformedKeyIdentitySchemaAndPayloadBeforeMutation();
+    void twoDevicesUnionFactsIntoIdenticalProjections();
 };
 
 void tst_activity_sync::identityAndImmutablePolicy() {
@@ -173,6 +216,74 @@ void tst_activity_sync::rejectsDeleteMalformedKeyIdentitySchemaAndPayloadBeforeM
     QVERIFY(!adapter.applyRemote(
         record.recordKey, SyncWireOperation::Put, malformed, 1, &error));
     QCOMPARE(target.portableSyncFacts().size(), 0);
+}
+
+// Wave 3 Lead final proof: two devices that each hold part of the same
+// Activity history — including one fact recorded independently on both —
+// exchange their portable exports through the sync adapter seam and
+// reconstruct byte-identical "Your Colosseum" projections, with the shared
+// fact totalled exactly once. The server-side halves of the same proof
+// (cross-device duplicate stays one row; unified pull returns it once at its
+// original server_seq) are covered by the N-10/N-11 account-service tests.
+void tst_activity_sync::twoDevicesUnionFactsIntoIdenticalProjections() {
+    ActivityStore deviceA;
+    ActivitySyncAdapter adapterA(&deviceA);
+    ActivityStore deviceB;
+    ActivitySyncAdapter adapterB(&deviceB);
+
+    const QString sharedEventId =
+        QStringLiteral("42424242-4242-4242-8242-424242424242");
+    QVERIFY(deviceA.recordPlaybackDelta(playbackFact(sharedEventId)));
+    QVERIFY(deviceB.recordPlaybackDelta(playbackFact(sharedEventId)));
+    QVERIFY(deviceA.recordReadingDelta(readingDeltaFact(
+        QStringLiteral("43434343-4343-4343-8343-434343434343"))));
+    QVERIFY(deviceB.recordCompletion(completionFactHelper(
+        QStringLiteral("44444444-4444-4444-8444-444444444444"))));
+
+    QString error;
+    SyncAdapterExport exportA;
+    QVERIFY2(adapterA.exportSnapshot(&exportA, &error), qPrintable(error));
+    SyncAdapterExport exportB;
+    QVERIFY2(adapterB.exportSnapshot(&exportB, &error), qPrintable(error));
+    QCOMPARE(exportA.records.size(), 2);
+    QCOMPARE(exportB.records.size(), 2);
+
+    for (const SyncAdapterRecord &record : std::as_const(exportA.records)) {
+        error.clear();
+        QVERIFY2(adapterB.applyRemote(
+                     record.recordKey, SyncWireOperation::Put,
+                     record.payload, 1, &error),
+                 qPrintable(error));
+    }
+    for (const SyncAdapterRecord &record : std::as_const(exportB.records)) {
+        error.clear();
+        QVERIFY2(adapterA.applyRemote(
+                     record.recordKey, SyncWireOperation::Put,
+                     record.payload, 1, &error),
+                 qPrintable(error));
+    }
+
+    QCOMPARE(deviceA.portableSyncFacts().size(), 3);
+    QCOMPARE(deviceB.portableSyncFacts().size(), 3);
+
+    const QVariantMap projectionA =
+        deviceA.projectMonth(QStringLiteral("1970-01"));
+    const QVariantMap projectionB =
+        deviceB.projectMonth(QStringLiteral("1970-01"));
+    QCOMPARE(projectionA, projectionB);
+
+    // The shared playback fact (5000 ms) must be totalled exactly once — a
+    // doubled watch time here is the classic duplicate-union failure.
+    QCOMPARE(projectionA.value(QStringLiteral("watchSeconds")).toLongLong(),
+             qint64(5));
+    QCOMPARE(projectionB.value(QStringLiteral("watchSeconds")).toLongLong(),
+             qint64(5));
+    QCOMPARE(projectionA.value(QStringLiteral("pagesRead")).toLongLong(),
+             qint64(2));
+    QCOMPARE(projectionA.value(QStringLiteral("completedCount")).toLongLong(),
+             qint64(1));
+    QCOMPARE(projectionA.value(QStringLiteral("activeDays")).toLongLong(),
+             qint64(1));
 }
 
 QTEST_MAIN(tst_activity_sync)
