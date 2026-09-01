@@ -30,8 +30,8 @@ Item {
                 required property int index
                 slide: modelData
                 kicker: car.kicker
-                primaryLabel: car.primaryLabel
-                secondaryLabel: car.secondaryLabel
+                primaryLabel: modelData.cta !== undefined ? modelData.cta : car.primaryLabel
+                secondaryLabel: modelData.secondaryLabel !== undefined ? modelData.secondaryLabel : car.secondaryLabel
                 onPrimaryClicked: car.primaryClicked(index)
                 onSecondaryClicked: car.secondaryClicked(index)
             }

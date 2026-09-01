@@ -637,24 +637,51 @@ Window {
     function closeTheatreGenreIndex() { theatreGenreIndexLayer.active = false }
 
     // ---- series detail: a layer over the current world page (opened from a Top-10 title tile) ----
-    function openSeries(title, malId) {
+    function openSeries(title, malId, requestedVolumeNumber) {
+        if (seriesLayer.legacyWeebCentral) {
+            seriesLayer.active = false
+            seriesLayer.legacyWeebCentral = false
+        }
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
         seriesLayer.resumeVolumeId = ""
+        seriesLayer.requestedVolumeNumber = String(requestedVolumeNumber || "")
         seriesLayer.title = title
         seriesLayer.malId = malId || ""
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
+            seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             seriesLayer.item.malId = malId || ""       // set BEFORE seriesTitle: that triggers re-resolve
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
     }
+    // Narrow legacy provider surface for universe entries that are explicitly WeebCentral-backed.
+    // Keep this out of the normal MAL/catalogue series path: the colored One Piece edition
+    // is provider-identified and must resolve through the page that actually speaks WeebCentral.
+    function openWeebCentralSeries(title, requestedVolumeNumber) {
+        if (seriesLayer.active)
+            seriesLayer.active = false
+        seriesLayer.legacyWeebCentral = true
+        seriesLayer.resumeSeriesId = ""
+        seriesLayer.resumeChapterId = ""
+        seriesLayer.resumeVolumeId = ""
+        seriesLayer.requestedVolumeNumber = String(requestedVolumeNumber || "")
+        seriesLayer.title = title || ""
+        seriesLayer.malId = ""
+        seriesLayer.active = true
+    }
+
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
     function openSeriesAt(title, seriesId, chapterId) {
+        if (seriesLayer.legacyWeebCentral) {
+            seriesLayer.active = false
+            seriesLayer.legacyWeebCentral = false
+        }
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
         seriesLayer.resumeVolumeId = ""
+        seriesLayer.requestedVolumeNumber = ""
         seriesLayer.title = title
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.seriesTitle = title
@@ -1162,8 +1189,9 @@ Window {
     // universe a real page instead of a row in a list. (Universes design §5.3 — a universe
     // supplies identity and ordering, never sources.) The name rides along only as a label,
     // for the header band before the payload lands.
-    // One renderer for every universe. The per-category dispatcher is gone: it existed to
-    // pick between bespoke per-IP pages, and those are being deleted (next task).
+    // The extension payload remains the factual spine. Most universes use the generic renderer;
+    // franchise-specific surfaces opt in narrowly by extension id without restoring the old
+    // category dispatcher.
     function openUniverse(extensionId, name) {
         if (!extensionId) return
         universeLayer.extensionId = extensionId
@@ -1175,6 +1203,43 @@ Window {
         universeLayer.active = true
     }
     function closeUniverse() { universeLayer.active = false }
+
+    function openOnePaceArc(arc) {
+        var onePace = null
+        for (var i = 0; i < win.installedExtensions.length; ++i) {
+            var ext = win.installedExtensions[i]
+            if (ext && ext.id === "com.onepace.fedew" && ext.enabled === true) {
+                onePace = ext
+                break
+            }
+        }
+        if (!onePace) {
+            localLaunchToast.flash("One Pace is not installed or enabled. Opening Theatre extensions.", false)
+            win.openExtensionsPage("theatre")
+            return
+        }
+
+        var specs = AddonClient.discoverCatalogSpecs([onePace], "series")
+        if (!specs.length) specs = AddonClient.discoverCatalogSpecs([onePace], "anime")
+        if (!specs.length) {
+            localLaunchToast.flash("The installed One Pace addon exposes no browsable series catalog.", false)
+            return
+        }
+        var spec = specs[0]
+        var url = AddonClient.catalogUrl(spec.transportUrl, spec.type, spec.catalogId, [], 0)
+        AddonClient.fetchCatalogUrl(url, function(metas) {
+            if (!metas || !metas.length) {
+                localLaunchToast.flash("One Pace did not return a series from its catalog.", false)
+                return
+            }
+            var meta = metas[0]
+            win.openTheatreSeries({ id: meta.id || "", type: "series",
+                                    title: meta.name || meta.title || "One Pace",
+                                    cover: meta.poster || "", art: meta.background || "",
+                                    requestedArc: arc || null })
+        })
+    }
+
     function openUniverseHall() { universeHallLayer.active = true }
     function closeUniverseHall() { universeHallLayer.active = false }
 
@@ -2603,10 +2668,13 @@ Window {
         property string resumeSeriesId: ""    // Continue resume: jump straight to this chapter…
         property string resumeChapterId: ""   //   …in this series (set seriesId BEFORE the chapter)
         property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
-        source: "MangaSeries.qml"
+        property string requestedVolumeNumber: "" // One Piece arc catalogue: land on this exact volume
+        property bool legacyWeebCentral: false  // explicit provider-backed universe entry only
+        source: legacyWeebCentral ? "MangaSeriesThumbnailMock.qml" : "MangaSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.malId = seriesLayer.malId
+            item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
@@ -3093,7 +3161,7 @@ Window {
         function onChanged() { TheatreApi.setShowExplicit(contentPreferences.showExplicit) }
     }
 
-    // ---- Universes: the ONE extension-driven page + the Hall of Worlds ----
+    // ---- Universes: extension-backed renderers + the Hall of Worlds ----
     Loader {
         id: universeLayer
         anchors.fill: parent
@@ -3103,12 +3171,18 @@ Window {
         asynchronous: true
         property string extensionId: ""
         property string universeName: ""
-        source: "UniverseExtensionPage.qml"
+        source: extensionId === "com.colosseum.universe.onepiece"
+                ? "OnePieceUniversePage.qml"
+                : "UniverseExtensionPage.qml"
         onLoaded: {
             // NO item.backdrop — UniverseExtensionPage has no such property; it paints its
             // own flat #0c0e11 instead of sampling the shared wallpaper.
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
+            if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
+                item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+                item.installedExtensions = Qt.binding(function() { return win.installedExtensions })
+            }
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -3123,9 +3197,17 @@ Window {
             // manga → Tankoban. A weebcentral-sourced entry (One Piece digital-coloured) opens its
             // own series by ID; an anilist entry opens by title, as before.
             item.seriesRequested.connect(function(e) {
-                if (e && e.provider === "weebcentral" && e.id) win.openSeriesAt(e.title || "", e.id)
-                else win.openSeries((e && e.title) || e || "")
+                var requestedVolumeNumber = (e && e.requestedVolumeNumber) ? String(e.requestedVolumeNumber) : ""
+                if (e && e.provider === "weebcentral")
+                    win.openWeebCentralSeries(e.title || "", requestedVolumeNumber)
+                else
+                    win.openSeries((e && e.title) || e || "", "", requestedVolumeNumber)
             })
+            if (universeLayer.extensionId === "com.colosseum.universe.onepiece") {
+                item.onePaceRequested.connect(win.openOnePaceArc)
+                item.continueResumeRequested.connect(win.resumeContinue)
+                item.continueDetailRequested.connect(win.detailContinue)
+            }
         }
     }
     Loader {
