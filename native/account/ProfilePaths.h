@@ -38,6 +38,11 @@ public:
     QString syncOutboxPath() const;
     QString syncMetaIniPath() const;
 
+    // Crash-safe cloud attachment receipt (Arc 36 Wave 4A N-14): non-empty
+    // only for Kind::Account, resolving inside the promoted account profile —
+    // never in the global adoption/attachment journal directories.
+    QString cloudAttachmentReceiptPath() const;
+
     QString accountStagingRoot() const;
     QString accountReplacementBackupRoot() const;
     QString adoptionJournalPath() const;
