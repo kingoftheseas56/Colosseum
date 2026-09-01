@@ -35,7 +35,11 @@ enum class AccountOperation {
     ListApprovals,
     DecideApproval,
     SyncPush,
-    SyncPull
+    SyncPull,
+    BeginProfileAttachment,
+    GetProfileAttachment,
+    CommitProfileAttachment,
+    SyncSnapshot
 };
 
 Q_DECLARE_METATYPE(AccountOperation)
@@ -114,10 +118,25 @@ public:
         bool approve);
 
     quint64 pushSync(
-        const QJsonArray &mutations);
+        const QJsonArray &mutations,
+        const QString &attachmentId = QString());
 
     quint64 pullSync(
         quint64 afterServerSeq);
+
+    quint64 beginProfileAttachment(
+        const QString &attachmentId,
+        const QString &sourceKind,
+        const QString &sourceSemanticDigest);
+
+    quint64 getProfileAttachment(
+        const QString &attachmentId);
+
+    quint64 commitProfileAttachment(
+        const QString &attachmentId);
+
+    quint64 pullSyncSnapshot(
+        const QString &nextPageToken = QString());
 
 signals:
     void completed(
