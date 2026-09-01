@@ -214,7 +214,40 @@ func (s *Service) pushOneSyncMutation(
 		current.HLCCounter,
 		current.DeviceID) > 0
 
-	if won {
+	var currentPlain json.RawMessage
+	if found && current.Operation == "put" {
+		plain, openErr := s.syncCipher.Open(
+			auth.Account.ID,
+			current.Category,
+			current.RecordKey,
+			current.PayloadCipher)
+		if openErr != nil {
+			return SyncPushResult{}, fmt.Errorf("decrypt current sync payload: %w", openErr)
+		}
+		if !json.Valid(plain) {
+			return SyncPushResult{}, fmt.Errorf("decrypted current sync payload is malformed")
+		}
+		currentPlain = json.RawMessage(plain)
+	}
+
+	currentMerge := syncMergeCurrent{}
+	if found {
+		currentMerge = syncMergeCurrent{
+			MutationID:    current.MutationID,
+			DeviceID:      current.DeviceID,
+			SchemaVersion: current.SchemaVersion,
+			HLCPhysicalMS: current.HLCPhysicalMS,
+			HLCCounter:    current.HLCCounter,
+			Operation:     current.Operation,
+			Payload:       currentPlain,
+		}
+	}
+	resolution, resolveErr := resolveMutableSync(currentMerge, found, parsed)
+	if resolveErr != nil {
+		return SyncPushResult{}, fmt.Errorf("resolve mutable sync state: %w", resolveErr)
+	}
+
+	if resolution.Changed {
 		if found {
 			if _, err := tx.Exec(ctx, `
                 INSERT INTO account_sync_versions(
@@ -244,7 +277,19 @@ func (s *Service) pushOneSyncMutation(
 				int64(current.ServerSeq),
 				now,
 				parsed.MutationID); err != nil {
-				return SyncPushResult{}, fmt.Errorf("archive sync winner: %w", err)
+				return SyncPushResult{}, fmt.Errorf("archive sync current state: %w", err)
+			}
+		}
+
+		var resolvedCiphertext []byte
+		if resolution.Operation == "put" {
+			resolvedCiphertext, err = s.syncCipher.Seal(
+				auth.Account.ID,
+				parsed.Category,
+				parsed.RecordKey,
+				resolution.Payload)
+			if err != nil {
+				return SyncPushResult{}, fmt.Errorf("encrypt resolved sync payload: %w", err)
 			}
 		}
 
@@ -275,16 +320,16 @@ func (s *Service) pushOneSyncMutation(
 			auth.Account.ID,
 			parsed.Category,
 			parsed.RecordKey,
-			parsed.MutationID,
-			parsed.DeviceID,
-			parsed.SchemaVersion,
-			parsed.HLCPhysicalMS,
-			int64(parsed.HLCCounter),
-			parsed.Operation,
-			ciphertext,
+			resolution.WinnerMutationID,
+			resolution.WinnerDeviceID,
+			resolution.WinnerSchemaVersion,
+			resolution.WinnerHLCPhysicalMS,
+			int64(resolution.WinnerHLCCounter),
+			resolution.Operation,
+			resolvedCiphertext,
 			serverSeq,
 			now); err != nil {
-			return SyncPushResult{}, fmt.Errorf("store sync winner: %w", err)
+			return SyncPushResult{}, fmt.Errorf("store canonical sync state: %w", err)
 		}
 	}
 
@@ -335,16 +380,15 @@ func (s *Service) PullSync(
             hlc_counter,
             operation,
             payload_ciphertext,
-            won,
-            received_at
-        FROM account_sync_journal
+            updated_at
+        FROM account_sync_current
         WHERE account_id = $1::uuid
           AND server_seq > $2
         ORDER BY server_seq ASC
         LIMIT $3
     `, auth.Account.ID, int64(after), syncPullPageSize+1)
 	if err != nil {
-		return response, fmt.Errorf("query sync journal: %w", err)
+		return response, fmt.Errorf("query canonical sync state: %w", err)
 	}
 	defer rows.Close()
 
@@ -363,12 +407,11 @@ func (s *Service) PullSync(
 			&counter,
 			&stored.Operation,
 			&stored.PayloadCipher,
-			&stored.Won,
 			&stored.ReceivedAt); err != nil {
-			return response, fmt.Errorf("scan sync journal: %w", err)
+			return response, fmt.Errorf("scan canonical sync state: %w", err)
 		}
 		if serverSeq <= 0 || counter < 0 {
-			return response, fmt.Errorf("sync journal contains invalid numeric state")
+			return response, fmt.Errorf("canonical sync state contains invalid numeric state")
 		}
 		stored.ServerSeq = uint64(serverSeq)
 		stored.HLCCounter = uint64(counter)
@@ -386,12 +429,13 @@ func (s *Service) PullSync(
 		}
 		response.Entries = append(response.Entries, SyncPullEntry{
 			ServerSeq: stored.ServerSeq,
-			Won:       stored.Won,
+			Won:       true,
+			Canonical: true,
 			Mutation:  view,
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return response, fmt.Errorf("iterate sync journal: %w", err)
+		return response, fmt.Errorf("iterate canonical sync state: %w", err)
 	}
 
 	return response, nil
