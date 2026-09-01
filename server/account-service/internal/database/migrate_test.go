@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,6 +76,274 @@ func TestRunMigrationsFromEmptyDatabase(t *testing.T) {
 		}
 		if !exists {
 			t.Fatalf("identity/security table %s was not created", table)
+		}
+	}
+}
+
+func TestMigration0005PortableProfileSync(t *testing.T) {
+	pool := testdb.Open(t)
+	testdb.ResetPublicSchema(t, pool)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	if err := RunMigrations(ctx, pool); err != nil {
+		t.Fatalf("RunMigrations() first pass error = %v", err)
+	}
+	if err := RunMigrations(ctx, pool); err != nil {
+		t.Fatalf("RunMigrations() second pass error = %v", err)
+	}
+
+	var appliedCount int
+	if err := pool.QueryRow(ctx, `
+        SELECT count(*)
+        FROM schema_migrations
+        WHERE name = '0005_profile_portable_sync.sql'
+    `).Scan(&appliedCount); err != nil {
+		t.Fatalf("count migration 0005 applications: %v", err)
+	}
+	if appliedCount != 1 {
+		t.Fatalf("migration 0005 application count = %d, want exactly 1", appliedCount)
+	}
+
+	for _, table := range []string{
+		"account_device_attachments",
+		"account_activity_facts",
+	} {
+		var exists bool
+		if err := pool.QueryRow(ctx,
+			"SELECT to_regclass('public.' || $1) IS NOT NULL", table).Scan(&exists); err != nil {
+			t.Fatalf("check table %s: %v", table, err)
+		}
+		if !exists {
+			t.Fatalf("migration 0005 table %s was not created", table)
+		}
+	}
+
+	var attachmentColumnExists bool
+	if err := pool.QueryRow(ctx, `
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'account_sync_journal'
+              AND column_name = 'attachment_id'
+        )
+    `).Scan(&attachmentColumnExists); err != nil {
+		t.Fatalf("check account_sync_journal.attachment_id: %v", err)
+	}
+	if !attachmentColumnExists {
+		t.Fatal("account_sync_journal.attachment_id was not created")
+	}
+
+	var sharedSequenceExists, oldSequenceGone bool
+	if err := pool.QueryRow(ctx, `
+        SELECT to_regclass('public.account_change_seq') IS NOT NULL,
+               to_regclass('public.account_sync_journal_server_seq_seq') IS NULL
+    `).Scan(&sharedSequenceExists, &oldSequenceGone); err != nil {
+		t.Fatalf("check shared change sequence: %v", err)
+	}
+	if !sharedSequenceExists {
+		t.Fatal("account_change_seq was not created by renaming the journal sequence")
+	}
+	if !oldSequenceGone {
+		t.Fatal("old account_sync_journal_server_seq_seq remains authoritative")
+	}
+
+	constraintChecks := []struct {
+		table string
+		name  string
+		kind  string
+	}{
+		{"account_device_attachments", "account_device_attachments_state_ck", "c"},
+		{"account_device_attachments", "account_device_attachments_baseline_ck", "c"},
+		{"account_activity_facts", "account_activity_facts_pkey", "p"},
+		{"account_activity_facts", "account_activity_facts_mutation_uk", "u"},
+		{"account_activity_facts", "account_activity_facts_schema_ck", "c"},
+		{"account_activity_facts", "account_activity_facts_seq_uk", "u"},
+	}
+	for _, check := range constraintChecks {
+		var exists bool
+		if err := pool.QueryRow(ctx, `
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conrelid = ('public.' || $1)::regclass
+                  AND conname = $2
+                  AND contype::text = $3
+            )
+        `, check.table, check.name, check.kind).Scan(&exists); err != nil {
+			t.Fatalf("check constraint %s: %v", check.name, err)
+		}
+		if !exists {
+			t.Fatalf("required constraint %s (%s) missing from %s", check.name, check.kind, check.table)
+		}
+	}
+
+	indexChecks := []struct {
+		table    string
+		name     string
+		snippets []string
+	}{
+		{"account_device_attachments", "account_device_attachments_open_idx", []string{"account_id, device_id, state"}},
+		{"account_sync_journal", "account_sync_journal_attachment_idx", []string{"account_id, attachment_id, server_seq", "attachment_id IS NOT NULL"}},
+		{"account_activity_facts", "account_activity_facts_pull_idx", []string{"account_id, server_seq"}},
+	}
+	for _, check := range indexChecks {
+		var definition string
+		if err := pool.QueryRow(ctx, `
+            SELECT indexdef
+            FROM pg_indexes
+            WHERE schemaname = 'public'
+              AND tablename = $1
+              AND indexname = $2
+        `, check.table, check.name).Scan(&definition); err != nil {
+			t.Fatalf("read index %s: %v", check.name, err)
+		}
+		for _, snippet := range check.snippets {
+			if !strings.Contains(definition, snippet) {
+				t.Fatalf("index %s definition = %q, want fragment %q", check.name, definition, snippet)
+			}
+		}
+	}
+
+	var accountID, deviceID string
+	if _, err := pool.Exec(ctx, `
+        INSERT INTO username_reservations(canonical_username, reserved_at)
+        VALUES ('migration-0005-user', now())
+    `); err != nil {
+		t.Fatalf("insert username reservation: %v", err)
+	}
+
+	if err := pool.QueryRow(ctx, `
+        INSERT INTO accounts(
+            canonical_username, display_username, password_hash,
+            recovery_key_verifier, created_at, updated_at
+        ) VALUES ($1, $2, $3, decode('01', 'hex'), now(), now())
+        RETURNING id::text
+    `, "migration-0005-user", "Migration 0005", "test-hash").Scan(&accountID); err != nil {
+		t.Fatalf("insert account: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `
+        INSERT INTO devices(
+            account_id, install_id, label, platform, created_at, last_seen_at
+        ) VALUES ($1::uuid, gen_random_uuid(), 'Device 000005', 'windows', now(), now())
+        RETURNING id::text
+    `, accountID).Scan(&deviceID); err != nil {
+		t.Fatalf("insert device: %v", err)
+	}
+
+	var attachmentID string
+	if err := pool.QueryRow(ctx, `
+        INSERT INTO account_device_attachments(
+            id, account_id, device_id, source_kind, source_semantic_digest,
+            baseline_server_seq, state, created_at, updated_at
+        ) VALUES (
+            gen_random_uuid(), $1::uuid, $2::uuid, 'local_only', 'digest-a',
+            0, 'open', now(), now()
+        )
+        RETURNING id::text
+    `, accountID, deviceID).Scan(&attachmentID); err != nil {
+		t.Fatalf("insert attachment: %v", err)
+	}
+
+	var journalMutationID string
+	if err := pool.QueryRow(ctx, `
+        INSERT INTO account_sync_journal(
+            account_id, mutation_id, device_id, category, record_key,
+            schema_version, hlc_physical_ms, hlc_counter, operation,
+            payload_ciphertext, won, received_at, attachment_id
+        ) VALUES (
+            $1::uuid, gen_random_uuid(), $2::uuid, 'collection', 'item-1',
+            1, 1, 0, 'put', decode('02', 'hex'), true, now(), $3::uuid
+        )
+        RETURNING mutation_id::text
+    `, accountID, deviceID, attachmentID).Scan(&journalMutationID); err != nil {
+		t.Fatalf("insert attached journal row: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx,
+		"DELETE FROM account_device_attachments WHERE id = $1::uuid", attachmentID); err != nil {
+		t.Fatalf("delete attachment: %v", err)
+	}
+	var journalAttachmentIsNull bool
+	if err := pool.QueryRow(ctx, `
+        SELECT attachment_id IS NULL
+        FROM account_sync_journal
+        WHERE account_id = $1::uuid AND mutation_id = $2::uuid
+    `, accountID, journalMutationID).Scan(&journalAttachmentIsNull); err != nil {
+		t.Fatalf("read journal after attachment delete: %v", err)
+	}
+	if !journalAttachmentIsNull {
+		t.Fatal("deleting an attachment did not preserve journal history with attachment_id set to NULL")
+	}
+
+	fkChecks := []struct {
+		table        string
+		referenced   string
+		deleteAction string
+	}{
+		{"account_device_attachments", "accounts", "c"},
+		{"account_device_attachments", "devices", "c"},
+		{"account_activity_facts", "accounts", "c"},
+		{"account_activity_facts", "devices", "c"},
+		{"account_sync_journal", "account_device_attachments", "n"},
+	}
+	for _, check := range fkChecks {
+		var exists bool
+		if err := pool.QueryRow(ctx, `
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conrelid = ('public.' || $1)::regclass
+                  AND confrelid = ('public.' || $2)::regclass
+                  AND contype = 'f'
+                  AND confdeltype::text = $3
+            )
+        `, check.table, check.referenced, check.deleteAction).Scan(&exists); err != nil {
+			t.Fatalf("check FK %s -> %s: %v", check.table, check.referenced, err)
+		}
+		if !exists {
+			t.Fatalf("required FK delete action %s -> %s (%s) missing", check.table, check.referenced, check.deleteAction)
+		}
+	}
+
+	if _, err := pool.Exec(ctx, `
+        INSERT INTO account_device_attachments(
+            id, account_id, device_id, source_kind, source_semantic_digest,
+            baseline_server_seq, state, created_at, updated_at
+        ) VALUES (
+            gen_random_uuid(), $1::uuid, $2::uuid, 'legacy_local', 'digest-b',
+            0, 'uploaded', now(), now()
+        )
+    `, accountID, deviceID); err != nil {
+		t.Fatalf("insert cascade attachment: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+        INSERT INTO account_activity_facts(
+            account_id, event_id, mutation_id, origin_device_id,
+            schema_version, event_type, payload_ciphertext, received_at
+        ) VALUES (
+            $1::uuid, gen_random_uuid(), gen_random_uuid(), $2::uuid,
+            1, 'playback_delta', decode('03', 'hex'), now()
+        )
+    `, accountID, deviceID); err != nil {
+		t.Fatalf("insert activity fact: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, "DELETE FROM accounts WHERE id = $1::uuid", accountID); err != nil {
+		t.Fatalf("delete account: %v", err)
+	}
+
+	for _, table := range []string{"account_device_attachments", "account_activity_facts"} {
+		var count int
+		if err := pool.QueryRow(ctx,
+			"SELECT count(*) FROM "+table+" WHERE account_id = $1::uuid", accountID).Scan(&count); err != nil {
+			t.Fatalf("count %s after account delete: %v", table, err)
+		}
+		if count != 0 {
+			t.Fatalf("%s rows after account delete = %d, want 0", table, count)
 		}
 	}
 }
