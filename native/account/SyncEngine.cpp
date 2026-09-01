@@ -459,6 +459,90 @@ void SyncEngine::beginSignOutFlush() {
     persistState();
 }
 
+bool SyncEngine::beginAttachmentMode(
+    const QString &attachmentId,
+    QString *error) {
+    if (!m_active) {
+        if (error) {
+            *error = QStringLiteral(
+                "Attachment mode requires a running sync engine.");
+        }
+        return false;
+    }
+
+    if (m_persistent.attachmentModeActive) {
+        if (error) {
+            *error = QStringLiteral(
+                "An attachment mode is already active.");
+        }
+        return false;
+    }
+
+    const QString normalized =
+        normalizedUuid(attachmentId);
+    if (normalized.isEmpty()) {
+        if (error) {
+            *error = QStringLiteral(
+                "Attachment mode requires a valid attachment id.");
+        }
+        return false;
+    }
+
+    m_persistent.attachmentModeActive = true;
+    m_persistent.attachmentId = normalized;
+    m_persistent.attachmentSnapshotDone = false;
+    m_persistent.attachmentSnapshotNextPageToken.clear();
+
+    persistState();
+    requestImmediateSync();
+    return true;
+}
+
+bool SyncEngine::endAttachmentMode(
+    QString *error) {
+    if (!m_active) {
+        if (error) {
+            *error = QStringLiteral(
+                "Attachment mode requires a running sync engine.");
+        }
+        return false;
+    }
+
+    if (!m_persistent.attachmentModeActive) {
+        if (error) {
+            *error = QStringLiteral(
+                "No attachment mode is active.");
+        }
+        return false;
+    }
+
+    // A snapshot request in flight belongs to the mode being exited;
+    // its late reply no longer matches any request context and is
+    // dropped when it arrives.
+    if (m_request.phase == NetworkPhase::Snapshot) {
+        m_request = {};
+        m_networkBusy = false;
+    }
+
+    m_persistent.attachmentModeActive = false;
+    m_persistent.attachmentId.clear();
+    m_persistent.attachmentSnapshotDone = false;
+    m_persistent.attachmentSnapshotNextPageToken.clear();
+    m_initialPullPending = true;
+
+    persistState();
+    requestImmediateSync();
+    return true;
+}
+
+bool SyncEngine::attachmentModeActive() const {
+    return m_persistent.attachmentModeActive;
+}
+
+QString SyncEngine::attachmentId() const {
+    return m_persistent.attachmentId;
+}
+
 void SyncEngine::setAutomaticSchedulingEnabled(
     bool enabled) {
     m_automaticSchedulingEnabled =
@@ -631,7 +715,11 @@ void SyncEngine::handleClientCompleted(
              != AccountOperation::SyncPull)
         || (phase == NetworkPhase::Push
             && operation
-                != AccountOperation::SyncPush)) {
+                != AccountOperation::SyncPush)
+        || (phase == NetworkPhase::Snapshot
+            && operation
+                != AccountOperation::
+                    SyncSnapshot)) {
         return;
     }
 
@@ -750,7 +838,13 @@ void SyncEngine::handleClientCompleted(
     QString errorMessage;
     bool processed = false;
 
-    if (phase == NetworkPhase::Pull) {
+    if (phase == NetworkPhase::Snapshot) {
+        processed =
+            processSnapshotReply(
+                reply,
+                &errorCode,
+                &errorMessage);
+    } else if (phase == NetworkPhase::Pull) {
         processed =
             processPullReply(
                 reply,
@@ -811,10 +905,14 @@ void SyncEngine::handleLocalMutation(
     }
 
     QString error;
+    // Union/merge during attachment replay: while the stable snapshot
+    // bootstrap is running, records that exist in the mirror but are
+    // missing locally are imports the account already owns — never
+    // inferred deletes, even for delete-capable adapters.
     if (!reconcileCategory(
             categoryId,
             &error,
-            true)) {
+            !attachmentSnapshotPending())) {
         setBlocked(
             QStringLiteral(
                 "adapter_snapshot_failed"),
@@ -1228,6 +1326,14 @@ void SyncEngine::maybeRunNetwork() {
         }
     }
 
+    // The attachment bootstrap gates everything else: the stable
+    // snapshot must run to completion before ordinary pull resumes or
+    // an attached push leaves the outbox.
+    if (attachmentSnapshotPending()) {
+        beginSnapshot();
+        return;
+    }
+
     if (m_initialPullPending
         || m_pullHasMore) {
         beginPull();
@@ -1251,7 +1357,8 @@ void SyncEngine::maybeRunNetwork() {
 void SyncEngine::beginPull() {
     if (!m_active
         || !m_networkEnabled
-        || m_networkBusy) {
+        || m_networkBusy
+        || attachmentSnapshotPending()) {
         return;
     }
 
@@ -1265,6 +1372,34 @@ void SyncEngine::beginPull() {
     m_request.requestId =
         m_client->pullSync(
             m_persistent.cursor);
+}
+
+void SyncEngine::beginSnapshot() {
+    if (!m_active
+        || !m_networkEnabled
+        || m_networkBusy
+        || !attachmentSnapshotPending()) {
+        return;
+    }
+
+    m_retryTimer.stop();
+    m_networkBusy = true;
+    m_request = {};
+    m_request.phase =
+        NetworkPhase::Snapshot;
+    m_request.sentLocalMs =
+        nowMs();
+    // An empty token fetches the first page; the durable continuation
+    // token resumes exactly where the bootstrap left off.
+    m_request.requestId =
+        m_client->pullSyncSnapshot(
+            m_persistent
+                .attachmentSnapshotNextPageToken);
+}
+
+bool SyncEngine::attachmentSnapshotPending() const {
+    return m_persistent.attachmentModeActive
+        && !m_persistent.attachmentSnapshotDone;
 }
 
 void SyncEngine::beginPush() {
@@ -1323,9 +1458,15 @@ void SyncEngine::beginPush() {
         nowMs();
     m_request.mutationIds =
         mutationIds;
+    // Attached pushes stamp the envelope with the active attachment id
+    // while mutation identity, batching, retry, clock, and persistence
+    // semantics stay exactly as they are for ordinary pushes.
     m_request.requestId =
         m_client->pushSync(
-            mutations);
+            mutations,
+            m_persistent.attachmentModeActive
+                ? m_persistent.attachmentId
+                : QString());
 }
 
 bool SyncEngine::processPullReply(
@@ -1398,6 +1539,93 @@ bool SyncEngine::processPullReply(
                                  errorCode, errorMessage))
         return false;
 
+    return true;
+}
+
+bool SyncEngine::processSnapshotReply(
+    const AccountTransportReply &reply,
+    QString *errorCode,
+    QString *errorMessage) {
+    const auto response =
+        syncWireSnapshotResponseFromJson(
+            reply.body);
+    if (!response.has_value()) {
+        if (errorCode) {
+            *errorCode =
+                QStringLiteral(
+                    "sync_protocol_error");
+        }
+        if (errorMessage) {
+            *errorMessage =
+                QStringLiteral(
+                    "The sync service returned an invalid snapshot response.");
+        }
+        return false;
+    }
+
+    for (const SyncWirePullEntry &entry :
+         response->entries) {
+        // Snapshot pages are sorted by (category, record_key), not by
+        // server_seq: an entry at or below the engine cursor is a row
+        // unchanged since the last ordinary pull, so it is skipped;
+        // everything above it merges in through the ordinary pull-entry
+        // validation.
+        if (entry.serverSeq
+                <= m_persistent.cursor) {
+            continue;
+        }
+
+        // Poison guard, as with ordinary pull: a remote HLC far in the
+        // future would permanently inflate the persisted hybrid clock.
+        if (entry.mutation.hlc.physicalMs
+                > nowMs() + kMaximumRemoteClockFutureMs) {
+            if (errorCode) {
+                *errorCode = QStringLiteral("sync_protocol_error");
+            }
+            if (errorMessage) {
+                *errorMessage = QStringLiteral(
+                    "The sync service served a clock value that is implausibly far in the future.");
+            }
+            return false;
+        }
+
+        m_clock.observe(
+            entry.mutation.hlc,
+            nowMs());
+
+        if ((entry.canonical || entry.won)
+            && !applyPullEntry(
+                    entry,
+                    errorCode,
+                    errorMessage)) {
+            return false;
+        }
+    }
+
+    if (response->hasMore) {
+        // The continuation token is durable before the next page is
+        // requested, so a crash or restart resumes this page stream
+        // instead of restarting the bootstrap.
+        m_persistent
+            .attachmentSnapshotNextPageToken =
+            response->nextPageToken;
+        return true;
+    }
+
+    // Bootstrap complete. The frozen baseline cursor advances the
+    // engine cursor only when ahead — never regressing it — and
+    // ordinary pull then resumes strictly after it.
+    m_persistent
+        .attachmentSnapshotNextPageToken
+        .clear();
+    m_persistent.attachmentSnapshotDone =
+        true;
+    if (response->cursor
+            > m_persistent.cursor) {
+        m_persistent.cursor =
+            response->cursor;
+    }
+    m_initialPullPending = true;
     return true;
 }
 
