@@ -13,6 +13,7 @@ import (
 const (
 	defaultHTTPAddr               = ":8080"
 	defaultDatabaseMaxConnections = 8
+	defaultDatabaseAcquireTimeout = 2 * time.Second
 	defaultReadinessTimeout       = 2 * time.Second
 	defaultShutdownTimeout        = 10 * time.Second
 	defaultRegistrationGlobal10m  = 500
@@ -24,6 +25,7 @@ type Config struct {
 	HTTPAddr                   string
 	DatabaseURL                string
 	DatabaseMaxConnections     int32
+	DatabaseAcquireTimeout     time.Duration
 	ReadinessTimeout           time.Duration
 	ShutdownTimeout            time.Duration
 	RecoveryHMACKey            []byte
@@ -115,6 +117,7 @@ func Load() (Config, error) {
 		HTTPAddr:                   httpAddr,
 		DatabaseURL:                databaseURL,
 		DatabaseMaxConnections:     maxConnections,
+		DatabaseAcquireTimeout:     defaultDatabaseAcquireTimeout,
 		ReadinessTimeout:           defaultReadinessTimeout,
 		ShutdownTimeout:            defaultShutdownTimeout,
 		RecoveryHMACKey:            recoveryHMACKey,

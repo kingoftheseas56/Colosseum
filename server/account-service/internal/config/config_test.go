@@ -74,6 +74,9 @@ func TestLoadUsesApprovedDefaults(t *testing.T) {
 	if cfg.DatabaseMaxConnections != 8 {
 		t.Fatalf("DatabaseMaxConnections = %d, want 8", cfg.DatabaseMaxConnections)
 	}
+	if cfg.DatabaseAcquireTimeout != 2*time.Second {
+		t.Fatalf("DatabaseAcquireTimeout = %v, want 2s", cfg.DatabaseAcquireTimeout)
+	}
 	if cfg.RegistrationGlobalLimit10m != 500 {
 		t.Fatalf("RegistrationGlobalLimit10m = %d, want 500", cfg.RegistrationGlobalLimit10m)
 	}

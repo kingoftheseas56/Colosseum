@@ -147,7 +147,13 @@ func (s *Service) pushOneSyncMutation(
 	attachmentID string,
 	now time.Time,
 ) (SyncPushResult, error) {
-	tx, err := s.pool.Begin(ctx)
+	conn, err := s.acquireDatabaseConnection(ctx)
+	if err != nil {
+		return SyncPushResult{}, fmt.Errorf("begin sync mutation: %w", err)
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return SyncPushResult{}, fmt.Errorf("begin sync mutation: %w", err)
 	}

@@ -82,7 +82,13 @@ func (s *Service) BeginProfileAttachment(
 	}
 
 	now := s.clock.Now().UTC()
-	tx, err := s.pool.Begin(ctx)
+	conn, err := s.acquireDatabaseConnection(ctx)
+	if err != nil {
+		return ProfileAttachment{}, fmt.Errorf("begin profile attachment tx: %w", err)
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return ProfileAttachment{}, fmt.Errorf("begin profile attachment tx: %w", err)
 	}
@@ -189,7 +195,13 @@ func (s *Service) CommitProfileAttachment(
 	}
 
 	now := s.clock.Now().UTC()
-	tx, err := s.pool.Begin(ctx)
+	conn, err := s.acquireDatabaseConnection(ctx)
+	if err != nil {
+		return ProfileAttachment{}, fmt.Errorf("begin profile attachment commit: %w", err)
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return ProfileAttachment{}, fmt.Errorf("begin profile attachment commit: %w", err)
 	}
