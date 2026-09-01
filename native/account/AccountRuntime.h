@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AccountAttachmentCoordinator.h"
 #include "AccountBootstrapStore.h"
 #include "AccountClient.h"
 #include "AccountController.h"
@@ -19,7 +20,10 @@
 #include "WindowsAccountCredentialStore.h"
 #include "WindowsAccountSensitiveClipboard.h"
 
+#include <QHash>
 #include <QObject>
+#include <QSet>
+#include <QString>
 
 #include <memory>
 
@@ -53,6 +57,22 @@ private:
         QString *error = nullptr);
     void clearCoreSyncAdapters();
 
+    // ── Cloud attachment lifecycle (Arc 36 Wave 4B lane N-17) ──────────────
+    // The runtime owns WHEN the AccountAttachmentCoordinator runs, never HOW:
+    // begin/endAttachmentMode stay the coordinator's to drive. A flow starts
+    // only for an authenticated session over an active account profile, and
+    // ordinary sync scheduling is held until the flow's engine bootstrap or
+    // terminal state (the engine's attachment mode itself gates ordinary
+    // pull/push meanwhile).
+    bool startOrResumeAttachmentFlow();
+    bool attachmentFlowInFlight() const;
+    void ensureAttachmentCoordinator(
+        const ProfilePaths &profile);
+    bool captureAttachmentBaseline();
+    bool verifyAttachmentCloudState(
+        QString *error) const;
+    void teardownAttachmentFlow();
+
     AccountHttpTransport m_transport;
     AccountClient m_client;
     WindowsAccountCredentialStore m_credentialStore;
@@ -78,4 +98,14 @@ private:
     SyncEngine m_syncEngine;
     AccountController m_controller;
     bool m_qmlPrepared = false;
+
+    // Declared after the engine/client/stores they observe so the
+    // coordinator and its verifier connections die first.
+    std::unique_ptr<AccountAttachmentCoordinator>
+        m_attachmentCoordinator;
+    QString m_attachmentProfileId;
+    bool m_attachmentOrdinarySyncHeld = false;
+    QHash<QString, QSet<QString>>
+        m_attachmentBaselineRecords;
+    QSet<QString> m_attachmentBaselineActivity;
 };
