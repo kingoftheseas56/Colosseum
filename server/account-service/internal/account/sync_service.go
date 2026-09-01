@@ -392,6 +392,16 @@ func (s *Service) PullSync(
 		return response, fmt.Errorf("sync cursor is too large")
 	}
 
+	// Unified global server_seq stream: committed mutable canonical rows from
+	// account_sync_current plus immutable Activity facts from
+	// account_activity_facts, both drawing server_seq from the shared
+	// account_change_seq. Activity rows materialize as canonical PUT records
+	// keyed activity/<lowercase-eventId> with their stored metadata; the
+	// decrypted canonical payload was sealed under exactly that
+	// (account, category, recordKey) AAD, so decodeStoredMutation serves both
+	// row kinds unchanged. Pulls never allocate sequence values; gaps from
+	// superseded losers or semantic duplicates are legal and pagination
+	// continues strictly by server_seq.
 	rows, err := s.pool.Query(ctx, `
         SELECT
             server_seq,
@@ -408,11 +418,27 @@ func (s *Service) PullSync(
         FROM account_sync_current
         WHERE account_id = $1::uuid
           AND server_seq > $2
+        UNION ALL
+        SELECT
+            server_seq,
+            mutation_id::text,
+            origin_device_id::text,
+            'activity_fact',
+            'activity/' || event_id::text,
+            schema_version,
+            hlc_physical_ms,
+            hlc_counter,
+            'put',
+            payload_ciphertext,
+            received_at
+        FROM account_activity_facts
+        WHERE account_id = $1::uuid
+          AND server_seq > $2
         ORDER BY server_seq ASC
         LIMIT $3
     `, auth.Account.ID, int64(after), syncPullPageSize+1)
 	if err != nil {
-		return response, fmt.Errorf("query canonical sync state: %w", err)
+		return response, fmt.Errorf("query unified sync state: %w", err)
 	}
 	defer rows.Close()
 

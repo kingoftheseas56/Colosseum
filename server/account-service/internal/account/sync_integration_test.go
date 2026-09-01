@@ -1,10 +1,13 @@
 package account
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -919,5 +922,400 @@ func TestSyncCanonicalPullPaginatesCurrentRowsAscending(t *testing.T) {
 	}
 	if second.Entries[0].ServerSeq <= first.Entries[len(first.Entries)-1].ServerSeq {
 		t.Fatal("second canonical page did not continue ascending server_seq")
+	}
+}
+
+func TestSyncUnifiedPullInterleavesMutableAndActivity(t *testing.T) {
+	fixture := newServiceFixture(t)
+	accountResult := createFixtureAccount(t, fixture, "SyncUnifiedInterleave")
+	auth := authenticateFixtureSession(t, fixture, accountResult.Session)
+	now := fixture.clock.Now().UnixMilli()
+
+	mutableFirst := fixtureSyncMutation(
+		"67000000-0000-4000-8000-000000000001",
+		auth.Device.ID,
+		"unified/mutable-first",
+		"one",
+		now, 0)
+	const activityEventID = "67000000-0000-4000-8000-0000000000aa"
+	activityFact := activityMutation(
+		"67000000-0000-4000-8000-0000000000bb",
+		auth.Device.ID,
+		activityEventID,
+		activityPlaybackPayload(activityEventID))
+	mutableSecond := fixtureSyncMutation(
+		"67000000-0000-4000-8000-000000000002",
+		auth.Device.ID,
+		"unified/mutable-second",
+		"two",
+		now+1, 0)
+
+	push, err := fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{mutableFirst})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(mutable first) = %+v err %v", push.Results, err)
+	}
+	mutableFirstSeq := push.Results[0].ServerSeq
+
+	push, err = fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{activityFact})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(activity) = %+v err %v", push.Results, err)
+	}
+	activitySeq := push.Results[0].ServerSeq
+
+	push, err = fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{mutableSecond})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(mutable second) = %+v err %v", push.Results, err)
+	}
+	mutableSecondSeq := push.Results[0].ServerSeq
+
+	if !(mutableFirstSeq < activitySeq && activitySeq < mutableSecondSeq) {
+		t.Fatalf("push seqs not strictly interleaved: %d %d %d",
+			mutableFirstSeq, activitySeq, mutableSecondSeq)
+	}
+
+	seqBeforePull := unifiedPullSequenceValue(t, fixture)
+
+	pull, err := fixture.service.PullSync(context.Background(), auth, 0)
+	if err != nil {
+		t.Fatalf("PullSync(unified) error = %v", err)
+	}
+	if len(pull.Entries) != 3 || pull.HasMore {
+		t.Fatalf("unified pull = %d entries hasMore=%v, want 3/false",
+			len(pull.Entries), pull.HasMore)
+	}
+
+	first, activity, second := pull.Entries[0], pull.Entries[1], pull.Entries[2]
+	if first.ServerSeq != mutableFirstSeq ||
+		first.Mutation.Category != "collection" ||
+		first.Mutation.RecordKey != "unified/mutable-first" {
+		t.Fatalf("first unified entry = %+v", first)
+	}
+	if second.ServerSeq != mutableSecondSeq ||
+		second.Mutation.RecordKey != "unified/mutable-second" {
+		t.Fatalf("third unified entry = %+v", second)
+	}
+
+	if activity.ServerSeq != activitySeq ||
+		!activity.Canonical || !activity.Won ||
+		activity.Mutation.Category != "activity_fact" ||
+		activity.Mutation.RecordKey != "activity/"+activityEventID ||
+		activity.Mutation.Operation != "put" ||
+		activity.Mutation.MutationID != activityFact.MutationID ||
+		activity.Mutation.DeviceID != auth.Device.ID ||
+		activity.Mutation.SchemaVersion != 1 ||
+		activity.Mutation.HLCPhysicalMS != activityFact.HLCPhysicalMS ||
+		activity.Mutation.HLCCounter != activityFact.HLCCounter {
+		t.Fatalf("activity unified entry metadata = %+v", activity)
+	}
+	var activityPayload map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(activity.Mutation.Payload))
+	decoder.UseNumber()
+	if err := decoder.Decode(&activityPayload); err != nil {
+		t.Fatalf("activity pull payload is invalid JSON: %v", err)
+	}
+	if activityPayload["eventId"] != activityEventID ||
+		activityPayload["type"] != "playback_delta" ||
+		activityPayload["title"] != "Fixture Movie" {
+		t.Fatalf("activity pull payload = %v", activityPayload)
+	}
+
+	afterFirst, err := fixture.service.PullSync(
+		context.Background(), auth, mutableFirstSeq)
+	if err != nil {
+		t.Fatalf("PullSync(after first) error = %v", err)
+	}
+	if len(afterFirst.Entries) != 2 ||
+		afterFirst.Entries[0].ServerSeq != activitySeq ||
+		afterFirst.Entries[1].ServerSeq != mutableSecondSeq {
+		t.Fatalf("after-first unified page = %+v", afterFirst.Entries)
+	}
+
+	afterActivity, err := fixture.service.PullSync(
+		context.Background(), auth, activitySeq)
+	if err != nil {
+		t.Fatalf("PullSync(after activity) error = %v", err)
+	}
+	if len(afterActivity.Entries) != 1 ||
+		afterActivity.Entries[0].ServerSeq != mutableSecondSeq {
+		t.Fatalf("after-activity unified page = %+v", afterActivity.Entries)
+	}
+
+	if unifiedPullSequenceValue(t, fixture) != seqBeforePull {
+		t.Fatal("PullSync advanced account_change_seq")
+	}
+}
+
+func unifiedPullSequenceValue(
+	t *testing.T,
+	fixture serviceFixture,
+) int64 {
+	t.Helper()
+	var value int64
+	if err := fixture.pool.QueryRow(context.Background(),
+		"SELECT last_value FROM account_change_seq").Scan(&value); err != nil {
+		t.Fatalf("read account_change_seq: %v", err)
+	}
+	return value
+}
+
+func TestSyncUnifiedPullExcludesLosersAndDeduplicatesActivity(t *testing.T) {
+	fixture := newServiceFixture(t)
+	accountResult := createFixtureAccount(t, fixture, "SyncUnifiedDedupe")
+	auth := authenticateFixtureSession(t, fixture, accountResult.Session)
+	now := fixture.clock.Now().UnixMilli()
+
+	winner := fixtureSyncMutation(
+		"68000000-0000-4000-8000-000000000001",
+		auth.Device.ID,
+		"unified-dedupe/record",
+		"winner",
+		now, 0)
+	loser := fixtureSyncMutation(
+		"68000000-0000-4000-8000-000000000002",
+		auth.Device.ID,
+		"unified-dedupe/record",
+		"stale-loser",
+		now-1000, 0)
+
+	push, err := fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{winner})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(winner) = %+v err %v", push.Results, err)
+	}
+	winnerSeq := push.Results[0].ServerSeq
+
+	push, err = fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{loser})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(loser) = %+v err %v", push.Results, err)
+	}
+
+	const activityEventID = "68000000-0000-4000-8000-0000000000aa"
+	firstActivity := activityMutation(
+		"68000000-0000-4000-8000-0000000000bb",
+		auth.Device.ID,
+		activityEventID,
+		activityPlaybackPayload(activityEventID))
+	duplicateActivity := activityMutation(
+		"68000000-0000-4000-8000-0000000000cc",
+		auth.Device.ID,
+		activityEventID,
+		activityPlaybackPayload(activityEventID))
+
+	push, err = fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{firstActivity})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(activity first) = %+v err %v", push.Results, err)
+	}
+	activitySeq := push.Results[0].ServerSeq
+
+	push, err = fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{duplicateActivity})
+	if err != nil || !push.Results[0].Accepted ||
+		push.Results[0].ServerSeq != activitySeq {
+		t.Fatalf("PushSync(activity duplicate) = %+v err %v", push.Results, err)
+	}
+
+	pull, err := fixture.service.PullSync(context.Background(), auth, 0)
+	if err != nil {
+		t.Fatalf("PullSync(dedupe) error = %v", err)
+	}
+	if len(pull.Entries) != 2 {
+		t.Fatalf("unified dedupe pull = %d entries, want 2", len(pull.Entries))
+	}
+	if pull.Entries[0].ServerSeq != winnerSeq ||
+		pull.Entries[0].Mutation.MutationID == loser.MutationID {
+		t.Fatalf("mutable entry leaked the loser: %+v", pull.Entries[0])
+	}
+	if pull.Entries[1].ServerSeq != activitySeq ||
+		pull.Entries[1].Mutation.MutationID != firstActivity.MutationID {
+		t.Fatalf("activity entry is not the single original fact: %+v",
+			pull.Entries[1])
+	}
+}
+
+func TestSyncUnifiedPullPaginatesMixedStream(t *testing.T) {
+	fixture := newServiceFixture(t)
+	accountResult := createFixtureAccount(t, fixture, "SyncUnifiedPagination")
+	auth := authenticateFixtureSession(t, fixture, accountResult.Session)
+	now := fixture.clock.Now().UnixMilli()
+
+	total := syncPullPageSize + 1
+	expectedSeqs := make([]uint64, 0, total)
+	batch := make([]SyncMutationInput, 0, 100)
+	flush := func() {
+		if len(batch) == 0 {
+			return
+		}
+		push, err := fixture.service.PushSync(
+			context.Background(), auth, batch)
+		if err != nil {
+			t.Fatalf("PushSync(mixed batch) error = %v", err)
+		}
+		for _, result := range push.Results {
+			if !result.Accepted || result.ServerSeq == 0 {
+				t.Fatalf("mixed batch result = %+v", result)
+			}
+			expectedSeqs = append(expectedSeqs, result.ServerSeq)
+		}
+		batch = batch[:0]
+	}
+
+	for index := 0; index < total; index++ {
+		if index%2 == 0 {
+			batch = append(batch, fixtureSyncMutation(
+				fmt.Sprintf("69000000-0000-4000-8000-%012x", index+1),
+				auth.Device.ID,
+				fmt.Sprintf("unified-page/item-%03d", index),
+				fmt.Sprintf("value-%03d", index),
+				now+int64(index), 0))
+		} else {
+			eventID := fmt.Sprintf("6a000000-0000-4000-8000-%012x", index+1)
+			batch = append(batch, activityMutation(
+				fmt.Sprintf("6b000000-0000-4000-8000-%012x", index+1),
+				auth.Device.ID,
+				eventID,
+				activityPlaybackPayload(eventID)))
+		}
+		if len(batch) == 100 {
+			flush()
+		}
+	}
+	flush()
+
+	staleLoser := fixtureSyncMutation(
+		"6c000000-0000-4000-8000-000000000fff",
+		auth.Device.ID,
+		"unified-page/item-000",
+		"stale-loser",
+		now-1, 0)
+	if _, err := fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{staleLoser}); err != nil {
+		t.Fatalf("PushSync(mixed loser) error = %v", err)
+	}
+
+	slices.Sort(expectedSeqs)
+
+	first, err := fixture.service.PullSync(context.Background(), auth, 0)
+	if err != nil {
+		t.Fatalf("PullSync(mixed first page) error = %v", err)
+	}
+	if len(first.Entries) != syncPullPageSize || !first.HasMore {
+		t.Fatalf("mixed first page = %d entries hasMore=%v, want %d/true",
+			len(first.Entries), first.HasMore, syncPullPageSize)
+	}
+
+	second, err := fixture.service.PullSync(
+		context.Background(), auth,
+		first.Entries[len(first.Entries)-1].ServerSeq)
+	if err != nil {
+		t.Fatalf("PullSync(mixed second page) error = %v", err)
+	}
+	if len(second.Entries) != 1 || second.HasMore {
+		t.Fatalf("mixed second page = %d entries hasMore=%v, want 1/false",
+			len(second.Entries), second.HasMore)
+	}
+
+	seen := make([]uint64, 0, total)
+	categories := map[string]int{}
+	pages := []SyncPullResponse{first, second}
+	for _, page := range pages {
+		for index, entry := range page.Entries {
+			if index > 0 && page.Entries[index-1].ServerSeq >= entry.ServerSeq {
+				t.Fatal("mixed page not ascending by server_seq")
+			}
+			if entry.Mutation.MutationID == staleLoser.MutationID {
+				t.Fatal("stale loser surfaced in mixed pull")
+			}
+			if entry.Mutation.Category == "activity_fact" {
+				if !entry.Canonical || !entry.Won ||
+					entry.Mutation.Operation != "put" ||
+					!strings.HasPrefix(entry.Mutation.RecordKey, "activity/") {
+					t.Fatalf("mixed activity entry = %+v", entry)
+				}
+			}
+			categories[entry.Mutation.Category]++
+			seen = append(seen, entry.ServerSeq)
+		}
+	}
+	if categories["collection"] != (total+1)/2 ||
+		categories["activity_fact"] != total/2 {
+		t.Fatalf("mixed pull categories = %v", categories)
+	}
+	if len(seen) != total {
+		t.Fatalf("mixed pull total = %d, want %d", len(seen), total)
+	}
+	for index, seq := range seen {
+		if seq != expectedSeqs[index] {
+			t.Fatalf("mixed pull skipped/duplicated: position %d got %d want %d",
+				index, seq, expectedSeqs[index])
+		}
+	}
+}
+
+func TestSyncUnifiedPullKeepsMutableTombstonesAlongsideActivity(t *testing.T) {
+	fixture := newServiceFixture(t)
+	accountResult := createFixtureAccount(t, fixture, "SyncUnifiedTombstone")
+	auth := authenticateFixtureSession(t, fixture, accountResult.Session)
+	now := fixture.clock.Now().UnixMilli()
+
+	recordKey := "unified-tombstone/record"
+	put := fixtureSyncMutation(
+		"6d000000-0000-4000-8000-000000000001",
+		auth.Device.ID,
+		recordKey,
+		"alive",
+		now, 0)
+	const activityEventID = "6d000000-0000-4000-8000-0000000000aa"
+	activityFact := activityMutation(
+		"6d000000-0000-4000-8000-0000000000bb",
+		auth.Device.ID,
+		activityEventID,
+		activityPlaybackPayload(activityEventID))
+	deleteMutation := fixtureSyncMutation(
+		"6d000000-0000-4000-8000-000000000002",
+		auth.Device.ID,
+		recordKey,
+		"",
+		now+10, 0)
+
+	push, err := fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{put})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(put) = %+v err %v", push.Results, err)
+	}
+	push, err = fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{activityFact})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(activity) = %+v err %v", push.Results, err)
+	}
+	activitySeq := push.Results[0].ServerSeq
+	push, err = fixture.service.PushSync(
+		context.Background(), auth, []SyncMutationInput{deleteMutation})
+	if err != nil || !push.Results[0].Accepted {
+		t.Fatalf("PushSync(delete) = %+v err %v", push.Results, err)
+	}
+	tombstoneSeq := push.Results[0].ServerSeq
+
+	pull, err := fixture.service.PullSync(context.Background(), auth, 0)
+	if err != nil {
+		t.Fatalf("PullSync(tombstone) error = %v", err)
+	}
+	if len(pull.Entries) != 2 {
+		t.Fatalf("tombstone unified pull = %d entries, want 2", len(pull.Entries))
+	}
+	if pull.Entries[0].ServerSeq != activitySeq ||
+		pull.Entries[0].Mutation.Category != "activity_fact" {
+		t.Fatalf("first tombstone-page entry = %+v", pull.Entries[0])
+	}
+	tombstone := pull.Entries[1]
+	if tombstone.ServerSeq != tombstoneSeq ||
+		tombstone.Mutation.Category != "collection" ||
+		tombstone.Mutation.Operation != "delete" ||
+		len(tombstone.Mutation.Payload) != 0 {
+		t.Fatalf("mutable tombstone entry = %+v", tombstone)
 	}
 }
