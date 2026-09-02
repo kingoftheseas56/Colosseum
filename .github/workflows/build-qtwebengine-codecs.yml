@@ -32,17 +32,20 @@ jobs:
     timeout-minutes: 360   # platform maximum for a hosted job
     env:
       QT_VERSION: ${{ github.event.inputs.qt_version }}
-      # Build tree + source on the larger D: drive (RUNNER_TEMP lives there).
-      WEBENGINE_SRC_DIR: ${{ runner.temp }}\qtwebengine-src
-      WEBENGINE_BUILD_DIR: ${{ runner.temp }}\qtwebengine-build
-      WEBENGINE_INSTALL_DIR: ${{ runner.temp }}\qtwebengine-install
-      GPERF_DIR: ${{ runner.temp }}\gperf
 
     steps:
       - name: Checkout (workflow host only)
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+
+      - name: Set build paths (RUNNER_TEMP lives on the larger D: drive)
+        shell: pwsh
+        run: |
+          "WEBENGINE_SRC_DIR=$env:RUNNER_TEMP\qtwebengine-src"         | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "WEBENGINE_BUILD_DIR=$env:RUNNER_TEMP\qtwebengine-build"     | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "WEBENGINE_INSTALL_DIR=$env:RUNNER_TEMP\qtwebengine-install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "GPERF_DIR=$env:RUNNER_TEMP\gperf"                           | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Reclaim disk (Chromium build needs the space)
         shell: pwsh
