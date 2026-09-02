@@ -1,0 +1,22 @@
+[package]
+name = "player"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# No published objc2 crate covers AVFoundation — the backend declares the
+# handful of AVPlayer/AVPlayerItemVideoOutput classes itself over objc2.
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-core-foundation = "0.3"
+objc2-core-video = "0.3"
+objc2-core-media = "0.3"
+block2 = "0.6"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gstreamer = "0.25"
+gstreamer-app = "0.25"
+gstreamer-video = "0.25"

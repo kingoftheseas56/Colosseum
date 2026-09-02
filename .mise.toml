@@ -39,3 +39,7 @@ run = "cargo zigbuild --release --target x86_64-pc-windows-gnu --workspace"
 [tasks.build-macos]
 description = "native arm64 release build"
 run = "cargo build --release --workspace"
+
+[tasks.ui]
+description = "dev loop: daemon on :8123 + GPUI shell"
+run = "scripts/dev-ui.sh"
