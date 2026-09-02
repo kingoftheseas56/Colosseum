@@ -1,0 +1,181 @@
+name: build-qtwebengine-codecs
+
+# Builds Qt WebEngine 6.11.1 FROM SOURCE with proprietary codecs
+# (H.264 / AAC / Widevine) enabled -- the capability the stock Qt binaries
+# ship DISABLED. Produces a downloadable artifact: the codec-enabled
+# Qt6WebEngineCore/Quick DLLs + resources + cmake package, to drop into a
+# Colosseum Qt install for the Streaming (OTT) runtime.
+#
+# Manual-only: this is a multi-hour job, never run it on push.
+# NOTE: GitHub-hosted runners cap a job at 360 min (6h) -- that is the max.
+# A standard 4-core windows-2025 runner may not finish in time; if it times
+# out, re-run with a larger runner via the `runner` input.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Runner label (windows-2025, or a larger self-hosted/paid label)"
+        required: true
+        default: "windows-2025"
+      qt_version:
+        description: "Qt version to build WebEngine for"
+        required: true
+        default: "6.11.1"
+
+permissions:
+  contents: read
+
+jobs:
+  build-webengine:
+    runs-on: ${{ github.event.inputs.runner }}
+    timeout-minutes: 360   # platform maximum for a hosted job
+    env:
+      QT_VERSION: ${{ github.event.inputs.qt_version }}
+      # Build tree + source on the larger D: drive (RUNNER_TEMP lives there).
+      WEBENGINE_SRC_DIR: ${{ runner.temp }}\qtwebengine-src
+      WEBENGINE_BUILD_DIR: ${{ runner.temp }}\qtwebengine-build
+      WEBENGINE_INSTALL_DIR: ${{ runner.temp }}\qtwebengine-install
+      GPERF_DIR: ${{ runner.temp }}\gperf
+
+    steps:
+      - name: Checkout (workflow host only)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Reclaim disk (Chromium build needs the space)
+        shell: pwsh
+        run: |
+          foreach ($d in @("C:\Android","C:\Program Files (x86)\Android","C:\Miniconda","C:\hostedtoolcache\CodeQL")) {
+            if (Test-Path $d) { Write-Output "removing $d"; Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue }
+          }
+          Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Qt ${{ env.QT_VERSION }} (base + WebEngine build deps)
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          # WebEngine's build-time module dependencies (NOT the prebuilt webengine).
+          modules: "qtwebchannel qtwebsockets qtpositioning"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Enable MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      - name: Install Chromium host tools (gperf, flex, bison)
+        shell: pwsh
+        run: |
+          # flex + bison via winflexbison (exposes win_flex/win_bison AND flex/bison shims)
+          choco install --no-progress -y winflexbison3
+          # gperf: Chromium's blink code-gen needs it on PATH. choco has no reliable
+          # gperf pkg, so fetch the GnuWin32 build we know works (3.0.1).
+          New-Item -ItemType Directory -Force -Path $env:GPERF_DIR | Out-Null
+          $zip = Join-Path $env:RUNNER_TEMP "gperf.zip"
+          $uri = "https://downloads.sourceforge.net/gnuwin32/gperf-3.0.1-bin.zip"
+          Invoke-WebRequest -Uri $uri -OutFile $zip -MaximumRetryCount 5 -RetryIntervalSec 10
+          Expand-Archive -Path $zip -DestinationPath $env:GPERF_DIR -Force
+          $gperf = Get-ChildItem $env:GPERF_DIR -Recurse -Filter gperf.exe | Select-Object -First 1
+          if (-not $gperf) { throw "gperf.exe not found after extract" }
+          $gperf.Directory.FullName | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Output "gperf at $($gperf.FullName)"
+
+      - name: Verify toolchain
+        shell: pwsh
+        run: |
+          cmake --version
+          ninja --version
+          python --version
+          gperf --version 2>&1 | Select-Object -First 1
+          cl 2>&1 | Select-Object -First 1
+          Write-Output "cores: $env:NUMBER_OF_PROCESSORS"
+
+      - name: Download Qt WebEngine ${{ env.QT_VERSION }} source
+        shell: pwsh
+        run: |
+          $v = $env:QT_VERSION
+          $mm = ($v -split '\.')[0..1] -join '.'
+          $tar = Join-Path $env:RUNNER_TEMP "qtwebengine-src.tar.xz"
+          $uri = "https://download.qt.io/archive/qt/$mm/$v/submodules/qtwebengine-everywhere-src-$v.tar.xz"
+          Write-Output "fetching $uri"
+          Invoke-WebRequest -Uri $uri -OutFile $tar -MaximumRetryCount 5 -RetryIntervalSec 15
+          New-Item -ItemType Directory -Force -Path $env:WEBENGINE_SRC_DIR | Out-Null
+          tar -xf $tar -C $env:WEBENGINE_SRC_DIR
+          $inner = Get-ChildItem $env:WEBENGINE_SRC_DIR -Directory -Filter "qtwebengine-everywhere-src-*" | Select-Object -First 1
+          if (-not $inner) { throw "qtwebengine source dir missing after extract" }
+          "WEBENGINE_SRC=$($inner.FullName)" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure WebEngine module (proprietary codecs, Release)
+        shell: pwsh
+        run: |
+          # Mirrors the local configure-webengine.cmd but as a stripped Release
+          # build: -release => symbol_level=0, far smaller/faster/lighter than the
+          # local RelWithDebInfo attempt. Proprietary codecs + Chrome ffmpeg branding
+          # bring H.264/AAC; Widevine stays on by default.
+          & "$env:QT_ROOT_DIR\bin\qt-configure-module.bat" $env:WEBENGINE_SRC `
+            -release `
+            -webengine-proprietary-codecs `
+            -no-webengine-printing-and-pdf `
+            -no-webengine-spellchecker `
+            -no-webengine-webrtc `
+            -no-build-qtpdf `
+            -- `
+            -B "$env:WEBENGINE_BUILD_DIR" `
+            "-DCMAKE_INSTALL_PREFIX=$env:WEBENGINE_INSTALL_DIR" `
+            -DFEATURE_qtwebengine_widgets_build=OFF `
+            -DFEATURE_webengine_geolocation=OFF `
+            -DFEATURE_webengine_kerberos=OFF `
+            -DFEATURE_webengine_extensions=OFF `
+            -DFEATURE_webenginedriver=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build WebEngine
+        shell: pwsh
+        run: |
+          $jobs = [int]$env:NUMBER_OF_PROCESSORS
+          Write-Output "building with -j$jobs"
+          cmake --build "$env:WEBENGINE_BUILD_DIR" --parallel $jobs 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "webengine-build.log")
+          $rc = $LASTEXITCODE
+          if ($rc -ne 0) {
+            Get-Content (Join-Path $env:RUNNER_TEMP "webengine-build.log") | Where-Object { $_ -match 'FAILED:|fatal error|\berror\b|LNK\d+|No such' } | Select-Object -Last 40 | ForEach-Object {
+              $m = $_.Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A'); Write-Output "::error::$m"
+            }
+            exit $rc
+          }
+          Get-PSDrive C,D | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
+
+      - name: Install WebEngine module
+        shell: pwsh
+        run: |
+          cmake --install "$env:WEBENGINE_BUILD_DIR"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $core = Get-ChildItem $env:WEBENGINE_INSTALL_DIR -Recurse -Filter "Qt6WebEngineCore.dll" | Select-Object -First 1
+          if (-not $core) { throw "Qt6WebEngineCore.dll missing from install prefix" }
+          Write-Output "installed: $($core.FullName)"
+
+      - name: Package artifact
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "qtwebengine-$($env:QT_VERSION)-msvc2022_64-codecs.zip"
+          Compress-Archive -Path (Join-Path $env:WEBENGINE_INSTALL_DIR '*') -DestinationPath $zip -Force
+          "ARTIFACT_ZIP=$zip" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "{0:N1} MB" -f ((Get-Item $zip).Length/1MB)
+
+      - name: Upload codec-enabled WebEngine
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-${{ env.QT_VERSION }}-msvc2022_64-codecs
+          path: ${{ env.ARTIFACT_ZIP }}
+          retention-days: 14
+          if-no-files-found: error
