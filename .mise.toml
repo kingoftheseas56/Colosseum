@@ -8,11 +8,15 @@ rust = "1.98.0"
 
 [tasks.check]
 description = "fast type check — the inner loop"
-run = "cargo check --workspace"
+run = "cargo check --workspace --all-targets"
 
 [tasks.test]
 description = "unit tests"
 run = "cargo test --workspace"
+
+[tasks.loop]
+description = "inner-loop body: check then test, chained"
+run = "cargo check --workspace --all-targets && cargo test --workspace"
 
 [tasks.lint]
 description = "format check + clippy, warnings fatal"
@@ -24,7 +28,7 @@ run = "scripts/smoke.sh"
 
 [tasks.watch]
 description = "inner loop: check+test on every save"
-run = "mise watch -t check -t test"
+run = "mise watch -t loop"
 
 # ── cross builds (rust-native tooling) ────────────────────────────────────────
 

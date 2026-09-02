@@ -90,3 +90,6 @@ tests/_reality_shelves.txt
 
 # Legacy maintainer-local context. Public terminology lives in docs/terminology.md.
 /CONTEXT.md
+
+# Rust build output
+/target
