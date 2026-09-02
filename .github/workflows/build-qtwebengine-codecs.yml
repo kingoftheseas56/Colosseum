@@ -178,6 +178,7 @@ jobs:
           # Proprietary codecs + Chrome ffmpeg branding bring H.264/AAC; Widevine
           # stays on by default.
           & "$env:QT_ROOT_DIR\bin\qt-configure-module.bat" $env:WEBENGINE_SRC `
+            -cmake-generator Ninja `
             -webengine-proprietary-codecs `
             -no-webengine-printing-and-pdf `
             -no-webengine-spellchecker `
@@ -185,7 +186,7 @@ jobs:
             -no-build-qtpdf `
             -- `
             -B "$env:WEBENGINE_BUILD_DIR" `
-            -DCMAKE_CONFIGURATION_TYPES=Release `
+            -DCMAKE_BUILD_TYPE=Release `
             "-DCMAKE_INSTALL_PREFIX=$env:WEBENGINE_INSTALL_DIR" `
             -DFEATURE_qtwebengine_widgets_build=OFF `
             -DFEATURE_webengine_geolocation=OFF `
@@ -195,6 +196,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path -LiteralPath $env:WEBENGINE_BUILD_DIR -PathType Container)) {
             throw "Qt module configure did not create build directory: $env:WEBENGINE_BUILD_DIR"
+          }
+          if (-not (Test-Path -LiteralPath (Join-Path $env:WEBENGINE_BUILD_DIR "build.ninja") -PathType Leaf)) {
+            Get-ChildItem -LiteralPath $env:WEBENGINE_BUILD_DIR -Force | Format-Table -AutoSize | Out-String | Write-Output
+            throw "Qt module configure did not create the expected single-config Ninja file: $env:WEBENGINE_BUILD_DIR\build.ninja"
           }
 
       - name: Build WebEngine
@@ -211,7 +216,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false
           $jobs = [int]$env:NUMBER_OF_PROCESSORS
           Write-Output "building with -j$jobs"
-          cmake --build "$env:WEBENGINE_BUILD_DIR" --config Release --parallel $jobs 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "webengine-build.log")
+          cmake --build "$env:WEBENGINE_BUILD_DIR" --parallel $jobs 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "webengine-build.log")
           $rc = $LASTEXITCODE
           if ($rc -ne 0) {
             Get-Content (Join-Path $env:RUNNER_TEMP "webengine-build.log") | Where-Object { $_ -match 'FAILED:|fatal error|\berror\b|LNK\d+|No such' } | Select-Object -Last 40 | ForEach-Object {
@@ -226,7 +231,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Continue'
           $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
-          cmake --install "$env:WEBENGINE_BUILD_DIR" --config Release
+          cmake --install "$env:WEBENGINE_BUILD_DIR"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $core = Get-ChildItem $env:WEBENGINE_INSTALL_DIR -Recurse -Filter "Qt6WebEngineCore.dll" | Select-Object -First 1
           if (-not $core) { throw "Qt6WebEngineCore.dll missing from install prefix" }
