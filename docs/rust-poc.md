@@ -48,6 +48,7 @@ with a line here.
 | `rand` | CSPRNG for opaque tokens and salts |
 | `uuid` | v4 ids for accounts, devices, challenges |
 | `directories` | cross-platform data-dir discovery — daemon only (see `paths.rs`) |
+| `rquickjs` (planned) | embedded JS engine when the daemon must execute addon/provider/extension code (stremio-style addons, qml-era JS glue) — NEVER hand-rolled interpreters or silent re-ports; `boa_engine` as pure-Rust fallback, `deno_core` only if V8 isolation is required |
 | `tracing` + `tracing-subscriber` (`env-filter`) | structured logs with runtime filter control via env, defaulting to `daemon=info` |
 | `thiserror` | typed domain errors with `Display`; `Error::code()` carries the Go wire vocabulary |
 | `time` | RFC 3339 serde/formatting for timestamps, matching the Go service's wire format |
@@ -63,6 +64,11 @@ Deferred (deliberately not decided yet):
   when auth hardening (revocation, expiry policy) is ported.
 - **Persistence layer** — account storage is in-memory for the core slice; the
   Go `internal/database` port (below) is where this gets decided.
+- **Embedded-JS engine when parity needs it**: `rquickjs` (QuickJS — small,
+  fast-start, embeddable) leads; decide the crate BEFORE the extension/addon
+  slice starts (torrent-parity slice 1), not during. Prefer Rust re-implementations
+  for glue that is small and owned; embed JS only where the ecosystem to reuse
+  (addons/extensions) is itself JS. Never invoke a JS interpreter we didn't pick.
 
 ### Oracle reconciliation (per TODO.md)
 
