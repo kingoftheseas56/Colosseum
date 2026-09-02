@@ -122,8 +122,19 @@ FocusScope {
                 root.skywalkerActivated()
             }
         }
+        function focusGate(index) {
+            if (gates.count <= 0) return
+            var next = Math.max(0, Math.min(gates.count - 1, index))
+            var item = gates.itemAt(next)
+            if (item) item.forceActiveFocus(Qt.ShortcutFocusReason)
+        }
+        Keys.onLeftPressed: function(event) { focusGate(gates.count - 1); event.accepted = gates.count > 0 }
+        Keys.onUpPressed: function(event) { focusGate(gates.count - 1); event.accepted = gates.count > 0 }
+        Keys.onRightPressed: function(event) { focusGate(0); event.accepted = gates.count > 0 }
+        Keys.onDownPressed: function(event) { focusGate(0); event.accepted = gates.count > 0 }
         Keys.onReturnPressed: function(event) { root.skywalkerActivated(); event.accepted = true }
         Keys.onEnterPressed: function(event) { root.skywalkerActivated(); event.accepted = true }
+        Keys.onSpacePressed: function(event) { root.skywalkerActivated(); event.accepted = true }
         Rectangle {
             anchors.centerIn: parent
             width: parent.width*2.7; height: width; radius: width/2
@@ -280,16 +291,19 @@ FocusScope {
                     root.destinationActivated(gate.modelData.id)
                 }
             }
-            Keys.onLeftPressed: function(event) {
-                var next = (index - 1 + gates.count) % gates.count
-                gates.itemAt(next).forceActiveFocus(); event.accepted = true
+            function focusRelative(delta) {
+                if (gates.count <= 0) return
+                var next = (index + delta + gates.count) % gates.count
+                var item = gates.itemAt(next)
+                if (item) item.forceActiveFocus(Qt.ShortcutFocusReason)
             }
-            Keys.onRightPressed: function(event) {
-                var next = (index + 1) % gates.count
-                gates.itemAt(next).forceActiveFocus(); event.accepted = true
-            }
+            Keys.onLeftPressed: function(event) { focusRelative(-1); event.accepted = true }
+            Keys.onUpPressed: function(event) { focusRelative(-1); event.accepted = true }
+            Keys.onRightPressed: function(event) { focusRelative(1); event.accepted = true }
+            Keys.onDownPressed: function(event) { focusRelative(1); event.accepted = true }
             Keys.onReturnPressed: function(event) { root.destinationActivated(gate.modelData.id); event.accepted = true }
             Keys.onEnterPressed: function(event) { root.destinationActivated(gate.modelData.id); event.accepted = true }
+            Keys.onSpacePressed: function(event) { root.destinationActivated(gate.modelData.id); event.accepted = true }
         }
     }
 
