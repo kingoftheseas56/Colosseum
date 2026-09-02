@@ -24,6 +24,8 @@ $icons = @(
   'list-video','languages','captions','gauge',
   # library page menu (stage 2): details(=info), watched mark + Discover watched-eye
   'info','eye','eye-off',
+  # manga series library action
+  'bookmark-plus','bookmark-check',
   # fallback for any unmapped kind
   'circle-alert'
 )

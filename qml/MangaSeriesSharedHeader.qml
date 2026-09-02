@@ -1,4 +1,6 @@
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Effects
 
 Item {
     id: root
@@ -18,8 +20,10 @@ Item {
     readonly property real modeSwitchX: modeSwitch.x
     readonly property real modeSwitchY: modeSwitch.y
     readonly property real modeSwitchWidth: modeSwitch.width
-    readonly property real libraryX: librarySlot.x
-    readonly property real libraryY: librarySlot.y
+    readonly property bool libraryAvailable: root.collectionEntry !== null && typeof Collection !== "undefined" && root.collectionEntry.id !== undefined && String(root.collectionEntry.id).length > 0
+    readonly property bool librarySaved: root.libraryAvailable ? (Collection.revision, Collection.has("tankoban", String(root.collectionEntry.id))) : false
+    readonly property real libraryX: titleBlock.x + titleRow.x + libraryIconButton.x
+    readonly property real libraryY: hero.y + titleBlock.y + titleRow.y + libraryIconButton.y
 
     signal backRequested()
     signal minimizeRequested()
@@ -27,6 +31,13 @@ Item {
     signal closeRequested()
     signal tankobanRequested()
     signal chapterRequested()
+
+    function toggleLibrary() {
+        if (!root.libraryAvailable) return
+        var id = String(root.collectionEntry.id)
+        if (root.librarySaved) Collection.remove("tankoban", id)
+        else Collection.add("tankoban", root.collectionEntry)
+    }
 
     Theme { id: theme }
 
@@ -104,10 +115,51 @@ Item {
             }
         }
         Column {
+            id: titleBlock
             anchors.left: parent.left; anchors.leftMargin: theme.margin
             anchors.top: parent.top; anchors.topMargin: 22; spacing: 5
             Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
-            Text { text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 34; font.weight: Font.DemiBold; elide: Text.ElideRight; width: Math.min(650, hero.width * .55) }
+            Row {
+                id: titleRow
+                spacing: 10
+                Text {
+                    id: titleText
+                    text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 34; font.weight: Font.DemiBold
+                    elide: Text.ElideRight; width: Math.min(implicitWidth, 650, Math.max(120, hero.width * .55 - 46))
+                    y: Math.round((titleRow.height - height) / 2)
+                }
+                Item {
+                    id: libraryIconButton
+                    objectName: "mangaSeriesLibraryButton"
+                    width: 36; height: 36
+                    visible: root.libraryAvailable
+                    activeFocusOnTab: visible
+                    Accessible.role: Accessible.Button
+                    Accessible.name: root.librarySaved ? "Remove from Library" : "Add to Library"
+                    ToolTip.visible: libraryMa.containsMouse
+                    ToolTip.text: root.librarySaved ? "Remove from Library" : "Add to Library"
+                    ToolTip.delay: 450
+                    y: Math.round((titleRow.height - height) / 2)
+                    Rectangle {
+                        anchors.fill: parent; radius: 9
+                        color: libraryMa.containsMouse ? Qt.rgba(1,1,1,.10) : (root.librarySaved ? Qt.rgba(0.78,.62,.22,.10) : "transparent")
+                        border.width: root.librarySaved ? 1 : 0
+                        border.color: Qt.rgba(0.78,.62,.22,.28)
+                    }
+                    Image {
+                        id: libraryGlyph
+                        anchors.centerIn: parent; width: 20; height: 20
+                        source: root.librarySaved ? "../assets/icons/lucide/bookmark-check.svg" : "../assets/icons/lucide/bookmark-plus.svg"
+                        sourceSize.width: 40; sourceSize.height: 40
+                        fillMode: Image.PreserveAspectFit; smooth: true; cache: true; visible: false
+                    }
+                    MultiEffect { anchors.fill: libraryGlyph; source: libraryGlyph; colorization: 1.0; colorizationColor: root.librarySaved ? theme.gold : theme.ink }
+                    MouseArea { id: libraryMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleLibrary() }
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.toggleLibrary(); event.accepted = true }
+                    }
+                }
+            }
             Row {
                 spacing: 7
                 Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
@@ -129,21 +181,6 @@ Item {
             visible: root.synopsis.length > 0
         }
 
-        Item {
-            id: librarySlot
-            objectName: "mangaSeriesLibraryButton"
-            anchors.left: parent.left; anchors.leftMargin: theme.margin
-            anchors.bottom: parent.bottom; anchors.bottomMargin: 16
-            width: libraryLoader.item ? libraryLoader.item.implicitWidth : 0
-            height: libraryLoader.item ? libraryLoader.item.implicitHeight : 0
-            visible: libraryLoader.active
-            Loader {
-                id: libraryLoader
-                anchors.fill: parent
-                active: root.collectionEntry !== null && typeof Collection !== "undefined"
-                sourceComponent: LibraryButton { world: "tankoban"; entry: root.collectionEntry }
-            }
-        }
 
         Rectangle {
             id: modeSwitch
