@@ -36,21 +36,6 @@ const QList<SyncOwnershipEntry> &entries() {
             QStringLiteral("Preserve recordSilent() performance contract; whole-store polling is not an acceptable substitute for a narrow dirty/export seam.")
         },
         SyncOwnershipEntry{
-            QStringLiteral("watch_state"),
-            SyncDisposition::Syncable,
-            SyncOwnerStatus::Confirmed,
-            true,
-            QStringList{QStringLiteral("watched_mark"), QStringLiteral("last_season")},
-            QStringLiteral("native/ProgressStore.h"),
-            QStringLiteral("ProfileStoreRuntime -> ProgressStore"),
-            QStringLiteral("syncWatchedMarks() / syncLastSeasons()"),
-            QStringLiteral("applySyncedWatchedMark/removeSyncedWatchedMark / applySyncedLastSeason/removeSyncedLastSeason"),
-            QStringLiteral("revision + changed(); remote apply is idempotent and WatchStateSyncAdapter suppresses remote echo"),
-            14,
-            QStringLiteral(""),
-            QStringLiteral("Manual watched overrides (-1/1) and positive last-season state are portable watch_state records separate from continue_progress resume payloads; absence is represented by record deletion.")
-        },
-        SyncOwnershipEntry{
             QStringLiteral("full_history"),
             SyncDisposition::Syncable,
             SyncOwnerStatus::Confirmed,
@@ -64,21 +49,6 @@ const QList<SyncOwnershipEntry> &entries() {
             14,
             QStringLiteral(""),
             QStringLiteral("No live native/HistoryStore.h exists at the 7B evidence head; Bundle 7B promotes the cumulative profile-owned HistoryStore into the dedicated full-history authority. Continue/progress remains separate.")
-        },
-        SyncOwnershipEntry{
-            QStringLiteral("activity_fact"),
-            SyncDisposition::Syncable,
-            SyncOwnerStatus::Confirmed,
-            true,
-            QStringList{QStringLiteral("activity_fact")},
-            QStringLiteral("native/account/ActivityStore.*"),
-            QStringLiteral("ProfileStoreRuntime -> ActivityStore -> ActivitySyncAdapter"),
-            QStringLiteral("portableSyncFacts()"),
-            QStringLiteral("applySyncedPortableFact(fact)"),
-            QStringLiteral("revision + changed(); factCommitted() only for newly committed facts; ActivitySyncAdapter suppresses remote echo"),
-            14,
-            QStringLiteral(""),
-            QStringLiteral("Immutable Activity facts are portable PUT-only records; missing facts never imply delete tombstones. Machine-local cover paths are sanitized by the ActivityStore portable projection.")
         },
         SyncOwnershipEntry{
             QStringLiteral("per_world_customization"),
@@ -353,17 +323,17 @@ const QList<SyncOwnershipEntry> &entries() {
         SyncOwnershipEntry{
             QStringLiteral("desired_download_intent"),
             SyncDisposition::Syncable,
-            SyncOwnerStatus::Partial,
-            false,
-            QStringList{QStringLiteral("current_desired_downloads")},
-            QStringLiteral("native/player/downloadstore.* is current acquisition/queue owner, not a dedicated portable desired-intent authority"),
-            QStringLiteral(""),
-            QStringLiteral("jobs()/downloadedVideos() are local acquisition state, not approved desired-intent snapshot"),
-            QStringLiteral("enqueue/cancel/remove are local acquisition actions"),
-            QStringLiteral("queueRevision/changed/libraryChanged"),
+            SyncOwnerStatus::Confirmed,
+            true,
+            QStringList{QStringLiteral("download_intent")},
+            QStringLiteral("native/account/DownloadIntentStore.*"),
+            QStringLiteral("ProfileStoreRuntime -> DownloadIntentStore"),
+            QStringLiteral("portableRecords() — logical media identity only"),
+            QStringLiteral("applyRemote()/redownload()"),
+            QStringLiteral("revision + changed()"),
             20,
             QStringLiteral(""),
-            QStringLiteral("Slice 20 must introduce/confirm desired-download intent separate from queue, URLs, paths, bytes, and historical acquisition transactions.")
+            QStringLiteral("Only the logical identity and display metadata sync. Device paths, URLs, headers, queue state, partial files, bytes, and acquisition history remain local.")
         },
         SyncOwnershipEntry{
             QStringLiteral("account_password"),

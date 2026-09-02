@@ -42,10 +42,6 @@ public:
     // Monotonic for the lifetime of this adapter instance.
     virtual quint64 revision() const = 0;
 
-    virtual bool missingRecordsAreDeletes() const {
-        return true;
-    }
-
     // Returns one coherent current semantic record snapshot. Each logical
     // record key appears at most once. The generic engine interprets a key
     // missing from a later snapshot as a local delete relative to its durable

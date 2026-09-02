@@ -269,43 +269,6 @@ bool decodeKey(
     return true;
 }
 
-QString watchStateRecordKey(
-    const QString &kind,
-    const QString &value) {
-    if (value.isEmpty())
-        return QString();
-
-    return QStringLiteral("watch/")
-        + kind
-        + QLatin1Char('/')
-        + encodeComponent(value);
-}
-
-bool decodeWatchStateKey(
-    const QString &recordKeyValue,
-    const QString &kind,
-    QString *value) {
-    const QStringList parts =
-        recordKeyValue.split(
-            QLatin1Char('/'),
-            Qt::KeepEmptyParts);
-
-    if (parts.size() != 3
-        || parts.at(0) != QStringLiteral("watch")
-        || parts.at(1) != kind) {
-        return false;
-    }
-
-    const auto decoded =
-        decodeComponent(parts.at(2));
-    if (!decoded.has_value())
-        return false;
-
-    if (value)
-        *value = *decoded;
-    return true;
-}
-
 CoreStateSyncProjection project(
     const QString &category,
     const QString &prefix,
@@ -451,42 +414,6 @@ CoreStateSyncProjection::history(
         QStringLiteral("kind"),
         QStringLiteral("id"),
         QStringLiteral("lastActivityAt"));
-}
-
-QString CoreStateSyncProjection::
-watchedMarkKey(
-    const QString &id) {
-    return watchStateRecordKey(
-        QStringLiteral("mark"),
-        id);
-}
-
-QString CoreStateSyncProjection::
-lastSeasonKey(
-    const QString &seriesId) {
-    return watchStateRecordKey(
-        QStringLiteral("season"),
-        seriesId);
-}
-
-bool CoreStateSyncProjection::
-decodeWatchedMarkKey(
-    const QString &recordKeyValue,
-    QString *id) {
-    return decodeWatchStateKey(
-        recordKeyValue,
-        QStringLiteral("mark"),
-        id);
-}
-
-bool CoreStateSyncProjection::
-decodeLastSeasonKey(
-    const QString &recordKeyValue,
-    QString *seriesId) {
-    return decodeWatchStateKey(
-        recordKeyValue,
-        QStringLiteral("season"),
-        seriesId);
 }
 
 bool CoreStateSyncProjection::

@@ -223,8 +223,6 @@ bool SyncAdapterRegistry::exportSnapshot(
         entry->schemaVersion;
     snapshot->revision =
         exported.revision;
-    snapshot->missingRecordsAreDeletes =
-        adapter->missingRecordsAreDeletes();
     snapshot->records =
         exported.records;
     return true;

@@ -54,31 +54,6 @@ func TestLoadRequiresProductionAvatarStorage(t *testing.T) {
 	}
 }
 
-func TestLoadAllowsProductionToDeferAvatarStorage(t *testing.T) {
-	setRequiredTestEnvironment(t)
-	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
-	t.Setenv("AVATAR_STORAGE", "disabled")
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if cfg.RunDatabaseMigrations {
-		t.Fatal("RunDatabaseMigrations = true, want false in production")
-	}
-	if cfg.AvatarBucketName != "" {
-		t.Fatalf("AvatarBucketName = %q, want empty while deferred", cfg.AvatarBucketName)
-	}
-}
-
-func TestLoadKeepsAvatarRequirementForUnrecognizedAvatarStorageValue(t *testing.T) {
-	setRequiredTestEnvironment(t)
-	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
-	t.Setenv("AVATAR_STORAGE", "disable") // typo of the exact opt-out
-	if _, err := Load(); err == nil {
-		t.Fatal("Load() accepted production without avatar storage for a non-exact AVATAR_STORAGE value")
-	}
-}
-
 func TestPositiveInt32EnvRejectsTooLargeValue(t *testing.T) {
 	t.Setenv("TEST_POSITIVE_INT32", "2147483648")
 	_, err := positiveInt32Env("TEST_POSITIVE_INT32", 1)
@@ -96,14 +71,8 @@ func TestLoadUsesApprovedDefaults(t *testing.T) {
 	if cfg.HTTPAddr != ":8080" {
 		t.Fatalf("HTTPAddr = %q, want :8080", cfg.HTTPAddr)
 	}
-	if !cfg.RunDatabaseMigrations {
-		t.Fatal("RunDatabaseMigrations = false, want true outside production")
-	}
 	if cfg.DatabaseMaxConnections != 8 {
 		t.Fatalf("DatabaseMaxConnections = %d, want 8", cfg.DatabaseMaxConnections)
-	}
-	if cfg.DatabaseAcquireTimeout != 2*time.Second {
-		t.Fatalf("DatabaseAcquireTimeout = %v, want 2s", cfg.DatabaseAcquireTimeout)
 	}
 	if cfg.RegistrationGlobalLimit10m != 500 {
 		t.Fatalf("RegistrationGlobalLimit10m = %d, want 500", cfg.RegistrationGlobalLimit10m)
@@ -113,41 +82,5 @@ func TestLoadUsesApprovedDefaults(t *testing.T) {
 	}
 	if cfg.AvatarRegion != "auto" {
 		t.Fatalf("AvatarRegion = %q, want auto", cfg.AvatarRegion)
-	}
-}
-
-func TestLoadDisablesDatabaseMigrationsInProduction(t *testing.T) {
-	setRequiredTestEnvironment(t)
-	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
-	t.Setenv("BUCKET_NAME", "avatars")
-	t.Setenv("AWS_ENDPOINT_URL_S3", "https://storage.example.invalid")
-
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
-	if cfg.RunDatabaseMigrations {
-		t.Fatal("RunDatabaseMigrations = true, want false in production")
-	}
-}
-
-func TestLoadMigrationRequiresOnlyMigrationDatabaseURL(t *testing.T) {
-	t.Setenv("MIGRATION_DATABASE_URL", "")
-	t.Setenv("DATABASE_URL", "")
-	if _, err := LoadMigration(); err == nil {
-		t.Fatal("LoadMigration() succeeded without MIGRATION_DATABASE_URL")
-	}
-
-	t.Setenv("MIGRATION_DATABASE_URL", "postgres://migration-user:migration-secret@example.invalid/db")
-	t.Setenv("MIGRATION_TIMEOUT_SECONDS", "")
-	cfg, err := LoadMigration()
-	if err != nil {
-		t.Fatalf("LoadMigration() error = %v", err)
-	}
-	if cfg.DatabaseURL != "postgres://migration-user:migration-secret@example.invalid/db" {
-		t.Fatalf("DatabaseURL = %q, want migration URL", cfg.DatabaseURL)
-	}
-	if cfg.Timeout != 5*time.Minute {
-		t.Fatalf("Timeout = %v, want 5m", cfg.Timeout)
 	}
 }

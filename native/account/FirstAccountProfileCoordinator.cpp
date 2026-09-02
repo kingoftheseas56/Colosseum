@@ -86,191 +86,240 @@ bool migratedProfileFilesPresent(
         paths.preferencesIniPath());
 }
 
-bool copyProfileTree(
-    const QString &sourceRoot,
-    const QString &targetRoot,
-    QString *error) {
-    QDir source(sourceRoot);
-    if (!source.exists())
-        return true;
-    if (!QDir().mkpath(targetRoot)) {
-        if (error)
-            *error = QStringLiteral("Could not create the account attachment staging directory.");
-        return false;
-    }
+qint64 jsonTimestamp(
+    const QJsonValue &value,
+    const QString &key) {
+    if (!value.isObject())
+        return 0;
+    const QJsonValue timestamp =
+        value.toObject().value(key);
+    return timestamp.isDouble()
+        ? static_cast<qint64>(timestamp.toDouble())
+        : timestamp.toString().toLongLong();
+}
 
-    const QFileInfoList entries = source.entryInfoList(
-        QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden | QDir::System,
-        QDir::Name);
-    for (const QFileInfo &entry : entries) {
-        if (entry.isSymLink()) {
-            if (error)
-                *error = QStringLiteral("Refusing to copy a symbolic link into account attachment staging.");
-            return false;
-        }
-
-        const QString target = QDir(targetRoot).filePath(entry.fileName());
-        if (entry.isDir()) {
-            if (!copyProfileTree(entry.absoluteFilePath(), target, error))
-                return false;
+QJsonObject mergeTimestampedObjects(
+    const QJsonObject &account,
+    const QJsonObject &local,
+    const QStringList &timestampKeys) {
+    QJsonObject merged = account;
+    for (auto it = local.constBegin();
+         it != local.constEnd();
+         ++it) {
+        if (!merged.contains(it.key())) {
+            merged.insert(it.key(), it.value());
             continue;
         }
 
-        QFile::remove(target);
-        if (!QFile::copy(entry.absoluteFilePath(), target)) {
-            if (error)
-                *error = QStringLiteral("Could not copy the existing account profile into attachment staging.");
-            return false;
+        const QJsonValue current = merged.value(it.key());
+        qint64 currentTime = 0;
+        qint64 localTime = 0;
+        for (const QString &key : timestampKeys) {
+            currentTime = qMax(currentTime, jsonTimestamp(current, key));
+            localTime = qMax(localTime, jsonTimestamp(it.value(), key));
         }
-    }
-    return true;
-}
-
-qint64 positiveOrder(const QVariantMap &record, const QString &field) {
-    bool ok = false;
-    const qint64 value = record.value(field).toLongLong(&ok);
-    return ok && value > 0 ? value : -1;
-}
-
-QVariantMap overlayRecord(
-    const QVariantMap &existing,
-    const QVariantMap &candidate) {
-    QVariantMap merged = existing;
-    for (auto it = candidate.constBegin();
-         it != candidate.constEnd(); ++it) {
-        merged.insert(it.key(), it.value());
+        if (localTime > currentTime)
+            merged.insert(it.key(), it.value());
     }
     return merged;
 }
 
-void mergeRecordsByOrder(
-    QJsonObject *target,
-    const QJsonObject &local,
-    const QString &orderField) {
+QJsonObject mergeHistoryObjects(
+    const QJsonObject &account,
+    const QJsonObject &local) {
+    QJsonObject merged = account;
     for (auto it = local.constBegin();
-         it != local.constEnd(); ++it) {
-        if (!it.value().isObject())
-            continue;
-
-        const QVariantMap existing =
-            target->value(it.key()).toObject().toVariantMap();
-        const QVariantMap candidate =
-            it.value().toObject().toVariantMap();
-        if (!existing.isEmpty()
-            && positiveOrder(candidate, orderField)
-                < positiveOrder(existing, orderField)) {
+         it != local.constEnd();
+         ++it) {
+        if (!merged.contains(it.key())) {
+            merged.insert(it.key(), it.value());
             continue;
         }
 
-        target->insert(
-            it.key(),
-            QJsonObject::fromVariantMap(
-                overlayRecord(existing, candidate)));
+        const QJsonObject left = merged.value(it.key()).toObject();
+        const QJsonObject right = it.value().toObject();
+        if (left.isEmpty() || right.isEmpty())
+            continue;
+
+        QJsonObject combined = left;
+        const qint64 first = qMin(
+            jsonTimestamp(left, QStringLiteral("firstActivityAt")),
+            jsonTimestamp(right, QStringLiteral("firstActivityAt")));
+        const qint64 last = qMax(
+            jsonTimestamp(left, QStringLiteral("lastActivityAt")),
+            jsonTimestamp(right, QStringLiteral("lastActivityAt")));
+        const qint64 completed = qMax(
+            jsonTimestamp(left, QStringLiteral("completedAt")),
+            jsonTimestamp(right, QStringLiteral("completedAt")));
+        if (first > 0)
+            combined.insert(QStringLiteral("firstActivityAt"), first);
+        if (last > 0)
+            combined.insert(QStringLiteral("lastActivityAt"), last);
+        if (completed > 0)
+            combined.insert(QStringLiteral("completedAt"), completed);
+        merged.insert(it.key(), combined);
     }
+    return merged;
 }
 
-qint64 minPositive(qint64 left, qint64 right) {
-    if (left <= 0)
-        return right;
-    if (right <= 0)
-        return left;
-    return qMin(left, right);
+QJsonObject mergeSearchHistory(
+    const QJsonObject &account,
+    const QJsonObject &local) {
+    QJsonObject merged = account;
+    for (auto it = local.constBegin();
+         it != local.constEnd();
+         ++it) {
+        QStringList values;
+        const auto append = [&values](const QJsonValue &value) {
+            for (const QJsonValue &candidate : value.toArray()) {
+                const QString text = candidate.toString().trimmed();
+                if (text.isEmpty())
+                    continue;
+                bool duplicate = false;
+                for (const QString &existing : values) {
+                    if (existing.compare(text, Qt::CaseInsensitive) == 0) {
+                        duplicate = true;
+                        break;
+                    }
+                }
+                if (!duplicate && values.size() < 6)
+                    values.append(text);
+            }
+        };
+        append(merged.value(it.key()));
+        append(it.value());
+
+        QJsonArray array;
+        for (const QString &value : values)
+            array.append(value);
+        merged.insert(it.key(), array);
+    }
+    return merged;
 }
 
-PersonalStateSnapshot mergeAttachmentState(
+PersonalStateSnapshot mergeSnapshots(
     const PersonalStateSnapshot &account,
     const PersonalStateSnapshot &local) {
     PersonalStateSnapshot merged = account;
-
-    mergeRecordsByOrder(
-        &merged.progressEntries,
+    merged.progressEntries = mergeTimestampedObjects(
+        account.progressEntries,
         local.progressEntries,
-        QStringLiteral("updatedAt"));
-    mergeRecordsByOrder(
-        &merged.collectionEntries,
+        {QStringLiteral("updatedAt")});
+    merged.collectionEntries = mergeTimestampedObjects(
+        account.collectionEntries,
         local.collectionEntries,
-        QStringLiteral("addedAt"));
+        {QStringLiteral("updatedAt"), QStringLiteral("addedAt")});
+    merged.audioPairings = mergeTimestampedObjects(
+        account.audioPairings,
+        local.audioPairings,
+        {QStringLiteral("updatedAt")});
+    merged.historyRecords = mergeHistoryObjects(
+        account.historyRecords,
+        local.historyRecords);
+    merged.searchHistory = mergeSearchHistory(
+        account.searchHistory,
+        local.searchHistory);
 
     for (auto it = local.progressLastSeason.constBegin();
-         it != local.progressLastSeason.constEnd(); ++it) {
-        merged.progressLastSeason.insert(it.key(), it.value());
+         it != local.progressLastSeason.constEnd();
+         ++it) {
+        const QJsonValue current =
+            merged.progressLastSeason.value(it.key());
+        if (!current.isDouble() || it.value().toDouble() > current.toDouble())
+            merged.progressLastSeason.insert(it.key(), it.value());
     }
     for (auto it = local.progressWatchedMarks.constBegin();
-         it != local.progressWatchedMarks.constEnd(); ++it) {
-        merged.progressWatchedMarks.insert(it.key(), it.value());
+         it != local.progressWatchedMarks.constEnd();
+         ++it) {
+        const QJsonValue current =
+            merged.progressWatchedMarks.value(it.key());
+        if (!current.isDouble() || it.value().toDouble() > current.toDouble())
+            merged.progressWatchedMarks.insert(it.key(), it.value());
     }
-
-    // Search history remains device-local (there is no ordinary sync adapter),
-    // but it should still survive the local->account shell transition on this
-    // device. Merge recent entries without turning the account profile into a
-    // second search-history authority on other devices.
-    for (auto it = local.searchHistory.constBegin();
-         it != local.searchHistory.constEnd(); ++it) {
-        QJsonArray mergedEntries = it.value().toArray();
-        QSet<QString> seen;
-        for (const QJsonValue &entry : mergedEntries) {
-            if (entry.isString())
-                seen.insert(entry.toString());
-        }
-        for (const QJsonValue &entry : merged.searchHistory.value(it.key()).toArray()) {
-            if (entry.isString() && !seen.contains(entry.toString())) {
-                mergedEntries.append(entry);
-                seen.insert(entry.toString());
-            }
-        }
-        merged.searchHistory.insert(it.key(), mergedEntries);
-    }
-
-    for (auto it = local.audioPairings.constBegin();
-         it != local.audioPairings.constEnd(); ++it) {
-        if (!it.value().isObject())
-            continue;
-        QVariantMap candidate = it.value().toObject().toVariantMap();
-        candidate.insert(QStringLiteral("bookId"), it.key());
-        const QVariantMap existing = merged.audioPairings.value(it.key()).toObject().toVariantMap();
-        if (!existing.isEmpty()
-            && positiveOrder(candidate, QStringLiteral("updatedAt"))
-                < positiveOrder(existing, QStringLiteral("updatedAt"))) {
-            continue;
-        }
-
-        QVariantMap result = existing;
-        for (auto candidateIt = candidate.constBegin();
-             candidateIt != candidate.constEnd(); ++candidateIt) {
-            result.insert(candidateIt.key(), candidateIt.value());
-        }
-        merged.audioPairings.insert(it.key(), QJsonObject::fromVariantMap(result));
-    }
-
-    for (auto it = local.historyRecords.constBegin();
-         it != local.historyRecords.constEnd(); ++it) {
-        if (!it.value().isObject())
-            continue;
-
-        const QVariantMap prior =
-            merged.historyRecords.value(it.key()).toObject().toVariantMap();
-        const QVariantMap incoming =
-            it.value().toObject().toVariantMap();
-        QVariantMap result = overlayRecord(prior, incoming);
-        result.insert(QStringLiteral("firstActivityAt"), minPositive(
-            prior.value(QStringLiteral("firstActivityAt")).toLongLong(),
-            incoming.value(QStringLiteral("firstActivityAt")).toLongLong()));
-        result.insert(QStringLiteral("lastActivityAt"), qMax(
-            prior.value(QStringLiteral("lastActivityAt")).toLongLong(),
-            incoming.value(QStringLiteral("lastActivityAt")).toLongLong()));
-        const qint64 completedAt = minPositive(
-            prior.value(QStringLiteral("completedAt")).toLongLong(),
-            incoming.value(QStringLiteral("completedAt")).toLongLong());
-        if (completedAt > 0)
-            result.insert(QStringLiteral("completedAt"), completedAt);
-        else
-            result.remove(QStringLiteral("completedAt"));
-        merged.historyRecords.insert(
-            it.key(), QJsonObject::fromVariantMap(result));
-    }
-
-    merged.showExplicit = local.showExplicit;
+    merged.showExplicit = account.showExplicit || local.showExplicit;
     return merged;
+}
+
+QJsonObject historyRecordFromActivityFact(
+    const QVariantMap &fact) {
+    const QString kind =
+        fact.value(QStringLiteral("kind"))
+            .toString()
+            .trimmed();
+    const QString id =
+        fact.value(QStringLiteral("itemKey"))
+            .toString()
+            .trimmed();
+    const QString type =
+        fact.value(QStringLiteral("type"))
+            .toString();
+    if (kind.isEmpty() || id.isEmpty())
+        return {};
+
+    qint64 first = 0;
+    qint64 last = 0;
+    qint64 completed = 0;
+    if (type == QStringLiteral("playback_delta")) {
+        first = fact.value(QStringLiteral("startAtMs")).toLongLong();
+        last = fact.value(QStringLiteral("endAtMs")).toLongLong();
+    } else if (type == QStringLiteral("reading_delta")) {
+        first = fact.value(QStringLiteral("atMs")).toLongLong();
+        last = first;
+    } else if (type == QStringLiteral("media_completed")) {
+        first = fact.value(QStringLiteral("atMs")).toLongLong();
+        last = first;
+        completed = first;
+    } else {
+        return {};
+    }
+
+    if (first <= 0 || last < first)
+        return {};
+
+    QJsonObject record{
+        {QStringLiteral("kind"), kind},
+        {QStringLiteral("id"), id},
+        {QStringLiteral("firstActivityAt"), first},
+        {QStringLiteral("lastActivityAt"), last}};
+    if (completed > 0)
+        record.insert(QStringLiteral("completedAt"), completed);
+    return record;
+}
+
+bool matchesWithActivityProjection(
+    const PersonalStateSnapshot &expected,
+    const PersonalStateSnapshot &current,
+    const QList<QVariantMap> &facts) {
+    if (current.progressEntries != expected.progressEntries
+        || current.progressLastSeason != expected.progressLastSeason
+        || current.progressWatchedMarks != expected.progressWatchedMarks
+        || current.collectionEntries != expected.collectionEntries
+        || current.searchHistory != expected.searchHistory
+        || current.audioPairings != expected.audioPairings
+        || current.showExplicit != expected.showExplicit) {
+        return false;
+    }
+
+    PersonalStateSnapshot projected = expected;
+    for (const QVariantMap &fact : facts) {
+        if (!fact.value(QStringLiteral("syncable")).toBool())
+            continue;
+        const QJsonObject record = historyRecordFromActivityFact(fact);
+        if (record.isEmpty())
+            continue;
+
+        const QString key =
+            record.value(QStringLiteral("kind"))
+                .toString()
+            + QChar(0x1f)
+            + record.value(QStringLiteral("id"))
+                .toString();
+        projected.historyRecords = mergeHistoryObjects(
+            projected.historyRecords,
+            QJsonObject{{key, record}});
+    }
+
+    return current.historyRecords == projected.historyRecords;
 }
 }
 
@@ -402,6 +451,45 @@ prepareAccountSession(
             error);
     }
 
+    bool explicitProfile = false;
+    QString sourceError;
+    const auto sourceStorage =
+        currentMigrationSource(
+            &explicitProfile,
+            &sourceError);
+    if (!sourceStorage.has_value()) {
+        if (!sourceError.isEmpty())
+            return setError(error, sourceError);
+    } else {
+        QString captureError;
+        const auto source =
+            sourceStorage->capture(&captureError);
+        if (!source.has_value()) {
+            return setError(
+                error,
+                adoptionFailure(
+                    QStringLiteral(
+                        "Could not capture local personal state before sign-in."),
+                    captureError));
+        }
+
+        if (!source->isEmpty()) {
+            if (!QFileInfo::exists(paths->profileRoot())) {
+                if (explicitProfile)
+                    return runLocalOnlyAdoption(
+                        *paths,
+                        *sourceStorage,
+                        error);
+                return runFreshAdoption(*paths, error);
+            }
+
+            return mergeExistingAccount(
+                *paths,
+                *sourceStorage,
+                error);
+        }
+    }
+
     if (!QFileInfo::exists(paths->profileRoot())) {
         if (!createEmptyProfile(
                 *paths,
@@ -411,211 +499,6 @@ prepareAccountSession(
     }
 
     return activate(*paths, error);
-}
-
-bool FirstAccountProfileCoordinator::
-attachLocalProfileToAccount(
-    const QString &accountId,
-    QString *error) {
-    const auto paths = ProfilePaths::account(accountId, m_appDataRoot);
-    if (!paths.has_value()) {
-        return setError(error, QStringLiteral(
-            "The account profile identifier is invalid."));
-    }
-
-    const ProfilePaths active = m_profileRuntime->activeProfile();
-    if (active.kind() == ProfilePaths::Kind::Account) {
-        if (active.profileId() == paths->profileId())
-            return true;
-        return setError(error, QStringLiteral(
-            "The active account profile must be sealed before another account opens."));
-    }
-    if (active.kind() == ProfilePaths::Kind::Sealed) {
-        return setError(error, QStringLiteral(
-            "Local profile attachment requires an active local profile."));
-    }
-
-    if (QFileInfo::exists(paths->localAttachmentJournalPath())) {
-        auto pending = ProfileAdoption::openLocalAttachment(*paths, error);
-        if (!pending.has_value())
-            return false;
-
-        if (pending->state() == ProfileAdoption::State::Preparing
-            || pending->state() == ProfileAdoption::State::TargetVerified) {
-            if (!pending->rollbackLocalAttachment(error))
-                return false;
-        } else {
-            const auto finalStorage = LegacyPersonalStateStorage::forProfile(*paths, error);
-            if (!finalStorage.has_value())
-                return false;
-            const auto finalSnapshot = finalStorage->capture(error);
-            if (!finalSnapshot.has_value()
-                || !finalSnapshot->matchesSemanticDigest(
-                    pending->snapshot().targetSemanticDigest)) {
-                return setError(error, QStringLiteral(
-                    "The interrupted merged account profile failed semantic verification."));
-            }
-
-            const QString expectedActivity = pending->snapshot().activityTargetDigest;
-            if (!expectedActivity.isEmpty()) {
-                QString activityError;
-                const QString actualActivity = ActivityStore::semanticEventDigest(
-                    paths->activityDbPath(), &activityError);
-                if (actualActivity != expectedActivity) {
-                    return setError(error, adoptionFailure(
-                        QStringLiteral("The interrupted merged activity ledger failed verification."),
-                        activityError));
-                }
-            }
-
-            if (pending->state() == ProfileAdoption::State::Promoted
-                && !pending->commitLocalAttachment(error)) {
-                return false;
-            }
-            if (!activate(*paths, error)) {
-                QString rollbackError;
-                pending->rollbackLocalAttachment(&rollbackError);
-                return false;
-            }
-
-            // Cleanup is best-effort after a committed, verified profile is
-            // active. Leaving the committed journal/backup behind is safe and
-            // lets a later attachment pass retry housekeeping without turning
-            // a successful sign-in into a false authentication failure.
-            pending->cleanupLocalAttachment(nullptr);
-            return true;
-        }
-    }
-
-    m_profileRuntime->flushPersonalStores();
-
-    std::optional<LegacyPersonalStateStorage> sourceStorage;
-    if (active.kind() == ProfilePaths::Kind::LegacyLocal) {
-        sourceStorage = m_profileRuntime->legacyStorage();
-    } else {
-        sourceStorage = LegacyPersonalStateStorage::forProfile(active, error);
-    }
-    if (!sourceStorage.has_value())
-        return false;
-
-    const auto localSnapshot = sourceStorage->capture(error);
-    if (!localSnapshot.has_value())
-        return false;
-
-    PersonalStateSnapshot accountSnapshot;
-    QString previousActivityDigest;
-    if (QFileInfo::exists(paths->profileRoot())) {
-        const auto accountStorage = LegacyPersonalStateStorage::forProfile(*paths, error);
-        if (!accountStorage.has_value())
-            return false;
-        const auto capturedAccount = accountStorage->capture(error);
-        if (!capturedAccount.has_value())
-            return false;
-        accountSnapshot = *capturedAccount;
-        previousActivityDigest = ActivityStore::semanticEventDigest(
-            accountStorage->activityDbPath(), error);
-        if (QFileInfo::exists(accountStorage->activityDbPath())
-            && previousActivityDigest.isEmpty()) {
-            return false;
-        }
-    }
-
-    auto attachment = ProfileAdoption::beginLocalAttachment(
-        *paths,
-        localSnapshot->semanticDigest(),
-        QFileInfo::exists(paths->profileRoot())
-            ? accountSnapshot.semanticDigest()
-            : QString(),
-        previousActivityDigest,
-        error);
-    if (!attachment.has_value())
-        return false;
-
-    auto rollbackFailure = [&](const QString &message) {
-        QString rollbackError;
-        attachment->rollbackLocalAttachment(&rollbackError);
-        return setError(error, adoptionFailure(message, rollbackError));
-    };
-
-    if (QFileInfo::exists(paths->profileRoot())
-        && !copyProfileTree(
-            paths->profileRoot(),
-            paths->accountStagingRoot(),
-            error)) {
-        return rollbackFailure(QStringLiteral(
-            "Could not stage the existing account profile for local attachment."));
-    }
-
-    const PersonalStateSnapshot merged = mergeAttachmentState(
-        accountSnapshot, *localSnapshot);
-    const auto stagedStorage = LegacyPersonalStateStorage::forProfileRoot(
-        *paths, paths->accountStagingRoot(), error);
-    if (!stagedStorage.has_value()
-        || !stagedStorage->restorePersonalState(merged, error)) {
-        return rollbackFailure(QStringLiteral(
-            "Could not persist the merged account profile."));
-    }
-
-    if (!ActivityStore::mergePortableEvents(
-            sourceStorage->activityDbPath(),
-            stagedStorage->activityDbPath(),
-            error)) {
-        return rollbackFailure(QStringLiteral(
-            "Could not merge the local activity ledger into the account profile."));
-    }
-
-    QString stagedDigest;
-    if (!verifyProfile(
-            *paths,
-            paths->accountStagingRoot(),
-            merged,
-            &stagedDigest,
-            error)
-        || !attachment->markTargetVerified(stagedDigest, error)) {
-        return rollbackFailure(QStringLiteral(
-            "The staged merged account profile failed verification."));
-    }
-
-    QString activityError;
-    const QString sourceActivityDigest = ActivityStore::semanticEventDigest(
-        sourceStorage->activityDbPath(), &activityError);
-    if (QFileInfo::exists(sourceStorage->activityDbPath())
-        && sourceActivityDigest.isEmpty()) {
-        return rollbackFailure(adoptionFailure(
-            QStringLiteral("Could not verify the local activity source."),
-            activityError));
-    }
-    const QString stagedActivityDigest = ActivityStore::semanticEventDigest(
-        stagedStorage->activityDbPath(), &activityError);
-    if (QFileInfo::exists(stagedStorage->activityDbPath())
-        && stagedActivityDigest.isEmpty()) {
-        return rollbackFailure(adoptionFailure(
-            QStringLiteral("Could not verify the merged activity ledger."),
-            activityError));
-    }
-    if (!attachment->markActivityTargetVerified(
-            sourceActivityDigest,
-            stagedActivityDigest,
-            error)) {
-        return rollbackFailure(QStringLiteral(
-            "Could not record merged activity verification."));
-    }
-
-    if (!attachment->promote(error))
-        return rollbackFailure(QStringLiteral(
-            "Could not promote the merged account profile."));
-    if (!attachment->commitLocalAttachment(error))
-        return rollbackFailure(QStringLiteral(
-            "Could not commit the local profile attachment."));
-    if (!activate(*paths, error))
-        return rollbackFailure(QStringLiteral(
-            "Could not activate the merged account profile."));
-
-    // The transaction is already committed and active here. Cleanup may be
-    // retried from the durable committed journal on a later pass, so it must
-    // not make a successful account attachment appear to have failed.
-    attachment->cleanupLocalAttachment(nullptr);
-    return true;
 }
 
 bool FirstAccountProfileCoordinator::
@@ -697,6 +580,318 @@ prepareLocalOnly(
     return m_profileRuntime
         ->reloadLegacyProfile(
             error);
+}
+
+std::optional<LegacyPersonalStateStorage>
+FirstAccountProfileCoordinator::
+currentMigrationSource(
+    bool *explicitProfile,
+    QString *error) const {
+    if (explicitProfile)
+        *explicitProfile = false;
+
+    const ProfilePaths &active =
+        m_profileRuntime->activeProfile();
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(m_appDataRoot);
+
+    QString localError;
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(
+            localPaths,
+            &localError);
+    if (!localStorage.has_value()) {
+        if (active.kind() == ProfilePaths::Kind::LocalOnly) {
+            if (error)
+                *error = localError;
+            return std::nullopt;
+        }
+    } else {
+        QString captureError;
+        const auto local =
+            localStorage->capture(&captureError);
+        if (!local.has_value()) {
+            if (active.kind() == ProfilePaths::Kind::LocalOnly) {
+                if (error)
+                    *error = captureError;
+                return std::nullopt;
+            }
+        } else if (active.kind() == ProfilePaths::Kind::LocalOnly
+                   || !local->isEmpty()) {
+            if (explicitProfile)
+                *explicitProfile = true;
+            return localStorage;
+        }
+    }
+
+    QString legacyError;
+    const auto legacy =
+        m_profileRuntime->legacyStorage().capture(
+            &legacyError);
+    if (!legacy.has_value()) {
+        if (active.kind() == ProfilePaths::Kind::LegacyLocal
+            || !localStorage.has_value()) {
+            if (error)
+                *error = legacyError;
+            return std::nullopt;
+        }
+    } else if (active.kind() == ProfilePaths::Kind::LegacyLocal
+               || !legacy->isEmpty()) {
+        return m_profileRuntime->legacyStorage();
+    }
+
+    return std::nullopt;
+}
+
+bool FirstAccountProfileCoordinator::
+clearMigrationSource(
+    const LegacyPersonalStateStorage &sourceStorage,
+    bool explicitProfile,
+    QString *error) {
+    Q_UNUSED(explicitProfile);
+    if (!sourceStorage.clearPersonalState(error))
+        return false;
+
+    const QString activityPath =
+        sourceStorage.activityDbPath();
+    QFile::remove(activityPath);
+    QFile::remove(activityPath + QStringLiteral("-wal"));
+    QFile::remove(activityPath + QStringLiteral("-shm"));
+
+    const auto cleared =
+        sourceStorage.capture(error);
+    if (!cleared.has_value())
+        return false;
+    if (!cleared->isEmpty()) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Local personal state was not fully merged into the account."));
+    }
+    return true;
+}
+
+bool FirstAccountProfileCoordinator::
+runLocalOnlyAdoption(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    QString *error) {
+    m_profileRuntime->flushPersonalStores();
+
+    QString captureError;
+    const auto source =
+        sourceStorage.capture(&captureError);
+    if (!source.has_value()) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not capture local personal state."),
+                captureError));
+    }
+
+    const QString activitySourceDigest =
+        ActivityStore::fileDigestSha256(
+            sourceStorage.activityDbPath());
+    auto adoption =
+        ProfileAdoption::begin(
+            paths,
+            source->semanticDigest(),
+            error);
+    if (!adoption.has_value())
+        return false;
+
+    clearCreationIntent(paths, nullptr);
+    const auto stagedStorage =
+        LegacyPersonalStateStorage::forProfileRoot(
+            paths,
+            paths.accountStagingRoot(),
+            error);
+    if (!stagedStorage.has_value())
+        return false;
+    if (!stagedStorage->restorePersonalState(
+            *source,
+            error)) {
+        return false;
+    }
+
+    QString stagedActivityDigest;
+    if (!copyActivityLedgerToStaging(
+            paths,
+            sourceStorage,
+            activitySourceDigest,
+            &stagedActivityDigest,
+            error)) {
+        return false;
+    }
+
+    QString stagedDigest;
+    if (!verifyProfile(
+            paths,
+            paths.accountStagingRoot(),
+            *source,
+            &stagedDigest,
+            error)) {
+        return false;
+    }
+    if (!adoption->markTargetVerified(
+            stagedDigest,
+            error)
+        || !adoption->markActivityTargetVerified(
+            activitySourceDigest,
+            stagedActivityDigest,
+            error)
+        || !adoption->promote(error)) {
+        return false;
+    }
+
+    if (!writeBackup(paths, *source, error))
+        return false;
+    QString activityBackupDigest;
+    if (!backupActivityLedger(
+            paths,
+            sourceStorage,
+            activitySourceDigest,
+            &activityBackupDigest,
+            error)) {
+        return false;
+    }
+
+    m_profileRuntime->suspendPersonalStoresForMigration();
+    if (!clearMigrationSource(
+            sourceStorage,
+            true,
+            error)) {
+        sourceStorage.restorePersonalState(
+            *source,
+            nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
+
+    if (!adoption->markActivityLegacyQuarantined(
+            activityBackupDigest,
+            error)
+        || !adoption->markLegacyQuarantined(
+            source->semanticDigest(),
+            error)) {
+        sourceStorage.restorePersonalState(
+            *source,
+            nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
+
+    m_quarantinedThisProcess.insert(paths.profileId());
+    return activate(paths, error);
+}
+
+bool FirstAccountProfileCoordinator::
+mergeExistingAccount(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    QString *error) {
+    const auto targetStorage =
+        LegacyPersonalStateStorage::forProfile(
+            paths,
+            error);
+    if (!targetStorage.has_value())
+        return false;
+
+    QString sourceError;
+    const auto source =
+        sourceStorage.capture(&sourceError);
+    const auto target =
+        targetStorage->capture(error);
+    if (!source.has_value() || !target.has_value()) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not read both local and account state for merging."),
+                source.has_value() ? QString() : sourceError));
+    }
+
+    const PersonalStateSnapshot merged =
+        mergeSnapshots(*target, *source);
+
+    QList<QVariantMap> activityFacts;
+    const ProfilePaths::Kind activeKind =
+        m_profileRuntime->activeProfile().kind();
+    if ((activeKind == ProfilePaths::Kind::LegacyLocal
+         || activeKind == ProfilePaths::Kind::LocalOnly)
+        && m_profileRuntime->activityStore()) {
+        activityFacts =
+            m_profileRuntime->activityStore()
+                ->historyProjectionFacts();
+    } else {
+        ActivityStore sourceActivity(
+            sourceStorage.activityDbPath());
+        if (sourceActivity.healthy())
+            activityFacts = sourceActivity.historyProjectionFacts();
+    }
+
+    m_profileRuntime->suspendPersonalStoresForMigration();
+    if (!targetStorage->restorePersonalState(merged, error)) {
+        sourceStorage.restorePersonalState(*source, nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
+
+    ActivityStore targetActivity(
+        targetStorage->activityDbPath());
+    if (!targetActivity.healthy(error)) {
+        sourceStorage.restorePersonalState(*source, nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
+    for (const QVariantMap &fact : activityFacts) {
+        const QString type =
+            fact.value(QStringLiteral("type")).toString();
+        bool accepted = false;
+        if (type == QStringLiteral("playback_delta"))
+            accepted = targetActivity.recordPlaybackDelta(fact);
+        else if (type == QStringLiteral("reading_delta"))
+            accepted = targetActivity.recordReadingDelta(fact);
+        else if (type == QStringLiteral("completion"))
+            accepted = targetActivity.recordCompletion(fact);
+        if (!accepted) {
+            sourceStorage.restorePersonalState(*source, nullptr);
+            m_profileRuntime->activateLocalOnlyProfile(nullptr);
+            return setError(
+                error,
+                QStringLiteral(
+                    "The local activity history could not be merged into the account."));
+        }
+    }
+
+    QString verifyError;
+    if (!verifyProfile(
+            paths,
+            paths.profileRoot(),
+            merged,
+            nullptr,
+            &verifyError)) {
+        sourceStorage.restorePersonalState(*source, nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return setError(error, verifyError);
+    }
+
+    if (!clearMigrationSource(
+            sourceStorage,
+            true,
+            error)) {
+        sourceStorage.restorePersonalState(*source, nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
+
+    if (!activate(paths, error)) {
+        sourceStorage.restorePersonalState(*source, nullptr);
+        m_profileRuntime->activateLocalOnlyProfile(nullptr);
+        return false;
+    }
+    return true;
 }
 
 bool FirstAccountProfileCoordinator::
@@ -941,6 +1136,26 @@ resumeAdoption(
         if (!source->matchesSemanticDigest(
                 adoption.snapshot()
                     .sourceSemanticDigest)) {
+            bool onlyActivityProjection = false;
+            const auto backup = readBackup(paths, nullptr);
+            if (backup.has_value()) {
+                ActivityStore activity(
+                    m_profileRuntime->legacyStorage()
+                        .activityDbPath());
+                if (activity.healthy()) {
+                    onlyActivityProjection =
+                        matchesWithActivityProjection(
+                            *backup,
+                            *source,
+                            activity.historyProjectionFacts());
+                }
+            }
+            if (onlyActivityProjection) {
+                if (!adoption.rollbackBeforeLegacyQuarantine(error))
+                    return false;
+                return runFreshAdoption(paths, error);
+            }
+
             return setError(
                 error,
                 QStringLiteral(
@@ -1867,33 +2082,6 @@ restoreLegacyAndRollback(
                 restoreError));
     }
 
-    // Reopening legacy mode replays the restored activity ledger into derived
-    // History/Progress stores. That deterministic, Colosseum-owned projection
-    // can legitimately change the personal-state semantic digest after the
-    // exact rollback verification above. Persist the post-replay digest as the
-    // RetryPending baseline so a later sign-in still rejects any mutation that
-    // happens after this trusted replay.
-    const auto retrySource =
-        m_profileRuntime->legacyStorage().capture(&restoreError);
-    if (!retrySource.has_value()) {
-        return setError(
-            error,
-            adoptionFailure(
-                QStringLiteral(
-                    "Legacy state was reopened but its retry baseline could not be captured."),
-                restoreError));
-    }
-    if (!adoption->refreshRetrySourceSemanticDigest(
-            retrySource->semanticDigest(),
-            &restoreError)) {
-        return setError(
-            error,
-            adoptionFailure(
-                QStringLiteral(
-                    "Legacy state was reopened but its retry baseline could not be persisted."),
-                restoreError));
-    }
-
     return true;
 }
 
@@ -1958,6 +2146,21 @@ copyActivityLedgerToStaging(
     const QString &sourceDigest,
     QString *stagedDigest,
     QString *error) const {
+    return copyActivityLedgerToStaging(
+        paths,
+        m_profileRuntime->legacyStorage(),
+        sourceDigest,
+        stagedDigest,
+        error);
+}
+
+bool FirstAccountProfileCoordinator::
+copyActivityLedgerToStaging(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    const QString &sourceDigest,
+    QString *stagedDigest,
+    QString *error) const {
     if (stagedDigest)
         stagedDigest->clear();
 
@@ -1988,8 +2191,7 @@ copyActivityLedgerToStaging(
     }
 
     if (!QFile::copy(
-            m_profileRuntime->legacyStorage()
-                .activityDbPath(),
+            sourceStorage.activityDbPath(),
             destination)) {
         return setError(
             error,
@@ -2062,6 +2264,21 @@ backupActivityLedger(
     const QString &expectedDigest,
     QString *backupDigest,
     QString *error) const {
+    return backupActivityLedger(
+        paths,
+        m_profileRuntime->legacyStorage(),
+        expectedDigest,
+        backupDigest,
+        error);
+}
+
+bool FirstAccountProfileCoordinator::
+backupActivityLedger(
+    const ProfilePaths &paths,
+    const LegacyPersonalStateStorage &sourceStorage,
+    const QString &expectedDigest,
+    QString *backupDigest,
+    QString *error) const {
     if (backupDigest)
         backupDigest->clear();
 
@@ -2090,7 +2307,7 @@ backupActivityLedger(
     }
 
     if (!QFile::copy(
-            paths.activityDbPath(),
+            sourceStorage.activityDbPath(),
             destination)) {
         return setError(
             error,

@@ -4,15 +4,14 @@
 
 #include <QPointer>
 
-class ProgressStore;
+class DownloadIntentStore;
 
-class WatchStateSyncAdapter final
-    : public SyncAdapter {
+class DownloadIntentSyncAdapter final : public SyncAdapter {
     Q_OBJECT
 
 public:
-    explicit WatchStateSyncAdapter(
-        ProgressStore *store,
+    explicit DownloadIntentSyncAdapter(
+        DownloadIntentStore *store,
         QObject *parent = nullptr);
 
     QString categoryId() const override;
@@ -31,13 +30,5 @@ public:
         QString *error = nullptr) override;
 
 private:
-    void handleStoreChanged();
-
-    static bool fail(
-        QString *error,
-        const QString &detail);
-
-    QPointer<ProgressStore> m_store;
-    quint64 m_revision = 0;
-    bool m_applyingRemote = false;
+    QPointer<DownloadIntentStore> m_store;
 };

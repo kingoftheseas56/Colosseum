@@ -27,10 +27,6 @@ public:
         const QString &accountId,
         QString *error = nullptr);
 
-    bool attachLocalProfileToAccount(
-        const QString &accountId,
-        QString *error = nullptr);
-
     bool prepareRememberedAccount(
         const QString &accountId,
         QString *error = nullptr);
@@ -41,6 +37,25 @@ public:
 private:
     bool runFreshAdoption(
         const ProfilePaths &paths,
+        QString *error);
+
+    bool runLocalOnlyAdoption(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        QString *error);
+
+    bool mergeExistingAccount(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        QString *error);
+
+    std::optional<LegacyPersonalStateStorage> currentMigrationSource(
+        bool *explicitProfile,
+        QString *error) const;
+
+    bool clearMigrationSource(
+        const LegacyPersonalStateStorage &sourceStorage,
+        bool explicitProfile,
         QString *error);
 
     bool resumeAdoption(
@@ -72,6 +87,13 @@ private:
         QString *stagedDigest,
         QString *error) const;
 
+    bool copyActivityLedgerToStaging(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
+        const QString &sourceDigest,
+        QString *stagedDigest,
+        QString *error) const;
+
     bool verifyActivityDigest(
         const ProfilePaths &paths,
         const QString &profileRoot,
@@ -81,6 +103,13 @@ private:
 
     bool backupActivityLedger(
         const ProfilePaths &paths,
+        const QString &expectedDigest,
+        QString *backupDigest,
+        QString *error) const;
+
+    bool backupActivityLedger(
+        const ProfilePaths &paths,
+        const LegacyPersonalStateStorage &sourceStorage,
         const QString &expectedDigest,
         QString *backupDigest,
         QString *error) const;

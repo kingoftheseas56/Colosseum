@@ -154,10 +154,6 @@ QString AccountController::avatarId() const {
     return m_avatarId;
 }
 
-QString AccountController::localDeviceLabel() {
-    return m_deviceIdentity->displayLabel();
-}
-
 bool AccountController::onboardingRequired() const {
     return m_onboardingRequired;
 }
@@ -427,8 +423,15 @@ void AccountController::restoreRememberedSession() {
         }
 
         m_bootstrapStore->setCredentialClearPending(false);
+        clearVolatileSession();
         setRestoreStageValue(RestoreStage::None);
-        enterLocalOnlyMode();
+        if (m_bootstrapStore->localOnlyChosen()) {
+            if (!prepareLocalOnlyProfile())
+                return;
+            setMode(Mode::LocalOnly);
+        } else {
+            setMode(Mode::SignedOut);
+        }
         return;
     }
 
@@ -437,9 +440,11 @@ void AccountController::restoreRememberedSession() {
     if (!m_credentialStore->isAvailable()) {
         clearVolatileSession();
 
-        if (m_bootstrapStore->rememberedAccountId().trimmed().isEmpty()) {
+        if (m_bootstrapStore->localOnlyChosen()) {
             setRestoreStageValue(RestoreStage::None);
-            enterLocalOnlyMode();
+            if (!prepareLocalOnlyProfile())
+                return;
+            setMode(Mode::LocalOnly);
             return;
         }
 
@@ -453,8 +458,15 @@ void AccountController::restoreRememberedSession() {
 
     const auto credential = m_credentialStore->loadActive();
     if (!credential.has_value()) {
+        clearVolatileSession();
         setRestoreStageValue(RestoreStage::None);
-        enterLocalOnlyMode();
+        if (m_bootstrapStore->localOnlyChosen()) {
+            if (!prepareLocalOnlyProfile())
+                return;
+            setMode(Mode::LocalOnly);
+        } else {
+            setMode(Mode::SignedOut);
+        }
         return;
     }
 
@@ -480,7 +492,31 @@ void AccountController::continueWithoutAccount() {
         return;
 
     advanceGeneration();
-    enterLocalOnlyMode();
+    clearError();
+
+    if (!prepareLocalOnlyProfile())
+        return;
+
+    m_refreshTimer.stop();
+    m_challengeTimer.stop();
+    m_approvalTimer.stop();
+    m_client->clearAccessToken();
+
+    m_accountId.clear();
+    m_deviceId.clear();
+    m_pendingDeviceChallenge.clear();
+    m_pendingTrustedRecoveryChallenge.clear();
+
+    setUsername(QString());
+    setDeviceCount(0);
+    setNewDeviceProtectionValue(false);
+    setSyncStateValue(SyncState::Inactive);
+    setPendingOutboxCountValue(0);
+    setRestoreStageValue(RestoreStage::None);
+
+    m_bootstrapStore->setLocalOnlyChosen(true);
+    completeOnboarding();
+    setMode(Mode::LocalOnly);
 }
 
 void AccountController::returnToSignIn() {
@@ -497,7 +533,6 @@ void AccountController::returnToSignIn() {
 
     advanceGeneration();
     clearError();
-    m_attachLocalProfilePending = true;
     m_bootstrapStore->setLocalOnlyChosen(false);
     setMode(Mode::SignedOut);
 }
@@ -508,7 +543,6 @@ void AccountController::createAccount(
     if (!m_refreshToken.isEmpty())
         return;
 
-    m_attachLocalProfilePending = false;
     advanceGeneration();
     clearError();
     m_refreshTimer.stop();
@@ -529,9 +563,6 @@ void AccountController::signIn(
     if (!m_refreshToken.isEmpty())
         return;
 
-    m_attachLocalProfilePending =
-        m_attachLocalProfilePending
-        || m_mode == Mode::LocalOnly;
     advanceGeneration();
     clearError();
     m_refreshTimer.stop();
@@ -565,18 +596,13 @@ void AccountController::cancelPendingAuthentication() {
     if (!m_refreshToken.isEmpty())
         return;
 
-    const bool returnToLocal = m_attachLocalProfilePending;
     advanceGeneration();
     m_challengeTimer.stop();
     m_pendingDeviceChallenge.clear();
     m_pendingTrustedRecoveryChallenge.clear();
-    m_attachLocalProfilePending = false;
     clearError();
     setRestoreStageValue(RestoreStage::None);
-    if (returnToLocal)
-        enterLocalOnlyMode();
-    else
-        setMode(Mode::SignedOut);
+    setMode(Mode::SignedOut);
     emit signedOut();
 }
 
@@ -1341,19 +1367,6 @@ void AccountController::emitStaleGenerationCompletion(
     }
 }
 
-bool AccountController::enterLocalOnlyMode() {
-    clearVolatileSession();
-    clearError();
-
-    if (!prepareLocalOnlyProfile())
-        return false;
-
-    m_bootstrapStore->setLocalOnlyChosen(true);
-    completeOnboarding();
-    setMode(Mode::LocalOnly);
-    return true;
-}
-
 bool AccountController::prepareLocalOnlyProfile() {
     if (!m_profileCoordinator)
         return true;
@@ -1446,13 +1459,9 @@ bool AccountController::prepareProfileForSession(
         ? m_profileCoordinator->prepareCreatedAccount(
               accountId,
               &profileError)
-        : m_attachLocalProfilePending
-            ? m_profileCoordinator->attachLocalProfileToAccount(
-                  accountId,
-                  &profileError)
-            : m_profileCoordinator->prepareAccountSession(
-                  accountId,
-                  &profileError);
+        : m_profileCoordinator->prepareAccountSession(
+              accountId,
+              &profileError);
 
     if (prepared)
         return true;
@@ -1585,7 +1594,6 @@ bool AccountController::adoptSession(
     scheduleApprovalPoll();
     flushPendingRevocations();
 
-    m_attachLocalProfilePending = false;
     emit signedIn();
     return true;
 }
@@ -1666,10 +1674,6 @@ void AccountController::handleCreateAccountReply(
 void AccountController::handleSignInReply(
     const AccountTransportReply &reply) {
     if (!isSuccess(reply)) {
-        // A recoverable credential failure must leave the transient sign-in
-        // surface open so the user can correct the password. Preserve the
-        // local-profile attachment intent as well: a later successful retry
-        // from this same flow still needs to attach the local device profile.
         setMode(Mode::SignedOut);
         setErrorFromReply(reply);
         return;
@@ -1691,12 +1695,6 @@ void AccountController::handleSignInReply(
     }
 
     if (status != QLatin1String("signed_in")) {
-        const bool returnToLocal = m_attachLocalProfilePending;
-        m_attachLocalProfilePending = false;
-        if (returnToLocal)
-            enterLocalOnlyMode();
-        else
-            setMode(Mode::SignedOut);
         setError(
             ErrorCategory::Protocol,
             QStringLiteral("protocol_error"),
@@ -1768,6 +1766,11 @@ void AccountController::handleRefreshReply(
 
     if (reply.errorCode == QLatin1String("session_revoked")
         || reply.errorCode == QLatin1String("session_invalid")) {
+        if (reloadNewerSharedRefreshToken()) {
+            requestSessionRefresh(m_accessTokenRecoveryInFlight);
+            return;
+        }
+
         m_accessTokenRecoveryInFlight = false;
         finishLocalSignOut(true);
         return;
@@ -1800,14 +1803,9 @@ void AccountController::handleDeviceChallengePollReply(
                 == QLatin1String("challenge_denied")
             || reply.errorCode
                 == QLatin1String("challenge_invalid")) {
-            const bool returnToLocal = m_attachLocalProfilePending;
             m_pendingDeviceChallenge.clear();
             m_challengeTimer.stop();
-            m_attachLocalProfilePending = false;
-            if (returnToLocal)
-                enterLocalOnlyMode();
-            else
-                setMode(Mode::SignedOut);
+            setMode(Mode::SignedOut);
             setErrorFromReply(reply);
             return;
         }
@@ -1860,12 +1858,7 @@ void AccountController::handleDeviceChallengePollReply(
         return;
     }
 
-    const bool returnToLocal = m_attachLocalProfilePending;
-    m_attachLocalProfilePending = false;
-    if (returnToLocal)
-        enterLocalOnlyMode();
-    else
-        setMode(Mode::SignedOut);
+    setMode(Mode::SignedOut);
     setError(
         ErrorCategory::Protocol,
         QStringLiteral("protocol_error"),
@@ -2090,7 +2083,6 @@ void AccountController::clearVolatileSession() {
 
     m_pendingDeviceChallenge.clear();
     m_pendingTrustedRecoveryChallenge.clear();
-    m_attachLocalProfilePending = false;
 
     setUsername(QString());
     setAvatarId(QString());
@@ -2221,8 +2213,9 @@ void AccountController::finishLocalSignOut(bool locked) {
     clearVolatileSession();
     clearError();
 
+    m_bootstrapStore->setLocalOnlyChosen(false);
+
     if (!sealed) {
-        m_bootstrapStore->setLocalOnlyChosen(false);
         setError(
             ErrorCategory::Storage,
             QStringLiteral("profile_seal_failed"),
@@ -2235,7 +2228,6 @@ void AccountController::finishLocalSignOut(bool locked) {
     }
 
     if (locked) {
-        m_bootstrapStore->setLocalOnlyChosen(false);
         setError(
             ErrorCategory::Security,
             QStringLiteral("session_revoked"),
@@ -2243,12 +2235,10 @@ void AccountController::finishLocalSignOut(bool locked) {
                 "This device was signed out because its account session was revoked."));
         setMode(Mode::Locked);
         emit currentDeviceLocked();
-        return;
+    } else {
+        setMode(Mode::SignedOut);
+        emit signedOut();
     }
-
-    if (!enterLocalOnlyMode())
-        return;
-    emit signedOut();
 }
 
 void AccountController::beginAccessTokenRecovery() {
@@ -2313,6 +2303,33 @@ void AccountController::scheduleRefresh(
             qMin<qint64>(
                 delaySeconds * 1000,
                 std::numeric_limits<int>::max())));
+}
+
+bool AccountController::reloadNewerSharedRefreshToken() {
+    if (!m_credentialStore
+        || !m_credentialStore->isAvailable()
+        || m_accountId.isEmpty()
+        || m_deviceId.isEmpty()) {
+        return false;
+    }
+
+    const auto credential = m_credentialStore->loadActive();
+    if (!credential.has_value()
+        || credential->refreshToken.isEmpty()
+        || credential->accountId.compare(
+               m_accountId,
+               Qt::CaseInsensitive) != 0
+        || credential->deviceId.compare(
+               m_deviceId,
+               Qt::CaseInsensitive) != 0
+        || credential->refreshToken == m_refreshToken) {
+        return false;
+    }
+
+    if (!m_refreshToken.isEmpty())
+        m_refreshToken.fill('\0');
+    m_refreshToken = credential->refreshToken;
+    return true;
 }
 
 void AccountController::scheduleChallengePoll() {

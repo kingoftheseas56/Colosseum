@@ -133,27 +133,14 @@ Uploaded avatars are validated as bounded JPEG/PNG images, stored under account-
 
 Production schema changes are forward-only and follow expand/contract. Do not add destructive automatic down-migrations to the service runtime.
 
-The ordinary service runs the embedded migration runner automatically in development and
-test, but production configuration disables that startup behavior. Production operators
-must run the dedicated migration binary first with `MIGRATION_DATABASE_URL` pointing to
-Neon's direct endpoint, then deploy the same image as the service with the pooled endpoint
-in `DATABASE_URL`:
+Cumulative schema through Bundle 6 adds:
 
 ```text
-go run ./cmd/colosseum-account-migrate
+internal/database/migrations/0002_identity_security.sql
+internal/database/migrations/0003_sync_core.sql
 ```
 
-The migration command uses one database connection, is advisory-locked, and is safe to
-repeat after an applied migration. It requires only `MIGRATION_DATABASE_URL` (and the
-optional `MIGRATION_TIMEOUT_SECONDS`); it does not require runtime account secrets.
-
-Cumulative schema is the ordered set of embedded files under:
-
-```text
-internal/database/migrations/*.sql
-```
-
-The migration runner remains advisory-locked and idempotent.
+The Bundle 1 migration runner remains advisory-locked and idempotent.
 
 ## Local deterministic verification after adoption
 
@@ -210,16 +197,11 @@ Optional:
 COLOSSEUM_ACCOUNT_ENV=development
 HTTP_ADDR=:8080
 DATABASE_MAX_CONNECTIONS=8
-MIGRATION_TIMEOUT_SECONDS=300       # migration command only
 PASSWORD_BLOCKLIST_PATH=
 REGISTRATION_GLOBAL_LIMIT_10M=500
 SYNC_MAX_FUTURE_SKEW_SECONDS=600
 AWS_REGION=auto
 ```
-
-`MIGRATION_DATABASE_URL` is intentionally omitted from the service environment. Supply it
-only to the migration command/job, and keep it as Neon's direct endpoint. The service's
-`DATABASE_URL` must be Neon's pooled endpoint.
 
 The security keys are independent deployment secrets. `SESSION_WRAP_KEY` and `SYNC_DATA_KEY` must each decode to exactly 32 bytes; the HMAC keys must decode to at least 32 bytes. The 600-second future-skew default is an operational reference default, not a product promise; operators may override it with a positive value.
 

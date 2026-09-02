@@ -361,18 +361,11 @@ quint64 AccountClient::decideApproval(
 }
 
 quint64 AccountClient::pushSync(
-    const QJsonArray &mutations,
-    const QString &attachmentId) {
+    const QJsonArray &mutations) {
     QJsonObject body;
     body.insert(
         QStringLiteral("mutations"),
         mutations);
-    // Ordinary pushes omit the envelope-level attachment tag entirely.
-    if (!attachmentId.isEmpty())
-        body.insert(
-            QStringLiteral(
-                "attachment_id"),
-            attachmentId);
     return send(
         AccountOperation::SyncPush,
         QByteArrayLiteral("POST"),
@@ -388,72 +381,6 @@ quint64 AccountClient::pullSync(
         QByteArrayLiteral("GET"),
         QStringLiteral("/v1/sync/pull?after=")
             + QString::number(afterServerSeq),
-        QJsonObject(),
-        true);
-}
-
-quint64 AccountClient::beginProfileAttachment(
-    const QString &attachmentId,
-    const QString &sourceKind,
-    const QString &sourceSemanticDigest) {
-    QJsonObject body;
-    body.insert(
-        QStringLiteral(
-            "attachment_id"),
-        attachmentId);
-    body.insert(
-        QStringLiteral("source_kind"),
-        sourceKind);
-    body.insert(
-        QStringLiteral(
-            "source_semantic_digest"),
-        sourceSemanticDigest);
-    return send(
-        AccountOperation::BeginProfileAttachment,
-        QByteArrayLiteral("POST"),
-        QStringLiteral("/v1/profile/attachments"),
-        body,
-        true);
-}
-
-quint64 AccountClient::getProfileAttachment(
-    const QString &attachmentId) {
-    return send(
-        AccountOperation::GetProfileAttachment,
-        QByteArrayLiteral("GET"),
-        QStringLiteral(
-            "/v1/profile/attachments/")
-            + encodedPathSegment(attachmentId),
-        QJsonObject(),
-        true);
-}
-
-quint64 AccountClient::commitProfileAttachment(
-    const QString &attachmentId) {
-    return send(
-        AccountOperation::CommitProfileAttachment,
-        QByteArrayLiteral("POST"),
-        QStringLiteral(
-            "/v1/profile/attachments/")
-            + encodedPathSegment(attachmentId)
-            + QStringLiteral("/commit"),
-        QJsonObject(),
-        true);
-}
-
-quint64 AccountClient::pullSyncSnapshot(
-    const QString &nextPageToken) {
-    QString path =
-        QStringLiteral("/v1/sync/snapshot");
-    // The continuation key rides the query string only when a page
-    // token exists; the first page carries no query at all.
-    if (!nextPageToken.isEmpty())
-        path += QStringLiteral("?after_key=")
-            + encodedPathSegment(nextPageToken);
-    return send(
-        AccountOperation::SyncSnapshot,
-        QByteArrayLiteral("GET"),
-        path,
         QJsonObject(),
         true);
 }

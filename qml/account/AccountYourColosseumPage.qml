@@ -15,8 +15,6 @@ Item {
     // can gate this page's own `visible` with the same active/visible pattern the other
     // five locked pages use, instead of a bare activeSection comparison.
     property bool active: false
-    property bool localOnly: false
-    property string localDeviceLabel: ""
 
     property string monthName: ""
     property string monthYear: ""
@@ -32,8 +30,6 @@ Item {
 
     signal previousMonthRequested()
     signal nextMonthRequested()
-    signal signInRequested()
-    signal createAccountRequested()
 
     readonly property bool widePortrait: scroller.width > 960
     readonly property bool compactCards: scroller.width < 528
@@ -609,84 +605,6 @@ Item {
             }
 
             Item { width: 1; height: 30 }
-
-            Rectangle {
-                objectName: "yourColosseumLocalAccountBlock"
-                width: parent.width
-                height: visible ? localAccountColumn.implicitHeight + 48 : 0
-                visible: root.localOnly
-                radius: 14
-                color: theme.glassTint
-                border.width: 1
-                border.color: theme.edge
-
-                Column {
-                    id: localAccountColumn
-                    x: 20
-                    y: 22
-                    width: parent.width - 40
-                    spacing: 8
-
-                    Text {
-                        width: parent.width
-                        text: root.localDeviceLabel
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideRight
-                    }
-
-                    Text {
-                        width: parent.width
-                        text: qsTr("Use this Colosseum on another device")
-                        color: theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 16
-                        font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Text {
-                        width: Math.min(parent.width, 720)
-                        text: qsTr("Sign in or create an account to sync this device with your other Colosseum installations.")
-                        color: theme.inkDim
-                        font.family: theme.ui
-                        font.pixelSize: 11
-                        lineHeightMode: Text.ProportionalHeight
-                        lineHeight: 1.5
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Item { width: 1; height: 4 }
-
-                    Row {
-                        width: parent.width
-                        spacing: 10
-
-                        AccountButton {
-                            objectName: "yourColosseumLocalSignIn"
-                            width: Math.min(118, (parent.width - parent.spacing) / 2)
-                            height: 36
-                            text: qsTr("Sign in")
-                            variant: "primary"
-                            Accessible.name: qsTr("Sign in and connect this device")
-                            onClicked: root.signInRequested()
-                        }
-
-                        AccountButton {
-                            objectName: "yourColosseumLocalCreateAccount"
-                            width: Math.min(142, (parent.width - parent.spacing) / 2)
-                            height: 36
-                            text: qsTr("Create account")
-                            Accessible.name: qsTr("Create an account and connect this device")
-                            onClicked: root.createAccountRequested()
-                        }
-                    }
-                }
-            }
-
-            Item { width: 1; height: root.localOnly ? 26 : 0 }
 
             Rectangle {
                 width: parent.width

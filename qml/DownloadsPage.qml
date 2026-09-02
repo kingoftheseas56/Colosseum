@@ -19,6 +19,7 @@ Item {
     signal closeRequested()
     signal searchClicked()
     signal openRequested(var item)           // completed row → host routes by world/kind
+    signal redownloadRequested(var item)     // file absent here → fetch the same logical item
     signal openWorldRequested(string world)  // empty-lane CTA → host opens that world
     signal playArrivingRequested(var job)    // live theatre job → host streams the same url
     signal openAudiobookRequested(var item)
@@ -34,6 +35,7 @@ Item {
     property int attentionCount: 0
     property var openGroups: ({})
     property var laneSeries: ({})      // world -> series list
+    property var remoteItems: []       // intent exists in the account, bytes do not exist here
     property var totalsMap: ({})
     property string openLedgerWorld: ""
     property string openLedgerKey: ""
@@ -188,6 +190,7 @@ Item {
         for (var i = 0; i < worlds.length; i++)
             lanes[worlds[i].key] = downloadsApi.series(worlds[i].key);
         laneSeries = lanes;
+        remoteItems = downloadsApi.availableElsewhere ? downloadsApi.availableElsewhere() : [];
         if (openLedgerKey.length) {
             ledgerItems = downloadsApi.items(openLedgerWorld, openLedgerKey);
             computeLedgerSeasons();
@@ -1055,6 +1058,77 @@ Item {
                 registry: (typeof BackgroundActivity !== "undefined") ? BackgroundActivity : null
             }
 
+            // ============ AVAILABLE ON ANOTHER DEVICE ============
+            // The account sync carries only a logical download intent. A local
+            // path, URL, queue, or file bytes never cross the device boundary.
+            Column {
+                width: col.width
+                visible: root.remoteItems.length > 0
+                topPadding: 40
+                spacing: 16
+
+                Row {
+                    spacing: 14
+                    Text { text: "Available on another device"; color: theme.ink
+                           font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
+                    Text { anchors.baseline: parent.children[0].baseline
+                           text: root.remoteItems.length + (root.remoteItems.length === 1 ? " item" : " items")
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                }
+                Text {
+                    width: parent.width
+                    text: "The file itself is not stored on this device. Download it here when you want it."
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                }
+                Rectangle {
+                    width: col.width
+                    implicitHeight: remoteRows.implicitHeight
+                    radius: 18
+                    color: Qt.rgba(0.04, 0.045, 0.065, 0.48)
+                    border.width: 1; border.color: theme.edge
+                    Column {
+                        id: remoteRows
+                        width: parent.width
+                        Repeater {
+                            model: root.remoteItems
+                            delegate: Item {
+                                required property var modelData
+                                width: remoteRows.width
+                                height: 66
+                                Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                                           height: 1; color: Qt.rgba(1, 1, 1, 0.06) }
+                                Column {
+                                    anchors.left: parent.left; anchors.leftMargin: 24
+                                    anchors.right: remoteAction.left; anchors.rightMargin: 16
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 3
+                                    Text { width: parent.width; text: modelData.title || "Untitled"
+                                           color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
+                                           elide: Text.ElideRight }
+                                    Text { width: parent.width; text: (modelData.subtitle || modelData.seriesTitle || "") + " · not downloaded here"
+                                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                           elide: Text.ElideRight }
+                                }
+                                Text {
+                                    id: remoteAction
+                                    anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
+                                    text: modelData.canRedownload ? "Download here" : "Source needed"
+                                    color: modelData.canRedownload && remoteMa.containsMouse ? "#ffd968" : theme.gold
+                                    font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                    MouseArea {
+                                        id: remoteMa; anchors.fill: parent; hoverEnabled: true
+                                        enabled: modelData.canRedownload
+                                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                        onClicked: root.redownloadRequested(modelData)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // ============ WORLD SHELVES ============
             Repeater {
                 model: root.worlds
@@ -1703,6 +1777,15 @@ Item {
                 KeyboardAction { id: openInput; anchors.fill: parent
                     accessibleName: parent.text; showFocusFrame: false
                     onTriggered: root.openRequested(row.rowData) }
+            }
+            Text {
+                visible: row.rowData.missing
+                text: "Download again"
+                color: redownloadMa.containsMouse ? "#ffd968" : theme.gold
+                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                MouseArea { id: redownloadMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.redownloadRequested(row.rowData) }
             }
             Text {
                 text: row.rowData.missing ? "Dismiss missing entry" : "Delete local copy"

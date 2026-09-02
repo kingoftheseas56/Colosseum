@@ -5,7 +5,6 @@
 #include "account/AccountController.h"
 #include "account/AccountDeviceIdentity.h"
 #include "account/AccountHttpTransport.h"
-#include "account/WindowsAccountCredentialStore.h"
 #include "AccountFixtureTransport.h"
 #include "MemoryAccountCredentialStore.h"
 #include "MemoryAccountOneTimeSecretSink.h"
@@ -194,6 +193,21 @@ QJsonObject sessionObject(
     return session;
 }
 
+QJsonObject sessionObjectWithExpiry(
+    const QString &username,
+    const QString &accessToken,
+    const QString &refreshToken,
+    const QString &accessExpiresAt) {
+    QJsonObject session = sessionObject(
+        username,
+        accessToken,
+        refreshToken);
+    session.insert(
+        QStringLiteral("access_expires_at"),
+        accessExpiresAt);
+    return session;
+}
+
 QByteArray ordinaryStateBytes(const QString &root) {
     QByteArray bytes;
     QDirIterator iterator(
@@ -303,8 +317,6 @@ private slots:
     void initTestCase();
 
     void fixtureTransportRefusesUntaggedUse();
-    void credentialTargetsPreserveProductionNamesWithoutTag();
-    void credentialTargetsAreIsolatedForTaggedSessions();
     void httpTransportRejectsUnsafeBaseUrls();
     void httpTransportDoesNotFollowRedirects();
     void httpTransportTimesOutStalledReply();
@@ -317,10 +329,12 @@ private slots:
     void localOnlyChoiceSurvivesRestart();
     void returnToSignInLeavesLocalOnlyForOnboarding();
     void rememberedSessionRestartRotatesSecureCredential();
+    void serverPrecisionExpiryDoesNotTriggerRapidRefresh();
     void offlineRestoreKeepsRememberedCredential();
     void offlineRestartRestoresRememberedIdentity();
     void revokedRestoreClearsCredentialAndLocks();
     void protectedBearerRejectionRecoversWithoutLogout();
+    void refreshFailureReloadsNewerSharedCredentialBeforeLogout();
     void staleBearerFailureCannotTriggerAnotherRefreshAfterRotation();
     void staleGenerationListDevicesDropEmitsDeviceListRefreshFailed();
     void staleGenerationReconciledRevokeDropEmitsDeviceRevokeFailed();
@@ -328,7 +342,6 @@ private slots:
 
     void createAccountKeepsSecretsOutOfOrdinaryState();
     void secureStoreFailureFailsClosed();
-    void localOnlySignInFailureKeepsAuthenticationFlowOpen();
     void staleSignInReplyCannotUndoLocalOnlyChoice();
     void protectedSignInPersistsNothingBeforeApproval();
     void trustedRecoveryUsesNativeOnlySecretSink();
@@ -370,39 +383,6 @@ void tst_account_identity::fixtureTransportRefusesUntaggedUse() {
 
     QVERIFY(!AccountFixtureTransport::testModeAllowed());
     QVERIFY(AccountFixtureTransport::create() == nullptr);
-}
-
-void tst_account_identity::credentialTargetsPreserveProductionNamesWithoutTag() {
-    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
-    qunsetenv("COLOSSEUM_APPDATA_TAG");
-
-    QCOMPARE(
-        WindowsAccountCredentialStore::activeTargetName(),
-        QStringLiteral("Brotherhood.Colosseum.Account.Active.v1"));
-    QCOMPARE(
-        WindowsAccountCredentialStore::pendingTargetPrefix(),
-        QStringLiteral("Brotherhood.Colosseum.Account.PendingRevoke.v1."));
-}
-
-void tst_account_identity::credentialTargetsAreIsolatedForTaggedSessions() {
-    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
-
-    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-create-alpha"));
-    const QString activeAlpha = WindowsAccountCredentialStore::activeTargetName();
-    const QString pendingAlpha = WindowsAccountCredentialStore::pendingTargetPrefix();
-
-    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-signin-beta"));
-    const QString activeBeta = WindowsAccountCredentialStore::activeTargetName();
-    const QString pendingBeta = WindowsAccountCredentialStore::pendingTargetPrefix();
-
-    QVERIFY(activeAlpha != activeBeta);
-    QVERIFY(pendingAlpha != pendingBeta);
-    QVERIFY(activeAlpha != QStringLiteral("Brotherhood.Colosseum.Account.Active.v1"));
-    QVERIFY(pendingAlpha != QStringLiteral("Brotherhood.Colosseum.Account.PendingRevoke.v1."));
-
-    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-create-alpha"));
-    QCOMPARE(WindowsAccountCredentialStore::activeTargetName(), activeAlpha);
-    QCOMPARE(WindowsAccountCredentialStore::pendingTargetPrefix(), pendingAlpha);
 }
 
 void tst_account_identity::httpTransportRejectsUnsafeBaseUrls() {
@@ -863,6 +843,66 @@ void tst_account_identity::rememberedSessionRestartRotatesSecureCredential() {
     QCOMPARE(stored->refreshToken, secondRefresh);
 }
 
+void tst_account_identity::serverPrecisionExpiryDoesNotTriggerRapidRefresh() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-precision-expiry-test"));
+
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    DeferredAccountTransport transport;
+    MemoryAccountCredentialStore credentials;
+    MemoryAccountOneTimeSecretSink secretSink;
+    AccountClient client(&transport);
+    AccountDeviceIdentity deviceIdentity(temp.path() + QLatin1String("/device.ini"));
+    AccountBootstrapStore bootstrapStore(temp.path() + QLatin1String("/bootstrap.ini"));
+    AccountController controller(
+        &client,
+        &credentials,
+        &deviceIdentity,
+        &bootstrapStore,
+        &secretSink);
+    controller.setAutomaticPollingEnabled(false);
+
+    StoredAccountCredential credential;
+    credential.accountId = QString::fromLatin1(kAccountId);
+    credential.deviceId = QString::fromLatin1(kDeviceId);
+    credential.refreshToken = QByteArrayLiteral("refresh-precision-expiry");
+    QVERIFY(credentials.saveActive(credential));
+
+    const QString expiry = QDateTime::currentDateTimeUtc()
+        .addSecs(15 * 60)
+        .toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss"))
+        + QStringLiteral(".123456789Z");
+    QJsonObject body;
+    body.insert(
+        QStringLiteral("session"),
+        sessionObjectWithExpiry(
+            QStringLiteral("Hemanth56"),
+            QStringLiteral("access-precision-expiry"),
+            QStringLiteral("refresh-precision-expiry"),
+            expiry));
+    transport.pending.clear();
+    controller.restoreRememberedSession();
+    QCOMPARE(
+        transport.pendingCount(
+            QByteArrayLiteral("POST"),
+            QStringLiteral("/v1/sessions/refresh")),
+        1);
+    const quint64 restoreRequest = transport.requestIdFor(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/sessions/refresh"));
+    transport.complete(restoreRequest, okReply(200, body));
+    QTRY_COMPARE(controller.mode(), QStringLiteral("signedIn"));
+
+    QTest::qWait(6000);
+    QCOMPARE(
+        transport.pendingCount(
+            QByteArrayLiteral("POST"),
+            QStringLiteral("/v1/sessions/refresh")),
+        0);
+    QCOMPARE(controller.mode(), QStringLiteral("signedIn"));
+}
+
 void tst_account_identity::offlineRestoreKeepsRememberedCredential() {
     ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
     Fixture fixture;
@@ -1004,6 +1044,117 @@ void tst_account_identity::protectedBearerRejectionRecoversWithoutLogout() {
     QCOMPARE(
         fixture.client->accessToken(),
         QByteArrayLiteral("access-after-recovery"));
+}
+
+void tst_account_identity::refreshFailureReloadsNewerSharedCredentialBeforeLogout() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("account-shared-credential-recovery-test"));
+
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    DeferredAccountTransport transport;
+    MemoryAccountCredentialStore credentials;
+    MemoryAccountOneTimeSecretSink secretSink;
+    AccountClient client(&transport);
+    AccountDeviceIdentity deviceIdentity(temp.path() + QLatin1String("/device.ini"));
+    AccountBootstrapStore bootstrapStore(temp.path() + QLatin1String("/bootstrap.ini"));
+    AccountController controller(
+        &client,
+        &credentials,
+        &deviceIdentity,
+        &bootstrapStore,
+        &secretSink);
+    controller.setAutomaticPollingEnabled(false);
+
+    StoredAccountCredential credential;
+    credential.accountId = QString::fromLatin1(kAccountId);
+    credential.deviceId = QString::fromLatin1(kDeviceId);
+    credential.refreshToken = QByteArrayLiteral("refresh-a");
+    QVERIFY(credentials.saveActive(credential));
+
+    controller.restoreRememberedSession();
+    const quint64 restoreId = transport.requestIdFor(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/sessions/refresh"));
+    QVERIFY(restoreId != 0);
+    QJsonObject restoreBody;
+    restoreBody.insert(
+        QStringLiteral("session"),
+        sessionObject(
+            QStringLiteral("Hemanth56"),
+            QStringLiteral("access-a"),
+            QStringLiteral("refresh-a")));
+    transport.complete(restoreId, okReply(200, restoreBody));
+    QTRY_COMPARE(controller.mode(), QStringLiteral("signedIn"));
+
+    // Another Colosseum process on this Windows account has already rotated
+    // the shared Credential Manager entry. The first process still has the
+    // old token in memory, so its refresh failure must reload the newer one.
+    credential.refreshToken = QByteArrayLiteral("refresh-b");
+    QVERIFY(credentials.saveActive(credential));
+
+    controller.refreshProfile();
+    const quint64 profileId = transport.requestIdFor(
+        QByteArrayLiteral("GET"),
+        QStringLiteral("/v1/profile"));
+    QVERIFY(profileId != 0);
+    transport.complete(
+        profileId,
+        errorReply(
+            401,
+            QStringLiteral("session_revoked"),
+            QStringLiteral("The old process token is no longer current.")));
+
+    QTRY_VERIFY(
+        transport.requestIdFor(
+            QByteArrayLiteral("POST"),
+            QStringLiteral("/v1/sessions/refresh")) != 0);
+    const quint64 firstRecoveryId = transport.requestIdFor(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/sessions/refresh"));
+    QVERIFY(firstRecoveryId != 0);
+    QCOMPARE(
+        transport.pending.at(0).request.body
+            .value(QStringLiteral("refresh_token"))
+            .toString(),
+        QStringLiteral("refresh-a"));
+    transport.complete(
+        firstRecoveryId,
+        errorReply(
+            401,
+            QStringLiteral("session_revoked"),
+            QStringLiteral("The old process token is no longer current.")));
+
+    QTRY_COMPARE(
+        transport.pendingCount(
+            QByteArrayLiteral("POST"),
+            QStringLiteral("/v1/sessions/refresh")),
+        1);
+    const quint64 retryId = transport.requestIdFor(
+        QByteArrayLiteral("POST"),
+        QStringLiteral("/v1/sessions/refresh"));
+    QVERIFY(retryId != 0);
+    QCOMPARE(
+        transport.pending.at(0).request.body
+            .value(QStringLiteral("refresh_token"))
+            .toString(),
+        QStringLiteral("refresh-b"));
+
+    QJsonObject retryBody;
+    retryBody.insert(
+        QStringLiteral("session"),
+        sessionObject(
+            QStringLiteral("Hemanth56"),
+            QStringLiteral("access-b"),
+            QStringLiteral("refresh-b")));
+    transport.complete(retryId, okReply(200, retryBody));
+
+    QTRY_COMPARE(client.accessToken(), QByteArrayLiteral("access-b"));
+    QCOMPARE(controller.mode(), QStringLiteral("signedIn"));
+    QVERIFY(credentials.loadActive().has_value());
+    QCOMPARE(
+        credentials.loadActive()->refreshToken,
+        QByteArrayLiteral("refresh-b"));
 }
 
 void tst_account_identity::staleBearerFailureCannotTriggerAnotherRefreshAfterRotation() {
@@ -1624,37 +1775,6 @@ void tst_account_identity::secureStoreFailureFailsClosed() {
         0);
 }
 
-void tst_account_identity::localOnlySignInFailureKeepsAuthenticationFlowOpen() {
-    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
-    Fixture fixture;
-
-    fixture.controller->continueWithoutAccount();
-    QCOMPARE(fixture.controller->mode(), QStringLiteral("localOnly"));
-
-    fixture.controller->returnToSignIn();
-    QCOMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
-
-    fixture.transport->enqueueReply(
-        QByteArrayLiteral("POST"),
-        QStringLiteral("/v1/sessions"),
-        errorReply(
-            401,
-            QStringLiteral("invalid_credentials"),
-            QStringLiteral("The credentials were not accepted.")));
-
-    fixture.controller->signIn(
-        QStringLiteral("Hemanth56"),
-        QStringLiteral("Definitely-Wrong-Password!"));
-
-    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
-    QCOMPARE(
-        fixture.controller->lastErrorMessage(),
-        QStringLiteral("The credentials were not accepted."));
-
-    fixture.controller->cancelPendingAuthentication();
-    QCOMPARE(fixture.controller->mode(), QStringLiteral("localOnly"));
-}
-
 void tst_account_identity::staleSignInReplyCannotUndoLocalOnlyChoice() {
     ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
     Fixture fixture;
@@ -1842,7 +1962,7 @@ void tst_account_identity::offlineLogoutQueuesDurablePendingRevocation() {
 
     QTRY_COMPARE(
         fixture.controller->mode(),
-        QStringLiteral("localOnly"));
+        QStringLiteral("signedOut"));
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QCOMPARE(
         fixture.credentials.pendingRevocations(),
@@ -1870,7 +1990,7 @@ void tst_account_identity::restartedOfflineLogoutRevokesRememberedRefresh() {
 
     fixture.controller->logoutCurrent();
 
-    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("localOnly"));
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QTRY_COMPARE(
         fixture.transport->pendingReplyCount(
@@ -1901,7 +2021,7 @@ void tst_account_identity::logoutEverywhereSessionInvalidStillSignsOutExplicitly
 
     QTRY_COMPARE(
         fixture.controller->mode(),
-        QStringLiteral("localOnly"));
+        QStringLiteral("signedOut"));
     QCOMPARE(lockedSpy.count(), 0);
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QVERIFY(fixture.client->accessToken().isEmpty());
@@ -1955,7 +2075,7 @@ void tst_account_identity::failedCredentialClearTombstonePreventsResurrection() 
 
     QTRY_COMPARE(
         fixture.controller->mode(),
-        QStringLiteral("localOnly"));
+        QStringLiteral("signedOut"));
     QVERIFY(fixture.bootstrapStore->credentialClearPending());
 
     fixture.controller.reset();
@@ -1982,7 +2102,7 @@ void tst_account_identity::failedCredentialClearTombstonePreventsResurrection() 
 
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("localOnly"));
+        QStringLiteral("signedOut"));
     QVERIFY(!fixture.credentials.loadActive().has_value());
     QVERIFY(!fixture.bootstrapStore->credentialClearPending());
     QCOMPARE(

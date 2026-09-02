@@ -234,7 +234,8 @@ class tst_account_adoption : public QObject {
 private slots:
     void populatedFirstAccountQuarantinesOnlyAfterSemanticVerification();
     void cleanRestartCommitsQuarantinedAdoption();
-    void ordinarySignInDoesNotClaimLegacyLocalState();
+    void ordinarySignInAdoptsLegacyLocalState();
+    void ordinarySignInMergesExistingAccountWithLocalOnlyState();
     void continueLocalBeforeAdoptionKeepsLegacyAuthority();
     void continueLocalAfterAdoptionUsesDedicatedLocalProfile();
     void corruptRestartRestoresLegacyAndLeavesRetryIntent();
@@ -460,7 +461,7 @@ cleanRestartCommitsQuarantinedAdoption() {
 }
 
 void tst_account_adoption::
-ordinarySignInDoesNotClaimLegacyLocalState() {
+ordinarySignInAdoptsLegacyLocalState() {
     AdoptionFixture fixture;
     const PersonalStateSnapshot source =
         populatedSnapshot();
@@ -487,9 +488,7 @@ ordinarySignInDoesNotClaimLegacyLocalState() {
     QVERIFY2(
         legacyAfter.has_value(),
         qPrintable(error));
-    QCOMPARE(
-        legacyAfter->semanticDigest(),
-        source.semanticDigest());
+    QVERIFY(legacyAfter->isEmpty());
 
     const ProfilePaths paths =
         fixture.accountPaths();
@@ -506,11 +505,73 @@ ordinarySignInDoesNotClaimLegacyLocalState() {
     QVERIFY2(
         accountState.has_value(),
         qPrintable(error));
-    QVERIFY(accountState->isEmpty());
+    QCOMPARE(
+        accountState->semanticDigest(),
+        source.semanticDigest());
+    QVERIFY(QFileInfo::exists(paths.adoptionJournalPath()));
+}
 
-    QVERIFY(
-        !QFileInfo::exists(
-            paths.adoptionJournalPath()));
+void tst_account_adoption::
+ordinarySignInMergesExistingAccountWithLocalOnlyState() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot accountState = populatedSnapshot();
+    PersonalStateSnapshot localState = populatedSnapshot();
+    localState.progressEntries.insert(
+        QStringLiteral("movie\x1fmovie-2"),
+        QJsonObject{
+            {QStringLiteral("id"), QStringLiteral("movie-2")},
+            {QStringLiteral("kind"), QStringLiteral("movie")},
+            {QStringLiteral("progress"), 0.8},
+            {QStringLiteral("updatedAt"), 1720000003000.0}});
+    localState.collectionEntries.insert(
+        QStringLiteral("Theatre\x1fmovie-2"),
+        QJsonObject{
+            {QStringLiteral("id"), QStringLiteral("movie-2")},
+            {QStringLiteral("world"), QStringLiteral("Theatre")},
+            {QStringLiteral("type"), QStringLiteral("movie")},
+            {QStringLiteral("title"), QStringLiteral("Fixture Movie")}});
+
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(fixture.appDataRoot);
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(localPaths);
+    QVERIFY(localStorage.has_value());
+    QVERIFY(localStorage->restorePersonalState(localState));
+
+    const ProfilePaths accountPaths = fixture.accountPaths();
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(accountPaths);
+    QVERIFY(accountStorage.has_value());
+    QVERIFY(QDir().mkpath(accountPaths.profileRoot()));
+    QVERIFY(accountStorage->restorePersonalState(accountState));
+
+    ProfileStoreRuntime runtime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot);
+
+    QString error;
+    QVERIFY2(
+        coordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+    QCOMPARE(
+        runtime.activeProfile().kind(),
+        ProfilePaths::Kind::Account);
+
+    const auto merged =
+        accountStorage->capture(&error);
+    QVERIFY2(merged.has_value(), qPrintable(error));
+    QVERIFY(merged->progressEntries.contains(QStringLiteral("movie\x1fmovie-2")));
+    QVERIFY(merged->collectionEntries.contains(QStringLiteral("Theatre\x1fmovie-2")));
+
+    const auto localAfter =
+        localStorage->capture(&error);
+    QVERIFY2(localAfter.has_value(), qPrintable(error));
+    QVERIFY(localAfter->isEmpty());
 }
 
 void tst_account_adoption::

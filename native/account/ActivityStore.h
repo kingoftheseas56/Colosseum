@@ -104,18 +104,6 @@ public:
 
     QList<QVariantMap> historyProjectionFacts() const;
 
-    // Portable immutable Activity facts used by account sync. Only durable
-    // syncable events are exported. Machine-local presentation (notably
-    // filesystem/resource cover values) is sanitized without changing the
-    // richer local ledger row. Ordering is deterministic by lowercase eventId.
-    QList<QVariantMap> portableSyncFacts(QString *error = nullptr) const;
-
-    // Applies one remote portable fact through the same ActivityProjector
-    // validation and ActivityStore insertion authority as local facts. Existing
-    // eventIds compare portable projections: equal is idempotent success; a
-    // semantic mismatch fails with activity_event_conflict and no mutation.
-    bool applySyncedPortableFact(const QVariantMap &fact, QString *error = nullptr);
-
     // Merges the WAL file back into the main database file (PRAGMA
     // wal_checkpoint(TRUNCATE)) without closing the connection. First-account
     // adoption (CPP-PORT-CONTRACT §17) calls this on a still-open legacy
@@ -135,22 +123,6 @@ public:
     // exist — the deliberate "no legacy activity ledger to migrate" sentinel
     // adoption code compares against, not a fabricated digest of zero bytes.
     static QString fileDigestSha256(const QString &path);
-
-    // Stable semantic digest over event_id + canonical_hash, independent of
-    // SQLite page layout/WAL state. Empty string is the valid no-file/no-event
-    // sentinel when `databasePath` does not exist.
-    static QString semanticEventDigest(
-        const QString &databasePath,
-        QString *error = nullptr);
-
-    // Union portable local activity into an account-owned target ledger.
-    // Existing event ids must have the same canonical hash; a conflicting id
-    // fails closed. Events carrying filesystem/resource paths are local-only
-    // and are deliberately not copied into the account profile.
-    static bool mergePortableEvents(
-        const QString &sourceDatabasePath,
-        const QString &targetDatabasePath,
-        QString *error = nullptr);
 
 signals:
     void changed();
