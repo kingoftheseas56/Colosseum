@@ -1,5 +1,7 @@
 import QtQuick
+import "../.."
 import "Player2Browser.js" as Browser
+import "../../PlayerFocusContainment.js" as FocusContainment
 
 // SourceDrawer — Feature 8's in-player browser: a glass side panel that slides in over the playing
 // video (which keeps playing beside it) with two tabs, Episodes and Sources. This is the ORCHESTRATING
@@ -37,6 +39,20 @@ Item {
     signal episodePicked(string episodeId)
     signal sourcePicked(int index, string sourceId)
     signal dismissed()
+
+    focusPolicy: drawer.open ? Qt.TabFocus : Qt.NoFocus
+    function moveFocus(forward) {
+        var w = drawer.Window.window; var item = w ? w.activeFocusItem : null
+        if (!item || !item.nextItemInFocusChain) return false
+        var next = item.nextItemInFocusChain(forward); if (!next || next === item) return false
+        next.forceActiveFocus(Qt.TabFocusReason); return true
+    }
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) { drawer.dismissed(); event.accepted = true }
+        else if ((event.key === Qt.Key_Down || event.key === Qt.Key_Up) && !sourceList.activeFocus) event.accepted = drawer.moveFocus(event.key === Qt.Key_Down)
+    }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(drawer.Window.window, panel, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(drawer.Window.window, panel, false) }
 
     readonly property color gold: theme ? theme.gold : "#f0c44a"
     readonly property color ink: theme ? theme.ink : "#f7f7f5"
@@ -96,6 +112,7 @@ Item {
             ensureEpisodes()
         else
             ensureSources()
+        Qt.callLater(function() { tabStrip.forceActiveFocus(Qt.PopupFocusReason) })
     }
     onTabChanged: {
         if (!drawer.open)
@@ -152,29 +169,36 @@ Item {
                 font.pixelSize: 18; font.weight: Font.DemiBold
             }
 
-            // tabs
+            // tabs â€” one composite Tab stop.
             Row {
+                id: tabStrip
+                readonly property var options: drawer.hasEpisodes ? ["episodes", "sources"] : ["sources"]
+                property int keyboardIndex: Math.max(0, options.indexOf(drawer.tab))
                 width: parent.width
                 spacing: 8
+                focusPolicy: drawer.open ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                        var next = keyboardIndex + (event.key === Qt.Key_Left ? -1 : 1)
+                        if (next >= 0 && next < options.length) { keyboardIndex = next; event.accepted = true }
+                    } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                    else if (event.key === Qt.Key_End) { keyboardIndex = options.length - 1; event.accepted = true }
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { drawer.tab = options[keyboardIndex]; event.accepted = true }
+                }
                 Repeater {
-                    model: drawer.hasEpisodes ? ["episodes", "sources"] : ["sources"]
+                    model: tabStrip.options
                     delegate: Rectangle {
                         id: tabPill
+                        required property int index
                         required property string modelData
                         width: (header.width - (drawer.hasEpisodes ? 8 : 0)) / (drawer.hasEpisodes ? 2 : 1)
                         height: 34
                         radius: 6
                         color: drawer.tab === tabPill.modelData ? drawer.goldTint : Qt.rgba(1, 1, 1, 0.05)
-                        Text {
-                            anchors.centerIn: parent
-                            text: tabPill.modelData === "episodes" ? "EPISODES" : "SOURCES"
-                            color: drawer.tab === tabPill.modelData ? drawer.gold : drawer.inkDim
-                            font.family: "Segoe UI"; font.pixelSize: 11; font.letterSpacing: 1
-                        }
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: drawer.tab = tabPill.modelData
-                        }
+                        border.width: tabStrip.activeFocus && tabStrip.keyboardIndex === tabPill.index ? 2 : 0
+                        border.color: drawer.gold
+                        Text { anchors.centerIn: parent; text: tabPill.modelData === "episodes" ? "EPISODES" : "SOURCES"; color: drawer.tab === tabPill.modelData ? drawer.gold : drawer.inkDim; font.family: "Segoe UI"; font.pixelSize: 11; font.letterSpacing: 1 }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: drawer.tab = tabPill.modelData }
                     }
                 }
             }
@@ -220,6 +244,8 @@ Item {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             model: drawer.sources
+            focusPolicy: visible && count > 0 ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) { sourceKeyboard.handle(event) }
             delegate: Item {
                 id: srcRow
                 required property var modelData
@@ -288,6 +314,17 @@ Item {
                     cursorShape: srcRow.st === "playable" ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: if (srcRow.st === "playable")
                                    drawer.sourcePicked(srcRow.index, srcRow.modelData.id)
+                }
+            }
+            KeyboardCollectionController {
+                id: sourceKeyboard
+                view: sourceList
+                orientation: "vertical"
+                count: sourceList.count
+                onActivated: function(index) {
+                    if (index < 0 || index >= drawer.sources.length) return
+                    var row = drawer.sources[index] || ({})
+                    if (Browser.sourceRowState(row.current === true, row.dead === true) === "playable") drawer.sourcePicked(index, row.id)
                 }
             }
             footer: Text {

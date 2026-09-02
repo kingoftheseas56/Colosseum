@@ -1,4 +1,5 @@
 import QtQuick
+import "../.."
 import "Player2Browser.js" as Browser
 
 // SkipButton — the "Skip Intro / Recap / Credits" affordance. Behaviour and look mirror the main
@@ -73,6 +74,13 @@ Item {
             enabled: skip.shown
             cursorShape: Qt.PointingHandCursor
             onClicked: if (skip.seg) skip.skipRequested(Number(skip.seg.endSeconds))
+        }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: skip.shown
+            accessibleName: skip.seg ? Browser.skipLabel(skip.seg.kind) : "Skip segment"
+            onTriggered: if (skip.seg) skip.skipRequested(Number(skip.seg.endSeconds))
         }
     }
 }

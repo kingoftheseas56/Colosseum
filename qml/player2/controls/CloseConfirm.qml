@@ -1,4 +1,6 @@
 import QtQuick
+import "../.."
+import "../../PlayerFocusContainment.js" as FocusContainment
 
 // A faithful re-implementation of the current player's close-confirm (parity spec F2): a centred
 // 380×150 card — NO full-screen dim — with "End this session?", the Continue-Watching reassurance, and
@@ -19,11 +21,17 @@ Item {
     readonly property color inkDim: theme ? theme.inkDim : "#c9c8d0"
 
     anchors.fill: parent
+    focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+    onOpenChanged: if (open) Qt.callLater(function() { keepKeyboard.forceActiveFocus(Qt.PopupFocusReason) })
+    Keys.onEscapePressed: { confirm.cancelled(); event.accepted = true }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(confirm.Window.window, card, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(confirm.Window.window, card, false) }
     visible: opacity > 0.01
     opacity: open ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
 
     Rectangle {
+        id: card
         anchors.centerIn: parent
         width: 380
         height: 150
@@ -56,6 +64,7 @@ Item {
             anchors.bottomMargin: 14
             spacing: 8
             Rectangle {
+                id: keepButton
                 width: 130; height: 34; radius: 9
                 color: keepArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.06)
                 border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
@@ -67,8 +76,10 @@ Item {
                     id: keepArea; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: confirm.cancelled()
                 }
+                KeyboardAction { id: keepKeyboard; anchors.fill: parent; pointerEnabled: false; accessibleName: "Keep watching"; onTriggered: confirm.cancelled() }
             }
             Rectangle {
+                id: endButton
                 width: 110; height: 34; radius: 9
                 color: endArea.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.12)
                 border.width: 1; border.color: confirm.gold
@@ -81,6 +92,7 @@ Item {
                     id: endArea; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: confirm.confirmed()
                 }
+                KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "End session"; onTriggered: confirm.confirmed() }
             }
         }
     }

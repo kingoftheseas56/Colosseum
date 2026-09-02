@@ -300,8 +300,21 @@ Item {
     }
 
     property bool controlsShown: true
+    property var menuFocusReturnItem: null
     readonly property bool menusOpen: transportBar.anyMenuOpen || overflowMenu.open || sourceDrawer.open
                                       || shortcutsSheet.open || closeConfirm.open
+    function currentFocusItem() { var w = shell.Window.window; return w ? w.activeFocusItem : null }
+    function rememberMenuFocus() { if (!shell.menuFocusReturnItem) shell.menuFocusReturnItem = shell.currentFocusItem() }
+    function restoreMenuFocusSoon() {
+        var target = shell.menuFocusReturnItem
+        shell.menuFocusReturnItem = null
+        Qt.callLater(function() {
+            if (shell.menusOpen) return
+            if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason)
+            else shell.forceActiveFocus(Qt.TabFocusReason)
+        })
+    }
+    onMenusOpenChanged: if (!menusOpen && menuFocusReturnItem) restoreMenuFocusSoon()
     function wakeChrome() {
         controlsShown = true
         hideTimer.restart()
@@ -324,8 +337,10 @@ Item {
     // otherwise leave straight away. The host wires onCloseRequested to the real close.
     function requestClose() {
         var st = shell.session ? shell.session.state : 0
-        if (Browser.shouldConfirmClose(st))
+        if (Browser.shouldConfirmClose(st)) {
+            shell.rememberMenuFocus()
             closeConfirm.open = true
+        }
         else {
             shell.activityEndSession()   // Activity (§9 Lane B): close/lifecycle exit ends the session
             shell.closeRequested()
@@ -453,6 +468,12 @@ Item {
 
     Keys.onPressed: function(event) {
         shell.wakeChrome()
+        var contextKey = event.key === Qt.Key_Menu || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))
+        if (contextKey) {
+            shell.popupOverflow(Math.round(shell.width * 0.68), Math.round(shell.height * 0.72))
+            event.accepted = true
+            return
+        }
         switch (event.key) {
         case Qt.Key_Space:
             transportBar.togglePlayPause(); event.accepted = true; break
@@ -472,9 +493,11 @@ Item {
             shell.fullscreenRequested(); event.accepted = true; break
         case Qt.Key_E:
             // Feature 8: E raises the episode/source browser (and toggles it back shut).
+            if (!sourceDrawer.open) shell.rememberMenuFocus()
             sourceDrawer.open = !sourceDrawer.open; event.accepted = true; break
         case Qt.Key_Question:
             // "?" raises (and toggles) the keyboard-shortcuts sheet; Esc/tap also close it.
+            if (!shortcutsSheet.open) shell.rememberMenuFocus()
             shortcutsSheet.open = !shortcutsSheet.open; event.accepted = true; break
         case Qt.Key_Escape:
             shell.requestEscape(); event.accepted = true; break
@@ -593,11 +616,12 @@ Item {
                 downloadKind: shell.downloadKind
                 downloadTooltip: shell.downloadTooltip()
                 onFullscreenRequested: shell.fullscreenRequested()
-                onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
+                onBrowseRequested: { shell.rememberMenuFocus(); sourceDrawer.open = true; shell.wakeChrome() }
                 // His ruling: the drawer KEEPS ownership of switching, so the HUD button is a
                 // shortcut straight to its Sources tab, not a second switcher that could disagree
                 // with it.
                 onSwitchSourceRequested: {
+                    shell.rememberMenuFocus()
                     sourceDrawer.tab = "sources"
                     sourceDrawer.open = true
                     shell.wakeChrome()
@@ -657,6 +681,7 @@ Item {
 
     // Right-click "more controls" menu, positioned at the cursor and clamped to the window.
     function popupOverflow(px, py) {
+        shell.rememberMenuFocus()
         overflowMenu.x = Math.max(10, Math.min(width - overflowMenu.width - 10, px))
         overflowMenu.y = Math.max(10, Math.min(height - overflowMenu.implicitHeight - 10, py))
         overflowMenu.open = true
@@ -666,7 +691,7 @@ Item {
         session: shell.session
         theme: shell.theme
         onToggleStatsRequested: { statsOverlay.open = !statsOverlay.open; overflowMenu.open = false }
-        onShowShortcutsRequested: { shortcutsSheet.open = true; overflowMenu.open = false }
+        onShowShortcutsRequested: { shell.rememberMenuFocus(); shortcutsSheet.open = true; overflowMenu.open = false }
         onPipRequested: { overflowMenu.open = false; shell.pipRequested() }
     }
 

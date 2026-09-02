@@ -1,4 +1,5 @@
 import QtQuick
+import "../.."
 
 // Player 2's title bar, matched element-for-element to the current player's rather than designed
 // fresh: a 112px scrim fading downward, a circular Back at the left with NOW PLAYING / title /
@@ -76,6 +77,13 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: rb.tapped()
+        }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: rb.tooltip
+            focusRadius: rb.size / 2
+            onTriggered: rb.tapped()
         }
     }
 

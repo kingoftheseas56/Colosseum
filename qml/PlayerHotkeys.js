@@ -15,7 +15,8 @@ var K = {
     Comma: 0x2c, Period: 0x2e, Slash: 0x2f, Question: 0x3f,
     Zero: 0x30, Nine: 0x39,
     BracketLeft: 0x5b, BracketRight: 0x5d,
-    C: 0x43, D: 0x44, I: 0x49, L: 0x4c, M: 0x4d, O: 0x4f, S: 0x53, X: 0x58, Z: 0x5a
+    C: 0x43, D: 0x44, E: 0x45, I: 0x49, L: 0x4c, M: 0x4d, O: 0x4f, S: 0x53, X: 0x58, Z: 0x5a,
+    F10: 0x01000039, Menu: 0x01000055
 }
 var SHIFT = 0x02000000   // Qt.ShiftModifier
 
@@ -43,6 +44,7 @@ function actions() {
         { id: "abLoopClear", group: "Loop", label: "Clear A-B loop", bindings: ["L"], scope: PLAYER_SCOPE },
         { id: "stats", group: "Tools", label: "Playback stats", bindings: ["D"], scope: PLAYER_SCOPE },
         { id: "browser", group: "Tools", label: "Episodes & sources", bindings: ["E"], scope: PLAYER_SCOPE },
+        { id: "contextMenu", group: "Tools", label: "More controls", bindings: ["Menu", "Shift+F10"], scope: PLAYER_SCOPE },
         { id: "shortcuts", group: "Help", label: "Show shortcuts", bindings: ["?"], scope: PLAYER_SCOPE }
     ]
 }
@@ -81,7 +83,8 @@ var EVENT_BINDINGS = (function() {
     m[K.BracketLeft] = "["; m[K.BracketRight] = "]"
     m[K.Question] = "?"
     m[K.M] = "M"; m[K.S] = "S"; m[K.C] = "C"; m[K.Z] = "Z"; m[K.X] = "X"
-    m[K.I] = "I"; m[K.O] = "O"; m[K.L] = "L"; m[K.D] = "D"
+    m[K.I] = "I"; m[K.O] = "O"; m[K.L] = "L"; m[K.D] = "D"; m[K.E] = "E"
+    m[K.Menu] = "Menu"
     return m
 })()
 
@@ -96,6 +99,8 @@ function actionForEvent(event) {
         return actionForBinding("0-9")
     if (key === K.Slash && (mods & SHIFT))
         return actionForBinding("?")
+    if (key === K.F10)
+        return (mods & SHIFT) ? actionForBinding("Shift+F10") : null
     var binding = EVENT_BINDINGS[key]
     if (binding === undefined)
         return null

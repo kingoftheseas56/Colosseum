@@ -26,7 +26,20 @@ Item {
     readonly property real livePos: session ? session.position : 0
     readonly property real shownPos: seeking ? previewSeconds : livePos
     readonly property real frac: dur > 0 ? Math.max(0, Math.min(1, shownPos / dur)) : 0
-    readonly property bool active: hover.containsMouse || seeking
+    readonly property bool active: hover.containsMouse || seeking || root.activeFocus
+
+    focusPolicy: root.dur > 0 ? Qt.TabFocus : Qt.NoFocus
+    Keys.onPressed: function(event) {
+        if (!root.session || root.dur <= 0) return
+        var step = (event.modifiers & Qt.ShiftModifier) ? 1 : 10
+        if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) { root.session.seekRelative(-step); event.accepted = true }
+        else if (event.key === Qt.Key_Right || event.key === Qt.Key_Up) { root.session.seekRelative(step); event.accepted = true }
+        else if (event.key === Qt.Key_Home) { root.session.seekExact(0); event.accepted = true }
+        else if (event.key === Qt.Key_End) { root.session.seekExact(Math.max(0, root.dur - 0.5)); event.accepted = true }
+    }
+    Accessible.role: Accessible.Slider
+    Accessible.name: "Seek"
+    Accessible.value: Math.round(root.shownPos)
 
     function previewAt(x) {
         return dur * Math.max(0, Math.min(1, x / Math.max(1, barVisual.width)))

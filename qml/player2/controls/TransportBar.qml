@@ -1,4 +1,5 @@
 import QtQuick
+import "../.."
 
 // The bottom control dock: a state line, the seek row, and the transport buttons. It renders typed
 // session state and sends typed session commands only. Layout and palette track the current player.
@@ -152,6 +153,13 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: rb.tapped()
         }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: rb.tooltip
+            focusRadius: rb.size / 2
+            onTriggered: rb.tapped()
+        }
     }
 
     // ---- inline volume control (mute + gold slider) ----------------------------------------------
@@ -213,6 +221,18 @@ Item {
                 onPressed: function(m) { apply(m.x) }
                 onPositionChanged: function(m) { if (pressed) apply(m.x) }
             }
+            focusPolicy: root.session ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) {
+                if (!root.session) return
+                var step = (event.modifiers & Qt.ShiftModifier) ? 0.01 : 0.05
+                if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) { root.session.setMuted(false); root.session.setVolume(Math.max(0, root.session.volume - step)); event.accepted = true }
+                else if (event.key === Qt.Key_Right || event.key === Qt.Key_Up) { root.session.setMuted(false); root.session.setVolume(Math.min(1, root.session.volume + step)); event.accepted = true }
+                else if (event.key === Qt.Key_Home) { root.session.setMuted(false); root.session.setVolume(0); event.accepted = true }
+                else if (event.key === Qt.Key_End) { root.session.setMuted(false); root.session.setVolume(1); event.accepted = true }
+            }
+            Accessible.role: Accessible.Slider
+            Accessible.name: "Volume"
+            Accessible.value: root.session ? Math.round(root.session.volume * 100) : 0
         }
     }
 
@@ -296,6 +316,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.showRemaining = !root.showRemaining
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: root.showRemaining ? "Show total duration" : "Show remaining time"; onTriggered: root.showRemaining = !root.showRemaining }
         }
     }
 
@@ -498,6 +519,30 @@ Item {
         Rectangle {
             id: fillMenu
             property bool open: false
+            property var focusReturnItem: null
+            property int keyboardIndex: Math.max(0, root.fillIndex)
+            focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                    var next = keyboardIndex + (event.key === Qt.Key_Up ? -1 : 1)
+                    if (next >= 0 && next < root.fillModes.length) { keyboardIndex = next; event.accepted = true }
+                } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                else if (event.key === Qt.Key_End) { keyboardIndex = root.fillModes.length - 1; event.accepted = true }
+                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.applyFill(keyboardIndex); event.accepted = true }
+                else if (event.key === Qt.Key_Escape) { open = false; event.accepted = true }
+            }
+            Keys.onTabPressed: function(event) { fillMenu.forceActiveFocus(Qt.TabFocusReason); event.accepted = true }
+            Keys.onBacktabPressed: function(event) { fillMenu.forceActiveFocus(Qt.TabFocusReason); event.accepted = true }
+            onOpenChanged: {
+                if (open) {
+                    var w = root.Window.window; focusReturnItem = w ? w.activeFocusItem : null
+                    keyboardIndex = Math.max(0, root.fillIndex)
+                    Qt.callLater(function() { fillMenu.forceActiveFocus(Qt.PopupFocusReason) })
+                } else if (focusReturnItem) {
+                    var target = focusReturnItem; focusReturnItem = null
+                    Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+                }
+            }
             width: 188
             height: 56 + root.fillModes.length * 34
             // Centred over the fill button in the LEFT cluster — bound to the button's real geometry
@@ -531,6 +576,7 @@ Item {
             }
 
             Repeater {
+                id: fillRepeater
                 model: root.fillModes
                 Rectangle {
                     required property int index
@@ -538,6 +584,8 @@ Item {
                     x: 8; y: 48 + index * 34
                     width: parent.width - 16; height: 32; radius: 8
                     readonly property bool selected: root.fillIndex === index
+                    border.width: fillMenu.activeFocus && fillMenu.keyboardIndex === index ? 2 : 0
+                    border.color: root.theme ? root.theme.gold : "#f0c44a"
                     color: selected ? Qt.rgba(1, 1, 1, 0.10)
                          : (fillRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
                     Text {
@@ -563,6 +611,31 @@ Item {
         Rectangle {
             id: speedMenu
             property bool open: false
+            property var focusReturnItem: null
+            property int keyboardIndex: 0
+            focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                    var next = keyboardIndex + (event.key === Qt.Key_Up ? -1 : 1)
+                    if (next >= 0 && next < root.speedChoices.length) { keyboardIndex = next; event.accepted = true }
+                } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                else if (event.key === Qt.Key_End) { keyboardIndex = root.speedChoices.length - 1; event.accepted = true }
+                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { if (root.session) root.session.speed = root.speedChoices[keyboardIndex]; open = false; event.accepted = true }
+                else if (event.key === Qt.Key_Escape) { open = false; event.accepted = true }
+            }
+            Keys.onTabPressed: function(event) { speedMenu.forceActiveFocus(Qt.TabFocusReason); event.accepted = true }
+            Keys.onBacktabPressed: function(event) { speedMenu.forceActiveFocus(Qt.TabFocusReason); event.accepted = true }
+            onOpenChanged: {
+                if (open) {
+                    var w = root.Window.window; focusReturnItem = w ? w.activeFocusItem : null
+                    var idx = 0; for (var i = 0; i < root.speedChoices.length; ++i) if (Math.abs(root.currentSpeed - root.speedChoices[i]) < 0.01) { idx = i; break }
+                    keyboardIndex = idx
+                    Qt.callLater(function() { speedMenu.forceActiveFocus(Qt.PopupFocusReason) })
+                } else if (focusReturnItem) {
+                    var target = focusReturnItem; focusReturnItem = null
+                    Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+                }
+            }
             width: 210
             height: 46 + root.speedChoices.length * 38 + 8
             // Centred over the speed button — bound to the button's real geometry, clamped to the bar.
@@ -599,6 +672,7 @@ Item {
             }
 
             Repeater {
+                id: speedRepeater
                 model: root.speedChoices
                 Rectangle {
                     required property int index
@@ -606,6 +680,9 @@ Item {
                     x: 8; y: 46 + index * 38
                     width: parent.width - 16; height: 36; radius: 9
                     readonly property bool selected: Math.abs(root.currentSpeed - modelData) < 0.01
+                    function choose() { if (root.session) root.session.speed = modelData; speedMenu.open = false }
+                    border.width: (selected || (speedMenu.activeFocus && speedMenu.keyboardIndex === index)) ? (speedMenu.activeFocus && speedMenu.keyboardIndex === index ? 2 : 1) : 0
+                    border.color: speedMenu.activeFocus && speedMenu.keyboardIndex === index ? (root.theme ? root.theme.gold : "#f0c44a") : Qt.rgba(1, 1, 1, 0.10)
                     color: selected ? Qt.rgba(1, 1, 1, 0.10)
                          : (speedRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
                     border.width: selected ? 1 : 0
@@ -635,10 +712,7 @@ Item {
                         id: speedRowArea
                         anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (root.session) root.session.speed = modelData
-                            speedMenu.open = false
-                        }
+                        onClicked: parent.choose()
                     }
                 }
             }

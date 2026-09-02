@@ -12,7 +12,7 @@
 
 // The Qt key tokens the sheet documents, in lockstep with Player2Shell.qml's Keys.onPressed switch.
 function coveredQtKeys() {
-    return ["Space", "Escape", "F", "Left", "Right", "Comma", "Period", "M", "D", "E", "Question"]
+    return ["Space", "Escape", "F", "Left", "Right", "Comma", "Period", "M", "D", "E", "Menu", "F10", "Question"]
 }
 
 // Map a visible key glyph (as shown on a key cap) to its Qt.Key_ token. Keep in sync with the glyphs
@@ -29,6 +29,8 @@ function qtKeyForGlyph(glyph) {
     case "M":     return "M"
     case "D":     return "D"
     case "E":     return "E"
+    case "Menu":  return "Menu"
+    case "Shift+F10": return "F10"
     case "?":     return "Question"
     default:      return ""
     }
@@ -54,7 +56,8 @@ function groups() {
         ] },
         { group: "Tools", items: [
             { label: "Playback stats",     keys: ["D"], note: "" },
-            { label: "Episodes & sources", keys: ["E"], note: "" }
+            { label: "Episodes & sources", keys: ["E"], note: "" },
+            { label: "More controls", keys: ["Menu", "Shift+F10"], note: "" }
         ] },
         { group: "Help", items: [
             { label: "Show shortcuts", keys: ["?"], note: "" }

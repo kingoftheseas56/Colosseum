@@ -1,4 +1,6 @@
 import QtQuick
+import "../.."
+import "../../PlayerFocusContainment.js" as FocusContainment
 
 // A glass track-selection popover (audio or subtitles), with a sync/delay row. It renders typed track
 // rows from the session and reports a typed pick — the shell/session does the switching. Plain
@@ -23,10 +25,46 @@ Item {
     readonly property color ink: theme ? theme.ink : "#f7f7f5"
     readonly property color inkDim: theme ? theme.inkDim : "#c9c8d0"
     readonly property color inkDimmer: theme ? theme.inkDimmer : "#9a99a5"
+    property var focusReturnItem: null
+    function restoreFocus() {
+        var target = menu.focusReturnItem; menu.focusReturnItem = null
+        Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+    }
+
+    function moveFocus(forward) {
+        var w = menu.Window.window; var item = w ? w.activeFocusItem : null
+        if (!item || !item.nextItemInFocusChain) return false
+        var next = item.nextItemInFocusChain(forward); if (!next || next === item) return false
+        next.forceActiveFocus(Qt.TabFocusReason); return true
+    }
+    function chooseTrack(index) {
+        if (index < 0 || index >= menu.tracks.length) return
+        menu.picked(menu.tracks[index].index)
+    }
+    onOpenChanged: {
+        if (open) {
+            var w = menu.Window.window; menu.focusReturnItem = w ? w.activeFocusItem : null
+            Qt.callLater(function() {
+                if (menu.allowOff) offKeyboard.forceActiveFocus(Qt.PopupFocusReason)
+                else { trackList.currentIndex = Math.max(0, menu.selectedRowIndex()); trackList.forceActiveFocus(Qt.PopupFocusReason) }
+            })
+        } else if (menu.focusReturnItem) menu.restoreFocus()
+    }
+    function selectedRowIndex() {
+        for (var i = 0; i < menu.tracks.length; ++i) if (Number(menu.tracks[i].index) === Number(menu.selectedIndex)) return i
+        return menu.tracks.length ? 0 : -1
+    }
 
     implicitWidth: 320
     implicitHeight: panel.implicitHeight
     visible: open
+    focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) { menu.open = false; event.accepted = true }
+        else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && !trackList.activeFocus) event.accepted = menu.moveFocus(event.key === Qt.Key_Down)
+    }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, false) }
     opacity: open ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 120 } }
 
@@ -84,14 +122,22 @@ Item {
                            anchors.verticalCenter: parent.verticalCenter }
                 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: menu.picked(-1) }
+                KeyboardAction { id: offKeyboard; anchors.fill: parent; pointerEnabled: false; focusEnabled: menu.allowOff; accessibleName: "Subtitles off"; onTriggered: menu.picked(-1) }
             }
 
             // Track rows
-            Repeater {
+            ListView {
+                id: trackList
+                width: parent.width
+                height: Math.min(contentHeight, 46 * Math.max(1, menu.tracks.length))
+                clip: true
                 model: menu.tracks
+                focusPolicy: menu.open && menu.tracks.length ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) { trackKeyboard.handle(event) }
                 Item {
                     required property var modelData
-                    width: layout.width
+                    required property int index
+                    width: ListView.view.width
                     height: 46
                     readonly property bool sel: menu.selectedIndex === modelData.index
                     Rectangle {
@@ -131,9 +177,17 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: menu.picked(modelData.index)
+                        onClicked: menu.chooseTrack(index)
                     }
                 }
+            }
+
+            KeyboardCollectionController {
+                id: trackKeyboard
+                view: trackList
+                orientation: "vertical"
+                count: trackList.count
+                onActivated: function(index) { menu.chooseTrack(index) }
             }
 
             Text {
@@ -167,6 +221,7 @@ Item {
                                font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold }
                         MouseArea { id: da; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor; onClicked: parent.tapped() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: glyph; onTriggered: parent.tapped() }
                     }
                     DelayButton { glyph: "−"; onTapped: menu.syncChanged(menu.syncValue - 0.1) }
                     Text {

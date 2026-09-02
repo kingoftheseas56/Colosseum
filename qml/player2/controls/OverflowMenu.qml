@@ -1,4 +1,5 @@
 import QtQuick
+import "../../PlayerFocusContainment.js" as FocusContainment
 
 // The right-click "more controls" panel. Rows cycle typed session settings in place (loudness,
 // aspect) and toggle the stats overlay. Plain QtQuick; the shell positions it at the cursor and
@@ -28,6 +29,16 @@ Item {
 
     implicitWidth: 300
     implicitHeight: panel.implicitHeight
+    focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+    onOpenChanged: if (open) Qt.callLater(function() { statsRow.forceActiveFocus(Qt.PopupFocusReason) })
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) { menu.open = false; event.accepted = true }
+        else if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
+            event.accepted = FocusContainment.move(menu.Window.window, panel, event.key === Qt.Key_Down)
+        }
+    }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, false) }
     visible: open
     opacity: open ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 110 } }
@@ -38,9 +49,13 @@ Item {
         signal tapped()
         width: parent ? parent.width : 0
         height: 40
+        focusPolicy: menu.open ? Qt.TabFocus : Qt.NoFocus
+        Keys.onReturnPressed: { tapped(); event.accepted = true }
+        Keys.onEnterPressed: { tapped(); event.accepted = true }
+        Keys.onSpacePressed: { tapped(); event.accepted = true }
         Rectangle {
             anchors.fill: parent; anchors.topMargin: 1; anchors.bottomMargin: 1; radius: 8
-            color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+            color: rowArea.containsMouse || parent.activeFocus ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
         }
         Text {
             anchors.left: parent.left; anchors.leftMargin: 8
@@ -76,14 +91,15 @@ Item {
                 font.family: "Segoe UI"; font.pixelSize: 11; font.letterSpacing: 1.2
                 bottomPadding: 6
             }
-            MenuRow { label: "Playback stats"; onTapped: menu.toggleStatsRequested() }
+            MenuRow { id: statsRow; label: "Playback stats"; onTapped: menu.toggleStatsRequested() }
             MenuRow {
+                id: loudnessRow
                 label: "Loudness"
                 value: menu.session ? menu.normalizationNames[menu.session.normalizationMode] : ""
                 onTapped: menu.cycleLoudness()
             }
-            MenuRow { label: "Picture-in-picture"; onTapped: menu.pipRequested() }
-            MenuRow { label: "Keyboard shortcuts"; value: "?"; onTapped: menu.showShortcutsRequested() }
+            MenuRow { id: pipRow; label: "Picture-in-picture"; onTapped: menu.pipRequested() }
+            MenuRow { id: shortcutsRow; label: "Keyboard shortcuts"; value: "?"; onTapped: menu.showShortcutsRequested() }
         }
     }
 }

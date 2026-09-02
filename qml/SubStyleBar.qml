@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtCore
+import "PlayerFocusContainment.js" as FocusContainment
 
 Item {
     id: bar
@@ -14,6 +15,33 @@ Item {
 
     property bool open: false
     property var player
+    property var focusReturnItem: null
+    focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+    function moveFocus(forward) {
+        var w = bar.Window.window
+        var item = w ? w.activeFocusItem : null
+        if (!item || !item.nextItemInFocusChain) return false
+        var next = item.nextItemInFocusChain(forward)
+        if (!next || next === item) return false
+        next.forceActiveFocus(Qt.TabFocusReason)
+        return true
+    }
+    onOpenChanged: {
+        if (open) {
+            var w = bar.Window.window; bar.focusReturnItem = w ? w.activeFocusItem : null
+            Qt.callLater(function() { bar.forceActiveFocus(Qt.PopupFocusReason) })
+        } else if (bar.focusReturnItem) {
+            var target = bar.focusReturnItem; bar.focusReturnItem = null
+            Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+        }
+    }
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) { bar.open = false; event.accepted = true }
+        else if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) event.accepted = bar.moveFocus(true)
+        else if (event.key === Qt.Key_Left || event.key === Qt.Key_Up) event.accepted = bar.moveFocus(false)
+    }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(bar.Window.window, bar, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(bar.Window.window, bar, false) }
 
     Settings {
         id: prefs
@@ -228,6 +256,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: cluster.cycle()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: cluster.label + " " + cluster.valueText; onTriggered: cluster.cycle() }
     }
 
     component Swatches: Rectangle {
@@ -235,7 +264,17 @@ Item {
         property string label: ""
         property string selected: ""
         property var colors: []
+        property int keyboardIndex: Math.max(0, colors.map(function(c) { return String(c).toLowerCase() }).indexOf(String(selected).toLowerCase()))
         signal picked(string color)
+        focusPolicy: bar.open && colors.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                var next = keyboardIndex + (event.key === Qt.Key_Left ? -1 : 1)
+                if (next >= 0 && next < colors.length) { keyboardIndex = next; event.accepted = true }
+            } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+            else if (event.key === Qt.Key_End) { keyboardIndex = colors.length - 1; event.accepted = true }
+            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { swatches.picked(String(colors[keyboardIndex])); event.accepted = true }
+        }
         width: 126
         height: 44
         radius: 10
@@ -255,13 +294,14 @@ Item {
                 model: swatches.colors
                 delegate: Rectangle {
                     id: dot
+                    required property int index
                     required property string modelData
                     width: 18
                     height: 18
                     radius: 9
                     color: modelData
-                    border.width: swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
-                    border.color: swatches.selected.toLowerCase() === modelData.toLowerCase() ? theme.gold : Qt.rgba(0, 0, 0, 0.45)
+                    border.width: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? 2 : 1
+                    border.color: (swatches.activeFocus && swatches.keyboardIndex === dot.index) || swatches.selected.toLowerCase() === modelData.toLowerCase() ? theme.gold : Qt.rgba(0, 0, 0, 0.45)
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
@@ -296,5 +336,6 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onTriggered: button.clicked() }
     }
 }

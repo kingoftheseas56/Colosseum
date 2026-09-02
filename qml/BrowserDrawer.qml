@@ -8,6 +8,7 @@ import QtQuick.Controls
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "TheatreApi.js" as TheatreApi
 import "Magnet.js" as Magnet
+import "PlayerFocusContainment.js" as FocusContainment
 
 Item {
     id: drawer
@@ -32,6 +33,34 @@ Item {
     signal sourcePicked(int index)
     signal dismissed()
 
+    focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+    property var focusReturnItem: null
+    function movePanelFocus(forward) {
+        var w = drawer.Window.window
+        var item = w ? w.activeFocusItem : null
+        if (!item || !item.nextItemInFocusChain) return false
+        var next = item.nextItemInFocusChain(forward)
+        if (!next || next === item) return false
+        next.forceActiveFocus(Qt.TabFocusReason)
+        return true
+    }
+    function copySource(index) {
+        if (index < 0 || index >= drawer.candidates.length) return false
+        var row = drawer.candidates[index] || ({})
+        var link = Magnet.linkFor({ "infoHash": row.infoHash, "filename": row.title })
+        if (!link.length) return false
+        Clipboard.copy(link)
+        if (sourceList.currentItem && sourceList.currentItem.showCopied) sourceList.currentItem.showCopied()
+        return true
+    }
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) { drawer.dismissed(); event.accepted = true }
+        else if (event.key === Qt.Key_Down && !episodeList.activeFocus && !sourceList.activeFocus) event.accepted = drawer.movePanelFocus(true)
+        else if (event.key === Qt.Key_Up && !episodeList.activeFocus && !sourceList.activeFocus) event.accepted = drawer.movePanelFocus(false)
+    }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(drawer.Window.window, panel, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(drawer.Window.window, panel, false) }
+
     Theme { id: theme }
 
     readonly property bool hasEpisodes: subType === "series" && (queue.length > 0 || nowId.split(":").length >= 3)
@@ -45,11 +74,17 @@ Item {
     property string loadedRootId: ""      // the series the cached meta belongs to (cache key)
 
     onOpenChanged: {
-        if (!open)
+        if (!open) {
+            if (drawer.focusReturnItem) {
+                var target = drawer.focusReturnItem; drawer.focusReturnItem = null
+                Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+            }
             return
+        }
+        var w = drawer.Window.window; drawer.focusReturnItem = w ? w.activeFocusItem : null
         drawer.tab = hasEpisodes ? "episodes" : "sources"
-        if (drawer.tab === "episodes")
-            drawer.ensureMeta()
+        if (drawer.tab === "episodes") drawer.ensureMeta()
+        Qt.callLater(function() { tabStrip.forceActiveFocus(Qt.PopupFocusReason) })
     }
     onTabChanged: if (open && tab === "episodes") drawer.ensureMeta()
 
@@ -162,49 +197,75 @@ Item {
             anchors.margins: 18
             spacing: 12
 
-            // tabs
+            // tabs â€” one composite Tab stop; arrows move inside the strip.
             Row {
+                id: tabStrip
+                readonly property var options: drawer.hasEpisodes ? ["episodes", "sources"] : ["sources"]
+                property int keyboardIndex: Math.max(0, options.indexOf(drawer.tab))
                 width: parent.width
                 spacing: 8
+                focusPolicy: drawer.open ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                        var delta = event.key === Qt.Key_Left ? -1 : 1
+                        var next = keyboardIndex + delta
+                        if (next >= 0 && next < options.length) { keyboardIndex = next; event.accepted = true }
+                    } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                    else if (event.key === Qt.Key_End) { keyboardIndex = options.length - 1; event.accepted = true }
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { drawer.tab = options[keyboardIndex]; event.accepted = true }
+                }
                 Repeater {
-                    model: drawer.hasEpisodes ? ["episodes", "sources"] : ["sources"]
+                    model: tabStrip.options
                     delegate: Rectangle {
                         id: tabPill
+                        required property int index
                         required property string modelData
                         width: (header.width - 8) / (drawer.hasEpisodes ? 2 : 1)
                         height: 34
                         radius: 6
-                        color: drawer.tab === tabPill.modelData ? Qt.rgba(212 / 255, 175 / 255, 55 / 255, 0.12)
-                                                                : Qt.rgba(1, 1, 1, 0.05)
+                        color: drawer.tab === tabPill.modelData ? Qt.rgba(212 / 255, 175 / 255, 55 / 255, 0.12) : Qt.rgba(1, 1, 1, 0.05)
+                        border.width: tabStrip.activeFocus && tabStrip.keyboardIndex === tabPill.index ? 2 : 0
+                        border.color: theme.gold
                         Text {
                             anchors.centerIn: parent
                             text: tabPill.modelData === "episodes" ? "EPISODES" : "SOURCES"
                             color: drawer.tab === tabPill.modelData ? theme.gold : theme.inkDim
                             font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1
                         }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: drawer.tab = tabPill.modelData }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: drawer.tab = tabPill.modelData }
                     }
                 }
             }
 
-            // season pills (episodes tab, ready state)
+
+            // season pills â€” one composite Tab stop when multiple seasons are present.
             Flow {
+                id: seasonStrip
+                property int keyboardIndex: Math.max(0, drawer.seasonList.indexOf(drawer.activeSeason))
                 width: parent.width
                 spacing: 6
                 visible: drawer.tab === "episodes" && drawer.metaState === "ready" && drawer.seasonList.length > 1
+                focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                        var next = keyboardIndex + (event.key === Qt.Key_Left ? -1 : 1)
+                        if (next >= 0 && next < drawer.seasonList.length) { keyboardIndex = next; event.accepted = true }
+                    } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                    else if (event.key === Qt.Key_End) { keyboardIndex = drawer.seasonList.length - 1; event.accepted = true }
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { drawer.activeSeason = drawer.seasonList[keyboardIndex]; event.accepted = true }
+                }
                 Repeater {
                     model: drawer.seasonList
                     delegate: Rectangle {
                         id: seasonPill
+                        required property int index
                         required property int modelData
                         width: pillText.implicitWidth + 20
                         height: 24
                         radius: 12
                         color: "transparent"
-                        border.width: 1
-                        border.color: drawer.activeSeason === seasonPill.modelData
-                                      ? Qt.rgba(212 / 255, 175 / 255, 55 / 255, 0.5) : theme.edge
+                        border.width: seasonStrip.activeFocus && seasonStrip.keyboardIndex === seasonPill.index ? 2 : 1
+                        border.color: (seasonStrip.activeFocus && seasonStrip.keyboardIndex === seasonPill.index) || drawer.activeSeason === seasonPill.modelData ? Qt.rgba(212 / 255, 175 / 255, 55 / 255, 0.7) : theme.edge
                         Text {
                             id: pillText
                             anchors.centerIn: parent
@@ -212,11 +273,11 @@ Item {
                             color: drawer.activeSeason === seasonPill.modelData ? theme.gold : theme.inkDim
                             font.family: theme.ui; font.pixelSize: 11
                         }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: drawer.activeSeason = seasonPill.modelData }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: drawer.activeSeason = seasonPill.modelData }
                     }
                 }
             }
+
 
             // honest fetch states
             Text {
@@ -236,6 +297,7 @@ Item {
                     color: theme.gold; font.family: theme.ui; font.pixelSize: 12
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: { drawer.metaState = "idle"; drawer.ensureMeta() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Retry seasons"; onTriggered: { drawer.metaState = "idle"; drawer.ensureMeta() } }
                 }
             }
         }
@@ -254,6 +316,8 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: HouseScrollBar { flick: episodeList }
             model: drawer.episodeRows
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) { episodeKeyboard.handle(event) }
             delegate: Item {
                 id: epRow
                 required property var modelData
@@ -318,6 +382,14 @@ Item {
             }
         }
 
+        KeyboardCollectionController {
+            id: episodeKeyboard
+            view: episodeList
+            orientation: "vertical"
+            count: episodeList.count
+            onActivated: function(index) { if (index >= 0 && index < drawer.episodeRows.length) drawer.pickEpisode(drawer.episodeRows[index]) }
+        }
+
         // ---- SOURCES list ----
         ListView {
             id: sourceList
@@ -332,11 +404,18 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: HouseScrollBar { flick: sourceList }
             model: drawer.candidates
+            currentIndex: drawer.currentStreamIndex >= 0 ? drawer.currentStreamIndex : (count > 0 ? 0 : -1)
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) {
+                if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_C) { event.accepted = drawer.copySource(sourceList.currentIndex); return }
+                sourceKeyboard.handle(event)
+            }
             delegate: Item {
                 id: srcRow
                 required property var modelData
                 required property int index
                 property bool copiedTick: false
+                function showCopied() { copiedTick = true; srcTickTimer.restart() }
                 width: ListView.view.width
                 height: 64
                 readonly property string st: EpisodeBrowser.sourceRowState(
@@ -408,13 +487,8 @@ Item {
                         anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            var link = Magnet.linkFor({ "infoHash": srcRow.modelData.infoHash,
-                                                        "filename": srcRow.modelData.title })
-                            if (!link.length)
-                                return
-                            Clipboard.copy(link)
-                            srcRow.copiedTick = true
-                            srcTickTimer.restart()
+                            if (!drawer.copySource(srcRow.index)) return
+                            srcRow.showCopied()
                         }
                     }
                 }
@@ -427,6 +501,16 @@ Item {
                     anchors.fill: parent; hoverEnabled: true
                     cursorShape: srcRow.st === "playable" ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: if (srcRow.st === "playable") drawer.sourcePicked(srcRow.index)
+                }
+            }
+            KeyboardCollectionController {
+                id: sourceKeyboard
+                view: sourceList
+                orientation: "vertical"
+                count: sourceList.count
+                onActivated: function(index) {
+                    if (index < 0 || index >= drawer.candidates.length) return
+                    if (EpisodeBrowser.sourceRowState(index, drawer.currentStreamIndex, drawer.isDead(index)) === "playable") drawer.sourcePicked(index)
                 }
             }
             footer: Text {

@@ -17,6 +17,7 @@ import "PlayerHotkeys.js" as PlayerHotkeys
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "TheatreApi.js" as TheatreApi
 import "ActivityLaneHelpers.js" as ActivityLaneHelpers
+import "PlayerFocusContainment.js" as FocusContainment
 
 Item {
     id: root
@@ -192,7 +193,21 @@ Item {
     property real resumePromptMinSec: 30       // only prompt after meaningful progress
     property real resumeRestartThreshold: 0.80 // at/over this fraction of duration, start over silently
     property bool resumeChoiceOpen: false      // is the overlay visible
-    onResumeChoiceOpenChanged: root.syncWatchPartyPlayerObservation()
+    property var resumeChoiceFocusReturnItem: null
+    onResumeChoiceOpenChanged: {
+        root.syncWatchPartyPlayerObservation()
+        if (root.resumeChoiceOpen) {
+            root.resumeChoiceFocusReturnItem = root.currentKeyboardFocusItem()
+            Qt.callLater(function() {
+                var first = resumeChoicePanel.nextItemInFocusChain(true)
+                if (first && first !== resumeChoicePanel) first.forceActiveFocus(Qt.PopupFocusReason)
+            })
+        } else if (root.resumeChoiceFocusReturnItem) {
+            var target = root.resumeChoiceFocusReturnItem
+            root.resumeChoiceFocusReturnItem = null
+            root.restoreKeyboardFocus(target)
+        }
+    }
     property real resumeChoiceSec: -1          // the saved position the overlay offers
     property bool resumePromptConsumed: false  // prompt only once per source load
 
@@ -274,19 +289,78 @@ Item {
     property int upNextRemainingSec: 0
     property bool overflowOpen: false
     property point contextMenuPos: Qt.point(0, 0)
+    property var overflowFocusReturnItem: null
+    function currentKeyboardFocusItem() {
+        var w = root.Window.window
+        return w ? w.activeFocusItem : null
+    }
+    function restoreKeyboardFocus(item) {
+        var target = item && item.visible && item.enabled ? item : root
+        Qt.callLater(function() { if (target && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+    }
+    function moveKeyboardFocus(forward) {
+        var item = root.currentKeyboardFocusItem()
+        if (!item || !item.nextItemInFocusChain)
+            return false
+        var next = item.nextItemInFocusChain(forward)
+        if (!next || next === item)
+            return false
+        next.forceActiveFocus(Qt.TabFocusReason)
+        return true
+    }
     function openContextMenu(p) {
         var wasOpen = root.overflowOpen
+        if (!wasOpen)
+            root.overflowFocusReturnItem = root.currentKeyboardFocusItem()
         root.closeMenus()
         root.contextMenuPos = p
         root.overflowOpen = !wasOpen
         root.wakeChrome()
     }
+    onOverflowOpenChanged: {
+        if (root.overflowOpen)
+            Qt.callLater(function() { overflowPanel.beginKeyboardNavigation() })
+        else if (root.overflowFocusReturnItem) {
+            var target = root.overflowFocusReturnItem
+            root.overflowFocusReturnItem = null
+            root.restoreKeyboardFocus(target)
+        }
+    }
     // Destructive-path guard: closing while media is actively playing asks once
     // (spec 2026-07-06 slice 5 — minimize stays instant, paused/idle close is instant too).
     property bool closeConfirmOpen: false
+    property var closeConfirmFocusReturnItem: null
+    onCloseConfirmOpenChanged: {
+        if (root.closeConfirmOpen) {
+            root.closeConfirmFocusReturnItem = root.currentKeyboardFocusItem()
+            Qt.callLater(function() { closeKeepKeyboard.forceActiveFocus(Qt.PopupFocusReason) })
+        } else if (root.closeConfirmFocusReturnItem) {
+            var target = root.closeConfirmFocusReturnItem
+            root.closeConfirmFocusReturnItem = null
+            root.restoreKeyboardFocus(target)
+        }
+    }
     property string currentPlaybackUrl: ""
     property bool liveGuideOpen: false
+    property var liveGuideFocusReturnItem: null
+    onLiveGuideOpenChanged: {
+        if (root.liveGuideOpen) {
+            root.liveGuideFocusReturnItem = root.currentKeyboardFocusItem()
+            Qt.callLater(function() { liveSearch.forceActiveFocus(Qt.PopupFocusReason) })
+        } else if (root.liveGuideFocusReturnItem) {
+            var target = root.liveGuideFocusReturnItem; root.liveGuideFocusReturnItem = null; root.restoreKeyboardFocus(target)
+        }
+    }
     property bool dvrPanelOpen: false
+    property var dvrFocusReturnItem: null
+    onDvrPanelOpenChanged: {
+        if (root.dvrPanelOpen) {
+            root.dvrFocusReturnItem = root.currentKeyboardFocusItem()
+            Qt.callLater(function() { var first = dvrPanel.nextItemInFocusChain(true); if (first && first !== dvrPanel) first.forceActiveFocus(Qt.PopupFocusReason) })
+        } else if (root.dvrFocusReturnItem) {
+            var target = root.dvrFocusReturnItem; root.dvrFocusReturnItem = null; root.restoreKeyboardFocus(target)
+        }
+    }
     property string currentDvrId: ""
     property bool pipMode: typeof WindowMode !== "undefined" && WindowMode.pipMode
     readonly property bool shellWindowed:
@@ -3092,6 +3166,9 @@ Item {
             root.wakeChrome()
             return
         }
+        case "contextMenu":
+            root.openContextMenu(Qt.point(Math.round(chrome.width * 0.68), Math.round(chrome.height * 0.72)))
+            return
         case "shortcuts": root.shortcutsOpen = true; return
         }
     }
@@ -3115,6 +3192,37 @@ Item {
         if (kind === "shortcuts") return "?"
         if (kind === "gif") return root.gifState === "recording" ? root.fmtTime(root.gifElapsedSec) : ""
         return ""
+    }
+    function activateOverflowKind(kind) {
+        if (kind === "loudness") { root.cycleLoudness(); root.wakeChrome(); return }
+        root.closeMenus()
+        if (kind === "shortcuts") { root.shortcutsOpen = true; return }
+        if (kind === "pip") {
+            if (typeof WindowMode === "undefined") return
+            var w = root.Window.window
+            if (!w) return
+            if (root.pipMode) WindowMode.exitPip(w)
+            else WindowMode.enterPip(w)
+            return
+        }
+        if (kind === "audio") audioMenu.panelOpen = true
+        else if (kind === "speed") speedMenu.panelOpen = true
+        else if (kind === "fill") fillMenu.panelOpen = true
+        else if (kind === "browser") root.browserOpen = true
+        else if (kind === "stream") root.pickAnotherStream()
+        else if (kind === "download") root.handleDownloadAction()
+        else if (kind === "screenshot") root.captureFrameGrab()
+        else if (kind === "gif") {
+            if (root.gifState === "recording") root.stopGifRecording()
+            else if (root.gifState === "idle") root.startGifRecording()
+        } else if (kind === "stats") {
+            root.statsOverlayOpen = !root.statsOverlayOpen
+            if (root.statsOverlayOpen) root.refreshPlaybackStats()
+        } else if (kind === "liveGuide") {
+            if (!root.liveGuideOpen) root.openLiveGuide(); else root.liveGuideOpen = false
+        } else if (kind === "dvr") root.dvrPanelOpen = !root.dvrPanelOpen
+        else if (kind === "liveEdge") root.goLiveEdge()
+        root.wakeChrome()
     }
     function trackTitle(track, fallback) {
         if (track.title && ("" + track.title).trim() !== "")
@@ -3915,6 +4023,9 @@ Item {
         Rectangle {
             id: resumeChoicePanel
             visible: root.resumeChoiceOpen
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, resumeChoicePanel, true) }
+            Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, resumeChoicePanel, false) }
             z: 30
             anchors.centerIn: parent
             width: Math.min(parent.width - 48, 380)
@@ -3971,6 +4082,10 @@ Item {
         Rectangle {
             id: closeConfirmPanel
             visible: root.closeConfirmOpen
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            Keys.onEscapePressed: { root.closeConfirmOpen = false; event.accepted = true }
+            Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, closeConfirmPanel, true) }
+            Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, closeConfirmPanel, false) }
             z: 10
             anchors.centerIn: parent
             width: 380
@@ -4029,6 +4144,14 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.closeConfirmOpen = false
                     }
+                    KeyboardAction {
+                        id: closeKeepKeyboard
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Keep watching"
+                        focusRadius: 9
+                        onTriggered: root.closeConfirmOpen = false
+                    }
                 }
                 Rectangle {
                     width: 110
@@ -4055,6 +4178,17 @@ Item {
                             root.closeRequested()
                         }
                     }
+                    KeyboardAction {
+                        id: closeEndKeyboard
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "End session"
+                        focusRadius: 9
+                        onTriggered: {
+                            root.closeConfirmOpen = false
+                            root.closeRequested()
+                        }
+                    }
                 }
             }
         }
@@ -4062,6 +4196,26 @@ Item {
         Rectangle {
             id: overflowPanel
             visible: root.overflowOpen
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            function beginKeyboardNavigation() {
+                overflowPanel.forceActiveFocus(Qt.PopupFocusReason)
+                Qt.callLater(function() { root.moveKeyboardFocus(true) })
+            }
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape) {
+                    root.overflowOpen = false
+                    event.accepted = true
+                } else if (event.key === Qt.Key_Down) {
+                    event.accepted = FocusContainment.move(root.Window.window, overflowPanel, true)
+                } else if (event.key === Qt.Key_Up) {
+                    event.accepted = FocusContainment.move(root.Window.window, overflowPanel, false)
+                } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space)
+                           && overflowPanel.activeFocus) {
+                    event.accepted = FocusContainment.move(root.Window.window, overflowPanel, true)
+                }
+            }
+            Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, overflowPanel, true) }
+            Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, overflowPanel, false) }
             // Fades rather than snapping in (2026-07-30 restyle, carried from the Player 2 menu).
             opacity: root.overflowOpen ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 110 } }
@@ -4164,45 +4318,16 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                var kind = modelData.kind
-                                // Loudness cycles in place (menu stays open) so you can see
-                                // the mode change and hear it apply live.
-                                if (kind === "loudness") { root.cycleLoudness(); root.wakeChrome(); return }
-                                root.closeMenus()
-                                if (kind === "shortcuts") { root.shortcutsOpen = true; return }
-                                if (kind === "pip") {
-                                    // Real toggle, not a decoration: WindowMode owns the PiP surface
-                                    // and reports back through onPipEntered/onPipExited.
-                                    if (typeof WindowMode === "undefined") return
-                                    var w = root.Window.window
-                                    if (!w) return
-                                    if (root.pipMode) WindowMode.exitPip(w)
-                                    else WindowMode.enterPip(w)
-                                    return
-                                }
-                                if (kind === "audio") audioMenu.panelOpen = true
-                                else if (kind === "speed") speedMenu.panelOpen = true
-                                else if (kind === "fill") fillMenu.panelOpen = true
-                                else if (kind === "browser") root.browserOpen = true
-                                else if (kind === "stream") root.pickAnotherStream()
-                                else if (kind === "download") root.handleDownloadAction()
-                                else if (kind === "screenshot") root.captureFrameGrab()
-                                else if (kind === "gif") {
-                                    if (root.gifState === "recording") root.stopGifRecording()
-                                    else if (root.gifState === "idle") root.startGifRecording()
-                                }
-                                else if (kind === "stats") {
-                                    root.statsOverlayOpen = !root.statsOverlayOpen
-                                    if (root.statsOverlayOpen) root.refreshPlaybackStats()
-                                }
-                                else if (kind === "liveGuide") {
-                                    if (!root.liveGuideOpen) root.openLiveGuide(); else root.liveGuideOpen = false
-                                }
-                                else if (kind === "dvr") root.dvrPanelOpen = !root.dvrPanelOpen
-                                else if (kind === "liveEdge") root.goLiveEdge()
-                                root.wakeChrome()
-                            }
+                            onClicked: root.activateOverflowKind(modelData.kind)
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: parent.visible
+                            accessibleName: modelData.label
+                            accessibleDescription: parent.rowValue
+                            focusRadius: 8
+                            onTriggered: root.activateOverflowKind(modelData.kind)
                         }
                     }
                 }
@@ -4214,6 +4339,13 @@ Item {
         Rectangle {
             id: liveGuide
             visible: root.liveGuideOpen
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape) { root.liveGuideOpen = false; event.accepted = true }
+                else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_F) { liveSearch.forceActiveFocus(Qt.ShortcutFocusReason); event.accepted = true }
+            }
+            Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, liveGuide, true) }
+            Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, liveGuide, false) }
             z: 11
             anchors.fill: parent
             color: Qt.rgba(4 / 255, 6 / 255, 10 / 255, 0.96)
@@ -4268,6 +4400,7 @@ Item {
                     TextInput {
                         id: liveSearch
                         anchors.fill: parent
+                        focusPolicy: Qt.TabFocus
                         anchors.leftMargin: 14
                         anchors.rightMargin: 14
                         verticalAlignment: TextInput.AlignVCenter
@@ -4290,6 +4423,7 @@ Item {
             }
 
             ListView {
+                id: liveChannelList
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -4301,7 +4435,10 @@ Item {
                 clip: true
                 spacing: 8
                 model: (typeof Live !== "undefined") ? Live.channels : []
+                focusPolicy: visible && count > 0 ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) { liveChannelKeyboard.handle(event) }
                 delegate: Rectangle {
+                    required property int index
                     required property var modelData
                     width: ListView.view.width
                     height: 64
@@ -4338,12 +4475,23 @@ Item {
                         onClicked: root.switchLiveChannel(modelData)
                     }
                 }
+                KeyboardCollectionController {
+                    id: liveChannelKeyboard
+                    view: liveChannelList
+                    orientation: "vertical"
+                    count: liveChannelList.count
+                    onActivated: function(index) { if (typeof Live !== "undefined" && index >= 0 && index < Live.channels.length) root.switchLiveChannel(Live.channels[index]) }
+                }
             }
         }
 
         Rectangle {
             id: dvrPanel
             visible: root.dvrPanelOpen
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            Keys.onEscapePressed: { root.dvrPanelOpen = false; event.accepted = true }
+            Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, dvrPanel, true) }
+            Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, dvrPanel, false) }
             z: 12
             anchors.centerIn: parent
             width: Math.min(520, parent.width - 36)
@@ -4408,6 +4556,7 @@ Item {
                 }
             }
             ListView {
+                id: dvrRecordingList
                 x: 18
                 y: 158
                 width: parent.width - 36
@@ -4415,7 +4564,10 @@ Item {
                 clip: true
                 spacing: 6
                 model: (typeof Live !== "undefined") ? Live.recordings : []
+                focusPolicy: visible && count > 0 ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) { dvrRecordingKeyboard.handle(event) }
                 delegate: Rectangle {
+                    required property int index
                     required property var modelData
                     width: ListView.view.width
                     height: 88
@@ -4455,12 +4607,24 @@ Item {
                         x: parent.width - width - 10
                         y: 26
                         label: "Reveal"
+                        keyboardEnabled: false
                         visible: (modelData.outputPath || "").length > 0
                         enabled: (modelData.state || "recording") !== "recording"
                         onClicked: {
                             if (typeof Live !== "undefined")
                                 Live.revealRecording(modelData.id)
                         }
+                    }
+                }
+                KeyboardCollectionController {
+                    id: dvrRecordingKeyboard
+                    view: dvrRecordingList
+                    orientation: "vertical"
+                    count: dvrRecordingList.count
+                    onActivated: function(index) {
+                        if (typeof Live === "undefined" || index < 0 || index >= Live.recordings.length) return
+                        var row = Live.recordings[index] || ({})
+                        if ((row.outputPath || "").length > 0 && (row.state || "recording") !== "recording") Live.revealRecording(row.id)
                     }
                 }
             }
@@ -4615,6 +4779,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: mpv.revealCaptureFolder(root.frameGrabPath)
                     }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: parent.visible; accessibleName: "Open screenshot folder"; onTriggered: mpv.revealCaptureFolder(root.frameGrabPath) }
                 }
             }
         }
@@ -4684,6 +4849,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.stopGifRecording()
                     }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: parent.visible; accessibleName: "Stop GIF recording"; onTriggered: root.stopGifRecording() }
                 }
                 Text {
                     visible: root.gifState === "recording"
@@ -4698,6 +4864,7 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.abortGifRecording()
                     }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: parent.visible; accessibleName: "Discard GIF recording"; onTriggered: root.abortGifRecording() }
                 }
             }
         }
@@ -4778,6 +4945,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.performSegmentSkip(skipPill.activeSkip)
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: skipPill.visible; accessibleName: skipPill.activeSkip ? root.skipLabel(skipPill.activeSkip) : "Skip segment"; onTriggered: root.performSegmentSkip(skipPill.activeSkip) }
         }
 
         // Harbor-style "Up Next" card: visible, cancelable countdown to the next
@@ -4878,6 +5046,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.cancelUpNext()
                         }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: upNextCard.visible; accessibleName: "Cancel up next"; onTriggered: root.cancelUpNext() }
                     }
 
                     Rectangle {
@@ -4901,6 +5070,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.confirmUpNext()
                         }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: upNextCard.visible; accessibleName: "Play next episode now"; onTriggered: root.confirmUpNext() }
                     }
                 }
             }
@@ -5254,6 +5424,39 @@ Item {
                             root.seeking = false
                         }
                     }
+                    Item {
+                        id: seekKeyboard
+                        anchors.fill: parent
+                        enabled: mpv.duration > 0
+                        focusPolicy: enabled ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: function(event) {
+                            if (event.key === Qt.Key_Left) {
+                                root.requestUserSeekStep(-root.seekBackSeconds); event.accepted = true
+                            } else if (event.key === Qt.Key_Right) {
+                                root.requestUserSeekStep(root.seekForwardSeconds); event.accepted = true
+                            } else if (event.key === Qt.Key_Home) {
+                                root.requestUserSeekTo(0); event.accepted = true
+                            } else if (event.key === Qt.Key_End) {
+                                root.requestUserSeekTo(Math.max(0, mpv.duration - 0.5)); event.accepted = true
+                            } else if (event.key === Qt.Key_PageUp) {
+                                root.requestUserSeekStep(-60); event.accepted = true
+                            } else if (event.key === Qt.Key_PageDown) {
+                                root.requestUserSeekStep(60); event.accepted = true
+                            }
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: -3
+                            radius: 7
+                            visible: seekKeyboard.activeFocus
+                            color: "transparent"
+                            border.width: 2
+                            border.color: theme.gold
+                        }
+                        Accessible.role: Accessible.Slider
+                        Accessible.name: "Playback position"
+                        Accessible.value: root.fmtTime(root.displayPosition()) + " of " + root.fmtTime(mpv.duration)
+                    }
                 }
 
                 Text {
@@ -5278,6 +5481,14 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.showRemaining = !root.showRemaining
+                    }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        pointerEnabled: false
+                        accessibleName: root.showRemaining ? "Show total duration" : "Show remaining duration"
+                        focusRadius: 5
+                        onTriggered: root.showRemaining = !root.showRemaining
                     }
                 }
             }
@@ -5557,12 +5768,20 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: rcb.clicked()
         }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: rcb.label
+            focusRadius: rcb.radius
+            onTriggered: rcb.clicked()
+        }
     }
 
     component RoomActionButton: Item {
         id: rab
         property string label: ""
         property bool active: false
+        property bool keyboardEnabled: true
         signal clicked()
         width: Math.max(92, actionText.implicitWidth + 22)
         height: 34
@@ -5590,6 +5809,14 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: rab.clicked()
+        }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: rab.enabled && rab.keyboardEnabled
+            accessibleName: rab.label
+            focusRadius: 9
+            onTriggered: rab.clicked()
         }
     }
 
@@ -5640,6 +5867,16 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onEntered: root.wakeChrome()
             onClicked: rb.clicked()
+        }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: rb.tooltip.length ? rb.tooltip : rb.icon
+            focusRadius: rb.width / 2
+            onTriggered: {
+                root.wakeChrome()
+                rb.clicked()
+            }
         }
     }
 
@@ -5698,6 +5935,36 @@ Item {
                 onEntered: root.wakeChrome()
                 onPressed: apply()
                 onPositionChanged: if (pressed) apply()
+            }
+            Item {
+                id: volumeKeyboard
+                anchors.fill: parent
+                focusPolicy: Qt.TabFocus
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) {
+                        root.adjustVolume(event.modifiers & Qt.ShiftModifier ? -1 : -5)
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Up) {
+                        root.adjustVolume(event.modifiers & Qt.ShiftModifier ? 1 : 5)
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Home) {
+                        root.adjustVolumeTo(0); event.accepted = true
+                    } else if (event.key === Qt.Key_End) {
+                        root.adjustVolumeTo(100); event.accepted = true
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -3
+                    radius: 8
+                    visible: volumeKeyboard.activeFocus
+                    color: "transparent"
+                    border.width: 2
+                    border.color: theme.gold
+                }
+                Accessible.role: Accessible.Slider
+                Accessible.name: "Volume"
+                Accessible.value: Math.round(mpv.volume) + "%"
             }
         }
     }
@@ -5819,8 +6086,8 @@ Item {
                     radius: 8
                     property bool selected: modelData.selected === true
                     color: selected ? Qt.rgba(1, 1, 1, 0.10) : (trackMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-                    border.width: selected ? 1 : 0
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    border.width: (selected || (speedChoiceRepeater.activeFocus && speedChoiceRepeater.keyboardIndex === index)) ? (speedChoiceRepeater.activeFocus && speedChoiceRepeater.keyboardIndex === index ? 2 : 1) : 0
+                    border.color: speedChoiceRepeater.activeFocus && speedChoiceRepeater.keyboardIndex === index ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
                     Rectangle {
                         x: 10
                         y: 15
@@ -5915,6 +6182,15 @@ Item {
         id: sm
         property bool panelOpen: false
         property bool nonDefault: Math.abs(mpv.speed - 1) > 0.001
+        property var focusReturnItem: null
+        onPanelOpenChanged: {
+            if (panelOpen) {
+                sm.focusReturnItem = root.currentKeyboardFocusItem()
+                var idx = 0; for (var i = 0; i < root.speedChoices.length; ++i) if (Math.abs(root.speedChoices[i] - mpv.speed) < 0.01) { idx = i; break }
+                speedChoiceRepeater.keyboardIndex = idx
+                Qt.callLater(function() { speedChoiceRepeater.forceActiveFocus(Qt.PopupFocusReason) })
+            } else if (sm.focusReturnItem) { var target = sm.focusReturnItem; sm.focusReturnItem = null; root.restoreKeyboardFocus(target) }
+        }
         width: 40
         height: 40
         RoundButton {
@@ -5967,9 +6243,13 @@ Item {
             styleColor: Qt.rgba(0, 0, 0, 0.85)
         }
         Rectangle {
+            id: speedPopup
             // Reparented to full-screen chrome so rows above the dock stay clickable.
             parent: chrome
             visible: sm.panelOpen
+            Keys.onEscapePressed: { sm.panelOpen = false; event.accepted = true }
+            Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, true) }
+            Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, false) }
             z: 40
             width: 420
             // Two speed/sleep columns, then a full-width "Skip step" footer section below both.
@@ -6029,7 +6309,19 @@ Item {
                 color: Qt.rgba(1, 1, 1, 0.10)
             }
             Repeater {
+                id: speedChoiceRepeater
+                property int keyboardIndex: 0
                 model: root.speedChoices
+                focusPolicy: sm.panelOpen ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                        var next = keyboardIndex + (event.key === Qt.Key_Up ? -1 : 1)
+                        if (next >= 0 && next < root.speedChoices.length) { keyboardIndex = next; event.accepted = true }
+                    } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                    else if (event.key === Qt.Key_End) { keyboardIndex = root.speedChoices.length - 1; event.accepted = true }
+                    else if (event.key === Qt.Key_Right && root.sleepPresets.length) { sleepChoiceRepeater.keyboardIndex = Math.min(keyboardIndex, root.sleepPresets.length - 1); sleepChoiceRepeater.forceActiveFocus(Qt.TabFocusReason); event.accepted = true }
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { mpv.speed = root.speedChoices[keyboardIndex]; sm.panelOpen = false; root.wakeChrome(); event.accepted = true }
+                }
                 delegate: Rectangle {
                     required property int index
                     required property real modelData
@@ -6039,9 +6331,10 @@ Item {
                     height: 36
                     radius: 9
                     property bool selected: Math.abs(mpv.speed - modelData) < 0.01
+                    function choose() { mpv.speed = modelData; sm.panelOpen = false; root.wakeChrome() }
                     color: selected ? Qt.rgba(1, 1, 1, 0.10) : (speedMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-                    border.width: selected ? 1 : 0
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    border.width: (selected || (sleepChoiceRepeater.activeFocus && sleepChoiceRepeater.keyboardIndex === index)) ? (sleepChoiceRepeater.activeFocus && sleepChoiceRepeater.keyboardIndex === index ? 2 : 1) : 0
+                    border.color: sleepChoiceRepeater.activeFocus && sleepChoiceRepeater.keyboardIndex === index ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
                     // Harbor: "Normal" for 1×, else "1.25×" — left-aligned.
                     Text {
                         anchors.left: parent.left
@@ -6070,16 +6363,24 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            mpv.speed = modelData
-                            sm.panelOpen = false
-                            root.wakeChrome()
-                        }
+                        onClicked: parent.choose()
                     }
                 }
             }
             Repeater {
+                id: sleepChoiceRepeater
+                property int keyboardIndex: 0
                 model: root.sleepPresets
+                focusPolicy: sm.panelOpen && root.sleepPresets.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                        var next = keyboardIndex + (event.key === Qt.Key_Up ? -1 : 1)
+                        if (next >= 0 && next < root.sleepPresets.length) { keyboardIndex = next; event.accepted = true }
+                    } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                    else if (event.key === Qt.Key_End) { keyboardIndex = root.sleepPresets.length - 1; event.accepted = true }
+                    else if (event.key === Qt.Key_Left) { speedChoiceRepeater.keyboardIndex = Math.min(keyboardIndex, root.speedChoices.length - 1); speedChoiceRepeater.forceActiveFocus(Qt.TabFocusReason); event.accepted = true }
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.setSleepTimer(root.sleepPresets[keyboardIndex]); sm.panelOpen = false; root.wakeChrome(); event.accepted = true }
+                }
                 delegate: Rectangle {
                     required property int index
                     required property var modelData
@@ -6089,6 +6390,7 @@ Item {
                     height: 36
                     radius: 9
                     property bool selected: root.sleepPresetSelected(modelData)
+                    function choose() { root.setSleepTimer(modelData); sm.panelOpen = false; root.wakeChrome() }
                     color: selected ? Qt.rgba(1, 1, 1, 0.10) : (sleepMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
                     border.width: selected ? 1 : 0
                     border.color: Qt.rgba(1, 1, 1, 0.10)
@@ -6119,16 +6421,15 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            root.setSleepTimer(modelData)
-                            sm.panelOpen = false
-                            root.wakeChrome()
-                        }
+                        onClicked: parent.choose()
                     }
                 }
             }
             Rectangle {
+                id: cancelSleepRow
                 visible: root.sleepTimerActive
+                focusPolicy: visible && sm.panelOpen ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) { if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.cancelSleepTimer(); sm.panelOpen = false; event.accepted = true } else if (event.key === Qt.Key_Escape) { sm.panelOpen = false; event.accepted = true } }
                 x: parent.width / 2 + 8
                 y: 46 + root.sleepPresets.length * 38
                 width: parent.width / 2 - 16
@@ -6179,15 +6480,28 @@ Item {
                 y: parent.skipStepTop + 22
                 spacing: 6
                 Repeater {
-                    model: [5, 10, 30, 60]
+                    id: skipStepRepeater
+                    readonly property var values: [5, 10, 30, 60]
+                    property int keyboardIndex: Math.max(0, values.indexOf(playerSettings.seekStepSeconds))
+                    model: values
+                    focusPolicy: sm.panelOpen ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                            var next = keyboardIndex + (event.key === Qt.Key_Left ? -1 : 1)
+                            if (next >= 0 && next < values.length) { keyboardIndex = next; event.accepted = true }
+                        } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                        else if (event.key === Qt.Key_End) { keyboardIndex = values.length - 1; event.accepted = true }
+                        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { playerSettings.seekStepSeconds = values[keyboardIndex]; event.accepted = true }
+                    }
                     delegate: Rectangle {
+                        required property int index
                         required property int modelData
                         width: 46
                         height: 28
                         radius: 7
                         color: playerSettings.seekStepSeconds === modelData ? Qt.rgba(1, 1, 1, 0.16) : (pillArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05))
-                        border.width: 1
-                        border.color: playerSettings.seekStepSeconds === modelData ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
+                        border.width: skipStepRepeater.activeFocus && skipStepRepeater.keyboardIndex === index ? 2 : 1
+                        border.color: (skipStepRepeater.activeFocus && skipStepRepeater.keyboardIndex === index) || playerSettings.seekStepSeconds === modelData ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
                         Text {
                             anchors.centerIn: parent
                             text: modelData + "s"
@@ -6211,6 +6525,14 @@ Item {
     component FillMenuButton: Item {
         id: fm
         property bool panelOpen: false
+        property var focusReturnItem: null
+        onPanelOpenChanged: {
+            if (panelOpen) {
+                fm.focusReturnItem = root.currentKeyboardFocusItem()
+                fillChoiceRepeater.keyboardIndex = Math.max(0, root.fillModeIndex)
+                Qt.callLater(function() { fillChoiceRepeater.forceActiveFocus(Qt.PopupFocusReason) })
+            } else if (fm.focusReturnItem) { var target = fm.focusReturnItem; fm.focusReturnItem = null; root.restoreKeyboardFocus(target) }
+        }
         width: 48
         height: 48
         RoundButton {
@@ -6227,6 +6549,10 @@ Item {
             }
         }
         Rectangle {
+            id: fillPopup
+            Keys.onEscapePressed: { fm.panelOpen = false; event.accepted = true }
+            Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, fillPopup, true) }
+            Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, fillPopup, false) }
             // Reparented to the full-screen chrome layer: a popover nested in the short
             // bottom dock loses clicks on any row that renders above the dock (Qt bounds
             // pointer delivery to the dock ancestor). In chrome the whole panel is clickable.
@@ -6265,7 +6591,18 @@ Item {
                 font.weight: Font.DemiBold
             }
             Repeater {
+                id: fillChoiceRepeater
+                property int keyboardIndex: Math.max(0, root.fillModeIndex)
                 model: root.fillModes
+                focusPolicy: fm.panelOpen ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                        var next = keyboardIndex + (event.key === Qt.Key_Up ? -1 : 1)
+                        if (next >= 0 && next < root.fillModes.length) { keyboardIndex = next; event.accepted = true }
+                    } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                    else if (event.key === Qt.Key_End) { keyboardIndex = root.fillModes.length - 1; event.accepted = true }
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.applyFill(keyboardIndex); fm.panelOpen = false; event.accepted = true }
+                }
                 delegate: Rectangle {
                     required property int index
                     required property var modelData
@@ -6275,6 +6612,8 @@ Item {
                     height: 32
                     radius: 8
                     property bool selected: root.fillModeIndex === index
+                    border.width: fillChoiceRepeater.activeFocus && fillChoiceRepeater.keyboardIndex === index ? 2 : 0
+                    border.color: theme.gold
                     color: selected ? Qt.rgba(1, 1, 1, 0.10) : (fillMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
                     Text {
                         anchors.centerIn: parent
@@ -6321,6 +6660,13 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: db.clicked()
+        }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: db.text
+            focusRadius: db.height / 2
+            onTriggered: db.clicked()
         }
     }
 

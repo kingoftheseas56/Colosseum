@@ -1,5 +1,6 @@
 import QtQuick
 import "Player2Shortcuts.js" as Shortcuts
+import "../../PlayerFocusContainment.js" as FocusContainment
 
 // A neutral, dismissible "keyboard shortcuts" reference overlay — a faithful re-implementation of the
 // current player's ShortcutsSheet (Feature 7): same centred panel, neutral group headers (no colour
@@ -17,6 +18,11 @@ Item {
     readonly property color edge: Qt.rgba(1, 1, 1, 0.10)
 
     anchors.fill: parent
+    focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+    onOpenChanged: if (open) Qt.callLater(function() { sheet.forceActiveFocus(Qt.PopupFocusReason) })
+    Keys.onEscapePressed: { sheet.open = false; event.accepted = true }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(sheet.Window.window, panel, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(sheet.Window.window, panel, false) }
     visible: opacity > 0.01
     opacity: open ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }

@@ -3,6 +3,7 @@
 // read-only cheat-sheet, NOT a layout/profile editor.
 import QtQuick
 import QtQuick.Controls
+import "PlayerFocusContainment.js" as FocusContainment
 
 Item {
     id: sheet
@@ -10,9 +11,23 @@ Item {
 
     property bool open: false
     property var groups: []
+    property var focusReturnItem: null
     signal dismissed()
 
     visible: open
+    focusPolicy: open ? Qt.TabFocus : Qt.NoFocus
+    onOpenChanged: {
+        if (open) {
+            var w = sheet.Window.window; sheet.focusReturnItem = w ? w.activeFocusItem : null
+            Qt.callLater(function() { flick.forceActiveFocus(Qt.PopupFocusReason) })
+        } else if (sheet.focusReturnItem) {
+            var target = sheet.focusReturnItem; sheet.focusReturnItem = null
+            Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+        }
+    }
+    Keys.onEscapePressed: { sheet.dismissed(); event.accepted = true }
+    Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(sheet.Window.window, panel, true) }
+    Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(sheet.Window.window, panel, false) }
     z: 60
 
     Theme { id: theme }
@@ -90,6 +105,8 @@ Item {
             clip: true
             contentHeight: groupsCol.height
             boundsBehavior: Flickable.StopAtBounds
+            focusPolicy: sheet.open ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) { shortcutScroll.handle(event) }
             ScrollBar.vertical: HouseScrollBar { flick: flick }
 
             Column {
@@ -166,6 +183,7 @@ Item {
             }
         }
 
-        ScrollGlide { flick: flick }
+        ScrollGlide { id: shortcutGlide; flick: flick }
+        KeyboardScrollController { id: shortcutScroll; flick: flick; glide: shortcutGlide }
     }
 }

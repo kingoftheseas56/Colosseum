@@ -1,6 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "PlayerFocusContainment.js" as FocusContainment
+
+// Arc 41: semantic keyboard actions come from the shared root QML module.
 
 Item {
     id: menu
@@ -32,6 +35,32 @@ Item {
     signal resetDelay()
 
     readonly property bool many: (tracks || []).length > 1
+    property var focusReturnItem: null
+    function restoreFocus() {
+        var target = menu.focusReturnItem; menu.focusReturnItem = null
+        Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+    }
+
+    function selectedRowIndex() {
+        for (var i = 0; i < (menu.tracks || []).length; ++i)
+            if (String(menu.tracks[i].id) === menu.selectedId || menu.tracks[i].selected === true) return i
+        return (menu.tracks || []).length ? 0 : -1
+    }
+    function chooseTrack(index) {
+        if (index < 0 || index >= (menu.tracks || []).length) return
+        menu.trackPicked(String(menu.tracks[index].id))
+        menu.panelOpen = false
+    }
+    onPanelOpenChanged: {
+        if (panelOpen) {
+            var w = menu.Window.window; menu.focusReturnItem = w ? w.activeFocusItem : null
+            Qt.callLater(function() {
+                audioList.currentIndex = menu.selectedRowIndex()
+                if (menu.many) audioList.forceActiveFocus(Qt.PopupFocusReason)
+                else audioPopover.forceActiveFocus(Qt.PopupFocusReason)
+            })
+        } else if (menu.focusReturnItem) menu.restoreFocus()
+    }
 
     function fmtSigned(value) {
         return (value >= 0 ? "+" : "") + Number(value).toFixed(2) + "s";
@@ -101,6 +130,13 @@ Item {
             cursorShape: menu.many ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: menu.toggleRequested(menu.panelOpen)
         }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: menu.many
+            accessibleName: menu.title.length ? menu.title : "Audio tracks"
+            onTriggered: menu.toggleRequested(menu.panelOpen)
+        }
     }
 
     Rectangle {
@@ -131,6 +167,10 @@ Item {
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.14)
         clip: true
+        focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+        Keys.onEscapePressed: { menu.panelOpen = false; event.accepted = true }
+        Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, audioPopover, true) }
+        Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, audioPopover, false) }
 
         // Absorb background clicks: the panel body must never fall through to the player's
         // fullscreen catcher (which would dismiss the menu). Parity spec 2026-07-06 F2.
@@ -191,9 +231,12 @@ Item {
             spacing: 2
             boundsBehavior: Flickable.StopAtBounds
             model: menu.tracks
+            focusPolicy: visible && menu.many ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: function(event) { audioKeyboard.handle(event) }
 
             delegate: Rectangle {
                 id: row
+                required property int index
                 required property var modelData
                 width: ListView.view.width
                 height: 50
@@ -271,12 +314,17 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        menu.trackPicked(String(row.modelData.id));
-                        menu.panelOpen = false;
-                    }
+                    onClicked: menu.chooseTrack(row.index)
                 }
             }
+        }
+
+        KeyboardCollectionController {
+            id: audioKeyboard
+            view: audioList
+            orientation: "vertical"
+            count: audioList.count
+            onActivated: function(index) { menu.chooseTrack(index) }
         }
 
         Text {
@@ -334,6 +382,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: closeButton.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close audio menu"; onTriggered: closeButton.clicked() }
     }
 
     component DelayRow: Rectangle {
@@ -413,6 +462,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: stepButton.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: stepButton.text; onTriggered: stepButton.clicked() }
     }
 
     component IconGlyph: Canvas {

@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Dialogs
 import "Subtitles.js" as Subtitles
 import "SubtitleGroups.js" as SubtitleGroups
+import "PlayerFocusContainment.js" as FocusContainment
 
 Item {
     id: menu
@@ -65,6 +66,11 @@ Item {
     readonly property int allCount: (tracks || []).length
     readonly property int embeddedCount: countSource(false)
     readonly property int externalCount: countSource(true)
+    property var focusReturnItem: null
+    function restoreFocus() {
+        var target = menu.focusReturnItem; menu.focusReturnItem = null
+        Qt.callLater(function() { if (target && target.visible && target.enabled && target.forceActiveFocus) target.forceActiveFocus(Qt.TabFocusReason) })
+    }
 
     signal toggleRequested(bool wasOpen)
     signal trackPicked(string trackId)
@@ -75,6 +81,16 @@ Item {
     signal styleRequested()
     signal fileLoaded(url fileUrl)
     signal onlinePicked(string fileUrl, string title, string lang)
+
+    function movePanelFocus(forward) {
+        var w = menu.Window.window
+        var item = w ? w.activeFocusItem : null
+        if (!item || !item.nextItemInFocusChain) return false
+        var next = item.nextItemInFocusChain(forward)
+        if (!next || next === item) return false
+        next.forceActiveFocus(Qt.TabFocusReason)
+        return true
+    }
 
     function countSource(external) {
         var n = 0;
@@ -191,7 +207,15 @@ Item {
     }
 
     onSelectedIdChanged: resolvePending()
-    onPanelOpenChanged: if (!panelOpen) { clearPending(); pendingTimer.stop(); selectionError = ""; }
+    onPanelOpenChanged: {
+        if (!panelOpen) {
+            clearPending(); pendingTimer.stop(); selectionError = ""
+            if (menu.focusReturnItem) menu.restoreFocus()
+            return
+        }
+        var w = menu.Window.window; menu.focusReturnItem = w ? w.activeFocusItem : null
+        Qt.callLater(function() { panel.forceActiveFocus(Qt.PopupFocusReason) })
+    }
 
     Timer { id: pendingTimer; interval: 8000; onTriggered: menu.failPending() }
 
@@ -236,6 +260,12 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: menu.toggleRequested(menu.panelOpen)
         }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: menu.title.length ? menu.title : "Subtitles"
+            onTriggered: menu.toggleRequested(menu.panelOpen)
+        }
     }
 
     Rectangle {
@@ -266,6 +296,14 @@ Item {
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.14)
         clip: true
+        focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) { menu.panelOpen = false; event.accepted = true }
+            else if (event.key === Qt.Key_Down) event.accepted = menu.movePanelFocus(true)
+            else if (event.key === Qt.Key_Up) event.accepted = menu.movePanelFocus(false)
+        }
+        Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, true) }
+        Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(menu.Window.window, panel, false) }
 
         // Absorb background clicks: the panel body must never fall through to the player's
         // fullscreen catcher (which would dismiss the menu). Parity spec 2026-07-06 F2.
@@ -375,24 +413,50 @@ Item {
                         font.weight: Font.Bold
                         font.letterSpacing: 1.6
                     }
-                    AsideItem {
-                        visible: menu.groups.length > 1
+                    Column {
+                        id: languageCollection
                         width: parent.width
-                        text: "All"
-                        selected: menu.lang === "__all__"
-                        countText: ""
-                        iconText: "Aa"
-                        onClicked: menu.lang = "__all__"
-                    }
-                    Repeater {
-                        model: menu.groups
-                        delegate: AsideItem {
-                            required property var modelData
-                            width: asideColumn.width
-                            text: modelData.label
-                            selected: menu.lang === modelData.key
-                            countText: modelData.count
-                            onClicked: menu.lang = modelData.key
+                        readonly property bool hasAll: menu.groups.length > 1
+                        readonly property int choiceCount: menu.groups.length + (hasAll ? 1 : 0)
+                        property int keyboardIndex: 0
+                        focusPolicy: choiceCount > 0 ? Qt.TabFocus : Qt.NoFocus
+                        function activate(index) {
+                            if (index < 0 || index >= choiceCount) return
+                            if (hasAll && index === 0) menu.lang = "__all__"
+                            else { var gi = index - (hasAll ? 1 : 0); if (gi >= 0 && gi < menu.groups.length) menu.lang = menu.groups[gi].key }
+                        }
+                        Keys.onPressed: function(event) {
+                            if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                                var next = keyboardIndex + (event.key === Qt.Key_Up ? -1 : 1)
+                                if (next >= 0 && next < choiceCount) { keyboardIndex = next; event.accepted = true }
+                            } else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                            else if (event.key === Qt.Key_End) { keyboardIndex = choiceCount - 1; event.accepted = true }
+                            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { activate(keyboardIndex); event.accepted = true }
+                        }
+                        AsideItem {
+                            visible: languageCollection.hasAll
+                            width: parent.width
+                            text: "All"
+                            selected: menu.lang === "__all__"
+                            countText: ""
+                            iconText: "Aa"
+                            keyboardEnabled: false
+                            keyboardHighlighted: languageCollection.activeFocus && languageCollection.keyboardIndex === 0
+                            onClicked: menu.lang = "__all__"
+                        }
+                        Repeater {
+                            model: menu.groups
+                            delegate: AsideItem {
+                                required property int index
+                                required property var modelData
+                                width: languageCollection.width
+                                text: modelData.label
+                                selected: menu.lang === modelData.key
+                                countText: modelData.count
+                                keyboardEnabled: false
+                                keyboardHighlighted: languageCollection.activeFocus && languageCollection.keyboardIndex === index + (languageCollection.hasAll ? 1 : 0)
+                                onClicked: menu.lang = modelData.key
+                            }
                         }
                     }
                 }
@@ -417,36 +481,32 @@ Item {
                     width: parent.width - 24
                     height: 27
                     spacing: 6
-                    TabPill {
-                        text: "All " + menu.allCount
-                        selected: menu.source === "all"
-                        onClicked: menu.source = "all"
+                    Row {
+                        id: sourceStrip
+                        property int keyboardIndex: menu.source === "embedded" ? 1 : menu.source === "external" ? 2 : 0
+                        spacing: 6
+                        focusPolicy: menu.panelOpen ? Qt.TabFocus : Qt.NoFocus
+                        function enabledAt(index) { return index === 0 || (index === 1 ? menu.embeddedCount > 0 : menu.externalCount > 0) }
+                        function activate(index) { if (!enabledAt(index)) return; menu.source = index === 0 ? "all" : index === 1 ? "embedded" : "external" }
+                        function step(delta) {
+                            var next = keyboardIndex + delta
+                            while (next >= 0 && next < 3 && !enabledAt(next)) next += delta
+                            if (next >= 0 && next < 3) { keyboardIndex = next; return true }
+                            return false
+                        }
+                        Keys.onPressed: function(event) {
+                            if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) event.accepted = step(event.key === Qt.Key_Left ? -1 : 1)
+                            else if (event.key === Qt.Key_Home) { keyboardIndex = 0; event.accepted = true }
+                            else if (event.key === Qt.Key_End) { keyboardIndex = menu.externalCount > 0 ? 2 : menu.embeddedCount > 0 ? 1 : 0; event.accepted = true }
+                            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { activate(keyboardIndex); event.accepted = true }
+                        }
+                        TabPill { text: "All " + menu.allCount; selected: menu.source === "all"; keyboardEnabled: false; keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 0; onClicked: menu.source = "all" }
+                        TabPill { text: "Embedded " + menu.embeddedCount; selected: menu.source === "embedded"; enabled: menu.embeddedCount > 0; keyboardEnabled: false; keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 1; onClicked: menu.source = "embedded" }
+                        TabPill { text: "External " + menu.externalCount; selected: menu.source === "external"; enabled: menu.externalCount > 0; keyboardEnabled: false; keyboardHighlighted: sourceStrip.activeFocus && sourceStrip.keyboardIndex === 2; onClicked: menu.source = "external" }
                     }
-                    TabPill {
-                        text: "Embedded " + menu.embeddedCount
-                        selected: menu.source === "embedded"
-                        enabled: menu.embeddedCount > 0
-                        onClicked: menu.source = "embedded"
-                    }
-                    TabPill {
-                        text: "External " + menu.externalCount
-                        selected: menu.source === "external"
-                        enabled: menu.externalCount > 0
-                        onClicked: menu.source = "external"
-                    }
-                    Item { width: Math.max(0, tabs.width - 288); height: 1 }
-                    TabPill {
-                        text: "HI"
-                        selected: menu.hi
-                        compact: true
-                        onClicked: menu.hi = !menu.hi
-                    }
-                    TabPill {
-                        text: "Forced"
-                        selected: menu.forced
-                        compact: true
-                        onClicked: menu.forced = !menu.forced
-                    }
+                    Item { width: Math.max(0, tabs.width - sourceStrip.width - 106); height: 1 }
+                    TabPill { text: "HI"; selected: menu.hi; compact: true; onClicked: menu.hi = !menu.hi }
+                    TabPill { text: "Forced"; selected: menu.forced; compact: true; onClicked: menu.forced = !menu.forced }
                 }
                 Rectangle {
                     x: 0
@@ -465,14 +525,24 @@ Item {
                     spacing: 4
                     boundsBehavior: Flickable.StopAtBounds
                     model: menu.visibleTracks
+                    focusPolicy: menu.panelOpen && count > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: function(event) { variantKeyboard.handle(event) }
                     delegate: VariantRow {
                         required property var modelData
                         width: variants.width
                         track: modelData
                         selected: String(modelData.id) === menu.selectedId || modelData.selected === true
                         pending: menu.pendingId.length > 0 && String(modelData.id) === menu.pendingId
+                        keyboardEnabled: false
                         onClicked: menu.pickTrack(String(modelData.id))
                     }
+                }
+                KeyboardCollectionController {
+                    id: variantKeyboard
+                    view: variants
+                    orientation: "vertical"
+                    count: variants.count
+                    onActivated: function(index) { if (index >= 0 && index < menu.visibleTracks.length) menu.pickTrack(String(menu.visibleTracks[index].id)) }
                 }
                 Text {
                     visible: menu.visibleTracks.length === 0
@@ -562,6 +632,7 @@ Item {
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: menu.runSearch()
                         }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: menu.searchId.length > 0 && !menu.searchLoading; accessibleName: "Search subtitles"; onTriggered: menu.runSearch() }
                     }
                 }
 
@@ -575,6 +646,8 @@ Item {
                     spacing: 4
                     boundsBehavior: Flickable.StopAtBounds
                     model: menu.searchResults || []
+                    focusPolicy: menu.panelOpen && count > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: function(event) { searchKeyboard.handle(event) }
                     delegate: Rectangle {
                         id: resultRow
                         required property int index
@@ -623,6 +696,16 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: menu.pickOnline(resultRow.modelData.url, resultRow.modelData.title || resultRow.modelData.label || "OpenSubtitles", resultRow.modelData.lang || "")
                         }
+                    }
+                }
+                KeyboardCollectionController {
+                    id: searchKeyboard
+                    view: searchList
+                    orientation: "vertical"
+                    count: searchList.count
+                    onActivated: function(index) {
+                        var row = (menu.searchResults || [])[index]; if (!row) return
+                        menu.pickOnline(row.url, row.title || row.label || "OpenSubtitles", row.lang || "")
                     }
                 }
                 Text {
@@ -712,6 +795,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.icon === "x" ? "Close subtitles" : "Subtitle appearance"; onTriggered: button.clicked() }
     }
 
     component AsideItem: Rectangle {
@@ -721,12 +805,14 @@ Item {
         property string iconText: ""
         property bool selected: false
         property bool radio: false
+        property bool keyboardEnabled: true
+        property bool keyboardHighlighted: false
         signal clicked()
         height: 32
         radius: 8
         color: selected ? Qt.rgba(1, 1, 1, 0.10) : itemMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent"
-        border.width: selected ? 1 : 0
-        border.color: Qt.rgba(1, 1, 1, 0.11)
+        border.width: (selected || keyboardHighlighted) ? (keyboardHighlighted ? 2 : 1) : 0
+        border.color: keyboardHighlighted ? theme.gold : Qt.rgba(1, 1, 1, 0.11)
         Rectangle {
             visible: item.radio || item.iconText === ""
             x: 8
@@ -783,6 +869,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: item.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: item.keyboardEnabled; accessibleName: item.text; onTriggered: item.clicked() }
     }
 
     component TabPill: Rectangle {
@@ -790,11 +877,15 @@ Item {
         property string text: ""
         property bool selected: false
         property bool compact: false
+        property bool keyboardEnabled: true
+        property bool keyboardHighlighted: false
         signal clicked()
         width: compact ? 48 : Math.max(72, label.implicitWidth + 20)
         height: 24
         radius: 12
         color: selected ? theme.gold : Qt.rgba(1, 1, 1, 0.08)
+        border.width: keyboardHighlighted ? 2 : 0
+        border.color: theme.gold
         opacity: enabled ? 1 : 0.4
         Text {
             id: label
@@ -812,6 +903,7 @@ Item {
             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: pill.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: pill.enabled && pill.keyboardEnabled; accessibleName: pill.text; onTriggered: pill.clicked() }
     }
 
     component VariantRow: Rectangle {
@@ -819,6 +911,7 @@ Item {
         property var track
         property bool selected: false
         property bool pending: false
+        property bool keyboardEnabled: true
         signal clicked()
         height: 54
         radius: 8
@@ -883,6 +976,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: row.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: row.keyboardEnabled; accessibleName: menu.rowLabel(row.track); onTriggered: row.clicked() }
     }
 
     component FooterButton: Rectangle {
@@ -919,6 +1013,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onTriggered: button.clicked() }
     }
 
     component DelayRow: Rectangle {
@@ -994,6 +1089,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: button.clicked()
         }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: button.text; onTriggered: button.clicked() }
     }
 
     component IconGlyph: Canvas {

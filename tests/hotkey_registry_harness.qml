@@ -17,6 +17,9 @@ QtObject {
     readonly property int k5: 0x35
     readonly property int kS: 0x53
     readonly property int kC: 0x43
+    readonly property int kE: 0x45
+    readonly property int kMenu: 0x01000055
+    readonly property int kF10: 0x01000039
     readonly property int kF: 0x46
 
     Component.onCompleted: {
@@ -51,6 +54,9 @@ QtObject {
         assertBinding("?", "shortcuts")
         assertBinding("S", "cycleSubtitle")
         assertBinding("C", "cycleSubtitle")
+        assertBinding("E", "browser")
+        assertBinding("Menu", "contextMenu")
+        assertBinding("Shift+F10", "contextMenu")
         assertBinding("Shift+Z", "subtitleDelayDown")   // shifted letter normalizes to the letter
         if (PlayerHotkeys.actionForBinding("F") !== null)
             throw new Error("F must not be a player fullscreen toggle.")
@@ -71,6 +77,11 @@ QtObject {
         assertEvent(kSlash, 0x02000000, "shortcuts")  // Shift+/ also yields ?
         assertEvent(kS, 0, "cycleSubtitle")
         assertEvent(kC, 0, "cycleSubtitle")
+        assertEvent(kE, 0, "browser")
+        assertEvent(kMenu, 0, "contextMenu")
+        assertEvent(kF10, 0x02000000, "contextMenu")
+        if (PlayerHotkeys.actionForEvent({ key: kF10, modifiers: 0 }) !== null)
+            throw new Error("F10 without Shift must not open More controls.")
         if (PlayerHotkeys.actionForEvent({ key: kF, modifiers: 0 }) !== null)
             throw new Error("F key event must resolve to no action (fullscreen-only).")
 
