@@ -1,0 +1,34 @@
+name: apply-linux-qualified-forward-port
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-qualified-patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'integration/linux-116-beta-build'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Apply qualified Linux diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .github/linux-forwardport.patch
+          git apply .github/linux-forwardport.patch
+          test "$(git hash-object .github/workflows/desktop-ci.yml)" = "0258d649c9844e8f43284d63c486211682af97d9"
+          test "$(git hash-object native/account/AccountAttachmentCoordinator.cpp)" = "a99c5a44633a7abc8750151b771fae79a8c7e506"
+          test "$(git hash-object tests/CMakeLists.txt)" = "636d6eebf218a81681910d94b8878d094f0ea6b2"
+          test "$(git hash-object tests/auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp)" = "1e9e4b75041889bba2dea1bbcb1cfddbeab6e2d9"
+          git add .github/workflows/desktop-ci.yml native/account/AccountAttachmentCoordinator.cpp tests/CMakeLists.txt tests/auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp
+          git diff --cached --check
+          git config user.name "Colosseum Linux Integration"
+          git config user.email "integration@local.invalid"
+          git commit -m "feat(linux): publish qualified forward-port"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
