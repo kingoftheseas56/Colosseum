@@ -524,7 +524,9 @@ prepareRememberedAccount(
             == ProfilePaths::Kind::Account) {
         if (active.profileId()
             == paths->profileId()) {
-            return true;
+            return prepareAccountSession(
+                accountId,
+                error);
         }
 
         return setError(

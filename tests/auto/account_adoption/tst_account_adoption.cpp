@@ -237,6 +237,7 @@ private slots:
     void ordinarySignInAdoptsLegacyLocalState();
     void ordinarySignInMergesExistingAccountWithLocalOnlyState();
     void activeAccountSessionMergesLaterLocalOnlyState();
+    void rememberedAccountSessionMergesLaterLocalOnlyState();
     void continueLocalBeforeAdoptionKeepsLegacyAuthority();
     void continueLocalAfterAdoptionUsesDedicatedLocalProfile();
     void corruptRestartRestoresLegacyAndLeavesRetryIntent();
@@ -638,6 +639,62 @@ activeAccountSessionMergesLaterLocalOnlyState() {
         QStringLiteral("movie\x1flate-local-movie")));
     QVERIFY(merged->collectionEntries.contains(
         QStringLiteral("Theatre\x1flate-local-movie")));
+
+    const auto localAfter = localStorage->capture(&error);
+    QVERIFY2(localAfter.has_value(), qPrintable(error));
+    QVERIFY(localAfter->isEmpty());
+}
+
+void tst_account_adoption::
+rememberedAccountSessionMergesLaterLocalOnlyState() {
+    AdoptionFixture fixture;
+    const ProfilePaths accountPaths = fixture.accountPaths();
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(accountPaths);
+    QVERIFY(accountStorage.has_value());
+    QVERIFY(QDir().mkpath(accountPaths.profileRoot()));
+    QVERIFY(accountStorage->restorePersonalState(populatedSnapshot()));
+
+    ProfileStoreRuntime runtime(
+        fixture.legacy,
+        fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(
+        &runtime,
+        fixture.appDataRoot);
+
+    QString error;
+    QVERIFY2(
+        coordinator.prepareAccountSession(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+
+    PersonalStateSnapshot laterLocalState;
+    laterLocalState.progressEntries.insert(
+        QStringLiteral("movie\x1fremembered-local-movie"),
+        QJsonObject{
+            {QStringLiteral("id"), QStringLiteral("remembered-local-movie")},
+            {QStringLiteral("kind"), QStringLiteral("movie")},
+            {QStringLiteral("progress"), 0.4},
+            {QStringLiteral("updatedAt"), 1720000005000.0}});
+
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(fixture.appDataRoot);
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(localPaths);
+    QVERIFY(localStorage.has_value());
+    QVERIFY(localStorage->restorePersonalState(laterLocalState));
+
+    QVERIFY2(
+        coordinator.prepareRememberedAccount(
+            QString::fromLatin1(kAccountA),
+            &error),
+        qPrintable(error));
+
+    const auto merged = accountStorage->capture(&error);
+    QVERIFY2(merged.has_value(), qPrintable(error));
+    QVERIFY(merged->progressEntries.contains(
+        QStringLiteral("movie\x1fremembered-local-movie")));
 
     const auto localAfter = localStorage->capture(&error);
     QVERIFY2(localAfter.has_value(), qPrintable(error));
