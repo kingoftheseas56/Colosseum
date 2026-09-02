@@ -162,11 +162,12 @@ jobs:
           $ErrorActionPreference = 'Continue'
           $PSNativeCommandUseErrorActionPreference = $false  # gn/python/cmake write routine progress to stderr; must not abort the step
           # Mirrors the local configure-webengine.cmd but as a stripped Release
-          # build: -release => symbol_level=0, far smaller/faster/lighter than the
-          # local RelWithDebInfo attempt. Proprietary codecs + Chrome ffmpeg branding
-          # bring H.264/AAC; Widevine stays on by default.
+          # build, far smaller/faster/lighter than the local RelWithDebInfo attempt.
+          # qt-configure-module accepts module switches before `--`; the build type
+          # must be passed as a CMake definition after `--`.
+          # Proprietary codecs + Chrome ffmpeg branding bring H.264/AAC; Widevine
+          # stays on by default.
           & "$env:QT_ROOT_DIR\bin\qt-configure-module.bat" $env:WEBENGINE_SRC `
-            -release `
             -webengine-proprietary-codecs `
             -no-webengine-printing-and-pdf `
             -no-webengine-spellchecker `
@@ -174,6 +175,7 @@ jobs:
             -no-build-qtpdf `
             -- `
             -B "$env:WEBENGINE_BUILD_DIR" `
+            -DCMAKE_BUILD_TYPE=Release `
             "-DCMAKE_INSTALL_PREFIX=$env:WEBENGINE_INSTALL_DIR" `
             -DFEATURE_qtwebengine_widgets_build=OFF `
             -DFEATURE_webengine_geolocation=OFF `
@@ -181,6 +183,9 @@ jobs:
             -DFEATURE_webengine_extensions=OFF `
             -DFEATURE_webenginedriver=OFF
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path -LiteralPath $env:WEBENGINE_BUILD_DIR -PathType Container)) {
+            throw "Qt module configure did not create build directory: $env:WEBENGINE_BUILD_DIR"
+          }
 
       - name: Build WebEngine
         shell: pwsh
