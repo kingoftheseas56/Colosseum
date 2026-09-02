@@ -31,7 +31,16 @@ namespace BookStores {
 // SAME fingerprint to read those records — so both call HERE, never their own copy.
 QString keyFor(const QString& absPath)
 {
-    const QString norm = QDir::fromNativeSeparators(absPath);
+    QString norm = QDir::fromNativeSeparators(absPath);
+    // On Linux, backslash is a valid filename character. Rewrite it only when the
+    // input itself has Windows absolute-path syntax so cross-platform keys stay stable.
+    const bool windowsDrivePath = norm.size() >= 3
+        && norm.at(0).isLetter()
+        && norm.at(1) == QLatin1Char(':')
+        && (norm.at(2) == QLatin1Char('\\') || norm.at(2) == QLatin1Char('/'));
+    const bool windowsUncPath = norm.startsWith(QStringLiteral("\\\\"));
+    if (windowsDrivePath || windowsUncPath)
+        norm.replace(QLatin1Char('\\'), QLatin1Char('/'));
     const QByteArray hex =
         QCryptographicHash::hash(norm.toUtf8(), QCryptographicHash::Sha1).toHex();
     return QString::fromLatin1(hex.left(20));

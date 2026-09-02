@@ -16,7 +16,8 @@ class QNetworkReply;
 namespace Colosseum::Update {
 
 struct ReleaseCheckResult {
-    enum class Status { Valid, NotModified, Rejected, NetworkError } status = Status::Rejected;
+    enum class Status { Valid, NotModified, Rejected, NetworkError, ManualUpdateRequired }
+        status = Status::Rejected;
     Manifest manifest;
     QHash<QString, QUrl> assetUrls;
     QString etag;
@@ -32,6 +33,14 @@ struct ReleaseClientConfig {
     QString repository = QStringLiteral("kingoftheseas56/Colosseum");
     QByteArray publicKey;
     bool allowHttpForTests = false;
+#ifdef Q_OS_WIN
+    bool automaticInstallerSupported = true;
+#else
+    // Schema v1 names exactly one installer and has no platform identity. Until a
+    // platform-aware Linux artifact schema exists, a non-Windows build may verify
+    // release metadata but must never select an automatic installer from it.
+    bool automaticInstallerSupported = false;
+#endif
     int timeoutMs = 15000;
 };
 

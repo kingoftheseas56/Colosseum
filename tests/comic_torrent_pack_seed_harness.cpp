@@ -35,6 +35,7 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QRandomGenerator>
+#include <QStandardPaths>
 #include <QThread>
 #include <QVector>
 
@@ -89,9 +90,15 @@ bool writePage(const QString& dir, const QString& name, int size)
 bool zipDir(const QString& pagesDir, const QString& archivePath)
 {
     QFile::remove(archivePath);
-    return QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
-        {QStringLiteral("-cf"), archivePath, QStringLiteral("--format"), QStringLiteral("zip"),
-         QStringLiteral("-C"), pagesDir, QStringLiteral(".")}) == 0;
+#ifdef Q_OS_WIN
+    const QString archiveTool = QStringLiteral("C:/Windows/System32/tar.exe");
+#else
+    const QString archiveTool = QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
+    return !archiveTool.isEmpty()
+        && QProcess::execute(archiveTool,
+            {QStringLiteral("-cf"), archivePath, QStringLiteral("--format"), QStringLiteral("zip"),
+             QStringLiteral("-C"), pagesDir, QStringLiteral(".")}) == 0;
 }
 
 // Builds one CBZ at `archivePath` from `pageCount` fixture pages of

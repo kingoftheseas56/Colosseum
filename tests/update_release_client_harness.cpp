@@ -199,7 +199,7 @@ private:
     }
 };
 
-ReleaseClientConfig configFor(const FixtureServer& server)
+ReleaseClientConfig configFor(const FixtureServer& server, bool automaticInstallerSupported = true)
 {
     ReleaseClientConfig config;
     config.latestReleaseUrl = QUrl(server.baseUrl()
@@ -209,13 +209,14 @@ ReleaseClientConfig configFor(const FixtureServer& server)
         static_cast<qsizetype>(kUpdateTestPublicKey.size()));
     config.allowHttpForTests = true;
     config.timeoutMs = 250;
+    config.automaticInstallerSupported = automaticInstallerSupported;
     return config;
 }
 
 ReleaseCheckResult check(QNetworkAccessManager& nam, FixtureServer& server,
-                         const QString& priorEtag = {})
+                         const QString& priorEtag = {}, bool automaticInstallerSupported = true)
 {
-    UpdateReleaseClient client(&nam, configFor(server));
+    UpdateReleaseClient client(&nam, configFor(server, automaticInstallerSupported));
     ReleaseCheckResult result;
     bool called = false;
     QEventLoop loop;
@@ -264,6 +265,23 @@ int main(int argc, char** argv)
     FixtureServer server;
     require(server.listen(QHostAddress::LocalHost), "fixture server listens");
     server.rebuildLatest();
+
+    ReleaseClientConfig productionDefaults;
+#ifdef Q_OS_WIN
+    require(productionDefaults.automaticInstallerSupported,
+            "Windows production default keeps automatic installer selection enabled");
+#else
+    require(!productionDefaults.automaticInstallerSupported,
+            "non-Windows production default fails closed to manual updates");
+#endif
+
+    const ReleaseCheckResult manual = check(nam, server, {}, false);
+    require(manual.status == ReleaseCheckResult::Status::ManualUpdateRequired,
+            "manual-only policy recognizes the signed release without selecting an installer");
+    require(manual.manifest.tag == QStringLiteral("v1.1.1"),
+            "manual-only policy preserves the verified release identity");
+    require(!manual.assetUrls.contains(QString::fromLatin1(kInstallerAsset)),
+            "manual-only policy never exposes the Windows installer URL");
 
     const ReleaseCheckResult valid = check(nam, server);
     require(valid.status == ReleaseCheckResult::Status::Valid, "valid stable release accepted");

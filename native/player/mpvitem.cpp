@@ -857,12 +857,16 @@ QString MpvItem::gifOutputDirectory() const
 
 QString MpvItem::findFfmpeg()
 {
+#ifdef Q_OS_WIN
     const QString exe = QStringLiteral("ffmpeg.exe");
+#else
+    const QString exe = QStringLiteral("ffmpeg");
+#endif
     const QString appPath = QCoreApplication::applicationDirPath();
     const QString local = QDir(appPath).filePath(exe);
     if (QFileInfo::exists(local))
         return local;
-    const QString tools = QDir(appPath).filePath(QStringLiteral("tools/ffmpeg.exe"));
+    const QString tools = QDir(appPath).filePath(QStringLiteral("tools/") + exe);
     if (QFileInfo::exists(tools))
         return tools;
     const QString pathHit = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));

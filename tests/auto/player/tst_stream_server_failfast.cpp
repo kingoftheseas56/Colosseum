@@ -10,8 +10,15 @@
 
 namespace {
 
+#if defined(Q_OS_LINUX)
+constexpr auto kRuntimeName = "stremio-runtime";
+constexpr auto kUnavailableMessage =
+    "Streaming engine unavailable. Install or start Stremio Service.";
+#else
+constexpr auto kRuntimeName = "stremio-runtime.exe";
 constexpr auto kUnavailableMessage =
     "Streaming engine unavailable. Repair or reinstall Colosseum.";
+#endif
 
 class ScopedEnvironment {
 public:
@@ -65,10 +72,16 @@ void tst_stream_server_failfast::failedStartReportsAndCanRetry()
     QTemporaryDir runtimeDir;
     QVERIFY(runtimeDir.isValid());
 
-    QFile invalidRuntime(runtimeDir.filePath(QStringLiteral("stremio-runtime.exe")));
+    QFile invalidRuntime(runtimeDir.filePath(QString::fromLatin1(kRuntimeName)));
     QVERIFY(invalidRuntime.open(QIODevice::WriteOnly));
-    QVERIFY(invalidRuntime.write("not a Windows executable") > 0);
+    QVERIFY(invalidRuntime.write("not a runtime executable") > 0);
     invalidRuntime.close();
+    QVERIFY(invalidRuntime.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                          | QFileDevice::ExeOwner));
+    QFile serverScript(runtimeDir.filePath(QStringLiteral("server.js")));
+    QVERIFY(serverScript.open(QIODevice::WriteOnly));
+    QVERIFY(serverScript.write("// fixture") > 0);
+    serverScript.close();
 
     QTcpServer probe;
     if (!probe.listen(QHostAddress::LocalHost, 11470))

@@ -42,6 +42,9 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
+if(UNIX AND NOT APPLE)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -629,6 +632,9 @@ target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(colosseum PRIVATE Qt6::DBus)
+endif()
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose
 # fingerprint differs; explicit dev/test QML overrides bypass this production gate.
@@ -747,6 +753,20 @@ add_executable(update_install_bridge_harness
 )
 target_include_directories(update_install_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(update_install_bridge_harness PRIVATE Qt6::Core Qt6::Network)
+
+add_executable(account_credential_persistence_harness
+    ../tests/account_credential_persistence_harness.cpp
+    account/WindowsAccountCredentialStore.cpp
+    account/WindowsAccountCredentialStore.h
+    account/AccountCredentialStore.h
+)
+target_include_directories(account_credential_persistence_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(account_credential_persistence_harness PRIVATE Qt6::Core)
+if(WIN32)
+    target_link_libraries(account_credential_persistence_harness PRIVATE Advapi32)
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(account_credential_persistence_harness PRIVATE Qt6::DBus)
+endif()
 
 
 add_executable(search_history_store_harness

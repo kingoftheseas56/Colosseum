@@ -9,6 +9,7 @@
 #include <QLockFile>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QStandardPaths>
 #include <QString>
 #include <QStringList>
 #include <QThread>
@@ -100,9 +101,9 @@ public:
         if (!m_frameGrabber)
             return fail(detail, QStringLiteral("scene-frame grabber is unavailable"));
 
-        m_ffmpegPath = bundledFfmpegPath();
+        m_ffmpegPath = ffmpegPath();
         if (m_ffmpegPath.isEmpty())
-            return fail(detail, QStringLiteral("bundled ffmpeg.exe was not found beside lanista"));
+            return fail(detail, QStringLiteral("ffmpeg was not found beside lanista or on PATH"));
 
         QDir().mkpath(m_outputRoot);
         m_lock = std::make_unique<QLockFile>(
@@ -299,11 +300,16 @@ private:
         return false;
     }
 
-    static QString bundledFfmpegPath()
+    static QString ffmpegPath()
     {
-        const QString path = QDir(QCoreApplication::applicationDirPath())
-                                 .filePath(QStringLiteral("tools/ffmpeg.exe"));
-        return QFileInfo::exists(path) ? QFileInfo(path).absoluteFilePath() : QString{};
+        const QString appPath = QCoreApplication::applicationDirPath();
+        const QString local = QDir(appPath).filePath(QStringLiteral("ffmpeg.exe"));
+        if (QFileInfo::exists(local))
+            return QFileInfo(local).absoluteFilePath();
+        const QString tools = QDir(appPath).filePath(QStringLiteral("tools/ffmpeg.exe"));
+        if (QFileInfo::exists(tools))
+            return QFileInfo(tools).absoluteFilePath();
+        return QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
     }
 
     static QString logTail(const QString& path)

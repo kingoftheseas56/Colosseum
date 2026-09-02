@@ -151,17 +151,28 @@ QString sevenZipPath()
     // machine's installed tools.
     const QByteArray overridePath = qgetenv("COLOSSEUM_COMIC_7ZIP_PATH");
     if (!overridePath.isNull()) return QString::fromLocal8Bit(overridePath);
-    const QString p = QStringLiteral("C:/Program Files/7-Zip/7z.exe");
-    return QFileInfo::exists(p) ? p : QString();
+#ifdef Q_OS_WIN
+    const QString bundled = QStringLiteral("C:/Program Files/7-Zip/7z.exe");
+    if (QFileInfo::exists(bundled)) return bundled;
+#endif
+    QString executable = QStandardPaths::findExecutable(QStringLiteral("7z"));
+    if (executable.isEmpty()) executable = QStandardPaths::findExecutable(QStringLiteral("7zz"));
+    return executable;
 }
 
 QString bsdtarPath()
 {
     const QByteArray overridePath = qgetenv("COLOSSEUM_COMIC_BSDTAR_PATH");
     if (!overridePath.isNull()) return QString::fromLocal8Bit(overridePath);
+#ifdef Q_OS_WIN
     const QString sys = QStringLiteral("C:/Windows/System32/tar.exe");
     if (QFileInfo::exists(sys)) return sys;
     return QStandardPaths::findExecutable(QStringLiteral("tar"));
+#else
+    // ZIP/CBZ and RAR extraction requires libarchive semantics. GNU tar may
+    // be named `tar` on Linux but cannot satisfy this contract.
+    return QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
 }
 
 // ── COLOSSEUM_COMIC_PACK_DLTEST fixture table (Task 11) ─────────────────────

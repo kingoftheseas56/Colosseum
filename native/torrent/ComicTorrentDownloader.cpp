@@ -821,49 +821,44 @@ void ComicTorrentDownloader::tryAssembleWhenReady(const QString& infoHash,
     // completion callback because cancellation or teardown may race it.
     const QString saveDir = job->saveDir;
     const QList<ComicSelectedFile> files = intent->decision.files;
-    auto* watcher = new QFutureWatcher<DiskReadiness>(this);
-    connect(watcher, &QFutureWatcher<DiskReadiness>::finished, this,
-        [this, watcher, infoHash, editionId, generation, attempt]() {
-            const DiskReadiness readiness = watcher->result();
-            watcher->deleteLater();
-
-            PackJob* currentJob = m_packJobs.value(infoHash);
-            EditionIntent* currentIntent = currentJob
-                ? packIntentFor(currentJob, editionId) : nullptr;
-            if (!currentJob || !currentIntent) return;
-            if (currentIntent->generation != generation) return;
-            if (currentIntent->terminal
-                || currentIntent->awaitingChoice
-                || !currentIntent->resolved
-                || currentIntent->decision.failure != ComicSelectionFailure::None) {
-                currentIntent->assembling = false;
-                return;
-            }
-
-            if (readiness == DiskReadiness::Flushing && attempt < kMaxAssembleReadyAttempts) {
-                // This readiness pass is complete; allow the next timer pass
-                // to dispatch a fresh filesystem probe instead of treating it
-                // as a duplicate assembly.
-                currentIntent->assembling = false;
-                QTimer::singleShot(kAssembleReadyRetryMs, this,
-                    [this, infoHash, editionId, generation, attempt]() {
-                        tryAssembleWhenReady(infoHash, editionId, generation, attempt + 1);
-                    });
-                return;
-            }
-            if (readiness == DiskReadiness::Flushing) {
-                qWarning() << "[ComicTorrentDownloader]" << editionId << "assembling after"
-                           << attempt << "readiness retries with files still short — the"
-                           << "extractor will surface any real error";
-            }
-            // Ready (success), Missing (assembler fails cleanly), or
-            // Flushing-exhausted.
-            assembleAndPublish(currentJob, *currentIntent, generation);
-            maybeTearDownPackJob(currentJob);
-        }, Qt::QueuedConnection);
-    watcher->setFuture(QtConcurrent::run([saveDir, files]() {
+    QtConcurrent::run([saveDir, files]() {
         return diskReadiness(saveDir, files);
-    }));
+    }).then(this, [this, infoHash, editionId, generation, attempt](DiskReadiness readiness) {
+        PackJob* currentJob = m_packJobs.value(infoHash);
+        EditionIntent* currentIntent = currentJob
+            ? packIntentFor(currentJob, editionId) : nullptr;
+        if (!currentJob || !currentIntent) return;
+        if (currentIntent->generation != generation) return;
+        if (currentIntent->terminal
+            || currentIntent->awaitingChoice
+            || !currentIntent->resolved
+            || currentIntent->decision.failure != ComicSelectionFailure::None) {
+            currentIntent->assembling = false;
+            return;
+        }
+
+        if (readiness == DiskReadiness::Flushing && attempt < kMaxAssembleReadyAttempts) {
+            // This readiness pass is complete; allow the next timer pass
+            // to dispatch a fresh filesystem probe instead of treating it
+            // as a duplicate assembly.
+            currentIntent->assembling = false;
+            QTimer::singleShot(kAssembleReadyRetryMs, this,
+                [this, infoHash, editionId, generation, attempt]() {
+                    tryAssembleWhenReady(infoHash, editionId, generation, attempt + 1);
+                });
+            return;
+        }
+        if (readiness == DiskReadiness::Flushing) {
+            qWarning() << "[ComicTorrentDownloader]" << editionId << "assembling after"
+                       << attempt << "readiness retries with files still short — the"
+                       << "extractor will surface any real error";
+        }
+        // Ready (success), Missing (assembler fails cleanly), or
+        // Flushing-exhausted.
+        assembleAndPublish(currentJob, *currentIntent, generation);
+        maybeTearDownPackJob(currentJob);
+    });
+
 }
 
 QString ComicTorrentDownloader::publishLabel(

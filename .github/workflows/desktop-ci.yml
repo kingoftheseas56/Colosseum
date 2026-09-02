@@ -26,6 +26,27 @@ jobs:
       - name: Reject maintainer-private paths
         run: python scripts/check_public_paths.py
 
+  linux-runtime-contract:
+    needs: public-trust
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install minimum Linux runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxcb-cursor0 libmpv2
+      - name: Verify Linux runtime dependency contract
+        run: |
+          python -m unittest -v tests.test_linux_runtime_dependency_gate
+          python scripts/linux_runtime_dependency_gate.py
+          # mpv CLI is optional for the beta: missing means DVR fails closed, not Player 1.
+          apt-cache show mpv >/dev/null
+
   windows-desktop:
     needs: public-trust
     runs-on: windows-2025
@@ -278,6 +299,185 @@ jobs:
             & (Join-Path $env:COLOSSEUM_ASAN_BUILD "$target.exe")
             if ($LASTEXITCODE -ne 0) { throw "$target failed under AddressSanitizer" }
           }
+
+  linux-desktop:
+    needs: public-trust
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      ECM_VERSION: "6.15.0"
+      ECM_SHA256: "f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2"
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+      LLVM_VERSION: "20.1.2"
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config ccache \
+            clang-tidy-20 \
+            libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
+            ffmpeg p7zip-full libarchive-tools
+          ccache --max-size=1G
+
+      - name: Verify Linux toolchain
+        run: |
+          cmake --version
+          ninja --version
+          c++ --version | head -1
+          ccache --version | head -1
+          clang-tidy-20 --version | head -3
+          pkg-config --modversion mpv
+
+      - name: Validate clang-tidy gate helper on Linux
+        env:
+          PYTHONPATH: .
+        run: python tests/test_clang_tidy_quality_gate.py
+
+      - name: Build Extra CMake Modules
+        run: |
+          archive="$RUNNER_TEMP/extra-cmake-modules.tar.xz"
+          source="$RUNNER_TEMP/ecm-source"
+          build="$RUNNER_TEMP/ecm-build"
+          install="$RUNNER_TEMP/ecm-install"
+          curl --fail --location --retry 3 \
+            "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" \
+            --output "$archive"
+          echo "$ECM_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DCMAKE_INSTALL_PREFIX="$install"
+          cmake --build "$build" --target install --parallel 2
+          echo "ECM_ROOT=$install" >> "$GITHUB_ENV"
+
+      - name: Build MpvQt
+        run: |
+          archive="$RUNNER_TEMP/mpvqt.tar.xz"
+          source="$RUNNER_TEMP/mpvqt-source"
+          build="$RUNNER_TEMP/mpvqt-build"
+          install="$RUNNER_TEMP/mpvqt-install"
+          curl --fail --location --retry 3 \
+            "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" \
+            --output "$archive"
+          echo "$MPVQT_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xf "$archive" -C "$source" --strip-components=1
+          cmake -S "$source" -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$install" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$ECM_ROOT"
+          cmake --build "$build" --target install --parallel 2
+          echo "MPVQT_ROOT=$install" >> "$GITHUB_ENV"
+
+      - name: Configure Colosseum on Linux
+        run: |
+          build="$RUNNER_TEMP/colosseum-linux-build"
+          prefix="$QT_ROOT_DIR;$ECM_ROOT;$MPVQT_ROOT"
+          cmake -S native -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCOLOSSEUM_BUILD_PLAYER2=OFF \
+            -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
+            -DCOLOSSEUM_NO_COMPILER_CACHE=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_PREFIX_PATH="$prefix" \
+            -DMPVQT_PREFIX="$MPVQT_ROOT"
+          grep -Eq '^CMAKE_C_COMPILER_LAUNCHER:.*=ccache$' "$build/CMakeCache.txt"
+          grep -Eq '^CMAKE_CXX_COMPILER_LAUNCHER:.*=ccache$' "$build/CMakeCache.txt"
+          echo "COLOSSEUM_LINUX_BUILD=$build" >> "$GITHUB_ENV"
+
+      - name: Build Linux desktop and tests
+        run: cmake --build "$COLOSSEUM_LINUX_BUILD" --parallel 2
+
+      - name: Audit Linux CTest inventory
+        run: |
+          inventory="$RUNNER_TEMP/ctest-inventory.json"
+          ctest --test-dir "$COLOSSEUM_LINUX_BUILD" --show-only=json-v1 > "$inventory"
+          python - "$inventory" <<'PY'
+          import json
+          import sys
+
+          tests = json.load(open(sys.argv[1], encoding="utf-8"))["tests"]
+          windows = []
+          non_windows = []
+          shell_leaks = []
+          missing_commands = []
+          canary = None
+          for test in tests:
+              props = {p["name"]: p["value"] for p in test.get("properties", [])}
+              labels = {str(label).lower() for label in props.get("LABELS", [])}
+              command = test.get("command", [])
+              if "windows" in labels:
+                  windows.append(test["name"])
+              else:
+                  non_windows.append(test["name"])
+              if "windows" not in labels and not command:
+                  missing_commands.append(test["name"])
+              if command and "powershell" in str(command[0]).lower() and "windows" not in labels:
+                  shell_leaks.append(test["name"])
+              if test["name"] == "colosseum.selftest.red_canary":
+                  canary = props.get("WILL_FAIL")
+
+          print(f"CTEST_TOTAL={len(tests)}")
+          print(f"CTEST_WINDOWS={len(windows)}")
+          print(f"CTEST_NON_WINDOWS={len(non_windows)}")
+          if shell_leaks:
+              raise SystemExit(f"PowerShell tests leaked into Linux surface: {shell_leaks}")
+          if missing_commands:
+              raise SystemExit(f"Linux CTests have unresolved commands: {missing_commands}")
+          if canary is not True:
+              raise SystemExit(f"red canary lost WILL_FAIL semantics: {canary!r}")
+          PY
+          ctest --test-dir "$COLOSSEUM_LINUX_BUILD" -N -LE windows
+
+      - name: Run platform-neutral Linux CTests
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
+            -LE windows \
+            --output-on-failure \
+            --parallel 1
+
+      - name: Run clang-tidy correctness gate on Linux
+        run: |
+          python scripts/clang_tidy_quality_gate.py \
+            --clang-tidy "$(command -v clang-tidy-20)" \
+            --compile-commands "$COLOSSEUM_LINUX_BUILD/compile_commands.json" \
+            --source-root native \
+            --allowlist .github/clang-tidy-allowlist.txt \
+            --required-version "$LLVM_VERSION" \
+            --jobs 1 \
+            --min-files 184
+
+      - name: Show compiler-cache statistics
+        if: always()
+        run: ccache --show-stats || true
 
   dependency-scan:
     runs-on: ubuntu-24.04

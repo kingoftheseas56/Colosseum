@@ -95,6 +95,17 @@ QString baseDirMirror()
     return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
            + QStringLiteral("/comics");
 }
+
+QString fixtureArchiveTool()
+{
+#ifdef Q_OS_WIN
+    const QString systemTar = QStringLiteral("C:/Windows/System32/tar.exe");
+    if (QFileInfo::exists(systemTar)) return systemTar;
+    return QStandardPaths::findExecutable(QStringLiteral("tar"));
+#else
+    return QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
+}
 QString hash10Mirror(const QString& v)
 {
     return QString::fromLatin1(
@@ -243,7 +254,7 @@ void runParserTable(CheckEnv& env)
     {
         const auto p = MangaTankoban::parsePackLabel(QStringLiteral("Chew v3 BONUS.cbr"));
         env.eq("ci-bonus-role", p.role, QStringLiteral("extra"));
-        env.eq("ci-bonus-label", p.label, QStringLiteral("Vol. 3 \xe2\x80\x94 Bonus"));
+        env.eq("ci-bonus-label", p.label, QStringLiteral("Vol. 3 \u2014 Bonus"));
     }
 }
 
@@ -385,8 +396,8 @@ bool makeFixtureCbz(const QString& root, const QString& name, QString* out)
         if (!page.save(pages + QStringLiteral("/page%1.jpg").arg(i), "JPEG")) return false;
     }
     const QString zip = root + QLatin1Char('/') + name + QStringLiteral(".zip");
-    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
-            {QStringLiteral("-a"), QStringLiteral("-cf"), zip,
+    if (QProcess::execute(fixtureArchiveTool(),
+            {QStringLiteral("-cf"), zip, QStringLiteral("--format"), QStringLiteral("zip"),
              QStringLiteral("-C"), pages, QStringLiteral(".")}) != 0)
         return false;
     *out = root + QLatin1Char('/') + name + QStringLiteral(".cbz");
@@ -406,7 +417,7 @@ bool makeFixtureCbr(const QString& root, const QString& name, QString* out)
             return false;
     }
     const QString tarPath = root + QLatin1Char('/') + name + QStringLiteral(".tar");
-    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+    if (QProcess::execute(fixtureArchiveTool(),
             {QStringLiteral("-cf"), tarPath, QStringLiteral("-C"), pages, QStringLiteral(".")}) != 0)
         return false;
     *out = root + QLatin1Char('/') + name + QStringLiteral(".cbr");
@@ -433,8 +444,8 @@ bool makeNestedPack(const QString& packDir, const QString& packName,
     // Zip the folder's CONTENTS (so the archive root is the top folder).
     const QString zip = packDir + QLatin1Char('/') + packName + QStringLiteral(".zip");
     QFile::remove(zip);
-    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
-            {QStringLiteral("-a"), QStringLiteral("-cf"), zip,
+    if (QProcess::execute(fixtureArchiveTool(),
+            {QStringLiteral("-cf"), zip, QStringLiteral("--format"), QStringLiteral("zip"),
              QStringLiteral("-C"), packDir, QStringLiteral("chew-fold")}) != 0)
         return false;
     *outPackPath = packDir + QLatin1Char('/') + packName + QStringLiteral(".cbz");
@@ -747,7 +758,7 @@ void runCrashResumeScenario(CheckEnv& env)
     const QString extractTmp = packPath + QStringLiteral(".x");
     QDir(extractTmp).removeRecursively();
     QDir().mkpath(extractTmp);
-    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+    if (QProcess::execute(fixtureArchiveTool(),
             {QStringLiteral("-xf"), packPath, QStringLiteral("-C"), extractTmp}) != 0) {
         env.ok("resume-extract", false, "could not pre-extract pack into extractTmp");
         return;
@@ -963,7 +974,7 @@ void runCancelMidPackScenario(CheckEnv& env)
     const QString extractTmp = packPath + QStringLiteral(".x");
     QDir(extractTmp).removeRecursively();
     QDir().mkpath(extractTmp);
-    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+    if (QProcess::execute(fixtureArchiveTool(),
             {QStringLiteral("-xf"), packPath, QStringLiteral("-C"), extractTmp}) != 0) {
         env.ok("cancel-extract", false, "could not pre-extract pack"); return;
     }
@@ -1100,7 +1111,7 @@ void runPackVolumesReadApiScenario(CheckEnv& env)
     // can prove packVolumes() SORTS — if it just iterated insertion order, the
     // extras list would be empty (only one extra) but the mains list would come
     // back as [v2, v1] instead of [v1, v2].
-    indexRoot[idBonus] = row(cbzBonus, QStringLiteral("Vol. 1 \xe2\x80\x94 Bonus"),
+    indexRoot[idBonus] = row(cbzBonus, QStringLiteral("Vol. 1 \u2014 Bonus"),
                              QStringLiteral("extra"), 1);
     indexRoot[idOrdinary] = row(cbzOrdinary, QStringLiteral("Special"),
                                 QString(), -1);   // no packRole — ordinary issue

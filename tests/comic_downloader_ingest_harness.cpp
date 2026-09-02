@@ -33,6 +33,17 @@
 #endif
 
 namespace {
+
+QString fixtureArchiveTool()
+{
+#ifdef Q_OS_WIN
+    const QString systemTar = QStringLiteral("C:/Windows/System32/tar.exe");
+    if (QFileInfo::exists(systemTar)) return systemTar;
+    return QStandardPaths::findExecutable(QStringLiteral("tar"));
+#else
+    return QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
+}
 // Real, genuinely decodable JPEG bytes -- placeholder text ("not-decoded-by-
 // this-contract-test") was sufficient before Task 4 (CBZ-in-place plan): the
 // old finalizeExtract() only ever moved bytes around, never looked at them.
@@ -55,8 +66,8 @@ bool makeCbz(const QString& root, const QString& name, QString* archivePath)
     }
 
     const QString zip = root + QLatin1Char('/') + name + QStringLiteral(".zip");
-    const int exitCode = QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
-        {QStringLiteral("-a"), QStringLiteral("-cf"), zip,
+    const int exitCode = QProcess::execute(fixtureArchiveTool(),
+        {QStringLiteral("-cf"), zip, QStringLiteral("--format"), QStringLiteral("zip"),
          QStringLiteral("-C"), pages, QStringLiteral(".")});
     if (exitCode != 0) return false;
     *archivePath = root + QLatin1Char('/') + name + QStringLiteral(".cbz");
@@ -79,7 +90,7 @@ bool makeCbr(const QString& root, const QString& name, QString* archivePath)
             return false;
     }
     const QString tarPath = root + QLatin1Char('/') + name + QStringLiteral(".tar");
-    const int rc = QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+    const int rc = QProcess::execute(fixtureArchiveTool(),
         {QStringLiteral("-cf"), tarPath, QStringLiteral("-C"), pages, QStringLiteral(".")});
     if (rc != 0) return false;
     *archivePath = root + QLatin1Char('/') + name + QStringLiteral(".cbr");

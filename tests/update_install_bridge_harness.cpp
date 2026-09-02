@@ -66,6 +66,36 @@ int main(int argc, char **argv)
     paths.registryInstallRoot = installRoot;
     paths.cacheRoot = cacheRoot;
     UpdateInstallBridge bridge(paths);
+
+#ifndef Q_OS_WIN
+    require(!bridge.installedBuildEligible(),
+            "non-Windows builds are never eligible for automatic installer launch");
+    const Version linuxTarget = version("1.1.1");
+    const QString linuxInstaller = QDir(cacheRoot).filePath(
+        "1.1.1/Colosseum-1.1.1-setup.exe");
+    touch(linuxInstaller);
+    QString linuxError;
+    require(!bridge.prepare(linuxInstaller, linuxTarget, &linuxError).has_value(),
+            "non-Windows bridge refuses a verified Windows installer");
+    require(linuxError == QStringLiteral("automatic_install_unsupported_platform"),
+            "non-Windows refusal is an explicit platform policy");
+    InstallLaunch craftedLaunch;
+    craftedLaunch.program = QStringLiteral("/bin/true");
+    craftedLaunch.workingDirectory = root;
+    linuxError.clear();
+    require(!bridge.launchDetached(craftedLaunch, &linuxError),
+            "non-Windows bridge refuses a crafted direct launch bypass");
+    require(linuxError == QStringLiteral("automatic_install_unsupported_platform"),
+            "direct launch bypass fails with the same explicit platform policy");
+    const QString linuxBackup = QDir(root).filePath("Programs/Colosseum.__update-old");
+    QDir().mkpath(linuxBackup);
+    bridge.acknowledgeHealthyBoot({QStringLiteral("--update-result=success"),
+                                   QStringLiteral("--update-backup=") + linuxBackup});
+    require(QFileInfo::exists(linuxBackup),
+            "non-Windows bridge ignores Windows updater cleanup arguments");
+    qInfo("UPDATE_INSTALL_BRIDGE_OK");
+    return 0;
+#else
     require(bridge.installedBuildEligible(), "installed layout is eligible");
 
     QDir().mkpath(QDir(root).filePath(".git"));
@@ -147,4 +177,5 @@ int main(int argc, char **argv)
 
     qInfo("UPDATE_INSTALL_BRIDGE_OK");
     return 0;
+#endif
 }

@@ -170,9 +170,9 @@ inline PackLabel parsePackLabel(const QString& relPath)
         out.order = volNumber;
         if (isBonus) {
             out.role = QStringLiteral("extra");
-            out.label = QStringLiteral("Vol. %1 \xe2\x80\x94 Bonus").arg(volNumber);
-            // U+2014 EM DASH (the plan's "Vol. N — Bonus"); UTF-8 bytes in the
-            // Latin-1 source literal are portable across MSVC and GCC.
+            out.label = QStringLiteral("Vol. %1 \u2014 Bonus").arg(volNumber);
+            // U+2014 EM DASH (the plan's "Vol. N — Bonus") as a Unicode
+            // escape, independent of compiler source/execution encodings.
         } else {
             out.role = QStringLiteral("main");
             out.label = QStringLiteral("Vol. %1").arg(volNumber);

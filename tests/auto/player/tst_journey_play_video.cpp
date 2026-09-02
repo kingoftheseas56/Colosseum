@@ -94,6 +94,30 @@ bool playerReadyFrom(bool sessionFileLoaded, bool sessionErrored, int decodedWid
     return sessionFileLoaded && !sessionErrored && decodedWidth > 0 && decodedHeight > 0;
 }
 
+void resolveSingleLocalXDisplay()
+{
+#if defined(Q_OS_LINUX)
+    if (!qEnvironmentVariableIsEmpty("DISPLAY"))
+        return;
+
+    const QDir socketDir(QStringLiteral("/tmp/.X11-unix"));
+    const QStringList sockets = socketDir.entryList(
+        QStringList{QStringLiteral("X*")},
+        QDir::System | QDir::Files | QDir::NoDotAndDotDot,
+        QDir::Name);
+    if (sockets.size() != 1)
+        return;
+
+    const QString socket = sockets.constFirst();
+    bool displayNumberOk = false;
+    const int displayNumber = socket.mid(1).toInt(&displayNumberOk);
+    if (!displayNumberOk || displayNumber < 0)
+        return;
+
+    qputenv("DISPLAY", QStringLiteral(":%1").arg(displayNumber).toUtf8());
+#endif
+}
+
 } // namespace
 
 class tst_journey_play_video : public QObject
@@ -214,6 +238,10 @@ void tst_journey_play_video::source_identity_matches()
 // to render the video." on every case.
 int main(int argc, char **argv)
 {
+    // CTest/remote shells can lose DISPLAY even while the local desktop X server is alive.
+    // This test must use a real shown OpenGL window, so only recover an unambiguous local
+    // X socket. Multiple/no sockets remain a hard environment failure rather than guessing.
+    resolveSingleLocalXDisplay();
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc, argv);

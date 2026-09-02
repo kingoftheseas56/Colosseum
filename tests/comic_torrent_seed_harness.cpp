@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
+#include <QStandardPaths>
 #include <QThread>
 
 #include <libtorrent/add_torrent_params.hpp>
@@ -40,8 +41,14 @@ int main(int argc, char** argv)
         page.write(QByteArray(128 * 1024, char('A' + i)));
     }
     QFile::remove(archive);
-    if (QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
-            {QStringLiteral("-a"), QStringLiteral("-cf"), archive,
+#ifdef Q_OS_WIN
+    const QString archiveTool = QStringLiteral("C:/Windows/System32/tar.exe");
+#else
+    const QString archiveTool = QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
+    if (archiveTool.isEmpty()
+        || QProcess::execute(archiveTool,
+            {QStringLiteral("-cf"), archive, QStringLiteral("--format"), QStringLiteral("zip"),
              QStringLiteral("-C"), pagesDir, QStringLiteral(".")}) != 0)
         return 1;
 

@@ -324,7 +324,8 @@ bool UpdateService::applyManifest(const Manifest& manifest, const QByteArray& ma
         m_updateAvailable = true;
         m_unseenUpdate = m_seenVersion != m_latestVersion;
         if (requestedState == Ready || requestedState == Installing || requestedState == Paused
-            || requestedState == RecoverableError || requestedState == VerificationFailure)
+            || requestedState == RecoverableError || requestedState == VerificationFailure
+            || requestedState == ManualUpdateRequired)
             m_state = requestedState;
         else
             m_state = Available;
@@ -544,7 +545,9 @@ void UpdateService::handleRelease(const ReleaseCheckResult& result)
         emitChanged();
         return;
     }
-    if (result.status != ReleaseCheckResult::Status::Valid) {
+    const bool manualUpdateRequired =
+        result.status == ReleaseCheckResult::Status::ManualUpdateRequired;
+    if (result.status != ReleaseCheckResult::Status::Valid && !manualUpdateRequired) {
         setState(m_hasChronicle ? m_stateBeforeCheck : Idle);
         persist();
         emitChanged();
@@ -558,9 +561,12 @@ void UpdateService::handleRelease(const ReleaseCheckResult& result)
     bool accepted = false;
     if (!result.verifiedManifestBytes.isEmpty() && !result.verifiedSignatureBytes.isEmpty()) {
         accepted = restoreManifest(result.verifiedManifestBytes, result.verifiedSignatureBytes,
-                                   Available, seen, &error);
+                                   manualUpdateRequired ? ManualUpdateRequired : Available,
+                                   seen, &error);
     } else {
-        accepted = applyManifest(result.manifest, {}, {}, Available, seen, &error);
+        accepted = applyManifest(result.manifest, {}, {},
+                                 manualUpdateRequired ? ManualUpdateRequired : Available,
+                                 seen, &error);
     }
     if (!accepted) {
         setState(m_hasChronicle ? m_stateBeforeCheck : Idle);
@@ -568,7 +574,7 @@ void UpdateService::handleRelease(const ReleaseCheckResult& result)
         return;
     }
     m_etag = result.etag;
-    m_assetUrls = result.assetUrls;
+    m_assetUrls = manualUpdateRequired ? QHash<QString, QUrl>{} : result.assetUrls;
     m_installerPath.clear();
     m_receivedBytes = 0;
     m_totalBytes = result.manifest.installerSize;

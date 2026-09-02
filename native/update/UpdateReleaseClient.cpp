@@ -321,6 +321,17 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                                       finish(result);
                                       return;
                                   }
+                                  if (!m_config.automaticInstallerSupported) {
+                                      result.status = ReleaseCheckResult::Status::ManualUpdateRequired;
+                                      result.manifest = *manifest;
+                                      result.verifiedManifestBytes = state->manifestBytes;
+                                      result.verifiedSignatureBytes = signature.body;
+                                      // Deliberately return no asset URLs. In particular the legacy
+                                      // schema's Windows .exe is never handed to the Linux downloader.
+                                      finish(result);
+                                      return;
+                                  }
+
                                   const auto installerIt = state->assets.constFind(manifest->installerAsset);
                                   if (installerIt == state->assets.constEnd()) {
                                       reject(&result, QStringLiteral("missing_installer"));
