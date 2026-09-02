@@ -1,0 +1,157 @@
+{
+  "id": "colosseum.well.tankoyomi",
+  "version": "0.1.0",
+  "name": "Tankoyomi",
+  "description": "Language-aware manga chapter source router for Tankoban Chapter Mode.",
+  "type": "tankoyomi",
+  "types": [
+    "manga"
+  ],
+  "resources": [
+    "stream",
+    "manga.search",
+    "manga.chapters",
+    "manga.pages"
+  ],
+  "defaultLanguage": "en",
+  "fallbackPolicy": "same-language-only",
+  "behaviorHints": {
+    "configurable": false
+  },
+  "providerContract": {
+    "version": 1,
+    "required": [
+      "searchSeries",
+      "getChapters",
+      "getPages"
+    ]
+  },
+  "languages": [
+    {
+      "code": "en",
+      "label": "English",
+      "providers": [
+        {
+          "id": "weebcentral",
+          "name": "WeebCentral",
+          "entry": "languages/en/weebcentral.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "weebcentral.com"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "es",
+      "label": "Español",
+      "providers": [
+        {
+          "id": "zonatmo",
+          "name": "ZonaTMO",
+          "entry": "languages/es/zonatmo.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "zonatmo.org"
+          ]
+        },
+        {
+          "id": "niadd",
+          "name": "NiAdd",
+          "entry": "languages/es/niadd.js",
+          "priority": 2,
+          "enabled": true,
+          "allowedHosts": [
+            "es.niadd.com"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "pt",
+      "label": "Português (Brasil)",
+      "providers": [
+        {
+          "id": "taiyo",
+          "name": "Taiyō",
+          "entry": "languages/pt/taiyo.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "taiyo.moe",
+            "meilisearch.taiyo.moe"
+          ]
+        },
+        {
+          "id": "manga-online",
+          "name": "Manga Online",
+          "entry": "languages/pt/manga-online.js",
+          "priority": 2,
+          "enabled": true,
+          "allowedHosts": [
+            "mangaonline.green"
+          ]
+        },
+        {
+          "id": "manga-night",
+          "name": "Manga Night",
+          "entry": "languages/pt/manga-night.js",
+          "priority": 3,
+          "enabled": true,
+          "allowedHosts": [
+            "www.manganight.com.br",
+            "api.mangadex.org"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "fr",
+      "label": "Français",
+      "providers": [
+        {
+          "id": "sushiscan-fr",
+          "name": "Sushiscan.fr",
+          "entry": "languages/fr/sushiscan-fr.js",
+          "priority": 1,
+          "enabled": true,
+          "allowedHosts": [
+            "sushiscan.fr"
+          ]
+        },
+        {
+          "id": "lelscan-vf",
+          "name": "Lelscan-VF",
+          "entry": "languages/fr/lelscan-vf.js",
+          "priority": 2,
+          "enabled": true,
+          "allowedHosts": [
+            "lelscanfr.com"
+          ]
+        },
+        {
+          "id": "lelmanga",
+          "name": "Lelmanga",
+          "entry": "languages/fr/lelmanga.js",
+          "priority": 3,
+          "enabled": true,
+          "allowedHosts": [
+            "lelmanga.com"
+          ]
+        },
+        {
+          "id": "mangamoins",
+          "name": "MangaMoins",
+          "entry": "languages/fr/mangamoins.js",
+          "priority": 4,
+          "enabled": true,
+          "allowedHosts": [
+            "mangamoins.com"
+          ]
+        }
+      ]
+    }
+  ]
+}

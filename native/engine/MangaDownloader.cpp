@@ -1,6 +1,8 @@
 #include "MangaDownloader.h"
 #include "DownloadFileOps.h"
 #include "WeebCentralScraper.h"
+#include "TankoyomiChapterService.h"
+#include "TankoyomiIdentity.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -26,14 +28,37 @@
 // ---------------------------------------------------------------------------
 MangaDownloader::MangaDownloader(QNetworkAccessManager* nam, QObject* parent,
                                  MangaImageHostResolver::Lookup lookup,
-                                 DownloadFileOps::Remover cleanupRemover)
-    : QObject(parent), m_nam(nam), m_hostResolver(std::move(lookup)),
-      m_cleanupRemover(std::move(cleanupRemover))
+                                 DownloadFileOps::Remover cleanupRemover,
+                                 TankoyomiChapterService* tankoyomi)
+    : QObject(parent), m_nam(nam), m_tankoyomi(tankoyomi),
+      m_hostResolver(std::move(lookup)), m_cleanupRemover(std::move(cleanupRemover))
 {
+    if (!m_tankoyomi) m_tankoyomi = new TankoyomiChapterService(nam, this);
     loadIndex();
 }
 
 MangaDownloader::~MangaDownloader() = default;
+
+static QList<PageInfo> tankoyomiPageInfos(const QVariantList& rows)
+{
+    QList<PageInfo> out;
+    int fallbackIndex = 0;
+    for (const QVariant& value : rows) {
+        const QVariantMap row = value.toMap();
+        const QString url = row.value(QStringLiteral("url")).toString();
+        if (url.isEmpty()) continue;
+        PageInfo page;
+        page.index = row.contains(QStringLiteral("index"))
+            ? row.value(QStringLiteral("index")).toInt() : fallbackIndex;
+        page.imageUrl = url;
+        page.referer = row.value(QStringLiteral("referer")).toString();
+        page.pageGroup = row.contains(QStringLiteral("group"))
+            ? row.value(QStringLiteral("group")).toInt() : -1;
+        out.append(page);
+        ++fallbackIndex;
+    }
+    return out;
+}
 
 // ---------------------------------------------------------------------------
 // disk paths
@@ -390,7 +415,11 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
         // Stop future scraper signals before the Job can be reclaimed. Any
         // already-queued lambda still carries the shared lifetime fence.
         job->scraperPending = false;
-        QObject::disconnect(job->scraper, nullptr, this, nullptr);
+        if (job->scraper) QObject::disconnect(job->scraper, nullptr, this, nullptr);
+        if (job->pageResolverScope) {
+            job->pageResolverScope->deleteLater();
+            job->pageResolverScope = nullptr;
+        }
     }
     removePendingImageRequests(job);
     const QList<QNetworkReply*> replies = job->replies;
@@ -454,30 +483,46 @@ void MangaDownloader::pumpThumbs()
         const QString cid = req.chapterId;
         m_thumbActive++;
         m_thumbInflight.insert(cid);
-        auto* sc = new WeebCentralScraper(m_nam, this);
-        // `cacheable` separates AN ANSWER from A FAILURE. A scrape that succeeded
-        // is final and worth remembering, even when the chapter genuinely has no
-        // pages. A scrape that ERRORED is not an answer — WeebCentral throttles
-        // under a burst, and caching that empty string made the miss PERMANENT for
-        // the session: fetchThumb returns early on any cached key, so the volume
-        // (or chapter) showed a numbered placeholder forever and never retried.
-        // Found from eyes-on 2026-07-31: One Piece volumes 101/102/110 and the
-        // Latest-chapters rows, all blank while volume 1 had its cover.
-        auto settle = [this, sc, cid](const QString& url, bool cacheable) {
-            if (!m_thumbInflight.contains(cid)) return;   // already settled by the other signal
-            if (cacheable)
-                m_thumbCache.insert(cid, url);
+
+        auto settle = [this, cid](const QString& url, bool cacheable) {
+            if (!m_thumbInflight.contains(cid)) return;
+            if (cacheable) m_thumbCache.insert(cid, url);
             emit thumbReady(cid, url);
             m_thumbInflight.remove(cid);
             m_thumbActive--;
-            sc->deleteLater();
             pumpThumbs();
         };
-        connect(sc, &MangaScraper::pagesReady, this, [settle](const QList<PageInfo>& pages) {
-            settle(pages.isEmpty() ? QString() : pages.first().imageUrl, /*cacheable=*/true);
+
+        if (TankoyomiIdentity::isQualifiedChapter(cid)) {
+            QObject* scope = new QObject(this);
+            const QString requestId = QStringLiteral("thumb|") + cid;
+            connect(m_tankoyomi, &TankoyomiChapterService::pagesReady, scope,
+                    [scope, requestId, settle](const QString& got, const QVariantList& pages) {
+                if (got != requestId) return;
+                scope->deleteLater();
+                const QList<PageInfo> parsed = tankoyomiPageInfos(pages);
+                settle(parsed.isEmpty() ? QString() : parsed.first().imageUrl, true);
+            });
+            connect(m_tankoyomi, &TankoyomiChapterService::pagesFailed, scope,
+                    [scope, requestId, settle](const QString& got, const QString&) {
+                if (got != requestId) return;
+                scope->deleteLater();
+                settle(QString(), false);
+            });
+            m_tankoyomi->fetchPages(requestId, cid);
+            continue;
+        }
+
+        auto* sc = new WeebCentralScraper(m_nam, this);
+        connect(sc, &MangaScraper::pagesReady, sc,
+                [sc, settle](const QList<PageInfo>& pages) {
+            sc->deleteLater();
+            settle(pages.isEmpty() ? QString() : pages.first().imageUrl, true);
         });
-        connect(sc, &MangaScraper::errorOccurred, this, [settle](const QString&) {
-            settle(QString(), /*cacheable=*/false);   // transient — must stay retryable
+        connect(sc, &MangaScraper::errorOccurred, sc,
+                [sc, settle](const QString&) {
+            sc->deleteLater();
+            settle(QString(), false);
         });
         sc->fetchPages(cid);
     }
@@ -588,9 +633,40 @@ void MangaDownloader::pumpQueue()
 void MangaDownloader::beginJob(Job* job)
 {
     QDir().mkpath(job->dir);
-    job->scraper = new WeebCentralScraper(m_nam, this);
     job->scraperPending = true;
     const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
+
+    if (TankoyomiIdentity::isQualifiedChapter(job->chapterId)) {
+        job->pageResolverScope = new QObject(this);
+        QObject* scope = job->pageResolverScope;
+        const QString requestId = QStringLiteral("download|") + job->chapterId;
+        connect(m_tankoyomi, &TankoyomiChapterService::pagesReady, scope,
+                [this, lifetime, scope, requestId](const QString& got,
+                                                   const QVariantList& rows) {
+            if (got != requestId) return;
+            Job* job = lifetime ? lifetime->job : nullptr;
+            if (!job || job->cancelled) return;
+            job->scraperPending = false;
+            job->pageResolverScope = nullptr;
+            scope->deleteLater();
+            onPagesReady(job, tankoyomiPageInfos(rows));
+        });
+        connect(m_tankoyomi, &TankoyomiChapterService::pagesFailed, scope,
+                [this, lifetime, scope, requestId](const QString& got,
+                                                   const QString& message) {
+            if (got != requestId) return;
+            Job* job = lifetime ? lifetime->job : nullptr;
+            if (!job || job->cancelled) return;
+            job->scraperPending = false;
+            job->pageResolverScope = nullptr;
+            scope->deleteLater();
+            failJob(job, message);
+        });
+        m_tankoyomi->fetchPages(requestId, job->chapterId);
+        return;
+    }
+
+    job->scraper = new WeebCentralScraper(m_nam, this);
     connect(job->scraper, &MangaScraper::pagesReady, this,
             [this, lifetime](const QList<PageInfo>& pages) {
         Job* job = lifetime ? lifetime->job : nullptr;
@@ -743,7 +819,9 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     req.setRawHeader("User-Agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0 Safari/537.36");
-    req.setRawHeader("Referer", "https://weebcentral.com/");
+    const QString referer = job->pages[pageIndex].referer.trimmed();
+    req.setRawHeader("Referer", referer.isEmpty()
+        ? QByteArray("https://weebcentral.com/") : referer.toUtf8());
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     req.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);   // we persist to disk ourselves
     req.setTransferTimeout(30000);
@@ -961,6 +1039,10 @@ void MangaDownloader::cleanupJob(Job* job)
     removePendingImageRequests(job);
     m_active.remove(job->chapterId);
     if (job->scraper) job->scraper->deleteLater();
+    if (job->pageResolverScope) {
+        job->pageResolverScope->deleteLater();
+        job->pageResolverScope = nullptr;
+    }
     delete job;
     pumpQueue();   // free slot -> start the next queued chapter
 }

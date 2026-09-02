@@ -940,7 +940,7 @@ int main(int argc, char *argv[]) {
     // a live stream: a chapter is downloaded to loose local files once, then the
     // reader reads those offline. Own plain NAM (no cache) — it persists to disk itself.
     auto *dlNam = new QNetworkAccessManager(&app);
-    auto *downloads = new MangaDownloader(dlNam, &app);
+    auto *downloads = new MangaDownloader(dlNam, &app, {}, {}, manga->tankoyomiService());
     downloads->setIpv4Pins(initialPins);   // cached pins are available before async refresh
     pinStore->setPinChangedCallback([manga, downloads, pinStore](const QString&, const QString&) {
         const QHash<QString, QString> pins = pinStore->snapshot();

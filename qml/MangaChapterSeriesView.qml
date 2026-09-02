@@ -10,7 +10,7 @@ Item {
 
     property Item backdrop
     property string seriesId: ""              // canonical Colosseum identity (mal:N)
-    property string sourceSeriesId: ""        // WeebCentral provider identity
+    property string sourceSeriesId: ""        // Tankoyomi provider identity
     property string seriesTitle: ""
     property string banner: ""
     property string cover: ""
@@ -24,8 +24,12 @@ Item {
     property var exactRangeRecord: ({})
     property var downloader: (typeof Downloads !== "undefined") ? Downloads : null
     property var collectionEntry: null
+    property var chapterLanguages: []
+    property string selectedChapterLanguage: "en"
     property bool loading: false
     property string errorText: ""
+    property bool sourceEnabled: true
+    readonly property bool extensionGateVisible: !root.sourceEnabled
 
     property int currentPageIndex: 0
     property bool pageMenuOpen: false
@@ -61,8 +65,11 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal tankobanRequested()
+    signal chapterLanguageRequested(string code)
     signal readChapterRequested(string chapterId, string chapterLabel)
+    signal openExtensionsRequested()
 
+    function requestExtensions() { root.openExtensionsRequested() }
     function selectPage(index) {
         var i = Math.max(0, Math.min(Number(index), root.pageCount - 1))
         if (!isFinite(i)) i = 0
@@ -91,11 +98,14 @@ Item {
         score: root.score
         synopsis: root.synopsis
         collectionEntry: root.collectionEntry
+        chapterLanguages: root.chapterLanguages
+        selectedChapterLanguage: root.selectedChapterLanguage
         onBackRequested: root.backRequested()
         onMinimizeRequested: root.minimizeRequested()
         onFullscreenRequested: root.fullscreenRequested()
         onCloseRequested: root.closeRequested()
         onTankobanRequested: root.tankobanRequested()
+        onChapterLanguageRequested: (code) => root.chapterLanguageRequested(code)
     }
 
     Flickable {
@@ -299,12 +309,35 @@ Item {
                         }
                     }
 
-                    Text {
+                    Column {
                         visible: root.loading || root.errorText.length > 0 || (!root.loading && !root.chapters.length)
                         anchors.centerIn: parent
-                        text: root.loading ? "Loading chapters…" : (root.errorText.length ? root.errorText : "No chapters available")
-                        color: root.errorText.length ? "#e6a3a3" : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 14
+                        spacing: 12
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: root.loading ? "Loading chapters..." : (root.errorText.length ? root.errorText : "No chapters available")
+                            color: root.errorText.length ? "#e6a3a3" : theme.inkDim
+                            font.family: theme.ui; font.pixelSize: 14
+                        }
+                        Rectangle {
+                            visible: root.extensionGateVisible
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: extensionsLabel.implicitWidth + 32; height: 34; radius: 17
+                            color: extensionsMouse.containsMouse ? theme.glassHi : theme.glassTint
+                            border.width: 1; border.color: extensionsMouse.containsMouse ? theme.gold : theme.edge
+                            Text {
+                                id: extensionsLabel
+                                anchors.centerIn: parent
+                                text: "Open Extensions"
+                                color: extensionsMouse.containsMouse ? theme.gold : theme.ink
+                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                            }
+                            MouseArea {
+                                id: extensionsMouse
+                                anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: root.requestExtensions()
+                            }
+                        }
                     }
                 }
             }

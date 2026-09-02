@@ -11,6 +11,10 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QVariantList>
@@ -150,6 +154,63 @@ private slots:
         QVERIFY2(isRemovableWell(nyaa), "colosseum.well.nyaa is not classified as a removable well");
         QVERIFY2(!nyaa.value(QStringLiteral("enabled")).toBool(),
                  "colosseum.well.nyaa seeded ENABLED on a fresh install -- nyaa must ship dark");
+    }
+
+    void legacy_weebcentral_well_migrates_in_place_to_tankoyomi()
+    {
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        int originalIndex = -1;
+        {
+            ExtensionsStore seeded(nullptr);
+            const QVariantList items = seeded.installed();
+            for (int i = 0; i < items.size(); ++i) {
+                if (items.at(i).toMap().value(QStringLiteral("id")).toString()
+                    == QStringLiteral("colosseum.well.tankoyomi")) {
+                    originalIndex = i;
+                    break;
+                }
+            }
+        }
+        QVERIFY(originalIndex >= 0);
+
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
+        in.close();
+        QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
+        QVERIFY(originalIndex < rows.size());
+        QJsonObject legacy = rows.at(originalIndex).toObject();
+        legacy.insert(QStringLiteral("id"), QStringLiteral("colosseum.well.weebcentral.pages"));
+        legacy.insert(QStringLiteral("transportUrl"), QStringLiteral("colosseum://well/weebcentral.pages"));
+        legacy.insert(QStringLiteral("enabled"), true);
+        QJsonObject legacyManifest = legacy.value(QStringLiteral("manifest")).toObject();
+        legacyManifest.insert(QStringLiteral("id"), QStringLiteral("colosseum.well.weebcentral.pages"));
+        legacyManifest.insert(QStringLiteral("name"), QStringLiteral("WeebCentral"));
+        legacy.insert(QStringLiteral("manifest"), legacyManifest);
+        rows.replace(originalIndex, legacy);
+        root.insert(QStringLiteral("defaultsVersion"), 11);
+        root.insert(QStringLiteral("extensions"), rows);
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile out(path);
+        QVERIFY(out.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        out.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        out.close();
+
+        ExtensionsStore migrated(nullptr);
+        const QVariantList after = migrated.installed();
+        QCOMPARE(after.at(originalIndex).toMap().value(QStringLiteral("id")).toString(),
+                 QStringLiteral("colosseum.well.tankoyomi"));
+
+        QVERIFY(after.at(originalIndex).toMap().value(QStringLiteral("enabled")).toBool());
+        QVERIFY(findById(after, QStringLiteral("colosseum.well.weebcentral.pages")).isEmpty());
+        const QVariantMap tankoyomi = findById(after, QStringLiteral("colosseum.well.tankoyomi"));
+        QVERIFY(!tankoyomi.isEmpty());
+        QCOMPARE(tankoyomi.value(QStringLiteral("transportUrl")).toString(),
+                 QStringLiteral("colosseum://well/tankoyomi"));
+        QCOMPARE(tankoyomi.value(QStringLiteral("manifest")).toMap()
+                     .value(QStringLiteral("name")).toString(),
+                 QStringLiteral("Tankoyomi"));
     }
 
     void configured_manifest_urls_keep_query_before_manifest_suffix()

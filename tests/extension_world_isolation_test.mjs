@@ -28,7 +28,7 @@ const E = (id, types, idPrefixes, enabled = true) =>
 const installed = [
   E('com.stremio.torrentio.addon', ['movie', 'series', 'anime'], ['tt', 'kitsu']),
   E('colosseum.well.nyaa',              ['manga']),
-  E('colosseum.well.weebcentral.pages', ['manga']),
+  E('colosseum.well.tankoyomi', ['manga']),
   E('colosseum.well.getcomics.issues',  ['comic']),
   E('colosseum.well.libgen',            ['book']),
   E('colosseum.well.indexers',          ['comic', 'book', 'audiobook']),
@@ -43,7 +43,7 @@ for (const t of ['movie', 'series']) {
 }
 
 console.log('each world only asks its own wells');
-eq(ask('manga', 'x'),     ['colosseum.well.nyaa', 'colosseum.well.weebcentral.pages'], 'manga ladder');
+eq(ask('manga', 'x'),     ['colosseum.well.nyaa', 'colosseum.well.tankoyomi'], 'manga ladder');
 eq(ask('comic', 'x'),     ['colosseum.well.getcomics.issues', 'colosseum.well.indexers'], 'comic ladder');
 eq(ask('book', 'x'),      ['colosseum.well.libgen', 'colosseum.well.indexers'], 'book ladder');
 eq(ask('audiobook', 'x'), ['colosseum.well.indexers', 'colosseum.well.audiobookbay'], 'audiobook ladder');
@@ -61,7 +61,7 @@ eq(mod.streamExtensions(above, 'movie', 'tt0388629').map(e => e.id),
 console.log('a disabled well is never asked, in any world');
 const off = installed.map(e => e.id === 'colosseum.well.nyaa' ? { ...e, enabled: false } : e);
 eq(mod.streamExtensions(off, 'manga', 'x').map(e => e.id),
-   ['colosseum.well.weebcentral.pages'], 'manga ladder with Nyaa switched off');
+   ['colosseum.well.tankoyomi'], 'manga ladder with Nyaa switched off');
 
 console.log('stage 2 — Torrentio is reachable only through the store');
 eq(mod.torrentioEnabled(installed), true, 'installed + enabled');
