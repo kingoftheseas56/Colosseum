@@ -77,232 +77,36 @@ Item {
     signal readVolumeRequested(string volumeId)
     signal sourcesRequested(var context)
     signal batchRequested(var numbers, string label)
+    signal chapterModeRequested()
 
     Theme { id: theme }
 
     Rectangle { anchors.fill: parent; color: "#050608" }
-    Image {
-        anchors.fill: parent
-        source: root.banner.length ? root.banner : root.cover
-        sourceSize: Qt.size(Math.ceil(width * 0.72), Math.ceil(height * 0.72))
-        fillMode: Image.PreserveAspectCrop
-        asynchronous: true; cache: true
-        opacity: status === Image.Ready ? 0.20 : 0.0
-    }
-    ShaderEffectSource {
-        anchors.fill: parent
-        sourceItem: root.backdrop
-        live: true; hideSource: false
-        visible: root.backdrop !== null
-        opacity: 0.12
-    }
-    Rectangle {
-        anchors.fill: parent
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0.015, 0.02, 0.032, 0.20) }
-            GradientStop { position: 0.50; color: Qt.rgba(0.01, 0.012, 0.018, 0.52) }
-            GradientStop { position: 1.0; color: Qt.rgba(0.005, 0.006, 0.01, 0.76) }
-        }
-    }
 
-    Item {
-        id: chrome
+    MangaSeriesSharedHeader {
+        id: sharedHeader
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-        height: 58
-
-        BackAction {
-            // World-namespaced automation reach (catalogue-independence Slice 3, 2026-08-20):
-            // the Lanista scenario needs to leave a series page to drive a second one / prove
-            // a reopen regression, and BackAction carries no objectName of its own.
-            objectName: "tankobanReadingRoomBack"
-            x: theme.margin; anchors.verticalCenter: parent.verticalCenter
-            activeFocusOnTab: true
-            Accessible.role: Accessible.Button
-            Accessible.name: "Back to series"
-            Keys.onReturnPressed: root.backRequested()
-            Keys.onEnterPressed: root.backRequested()
-            onTriggered: root.backRequested()
-        }
-        Text {
-            anchors.centerIn: parent
-            text: "COLOSSEUM · TANKOBAN"
-            color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3
-        }
-        Row {
-            anchors.right: parent.right; anchors.rightMargin: theme.margin
-            anchors.verticalCenter: parent.verticalCenter; spacing: 12
-            Item {
-                width: 36; height: 36; activeFocusOnTab: true
-                Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
-                Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
-                Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMouse.containsMouse ? 1 : 0.72 }
-                MouseArea { id: minMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
-            }
-            Item {
-                width: 36; height: 36; activeFocusOnTab: true
-                Accessible.role: Accessible.Button; Accessible.name: "Enter full screen"
-                Keys.onReturnPressed: root.fullscreenRequested(); Keys.onEnterPressed: root.fullscreenRequested()
-                Image {
-                    anchors.centerIn: parent; width: 20; height: 20
-                    source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
-                    opacity: fullscreenMouse.containsMouse ? 1 : 0.72
-                }
-                MouseArea { id: fullscreenMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
-            }
-            Item {
-                width: 36; height: 36; activeFocusOnTab: true
-                Accessible.role: Accessible.Button; Accessible.name: "Close series view"
-                Keys.onReturnPressed: root.closeRequested(); Keys.onEnterPressed: root.closeRequested()
-                Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMouse.containsMouse ? 1 : 0.72 }
-                MouseArea { id: closeMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
-            }
-        }
-    }
-
-    // Un-boxed (POLISH-DELTA #11): identity floats over the wallpaper, exactly like the series
-    // page's own masthead — no card, no fill, no border behind it.
-    Item {
-        id: storyMasthead
-        anchors.top: chrome.bottom; anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        readonly property int baseHeight: root.height < 760 ? 118 : 104
-        // Grows only for the synopsis block (2-line clamp + its own MORE/LESS chip line).
-        // Everything else in the strip keeps its original fixed geometry.
-        height: root.synopsis.length > 0 ? baseHeight + synopsisBlock.height + 8 : baseHeight
-
-        Item {
-            id: storyIdentity
-            anchors.left: parent.left; anchors.right: storyActions.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-            anchors.leftMargin: 0; anchors.topMargin: 15; anchors.bottomMargin: 14
-            Text {
-                id: storyTitle
-                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.rightMargin: 20
-                text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold
-                elide: Text.ElideRight; maximumLineCount: 1
-            }
-            Row {
-                id: metaRow
-                anchors.top: parent.top; anchors.topMargin: storyTitle.implicitHeight + 12; anchors.left: parent.left; spacing: 7
-                Text { visible: root.author.length > 0; text: root.author; color: theme.ink; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
-                Text { visible: root.author.length > 0 && root.status.length > 0; text: "·"; color: theme.inkDimmer }
-                Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim }
-                Text { visible: root.year > 0; text: "· " + root.year; color: theme.inkDim }
-                Image { visible: root.score > 0; source: "../assets/icons/rating-star.svg"; width: 12; height: 12 }
-                Text { visible: root.score > 0; text: root.score.toFixed(1); color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
-                // Anime-Planet stat line: volumes promoted to full ink (mock .meta .stat). No
-                // chapter count in v2.3 — chapters are not a Tankoban concept here.
-                Text {
-                    visible: root.library.showVolumes && (root.author.length > 0 || root.status.length > 0 || root.year > 0 || root.score > 0)
-                    text: "·"; color: theme.inkDimmer
-                }
-                Text {
-                    visible: root.library.showVolumes
-                    text: root.library.volumeRows.length + " volumes"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11
-                }
-            }
-            // Synopsis (ruling #13/#15): a real 2-line clamp with proper line height, and a small
-            // glass MORE/LESS chip on its OWN line beneath the text — never dangling off the last
-            // sentence, and only shown when there is actually more to reveal.
-            Item {
-                id: synopsisBlock
-                anchors.top: metaRow.bottom; anchors.topMargin: 10
-                anchors.left: parent.left; anchors.right: parent.right; anchors.rightMargin: 20
-                visible: root.synopsis.length > 0
-                height: visible ? (synopsisText.height + (moreChip.visible ? moreChip.height + 10 : 0)) : 0
-
-                Text {
-                    id: synopsisText
-                    width: parent.width
-                    text: root.synopsis
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
-                    lineHeight: 1.5
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: root.synopsisExpanded ? 100000 : 2
-                    elide: Text.ElideRight
-                }
-                Rectangle {
-                    id: moreChip
-                    objectName: "synopsisMoreChip"
-                    anchors.top: synopsisText.bottom; anchors.topMargin: 10
-                    // Only a truncated (or already-expanded) synopsis earns the control — a short
-                    // synopsis that fits in two lines never grows a dead MORE chip.
-                    visible: root.synopsisExpanded || synopsisText.truncated
-                    width: moreLabel.implicitWidth + 24; height: 22; radius: 11
-                    color: moreMa.containsMouse ? theme.glassHi : theme.glassTint
-                    border.width: 1
-                    border.color: moreMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
-                    Text {
-                        id: moreLabel
-                        anchors.centerIn: parent
-                        text: root.synopsisExpanded ? "LESS" : "MORE"
-                        color: moreMa.containsMouse ? theme.gold : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 1.6
-                    }
-                    MouseArea {
-                        id: moreMa
-                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.synopsisExpanded = !root.synopsisExpanded
-                    }
-                }
-            }
-        }
-
-        // The masthead's own action surface. "+Library" is always the compact masthead
-        // action per the v1 contract. The Get/Read/Retry/progress verb is NOT duplicated
-        // here when the flow below can carry it (root.library.showVolumes true) — the flow's
-        // own action bar is the one contextual action in that case. When the series has no
-        // known shelf at all (primaryAction "search"), the flow renders nothing and reserves
-        // no action bar, so this is the ONLY place the one contextual action can live —
-        // dropping it here would leave a shelf-less series with zero ways to search nyaa.
-        Item {
-            id: storyActions
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.rightMargin: 20
-            anchors.topMargin: 15
-            anchors.bottomMargin: 14
-            width: actionsRow.implicitWidth
-
-            Row {
-                id: actionsRow
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 12
-
-                Rectangle {
-                    // World-namespaced automation reach (catalogue-independence Slice 4,
-                    // 2026-08-20): the Lanista scenario needs to press the honest
-                    // search action on a shelf-less series without knowing its label text.
-                    objectName: "tankobanSeriesPrimaryAction"
-                    visible: !root.library.showVolumes
-                    width: visible ? primaryLabel.implicitWidth + 36 : 0
-                    height: 42; radius: 11; color: theme.gold
-                    activeFocusOnTab: visible
-                    Accessible.role: Accessible.Button; Accessible.name: root.continueText
-                    Keys.onReturnPressed: root.primaryRequested(); Keys.onEnterPressed: root.primaryRequested()
-                    Row { id: primaryLabel; anchors.centerIn: parent; spacing: 8
-                        Image { source: "../assets/icons/play-dark.svg"; width: 14; height: 14; visible: root.primaryAction !== "search"; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: root.continueText; color: "#171205"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.primaryRequested() }
-                }
-
-                Loader {
-                    anchors.verticalCenter: parent.verticalCenter
-                    active: root.collectionEntry !== null && typeof Collection !== "undefined"
-                    sourceComponent: LibraryButton { world: "tankoban"; entry: root.collectionEntry }
-                }
-            }
-        }
+        tankobanMode: true
+        seriesTitle: root.seriesTitle
+        banner: root.banner
+        cover: root.cover
+        author: root.author
+        status: root.status
+        year: root.year
+        score: root.score
+        synopsis: root.synopsis
+        collectionEntry: root.collectionEntry
+        onBackRequested: root.backRequested()
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onCloseRequested: root.closeRequested()
+        onChapterRequested: root.chapterModeRequested()
     }
 
     Item {
         id: collectionSurface
-        anchors.top: storyMasthead.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-        anchors.leftMargin: 0; anchors.rightMargin: 0; anchors.topMargin: 10; anchors.bottomMargin: 0
+        anchors.top: sharedHeader.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        anchors.leftMargin: 0; anchors.rightMargin: 0; anchors.topMargin: 0; anchors.bottomMargin: 0
         MangaTankobanLibrary {
             id: tankLib
             objectName: "readingRoomLibrary"
