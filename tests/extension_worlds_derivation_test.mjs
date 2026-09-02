@@ -39,7 +39,7 @@ const roster = [
   E('colosseum.catalogue.anilist',     true,  CAT, ['manga']),
   E('colosseum.catalogue.applebooks',  true,  CAT, ['book']),
   E('colosseum.well.nyaa',             false, STR, ['manga']),
-  E('colosseum.well.weebcentral.pages',false, STR, ['manga']),
+  E('colosseum.well.tankoyomi',false, STR, ['manga']),
   E('colosseum.well.getcomics.issues', false, STR, ['comic']),
   E('colosseum.well.libgen',           false, STR, ['book']),
   E('colosseum.well.indexers',         false, STR, ['comic', 'book', 'audiobook']),
@@ -97,12 +97,12 @@ eq([mod.inWorld(uni, 'theatre'), mod.inWorld(uni, 'tankoban'), mod.inWorld(uni, 
 
 console.log('job lines come from the id table, not from types');
 eq(mod.jobFor('colosseum.well.nyaa'),              'volume torrents', 'Nyaa job');
-eq(mod.jobFor('colosseum.well.weebcentral.pages'), 'chapter pages',   'WeebCentral pages job');
+eq(mod.jobFor('colosseum.well.tankoyomi'), 'chapter pages',   'Tankoyomi chapter sources job');
 eq(mod.jobFor('com.stremio.torrentio.addon'),      '',                'a remote addon has no house job');
 // Two wells share the type `manga`, which is exactly why the line cannot be derived.
-eq([mod.jobFor('colosseum.well.nyaa') !== mod.jobFor('colosseum.well.weebcentral.pages'),
+eq([mod.jobFor('colosseum.well.nyaa') !== mod.jobFor('colosseum.well.tankoyomi'),
     JSON.stringify(roster.find(e => e.id === 'colosseum.well.nyaa').manifest.types) ===
-    JSON.stringify(roster.find(e => e.id === 'colosseum.well.weebcentral.pages').manifest.types)],
+    JSON.stringify(roster.find(e => e.id === 'colosseum.well.tankoyomi').manifest.types)],
    [true, true], 'same type, different job');
 
 console.log('every well in the roster has a job line');

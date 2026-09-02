@@ -6,6 +6,8 @@
 // QNetworkAccessManager (no PreferCache) so scrape responses are never served stale.
 
 #include "WeebCentralScraper.h"
+#include "engine/TankoyomiChapterService.h"
+#include "engine/TankoyomiIdentity.h"
 #include "MangaSeriesDetail.h"
 #include "ComickCatalogClient.h"
 
@@ -31,6 +33,7 @@ public:
     explicit MangaEngine(QObject *parent = nullptr) : QObject(parent) {
         m_nam = new QNetworkAccessManager(this);
         m_wc = new WeebCentralScraper(m_nam, this);
+        m_tankoyomi = new TankoyomiChapterService(m_nam, this);
         m_comick = new tankoban::manga::comick::ComickCatalogClient(m_nam, this);
 
         // Volume structure comes from our Comick-sourced volume DB (live scrape on a
@@ -77,72 +80,55 @@ public:
         });
         connect(m_wc, &MangaScraper::errorOccurred, this,
                 [this](const QString &e) { emit engineError(e); });
+
+        connect(m_tankoyomi, &TankoyomiChapterService::catalogueReady, this,
+                [this](const QString &requestId, const QString &sourceSeriesId,
+                       const QVariantList &chapters) {
+                    emit chapterCatalogueResults(requestId, sourceSeriesId, chapters);
+                });
+        connect(m_tankoyomi, &TankoyomiChapterService::catalogueFailed, this,
+                [this](const QString &requestId, const QString &message) {
+                    emit chapterCatalogueFailed(requestId, message);
+                });
+        connect(m_tankoyomi, &TankoyomiChapterService::pagesReady, this,
+                [this](const QString &, const QVariantList &pages) { emit pagesResult(pages); });
+        connect(m_tankoyomi, &TankoyomiChapterService::pagesFailed, this,
+                [this](const QString &, const QString &message) { emit engineError(message); });
     }
 
     // QML entry points. Results arrive on the matching signal (async).
     Q_INVOKABLE void search(const QString &query) { m_wc->search(query); }
     Q_INVOKABLE void chapters(const QString &seriesId) { m_wc->fetchChapters(seriesId); }
 
-    // Arc 39: correlated one-shot chapter catalogue request. A dedicated scraper
-    // instance owns each request so late results can never be attributed to a newer
-    // series navigation. The requestId is caller-owned and returned unchanged.
+    // Chapter Mode enters the Tankoyomi provider layer. The legacy two-argument
+    // entry point remains English so existing QML keeps identical behavior while
+    // language-aware callers can opt into an explicit language.
+    Q_INVOKABLE QVariantList chapterLanguages() const {
+        return m_tankoyomi ? m_tankoyomi->languages() : QVariantList{};
+    }
     Q_INVOKABLE void chapterCatalogue(const QString &requestId, const QString &title) {
-        auto *scraper = new WeebCentralScraper(m_nam, this);
-        scraper->setProperty("arc39Settled", false);
-        connect(scraper, &MangaScraper::errorOccurred, this,
-                [this, scraper, requestId](const QString &message) {
-            if (scraper->property("arc39Settled").toBool()) return;
-            scraper->setProperty("arc39Settled", true);
-            emit chapterCatalogueFailed(requestId, message);
-            scraper->deleteLater();
-        });
-        connect(scraper, &MangaScraper::searchFinished, this,
-                [this, scraper, requestId, title](const QList<MangaResult> &results) {
-            if (scraper->property("arc39Settled").toBool()) return;
-            if (results.isEmpty()) {
-                scraper->setProperty("arc39Settled", true);
-                emit chapterCatalogueFailed(requestId, QStringLiteral("Series not found on WeebCentral"));
-                scraper->deleteLater();
-                return;
-            }
-            MangaResult chosen = results.first();
-            const QString wanted = title.trimmed();
-            for (const MangaResult &candidate : results) {
-                if (candidate.title.trimmed().compare(wanted, Qt::CaseInsensitive) == 0) {
-                    chosen = candidate;
-                    break;
-                }
-            }
-            const QString sourceSeriesId = chosen.id;
-            connect(scraper, &MangaScraper::chaptersReady, this,
-                    [this, scraper, requestId, sourceSeriesId](const QList<ChapterInfo> &rows) {
-                if (scraper->property("arc39Settled").toBool()) return;
-                QVariantList out;
-                int rawOrder = 0;
-                for (const ChapterInfo &chapter : rows) {
-                    const QString label = chapter.name.isEmpty()
-                        ? QStringLiteral("Chapter %1").arg(chapter.chapterNumber)
-                        : chapter.name;
-                    out.append(QVariantMap{
-                        {"id", chapter.id}, {"seriesId", sourceSeriesId},
-                        {"number", chapter.chapterNumber}, {"name", label}, {"label", label},
-                        {"title", QString()}, {"source", QStringLiteral("weebcentral")},
-                        {"language", QStringLiteral("unknown")},
-                        {"date", QVariant::fromValue<qlonglong>(chapter.dateUpload)},
-                        {"volumeScanned", chapter.isVolumeScanned}, {"rawOrder", rawOrder++}});
-                }
-                scraper->setProperty("arc39Settled", true);
-                emit chapterCatalogueResults(requestId, sourceSeriesId, out);
-                scraper->deleteLater();
-            });
-            scraper->fetchChapters(sourceSeriesId);
-        });
-        scraper->search(title);
+        m_tankoyomi->fetchCatalogue(requestId, title, QStringLiteral("en"));
+    }
+
+    Q_INVOKABLE void chapterCatalogueForLanguage(const QString &requestId,
+                                                  const QString &title,
+                                                  const QString &language) {
+        m_tankoyomi->fetchCatalogue(requestId, title, language);
     }
     // Reader: page images for a chapter. pages() = flat (long-strip/single/double);
     // pagesPaired() = MangaPlus facing-pairs (pageGroup set). Result → pagesResult.
-    Q_INVOKABLE void pages(const QString &chapterId) { m_wc->fetchPages(chapterId); }
-    Q_INVOKABLE void pagesPaired(const QString &chapterId) { m_wc->fetchPagesPaired(chapterId); }
+    Q_INVOKABLE void pages(const QString &chapterId) {
+        if (TankoyomiIdentity::isQualifiedChapter(chapterId))
+            m_tankoyomi->fetchPages(chapterId, chapterId);
+        else
+            m_wc->fetchPages(chapterId);
+    }
+    Q_INVOKABLE void pagesPaired(const QString &chapterId) {
+        if (TankoyomiIdentity::isQualifiedChapter(chapterId))
+            m_tankoyomi->fetchPages(chapterId, chapterId);
+        else
+            m_wc->fetchPagesPaired(chapterId);
+    }
     Q_INVOKABLE void detail(const QString &id, const QString &url, const QString &title,
                             const QString &cover) {
         MangaResult p;
@@ -155,6 +141,7 @@ public:
     // route Qt stalls ~21s per connection (the TB3 scar). main() passes the startup-resolved
     // IPv4 map so requests here ride the same pins as the QML image factory.
     void setIpv4Pins(const QHash<QString, QString> &pins) { m_pins = pins; }
+    TankoyomiChapterService *tankoyomiService() const { return m_tankoyomi; }
 
     // Rich metadata layer: banner, hi-res cover, synopsis, genres, score, year — a LADDER.
     // AniList GraphQL first (best data; fail-fast 8s — the API went 403-disabled site-wide
@@ -292,6 +279,7 @@ signals:
 private:
     QNetworkAccessManager *m_nam;
     WeebCentralScraper *m_wc;
+    TankoyomiChapterService *m_tankoyomi;
     tankoban::manga::comick::ComickCatalogClient *m_comick;
     QHash<QString, QString> m_pins;   // host → IPv4 (dead-IPv6 machine; see setIpv4Pins)
 };

@@ -44,7 +44,7 @@ const shipped = () => [
   E('colosseum.catalogue.anilist',     true,  CAT, ['manga']),
   E('colosseum.catalogue.applebooks',  true,  CAT, ['book']),
   E('colosseum.well.nyaa',             false, STR, ['manga']),
-  E('colosseum.well.weebcentral.pages',false, STR, ['manga']),
+  E('colosseum.well.tankoyomi',false, STR, ['manga']),
   E('colosseum.well.getcomics.issues', false, STR, ['comic']),
   E('colosseum.well.libgen',           false, STR, ['book']),
   E('colosseum.well.indexers',         false, STR, ['comic', 'book', 'audiobook']),
@@ -77,7 +77,7 @@ function press(list, world, id, delta) {
 }
 
 console.log('the shipped roster reads as the design says');
-eq(wellsIn(shipped(), 'tankoban'), ['nyaa', 'weebcentral.pages', 'getcomics.issues', 'indexers'],
+eq(wellsIn(shipped(), 'tankoban'), ['nyaa', 'tankoyomi', 'getcomics.issues', 'indexers'],
    'Tankoban wells');
 eq(wellsIn(shipped(), 'biblio'), ['libgen', 'indexers', 'audiobookbay'], 'Biblio wells');
 
@@ -113,7 +113,7 @@ console.log('\nthe defect: a GLOBAL ±1 was a no-op in Tankoban and a write to B
 console.log('\nthe fix: the row moves where the user pointed');
 {
   const after = press(shipped(), 'tankoban', 'colosseum.well.indexers', -1);
-  eq(wellsIn(after, 'tankoban'), ['nyaa', 'weebcentral.pages', 'indexers', 'getcomics.issues'],
+  eq(wellsIn(after, 'tankoban'), ['nyaa', 'tankoyomi', 'indexers', 'getcomics.issues'],
      '▲ on Tankoban rank 4 → it becomes rank 3');
   eq(wellsIn(after, 'biblio'), ['libgen', 'indexers', 'audiobookbay'],
      'and Biblio is untouched');
@@ -122,7 +122,7 @@ console.log('\nthe fix: the row moves where the user pointed');
   const after = press(shipped(), 'biblio', 'colosseum.well.indexers', -1);
   eq(wellsIn(after, 'biblio'), ['indexers', 'libgen', 'audiobookbay'],
      '▲ on Biblio rank 2 → it becomes rank 1');
-  eq(wellsIn(after, 'tankoban'), ['nyaa', 'weebcentral.pages', 'getcomics.issues', 'indexers'],
+  eq(wellsIn(after, 'tankoban'), ['nyaa', 'tankoyomi', 'getcomics.issues', 'indexers'],
      'and Tankoban is untouched');
 }
 

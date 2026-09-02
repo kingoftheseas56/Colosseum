@@ -47,10 +47,23 @@ Item {
     property var tankobanVolumesRef: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
     property var mangaEngineRef: (typeof Manga !== "undefined") ? Manga : null
     property var downloadsRef: (typeof Downloads !== "undefined") ? Downloads : null
+    property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
+    readonly property bool tankoyomiEnabled: {
+        var ext = page.extensionsRef
+        if (!ext) return false
+        var revision = ext.revision
+        var rows = ext.installed() || []
+        for (var i = 0; i < rows.length; ++i)
+            if (rows[i] && String(rows[i].id || "") === "colosseum.well.tankoyomi")
+                return rows[i].enabled === true
+        return false
+    }
 
     // Arc 39: Chapter mode is a sibling surface. The existing Tankoban page remains
-    // the default; switching to Chapters starts one correlated WeebCentral request.
+    // the default; switching to Chapters enters the enabled Tankoyomi provider chain.
     property bool chapterMode: false
+    property var chapterLanguages: []
+    property string selectedChapterLanguage: "en"
     property string chapterSourceSeriesId: ""
     property var chaptersModel: []
     property bool chaptersLoading: false
@@ -169,10 +182,37 @@ Item {
         return "Chapter"
     }
 
+    function _refreshChapterLanguages() {
+        var rows = (page.mangaEngineRef && page.mangaEngineRef.chapterLanguages)
+            ? (page.mangaEngineRef.chapterLanguages() || []) : []
+        page.chapterLanguages = rows.length ? rows : [{ "code": "en", "label": "English", "providerCount": 1 }]
+        var found = false
+        for (var i = 0; i < page.chapterLanguages.length; ++i)
+            if (String(page.chapterLanguages[i].code || "") === page.selectedChapterLanguage) found = true
+        if (!found) page.selectedChapterLanguage = "en"
+    }
+
+    function _selectChapterLanguage(code) {
+        var next = String(code || "").trim().toLowerCase()
+        if (!next.length || next === page.selectedChapterLanguage) return
+        page.selectedChapterLanguage = next
+        page._clearPendingChapterRead()
+        if (page.chapterMode) page._loadChapterCatalogue(true)
+    }
+
     function _loadChapterCatalogue(force) {
         if (!page.chapterMode) return
+        if (!page.tankoyomiEnabled) {
+            page._chapterRequestGeneration += 1
+            page._chapterRequestId = ""
+            page.chapterSourceSeriesId = ""
+            page.chaptersModel = []
+            page.chaptersLoading = false
+            page.chaptersError = "Tankoyomi is off. Enable it in Extensions to load chapters."
+            return
+        }
         if (!force && page.chaptersModel.length && page.chapterSourceSeriesId.length) return
-        if (!page.mangaEngineRef || !page.mangaEngineRef.chapterCatalogue) {
+        if (!page.mangaEngineRef || !page.mangaEngineRef.chapterCatalogueForLanguage) {
             page.chaptersError = "Chapter source is unavailable."
             page.chaptersLoading = false
             return
@@ -184,7 +224,7 @@ Item {
         page.chaptersError = ""
         page.chaptersLoading = true
         var title = page.sourceSearchTitle.length ? page.sourceSearchTitle : page.seriesTitle
-        page.mangaEngineRef.chapterCatalogue(page._chapterRequestId, title)
+        page.mangaEngineRef.chapterCatalogueForLanguage(page._chapterRequestId, title, page.selectedChapterLanguage)
     }
 
     function _enterChapterMode() {
@@ -571,7 +611,7 @@ Item {
             page.chapterSourceSeriesId = ""
             page.chaptersModel = []
             page.chaptersLoading = false
-            page.chaptersError = String(message || "Unable to load chapters from WeebCentral.")
+            page.chaptersError = String(message || "Unable to load chapters from Tankoyomi.")
         }
     }
 
@@ -650,7 +690,11 @@ Item {
     Theme { id: theme }
 
     onSeriesTitleChanged: resolve()
-    Component.onCompleted: if (seriesTitle.length) resolve()
+    onMangaEngineRefChanged: page._refreshChapterLanguages()
+    Component.onCompleted: {
+        page._refreshChapterLanguages()
+        if (seriesTitle.length) resolve()
+    }
 
     // Data-vault Slice 3 (2026-08-22): wake-on-ready. A fresh install can open this page
     // before MalCatalog's download lands (id>0/title given but the db not open yet), leaving
@@ -875,6 +919,7 @@ Item {
         service: page.tankobanVolumesRef
         pendingReadVolumeId: page.pendingReadVolumeId
         collectionEntry: page.collectionEntry()
+        chapterLanguages: page.chapterLanguages
         onBackRequested: { page._invalidateReadIntent(); page.backRequested() }
         onMinimizeRequested: { page._invalidateReadIntent(); page.minimizeRequested() }
         onFullscreenRequested: page.fullscreenRequested()
@@ -906,14 +951,19 @@ Item {
         chapters: page.chaptersModel
         downloader: page.downloadsRef
         collectionEntry: page.collectionEntry()
+        chapterLanguages: page.chapterLanguages
+        selectedChapterLanguage: page.selectedChapterLanguage
         loading: page.chaptersLoading
         errorText: page.chaptersError
+        sourceEnabled: page.tankoyomiEnabled
         onBackRequested: { page._clearPendingChapterRead(); page.backRequested() }
         onMinimizeRequested: page.minimizeRequested()
         onFullscreenRequested: page.fullscreenRequested()
         onCloseRequested: { page._clearPendingChapterRead(); page.closeRequested() }
         onTankobanRequested: page._enterTankobanMode()
+        onChapterLanguageRequested: (code) => page._selectChapterLanguage(code)
         onReadChapterRequested: (chapterId, chapterLabel) => page._readChapter(chapterId, chapterLabel)
+        onOpenExtensionsRequested: page.openExtensionsRequested()
     }
 
     // ---- clean loading state ----

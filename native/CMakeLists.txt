@@ -303,6 +303,14 @@ add_executable(colosseum
     engine/AppLog.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
     engine/MangaScraper.h
     engine/MangaResult.h
     engine/MangaSeriesDetail.h
@@ -599,6 +607,12 @@ add_executable(colosseum
     engine/BiblioCatalog.cpp
     engine/BiblioCatalog.h
 )
+file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")
+qt_add_resources(colosseum "tankoyomi_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
@@ -651,6 +665,47 @@ if(WIN32)
 endif()
 
 
+add_executable(tankoyomi_provider_registry_harness
+    ../tests/tankoyomi_provider_registry_harness.cpp
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h)
+target_include_directories(tankoyomi_provider_registry_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_provider_registry_harness PRIVATE Qt6::Core)
+add_executable(tankoyomi_identity_harness
+    ../tests/tankoyomi_identity_harness.cpp
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h)
+target_include_directories(tankoyomi_identity_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_identity_harness PRIVATE Qt6::Core)
+
+add_executable(tankoyomi_service_runtime_harness
+    ../tests/tankoyomi_service_runtime_harness.cpp
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h)
+target_include_directories(tankoyomi_service_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_service_runtime_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+qt_add_resources(tankoyomi_service_runtime_harness "tankoyomi_service_runtime_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
+add_executable(tankoyomi_provider_live_harness
+    ../tests/tankoyomi_provider_live_harness.cpp
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h)
+target_include_directories(tankoyomi_provider_live_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_provider_live_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+qt_add_resources(tankoyomi_provider_live_harness "tankoyomi_provider_live_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
 add_executable(update_version_harness
     ../tests/update_version_harness.cpp
     update/UpdateVersion.cpp

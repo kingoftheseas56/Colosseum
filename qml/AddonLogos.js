@@ -66,6 +66,7 @@ var TABLE = [
     // Matched on the SITE name, deliberately, so both of a site's roles share one mark:
     // WeebCentral appears twice in Tankoban (locked catalogue + removable chapter-pages
     // well) and GetComics twice in comics — same logo, different job. (2026-07-25)
+    { file: "tankoyomi.png",     m: function (id, n) { return id.indexOf("tankoyomi") >= 0 || /tankoyomi/i.test(n); } },
     { file: "weebcentral.png",  m: function (id, n) { return id.indexOf("weebcentral") >= 0 || /weeb.?central/i.test(n); } },
     { file: "getcomics.png",    m: function (id, n) { return id.indexOf("getcomics") >= 0 || /get.?comics/i.test(n); } },
     { file: "libgen.ico",       m: function (id, n) { return id.indexOf("libgen") >= 0 || /lib.?gen/i.test(n); } },

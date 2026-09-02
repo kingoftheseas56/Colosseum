@@ -24,6 +24,7 @@ Item {
     }
 
     property var view: null
+    property int extensionRequests: 0
     function fail(msg) { console.error("MANGA_CHAPTER_VIEW_FAIL: " + msg); Qt.exit(1) }
     function check(ok, msg) { if (!ok) fail(msg) }
     function chapters(n) {
@@ -36,6 +37,12 @@ Item {
 
     function verifyFirstPage() {
         check(view.pageCount === 3, "25 chapters must expose 3 pages")
+        view.sourceEnabled = false
+        check(view.extensionGateVisible === true, "disabled source exposes the Extensions gate")
+        view.requestExtensions()
+        check(harness.extensionRequests === 1, "Extensions gate emits exactly one navigation request")
+        view.sourceEnabled = true
+        check(view.extensionGateVisible === false, "enabled source hides the Extensions gate")
         check(view.currentPageIndex === 0, "initial page index")
         check(view.pageSelectorLabel === "Page 1", "single selector starts at Page 1")
         check(view.pageSelectorControlCount === 1, "there must be exactly one page selector control")
@@ -75,6 +82,7 @@ Item {
             chapters: chapters(25), downloader: downloads
         })
         if (!view) fail("could not create chapter series view")
+        view.openExtensionsRequested.connect(function() { harness.extensionRequests += 1 })
         Qt.callLater(verifyFirstPage)
     }
 }

@@ -61,6 +61,7 @@ Item {
     property var genres: []
     property real score: 0
     property var collectionEntry: null
+    property var chapterLanguages: []
     property var service: null
     property var progress: null
     property var downloader: null
@@ -96,6 +97,8 @@ Item {
         score: root.score
         synopsis: root.synopsis
         collectionEntry: root.collectionEntry
+        chapterLanguages: root.chapterLanguages
+        selectedChapterLanguage: "en"
         onBackRequested: root.backRequested()
         onMinimizeRequested: root.minimizeRequested()
         onFullscreenRequested: root.fullscreenRequested()
