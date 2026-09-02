@@ -399,17 +399,16 @@ prepareAccountSession(
 
     const ProfilePaths &active =
         m_profileRuntime->activeProfile();
+    const bool activeAccountMatches =
+        active.kind() == ProfilePaths::Kind::Account
+        && active.profileId() == paths->profileId();
     if (active.kind()
             == ProfilePaths::Kind::Account) {
-        if (active.profileId()
-            == paths->profileId()) {
-            return true;
-        }
-
-        return setError(
-            error,
-            QStringLiteral(
-                "The active account profile must be sealed before another account opens."));
+        if (!activeAccountMatches)
+            return setError(
+                error,
+                QStringLiteral(
+                    "The active account profile must be sealed before another account opens."));
     }
 
     if (QFileInfo::exists(
@@ -497,6 +496,9 @@ prepareAccountSession(
             return false;
         }
     }
+
+    if (activeAccountMatches)
+        return true;
 
     return activate(*paths, error);
 }
