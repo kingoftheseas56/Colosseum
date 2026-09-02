@@ -190,7 +190,7 @@ Item {
         flow.positionViewAtIndex(i, ListView.Center)
     }
 
-    onOpenChanged: if (open) Qt.callLater(root.centreNow)
+    onOpenChanged: if (open) Qt.callLater(function() { root.centreNow(); flow.forceActiveFocus(Qt.OtherFocusReason) })
     onCurrentPageChanged: if (open) Qt.callLater(root.centreNow)
     onPageCountChanged: if (open) Qt.callLater(root.centreNow)
     onOrderChanged: if (open) Qt.callLater(root.centreNow)
@@ -215,7 +215,7 @@ Item {
     // "Escape or clicking the comic dismisses without moving." It covers the comic only: the chrome
     // bands keep working, so Back, the commands and the rail are all still reachable with the strip
     // up. It emits dismissRequested and nothing else — there is no navigation path through here.
-    MouseArea {
+    ComicReaderKeyboardArea {
         objectName: "pagesDismissCatcher"
         anchors.left: parent.left
         anchors.right: parent.right
@@ -248,7 +248,7 @@ Item {
         // click-swallower (floating-panel house law): the band's empty ground must not fall through
         // to the catcher below and dismiss the surface you are reading. Declared FIRST so the
         // thumbnails sit above it and still take their own clicks.
-        MouseArea {
+        ComicReaderKeyboardArea {
             id: bandSwallow
             objectName: "pagesBandSwallow"
             anchors.fill: parent
@@ -282,6 +282,19 @@ Item {
             // near enough to realize a book.
             cacheBuffer: Math.round(root.thumbWidth * 3)
             boundsBehavior: Flickable.StopAtBounds
+            activeFocusOnTab: root.open && flow.count > 0
+            Accessible.role: Accessible.List
+            Accessible.name: "Pages"
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape) { root.dismiss(); event.accepted = true; return }
+                var proxy = { key: event.key, modifiers: event.modifiers, accepted: false }
+                if (root.order === "rtl") {
+                    if (proxy.key === Qt.Key_Left) proxy.key = Qt.Key_Right
+                    else if (proxy.key === Qt.Key_Right) proxy.key = Qt.Key_Left
+                }
+                pageKeys.handle(proxy)
+                if (proxy.accepted) event.accepted = true
+            }
             highlightFollowsCurrentItem: false      // centreNow() owns the position; no second mover
             clip: true
 
@@ -294,6 +307,7 @@ Item {
                 required property int index
 
                 readonly property bool isCurrent: index === root.centeredIndex
+                readonly property bool isKeyboardCurrent: flow.activeFocus && flow.currentIndex === index
                 readonly property real thumbScale: root.scaleForIndex(index)
                 // Exposed for the gate: the printed number and whether the bookmark mark is showing.
                 readonly property string labelText: pageLabel.text
@@ -316,9 +330,9 @@ Item {
                     height: Math.round(root.thumbHeight * cell.thumbScale)
                     color: root.cSlot
                     // GOLD IS SPARING and structural: only the page you are actually on wears it.
-                    border.width: cell.isCurrent ? 2 : 1
+                    border.width: (cell.isCurrent || cell.isKeyboardCurrent) ? 2 : 1
                     border.color: cell.isCurrent ? theme.gold
-                                                 : (cellMa.containsMouse ? theme.edge : root.cHairline)
+                                                 : (cell.isKeyboardCurrent ? "#FFFFFF" : (cellMa.containsMouse ? theme.edge : root.cHairline))
                     opacity: cell.isCurrent ? 1.0 : (cellMa.containsMouse ? 0.95 : 0.72)
 
                     Image {
@@ -369,9 +383,10 @@ Item {
                     font.bold: cell.isCurrent
                 }
 
-                MouseArea {
+                ComicReaderKeyboardArea {
                     id: cellMa
                     anchors.fill: parent
+                    keyboardTabStop: false
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: cell.activate()
@@ -391,6 +406,15 @@ Item {
                 }
                 Component.onDestruction: root.liveThumbs -= 1
             }
+        }
+
+        KeyboardCollectionController {
+            id: pageKeys
+            view: flow
+            orientation: "horizontal"
+            count: flow.count
+            pageStep: Math.max(1, Math.floor(flow.width / Math.max(1, root.thumbWidth + flow.spacing)))
+            onActivated: function(index) { root.activateIndex(index) }
         }
 
         // ---- edge fades. Without these the strip HARD-CLIPS at both screen edges and reads as a

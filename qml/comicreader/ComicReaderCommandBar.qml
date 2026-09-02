@@ -202,7 +202,7 @@ Item {
                     }
                 }
 
-                MouseArea {
+                ComicReaderKeyboardArea {
                     id: cmdMa
                     anchors.fill: parent
                     // a comfortable target without drawing a box for it
@@ -212,6 +212,7 @@ Item {
                     anchors.rightMargin: -8
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    keyboardLabel: bar.labelFor(cmd.modelData)
                     onClicked: bar.trigger(cmd.modelData)
                 }
             }

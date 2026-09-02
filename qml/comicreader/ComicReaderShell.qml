@@ -312,6 +312,29 @@ Item {
     // asserts every name raisable here reaches it. `activeOverlay` still drives the command's GOLD —
     // that is presentation, and presentation may lead the pixels; sleep policy may not.
     property string activeOverlay: ""            // "" | pages | image | layout | loupe
+    property bool contextChooserOpen: false
+    property int contextChooserHalf: 0           // 0 = physical left, 1 = physical right
+    readonly property int keyboardContextLeftPage: reader._spreadOverrideTargetPage(0)
+    readonly property int keyboardContextRightPage: reader._spreadOverrideTargetPage(reader.width)
+    function openKeyboardContextChooser() {
+        var left = keyboardContextLeftPage
+        var right = keyboardContextRightPage
+        if (left < 0) { settingsRequested(); return }
+        if (right < 0 || right === left) { cycleSpreadOverride(left); return }
+        pauseAutoScroll(); contextChooserHalf = 0; contextChooserOpen = true
+        restoreCursorAndChrome()
+        Qt.callLater(function() { spreadContextChooser.forceActiveFocus(Qt.OtherFocusReason) })
+    }
+    function closeKeyboardContextChooser() {
+        contextChooserOpen = false
+        Qt.callLater(function() { reader.forceActiveFocus(Qt.OtherFocusReason) })
+    }
+    function activateKeyboardContextHalf() {
+        var page = contextChooserHalf === 0 ? keyboardContextLeftPage : keyboardContextRightPage
+        contextChooserOpen = false
+        if (page >= 0) cycleSpreadOverride(page)
+        Qt.callLater(function() { reader.forceActiveFocus(Qt.OtherFocusReason) })
+    }
     function openOverlay(name) {
         var n = String(name)
         // re-asking for the surface that is already open CLOSES it — one temporary surface, and the
@@ -332,6 +355,7 @@ Item {
         _cursorIdle = false                      // the pointer always comes back, whatever we close
         cursorIdleTimer.restart()
         if (settingsSheet.opened) { settingsSheet.close(); chromeVisible = true; return }
+        if (contextChooserOpen) { closeKeyboardContextChooser(); chromeVisible = true; return }
         if (activeOverlay.length) { activeOverlay = ""; chromeVisible = true; return }
         chromeVisible = !wasVisible
     }
@@ -349,7 +373,7 @@ Item {
     // `loupeOpen` door above the modal gate for the two the approved design names (L to close it,
     // +/- to magnify the lens). Everything else stays gated exactly as it is under the others.
     readonly property bool modalOpen: settingsSheet.opened || pagesOverlay.open || imagePopover.open
-                                      || layoutPopover.open || loupe.open
+                                      || layoutPopover.open || loupe.open || contextChooserOpen
 
     // The current entry's slot in `chapters` (newest-first). Public and readonly on the old reader
     // (MangaReader.qml:165) and read by tests/manga_tankoban_page_harness.qml — the Task 1 contract
@@ -830,6 +854,9 @@ Item {
     // stays a direct right-click on the page itself." Cycle the clicked page's override in
     // double-page over a real unit; everywhere else (and single/spread units) fall through to Settings.
     function _onContextMenu(x, y) {
+        // (-1,-1) is the keyboard entry sentinel from ComicReaderInput. Pointer right-click
+        // remains byte-for-byte physical; keyboard context opens the two-half chooser when needed.
+        if (x < 0) { openKeyboardContextChooser(); return }
         var pg = _spreadOverrideTargetPage(x)
         if (pg >= 0) cycleSpreadOverride(pg)
         else settingsRequested()
@@ -1933,6 +1960,7 @@ Item {
         // Loupe branch sits above its Ctrl+zoom branch, so there is no keyboard path from an open
         // Loupe to a page zoom at all.
         onMagnifyLoupe: function (steps) { loupe.magnifySteps(steps) }
+        onMoveLoupe: function (dx, dy) { loupe.moveLensBy(dx, dy) }
         onCloseTop: reader.closeTopRequested()
         onOpenContextMenu: function (x, y) { reader._onContextMenu(x, y) }
         // reveal-zone hover keeps the HUD alive; both also count as cursor activity — chrome and
@@ -1984,7 +2012,7 @@ Item {
     // cursor installed even though the HUD has returned. An explicit
     // BlankCursor→ArrowCursor property transition restores the system cursor
     // immediately. Modals still disable the overlay so their own cursors win.
-    MouseArea {
+    ComicReaderKeyboardArea {
         objectName: "cursorHideArea"
         anchors.fill: parent
         z: 998
@@ -2106,6 +2134,61 @@ Item {
         // Dismissal is a plain assignment, never openOverlay() — openOverlay TOGGLES, so routing a
         // dismissal through it would re-open the surface the reader just closed.
         onDismissRequested: reader.activeOverlay = ""
+    }
+
+    // Menu / Shift+F10 paired-page chooser. One focus region; arrows select a PHYSICAL half,
+    // Enter/Space invokes the same cycleSpreadOverride() semantic used by right-click.
+    Item {
+        id: spreadContextChooser
+        z: 1200
+        anchors.fill: parent
+        visible: reader.contextChooserOpen
+        focus: visible
+        Accessible.role: Accessible.Dialog
+        Accessible.name: "Page pairing context"
+        Keys.onPressed: function(event) {
+            if (!reader.contextChooserOpen) return
+            if (event.key === Qt.Key_Escape) { reader.closeKeyboardContextChooser(); event.accepted = true; return }
+            if (event.key === Qt.Key_Left || event.key === Qt.Key_Home) { reader.contextChooserHalf = 0; event.accepted = true; return }
+            if (event.key === Qt.Key_Right || event.key === Qt.Key_End) { reader.contextChooserHalf = 1; event.accepted = true; return }
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                reader.activateKeyboardContextHalf(); event.accepted = true; return
+            }
+            if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) event.accepted = true
+        }
+        ComicReaderKeyboardArea {
+            anchors.fill: parent; keyboardTabStop: false
+            onClicked: reader.closeKeyboardContextChooser()
+        }
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(520, parent.width - 48); height: 118; radius: 14
+            color: Qt.rgba(10/255, 11/255, 15/255, 0.96)
+            border.color: Qt.rgba(1,1,1,0.16); border.width: 1
+            Column {
+                anchors.fill: parent; anchors.margins: 14; spacing: 10
+                Text { text: "Page pairing"; color: "white"; font.pixelSize: 15; font.weight: Font.DemiBold }
+                Row {
+                    width: parent.width; height: 58; spacing: 10
+                    Repeater {
+                        model: 2
+                        delegate: Rectangle {
+                            required property int index
+                            width: (parent.width - 10) / 2; height: parent.height; radius: 9
+                            color: reader.contextChooserHalf === index ? Qt.rgba(240/255,194/255,74/255,0.12) : Qt.rgba(1,1,1,0.05)
+                            border.color: reader.contextChooserHalf === index ? "#F0C24A" : Qt.rgba(1,1,1,0.12)
+                            border.width: reader.contextChooserHalf === index ? 2 : 1
+                            readonly property int page0: index === 0 ? reader.keyboardContextLeftPage : reader.keyboardContextRightPage
+                            Text { anchors.centerIn: parent; text: (index === 0 ? "Left page · p." : "Right page · p.") + (parent.page0 + 1); color: "white"; font.pixelSize: 13 }
+                            ComicReaderKeyboardArea {
+                                anchors.fill: parent; keyboardTabStop: false; cursorShape: Qt.PointingHandCursor
+                                onClicked: { reader.contextChooserHalf = parent.index; reader.activateKeyboardContextHalf() }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     ComicReaderSettingsSheet {

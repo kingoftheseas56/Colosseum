@@ -94,10 +94,16 @@ Item {
             }
         }
 
-        MouseArea {
+        ReaderKeyboardArea {
             id: scrubArea
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
+            keyboardLabel: "Book progress"
+            keyboardRole: Accessible.Slider
+            keyboardDecrease: function() { root.scrubbed(Math.max(0, root.clampedFraction - 0.02)) }
+            keyboardIncrease: function() { root.scrubbed(Math.min(1, root.clampedFraction + 0.02)) }
+            keyboardHome: function() { root.scrubbed(0) }
+            keyboardEnd: function() { root.scrubbed(1) }
             property bool dragging: false
             property real preview: 0
             function fracAt(mx) { return Math.max(0, Math.min(1, width > 0 ? mx / width : 0)) }
@@ -187,9 +193,10 @@ Item {
                 font.pixelSize: 13
             }
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: chipMa
             anchors.fill: parent
+            keyboardLabel: root.returnPageLabel !== "" ? ("Return to page " + root.returnPageLabel) : "Return"
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.returnRequested()

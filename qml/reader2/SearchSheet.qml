@@ -1,4 +1,4 @@
-// SearchSheet.qml — the reader's SEARCH surface (TASK 11): a thin floating glass sheet
+﻿// SearchSheet.qml â€” the reader's SEARCH surface (TASK 11): a thin floating glass sheet
 // that drops in under the top bar. An input ("Search this book") + a result-count label
 // + a scrollable list of hits; each hit is a ghost-caps chapter label over a serif excerpt
 // with the matched word marked in GOLD. Pixel contract: the chrome mock's `.search`,
@@ -8,10 +8,10 @@
 // Like the rest of the reader2 chrome this overlay is BRIDGE-FREE: it takes results via
 // properties and reports up via signals only. ReaderShell owns the paper.search / goTo /
 // clearSearch. SEARCH IS SUBMIT-DRIVEN (Enter), not live-on-keystroke: searching the whole
-// book on every keystroke would scan the book each time — the cap bounds the payload, not
+// book on every keystroke would scan the book each time â€” the cap bounds the payload, not
 // the scan. So `submitted(q)` fires on Return; results flow back in via `results`.
 //
-// The sheet is a small centered card — deliberately NO full-screen backdrop, so while it is
+// The sheet is a small centered card â€” deliberately NO full-screen backdrop, so while it is
 // open the paper underneath still reads/turns (and the overlay can never block selection).
 // The card carries its OWN click-swallow (house doctrine) so taps on it don't fall through
 // to the paper's double-click toggle. Esc (input focused) closes it; a row click jumps and
@@ -35,9 +35,9 @@ Item {
     property string lastQuery: ""
 
     // ---- signals up ----
-    signal submitted(string query)      // Return → ReaderShell calls paper.search(q)
-    signal resultActivated(string cfi)  // row click → paper.goTo(cfi); the sheet stays open
-    signal closeRequested()             // Esc → ReaderChrome closes the sheet
+    signal submitted(string query)      // Return â†’ ReaderShell calls paper.search(q)
+    signal resultActivated(string cfi)  // row click â†’ paper.goTo(cfi); the sheet stays open
+    signal closeRequested()             // Esc â†’ ReaderChrome closes the sheet
 
     // fresh field + focus each time it opens (results are reset by ReaderShell on open).
     onOpenChanged: if (open) { input.text = ""; Qt.callLater(function () { input.forceActiveFocus() }) }
@@ -68,7 +68,7 @@ Item {
 
         // OWN click-swallow (house doctrine): presses/wheel on the card never reach the
         // paper's double-click toggle. Child controls (declared after) sit on top.
-        MouseArea {
+        ReaderKeyboardArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
             hoverEnabled: true
@@ -98,6 +98,7 @@ Item {
 
             TextInput {
                 id: input
+                objectName: "reader2SearchInput"
                 anchors.left: searchIcon.right
                 anchors.leftMargin: 12
                 anchors.right: countLabel.left
@@ -109,6 +110,21 @@ Item {
                 selectionColor: Theme.gold
                 selectByMouse: true
                 clip: true
+                activeFocusOnTab: true
+                KeyNavigation.tab: sheet.hasResults ? resList : input
+                KeyNavigation.backtab: sheet.hasResults ? resList : input
+                KeyNavigation.priority: KeyNavigation.BeforeItem
+                Keys.priority: Keys.BeforeItem
+                Keys.onTabPressed: function(event) {
+                    if (sheet.hasResults) resList.forceActiveFocus(Qt.OtherFocusReason)
+                    else input.forceActiveFocus(Qt.OtherFocusReason)
+                    event.accepted = true
+                }
+                Keys.onBacktabPressed: function(event) {
+                    if (sheet.hasResults) resList.forceActiveFocus(Qt.OtherFocusReason)
+                    else input.forceActiveFocus(Qt.OtherFocusReason)
+                    event.accepted = true
+                }
                 onAccepted: sheet.submitted(text.trim())
                 Keys.onEscapePressed: sheet.closeRequested()
 
@@ -167,12 +183,26 @@ Item {
 
             ListView {
                 id: resList
+                objectName: "reader2SearchResults"
                 anchors.fill: parent
                 anchors.margins: 8
                 visible: sheet.hasResults
                 clip: true
                 model: sheet.results
                 boundsBehavior: Flickable.StopAtBounds
+                activeFocusOnTab: true
+                KeyNavigation.tab: input
+                KeyNavigation.backtab: input
+                KeyNavigation.priority: KeyNavigation.BeforeItem
+                Accessible.role: Accessible.List
+                Accessible.name: "Search results"
+                Keys.priority: Keys.BeforeItem
+                Keys.onTabPressed: function(event) { input.forceActiveFocus(Qt.OtherFocusReason); event.accepted = true }
+                Keys.onBacktabPressed: function(event) { input.forceActiveFocus(Qt.OtherFocusReason); event.accepted = true }
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Escape) { sheet.closeRequested(); event.accepted = true; return }
+                    searchKeys.handle(event)
+                }
 
                 delegate: Item {
                     id: res
@@ -184,7 +214,8 @@ Item {
                         anchors.fill: parent
                         anchors.leftMargin: 0
                         radius: 8
-                        color: resMa.containsMouse ? Theme.rowHover : "transparent"
+                        color: (resList.activeFocus && resList.currentIndex === index) ? Theme.goldWash
+                                 : (resMa.containsMouse ? Theme.rowHover : "transparent")
                     }
                     Column {
                         id: resCol
@@ -208,7 +239,7 @@ Item {
                             font.capitalization: Font.AllUppercase
                         }
                         // serif excerpt; the matched substring is marked in GOLD (mock .rtext + mark).
-                        // The gold token is supplied HERE (Theme.gold) → the pure helper only
+                        // The gold token is supplied HERE (Theme.gold) â†’ the pure helper only
                         // escapes + assembles the StyledText.
                         Text {
                             width: parent.width
@@ -220,9 +251,10 @@ Item {
                             font.pixelSize: 13
                         }
                     }
-                    MouseArea {
+                    ReaderKeyboardArea {
                         id: resMa
                         anchors.fill: parent
+                        keyboardTabStop: false
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: sheet.resultActivated((res.modelData && res.modelData.cfi) ? String(res.modelData.cfi) : "")
@@ -231,4 +263,16 @@ Item {
             }
         }
     }
+    ReaderKeyboardCollectionController {
+        id: searchKeys
+        view: resList
+        orientation: "vertical"
+        count: resList.count
+        onActivated: function(index) {
+            var row = sheet.results && index >= 0 && index < sheet.results.length ? sheet.results[index] : null
+            sheet.resultActivated(row && row.cfi ? String(row.cfi) : "")
+        }
+    }
+
 }
+

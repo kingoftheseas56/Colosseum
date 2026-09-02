@@ -58,6 +58,9 @@ Item {
     // ---- open state: the RULE, not the pixels (see the header note) ----
     property bool open: false
     visible: open
+    activeFocusOnTab: open
+    onOpenChanged: if (open) Qt.callLater(function() { root.forceActiveFocus(Qt.OtherFocusReason) })
+    Keys.onEscapePressed: if (open) root.dismiss()
 
     // THE contextual rule, as a readable property rather than a repeated predicate. The gates
     // assert on THIS: an offscreen harness roots its tree invisible, so every child's `visible`
@@ -190,7 +193,7 @@ Item {
     // "Panel floats over the comic without shifting it" — and a click on the comic puts it away. It
     // covers the comic only: the chrome bands keep working, so Back, the commands and the rail are
     // all still reachable with the panel up. It emits dismissRequested and nothing else.
-    MouseArea {
+    ComicReaderKeyboardArea {
         objectName: "layoutDismissCatcher"
         anchors.left: parent.left
         anchors.right: parent.right
@@ -230,7 +233,7 @@ Item {
             font.pixelSize: 12
             font.bold: chip.active
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: chip.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: chip.label; onClicked: chip.tapped() }
     }
 
     // A continuous control. `value` is a PLAIN property the owner assigns, never a binding: a bound
@@ -321,11 +324,23 @@ Item {
                 color: theme.gold
             }
 
-            MouseArea {
+            ComicReaderKeyboardArea {
                 anchors.fill: parent
                 anchors.topMargin: -11
                 anchors.bottomMargin: -11
                 cursorShape: Qt.PointingHandCursor
+                keyboardLabel: slider.label
+                keyboardRole: Accessible.Slider
+                keyboardDecrease: function() {
+                    var d = slider.step > 0 ? slider.step : Math.max(0.01, (slider.to - slider.from) / 20)
+                    slider.moveTo(slider.value - d)
+                }
+                keyboardIncrease: function() {
+                    var d = slider.step > 0 ? slider.step : Math.max(0.01, (slider.to - slider.from) / 20)
+                    slider.moveTo(slider.value + d)
+                }
+                keyboardHome: function() { slider.moveTo(slider.from) }
+                keyboardEnd: function() { slider.moveTo(slider.to) }
                 onPressed: function (mouse) { slider.held = true; slider.moveTo(slider.valueAt(mouse.x)) }
                 onPositionChanged: function (mouse) { if (slider.held) slider.moveTo(slider.valueAt(mouse.x)) }
                 onReleased: slider.held = false
@@ -368,7 +383,7 @@ Item {
         // click-swallower (floating-panel house law): the panel's own ground must not fall through
         // to the catcher below and dismiss the thing you are adjusting. Declared FIRST so every
         // control sits above it.
-        MouseArea {
+        ComicReaderKeyboardArea {
             id: panelSwallow
             objectName: "layoutPanelSwallow"
             anchors.fill: parent
@@ -422,7 +437,7 @@ Item {
                         font.pixelSize: 13
                         font.bold: choice.active
                     }
-                    MouseArea {
+                    ComicReaderKeyboardArea {
                         id: choiceMa
                         anchors.fill: parent
                         hoverEnabled: true

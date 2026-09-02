@@ -17,6 +17,7 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import QtQuick.Window
 import "Reader2Logic.js" as L
 
 Item {
@@ -126,11 +127,47 @@ Item {
     signal readAlongScaleChanged(real scale)     // word enlargement 1.0..2.0
 
     readonly property int colWidth: 348
-    readonly property int topBarPx: 64           // keep the top bar's right icons clickable
+    readonly property int topBarPx: 64
+
+    function focusActiveTab() {
+        if (activeTab === "bookmarks") bookmarksTab.focusKeyboard()
+        else if (activeTab === "highlights") highlightsTab.focusKeyboard()
+        else if (activeTab === "audio") audioTab.focusKeyboard()
+        else contentsTab.focusKeyboard()
+    }
+    function focusBelongsHere(item) {
+        var p = item
+        while (p) { if (p === panel) return true; p = p.parent }
+        return false
+    }
+    function trapTab(event) {
+        var tab = event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
+        if (!open || !tab) return false
+        var backwards = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
+        var w = panel.Window.window
+        var current = w ? w.activeFocusItem : null
+        if (!current || !focusBelongsHere(current)) { focusActiveTab(); event.accepted = true; return true }
+        var next = current
+        for (var i = 0; i < 512; ++i) {
+            next = next.nextItemInFocusChain(!backwards)
+            if (!next || next === current) break
+            if (focusBelongsHere(next) && next.activeFocusOnTab && next.visible && next.enabled) {
+                next.forceActiveFocus(Qt.OtherFocusReason); event.accepted = true; return true
+            }
+        }
+        event.accepted = true; return true
+    }
+    onOpenChanged: if (open) Qt.callLater(panel.focusActiveTab)
+    onActiveTabChanged: if (open) Qt.callLater(panel.focusActiveTab)
+    Keys.onPressed: function(event) {
+        if (panel.trapTab(event)) return
+        if (open && event.key === Qt.Key_Escape) { panel.closeRequested(); event.accepted = true }
+    }
+           // keep the top bar's right icons clickable
 
     // ---------- click-outside-to-dismiss (transparent; paper area right of the column) ----------
     // Only armed while open, and inset below the top bar so the TopBar icons stay live.
-    MouseArea {
+    ReaderKeyboardArea {
         anchors.left: column.right
         anchors.right: parent.right
         anchors.top: parent.top
@@ -172,7 +209,7 @@ Item {
 
         // OWN click-swallow (house doctrine): taps/scrolls inside the column never fall
         // through to the paper or the chrome's double-click toggle beneath.
-        MouseArea {
+        ReaderKeyboardArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
             hoverEnabled: true
@@ -195,12 +232,12 @@ Item {
             // ICON tabs (Hemanth 2026-07-18: "change every name in toc to an SVG icon placed at
             // equal distance") — equal-width cells, icon centered in each; the name lives on in
             // the hover tooltip. Same SVG set as the rest of the reader chrome.
-            Tab { width: tabStrip.tabW; icon: "contents.svg";  tip: "Contents";   active: panel.activeTab === "contents";   onPicked: panel.tabSelected("contents") }
-            Tab { width: tabStrip.tabW; icon: "bookmark.svg";  tip: "Bookmarks";  active: panel.activeTab === "bookmarks";  onPicked: panel.tabSelected("bookmarks") }
-            Tab { width: tabStrip.tabW; icon: "highlight.svg"; tip: "Highlights"; active: panel.activeTab === "highlights"; onPicked: panel.tabSelected("highlights") }
+            Tab { id: contentsTab; width: tabStrip.tabW; icon: "contents.svg";  tip: "Contents";   active: panel.activeTab === "contents";   onPicked: panel.tabSelected("contents") }
+            Tab { id: bookmarksTab; width: tabStrip.tabW; icon: "bookmark.svg";  tip: "Bookmarks";  active: panel.activeTab === "bookmarks";  onPicked: panel.tabSelected("bookmarks") }
+            Tab { id: highlightsTab; width: tabStrip.tabW; icon: "highlight.svg"; tip: "Highlights"; active: panel.activeTab === "highlights"; onPicked: panel.tabSelected("highlights") }
             // Audio (Task 13) — the read-along pane: attached audiobook + Follow switch +
             // mini transport. Live now (the placeholder/disabled state is gone).
-            Tab { width: tabStrip.tabW; icon: "headphones.svg"; tip: "Audio"; active: panel.activeTab === "audio"; onPicked: panel.tabSelected("audio") }
+            Tab { id: audioTab; width: tabStrip.tabW; icon: "headphones.svg"; tip: "Audio"; active: panel.activeTab === "audio"; onPicked: panel.tabSelected("audio") }
         }
 
         // ---------- pane body ----------
@@ -237,6 +274,10 @@ Item {
                     clip: true
                     model: panel.tocModel
                     boundsBehavior: Flickable.StopAtBounds
+                    activeFocusOnTab: panel.open && panel.activeTab === "contents" && count > 0
+                    Accessible.role: Accessible.List
+                    Accessible.name: "Contents"
+                    Keys.onPressed: function(event) { tocKeys.handle(event) }
 
                     delegate: Item {
                         id: chrow
@@ -249,8 +290,9 @@ Item {
                         Rectangle {
                             anchors.fill: parent
                             radius: 8
-                            color: chrow.rowState === "current" ? Theme.goldWash
-                                 : (chMa.containsMouse ? Theme.rowHover : "transparent")
+                            color: (tocList.activeFocus && tocList.currentIndex === chrow.index) ? Theme.rowHover
+                                 : (chrow.rowState === "current" ? Theme.goldWash
+                                 : (chMa.containsMouse ? Theme.rowHover : "transparent"))
                         }
                         Row {
                             anchors.left: parent.left
@@ -278,12 +320,13 @@ Item {
                                      : (chrow.rowState === "read" ? Theme.inkGhost : Theme.inkDim)
                             }
                         }
-                        MouseArea {
+                        ReaderKeyboardArea {
                             id: chMa
                             anchors.fill: parent
+                            keyboardTabStop: false
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: panel.tocActivated((chrow.modelData && chrow.modelData.href) ? String(chrow.modelData.href) : "")
+                            onClicked: { tocList.currentIndex = chrow.index; panel.tocActivated((chrow.modelData && chrow.modelData.href) ? String(chrow.modelData.href) : "") }
                         }
                     }
                 }
@@ -314,11 +357,22 @@ Item {
                     clip: true
                     model: panel.bookmarks
                     boundsBehavior: Flickable.StopAtBounds
+                    activeFocusOnTab: panel.open && panel.activeTab === "bookmarks" && count > 0
+                    Accessible.role: Accessible.List
+                    Accessible.name: "Bookmarks"
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Delete && currentIndex >= 0 && currentIndex < count) {
+                            var row = L.bookmarkRow(panel.bookmarks[currentIndex])
+                            panel.bookmarkDeleted(row.id); event.accepted = true; return
+                        }
+                        bookmarkKeys.handle(event)
+                    }
                     spacing: 2
 
                     delegate: Item {
                         id: bmRow
                         required property var modelData
+                        required property int index
                         readonly property var r: L.bookmarkRow(bmRow.modelData)
                         width: bmList.width - 12
                         height: bmCol.implicitHeight + 24
@@ -326,7 +380,8 @@ Item {
                         Rectangle {
                             anchors.fill: parent
                             radius: 9
-                            color: bmMa.containsMouse ? Theme.rowHover : "transparent"
+                            color: (bmList.activeFocus && bmList.currentIndex === bmRow.index) ? Theme.rowHover
+                                 : (bmMa.containsMouse ? Theme.rowHover : "transparent")
                         }
                         Column {
                             id: bmCol
@@ -358,12 +413,13 @@ Item {
                             }
                         }
                         // main click → jump to the bookmark (declared FIRST so the × sits above it)
-                        MouseArea {
+                        ReaderKeyboardArea {
                             id: bmMa
                             anchors.fill: parent
+                            keyboardTabStop: false
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: panel.bookmarkActivated(bmRow.r.cfi)
+                            onClicked: { bmList.currentIndex = bmRow.index; panel.bookmarkActivated(bmRow.r.cfi) }
                         }
                         // hover delete
                         Text {
@@ -376,9 +432,10 @@ Item {
                             font.family: Theme.ui
                             font.pixelSize: 15
                             color: bmDelMa.containsMouse ? Theme.ink : Theme.inkFaint
-                            MouseArea {
+                            ReaderKeyboardArea {
                                 id: bmDelMa
                                 anchors.fill: parent
+                                keyboardTabStop: false
                                 anchors.margins: -6
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
@@ -414,11 +471,16 @@ Item {
                     clip: true
                     model: panel.highlights
                     boundsBehavior: Flickable.StopAtBounds
+                    activeFocusOnTab: panel.open && panel.activeTab === "highlights" && count > 0
+                    Accessible.role: Accessible.List
+                    Accessible.name: "Highlights"
+                    Keys.onPressed: function(event) { highlightKeys.handle(event) }
                     spacing: 2
 
                     delegate: Item {
                         id: hlRow
                         required property var modelData
+                        required property int index
                         readonly property var r: L.highlightRow(hlRow.modelData)
                         width: hlList.width - 12
                         height: hlCol.implicitHeight + 24
@@ -426,7 +488,8 @@ Item {
                         Rectangle {
                             anchors.fill: parent
                             radius: 9
-                            color: hlMa.containsMouse ? Theme.rowHover : "transparent"
+                            color: (hlList.activeFocus && hlList.currentIndex === hlRow.index) ? Theme.rowHover
+                                 : (hlMa.containsMouse ? Theme.rowHover : "transparent")
                         }
                         Column {
                             id: hlCol
@@ -491,12 +554,13 @@ Item {
                                 }
                             }
                         }
-                        MouseArea {
+                        ReaderKeyboardArea {
                             id: hlMa
                             anchors.fill: parent
+                            keyboardTabStop: false
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: panel.highlightActivated(hlRow.r.cfi)
+                            onClicked: { hlList.currentIndex = hlRow.index; panel.highlightActivated(hlRow.r.cfi) }
                         }
                     }
                 }
@@ -530,6 +594,7 @@ Item {
 
                 // ---- attached state (scrollable — the playlist can outgrow the pane) ----
                 Flickable {
+                    id: audioFlick
                     anchors.fill: parent
                     anchors.leftMargin: 18
                     anchors.rightMargin: 12
@@ -677,7 +742,7 @@ Item {
                                 x: panel.followOn ? parent.width - width - 3 : 3
                                 Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                             }
-                            MouseArea {
+                            ReaderKeyboardArea {
                                 anchors.fill: parent
                                 anchors.margins: -6
                                 cursorShape: Qt.PointingHandCursor
@@ -734,7 +799,7 @@ Item {
                                     font.pixelSize: 12
                                     font.weight: Font.DemiBold
                                     color: tsPauseMa.containsMouse ? Theme.ink : Theme.inkDim
-                                    MouseArea {
+                                    ReaderKeyboardArea {
                                         id: tsPauseMa
                                         anchors.fill: parent
                                         anchors.margins: -8
@@ -812,7 +877,7 @@ Item {
                                             font.pixelSize: 12
                                             font.weight: Font.DemiBold
                                             color: tsRetryMa.containsMouse ? Theme.ink : Theme.inkDim
-                                            MouseArea {
+                                            ReaderKeyboardArea {
                                                 id: tsRetryMa
                                                 anchors.fill: parent
                                                 anchors.margins: -8
@@ -837,7 +902,7 @@ Item {
                                     font.family: Theme.ui
                                     font.pixelSize: 12
                                     color: tsRestartMa.containsMouse ? Theme.ink : Theme.inkGhost
-                                    MouseArea {
+                                    ReaderKeyboardArea {
                                         id: tsRestartMa
                                         anchors.fill: parent
                                         anchors.margins: -8
@@ -866,7 +931,7 @@ Item {
                                         font.pixelSize: 12
                                         font.weight: Font.DemiBold
                                         color: tsConfirmMa.containsMouse ? Theme.gold : Theme.inkDim
-                                        MouseArea {
+                                        ReaderKeyboardArea {
                                             id: tsConfirmMa
                                             anchors.fill: parent
                                             anchors.margins: -8
@@ -881,7 +946,7 @@ Item {
                                         font.family: Theme.ui
                                         font.pixelSize: 12
                                         color: tsCancelMa.containsMouse ? Theme.ink : Theme.inkGhost
-                                        MouseArea {
+                                        ReaderKeyboardArea {
                                             id: tsCancelMa
                                             anchors.fill: parent
                                             anchors.margins: -8
@@ -975,8 +1040,35 @@ Item {
                     // tap a row to play it; the playing row is marked gold. The transport
                     // itself lives on the reader's HUD pill now.) ---
                     Column {
+                        id: playlistRegion
                         width: parent.width
                         spacing: 0
+                        property int keyboardIndex: panel.audioPlaylist && panel.audioPlaylist.length > 0
+                                                    ? Math.max(0, Math.min(panel.audioPlaylist.length - 1, panel.audioCurrentIndex >= 0 ? panel.audioCurrentIndex : 0)) : -1
+                        activeFocusOnTab: panel.open && panel.activeTab === "audio" && panel.audioAttached
+                                          && panel.audioPlaylist && panel.audioPlaylist.length > 0
+                        Accessible.role: Accessible.List
+                        Accessible.name: "Audiobook playlist"
+                        function ensureKeyboardVisible() {
+                            var row = playlistRepeater.itemAt(keyboardIndex)
+                            if (!row) return
+                            var pt = row.mapToItem(abPaneCol, 0, 0)
+                            audioFlick.contentY = Math.max(0, Math.min(audioFlick.contentHeight - audioFlick.height,
+                                pt.y - Math.max(0, (audioFlick.height - row.height) / 2)))
+                        }
+                        Keys.onPressed: function(event) {
+                            var n = panel.audioPlaylist ? panel.audioPlaylist.length : 0
+                            if (n <= 0) return
+                            var next = keyboardIndex
+                            if (event.key === Qt.Key_Up) next = Math.max(0, keyboardIndex - 1)
+                            else if (event.key === Qt.Key_Down) next = Math.min(n - 1, keyboardIndex + 1)
+                            else if (event.key === Qt.Key_Home) next = 0
+                            else if (event.key === Qt.Key_End) next = n - 1
+                            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                                panel.audioChapterPicked(keyboardIndex); event.accepted = true; return
+                            } else return
+                            if (next !== keyboardIndex) { keyboardIndex = next; ensureKeyboardVisible(); event.accepted = true }
+                        }
                         Text {
                             text: "Playlist"
                             leftPadding: 4
@@ -989,6 +1081,7 @@ Item {
                             color: Theme.inkFaint
                         }
                         Repeater {
+                            id: playlistRepeater
                             model: panel.audioPlaylist
                             delegate: Item {
                                 id: plRow
@@ -998,8 +1091,9 @@ Item {
                                 width: parent.width; height: 40
                                 Rectangle {
                                     anchors.fill: parent; radius: 8
-                                    color: plMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06)
-                                         : plRow.current ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
+                                    color: (playlistRegion.activeFocus && playlistRegion.keyboardIndex === plRow.index) ? Theme.rowHover
+                                         : (plMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06)
+                                         : plRow.current ? Qt.rgba(1, 1, 1, 0.04) : "transparent")
                                 }
                                 // playing marker — a slim gold bar, same vocabulary as the
                                 // Contents current-chapter marker.
@@ -1030,12 +1124,13 @@ Item {
                                     font.pixelSize: 11
                                     color: plRow.current ? Theme.gold : Theme.inkGhost
                                 }
-                                MouseArea {
+                                ReaderKeyboardArea {
                                     id: plMa
                                     anchors.fill: parent
+                                    keyboardTabStop: false
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: panel.audioChapterPicked(plRow.index)
+                                    onClicked: { playlistRegion.keyboardIndex = plRow.index; panel.audioChapterPicked(plRow.index) }
                                 }
                             }
                         }
@@ -1043,6 +1138,37 @@ Item {
                 }
                 }
             }
+        }
+    }
+
+    ReaderKeyboardCollectionController {
+        id: tocKeys
+        view: tocList
+        orientation: "vertical"
+        count: tocList.count
+        onActivated: function(index) {
+            var row = panel.tocModel && index >= 0 && index < panel.tocModel.length ? panel.tocModel[index] : null
+            panel.tocActivated(row && row.href ? String(row.href) : "")
+        }
+    }
+    ReaderKeyboardCollectionController {
+        id: bookmarkKeys
+        view: bmList
+        orientation: "vertical"
+        count: bmList.count
+        onActivated: function(index) {
+            if (!panel.bookmarks || index < 0 || index >= panel.bookmarks.length) return
+            panel.bookmarkActivated(L.bookmarkRow(panel.bookmarks[index]).cfi)
+        }
+    }
+    ReaderKeyboardCollectionController {
+        id: highlightKeys
+        view: hlList
+        orientation: "vertical"
+        count: hlList.count
+        onActivated: function(index) {
+            if (!panel.highlights || index < 0 || index >= panel.highlights.length) return
+            panel.highlightActivated(L.highlightRow(panel.highlights[index]).cfi)
         }
     }
 
@@ -1073,9 +1199,10 @@ Item {
             font.weight: raSeg.active ? Font.DemiBold : Font.Normal
             color: raSeg.active ? Theme.gold : Theme.inkDim
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: raSegMa
             anchors.fill: parent
+            keyboardLabel: raSeg.label
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: panel.readAlongModePicked(raSeg.mode)
@@ -1100,9 +1227,10 @@ Item {
             font.pixelSize: 16
             color: raStep.enabledStep ? Theme.inkDim : Theme.inkGhost
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: raStepMa
             anchors.fill: parent
+            keyboardLabel: raStep.symbol === "+" ? "Increase word size" : "Decrease word size"
             hoverEnabled: true
             cursorShape: raStep.enabledStep ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (raStep.enabledStep) raStep.stepped()
@@ -1119,6 +1247,7 @@ Item {
         property string tip: ""
         signal picked()
         height: 36
+        function focusKeyboard() { tabMa.forceActiveFocus(Qt.OtherFocusReason) }
 
         Image {
             id: tabIcon
@@ -1139,9 +1268,10 @@ Item {
             color: Theme.gold
             visible: tab.active
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: tabMa
             anchors.fill: parent
+            keyboardLabel: tab.tip
             hoverEnabled: true
             cursorShape: tab.tabEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (tab.tabEnabled) tab.picked()

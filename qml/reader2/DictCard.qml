@@ -1,11 +1,11 @@
-// DictCard.qml — the Define (dictionary) glass card (TASK 9 R2).
+﻿// DictCard.qml â€” the Define (dictionary) glass card (TASK 9 R2).
 //
 // Opened from the SelectionMenu's Define action: ReaderShell extracts the first word of the
-// selection, calls Reader2Bridge.dictLookup(word) (Wiktionary REST, C++ side — house rule
+// selection, calls Reader2Bridge.dictLookup(word) (Wiktionary REST, C++ side â€” house rule
 // "no network on the paper"), and feeds the parsed result here. Word in the display serif
 // (Fraunces), definitions in dim UI (Inter); a quiet empty state with an "Open in Wiktionary"
-// affordance. Bridge-free like the rest of the chrome — data in via properties, actions out
-// via signals — so it instantiates headless (chrome smoke).
+// affordance. Bridge-free like the rest of the chrome â€” data in via properties, actions out
+// via signals â€” so it instantiates headless (chrome smoke).
 //
 // Positioned near the selection by the same pure clamp the SelectionMenu uses
 // (Reader2Logic.selectionMenuPos); own click-swallow MouseArea (house doctrine); a backdrop
@@ -17,6 +17,7 @@ import "Reader2Logic.js" as L
 
 Item {
     id: dictCard
+    objectName: "reader2DictCard"
 
     // ---- inputs ----
     property var anchorRect: ({ x: 0, y: 0, w: 0, h: 0 })  // the selection rect (overlay coords)
@@ -27,9 +28,21 @@ Item {
 
     // ---- signals up ----
     signal dismissed()
-    signal openExternal()             // "Open in Wiktionary" → ReaderShell Qt.openUrlExternally
+    signal openExternal()             // "Open in Wiktionary" â†’ ReaderShell Qt.openUrlExternally
 
     visible: shown
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Pane
+    Accessible.name: "Dictionary definition"
+    KeyNavigation.tab: openLink.visible ? openMa : dictCard
+    KeyNavigation.backtab: openLink.visible ? openMa : dictCard
+    KeyNavigation.priority: KeyNavigation.BeforeItem
+    onShownChanged: if (shown) Qt.callLater(function() { dictCard.forceActiveFocus(Qt.OtherFocusReason) })
+    Keys.onPressed: function(event) {
+        if (!shown) return
+        if (event.key === Qt.Key_Escape) { dictCard.dismissed(); event.accepted = true; return }
+        popupScroll.handle(event)
+    }
 
     readonly property int cardW: 320
     readonly property int pad: 16
@@ -42,7 +55,7 @@ Item {
                                                   dictCard.cardW, dictCard.cardH, 12, 12)
 
     // backdrop: tap-outside dismiss (armed only while shown)
-    MouseArea {
+    ReaderKeyboardArea {
         anchors.fill: parent
         enabled: dictCard.shown
         acceptedButtons: Qt.LeftButton
@@ -62,14 +75,14 @@ Item {
         antialiasing: true
 
         // OWN click-swallow (house doctrine)
-        MouseArea {
+        ReaderKeyboardArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
             hoverEnabled: true
             onWheel: (w) => { w.accepted = true }
         }
 
-        // word — display serif
+        // word â€” display serif
         Text {
             id: header
             anchors.left: parent.left
@@ -163,7 +176,7 @@ Item {
             anchors.topMargin: 12
             anchors.leftMargin: dictCard.pad
             anchors.rightMargin: dictCard.pad
-            text: dictCard.dictState === "loading" ? "Looking up…" : "No definition found."
+            text: dictCard.dictState === "loading" ? "Looking upâ€¦" : "No definition found."
             font.family: Theme.ui
             font.pixelSize: 13
             color: Theme.inkFaint
@@ -188,13 +201,25 @@ Item {
                 font.weight: Font.DemiBold
                 color: openMa.containsMouse ? Theme.gold : Theme.inkDim
             }
-            MouseArea {
+            ReaderKeyboardArea {
                 id: openMa
+                objectName: "reader2DictExternal"
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
+                keyboardLabel: "Open in Wiktionary"
+                KeyNavigation.tab: dictCard
+                KeyNavigation.backtab: dictCard
                 onClicked: dictCard.openExternal()
             }
         }
     }
+    ReaderKeyboardScrollController {
+        id: popupScroll
+        flick: defsFlick
+        arrowScrolling: true
+        homeEndEnabled: true
+    }
+
 }
+

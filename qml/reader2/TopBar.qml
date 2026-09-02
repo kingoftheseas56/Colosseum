@@ -31,6 +31,10 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
 
+    function focusSearch() { searchBtn.focusKeyboard() }
+    function focusContents() { contentsBtn.focusKeyboard() }
+    function focusAppearance() { appearanceBtn.focusKeyboard() }
+
     enabled: shown                        // when asleep, clicks fall through to the turn/tap zones
 
     // reveal: fade + a small downward slide-in from the top edge (mock: translateY(-6)).
@@ -46,9 +50,11 @@ Item {
         id: ib
         property alias source: img.source
         property int box: 19
+        property string label: "Action"
         signal clicked()
         implicitWidth: box + 10
         implicitHeight: box + 10
+        function focusKeyboard() { ma.forceActiveFocus(Qt.OtherFocusReason) }
         Image {
             id: img
             anchors.centerIn: parent
@@ -61,9 +67,10 @@ Item {
             opacity: ma.containsMouse ? 1.0 : 0.62      // ink → inkDim
             Behavior on opacity { NumberAnimation { duration: 120 } }
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: ma
             anchors.fill: parent
+            keyboardLabel: ib.label
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: ib.clicked()
@@ -78,6 +85,7 @@ Item {
         anchors.left: parent.left
         anchors.leftMargin: 22
         box: 22
+        label: "Back"
         source: Qt.resolvedUrl("../../assets/icons/reader2/back.svg")
         onClicked: root.backRequested()
     }
@@ -153,19 +161,20 @@ Item {
             font.pixelSize: 13
             rightPadding: 4
         }
+        IconButton { id: searchBtn; anchors.verticalCenter: parent.verticalCenter
+            label: "Search"; source: Qt.resolvedUrl("../../assets/icons/reader2/search.svg"); onClicked: root.searchRequested() }
+        IconButton { id: contentsBtn; anchors.verticalCenter: parent.verticalCenter
+            label: "Contents"; source: Qt.resolvedUrl("../../assets/icons/reader2/contents.svg"); onClicked: root.contentsRequested() }
+        IconButton { id: appearanceBtn; anchors.verticalCenter: parent.verticalCenter
+            label: "Appearance"; source: Qt.resolvedUrl("../../assets/icons/reader2/appearance.svg"); onClicked: root.appearanceRequested() }
         IconButton { anchors.verticalCenter: parent.verticalCenter
-            source: Qt.resolvedUrl("../../assets/icons/reader2/search.svg"); onClicked: root.searchRequested() }
-        IconButton { anchors.verticalCenter: parent.verticalCenter
-            source: Qt.resolvedUrl("../../assets/icons/reader2/contents.svg"); onClicked: root.contentsRequested() }
-        IconButton { anchors.verticalCenter: parent.verticalCenter
-            source: Qt.resolvedUrl("../../assets/icons/reader2/appearance.svg"); onClicked: root.appearanceRequested() }
-        IconButton { anchors.verticalCenter: parent.verticalCenter
-            source: Qt.resolvedUrl("../../assets/icons/reader2/bookmark.svg"); onClicked: root.bookmarkRequested() }
+            label: "Bookmark"; source: Qt.resolvedUrl("../../assets/icons/reader2/bookmark.svg"); onClicked: root.bookmarkRequested() }
         // minimize (window verb, comic-reader chrome parity 2026-07-18): park the book as a
         // taskbar tile instead of closing it. Back = close; this = keep the session warm.
         IconButton { anchors.verticalCenter: parent.verticalCenter
-            source: Qt.resolvedUrl("../../assets/icons/reader2/minimize.svg"); onClicked: root.minimizeRequested() }
+            label: "Minimize"; source: Qt.resolvedUrl("../../assets/icons/reader2/minimize.svg"); onClicked: root.minimizeRequested() }
         IconButton { anchors.verticalCenter: parent.verticalCenter
+            label: root.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
             source: Qt.resolvedUrl(root.shellWindowed
                 ? "../../assets/icons/reader2/fullscreen.svg"
                 : "../../assets/icons/reader2/fullscreen-exit.svg")
@@ -173,6 +182,6 @@ Item {
         // close (window verb, player-parity — the X ends the session; Back does the same
         // from the keyboard side. Rightmost, matching the player/comic chrome order.)
         IconButton { anchors.verticalCenter: parent.verticalCenter
-            source: Qt.resolvedUrl("../../assets/icons/reader2/close.svg"); onClicked: root.closeRequested() }
+            label: "Close"; source: Qt.resolvedUrl("../../assets/icons/reader2/close.svg"); onClicked: root.closeRequested() }
     }
 }

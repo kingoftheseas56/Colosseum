@@ -159,36 +159,74 @@ Item {
     // ---- left panel (Task 8) open/close, and the Contents-icon toggle ----
     // The left (Contents), right (Appearance), and search overlays are MUTUALLY EXCLUSIVE —
     // opening one closes the others (keep it simple, per the task).
-    function openPanelTo(tab) { appearanceOpen = false; searchOpen = false; activeTab = tab; panelOpen = true }
-    function closePanel() { panelOpen = false }
+    property string panelInvoker: ""
+    function openPanelTo(tab, invoker) {
+        appearanceOpen = false; searchOpen = false
+        if (invoker) panelInvoker = String(invoker)
+        activeTab = tab; panelOpen = true
+    }
+    function restorePanelFocus() {
+        if (panelInvoker === "search") { topBar.focusSearch(); return true }
+        if (panelInvoker === "contents") { topBar.focusContents(); return true }
+        if (panelInvoker === "appearance") { topBar.focusAppearance(); return true }
+        if (panelInvoker === "audioChapter") { clMa.forceActiveFocus(Qt.OtherFocusReason); return true }
+        if (panelInvoker === "audioPlaylist") { playlistButton.focusKeyboard(); return true }
+        topBar.focusContents()
+        return true
+    }
+    function audioKeyboardSeekStep() {
+        return audioDurationSec > 0 ? Math.min(0.1, Math.max(0.002, 5.0 / audioDurationSec)) : 0.02
+    }
+    function keyboardAudioSeek(fraction) {
+        var f = Math.max(0, Math.min(1, Number(fraction)))
+        audioScrubPreviewed(f)
+        if (readAlongAvailable) audioScrubCommitted(f)
+    }
+    function closePanel(restoreFocus) {
+        var wasOpen = panelOpen
+        panelOpen = false
+        if (wasOpen && restoreFocus !== false) Qt.callLater(chrome.restorePanelFocus)
+    }
     // Contents icon: open to Contents; if already open ON Contents, close; if open on
     // another tab, switch to Contents (don't close).
     function handleContents() {
         if (panelOpen && activeTab === "contents") closePanel()
-        else openPanelTo("contents")
+        else openPanelTo("contents", "contents")
     }
 
     // ---- appearance panel (Task 10) open/close, and the Appearance-icon toggle ----
-    function closeAppearance() { appearanceOpen = false }
+    function closeAppearance(restoreFocus) {
+        var wasOpen = appearanceOpen
+        appearanceOpen = false
+        if (wasOpen && restoreFocus !== false) Qt.callLater(chrome.restorePanelFocus)
+    }
     // Appearance icon: toggle the right panel; opening it closes the left panel + search.
     function handleAppearance() {
-        if (appearanceOpen) appearanceOpen = false
-        else { panelOpen = false; searchOpen = false; appearanceOpen = true }
+        if (appearanceOpen) closeAppearance()
+        else { panelInvoker = "appearance"; panelOpen = false; searchOpen = false; appearanceOpen = true }
     }
 
     // ---- search sheet (Task 11) open/close, and the search-icon toggle ----
     function openSearch() { panelOpen = false; appearanceOpen = false; searchOpen = true }
-    function closeSearch() { searchOpen = false }
+    function closeSearch(restoreFocus) {
+        var wasOpen = searchOpen
+        searchOpen = false
+        if (wasOpen && restoreFocus !== false) Qt.callLater(chrome.restorePanelFocus)
+    }
     // Search icon: toggle the sheet; opening it closes both panels. searchRequested() lets
     // ReaderShell reset the model (and clear any prior search) as the sheet opens.
     function handleSearch() {
         searchRequested()
         if (searchOpen) closeSearch()
-        else openSearch()
+        else { panelInvoker = "search"; openSearch() }
     }
 
     // Esc / a shared close: drop whichever overlay is open.
-    function closeAnyPanel() { panelOpen = false; appearanceOpen = false; searchOpen = false }
+    function closeAnyPanel() {
+        var hadOpen = panelOpen || appearanceOpen || searchOpen
+        panelOpen = false; appearanceOpen = false; searchOpen = false
+        if (hadOpen) Qt.callLater(chrome.restorePanelFocus)
+    }
 
     // While EITHER panel is open the chrome is PINNED shown (can't idle-hide); closing the
     // last one unpins and restarts the idle countdown. Both open-state changes route here.
@@ -213,13 +251,14 @@ Item {
     // covers the central text column where selection happens.
 
     // ---------- 2. edge page-turn zones (~11% each side) ----------
-    MouseArea {
+    ReaderKeyboardArea {
         id: leftEdge
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: parent.width * 0.11
         cursorShape: Qt.PointingHandCursor
+        keyboardTabStop: false
         onClicked: chrome.prevRequested()
         Image {
             anchors.verticalCenter: parent.verticalCenter
@@ -232,13 +271,14 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         }
     }
-    MouseArea {
+    ReaderKeyboardArea {
         id: rightEdge
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: parent.width * 0.11
         cursorShape: Qt.PointingHandCursor
+        keyboardTabStop: false
         onClicked: chrome.nextRequested()
         Image {
             anchors.verticalCenter: parent.verticalCenter
@@ -332,7 +372,7 @@ Item {
         color: Theme.bar
         border.color: Theme.barBorder
         border.width: 1
-        MouseArea { anchors.fill: parent }        // swallow — nothing falls through to the page
+        ReaderKeyboardArea { anchors.fill: parent }        // swallow — nothing falls through to the page
 
         // Overhauled 2026-07-25 (Hemanth): three tiers in the reader's glass, rebuilt to the
         // VIDEO player's craft — now-playing chapter line (Fraunces) · premium scrubber (grow +
@@ -350,6 +390,7 @@ Item {
             property int box: 40                              // round-button diameter
             signal clicked()
             width: box; height: box
+            function focusKeyboard() { hgbMa.focusKeyboard() }
             anchors.verticalCenter: parent.verticalCenter
             scale: hgbMa.pressed ? 0.95 : (hgbMa.containsMouse ? 1.04 : 1.0)
             Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
@@ -368,8 +409,9 @@ Item {
                 opacity: hgbMa.containsMouse ? 1.0 : 0.62
                 Behavior on opacity { NumberAnimation { duration: 120 } }
             }
-            MouseArea { id: hgbMa; anchors.fill: parent
+            ReaderKeyboardArea { id: hgbMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        keyboardLabel: hgb.label !== "" ? hgb.label : hgb.kind
                         onClicked: hgb.clicked() }
         }
 
@@ -404,8 +446,8 @@ Item {
                 font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.Medium
                 font.features: ({ "tnum": 1 })
             }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor; onClicked: chrome.openPanelTo("audio") }
+            ReaderKeyboardArea { id: clMa; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor; keyboardLabel: "Audiobook chapters"; onClicked: chrome.openPanelTo("audio", "audioChapter") }
         }
 
         // ---- tier 2 · the scrubber (elapsed · rail w/ time tooltip · total) ----
@@ -431,8 +473,9 @@ Item {
                       : (chrome.audioDurLabel !== "" ? chrome.audioDurLabel : "–:––")
                 color: durMa.containsMouse ? Theme.ink : Theme.inkDim
                 font.family: Theme.ui; font.pixelSize: 12; font.features: ({ "tnum": 1 })
-                MouseArea { id: durMa; anchors.fill: parent; anchors.margins: -4
+                ReaderKeyboardArea { id: durMa; anchors.fill: parent; anchors.margins: -4
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            keyboardLabel: "Toggle elapsed and remaining time"
                             enabled: chrome.audioDurationSec > 0
                             onClicked: audioHud.showRemaining = !audioHud.showRemaining }
             }
@@ -465,11 +508,17 @@ Item {
                     color: Theme.gold; border.width: 1; border.color: Qt.rgba(0, 0, 0, 0.32)
                     Behavior on width { NumberAnimation { duration: 90 } }
                 }
-                MouseArea {
+                ReaderKeyboardArea {
                     id: railMa
                     anchors.fill: parent
                     anchors.topMargin: -6; anchors.bottomMargin: -6
                     hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    keyboardLabel: "Audiobook position"
+                    keyboardRole: Accessible.Slider
+                    keyboardDecrease: function() { chrome.keyboardAudioSeek(Math.max(0, chrome.audioProgress - chrome.audioKeyboardSeekStep())) }
+                    keyboardIncrease: function() { chrome.keyboardAudioSeek(Math.min(1, chrome.audioProgress + chrome.audioKeyboardSeekStep())) }
+                    keyboardHome: function() { chrome.keyboardAudioSeek(0) }
+                    keyboardEnd: function() { chrome.keyboardAudioSeek(1) }
                     // press/drag PREVIEW, release COMMIT (read-along only). DORMANT today is
                     // byte-for-byte the old continuous-seek-on-preview behavior.
                     function frac() { return Math.max(0, Math.min(1, mouseX / Math.max(1, scrubRail.width))) }
@@ -551,10 +600,16 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 11; height: 11; radius: 5.5; color: Theme.gold
                     }
-                    MouseArea {
+                    ReaderKeyboardArea {
                         id: volMa
                         anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        keyboardLabel: "Audiobook volume"
+                        keyboardRole: Accessible.Slider
+                        keyboardDecrease: function() { chrome.audioVolumeRequested(Math.max(0, chrome.audioVolume - 0.05)) }
+                        keyboardIncrease: function() { chrome.audioVolumeRequested(Math.min(1, chrome.audioVolume + 0.05)) }
+                        keyboardHome: function() { chrome.audioVolumeRequested(0) }
+                        keyboardEnd: function() { chrome.audioVolumeRequested(1) }
                         function apply() { chrome.audioVolumeRequested(Math.max(0, Math.min(1, mouseX / Math.max(1, volRail.width)))) }
                         onPressed: apply()
                         onPositionChanged: if (pressed) apply()
@@ -582,8 +637,8 @@ Item {
                         kind: chrome.audioPlaying ? "pause" : "play"
                         ink: "#14161d"
                     }
-                    MouseArea { id: heroMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; onClicked: chrome.audioPlayToggled() }
+                    ReaderKeyboardArea { id: heroMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor; keyboardLabel: chrome.audioPlaying ? "Pause audiobook" : "Play audiobook"; onClicked: chrome.audioPlayToggled() }
                 }
                 HudGlyphButton { kind: "seekForward"; label: "10"; box: 40; onClicked: chrome.audioSkipRequested(10) }
                 HudGlyphButton { kind: "nextChapter"; box: 40; onClicked: chrome.audioNextChapterRequested() }
@@ -618,10 +673,10 @@ Item {
                             font.features: ({ "tnum": 1 })
                         }
                     }
-                    MouseArea { id: spdMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor; onClicked: chrome.audioSpeedCycled() }
+                    ReaderKeyboardArea { id: spdMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor; keyboardLabel: "Playback speed " + chrome.audioSpeedLabel; onClicked: chrome.audioSpeedCycled() }
                 }
-                HudGlyphButton { kind: "playlist"; box: 36; onClicked: chrome.openPanelTo("audio") }
+                HudGlyphButton { id: playlistButton; kind: "playlist"; label: "Audiobook chapters"; box: 36; onClicked: chrome.openPanelTo("audio", "audioPlaylist") }
             }
         }
     }
@@ -660,11 +715,12 @@ Item {
                 font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
             }
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: returnMa
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
+            keyboardLabel: "Return to narration"
             onClicked: chrome.returnToNarrationRequested()
         }
     }

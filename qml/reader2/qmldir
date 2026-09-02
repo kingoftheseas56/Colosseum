@@ -1,7 +1,7 @@
-# reader2 component directory. A qmldir is REQUIRED here so Theme can be a real
+﻿# reader2 component directory. A qmldir is REQUIRED here so Theme can be a real
 # singleton (referenced as `Theme.gold`, not instantiated). Once a qmldir exists,
 # Qt stops auto-scanning the folder for types, so EVERY reader2 component that is
-# referenced by name must be listed below — otherwise sibling references (e.g.
+# referenced by name must be listed below â€” otherwise sibling references (e.g.
 # Harness -> ReaderShell -> Paper/ReaderChrome) fail to resolve.
 singleton Theme Theme.qml
 Paper Paper.qml
@@ -18,3 +18,7 @@ DictCard DictCard.qml
 FootnoteCard FootnoteCard.qml
 HarnessShelf HarnessShelf.qml
 Harness Harness.qml
+ReaderKeyboardCollectionController ReaderKeyboardCollectionController.qml
+ReaderKeyboardScrollController ReaderKeyboardScrollController.qml
+ReaderKeyboardArea ReaderKeyboardArea.qml
+

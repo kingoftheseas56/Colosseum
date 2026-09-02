@@ -187,6 +187,13 @@ Item {
         lensX = nx; lensY = ny; pinned = true
     }
     function unpin() { pinned = false }
+    function moveLensBy(dx, dy) {
+        var nx = Number(lensX) + Number(dx), ny = Number(lensY) + Number(dy)
+        if (!isFinite(nx) || !isFinite(ny)) return
+        lensX = Math.max(edgeMargin, Math.min(width - edgeMargin, nx))
+        lensY = Math.max(chromeTopInset, Math.min(height - railHeight, ny))
+        pinned = true
+    }
     // "click to pin; click again to resume following". Releasing resumes FROM the click point rather
     // than snapping back to wherever the pin was — the pointer is here now, and the lens jumping
     // away to its old spot for one frame before the next move caught up read as a glitch.
@@ -201,6 +208,7 @@ Item {
     // for a first mouse move, which is what a bare default would give on a keyboard-opened Loupe.
     onOpenChanged: {
         if (!open) return
+        Qt.callLater(function() { closeMa.forceActiveFocus(Qt.OtherFocusReason) })
         pinned = false
         lensX = width / 2
         lensY = (chromeTopInset + Math.max(chromeTopInset, height - railHeight)) / 2
@@ -281,7 +289,7 @@ Item {
     // lens can never reach the column underneath — the strip surface's own intake is ALSO locked by
     // the shell while the Loupe is open, so the rule holds whichever way Qt happens to route the
     // event, rather than resting on delivery order.
-    MouseArea {
+    ComicReaderKeyboardArea {
         id: tracker
         objectName: "loupeTracker"
         anchors.left: parent.left
@@ -293,6 +301,7 @@ Item {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
         cursorShape: Qt.CrossCursor
+        keyboardTabStop: false
         // The tracker's own origin is offset by the chrome inset, so every reading is lifted back
         // into the root's coordinates — the same space `pages` is expressed in.
         function moved(mx, my) { root.followPointer(mx, my + tracker.y) }
@@ -447,13 +456,14 @@ Item {
                     accessibleName: "Close the loupe"
                     ink: closeMa.containsMouse ? theme.ink : theme.inkDim
                 }
-                MouseArea {
+                ComicReaderKeyboardArea {
                     id: closeMa
                     objectName: "loupeClose"
                     anchors.fill: parent
                     anchors.margins: -4
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    keyboardLabel: "Close loupe"
                     function tap() { root.dismiss() }
                     onClicked: tap()
                 }

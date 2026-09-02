@@ -48,6 +48,12 @@ Item {
 
     // the sheet only intercepts input while open (a closed overlay is inert over the reader)
     visible: opened || scrim.opacity > 0.001
+    activeFocusOnTab: opened
+    onOpenedChanged: {
+        if (opened) Qt.callLater(function() { root.forceActiveFocus(Qt.OtherFocusReason) })
+        else root.armedDanger = ""
+    }
+    Keys.onEscapePressed: if (opened) root.dismiss()
 
     // ---- read-only reading state ----
     // ONE user-facing identity (Hemanth 2026-07-25): manga | comic | strip — direction is baked in.
@@ -90,8 +96,7 @@ Item {
         if (root.armedDanger === id) { root.armedDanger = ""; fire() }
         else                          root.armedDanger = id
     }
-    // A closed sheet must never reopen mid-swing.
-    onOpenedChanged: if (!root.opened) root.armedDanger = ""
+    // A closed sheet must never reopen mid-swing; the open-state handler above clears the arm.
 
     Theme { id: theme }
 
@@ -131,7 +136,7 @@ Item {
             font.pixelSize: 12
             font.bold: chip.active
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: chip.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: chip.tapped() }
     }
 
     // a settings row: left label, right a set of chips; a hairline under it
@@ -191,7 +196,7 @@ Item {
             }
         }
         HoverHandler { id: tileHover }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.tapped() }
     }
 
     // a pill switch — the mock's `.sw`. Gold only when ON, same law as the chips.
@@ -213,7 +218,7 @@ Item {
             color: sw.checked ? theme.gold : theme.inkDimmer
             Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sw.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sw.tapped() }
     }
 
     // a danger action — the mock's bordered red pill. Unarmed it just names itself; ARMED it says
@@ -237,7 +242,7 @@ Item {
             font.pixelSize: 12          // mock says 11.5px; pixelSize is an int — 12 matches the chips
             font.bold: danger.armed
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: danger.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: danger.tapped() }
     }
 
     component SectionLabel: Text {
@@ -260,7 +265,7 @@ Item {
         Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
         signal tapped()
         onTapped: root.dismiss()
-        MouseArea { anchors.fill: parent; enabled: root.opened; onClicked: scrim.tapped() }
+        ComicReaderKeyboardArea { anchors.fill: parent; enabled: root.opened; onClicked: scrim.tapped() }
     }
 
     // ============================================================================================
@@ -283,7 +288,7 @@ Item {
         Rectangle { anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1; color: root.cEdge }
 
         // click-swallower: a tap on the sheet body must NOT fall through to the scrim beneath
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
+        ComicReaderKeyboardArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
         Column {
             id: content
@@ -321,7 +326,7 @@ Item {
                         width: 15; height: 15
                         ink: theme.inkDimmer
                     }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: closeX.tapped() }
+                    ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: closeX.tapped() }
                 }
             }
 

@@ -14,6 +14,7 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import QtQuick.Window
 import "Reader2Logic.js" as L
 
 Item {
@@ -66,10 +67,46 @@ Item {
     readonly property bool curIsDark: L.isDarkAppearance(appearance)
 
     function clampInt(v, lo, hi) { return Math.max(lo, Math.min(hi, Math.round(v))) }
+    function ensureVisible(item) {
+        if (!item || !bodyFlick || !form) return
+        var p = item.mapToItem(form, 0, 0)
+        var top = p.y - 12
+        var bottom = p.y + item.height + 12
+        if (top < bodyFlick.contentY) bodyFlick.contentY = Math.max(0, top)
+        else if (bottom > bodyFlick.contentY + bodyFlick.height)
+            bodyFlick.contentY = Math.min(Math.max(0, bodyFlick.contentHeight - bodyFlick.height), bottom - bodyFlick.height)
+    }
+    function focusBelongsHere(item) {
+        var p = item
+        while (p) { if (p === panel) return true; p = p.parent }
+        return false
+    }
+    function trapTab(event) {
+        var tab = event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
+        if (!open || !tab) return false
+        var backwards = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
+        var w = panel.Window.window
+        var current = w ? w.activeFocusItem : null
+        if (!current || !focusBelongsHere(current)) { paperSwatch.focusKeyboard(); event.accepted = true; return true }
+        var next = current
+        for (var i = 0; i < 512; ++i) {
+            next = next.nextItemInFocusChain(!backwards)
+            if (!next || next === current) break
+            if (focusBelongsHere(next) && next.activeFocusOnTab && next.visible && next.enabled) {
+                next.forceActiveFocus(Qt.OtherFocusReason); event.accepted = true; return true
+            }
+        }
+        event.accepted = true; return true
+    }
+    onOpenChanged: if (open) Qt.callLater(function() { paperSwatch.focusKeyboard() })
+    Keys.onPressed: function(event) {
+        if (panel.trapTab(event)) return
+        if (open && event.key === Qt.Key_Escape) { panel.closeRequested(); event.accepted = true }
+    }
 
     // ---------- click-outside-to-dismiss (transparent; paper area LEFT of the column) ----------
     // Only armed while open, and inset below the top bar so the TopBar icons stay live.
-    MouseArea {
+    ReaderKeyboardArea {
         anchors.left: parent.left
         anchors.right: column.left
         anchors.top: parent.top
@@ -112,7 +149,7 @@ Item {
         // OWN click-swallow (house doctrine): taps/scrolls inside the column never fall
         // through to the paper or the chrome's double-click toggle beneath. Declared FIRST so
         // the real controls (below) sit on top and still receive their clicks.
-        MouseArea {
+        ReaderKeyboardArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
             hoverEnabled: true
@@ -168,7 +205,7 @@ Item {
                             width: parent.width
                             spacing: 10
                             readonly property real swW: (width - spacing * 2) / 3
-                            Swatch { width: parent.swW; label: "Paper"; bg: "#e9e4d8"; textColor: "#565044"
+                            Swatch { id: paperSwatch; width: parent.swW; label: "Paper"; bg: "#e9e4d8"; textColor: "#565044"
                                 active: panel.curTheme === "paper"; onPicked: panel.changed("theme", "paper") }
                             Swatch { width: parent.swW; label: "Sepia"; bg: "#e5d5b8"; textColor: "#6b5b40"
                                 active: panel.curTheme === "sepia"; onPicked: panel.changed("theme", "sepia") }
@@ -540,6 +577,7 @@ Item {
                                 font.family: "Consolas"
                                 font.pixelSize: 12
                                 onTextChanged: { if (text !== panel.curCss) cssDebounce.restart() }
+                                Keys.onPressed: function(event) { panel.trapTab(event) }
                                 // Refresh the box when customCss changes from OUTSIDE the editor
                                 // (Reset appearance, opening another book) — but never while the
                                 // user is typing, so a pending edit is never clobbered.
@@ -633,7 +671,8 @@ Item {
                 font.pixelSize: 11
             }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sw.picked() }
+        ReaderKeyboardArea { id: swMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: sw.label; keyboardFocused: function() { panel.ensureVisible(sw) }; onClicked: sw.picked() }
+        function focusKeyboard() { swMa.forceActiveFocus(Qt.OtherFocusReason) }
     }
 
     // a typeface card — "Aa" in its own face + the family name; gold border when active.
@@ -670,7 +709,7 @@ Item {
                 }
             }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: fc.picked() }
+        ReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: fc.label; keyboardFocused: function() { panel.ensureVisible(fc) }; onClicked: fc.picked() }
     }
 
     // a size stepper button (A- / A+) — bordered square, Literata glyph (mock .stepper button).
@@ -694,11 +733,13 @@ Item {
                 font.pixelSize: 15
             }
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: sbMa
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
+            keyboardLabel: sb.label
+            keyboardFocused: function() { panel.ensureVisible(sb) }
             onClicked: sb.clicked()
         }
     }
@@ -780,7 +821,21 @@ Item {
                     x: parent.width * sr.frac() - width / 2
                 }
             }
-            MouseArea {
+            ReaderKeyboardArea {
+                id: srMa
+                keyboardLabel: sr.caption
+                keyboardRole: Accessible.Slider
+                keyboardFocused: function() { panel.ensureVisible(sr) }
+                keyboardDecrease: function() {
+                    var d = sr.stepSize > 0 ? sr.stepSize : Math.max(0.01, (sr.maxValue - sr.minValue) / 20)
+                    var v = sr.quant(sr.value - d); if (v !== sr.value) sr.moved(v)
+                }
+                keyboardIncrease: function() {
+                    var d = sr.stepSize > 0 ? sr.stepSize : Math.max(0.01, (sr.maxValue - sr.minValue) / 20)
+                    var v = sr.quant(sr.value + d); if (v !== sr.value) sr.moved(v)
+                }
+                keyboardHome: function() { var v = sr.quant(sr.minValue); if (v !== sr.value) sr.moved(v) }
+                keyboardEnd: function() { var v = sr.quant(sr.maxValue); if (v !== sr.value) sr.moved(v) }
                 // fills the 22px inner row — a comfortable target around the 3px track, and
                 // deliberately NOT enlarged past it (the rows sit 10px apart, so a taller hit
                 // area would overlap the neighbouring slider and grab the wrong one).
@@ -878,7 +933,7 @@ Item {
                 font.pixelSize: 12
             }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sgb.clicked() }
+        ReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: sgb.label; keyboardFocused: function() { panel.ensureVisible(sgb) }; onClicked: sgb.clicked() }
     }
 
     // the ruler on/off switch — gold + knob-right when on, gray + knob-left when off (mock .switch).
@@ -902,7 +957,7 @@ Item {
                 Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
             }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ts.toggled() }
+        ReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: "Toggle"; keyboardFocused: function() { panel.ensureVisible(ts) }; onClicked: ts.toggled() }
     }
 
     // Page/Ink colour dials — hue/sat/light sliders + a live swatch. Emits a hex on move.
@@ -987,11 +1042,13 @@ Item {
             }
         }
         Timer { id: abTimer; interval: 1500; onTriggered: ab.confirming = false }
-        MouseArea {
+        ReaderKeyboardArea {
             id: abMa
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
+            keyboardLabel: ab.confirming ? ab.confirmLabel : ab.label
+            keyboardFocused: function() { panel.ensureVisible(ab) }
             onClicked: { ab.clicked(); ab.confirming = true; abTimer.restart() }
         }
     }

@@ -130,7 +130,8 @@ FocusScope {
     // selection (so no selectionchange fires, and the menu would float over an invisible
     // selection: the exact "selection gone but pop-up isn't" bug). Re-assert focus when the
     // menu opens; callLater beats any async focus-steal from the overlay arming.
-    onSelMenuShownChanged: if (shell.selMenuShown) Qt.callLater(function () { paper.focusPaper() })
+    // Arc 41: once the native selection menu is shown it owns keyboard focus. ReaderShell
+    // restores the paper only when that popover is dismissed.
 
     // Reload marks from the shared stores (on ready, on panel open, and after any change).
     function refreshMarks() {
@@ -158,12 +159,12 @@ FocusScope {
     // and hiding it doesn't return focus on its own — so without this, page-turn keys +
     // Esc silently die after using Note until you click the text. (The color/Copy/Delete
     // paths use MouseAreas, which never take focus, so there this is a harmless no-op.)
-    function dismissSelectionMenu() {
+    function dismissSelectionMenu(restoreFocus) {
         shell.selMenuShown = false
         shell.selMenuMode = "select"
         shell.existingHlId = ""
         paper.clearSelection()
-        Qt.callLater(function () { paper.focusPaper() })
+        if (restoreFocus !== false) Qt.callLater(function () { paper.focusPaper() })
     }
 
     // Persist a highlight for the CURRENT selection in `color`, with an optional `note`, and
@@ -241,11 +242,17 @@ FocusScope {
         shell.dictState = "loading"
         shell.dictRect = shell.selRect
         shell.dictShown = true
-        shell.dismissSelectionMenu()          // the selection menu gives way to the card
+        shell.dismissSelectionMenu(false)     // dictionary now owns focus; do not race it back to paper
         Reader2Bridge.dictLookup(word)
     }
-    function dismissDict() { shell.dictShown = false }
-    function dismissFootnote() { shell.footnoteShown = false }
+    function dismissDict() {
+        shell.dictShown = false
+        Qt.callLater(function () { paper.focusPaper() })
+    }
+    function dismissFootnote() {
+        shell.footnoteShown = false
+        Qt.callLater(function () { paper.focusPaper() })
+    }
 
     // ---- appearance (Task 10) ----
     // The CURRENT reader2 appearance (theme/font/size/lineHeight/margins/justify + the ruler
@@ -712,7 +719,7 @@ FocusScope {
             if (!chrome.searchOpen) {
                 paper.clearSearch()
                 shell.resetSearch()
-                Qt.callLater(function () { paper.focusPaper() })
+                Qt.callLater(function () { if (!chrome.restorePanelFocus()) paper.focusPaper() })
             }
         }
     }
@@ -1259,7 +1266,7 @@ FocusScope {
         Keys.onEscapePressed: shell.requestEscape()
         // swallow clicks + wheel so nothing reaches the dead paper beneath (declared FIRST → the
         // Column below sits on top and still gets its button clicks).
-        MouseArea { anchors.fill: parent; onWheel: (w) => { w.accepted = true } }
+        ReaderKeyboardArea { anchors.fill: parent; onWheel: (w) => { w.accepted = true } }
 
         Column {
             anchors.centerIn: parent
@@ -1300,7 +1307,7 @@ FocusScope {
                     font.weight: Font.DemiBold
                     font.pixelSize: 14
                 }
-                MouseArea {
+                ReaderKeyboardArea {
                     id: backMa
                     anchors.fill: parent
                     hoverEnabled: true

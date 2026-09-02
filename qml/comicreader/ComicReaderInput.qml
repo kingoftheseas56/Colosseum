@@ -60,6 +60,7 @@ Item {
     // +/- while the Loupe is up: the LENS, in whole steps. The step SIZE belongs to the lens (it is
     // the same nudge its wheel makes), so this carries a count and never a magnification.
     signal magnifyLoupe(int steps)
+    signal moveLoupe(int dx, int dy)
     signal firstPage()                       // Home
     signal lastPage()                        // End
     signal prevEntry()                       // Alt+Left (crossing)
@@ -74,6 +75,7 @@ Item {
     function keyAction(key, mods) {
         var ctrl = (mods & Qt.ControlModifier) !== 0
         var alt  = (mods & Qt.AltModifier) !== 0
+        var shift = (mods & Qt.ShiftModifier) !== 0
         var dbl  = (mode === "double_page")
         var zoomed = dbl && zoomPercent > 100
 
@@ -98,10 +100,23 @@ Item {
             if (key === Qt.Key_L) { toggleLoupe(); return "toggleLoupe" }
             if (key === Qt.Key_Plus || key === Qt.Key_Equal)      { magnifyLoupe(1);  return "magnifyLoupe" }
             if (key === Qt.Key_Minus || key === Qt.Key_Underscore) { magnifyLoupe(-1); return "magnifyLoupe" }
+            // Plain arrows stay gated by the established reader contract. Shift+Arrow moves
+            // the lens itself, giving keyboard parity to pointer lens dragging without stealing nav.
+            var lensStep = 48
+            if (shift && key === Qt.Key_Left)  { moveLoupe(-lensStep, 0); return "moveLoupe" }
+            if (shift && key === Qt.Key_Right) { moveLoupe(lensStep, 0); return "moveLoupe" }
+            if (shift && key === Qt.Key_Up)    { moveLoupe(0, -lensStep); return "moveLoupe" }
+            if (shift && key === Qt.Key_Down)  { moveLoupe(0, lensStep); return "moveLoupe" }
         }
 
         // an open overlay owns the keyboard — everything except Escape is gated (Reader 1 :875)
         if (modalOpen) return ""
+        if (key === Qt.Key_Menu || (key === Qt.Key_F10 && shift)) {
+            // Keyboard sentinel. The shell routes this through the SAME context semantic as
+            // right-click, but exposes both independently targetable halves of a paired spread.
+            openContextMenu(-1, -1)
+            return "openContextMenu"
+        }
         if (ctrl && key === Qt.Key_G) { goToPage(); return "goToPage" }
         if (ctrl && (key === Qt.Key_Plus || key === Qt.Key_Equal)) { zoomBy(20); return "zoomBy" }
         if (ctrl && (key === Qt.Key_Minus || key === Qt.Key_Underscore)) { zoomBy(-20); return "zoomBy" }
@@ -259,8 +274,9 @@ Item {
         else activity()
     }
 
-    MouseArea {
+    ComicReaderKeyboardArea {
         anchors.fill: parent
+        keyboardTabStop: false
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
         onPressed: function (m) {

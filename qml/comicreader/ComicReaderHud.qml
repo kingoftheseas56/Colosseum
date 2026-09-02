@@ -286,11 +286,12 @@ Item {
                 ink: theme.ink
             }
         }
-        MouseArea {
+        ComicReaderKeyboardArea {
             id: vbMa
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
+            keyboardLabel: vb.verbName
             onClicked: vb.tapped()
         }
     }
@@ -315,12 +316,13 @@ Item {
             width: 19; height: 19
             ink: hud.cRailInk
         }
-        MouseArea {
+        ComicReaderKeyboardArea {
             id: raMa
             anchors.fill: parent
             hoverEnabled: true
             enabled: ra.enabledArrow
             cursorShape: Qt.PointingHandCursor
+            keyboardLabel: ra.verbName
             onClicked: ra.tapped()
         }
     }
@@ -349,7 +351,7 @@ Item {
             color: hud.cTitleBar
 
             // click-swallower: an empty-strip click must not fall through and turn a page
-            MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
+            ComicReaderKeyboardArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
             // Shared BackAction component (back-navigation unification law). This is the ONLY
             // reader-to-library exit — Escape never leaves the book.
@@ -411,7 +413,7 @@ Item {
                 color: hud.cHairline
             }
 
-            MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
+            ComicReaderKeyboardArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
             ComicReaderCommandBar {
                 id: commandBar
@@ -476,7 +478,7 @@ Item {
                     value: hud.fillRatio() * sideThumb._span
                     restoreMode: Binding.RestoreBindingOrValue
                 }
-                MouseArea {
+                ComicReaderKeyboardArea {
                     id: sideThumbMa
                     anchors.fill: parent
                     anchors.margins: -6
@@ -524,9 +526,10 @@ Item {
                 ink: "white"
                 opacity: navMa.containsMouse ? 1.0 : 0.85
             }
-            MouseArea {
+            ComicReaderKeyboardArea {
                 id: navMa
                 anchors.fill: parent
+                keyboardTabStop: false
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: hud.navBarTap(parent.isLeft)
@@ -604,7 +607,7 @@ Item {
             // click-swallower (floating-panel/click-swallower house law): a click on the rail's
             // empty ground must NOT fall through to the page input beneath. Declared FIRST so the
             // interactive children below sit above it and still receive their clicks.
-            MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
+            ComicReaderKeyboardArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
             RailArrow {
                 id: icPrev
@@ -750,12 +753,18 @@ Item {
                 }
 
                 HoverHandler { id: scrubHover }
-                MouseArea {
+                ComicReaderKeyboardArea {
                     anchors.fill: parent
                     anchors.topMargin: -10
                     anchors.bottomMargin: -10
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    keyboardLabel: "Reading progress"
+                    keyboardRole: Accessible.Slider
+                    keyboardDecrease: function() { hud._emitScrub(Math.max(0, hud.fillRatio() - 0.02)) }
+                    keyboardIncrease: function() { hud._emitScrub(Math.min(1, hud.fillRatio() + 0.02)) }
+                    keyboardHome: function() { hud._emitScrub(0) }
+                    keyboardEnd: function() { hud._emitScrub(1) }
                     function _ratioAt(mx) {
                         return scrubTrack.width > 0 ? hud._clamp01(mx / scrubTrack.width) : 0
                     }

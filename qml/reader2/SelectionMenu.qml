@@ -23,6 +23,7 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import QtQuick.Window
 import "Reader2Logic.js" as L
 
 Item {
@@ -48,7 +49,42 @@ Item {
     // Reset the note editor whenever the menu opens/closes or its anchor changes, so a fresh
     // selection never inherits the previous note draft or a half-open editor.
     property bool noteEditing: false
-    onShownChanged: { noteEditing = false; noteInput.text = "" }
+    function focusBelongsHere(item) {
+        var p = item
+        while (p) { if (p === menu) return true; p = p.parent }
+        return false
+    }
+    function trapTab(event) {
+        var tab = event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
+        if (!shown || !tab) return false
+        var backwards = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
+        var w = menu.Window.window
+        var current = w ? w.activeFocusItem : null
+        var next = current
+        for (var i = 0; i < 128; ++i) {
+            if (!next || !focusBelongsHere(next)) {
+                var first = colorRepeater.itemAt(0); if (first) first.focusKeyboard()
+                event.accepted = true; return true
+            }
+            next = next.nextItemInFocusChain(!backwards)
+            if (!next || next === current) break
+            if (focusBelongsHere(next) && next.activeFocusOnTab && next.visible && next.enabled) {
+                next.forceActiveFocus(Qt.OtherFocusReason); event.accepted = true; return true
+            }
+        }
+        event.accepted = true; return true
+    }
+    onShownChanged: {
+        noteEditing = false; noteInput.text = ""
+        if (shown) Qt.callLater(function() {
+            var first = colorRepeater.itemAt(0)
+            if (first) first.focusKeyboard()
+        })
+    }
+    Keys.onPressed: function(event) {
+        if (menu.trapTab(event)) return
+        if (shown && event.key === Qt.Key_Escape) { menu.dismissed(); event.accepted = true }
+    }
     onSelChanged: noteEditing = false
     onNoteEditingChanged: if (noteEditing) Qt.callLater(function () { noteInput.forceActiveFocus() })
 
@@ -69,7 +105,7 @@ Item {
     // ---------- backdrop: tap-outside dismiss (below the card) ----------
     // Only armed while shown, so the paper owns all pointer input in the normal reading state;
     // it only intercepts once a selection / highlight-tap has opened the menu.
-    MouseArea {
+    ReaderKeyboardArea {
         anchors.fill: parent
         enabled: menu.shown
         acceptedButtons: Qt.LeftButton
@@ -91,7 +127,7 @@ Item {
 
         // OWN click-swallow (house doctrine): presses/wheel on the card never reach the paper.
         // Child MouseAreas (declared after this) sit on top and still get their clicks.
-        MouseArea {
+        ReaderKeyboardArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
             hoverEnabled: true
@@ -109,12 +145,15 @@ Item {
 
             // three color dots — select: highlight-in-color; existing: re-color.
             Repeater {
+                id: colorRepeater
                 model: menu.swatches
                 delegate: Item {
                     id: dot
                     required property var modelData
+                    required property int index
                     width: 20
                     height: card.height
+                    function focusKeyboard() { dotMa.forceActiveFocus(Qt.OtherFocusReason) }
                     Rectangle {
                         anchors.centerIn: parent
                         width: 18
@@ -125,11 +164,13 @@ Item {
                         border.color: Theme.ink
                         antialiasing: true
                     }
-                    MouseArea {
+                    ReaderKeyboardArea {
                         id: dotMa
+                        objectName: dot.index === 0 ? "reader2SelectionFirstColor" : ""
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
+                        keyboardLabel: "Highlight color"
                         onClicked: menu.colorPicked(String(dot.modelData.value))
                     }
                 }
@@ -205,8 +246,11 @@ Item {
                         color: Theme.ink
                         selectionColor: Theme.gold
                         selectByMouse: true
-                        // Esc cancels the editor (the web view doesn't get keys while we hold focus).
-                        Keys.onEscapePressed: menu.dismissed()
+                        // Tab stays inside the popover; every other editing key keeps TextEdit precedence.
+                        Keys.onPressed: function(event) {
+                            if (menu.trapTab(event)) return
+                            if (event.key === Qt.Key_Escape) { menu.dismissed(); event.accepted = true }
+                        }
                     }
                 }
 
@@ -247,11 +291,12 @@ Item {
                         color: parent.canSave ? (saveMa.containsMouse ? Theme.gold : Theme.ink)
                                               : Theme.inkGhost
                     }
-                    MouseArea {
+                    ReaderKeyboardArea {
                         id: saveMa
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: parent.canSave ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        keyboardLabel: "Save note"
                         onClicked: if (parent.canSave) menu.noteSaved(noteInput.text.trim())
                     }
                 }
@@ -274,11 +319,12 @@ Item {
             font.weight: Font.DemiBold
             color: ma.containsMouse ? Theme.ink : Theme.inkDim
         }
-        MouseArea {
+        ReaderKeyboardArea {
             id: ma
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
+            keyboardLabel: parent.label
             onClicked: parent.triggered()
         }
     }
