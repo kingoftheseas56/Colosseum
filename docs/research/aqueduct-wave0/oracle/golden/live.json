@@ -1,0 +1,1143 @@
+{
+  "oracle": {
+    "lab_port": 11480,
+    "runtime_sha256": "8ad810919df76741a153dbf28180a84f7ab395ea3da2534374a10f0e6dca7e3b",
+    "server_sha256": "567a397bb11b788571bf1750fd05dd78927f97bec0c9ddeaa6d9cc1eccee3922",
+    "server_version": "4.20.17"
+  },
+  "records": [
+    {
+      "elapsed_ms": 3282.0,
+      "name": "engine-create",
+      "request": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/create"
+      },
+      "response": {
+        "body_length": 6207,
+        "body_sha256": "c8274abba1c53a9a9e5659785acd68e5c5efc35a7af203158dbe36a3200ae564",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "connectionTries": 61,
+          "downloadSpeed": 0,
+          "downloaded": 0,
+          "files": [
+            {
+              "length": 1652,
+              "name": "Sintel.de.srt",
+              "offset": 0,
+              "path": "Sintel\\Sintel.de.srt"
+            },
+            {
+              "length": 1514,
+              "name": "Sintel.en.srt",
+              "offset": 1652,
+              "path": "Sintel\\Sintel.en.srt"
+            },
+            {
+              "length": 1554,
+              "name": "Sintel.es.srt",
+              "offset": 3166,
+              "path": "Sintel\\Sintel.es.srt"
+            },
+            {
+              "length": 1618,
+              "name": "Sintel.fr.srt",
+              "offset": 4720,
+              "path": "Sintel\\Sintel.fr.srt"
+            },
+            {
+              "length": 1546,
+              "name": "Sintel.it.srt",
+              "offset": 6338,
+              "path": "Sintel\\Sintel.it.srt"
+            },
+            {
+              "length": 129241752,
+              "name": "Sintel.mp4",
+              "offset": 7884,
+              "path": "Sintel\\Sintel.mp4"
+            },
+            {
+              "length": 1537,
+              "name": "Sintel.nl.srt",
+              "offset": 129249636,
+              "path": "Sintel\\Sintel.nl.srt"
+            },
+            {
+              "length": 1536,
+              "name": "Sintel.pl.srt",
+              "offset": 129251173,
+              "path": "Sintel\\Sintel.pl.srt"
+            },
+            {
+              "length": 1551,
+              "name": "Sintel.pt.srt",
+              "offset": 129252709,
+              "path": "Sintel\\Sintel.pt.srt"
+            },
+            {
+              "length": 2016,
+              "name": "Sintel.ru.srt",
+              "offset": 129254260,
+              "path": "Sintel\\Sintel.ru.srt"
+            },
+            {
+              "length": 46115,
+              "name": "poster.jpg",
+              "offset": 129256276,
+              "path": "Sintel\\poster.jpg"
+            }
+          ],
+          "infoHash": "08ada5a7a6183aae1e09d831df6748d566095a10",
+          "name": "Sintel",
+          "opts": {
+            "connections": 55,
+            "dht": false,
+            "flood": 0,
+            "growler": {
+              "flood": 0,
+              "pulse": 3670016
+            },
+            "handshakeTimeout": 20000,
+            "id": "-TR4030-3a7ad2b6ed7c",
+            "path": "<APP_PATH>\\stremio-cache\\08ada5a7a6183aae1e09d831df6748d566095a10",
+            "peerSearch": {
+              "max": 150,
+              "min": 40,
+              "sources": [
+                "tracker:udp://tracker.opentrackr.org:1337/announce",
+                "tracker:udp://open.demonii.com:1337/announce",
+                "tracker:udp://open.stealth.si:80/announce",
+                "tracker:https://torrent.tracker.durukanbal.com:443/announce",
+                "tracker:udp://wepzone.net:6969/announce",
+                "tracker:udp://tracker.wepzone.net:6969/announce",
+                "tracker:udp://tracker.torrent.eu.org:451/announce",
+                "tracker:udp://tracker.theoks.net:6969/announce",
+                "tracker:udp://tracker.t-1.org:6969/announce",
+                "tracker:udp://tracker.darkness.services:6969/announce",
+                "tracker:udp://tracker-udp.gbitt.info:80/announce",
+                "tracker:udp://t.overflow.biz:6969/announce",
+                "tracker:udp://open.dstud.io:6969/announce",
+                "tracker:udp://explodie.org:6969/announce",
+                "tracker:udp://exodus.desync.com:6969/announce",
+                "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+                "tracker:https://tracker.zhuqiy.com:443/announce",
+                "tracker:https://tracker.pmman.tech:443/announce",
+                "tracker:https://tracker.moeblog.cn:443/announce",
+                "tracker:https://tracker.bt4g.com:443/announce",
+                "dht:08ada5a7a6183aae1e09d831df6748d566095a10"
+              ]
+            },
+            "pulse": 9007199254740991,
+            "sources": [
+              "dht:08ada5a7a6183aae1e09d831df6748d566095a10",
+              "tracker:udp://tracker.opentrackr.org:1337/announce",
+              "tracker:udp://open.demonii.com:1337/announce",
+              "tracker:udp://tracker.torrent.eu.org:451/announce"
+            ],
+            "swarmCap": {
+              "maxSpeed": 2621440,
+              "minPeers": 5
+            },
+            "timeout": 4000,
+            "tracker": false,
+            "virtual": true
+          },
+          "peerSearchRunning": true,
+          "peers": 4,
+          "queued": 68,
+          "selections": [],
+          "sources": [
+            {
+              "lastStarted": "2026-09-02T19:20:33.011Z",
+              "numFound": 50,
+              "numFoundUniq": 47,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.opentrackr.org:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.012Z",
+              "numFound": 15,
+              "numFoundUniq": 6,
+              "numRequests": 1,
+              "url": "tracker:udp://open.demonii.com:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.014Z",
+              "numFound": 28,
+              "numFoundUniq": 13,
+              "numRequests": 1,
+              "url": "tracker:udp://open.stealth.si:80/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.603Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://torrent.tracker.durukanbal.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.605Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://wepzone.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.606Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.wepzone.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.606Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.torrent.eu.org:451/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.607Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.theoks.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.608Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.t-1.org:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.608Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.darkness.services:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.609Z",
+              "numFound": 20,
+              "numFoundUniq": 19,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker-udp.gbitt.info:80/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.609Z",
+              "numFound": 22,
+              "numFoundUniq": 7,
+              "numRequests": 1,
+              "url": "tracker:udp://t.overflow.biz:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.610Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://open.dstud.io:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.610Z",
+              "numFound": 35,
+              "numFoundUniq": 27,
+              "numRequests": 1,
+              "url": "tracker:udp://explodie.org:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.611Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://exodus.desync.com:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.611Z",
+              "numFound": 4,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.615Z",
+              "numFound": 12,
+              "numFoundUniq": 12,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.zhuqiy.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.620Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.pmman.tech:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.634Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.moeblog.cn:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.639Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.bt4g.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.639Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "dht:08ada5a7a6183aae1e09d831df6748d566095a10"
+            }
+          ],
+          "swarmConnections": 55,
+          "swarmPaused": false,
+          "swarmSize": 55,
+          "unchoked": 1,
+          "unique": 123,
+          "uploadSpeed": 0,
+          "uploaded": 0,
+          "wires": [
+            {
+              "address": "213.152.161.85:36597",
+              "amInterested": false,
+              "downSpeed": 0,
+              "isSeeder": false,
+              "requests": 0,
+              "upSpeed": 0
+            }
+          ]
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 0.0,
+      "name": "stats-early-0",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5/stats.json"
+      },
+      "response": {
+        "body_length": 6165,
+        "body_sha256": "dc9c3a2aeec98a070c3f0c6f1b98c8cf98d7aa8137bf5a87d9c246f844eca17a",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "connectionTries": 61,
+          "downloadSpeed": 0,
+          "downloaded": 0,
+          "files": [
+            {
+              "length": 1652,
+              "name": "Sintel.de.srt",
+              "offset": 0,
+              "path": "Sintel\\Sintel.de.srt"
+            },
+            {
+              "length": 1514,
+              "name": "Sintel.en.srt",
+              "offset": 1652,
+              "path": "Sintel\\Sintel.en.srt"
+            },
+            {
+              "length": 1554,
+              "name": "Sintel.es.srt",
+              "offset": 3166,
+              "path": "Sintel\\Sintel.es.srt"
+            },
+            {
+              "length": 1618,
+              "name": "Sintel.fr.srt",
+              "offset": 4720,
+              "path": "Sintel\\Sintel.fr.srt"
+            },
+            {
+              "length": 1546,
+              "name": "Sintel.it.srt",
+              "offset": 6338,
+              "path": "Sintel\\Sintel.it.srt"
+            },
+            {
+              "length": 129241752,
+              "name": "Sintel.mp4",
+              "offset": 7884,
+              "path": "Sintel\\Sintel.mp4"
+            },
+            {
+              "length": 1537,
+              "name": "Sintel.nl.srt",
+              "offset": 129249636,
+              "path": "Sintel\\Sintel.nl.srt"
+            },
+            {
+              "length": 1536,
+              "name": "Sintel.pl.srt",
+              "offset": 129251173,
+              "path": "Sintel\\Sintel.pl.srt"
+            },
+            {
+              "length": 1551,
+              "name": "Sintel.pt.srt",
+              "offset": 129252709,
+              "path": "Sintel\\Sintel.pt.srt"
+            },
+            {
+              "length": 2016,
+              "name": "Sintel.ru.srt",
+              "offset": 129254260,
+              "path": "Sintel\\Sintel.ru.srt"
+            },
+            {
+              "length": 46115,
+              "name": "poster.jpg",
+              "offset": 129256276,
+              "path": "Sintel\\poster.jpg"
+            }
+          ],
+          "infoHash": "08ada5a7a6183aae1e09d831df6748d566095a10",
+          "name": "Sintel",
+          "opts": {
+            "connections": 55,
+            "dht": false,
+            "flood": 0,
+            "growler": {
+              "flood": 0,
+              "pulse": 3670016
+            },
+            "handshakeTimeout": 20000,
+            "id": "-TR4030-3a7ad2b6ed7c",
+            "path": "<APP_PATH>\\stremio-cache\\08ada5a7a6183aae1e09d831df6748d566095a10",
+            "peerSearch": {
+              "max": 150,
+              "min": 40,
+              "sources": [
+                "tracker:udp://tracker.opentrackr.org:1337/announce",
+                "tracker:udp://open.demonii.com:1337/announce",
+                "tracker:udp://open.stealth.si:80/announce",
+                "tracker:https://torrent.tracker.durukanbal.com:443/announce",
+                "tracker:udp://wepzone.net:6969/announce",
+                "tracker:udp://tracker.wepzone.net:6969/announce",
+                "tracker:udp://tracker.torrent.eu.org:451/announce",
+                "tracker:udp://tracker.theoks.net:6969/announce",
+                "tracker:udp://tracker.t-1.org:6969/announce",
+                "tracker:udp://tracker.darkness.services:6969/announce",
+                "tracker:udp://tracker-udp.gbitt.info:80/announce",
+                "tracker:udp://t.overflow.biz:6969/announce",
+                "tracker:udp://open.dstud.io:6969/announce",
+                "tracker:udp://explodie.org:6969/announce",
+                "tracker:udp://exodus.desync.com:6969/announce",
+                "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+                "tracker:https://tracker.zhuqiy.com:443/announce",
+                "tracker:https://tracker.pmman.tech:443/announce",
+                "tracker:https://tracker.moeblog.cn:443/announce",
+                "tracker:https://tracker.bt4g.com:443/announce",
+                "dht:08ada5a7a6183aae1e09d831df6748d566095a10"
+              ]
+            },
+            "pulse": 9007199254740991,
+            "sources": [
+              "dht:08ada5a7a6183aae1e09d831df6748d566095a10",
+              "tracker:udp://tracker.opentrackr.org:1337/announce",
+              "tracker:udp://open.demonii.com:1337/announce",
+              "tracker:udp://tracker.torrent.eu.org:451/announce"
+            ],
+            "swarmCap": {
+              "maxSpeed": 2621440,
+              "minPeers": 5
+            },
+            "timeout": 4000,
+            "tracker": false,
+            "virtual": true
+          },
+          "peerSearchRunning": true,
+          "peers": 4,
+          "queued": 68,
+          "selections": [],
+          "sources": [
+            {
+              "lastStarted": "2026-09-02T19:20:33.011Z",
+              "numFound": 50,
+              "numFoundUniq": 47,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.opentrackr.org:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.012Z",
+              "numFound": 15,
+              "numFoundUniq": 6,
+              "numRequests": 1,
+              "url": "tracker:udp://open.demonii.com:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.014Z",
+              "numFound": 28,
+              "numFoundUniq": 13,
+              "numRequests": 1,
+              "url": "tracker:udp://open.stealth.si:80/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.603Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://torrent.tracker.durukanbal.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.605Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://wepzone.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.606Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.wepzone.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.606Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.torrent.eu.org:451/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.607Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.theoks.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.608Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.t-1.org:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.608Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.darkness.services:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.609Z",
+              "numFound": 20,
+              "numFoundUniq": 19,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker-udp.gbitt.info:80/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.609Z",
+              "numFound": 22,
+              "numFoundUniq": 7,
+              "numRequests": 1,
+              "url": "tracker:udp://t.overflow.biz:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.610Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://open.dstud.io:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.610Z",
+              "numFound": 35,
+              "numFoundUniq": 27,
+              "numRequests": 1,
+              "url": "tracker:udp://explodie.org:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.611Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://exodus.desync.com:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.611Z",
+              "numFound": 4,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.615Z",
+              "numFound": 12,
+              "numFoundUniq": 12,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.zhuqiy.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.620Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.pmman.tech:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.634Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.moeblog.cn:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.639Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.bt4g.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.639Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "dht:08ada5a7a6183aae1e09d831df6748d566095a10"
+            }
+          ],
+          "streamLen": 129241752,
+          "streamName": "Sintel.mp4",
+          "streamProgress": 0,
+          "swarmConnections": 55,
+          "swarmPaused": false,
+          "swarmSize": 55,
+          "unchoked": 0,
+          "unique": 123,
+          "uploadSpeed": 0,
+          "uploaded": 0,
+          "wires": null
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 3125.0,
+      "name": "metadata-race-range",
+      "request": {
+        "headers": {
+          "Range": "bytes=0-65535"
+        },
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5"
+      },
+      "response": {
+        "body_length": 65536,
+        "body_sha256": "27d7db2321078673f22b10fafd6c071d33d2e65a693953604a6bc754466fcc2a",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "cache-control": "max-age=0, no-cache",
+          "content-length": "65536",
+          "content-range": "bytes 0-65535/129241752",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 206
+      }
+    },
+    {
+      "elapsed_ms": 15.0,
+      "name": "media-head",
+      "request": {
+        "headers": {},
+        "method": "HEAD",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5"
+      },
+      "response": {
+        "body_length": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "cache-control": "max-age=0, no-cache",
+          "content-length": "129241752",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 200,
+        "text": ""
+      }
+    },
+    {
+      "elapsed_ms": 31.0,
+      "name": "range-open-ended",
+      "request": {
+        "headers": {
+          "Range": "bytes=0-"
+        },
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5"
+      },
+      "response": {
+        "body_length": 65536,
+        "body_sha256": "27d7db2321078673f22b10fafd6c071d33d2e65a693953604a6bc754466fcc2a",
+        "body_truncated": true,
+        "headers": {
+          "accept-ranges": "bytes",
+          "cache-control": "max-age=0, no-cache",
+          "content-length": "129241752",
+          "content-range": "bytes 0-129241751/129241752",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 206
+      }
+    },
+    {
+      "elapsed_ms": 0.0,
+      "name": "range-bounded",
+      "request": {
+        "headers": {
+          "Range": "bytes=1048576-1114111"
+        },
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5"
+      },
+      "response": {
+        "body_length": 65536,
+        "body_sha256": "06ef0cd336e48db43acc14a0638c38c76be72b367d8bda71b1d5af979ddcc1cc",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "cache-control": "max-age=0, no-cache",
+          "content-length": "65536",
+          "content-range": "bytes 1048576-1114111/129241752",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 206
+      }
+    },
+    {
+      "elapsed_ms": 579.0,
+      "name": "range-seek",
+      "request": {
+        "headers": {
+          "Range": "bytes=10485760-10551295"
+        },
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5"
+      },
+      "response": {
+        "body_length": 65536,
+        "body_sha256": "e775f03c99a43cf18f89d35954c1db18cd8f93ff742bbf937ad96ded83d2943a",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "cache-control": "max-age=0, no-cache",
+          "content-length": "65536",
+          "content-range": "bytes 10485760-10551295/129241752",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 206
+      }
+    },
+    {
+      "elapsed_ms": 0.0,
+      "name": "range-invalid",
+      "request": {
+        "headers": {
+          "Range": "bytes=999999999999-1000000000000"
+        },
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5"
+      },
+      "response": {
+        "body_length": 65536,
+        "body_sha256": "27d7db2321078673f22b10fafd6c071d33d2e65a693953604a6bc754466fcc2a",
+        "body_truncated": true,
+        "headers": {
+          "accept-ranges": "bytes",
+          "cache-control": "max-age=0, no-cache",
+          "content-length": "129241752",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 0.0,
+      "name": "stats-after-ranges",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/5/stats.json"
+      },
+      "response": {
+        "body_length": 6062,
+        "body_sha256": "c1751500e422a6686bf8a9ddac4b9be51dd6206eed43f50918d3d3052511fdca",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "connectionTries": 119,
+          "downloadSpeed": 321099,
+          "downloaded": 1605495,
+          "files": [
+            {
+              "length": 1652,
+              "name": "Sintel.de.srt",
+              "offset": 0,
+              "path": "Sintel\\Sintel.de.srt"
+            },
+            {
+              "length": 1514,
+              "name": "Sintel.en.srt",
+              "offset": 1652,
+              "path": "Sintel\\Sintel.en.srt"
+            },
+            {
+              "length": 1554,
+              "name": "Sintel.es.srt",
+              "offset": 3166,
+              "path": "Sintel\\Sintel.es.srt"
+            },
+            {
+              "length": 1618,
+              "name": "Sintel.fr.srt",
+              "offset": 4720,
+              "path": "Sintel\\Sintel.fr.srt"
+            },
+            {
+              "length": 1546,
+              "name": "Sintel.it.srt",
+              "offset": 6338,
+              "path": "Sintel\\Sintel.it.srt"
+            },
+            {
+              "__cacheEvents": true,
+              "length": 129241752,
+              "name": "Sintel.mp4",
+              "offset": 7884,
+              "path": "Sintel\\Sintel.mp4"
+            },
+            {
+              "length": 1537,
+              "name": "Sintel.nl.srt",
+              "offset": 129249636,
+              "path": "Sintel\\Sintel.nl.srt"
+            },
+            {
+              "length": 1536,
+              "name": "Sintel.pl.srt",
+              "offset": 129251173,
+              "path": "Sintel\\Sintel.pl.srt"
+            },
+            {
+              "length": 1551,
+              "name": "Sintel.pt.srt",
+              "offset": 129252709,
+              "path": "Sintel\\Sintel.pt.srt"
+            },
+            {
+              "length": 2016,
+              "name": "Sintel.ru.srt",
+              "offset": 129254260,
+              "path": "Sintel\\Sintel.ru.srt"
+            },
+            {
+              "length": 46115,
+              "name": "poster.jpg",
+              "offset": 129256276,
+              "path": "Sintel\\poster.jpg"
+            }
+          ],
+          "infoHash": "08ada5a7a6183aae1e09d831df6748d566095a10",
+          "name": "Sintel",
+          "opts": {
+            "connections": 55,
+            "dht": false,
+            "growler": {
+              "flood": 0,
+              "pulse": 3670016
+            },
+            "handshakeTimeout": 20000,
+            "id": "-qB3400-2db28697515a",
+            "path": "<APP_PATH>\\stremio-cache\\08ada5a7a6183aae1e09d831df6748d566095a10",
+            "peerSearch": {
+              "max": 150,
+              "min": 40,
+              "sources": [
+                "tracker:udp://tracker.opentrackr.org:1337/announce",
+                "tracker:udp://open.demonii.com:1337/announce",
+                "tracker:udp://open.stealth.si:80/announce",
+                "tracker:https://torrent.tracker.durukanbal.com:443/announce",
+                "tracker:udp://wepzone.net:6969/announce",
+                "tracker:udp://tracker.wepzone.net:6969/announce",
+                "tracker:udp://tracker.torrent.eu.org:451/announce",
+                "tracker:udp://tracker.theoks.net:6969/announce",
+                "tracker:udp://tracker.t-1.org:6969/announce",
+                "tracker:udp://tracker.darkness.services:6969/announce",
+                "tracker:udp://tracker-udp.gbitt.info:80/announce",
+                "tracker:udp://t.overflow.biz:6969/announce",
+                "tracker:udp://open.dstud.io:6969/announce",
+                "tracker:udp://explodie.org:6969/announce",
+                "tracker:udp://exodus.desync.com:6969/announce",
+                "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce",
+                "tracker:https://tracker.zhuqiy.com:443/announce",
+                "tracker:https://tracker.pmman.tech:443/announce",
+                "tracker:https://tracker.moeblog.cn:443/announce",
+                "tracker:https://tracker.bt4g.com:443/announce",
+                "dht:08ada5a7a6183aae1e09d831df6748d566095a10"
+              ]
+            },
+            "swarmCap": {
+              "maxSpeed": 2621440,
+              "minPeers": 5
+            },
+            "timeout": 4000,
+            "tracker": false,
+            "virtual": true
+          },
+          "peerSearchRunning": true,
+          "peers": 13,
+          "queued": 10,
+          "selections": [
+            {
+              "from": 0,
+              "offset": 4,
+              "priority": 0,
+              "to": 987
+            },
+            {
+              "from": 0,
+              "offset": 4,
+              "priority": 0,
+              "to": 987
+            }
+          ],
+          "sources": [
+            {
+              "lastStarted": "2026-09-02T19:20:33.011Z",
+              "numFound": 50,
+              "numFoundUniq": 47,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.opentrackr.org:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.012Z",
+              "numFound": 15,
+              "numFoundUniq": 6,
+              "numRequests": 1,
+              "url": "tracker:udp://open.demonii.com:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.014Z",
+              "numFound": 28,
+              "numFoundUniq": 13,
+              "numRequests": 1,
+              "url": "tracker:udp://open.stealth.si:80/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.603Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://torrent.tracker.durukanbal.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.605Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://wepzone.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.606Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.wepzone.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.606Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.torrent.eu.org:451/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.607Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.theoks.net:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.608Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.t-1.org:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.608Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker.darkness.services:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.609Z",
+              "numFound": 20,
+              "numFoundUniq": 19,
+              "numRequests": 1,
+              "url": "tracker:udp://tracker-udp.gbitt.info:80/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.609Z",
+              "numFound": 22,
+              "numFoundUniq": 7,
+              "numRequests": 1,
+              "url": "tracker:udp://t.overflow.biz:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.610Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://open.dstud.io:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.610Z",
+              "numFound": 35,
+              "numFoundUniq": 27,
+              "numRequests": 1,
+              "url": "tracker:udp://explodie.org:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.611Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://exodus.desync.com:6969/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.611Z",
+              "numFound": 4,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.615Z",
+              "numFound": 12,
+              "numFoundUniq": 12,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.zhuqiy.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.620Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.pmman.tech:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.634Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.moeblog.cn:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.639Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "tracker:https://tracker.bt4g.com:443/announce"
+            },
+            {
+              "lastStarted": "2026-09-02T19:20:33.639Z",
+              "numFound": 0,
+              "numFoundUniq": 0,
+              "numRequests": 1,
+              "url": "dht:08ada5a7a6183aae1e09d831df6748d566095a10"
+            }
+          ],
+          "streamLen": 129241752,
+          "streamName": "Sintel.mp4",
+          "streamProgress": 0.00911854103343465,
+          "swarmConnections": 55,
+          "swarmPaused": false,
+          "swarmSize": 55,
+          "unchoked": 5,
+          "unique": 66,
+          "uploadSpeed": 321099,
+          "uploaded": 0,
+          "wires": null
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 2734.0,
+      "name": "engine-remove",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/remove"
+      },
+      "response": {
+        "body_length": 2,
+        "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {},
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 0.0,
+      "name": "stats-after-remove",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/08ada5a7a6183aae1e09d831df6748d566095a10/stats.json"
+      },
+      "response": {
+        "body_length": 4,
+        "body_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": null,
+        "status": 200
+      }
+    }
+  ],
+  "schema": 1,
+  "shutdown_clean": true,
+  "startup_handshake_seen": true,
+  "suite": "live"
+}

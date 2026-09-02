@@ -1,0 +1,362 @@
+{
+  "oracle": {
+    "lab_port": 11480,
+    "runtime_sha256": "8ad810919df76741a153dbf28180a84f7ab395ea3da2534374a10f0e6dca7e3b",
+    "server_sha256": "567a397bb11b788571bf1750fd05dd78927f97bec0c9ddeaa6d9cc1eccee3922",
+    "server_version": "4.20.17"
+  },
+  "records": [
+    {
+      "elapsed_ms": 625.0,
+      "name": "settings-default",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/settings"
+      },
+      "response": {
+        "body_length": 1507,
+        "body_sha256": "c742505b45c66dd1aa4b03dd037b3404d7d5d6e0c6135c7ef61d517051404347",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "baseUrl": "<ORACLE_BASE_URL>",
+          "options": [
+            {
+              "id": "localAddonEnabled",
+              "label": "ENABLE_LOCAL_FILES_ADDON",
+              "type": "checkbox"
+            },
+            {
+              "class": "https",
+              "icon": true,
+              "id": "remoteHttps",
+              "label": "ENABLE_REMOTE_HTTPS_CONN",
+              "selections": [
+                {
+                  "name": "Disabled",
+                  "val": ""
+                },
+                {
+                  "name": "<NETWORK_INTERFACES>",
+                  "val": "<NETWORK_INTERFACES>"
+                }
+              ],
+              "type": "select"
+            },
+            {
+              "class": "caching",
+              "icon": true,
+              "id": "cacheSize",
+              "label": "CACHING",
+              "selections": [
+                {
+                  "name": "no caching",
+                  "val": 0
+                },
+                {
+                  "name": "2GB",
+                  "val": 2147483648
+                },
+                {
+                  "name": "5GB",
+                  "val": 5368709120
+                },
+                {
+                  "name": "10GB",
+                  "val": 10737418240
+                },
+                {
+                  "name": "\u221e",
+                  "val": null
+                }
+              ],
+              "type": "select"
+            }
+          ],
+          "values": {
+            "allTranscodeProfiles": [],
+            "appPath": "<APP_PATH>",
+            "btDownloadSpeedHardLimit": 3670016,
+            "btDownloadSpeedSoftLimit": 2621440,
+            "btHandshakeTimeout": 20000,
+            "btMaxConnections": 55,
+            "btMinPeersForStable": 5,
+            "btRequestTimeout": 4000,
+            "cacheRoot": "<APP_PATH>",
+            "cacheSize": 2147483648,
+            "localAddonEnabled": false,
+            "proxyStreamsEnabled": false,
+            "remoteHttps": "",
+            "serverVersion": "4.20.17",
+            "transcodeConcurrency": 1,
+            "transcodeHardwareAccel": true,
+            "transcodeHorsepower": 0.75,
+            "transcodeMaxBitRate": 0,
+            "transcodeMaxWidth": 1920,
+            "transcodeProfile": null,
+            "transcodeTrackConcurrency": 1
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 15.0,
+      "name": "heartbeat",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/heartbeat"
+      },
+      "response": {
+        "body_length": 16,
+        "body_sha256": "c955e57777ec0d73639dca6748560d00aa5eb8e12f13ebb2ed9656add3908f97",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "success": true
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 0.0,
+      "name": "stats-empty",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/stats.json"
+      },
+      "response": {
+        "body_length": 2,
+        "body_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {},
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 16.0,
+      "name": "favicon",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/favicon.ico"
+      },
+      "response": {
+        "body_length": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "status": 404,
+        "text": ""
+      }
+    },
+    {
+      "elapsed_ms": 0.0,
+      "name": "root-redirect",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/"
+      },
+      "response": {
+        "body_length": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_truncated": false,
+        "headers": {
+          "location": "https://app.strem.io/shell-v4.4/?streamingServer=<BASE_URL_ENCODED>"
+        },
+        "status": 307,
+        "text": ""
+      }
+    },
+    {
+      "elapsed_ms": 16.0,
+      "name": "local-addon-manifest",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/local-addon/manifest.json"
+      },
+      "response": {
+        "body_length": 367,
+        "body_sha256": "4b7e0cc4352e7f861c4a603de1b800b33ff9fc6041a7281b58f82e2b3733fa9f",
+        "body_truncated": false,
+        "headers": {
+          "content-length": "367",
+          "content-type": "application/json; charset=utf-8"
+        },
+        "json": {
+          "catalogs": [],
+          "description": "Local add-on to find playable files: .torrent, .mp4, .mkv and .avi",
+          "id": "org.stremio.local",
+          "name": "Local Files (without catalog support)",
+          "resources": [
+            {
+              "idPrefixes": [
+                "local:",
+                "bt:"
+              ],
+              "name": "meta",
+              "types": [
+                "other"
+              ]
+            },
+            {
+              "idPrefixes": [
+                "tt"
+              ],
+              "name": "stream",
+              "types": [
+                "movie",
+                "series"
+              ]
+            }
+          ],
+          "types": [
+            "movie",
+            "series",
+            "other"
+          ],
+          "version": "1.10.0"
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 62.0,
+      "name": "settings-update",
+      "request": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/settings"
+      },
+      "response": {
+        "body_length": 16,
+        "body_sha256": "c955e57777ec0d73639dca6748560d00aa5eb8e12f13ebb2ed9656add3908f97",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "success": true
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 141.0,
+      "name": "settings-effective",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/settings"
+      },
+      "response": {
+        "body_length": 1507,
+        "body_sha256": "1d39122e53bc19765373bea26bfc3945e636625f5005d4b715cea348cedc1624",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "baseUrl": "<ORACLE_BASE_URL>",
+          "options": [
+            {
+              "id": "localAddonEnabled",
+              "label": "ENABLE_LOCAL_FILES_ADDON",
+              "type": "checkbox"
+            },
+            {
+              "class": "https",
+              "icon": true,
+              "id": "remoteHttps",
+              "label": "ENABLE_REMOTE_HTTPS_CONN",
+              "selections": [
+                {
+                  "name": "Disabled",
+                  "val": ""
+                },
+                {
+                  "name": "<NETWORK_INTERFACES>",
+                  "val": "<NETWORK_INTERFACES>"
+                }
+              ],
+              "type": "select"
+            },
+            {
+              "class": "caching",
+              "icon": true,
+              "id": "cacheSize",
+              "label": "CACHING",
+              "selections": [
+                {
+                  "name": "no caching",
+                  "val": 0
+                },
+                {
+                  "name": "2GB",
+                  "val": 2147483648
+                },
+                {
+                  "name": "5GB",
+                  "val": 5368709120
+                },
+                {
+                  "name": "10GB",
+                  "val": 10737418240
+                },
+                {
+                  "name": "\u221e",
+                  "val": null
+                }
+              ],
+              "type": "select"
+            }
+          ],
+          "values": {
+            "allTranscodeProfiles": [],
+            "appPath": "<APP_PATH>",
+            "btDownloadSpeedHardLimit": 3670016,
+            "btDownloadSpeedSoftLimit": 2621440,
+            "btHandshakeTimeout": 20000,
+            "btMaxConnections": 57,
+            "btMinPeersForStable": 5,
+            "btRequestTimeout": 4000,
+            "cacheRoot": "<APP_PATH>",
+            "cacheSize": 2147483648,
+            "localAddonEnabled": false,
+            "proxyStreamsEnabled": false,
+            "remoteHttps": "",
+            "serverVersion": "4.20.17",
+            "transcodeConcurrency": 1,
+            "transcodeHardwareAccel": true,
+            "transcodeHorsepower": 0.75,
+            "transcodeMaxBitRate": 0,
+            "transcodeMaxWidth": 1920,
+            "transcodeProfile": null,
+            "transcodeTrackConcurrency": 1
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "schema": 1,
+  "shutdown_clean": true,
+  "startup_handshake_seen": true,
+  "suite": "control"
+}

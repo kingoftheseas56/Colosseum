@@ -1,0 +1,326 @@
+{
+  "oracle": {
+    "lab_port": 11480,
+    "runtime_sha256": "8ad810919df76741a153dbf28180a84f7ab395ea3da2534374a10f0e6dca7e3b",
+    "server_sha256": "567a397bb11b788571bf1750fd05dd78927f97bec0c9ddeaa6d9cc1eccee3922",
+    "server_version": "4.20.17"
+  },
+  "records": [
+    {
+      "elapsed_ms": 1328.0,
+      "name": "hls-url-master",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/url/http%3A%2F%2F127.0.0.1%3A11580%2Fsample.mp4/hls.m3u8"
+      },
+      "response": {
+        "body_length": 448,
+        "body_sha256": "a01bf7749cce646788935321ce4b8f52816e40c893096fe13a5910e781b3baec",
+        "body_truncated": false,
+        "headers": {
+          "content-length": "448",
+          "content-type": "application/vnd.apple.mpegurl"
+        },
+        "status": 200,
+        "text": "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"video\",NAME=\"Video\",AUTOSELECT=YES,DEFAULT=YES\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",NAME=\"und\",LANGUAGE=\"und\",AUTOSELECT=YES,DEFAULT=YES,URI=\"audio0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11580%2Fsample.mp4&maxAudioChannels=2\"\n#EXT-X-STREAM-INF:BANDWIDTH=164000,VIDEO=\"video\",AUDIO=\"audio\",NAME=\"Main\"\nvideo0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11580%2Fsample.mp4&maxAudioChannels=2"
+      }
+    },
+    {
+      "elapsed_ms": 187.0,
+      "name": "probe-url",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/probe?url=http%3A%2F%2F127.0.0.1%3A11580%2Fsample.mp4"
+      },
+      "response": {
+        "body_length": 301,
+        "body_sha256": "1f7920a6ed934cb90d30204b2a21f18613b902703dfa8830dd1abd12b02797f9",
+        "body_truncated": false,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "json": {
+          "bitrate": 24000,
+          "container": "mp4",
+          "duration": 1000,
+          "streams": [
+            {
+              "bitrate": null,
+              "codec_name": "h264",
+              "codec_type": "video",
+              "default": false,
+              "fps": 24,
+              "lang": "und",
+              "size": null,
+              "stream": 0
+            },
+            {
+              "bitrate": null,
+              "codec_name": "aac",
+              "codec_type": "audio",
+              "default": true,
+              "fps": null,
+              "lang": "und",
+              "size": null,
+              "stream": 1
+            }
+          ]
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 63.0,
+      "name": "subtitles-srt",
+      "request": {
+        "headers": {},
+        "method": "GET",
+        "path": "/subtitles.srt?from=http%3A%2F%2F127.0.0.1%3A11580%2Fsubtitle.srt"
+      },
+      "response": {
+        "body_length": 49,
+        "body_sha256": "6a7748656b208ca51124b5f2fe3a4aebab292bed77f91a8fdc7a5cb0e684e89d",
+        "body_truncated": false,
+        "headers": {},
+        "status": 200,
+        "text": "0\n00:00:00,000 --> 00:00:00,750\nAqueduct oracle\n\n"
+      }
+    },
+    {
+      "elapsed_ms": 62.0,
+      "name": "proxy-range",
+      "request": {
+        "headers": {
+          "Range": "bytes=17-80"
+        },
+        "method": "GET",
+        "path": "/proxy/d=http%3A%2F%2F127.0.0.1%3A11580/blob.bin"
+      },
+      "response": {
+        "body_length": 148,
+        "body_sha256": "1404ba7a79ae75df672508b3c289f71e83a0ce141b6430911f3462d06503ceec",
+        "body_truncated": false,
+        "headers": {
+          "content-length": "148",
+          "content-type": "text/html; charset=utf-8"
+        },
+        "status": 500,
+        "text": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Internal Server Error</pre>\n</body>\n</html>\n"
+      }
+    },
+    {
+      "elapsed_ms": 47.0,
+      "name": "zip-create",
+      "request": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/zip/create/wave0-zip"
+      },
+      "response": {
+        "body_length": 19,
+        "body_sha256": "fedac0ad6c59915daaaee6a0cd9eb7235511aac61266b6523eb9591f7e73f05e",
+        "body_truncated": false,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json"
+        },
+        "json": {
+          "key": "wave0-zip"
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 281.0,
+      "name": "zip-head",
+      "request": {
+        "headers": {},
+        "method": "HEAD",
+        "path": "/zip/stream?key=wave0-zip&o=%7B%22fileMustInclude%22%3A%20%5B%22movie.mp4%22%5D%7D"
+      },
+      "response": {
+        "body_length": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "content-length": "3107",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 200,
+        "text": ""
+      }
+    },
+    {
+      "elapsed_ms": 32.0,
+      "name": "zip-range",
+      "request": {
+        "headers": {
+          "Range": "bytes=0-127"
+        },
+        "method": "GET",
+        "path": "/zip/stream?key=wave0-zip&o=%7B%22fileMustInclude%22%3A%20%5B%22movie.mp4%22%5D%7D"
+      },
+      "response": {
+        "body_length": 128,
+        "body_sha256": "8b22f2d6a91b31e694ef89af27729b6f447960a37b85d9dec548ddd006853e7d",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "content-length": "128",
+          "content-range": "bytes 0-127/3107",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 206,
+        "text": "\u0000\u0000\u0000 ftypisom\u0000\u0000\u0002\u0000isomiso2avc1mp41\u0000\u0000\u0007Umoov\u0000\u0000\u0000lmvhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0003\ufffd\u0000\u0000\u0003\ufffd\u0000\u0001\u0000\u0000\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000@\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+      }
+    },
+    {
+      "elapsed_ms": 15.0,
+      "name": "tar-create",
+      "request": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/tar/create/wave0-tar"
+      },
+      "response": {
+        "body_length": 19,
+        "body_sha256": "7280ea74db1cdf4ffea222c32110e5911517f6a72e3790d1e955179145e06ebf",
+        "body_truncated": false,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json"
+        },
+        "json": {
+          "key": "wave0-tar"
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 141.0,
+      "name": "tar-head",
+      "request": {
+        "headers": {},
+        "method": "HEAD",
+        "path": "/tar/stream?key=wave0-tar&o=%7B%22fileMustInclude%22%3A%20%5B%22movie.mp4%22%5D%7D"
+      },
+      "response": {
+        "body_length": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "content-length": "3107",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 200,
+        "text": ""
+      }
+    },
+    {
+      "elapsed_ms": 62.0,
+      "name": "tar-range",
+      "request": {
+        "headers": {
+          "Range": "bytes=0-127"
+        },
+        "method": "GET",
+        "path": "/tar/stream?key=wave0-tar&o=%7B%22fileMustInclude%22%3A%20%5B%22movie.mp4%22%5D%7D"
+      },
+      "response": {
+        "body_length": 128,
+        "body_sha256": "42b099b3d77e2a645159fe2e0dfefcf7643e18180603393deca902b312a80818",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "bytes",
+          "content-length": "128",
+          "content-range": "bytes 0-127/3107",
+          "content-type": "video/mp4",
+          "transfermode.dlna.org": "Streaming"
+        },
+        "status": 206,
+        "text": "\u0000\u0000\u0000\u0000\u0000$edts\u0000\u0000\u0000\u001celst\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0000\u0000\u0003\ufffd\u0000\u0000\u0004\u0000\u0000\u0001\u0000\u0000\u0000\u0000\u0002\ufffdmdia\u0000\u0000\u0000 mdhd\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\ufffd\u0000\u0000\ufffd\u0000U\ufffd\u0000\u0000\u0000\u0000\u0000-hdlr\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000soun\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000SoundHandler\u0000\u0000\u0000\u0002\ufffdm"
+      }
+    },
+    {
+      "elapsed_ms": 16.0,
+      "name": "tgz-create",
+      "request": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/tgz/create/wave0-tgz"
+      },
+      "response": {
+        "body_length": 19,
+        "body_sha256": "2734005344985c00dc511729c6af05474291ccd5f57fe2c43cd20465387012fa",
+        "body_truncated": false,
+        "headers": {
+          "content-length": "19",
+          "content-type": "application/json"
+        },
+        "json": {
+          "key": "wave0-tgz"
+        },
+        "status": 200
+      }
+    },
+    {
+      "elapsed_ms": 172.0,
+      "name": "tgz-head",
+      "request": {
+        "headers": {},
+        "method": "HEAD",
+        "path": "/tgz/stream?key=wave0-tgz&o=%7B%22fileMustInclude%22%3A%20%5B%22movie.mp4%22%5D%7D"
+      },
+      "response": {
+        "body_length": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_truncated": false,
+        "headers": {
+          "accept-ranges": "none",
+          "content-length": "3107",
+          "content-type": "video/mp4"
+        },
+        "status": 204,
+        "text": ""
+      }
+    },
+    {
+      "elapsed_ms": 391.0,
+      "name": "tgz-range",
+      "request": {
+        "headers": {
+          "Range": "bytes=0-127"
+        },
+        "method": "GET",
+        "path": "/tgz/stream?key=wave0-tgz&o=%7B%22fileMustInclude%22%3A%20%5B%22movie.mp4%22%5D%7D"
+      },
+      "response": {
+        "body_length": 0,
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "body_truncated": false,
+        "headers": {
+          "content-length": "0"
+        },
+        "status": 405,
+        "text": ""
+      }
+    }
+  ],
+  "schema": 1,
+  "shutdown_clean": true,
+  "startup_handshake_seen": true,
+  "suite": "offline"
+}

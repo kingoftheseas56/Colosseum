@@ -1,0 +1,109 @@
+kind,module,surface,decision,packet
+route,172,ALL /:infoHash/create,PORT,W21-W22
+route,172,ALL /create,PORT,W21-W22
+route,172,GET /:infoHash/:idx,PORT,W21-W22
+route,172,GET /:infoHash/:idx/*,PORT,W21-W22
+route,172,GET /:infoHash/:idx/stats.json,PORT,W21-W22
+route,172,GET /:infoHash/remove,PORT,W21-W22
+route,172,GET /:infoHash/stats.json,PORT,W21-W22
+route,172,GET /favicon.ico,PORT,W21-W22
+route,172,GET /removeAll,PORT,W21-W22
+route,172,GET /stats.json,PORT,W21-W22
+route,564,GET /,PORT,W31
+route,564,GET /:first/:second/dlna,PORT,W24
+route,564,GET /:first/:second/hls.m3u8,PORT,W24
+route,564,GET /:first/:second/master.m3u8,PORT,W24
+route,564,GET /:first/:second/mp4stream-q-:quality.m3u8,PORT,W24
+route,564,GET /:first/:second/mp4stream-q-:quality/:seg.mp4,PORT,W24
+route,564,GET /:first/:second/stream-:stream.m3u8,PORT,W24
+route,564,GET /:first/:second/stream-:stream/:seg.ts,PORT,W24
+route,564,GET /:first/:second/stream-q-:quality.m3u8,PORT,W24
+route,564,GET /:first/:second/stream-q-:quality/:seg.ts,PORT,W24
+route,564,GET /:first/:second/stream.m3u8,PORT,W24
+route,564,GET /:first/:second/subs-:lang.m3u8,PORT,W24
+route,564,GET /:first/:second/thumb.jpg,PORT,W24
+route,564,GET /:infoHash/:videoId/:playlist/:HLSSegment?,PORT,W25
+route,564,GET /device-info,PORT,W31
+route,564,GET /get-https,PORT,W31
+route,564,GET /heartbeat,PORT,W31
+route,564,GET /hwaccel-profiler,PORT,W31
+route,564,GET /network-info,PORT,W31
+route,564,GET /opensubHash,PORT,W26
+route,564,GET /probe,PORT,W23
+route,564,GET /samples/${key}.${avSamples[key].container},PORT,W23
+route,564,GET /settings,PORT,W05-W06
+route,564,GET /subtitles.:ext,PORT,W26
+route,564,GET /subtitlesTracks,PORT,W26
+route,564,GET /thumb.jpg,PORT,W24
+route,564,GET /tracks/:url,PORT,W23
+route,564,GET /yt/:id,PORT,W28
+route,564,GET /yt/:id.json,PORT,W28
+route,564,POST /settings,PORT,W05-W06
+route,564,USE /7zip,PORT,W34
+route,564,USE /casting/,PORT,W29
+route,564,USE /ftp,PORT,W36
+route,564,USE /hlsv2,PORT,W25
+route,564,USE /local-addon,PORT,W30
+route,564,USE /nzb,PORT,W36
+route,564,USE /proxy,PORT,W27
+route,564,USE /rar,PORT,W33
+route,564,USE /tar,PORT,W35
+route,564,USE /tgz,PORT,W35
+route,564,USE /zip,PORT,W34
+route,805,ALL /:opts/:pathname(*)?,PORT,W27
+route,855,GET /:id/:track.m3u8,PORT,W25
+route,855,GET /:id/:track/init.mp4,PORT,W25
+route,855,GET /:id/:track/segment:sequenceNumber.:ext,PORT,W25
+route,855,GET /:id/burn,PORT,W25
+route,855,GET /:id/destroy,PORT,W25
+route,855,GET /probe,PORT,W25
+route,855,GET /status,PORT,W25
+route,944,ALL /:devID/player,PORT,W29
+route,944,GET /,PORT,W29
+route,944,GET /:devID,PORT,W29
+route,944,GET /convert:ext?,PORT,W29
+route,944,GET /transcode:ext?,PORT,W29
+route,1025,GET /:resource/:type/:id/:extra?.json,PORT,W30
+route,1025,GET /manifest.json,PORT,W30
+route,1088,ALL /create,PORT,W36
+route,1088,GET /stream,PORT,W36
+route,1088,GET /stream/:key/:fileName,PORT,W36
+route,1088,POST /create/:createKey,PORT,W36
+route,1121,ALL /create,PORT,W33
+route,1121,GET /stream,PORT,W33
+route,1121,POST /create/:createKey,PORT,W33
+route,1234,ALL /create,PORT,W34
+route,1234,GET /stream,PORT,W34
+route,1234,POST /create/:createKey,PORT,W34
+route,1285,ALL /create,PORT,W34
+route,1285,GET /stream,PORT,W34
+route,1285,POST /create/:createKey,PORT,W34
+route,1293,ALL /create,PORT,W35
+route,1293,GET /stream,PORT,W35
+route,1293,POST /create/:createKey,PORT,W35
+route,1300,ALL /create,PORT,W35
+route,1300,GET /stream,PORT,W35
+route,1300,POST /create/:createKey,PORT,W35
+route,1306,ALL /:fileName,PORT,W36
+route,1306,ALL /create,PORT,W36
+route,1306,GET /stream,PORT,W36
+route,1306,GET /stream/:key/:fileName,PORT,W36
+route,1306,POST /create/:createKey,PORT,W36
+internal,105,settings/defaults/persistence,PORT,W05
+internal,172,EngineFS registry/events/activity counters,PORT,W07-W09
+internal,414,cache and disk cleanup policy,PORT,W06
+internal,564,server lifecycle/listener/top-level wiring,PORT,"W03-W04,W31"
+internal,613,peer-search coordinator,PORT,W14
+internal,614,DHT peer source,PORT,W14
+internal,625,tracker peer source,PORT,W14
+internal,816,torrent engine metadata/selection/scheduler/swarm,PORT,W10-W19
+internal,845,ut_metadata exchange,PORT,W10
+internal,846,persistent piece store,PORT,W12
+internal,847,circular piece store,PORT,W13
+internal,848,FileStream moving read window,PORT,W20
+internal,853,16 KiB piece block reservations,PORT,W17
+internal,667,legacy HLS coordinator,PORT,W23-W24
+internal,855,HLS v2 converter HTTP router,PORT,W25
+internal,944,casting discovery/transcode/player bridge,PORT,W29
+internal,1024,local-addon handlers/indexing,PORT,W30
+internal,1025,addon HTTP manifest/resource contract,PORT,W30
