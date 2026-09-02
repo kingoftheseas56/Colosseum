@@ -484,6 +484,27 @@ QJsonObject SyncStateStore::encode(
     }
     root.insert(QStringLiteral("paused_categories"), pausedCategories);
 
+    // Attachment mode state rides along only while a mode is active, so
+    // inactive state files stay byte-identical to the engine output
+    // that predates attachment support.
+    if (state.attachmentModeActive) {
+        QJsonObject attachment;
+        attachment.insert(
+            QStringLiteral("attachment_id"),
+            state.attachmentId);
+        attachment.insert(
+            QStringLiteral("snapshot_done"),
+            state.attachmentSnapshotDone);
+        if (!state.attachmentSnapshotNextPageToken.isEmpty()) {
+            attachment.insert(
+                QStringLiteral("next_page_token"),
+                state.attachmentSnapshotNextPageToken);
+        }
+        root.insert(
+            QStringLiteral("attachment"),
+            attachment);
+    }
+
     return root;
 }
 
@@ -793,6 +814,40 @@ SyncStateStore::decode(
                 record.value(QStringLiteral("payload")), localOrderMs});
         }
         state.pausedCategories.insert(category, paused);
+    }
+
+    const QJsonValue attachmentValue =
+        object.value(QStringLiteral("attachment"));
+    if (!attachmentValue.isUndefined()) {
+        if (!attachmentValue.isObject()) {
+            if (error)
+                *error = QStringLiteral("The attachment sync mode state is malformed.");
+            return std::nullopt;
+        }
+
+        const QJsonObject attachment = attachmentValue.toObject();
+        const QString attachmentId =
+            attachment.value(QStringLiteral("attachment_id")).toString();
+        const QString nextPageToken =
+            attachment.value(QStringLiteral("next_page_token")).toString();
+        const bool snapshotDone =
+            attachment.value(QStringLiteral("snapshot_done")).toBool(false);
+
+        // Fail closed: the mode is bound to exactly one canonical
+        // lowercase attachment id, and a completed bootstrap must not
+        // carry a continuation token.
+        if (attachmentId.isEmpty()
+            || normalizedUuid(attachmentId) != attachmentId
+            || (snapshotDone && !nextPageToken.isEmpty())) {
+            if (error)
+                *error = QStringLiteral("The attachment sync mode state is invalid.");
+            return std::nullopt;
+        }
+
+        state.attachmentModeActive = true;
+        state.attachmentId = attachmentId;
+        state.attachmentSnapshotDone = snapshotDone;
+        state.attachmentSnapshotNextPageToken = nextPageToken;
     }
 
     return state;

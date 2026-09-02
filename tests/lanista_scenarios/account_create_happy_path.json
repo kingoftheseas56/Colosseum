@@ -1,6 +1,6 @@
 {
   "name": "account-create-happy-path",
-  "comment": "Mock-backed production-QML account creation. Never reads the recovery-key plaintext; requires saved acknowledgement and verifies shell identity.",
+  "comment": "Mock-backed account creation entered explicitly from the final local-device shell via Device -> AccountFlyout -> Create account. Never reads recovery-key plaintext and verifies final signed-in shell identity.",
   "steps": [
     {
       "cmd": "ping",
@@ -32,26 +32,79 @@
     },
     {
       "cmd": "ui-wait-for",
-      "label": "account onboarding is visible",
+      "label": "fresh profile is already local and auth host is not blocking",
       "payload": {
         "object": "accountHost",
         "prop": "visible",
-        "value": true,
+        "value": false,
         "timeout_ms": 15000
       },
       "expect": [
-        {
-          "path": "matched",
-          "op": "==",
-          "value": "true"
-        }
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "top bar starts with the generic Device label",
+      "payload": {
+        "object": "colosseumTopbarDeviceLabel",
+        "props": ["text", "visible"]
+      },
+      "expect": [
+        { "path": "props.visible", "op": "==", "value": "true" },
+        { "path": "props.text", "op": "==", "value": "Device" }
       ]
     },
     {
       "cmd": "ui-click",
-      "label": "choose Create account",
+      "label": "open local AccountFlyout from Device",
       "payload": {
-        "target": "accountWelcomeCreateAccount"
+        "target": "colosseumTopbarAccountButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local AccountFlyout is visible",
+      "payload": {
+        "object": "accountFlyout",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "flyout exposes the friendly local device identity",
+      "payload": {
+        "object": "accountFlyoutLocalDeviceLabel",
+        "props": ["text", "visible"]
+      },
+      "expect": [
+        { "path": "props.visible", "op": "==", "value": "true" },
+        { "path": "props.text", "op": "matches", "value": "^Device [0-9]{6}$" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local Create account action is visible",
+      "payload": {
+        "object": "accountFlyoutLocalCreateAccount",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        { "path": "matched", "op": "==", "value": "true" }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "choose Create account from AccountFlyout",
+      "payload": {
+        "target": "accountFlyoutLocalCreateAccount"
       }
     },
     {
@@ -145,7 +198,7 @@
     },
     {
       "cmd": "ui-wait-for",
-      "label": "onboarding closes after acknowledgement",
+      "label": "auth host closes after acknowledgement",
       "payload": {
         "object": "accountHost",
         "prop": "visible",

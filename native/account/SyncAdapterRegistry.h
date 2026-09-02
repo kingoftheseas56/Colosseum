@@ -15,6 +15,7 @@ struct SyncAdapterSnapshot {
     QString categoryId;
     int schemaVersion = 0;
     quint64 revision = 0;
+    bool missingRecordsAreDeletes = true;
     QList<SyncAdapterRecord> records;
 };
 

@@ -162,6 +162,10 @@ endif()
 add_executable(colosseum
     main.cpp
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
+    # Arc 36 Wave 4B N-16: resumable attachment flow orchestrator.
+    account/AccountAttachmentCoordinator.cpp
+    # Arc 36 Wave 4A N-14: crash-safe cloud attachment receipt (persistence only).
+    account/AccountAttachmentReceipt.cpp
     account/AccountBootstrapStore.cpp
     account/AccountClient.cpp
     account/AccountController.cpp
@@ -174,6 +178,7 @@ add_executable(colosseum
     account/ActivityProjector.cpp
     # Slice D2: profile-owned SQLite ActivityStore (durable ledger writer).
     account/ActivityStore.cpp
+    account/ActivitySyncAdapter.cpp
     # Slice D3: transient ActivityPlaybackTracker (not QML-registered this slice).
     account/ActivityPlaybackTracker.cpp
     account/CollectionSyncAdapter.cpp
@@ -190,6 +195,7 @@ add_executable(colosseum
     account/ProfileStoreRuntime.cpp
     account/ConsumptionHistoryBridge.cpp
     account/ProgressSyncAdapter.cpp
+    account/WatchStateSyncAdapter.cpp
     account/SharedPcProfileCoordinator.cpp
     account/SyncAdapterRegistry.cpp
     account/SyncEngine.cpp
@@ -202,6 +208,9 @@ add_executable(colosseum
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
     account/WindowsAccountSensitiveClipboard.cpp
+    # Arc 36 Wave 4B N-16: Q_OBJECT — moc needs the header listed.
+    account/AccountAttachmentCoordinator.h
+    account/AccountAttachmentReceipt.h
     account/AccountBootstrapStore.h
     account/AccountClient.h
     account/AccountController.h
@@ -217,6 +226,7 @@ add_executable(colosseum
     account/AccountTransport.h
     # Slice D2: profile-owned SQLite ActivityStore (Q_OBJECT — moc needs the header listed).
     account/ActivityStore.h
+    account/ActivitySyncAdapter.h
     # Slice D3: transient ActivityPlaybackTracker (Q_OBJECT — moc needs the header listed).
     account/ActivityPlaybackTracker.h
     account/CollectionSyncAdapter.h
@@ -233,6 +243,7 @@ add_executable(colosseum
     account/ProfileStoreRuntime.h
     account/ConsumptionHistoryBridge.h
     account/ProgressSyncAdapter.h
+    account/WatchStateSyncAdapter.h
     account/SharedPcProfileCoordinator.h
     account/SyncAdapter.h
     account/SyncAdapterRegistry.h
@@ -2205,4 +2216,14 @@ include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")
+
+    # Arc 36 N-07 owns CMake registration but not tests/CMakeLists.txt. Add the
+    # watch-state production source to the existing focused domain-adapter target
+    # after that child directory has defined it.
+    target_sources(tst_core_sync_adapters PRIVATE
+        account/WatchStateSyncAdapter.cpp
+        account/WatchStateSyncAdapter.h)
+    target_sources(account_first_light PRIVATE
+        account/WatchStateSyncAdapter.cpp
+        account/WatchStateSyncAdapter.h)
 endif()

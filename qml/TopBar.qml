@@ -23,13 +23,15 @@ Item {
     readonly property bool accountPresent: accountController
         && (accountController.mode === "signedIn"
             || accountController.mode === "offline")
+    readonly property bool localDevice: accountController
+        && accountController.mode === "localOnly"
 
     signal mediumSelected(string medium)
     signal homeRequested()
     signal searchClicked()
     signal settingsClicked()
     signal wallpaperClicked()
-    signal accountClicked()
+    signal accountClicked(real anchorRight, real anchorBottom)
     signal fullscreenClicked()
     signal minimizeClicked()
     signal powerClicked()
@@ -245,17 +247,23 @@ Item {
         // Account identity (Bundle 8C first-light): gold-ringed initial when
         // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
-            width: 22; height: 22
+            id: accountButton
+            width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
+            height: 22
             objectName: "colosseumTopbarAccountButton"
             opacity: accountMa.containsMouse ? 1.0 : 0.92
             Accessible.role: Accessible.Button
-            Accessible.name: bar.accountPresent
-                ? ("Account: " + bar.accountController.username)
-                : "Account"
+            Accessible.name: bar.localDevice
+                ? qsTr("Device")
+                : (bar.accountPresent
+                    ? ("Account: " + bar.accountController.username)
+                    : "Account")
             Rectangle {
                 anchors.fill: parent
-                radius: width / 2
-                color: bar.accountPresent ? Qt.rgba(0.94, 0.77, 0.29, 0.16) : "transparent"
+                radius: bar.localDevice ? 11 : width / 2
+                color: bar.accountPresent
+                    ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
+                    : (bar.localDevice ? Qt.rgba(1, 1, 1, 0.04) : "transparent")
                 border.width: 1.5
                 border.color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.8)
@@ -263,7 +271,7 @@ Item {
                 Item {
                     anchors.centerIn: parent
                     width: 14; height: 14
-                    visible: !bar.accountPresent
+                    visible: !bar.accountPresent && !bar.localDevice
                     opacity: 0.82
                     Rectangle {
                         width: 5; height: 5; radius: 2.5
@@ -277,6 +285,17 @@ Item {
                         y: 7
                         color: "#ffffff"
                     }
+                }
+                Text {
+                    id: localDeviceText
+                    objectName: "colosseumTopbarDeviceLabel"
+                    anchors.centerIn: parent
+                    visible: bar.localDevice
+                    text: qsTr("Device")
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.centerIn: parent
@@ -296,7 +315,10 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: bar.accountClicked()
+                onClicked: {
+                    const anchor = accountButton.mapToItem(null, accountButton.width, accountButton.height)
+                    bar.accountClicked(anchor.x, anchor.y)
+                }
             }
         }
         // Automation identity (Lanista): the wallpaper control is a production shell

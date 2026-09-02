@@ -13,6 +13,8 @@ import (
 const (
 	defaultHTTPAddr               = ":8080"
 	defaultDatabaseMaxConnections = 8
+	defaultDatabaseAcquireTimeout = 2 * time.Second
+	defaultMigrationTimeout       = 5 * time.Minute
 	defaultReadinessTimeout       = 2 * time.Second
 	defaultShutdownTimeout        = 10 * time.Second
 	defaultRegistrationGlobal10m  = 500
@@ -24,6 +26,8 @@ type Config struct {
 	HTTPAddr                   string
 	DatabaseURL                string
 	DatabaseMaxConnections     int32
+	DatabaseAcquireTimeout     time.Duration
+	RunDatabaseMigrations      bool
 	ReadinessTimeout           time.Duration
 	ShutdownTimeout            time.Duration
 	RecoveryHMACKey            []byte
@@ -36,6 +40,11 @@ type Config struct {
 	AvatarBucketName           string
 	AvatarEndpoint             string
 	AvatarRegion               string
+}
+
+type MigrationConfig struct {
+	DatabaseURL string
+	Timeout     time.Duration
 }
 
 func Load() (Config, error) {
@@ -101,7 +110,14 @@ func Load() (Config, error) {
 		avatarRegion = "auto"
 	}
 
-	if environment == "production" {
+	// Avatar object storage is deliberately deferrable in production: the
+	// shipped client uses built-in avatar ids only, so AVATAR_STORAGE=disabled
+	// opts this deployment out of S3-backed uploads (the service then serves
+	// profiles through avatar.DisabledStore). Any other value — including a
+	// typo — keeps the production requirement, so storage is never dropped by
+	// accident.
+	avatarStorage := strings.ToLower(strings.TrimSpace(os.Getenv("AVATAR_STORAGE")))
+	if environment == "production" && avatarStorage != "disabled" {
 		if avatarBucketName == "" {
 			return Config{}, errors.New("BUCKET_NAME is required in production")
 		}
@@ -115,6 +131,8 @@ func Load() (Config, error) {
 		HTTPAddr:                   httpAddr,
 		DatabaseURL:                databaseURL,
 		DatabaseMaxConnections:     maxConnections,
+		DatabaseAcquireTimeout:     defaultDatabaseAcquireTimeout,
+		RunDatabaseMigrations:      environment != "production",
 		ReadinessTimeout:           defaultReadinessTimeout,
 		ShutdownTimeout:            defaultShutdownTimeout,
 		RecoveryHMACKey:            recoveryHMACKey,
@@ -127,6 +145,24 @@ func Load() (Config, error) {
 		AvatarBucketName:           avatarBucketName,
 		AvatarEndpoint:             avatarEndpoint,
 		AvatarRegion:               avatarRegion,
+	}, nil
+}
+
+func LoadMigration() (MigrationConfig, error) {
+	databaseURL := strings.TrimSpace(os.Getenv("MIGRATION_DATABASE_URL"))
+	if databaseURL == "" {
+		return MigrationConfig{}, errors.New("MIGRATION_DATABASE_URL is required")
+	}
+
+	timeoutSeconds, err := positiveIntEnv(
+		"MIGRATION_TIMEOUT_SECONDS",
+		int(defaultMigrationTimeout/time.Second))
+	if err != nil {
+		return MigrationConfig{}, err
+	}
+	return MigrationConfig{
+		DatabaseURL: databaseURL,
+		Timeout:     time.Duration(timeoutSeconds) * time.Second,
 	}, nil
 }
 

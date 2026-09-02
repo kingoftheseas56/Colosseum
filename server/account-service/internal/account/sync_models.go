@@ -52,7 +52,34 @@ type SyncMutationView struct {
 type SyncPullEntry struct {
 	ServerSeq uint64           `json:"server_seq"`
 	Won       bool             `json:"won"`
+	Canonical bool             `json:"canonical,omitempty"`
 	Mutation  SyncMutationView `json:"mutation"`
+}
+
+type ProfileAttachment struct {
+	ID                string `json:"attachment_id"`
+	DeviceID          string `json:"device_id"`
+	BaselineServerSeq uint64 `json:"baseline_server_seq"`
+	State             string `json:"state"`
+}
+
+type BeginProfileAttachmentInput struct {
+	AttachmentID         string `json:"attachment_id"`
+	SourceKind           string `json:"source_kind"`
+	SourceSemanticDigest string `json:"source_semantic_digest"`
+}
+
+type SyncPushEnvelope struct {
+	AttachmentID string              `json:"attachment_id,omitempty"`
+	Mutations    []SyncMutationInput `json:"mutations"`
+}
+
+type SyncSnapshotResponse struct {
+	ServerTimeMS  int64           `json:"server_time_ms"`
+	Cursor        uint64          `json:"cursor"`
+	Entries       []SyncPullEntry `json:"entries"`
+	NextPageToken string          `json:"next_page_token,omitempty"`
+	HasMore       bool            `json:"has_more"`
 }
 
 type SyncPushResponse struct {

@@ -30,6 +30,7 @@ TestCase {
     Component {
         id: fakePreferencesComponent
         QtObject {
+            property bool rememberEnabled: true
             property bool rememberSearchHistory: true
             property bool keepActivityHistory: true
             property bool syncActivityHistory: true
@@ -52,6 +53,8 @@ TestCase {
     }
 
     property var page: null
+    property var center: null
+    property var centerPreferences: null
 
     SignalSpy {
         id: searchToggleSpy
@@ -164,14 +167,24 @@ TestCase {
             "syncActivityHistory": true
         })
         verify(page !== null)
+        testWindow.raise()
+        testWindow.requestActivate()
         wait(0)
+        wait(32)
+        waitForRendering(page)
         clearSpies()
     }
 
     function cleanup() {
         if (page)
             page.destroy()
+        if (center)
+            center.destroy()
+        if (centerPreferences)
+            centerPreferences.destroy()
         page = null
+        center = null
+        centerPreferences = null
     }
 
     function test_locked_section_order_is_preserved() {
@@ -184,9 +197,11 @@ TestCase {
         verify(accountData !== null)
         verify(map !== null)
         verify(account !== null)
-        verify(history.y < accountData.y)
-        verify(accountData.y < map.y)
-        verify(map.y < account.y)
+        tryVerify(function() {
+            return history.y < accountData.y
+                && accountData.y < map.y
+                && map.y < account.y
+        }, 1000)
     }
 
     function test_toggles_emit_requested_value_without_optimistic_state() {
@@ -197,6 +212,7 @@ TestCase {
         verify(activity !== null)
         verify(sync !== null)
 
+        waitForRendering(page)
         mouseClick(search, search.width / 2, search.height / 2)
         compare(searchToggleSpy.count, 1)
         compare(searchToggleSpy.signalArguments[0][0], false)
@@ -231,6 +247,7 @@ TestCase {
 
         mouseClick(open, open.width / 2, open.height / 2)
         wait(0)
+        waitForRendering(page)
         verify(confirmBox.visible)
         compare(clearSearchSpy.count, 0)
 
@@ -263,15 +280,19 @@ TestCase {
 
         mouseClick(open, open.width / 2, open.height / 2)
         wait(0)
+        waitForRendering(page)
         verify(confirmBox.visible)
         compare(clearActivitySpy.count, 0)
 
         mouseClick(cancel, cancel.width / 2, cancel.height / 2)
+        wait(0)
+        waitForRendering(page)
         compare(clearActivitySpy.count, 0)
 
         scrollIntoView(open)
         mouseClick(open, open.width / 2, open.height / 2)
         wait(0)
+        waitForRendering(page)
         scrollIntoView(confirm)
         mouseClick(confirm, confirm.width / 2, confirm.height / 2)
         compare(clearActivitySpy.count, 1)
@@ -284,6 +305,7 @@ TestCase {
     function test_export_is_request_only() {
         var exportButton = byName(page, "privacyExportButton")
         verify(exportButton !== null)
+        scrollIntoView(exportButton)
         mouseClick(exportButton, exportButton.width / 2, exportButton.height / 2)
         compare(exportSpy.count, 1)
 
@@ -365,16 +387,18 @@ TestCase {
     }
 
     function test_account_center_selects_data_privacy_surface() {
-        var preferences = fakePreferencesComponent.createObject(testWindow.contentItem)
-        var center = centerComponent.createObject(testWindow.contentItem, {
+        centerPreferences = fakePreferencesComponent.createObject(testWindow.contentItem)
+        center = centerComponent.createObject(testWindow.contentItem, {
             "width": 1240,
             "height": 900,
-            "preferencesStore": preferences
+            "preferencesStore": centerPreferences,
+            "searchHistoryStore": centerPreferences
         })
         verify(center !== null)
 
         center.open("privacy")
         wait(0)
+        waitForRendering(center)
         compare(center.activeSection, "privacy")
         var embedded = byName(center, "accountDataPrivacyPage")
         verify(embedded !== null)
@@ -382,8 +406,9 @@ TestCase {
 
         var search = byName(embedded, "privacySearchHistorySwitch")
         verify(search !== null)
+        waitForRendering(embedded)
         mouseClick(search, search.width / 2, search.height / 2)
-        compare(preferences.rememberCalls, 1)
+        compare(centerPreferences.rememberCalls, 1)
         compare(embedded.rememberSearchHistory, false)
 
         var activity = byName(embedded, "privacyActivityHistorySwitch")
@@ -392,12 +417,10 @@ TestCase {
         verify(sync !== null)
         mouseClick(activity, activity.width / 2, activity.height / 2)
         mouseClick(sync, sync.width / 2, sync.height / 2)
-        compare(preferences.keepCalls, 1)
-        compare(preferences.syncCalls, 1)
+        compare(centerPreferences.keepCalls, 1)
+        compare(centerPreferences.syncCalls, 1)
         compare(embedded.keepActivityHistory, false)
         compare(embedded.syncActivityHistory, false)
 
-        center.destroy()
-        preferences.destroy()
     }
 }

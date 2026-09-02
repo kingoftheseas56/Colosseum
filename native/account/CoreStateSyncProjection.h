@@ -29,6 +29,20 @@ struct CoreStateSyncProjection {
     static CoreStateSyncProjection history(
         const QVariantMap &entry);
 
+    static QString watchedMarkKey(
+        const QString &id);
+
+    static QString lastSeasonKey(
+        const QString &seriesId);
+
+    static bool decodeWatchedMarkKey(
+        const QString &recordKey,
+        QString *id);
+
+    static bool decodeLastSeasonKey(
+        const QString &recordKey,
+        QString *seriesId);
+
     static bool decodeCollectionKey(
         const QString &recordKey,
         QString *world,

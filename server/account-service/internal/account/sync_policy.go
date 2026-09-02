@@ -19,6 +19,8 @@ var syncAllowedCategories = map[string]int{
 	"theatre_track_preferences":   1,
 	"theatre_row_customization":   1,
 	"extension_roster":            1,
+	"watch_state":                 1,
+	"activity_fact":               1,
 }
 
 var syncForbiddenFields = map[string]struct{}{

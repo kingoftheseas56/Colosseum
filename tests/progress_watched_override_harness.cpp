@@ -3,6 +3,7 @@
 #include "../native/ProgressStore.h"
 #include <QCoreApplication>
 #include <QTemporaryDir>
+#include <QSettings>
 #include <cstdio>
 
 static int fails = 0;
@@ -60,6 +61,104 @@ int main(int argc, char** argv) {
     store.setWatchedMark(QStringLiteral("tt3"), true);
     ProgressStore store2(dir.filePath("progress.ini"));
     CHECK(store2.watchedMark(QStringLiteral("tt3")) == 1, "mark persists");
+
+    // ---- N-06 sync seam: snapshots export only valid persisted watch state ----
+    const QString snapshotPath = dir.filePath("sync-snapshot.ini");
+    {
+        QSettings raw(snapshotPath, QSettings::IniFormat);
+        raw.setValue(QStringLiteral("video/watchedMark/tt-root"), 1);
+        raw.setValue(QStringLiteral("video/watchedMark/tt-unwatched"), -1);
+        raw.setValue(QStringLiteral("video/watchedMark/tt-zero"), 0);
+        raw.setValue(QStringLiteral("video/watchedMark/tt-invalid"), 2);
+        raw.setValue(QStringLiteral("video/lastSeason/series-a"), 3);
+        raw.setValue(QStringLiteral("video/lastSeason/series-zero"), 0);
+        raw.setValue(QStringLiteral("video/lastSeason/series-negative"), -2);
+        raw.sync();
+    }
+    ProgressStore snapshotStore(snapshotPath);
+    QHash<QString, int> snapshotMarks = snapshotStore.syncWatchedMarks();
+    CHECK(snapshotMarks.size() == 2, "sync watched snapshot contains only -1/1 values");
+    CHECK(snapshotMarks.value(QStringLiteral("tt-root")) == 1, "sync watched snapshot keeps watched mark");
+    CHECK(snapshotMarks.value(QStringLiteral("tt-unwatched")) == -1, "sync watched snapshot keeps explicit unwatched mark");
+    CHECK(!snapshotMarks.contains(QStringLiteral("tt-zero")), "sync watched snapshot omits zero");
+    CHECK(!snapshotMarks.contains(QStringLiteral("tt-invalid")), "sync watched snapshot omits invalid value");
+
+    QHash<QString, int> snapshotSeasons = snapshotStore.syncLastSeasons();
+    CHECK(snapshotSeasons.size() == 1, "sync season snapshot contains only positive values");
+    CHECK(snapshotSeasons.value(QStringLiteral("series-a")) == 3, "sync season snapshot keeps positive season");
+
+    snapshotStore.setWatchedMark(QStringLiteral("tt777:2:9"), true);
+    snapshotMarks = snapshotStore.syncWatchedMarks();
+    CHECK(snapshotMarks.value(QStringLiteral("tt777")) == 1, "sync watched snapshot exports series root identity");
+    CHECK(!snapshotMarks.contains(QStringLiteral("tt777:2:9")), "sync watched snapshot never exports episode identity for root mark");
+
+    // ---- N-06 remote apply/remove: persistent, idempotent, and no local sync echo ----
+    const QString remotePath = dir.filePath("sync-remote.ini");
+    ProgressStore remote(remotePath);
+    const QString remoteEpisode = QStringLiteral("tt900:1:1");
+    remote.record(videoEntry(remoteEpisode, 0.25));
+    remote.flush();
+
+    int changedCount = 0;
+    int dirtyCount = 0;
+    QObject::connect(&remote, &ProgressStore::changed,
+                     [&changedCount]() { ++changedCount; });
+    QObject::connect(&remote, &ProgressStore::syncDirty,
+                     [&dirtyCount]() { ++dirtyCount; });
+
+    const int initialRevision = remote.revision();
+    CHECK(!remote.applySyncedWatchedMark(QString(), 1), "remote watched apply rejects empty id");
+    CHECK(!remote.applySyncedWatchedMark(QStringLiteral("tt900"), 0), "remote watched apply rejects zero");
+    CHECK(!remote.applySyncedWatchedMark(QStringLiteral("tt900"), 2), "remote watched apply rejects invalid mark");
+    CHECK(!remote.applySyncedLastSeason(QString(), 5), "remote season apply rejects empty id");
+    CHECK(!remote.applySyncedLastSeason(QStringLiteral("tt900"), 0), "remote season apply rejects zero");
+    CHECK(remote.revision() == initialRevision && changedCount == 0 && dirtyCount == 0,
+          "invalid remote watch state has no partial mutation");
+
+    CHECK(remote.applySyncedWatchedMark(QStringLiteral("tt900:2:7"), 1), "remote watched apply succeeds");
+    CHECK(remote.watchedMark(QStringLiteral("tt900")) == 1, "remote watched apply preserves series-root semantics");
+    CHECK(remote.revision() == initialRevision + 1 && changedCount == 1 && dirtyCount == 0,
+          "remote watched change bumps exactly once without syncDirty");
+    CHECK(remote.applySyncedWatchedMark(QStringLiteral("tt900:9:9"), 1), "remote watched replay succeeds");
+    CHECK(remote.revision() == initialRevision + 1 && changedCount == 1 && dirtyCount == 0,
+          "identical remote watched replay is idempotent");
+
+    CHECK(remote.applySyncedLastSeason(QStringLiteral("tt900"), 5), "remote season apply succeeds");
+    CHECK(remote.lastSeason(QStringLiteral("tt900")) == 5, "remote season apply is visible");
+    CHECK(remote.revision() == initialRevision + 2 && changedCount == 2 && dirtyCount == 0,
+          "remote season change bumps exactly once without syncDirty");
+    CHECK(remote.applySyncedLastSeason(QStringLiteral("tt900"), 5), "remote season replay succeeds");
+    CHECK(remote.revision() == initialRevision + 2 && changedCount == 2 && dirtyCount == 0,
+          "identical remote season replay is idempotent");
+
+    remote.flush();
+    ProgressStore remoteReload(remotePath);
+    CHECK(remoteReload.watchedMark(QStringLiteral("tt900:3:1")) == 1, "remote watched apply persists across reload");
+    CHECK(remoteReload.lastSeason(QStringLiteral("tt900")) == 5, "remote season apply persists across reload");
+    CHECK(!remoteReload.get(QStringLiteral("video"), remoteEpisode).isEmpty(), "remote watch apply leaves Continue record intact");
+
+    CHECK(remote.removeSyncedWatchedMark(QStringLiteral("tt900:4:2")), "remote watched remove succeeds");
+    CHECK(remote.watchedMark(QStringLiteral("tt900")) == 0, "remote watched remove clears only mark");
+    CHECK(remote.revision() == initialRevision + 3 && changedCount == 3 && dirtyCount == 0,
+          "remote watched remove bumps exactly once without syncDirty");
+    CHECK(remote.removeSyncedWatchedMark(QStringLiteral("tt900")), "missing remote watched remove succeeds");
+    CHECK(remote.revision() == initialRevision + 3 && changedCount == 3 && dirtyCount == 0,
+          "missing remote watched remove is idempotent");
+
+    CHECK(remote.removeSyncedLastSeason(QStringLiteral("tt900")), "remote season remove succeeds");
+    CHECK(remote.lastSeason(QStringLiteral("tt900")) == -1, "remote season remove clears only season");
+    CHECK(remote.revision() == initialRevision + 4 && changedCount == 4 && dirtyCount == 0,
+          "remote season remove bumps exactly once without syncDirty");
+    CHECK(remote.removeSyncedLastSeason(QStringLiteral("tt900")), "missing remote season remove succeeds");
+    CHECK(remote.revision() == initialRevision + 4 && changedCount == 4 && dirtyCount == 0,
+          "missing remote season remove is idempotent");
+    CHECK(!remote.get(QStringLiteral("video"), remoteEpisode).isEmpty(), "remote watch removals leave Continue record intact");
+
+    remote.flush();
+    ProgressStore remoteRemovedReload(remotePath);
+    CHECK(remoteRemovedReload.watchedMark(QStringLiteral("tt900")) == 0, "removed watched mark stays absent after reload");
+    CHECK(remoteRemovedReload.lastSeason(QStringLiteral("tt900")) == -1, "removed season stays absent after reload");
+    CHECK(!remoteRemovedReload.get(QStringLiteral("video"), remoteEpisode).isEmpty(), "Continue survives watch-state removal reload");
 
     // ---- finishing a VAULT video marks it watched instead of erasing all trace ----
     // A vault id is "vault:<sha1>" (one colon), so it is never a "series episode": crossing

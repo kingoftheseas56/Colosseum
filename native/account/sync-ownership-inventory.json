@@ -53,6 +53,25 @@
       ]
     },
     {
+      "id": "watch_state",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/ProgressStore.h",
+      "cumulative_owner": "ProfileStoreRuntime -> ProgressStore",
+      "read_seam": "syncWatchedMarks() / syncLastSeasons()",
+      "write_seam": "applySyncedWatchedMark/removeSyncedWatchedMark / applySyncedLastSeason/removeSyncedLastSeason",
+      "change_seam": "revision + changed(); remote apply is idempotent and WatchStateSyncAdapter suppresses remote echo",
+      "future_slice": 14,
+      "note": "Manual watched overrides (-1/1) and positive last-season state are portable watch_state records separate from continue_progress resume payloads; absence is represented by record deletion.",
+      "denial_code": "",
+      "inspection_base_commit": "1672c0f29e91880077173edd873b10dee9179fed",
+      "fields": [
+        "watched_mark",
+        "last_season"
+      ]
+    },
+    {
       "id": "full_history",
       "disposition": "syncable",
       "owner_status": "confirmed",
@@ -70,6 +89,24 @@
         "watched_history",
         "read_history",
         "completed_history"
+      ]
+    },
+    {
+      "id": "activity_fact",
+      "disposition": "syncable",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/account/ActivityStore.*",
+      "cumulative_owner": "ProfileStoreRuntime -> ActivityStore -> ActivitySyncAdapter",
+      "read_seam": "portableSyncFacts()",
+      "write_seam": "applySyncedPortableFact(fact)",
+      "change_seam": "revision + changed(); factCommitted() only for newly committed facts; ActivitySyncAdapter suppresses remote echo",
+      "future_slice": 14,
+      "note": "Immutable Activity facts are portable PUT-only records; missing facts never imply delete tombstones. Machine-local cover paths are sanitized by the ActivityStore portable projection.",
+      "denial_code": "",
+      "inspection_base_commit": "507f191bec7367657657ac86bcd64e6b6626c4ab",
+      "fields": [
+        "activity_fact"
       ]
     },
     {

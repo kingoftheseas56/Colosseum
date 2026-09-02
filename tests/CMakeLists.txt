@@ -1525,6 +1525,12 @@ add_executable(account_first_light
     auto/account/first_light.cpp
     "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    # Arc 36 Wave 4B N-16: prove the attachment coordinator compiles in the
+    # AccountRuntime-era target alongside the runtime it will be wired into.
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
@@ -1550,6 +1556,8 @@ add_executable(account_first_light
     # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
     # ActivityStore (CPP-PORT-CONTRACT §2/§17) — needs Qt6::Sql below too.
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
@@ -1611,6 +1619,135 @@ set_tests_properties(colosseum.qttest.account_core PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# ── Crash-safe cloud attachment receipt (Arc 36 Wave 4A lane N-14) ───────────
+# AccountAttachmentReceipt — the durable record that lets an existing-account
+# cloud attachment survive crashes, restarts, and response loss without losing
+# the identity of the local source that still must be retired. Persistence
+# only: ProfilePaths account-kind gating + QSaveFile atomic JSON + fail-closed
+# validation that distinguishes Missing from Invalid. Pure Qt6::Core, GUILESS;
+# QTemporaryDir profile fixtures per run, no net.
+add_executable(tst_account_attachment
+    auto/account_attachment/tst_account_attachment.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h")
+target_include_directories(tst_account_attachment PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_attachment PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_account_attachment PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_attachment
+         COMMAND tst_account_attachment)
+set_tests_properties(colosseum.qttest.account_attachment PROPERTIES
+    LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Attachment orchestrator (Arc 36 Wave 4B lane N-16) ──────────────────────
+# AccountAttachmentCoordinator — the resumable, crash-safe orchestrator over
+# the frozen attachment contract: N-13 wire client operations, N-14 receipt,
+# N-15 engine attachment mode, with the cloud-state verification gate exposed
+# as an injectable callback. Fixture transport/service mirror the
+# tst_sync_engine patterns plus the N-12 attachment lifecycle routes; pure
+# Qt6::Core, GUILESS, no net.
+add_executable(tst_account_attachment_coordinator
+    auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_include_directories(tst_account_attachment_coordinator PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_attachment_coordinator PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_account_attachment_coordinator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_attachment_coordinator POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_attachment_coordinator
+         COMMAND tst_account_attachment_coordinator)
+set_tests_properties(colosseum.qttest.account_attachment_coordinator PROPERTIES
+    LABELS "unit;qttest;sync;attachment"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 180)
+
+# ── Desktop account convergence acceptance matrix (Arc 36 Wave 6 N-23) ────
+# Verification-only integration coverage over the real attachment coordinator
+# and SyncEngine APIs. The fixture is intentionally local and deterministic;
+# it proves profile materialization, restart receipts, second-device pulls,
+# profile isolation, and auth-rejection outbox preservation without changing
+# product or QML code.
+add_executable(tst_account_convergence
+    auto/account_convergence/tst_account_convergence.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_include_directories(tst_account_convergence PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_account_convergence PRIVATE
+    Qt6::Core
+    Qt6::Test)
+set_target_properties(tst_account_convergence PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_account_convergence POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.account_convergence
+         COMMAND tst_account_convergence)
+set_tests_properties(colosseum.qttest.account_convergence PROPERTIES
+    LABELS "unit;qttest;sync;convergence;wave6"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 180)
 
 add_executable(tst_sync_core
     auto/sync/tst_sync_core.cpp
@@ -1742,6 +1879,36 @@ add_test(NAME colosseum.qttest.activity_store
          COMMAND tst_activity_store)
 set_tests_properties(colosseum.qttest.activity_store PROPERTIES
     LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# ── Arc 36 N-09: immutable Activity fact sync adapter ───────────────────
+add_executable(tst_activity_sync
+    auto/activity_sync/tst_activity_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h")
+target_include_directories(tst_activity_sync PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_activity_sync PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_activity_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_activity_sync POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.activity_sync COMMAND tst_activity_sync)
+set_tests_properties(colosseum.qttest.activity_sync PROPERTIES
+    LABELS "unit;qttest;sync;activity"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 

@@ -262,7 +262,7 @@ class tst_account_onboarding : public QObject {
 private slots:
     void initTestCase();
 
-    void freshInstallRequiresOnboarding();
+    void freshInstallSettlesIntoLocalOnly();
     void continueLocalCompletesOnboardingDurably();
     void rememberedLocalOnlyPreparesProfileOwnership();
     void accountCreationCompletesOnboardingAfterSecretHandoff();
@@ -290,7 +290,7 @@ void tst_account_onboarding::initTestCase() {
     qRegisterMetaType<AccountTransportReply>();
 }
 
-void tst_account_onboarding::freshInstallRequiresOnboarding() {
+void tst_account_onboarding::freshInstallSettlesIntoLocalOnly() {
     ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
     ControllerFixture fixture;
 
@@ -301,8 +301,10 @@ void tst_account_onboarding::freshInstallRequiresOnboarding() {
 
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
-    QVERIFY(fixture.controller->onboardingRequired());
+        QStringLiteral("localOnly"));
+    QVERIFY(!fixture.controller->onboardingRequired());
+    QVERIFY(fixture.bootstrap->onboardingCompleted());
+    QVERIFY(fixture.bootstrap->localOnlyChosen());
 }
 
 void tst_account_onboarding::continueLocalCompletesOnboardingDurably() {
@@ -561,7 +563,7 @@ offlineLogoutQueuesRevocationAndSealsProfile() {
         QString::fromLatin1(kAccountId));
     QCOMPARE(
         fixture.controller->mode(),
-        QStringLiteral("signedOut"));
+        QStringLiteral("localOnly"));
     QVERIFY(
         !fixture.credentials
              .loadActive()

@@ -11,6 +11,7 @@ Item {
     objectName: "accountDataPrivacyPage"
 
     property bool active: false
+    property bool localOnly: false
 
     // Authoritative presentation state. Product defaults are On, but live
     // adoption must bind these to the privacy backend rather than persisting
@@ -115,6 +116,11 @@ Item {
     onActiveChanged: {
         if (!active)
             clearTransientState()
+    }
+
+    onLocalOnlyChanged: {
+        if (localOnly)
+            deleteConfirmationOpen = false
     }
 
     Component.onDestruction: clearTransientState()
@@ -530,8 +536,10 @@ Item {
 
                 // Cross-device history
                 Column {
+                    objectName: "privacyCrossDeviceHistoryGroup"
                     width: parent.width
-                    height: implicitHeight
+                    height: visible ? implicitHeight : 0
+                    visible: !root.localOnly
                     spacing: 0
 
                     Item { width: 1; height: 18 }
@@ -617,14 +625,15 @@ Item {
                 }
             }
 
-            Item { width: 1; height: 26 }
+            Item { width: 1; height: root.localOnly ? 0 : 26 }
 
             // YOUR ACCOUNT DATA
             Column {
                 id: accountDataGroup
                 objectName: "privacyAccountDataGroup"
                 width: parent.width
-                height: implicitHeight
+                height: visible ? implicitHeight : 0
+                visible: !root.localOnly
                 spacing: 0
 
                 Rectangle { width: parent.width; height: 1; color: theme.edge }
@@ -746,7 +755,9 @@ Item {
 
                 Text {
                     width: Math.min(parent.width, 720)
-                    text: qsTr("These controls sit on top of a simple boundary: portable account state can follow you, while machine-specific and sensitive data stays outside ordinary sync.")
+                    text: root.localOnly
+                        ? qsTr("Search history, files, downloads, caches, paths and machine state stay on this device. After sign-in, only eligible account-portable profile and activity state may sync across your Colosseum devices.")
+                        : qsTr("These controls sit on top of a simple boundary: portable account state can follow you, while machine-specific and sensitive data stays outside ordinary sync.")
                     color: theme.inkDimmer
                     font.family: theme.ui
                     font.pixelSize: 11
@@ -763,16 +774,17 @@ Item {
                     objectName: "privacyMapGrid"
                     width: parent.width
                     height: implicitHeight
-                    columns: root.compactMap ? 1 : 2
+                    columns: root.localOnly || root.compactMap ? 1 : 2
                     rowSpacing: 0
                     columnSpacing: 0
 
                     Item {
                         id: portableLane
+                        visible: !root.localOnly
                         width: root.compactMap
                             ? privacyMapGrid.width
                             : privacyMapGrid.width / 2
-                        height: portableLaneColumn.implicitHeight + 52
+                        height: visible ? portableLaneColumn.implicitHeight + 52 : 0
 
                         Column {
                             id: portableLaneColumn
@@ -900,20 +912,20 @@ Item {
 
                     Item {
                         id: localLane
-                        width: root.compactMap
+                        width: root.localOnly || root.compactMap
                             ? privacyMapGrid.width
                             : privacyMapGrid.width / 2
                         height: localLaneColumn.implicitHeight + 52
 
                         Rectangle {
-                            visible: !root.compactMap
+                            visible: !root.localOnly && !root.compactMap
                             width: 1
                             height: parent.height
                             color: theme.edge
                         }
 
                         Rectangle {
-                            visible: root.compactMap
+                            visible: !root.localOnly && root.compactMap
                             width: parent.width
                             height: 1
                             color: theme.edge
@@ -921,9 +933,9 @@ Item {
 
                         Column {
                             id: localLaneColumn
-                            x: root.compactMap ? 0 : 30
+                            x: root.localOnly || root.compactMap ? 0 : 30
                             y: 25
-                            width: root.compactMap
+                            width: root.localOnly || root.compactMap
                                 ? parent.width
                                 : Math.max(0, parent.width - 30)
                             height: implicitHeight
@@ -1078,7 +1090,9 @@ Item {
 
                         Text {
                             width: parent.width
-                            text: qsTr("Secrets are a separate boundary.")
+                            text: root.localOnly
+                                ? qsTr("This device keeps its sensitive data local.")
+                                : qsTr("Secrets are a separate boundary.")
                             color: theme.inkDim
                             font.family: theme.ui
                             font.pixelSize: 12
@@ -1088,7 +1102,9 @@ Item {
 
                         Text {
                             width: Math.min(parent.width, 760)
-                            text: qsTr("Passwords, recovery keys, session tokens and API credentials do not enter ordinary account sync. Filesystem paths and secret-bearing fields are blocked from those payloads too.")
+                            text: root.localOnly
+                                ? qsTr("Filesystem paths, local media locations, downloads, caches and other machine-owned state stay on this device. Account credentials are not present until you choose to sign in or create an account.")
+                                : qsTr("Passwords, recovery keys, session tokens and API credentials do not enter ordinary account sync. Filesystem paths and secret-bearing fields are blocked from those payloads too.")
                             color: theme.inkDimmer
                             font.family: theme.ui
                             font.pixelSize: 10
@@ -1107,7 +1123,8 @@ Item {
                 id: dangerZone
                 objectName: "privacyDangerZone"
                 width: parent.width
-                height: implicitHeight
+                height: visible ? implicitHeight : 0
+                visible: !root.localOnly
                 spacing: 0
 
                 Item { width: 1; height: 31 }

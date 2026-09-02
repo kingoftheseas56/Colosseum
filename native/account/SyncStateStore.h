@@ -56,6 +56,14 @@ struct SyncPersistentState {
         winners;
 
     QHash<QString, SyncPausedCategoryState> pausedCategories;
+
+    // Attachment execution mode. Inactive mode keeps every field at its
+    // default so encoded state stays byte-identical to the engine that
+    // predates attachment support.
+    bool attachmentModeActive = false;
+    QString attachmentId;
+    bool attachmentSnapshotDone = false;
+    QString attachmentSnapshotNextPageToken;
 };
 
 class SyncStateStore final : public QObject {

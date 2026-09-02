@@ -76,7 +76,11 @@ TestCase {
             ]
         })
         verify(page !== null)
+        testWindow.raise()
+        testWindow.requestActivate()
         wait(0)
+        wait(32)
+        waitForRendering(page)
         previousSpy.clear()
         nextSpy.clear()
     }

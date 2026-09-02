@@ -1,5 +1,3 @@
-// PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
-
 import QtQuick
 import ".."
 
@@ -11,6 +9,16 @@ Item {
     required property var recoveryPresenter
     property Item backdrop: null
     property real topInset: 74
+
+    function openSignIn() {
+        controller.returnToSignIn()
+        onboarding.goSignIn()
+    }
+
+    function openCreateAccount() {
+        controller.returnToSignIn()
+        onboarding.goCreate()
+    }
 
     readonly property bool accountFlowVisible:
         controller.signOutSyncWarningPending

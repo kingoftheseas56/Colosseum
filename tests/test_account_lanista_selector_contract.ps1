@@ -24,13 +24,28 @@ $selectors = @(
     @('qml/account/AccountSignIn.qml', 'accountSignInUsername'),
     @('qml/account/AccountSignIn.qml', 'accountSignInPassword'),
     @('qml/account/AccountSignIn.qml', 'accountSignInSubmit'),
-    @('qml/account/AccountSignIn.qml', 'accountSignInError')
-)
-$selectors += @(
+    @('qml/account/AccountSignIn.qml', 'accountSignInError'),
+    @('qml/account/AccountSignIn.qml', 'accountSignInContinueLocal'),
     @('qml/account/AccountRecoveryKey.qml', 'accountRecoveryKeyValue'),
     @('qml/account/AccountRecoveryKey.qml', 'accountRecoveryKeySaved'),
     @('qml/account/AccountFlyout.qml', 'accountFlyoutUsername'),
+    @('qml/account/AccountFlyout.qml', 'accountFlyoutLocalIdentity'),
+    @('qml/account/AccountFlyout.qml', 'accountFlyoutLocalDeviceLabel'),
+    @('qml/account/AccountFlyout.qml', 'accountFlyoutLocalYourColosseum'),
+    @('qml/account/AccountFlyout.qml', 'accountFlyoutLocalPrivacy'),
+    @('qml/account/AccountFlyout.qml', 'accountFlyoutLocalSignIn'),
+    @('qml/account/AccountFlyout.qml', 'accountFlyoutLocalCreateAccount'),
     @('qml/TopBar.qml', 'colosseumTopbarAccountButton'),
+    @('qml/TopBar.qml', 'colosseumTopbarDeviceLabel'),
+    @('qml/account/AccountCenter.qml', 'accountCenter'),
+    @('qml/account/AccountCenter.qml', 'accountCenterUsername'),
+    @('qml/account/AccountYourColosseumPage.qml', 'yourColosseumPage'),
+    @('qml/account/AccountYourColosseumPage.qml', 'yourColosseumLocalAccountBlock'),
+    @('qml/account/AccountYourColosseumPage.qml', 'yourColosseumLocalSignIn'),
+    @('qml/account/AccountYourColosseumPage.qml', 'yourColosseumLocalCreateAccount'),
+    @('qml/account/AccountDataPrivacyPage.qml', 'privacyCrossDeviceHistoryGroup'),
+    @('qml/account/AccountDataPrivacyPage.qml', 'privacyAccountDataGroup'),
+    @('qml/account/AccountDataPrivacyPage.qml', 'privacyDangerZone'),
     @('qml/Main.qml', 'accountHost')
 )
 

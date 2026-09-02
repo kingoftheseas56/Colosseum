@@ -38,10 +38,39 @@ Item {
         return ""
     }
 
+    function hasText(root, value) {
+        if (!root)
+            return false
+        if (root.text !== undefined && root.text === value)
+            return true
+        const children = root.children || []
+        for (let i = 0; i < children.length; ++i) {
+            if (hasText(children[i], value))
+                return true
+        }
+        return false
+    }
+
+    function emitFirstClicked(root) {
+        if (!root)
+            return false
+        const children = root.children || []
+        for (let i = 0; i < children.length; ++i) {
+            if (children[i].clicked !== undefined) {
+                children[i].clicked(null)
+                return true
+            }
+            if (emitFirstClicked(children[i]))
+                return true
+        }
+        return false
+    }
+
     QtObject {
         id: fakeController
         property string mode: "offline"
         property string username: "OfflineOwner"
+        property string localDeviceLabel: "Device 482731"
         property string syncState: "retrying"
         property int pendingOutboxCount: 0
         property int logoutCalls: 0
@@ -60,6 +89,10 @@ Item {
         width: harness.width
         height: 56
         backdrop: backdrop
+        accountController: fakeController
+        onAccountClicked: function(anchorRight, anchorBottom) {
+            flyout.toggleAt(anchorRight, anchorBottom)
+        }
     }
 
     Account.AccountFlyout {
@@ -70,18 +103,8 @@ Item {
         initial: "O"
     }
 
-    function configureTopBarController() {
-        try {
-            topBar.accountController = fakeController
-            return topBar.accountController === fakeController
-        } catch (error) {
-            fails.push("TopBar must expose injectable accountController: " + error)
-            return false
-        }
-    }
-
     function runOfflinePhase() {
-        configureTopBarController()
+        flyout.open()
         const accountButton = byName(topBar, "colosseumTopbarAccountButton")
         const username = byName(flyout, "accountFlyoutUsername")
         const sessionAction = byName(flyout, "accountFlyoutSessionAction")
@@ -91,6 +114,8 @@ Item {
         ok(username !== null, "flyout username selector must exist")
         ok(username && username.text === "OfflineOwner",
            "offline flyout must show remembered username")
+        ok(hasText(flyout, "Waiting for the account service…"),
+           "offline flyout must render the current retrying sync observation")
         ok(sessionAction !== null, "flyout session action selector must exist")
         ok(actionText(sessionAction) === "Sign out",
            "offline flyout session action must be Sign out")
@@ -101,26 +126,67 @@ Item {
         ok(fakeController.returnToSignInCalls === 0,
            "offline Sign out must not call returnToSignIn")
 
+        fakeController.pendingOutboxCount = 2
+        flyout.open()
+        ok(hasText(flyout, "Syncing — 2 changes pending"),
+           "flyout must render the current pending outbox observation")
+        fakeController.pendingOutboxCount = 0
+
+        flyout.close()
         fakeController.mode = "localOnly"
+        fakeController.username = ""
         Qt.callLater(runLocalOnlyPhase)
     }
 
     function runLocalOnlyPhase() {
         const accountButton = byName(topBar, "colosseumTopbarAccountButton")
-        const username = byName(flyout, "accountFlyoutUsername")
-        const sessionAction = byName(flyout, "accountFlyoutSessionAction")
-        ok(accountButton && accountButton.Accessible.name === "Account",
-           "local-only top bar must remain signed-out presentation")
-        ok(username && username.text === "Not signed in",
-           "local-only flyout must say Not signed in")
-        ok(actionText(sessionAction) === "Sign in",
-           "local-only flyout action must be Sign in")
-        if (sessionAction)
-            sessionAction.clicked()
-        ok(fakeController.logoutCalls === 1,
-           "local-only Sign in must not add logout calls")
-        ok(fakeController.returnToSignInCalls === 1,
-           "local-only Sign in must call returnToSignIn exactly once")
+        const deviceText = byName(topBar, "colosseumTopbarDeviceLabel")
+        ok(accountButton !== null, "local top-bar account selector must exist")
+        ok(accountButton && accountButton.Accessible.name === "Device",
+           "local top-bar Accessible.name must be generic Device")
+        ok(deviceText !== null, "local top-bar Device text selector must exist")
+        ok(deviceText && deviceText.visible,
+           "local top-bar Device text must be visible")
+        ok(deviceText && deviceText.text === "Device",
+           "local top-bar visible text must be exactly Device")
+        ok(!flyout.visible, "local flyout must start closed")
+
+        ok(emitFirstClicked(accountButton),
+           "local top-bar Device control must expose a clickable child")
+        ok(flyout.visible,
+           "clicking Device must open AccountFlyout")
+
+        const identity = byName(flyout, "accountFlyoutLocalIdentity")
+        const localLabel = byName(flyout, "accountFlyoutLocalDeviceLabel")
+        const yourColosseum = byName(flyout, "accountFlyoutLocalYourColosseum")
+        const privacy = byName(flyout, "accountFlyoutLocalPrivacy")
+        const signIn = byName(flyout, "accountFlyoutLocalSignIn")
+        const createAccount = byName(flyout, "accountFlyoutLocalCreateAccount")
+
+        ok(identity !== null && identity.visible,
+           "local flyout identity block must be visible")
+        ok(localLabel !== null && localLabel.visible,
+           "local flyout device label must be visible")
+        ok(localLabel && localLabel.text === "Device 482731",
+           "local flyout must show the friendly device identity")
+        ok(localLabel && /^Device [0-9]{6}$/.test(localLabel.text),
+           "local flyout identity must remain Device plus six digits")
+        ok(yourColosseum !== null && yourColosseum.visible,
+           "local flyout must expose Your Colosseum")
+        ok(privacy !== null && privacy.visible,
+           "local flyout must expose Data & privacy")
+        ok(signIn !== null && signIn.visible,
+           "local flyout must expose Sign in")
+        ok(createAccount !== null && createAccount.visible,
+           "local flyout must expose Create account")
+        ok(actionText(yourColosseum) === "Your Colosseum",
+           "local flyout Your Colosseum text must stay stable")
+        ok(actionText(privacy) === "Data & privacy",
+           "local flyout Data & privacy text must stay stable")
+        ok(actionText(signIn) === "Sign in",
+           "local flyout Sign in text must stay stable")
+        ok(actionText(createAccount) === "Create account",
+           "local flyout Create account text must stay stable")
 
         if (fails.length)
             console.error("ACCOUNT_OFFLINE_SHELL_FAILS:\n  " + fails.join("\n  "))

@@ -108,6 +108,7 @@ TestCase {
         verify(page !== null)
         testWindow.requestActivate()
         wait(0)
+        waitForRendering(page)
     }
 
     function cleanup() {
@@ -140,6 +141,7 @@ TestCase {
     function test_cancel_clears_password_and_reveal_without_mutation() {
         page.beginReplacement()
         wait(0)
+        waitForRendering(page)
 
         var field = byName(page, "recoveryCurrentPassword")
         var cancel = byName(page, "recoveryReplaceCancel")

@@ -36,6 +36,21 @@ const QList<SyncOwnershipEntry> &entries() {
             QStringLiteral("Preserve recordSilent() performance contract; whole-store polling is not an acceptable substitute for a narrow dirty/export seam.")
         },
         SyncOwnershipEntry{
+            QStringLiteral("watch_state"),
+            SyncDisposition::Syncable,
+            SyncOwnerStatus::Confirmed,
+            true,
+            QStringList{QStringLiteral("watched_mark"), QStringLiteral("last_season")},
+            QStringLiteral("native/ProgressStore.h"),
+            QStringLiteral("ProfileStoreRuntime -> ProgressStore"),
+            QStringLiteral("syncWatchedMarks() / syncLastSeasons()"),
+            QStringLiteral("applySyncedWatchedMark/removeSyncedWatchedMark / applySyncedLastSeason/removeSyncedLastSeason"),
+            QStringLiteral("revision + changed(); remote apply is idempotent and WatchStateSyncAdapter suppresses remote echo"),
+            14,
+            QStringLiteral(""),
+            QStringLiteral("Manual watched overrides (-1/1) and positive last-season state are portable watch_state records separate from continue_progress resume payloads; absence is represented by record deletion.")
+        },
+        SyncOwnershipEntry{
             QStringLiteral("full_history"),
             SyncDisposition::Syncable,
             SyncOwnerStatus::Confirmed,
@@ -49,6 +64,21 @@ const QList<SyncOwnershipEntry> &entries() {
             14,
             QStringLiteral(""),
             QStringLiteral("No live native/HistoryStore.h exists at the 7B evidence head; Bundle 7B promotes the cumulative profile-owned HistoryStore into the dedicated full-history authority. Continue/progress remains separate.")
+        },
+        SyncOwnershipEntry{
+            QStringLiteral("activity_fact"),
+            SyncDisposition::Syncable,
+            SyncOwnerStatus::Confirmed,
+            true,
+            QStringList{QStringLiteral("activity_fact")},
+            QStringLiteral("native/account/ActivityStore.*"),
+            QStringLiteral("ProfileStoreRuntime -> ActivityStore -> ActivitySyncAdapter"),
+            QStringLiteral("portableSyncFacts()"),
+            QStringLiteral("applySyncedPortableFact(fact)"),
+            QStringLiteral("revision + changed(); factCommitted() only for newly committed facts; ActivitySyncAdapter suppresses remote echo"),
+            14,
+            QStringLiteral(""),
+            QStringLiteral("Immutable Activity facts are portable PUT-only records; missing facts never imply delete tombstones. Machine-local cover paths are sanitized by the ActivityStore portable projection.")
         },
         SyncOwnershipEntry{
             QStringLiteral("per_world_customization"),

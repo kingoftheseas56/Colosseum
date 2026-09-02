@@ -10,6 +10,7 @@
 #include "account/HistoryStore.h"
 #include "account/ProfilePaths.h"
 #include "account/ProgressSyncAdapter.h"
+#include "account/WatchStateSyncAdapter.h"
 #include "account/SyncAdapterRegistry.h"
 #include "account/SyncEngine.h"
 #include "account/SyncProtocol.h"
@@ -508,6 +509,12 @@ private slots:
     void cleanup();
     void projectionStripsLocalOnlyNestedMaterial();
     void projectionExcludesFilesystemIdentity();
+    void watchStateProjectionKeysRoundTrip();
+    void watchStateProjectionKeysRejectMalformed();
+    void watchStateAdapterExportsCanonicalSnapshot();
+    void watchStateAdapterEmitsLocalMutation();
+    void watchStateAdapterAppliesRemoteStateWithoutEcho();
+    void watchStateAdapterRejectsNoncanonicalRemoteState();
     void collectionRemotePutPreservesLocalOnlyOverlay();
     void collectionAdapterRoundTripsAndTombstones();
     void progressSnapshotKeepsRawSiblingRecords();
@@ -603,6 +610,499 @@ projectionExcludesFilesystemIdentity() {
         projected.disposition,
         CoreStateSyncProjection::
             Disposition::LocalOnly);
+}
+
+void tst_core_sync_adapters::
+watchStateProjectionKeysRoundTrip() {
+    const QString watchedId =
+        QStringLiteral("tt123:Season 2/\u00c9pisode 7? [\u65e5\u672c]");
+    const QString seasonId =
+        QStringLiteral("series:\u0394 & finale/part#2");
+
+    const QString watchedEncoded =
+        QString::fromLatin1(
+            watchedId.toUtf8().toBase64(
+                QByteArray::Base64UrlEncoding
+                | QByteArray::OmitTrailingEquals));
+    const QString seasonEncoded =
+        QString::fromLatin1(
+            seasonId.toUtf8().toBase64(
+                QByteArray::Base64UrlEncoding
+                | QByteArray::OmitTrailingEquals));
+
+    const QString watchedKey =
+        CoreStateSyncProjection::watchedMarkKey(watchedId);
+    const QString seasonKey =
+        CoreStateSyncProjection::lastSeasonKey(seasonId);
+
+    QCOMPARE(
+        watchedKey,
+        QStringLiteral("watch/mark/") + watchedEncoded);
+    QCOMPARE(
+        seasonKey,
+        QStringLiteral("watch/season/") + seasonEncoded);
+
+    QString decoded;
+    QVERIFY(
+        CoreStateSyncProjection::decodeWatchedMarkKey(
+            watchedKey,
+            &decoded));
+    QCOMPARE(decoded, watchedId);
+
+    decoded.clear();
+    QVERIFY(
+        CoreStateSyncProjection::decodeLastSeasonKey(
+            seasonKey,
+            &decoded));
+    QCOMPARE(decoded, seasonId);
+}
+
+void tst_core_sync_adapters::
+watchStateProjectionKeysRejectMalformed() {
+    const QString canonicalId = QStringLiteral("f");
+    const QString canonical =
+        CoreStateSyncProjection::watchedMarkKey(canonicalId);
+    QCOMPARE(canonical, QStringLiteral("watch/mark/Zg"));
+
+    const QStringList invalidWatched{
+        QString(),
+        QStringLiteral("watch/mark/"),
+        QStringLiteral("watch/mark/Zg=="),
+        QStringLiteral("watch/mark/!!!"),
+        QStringLiteral("watch/mark/Zg/extra"),
+        QStringLiteral("watch/mark/Zg/"),
+        QStringLiteral("watch/season/Zg"),
+        QStringLiteral("progress/mark/Zg")
+    };
+
+    for (const QString &key : invalidWatched) {
+        QString decoded = QStringLiteral("unchanged");
+        QVERIFY2(
+            !CoreStateSyncProjection::decodeWatchedMarkKey(
+                key,
+                &decoded),
+            qPrintable(key));
+        QCOMPARE(decoded, QStringLiteral("unchanged"));
+    }
+
+    const QStringList invalidSeason{
+        QStringLiteral("watch/season/"),
+        QStringLiteral("watch/season/Zg=="),
+        QStringLiteral("watch/season/Zg/extra"),
+        QStringLiteral("watch/mark/Zg"),
+        QStringLiteral("watch/season/!!!")
+    };
+
+    for (const QString &key : invalidSeason) {
+        QString decoded = QStringLiteral("unchanged");
+        QVERIFY2(
+            !CoreStateSyncProjection::decodeLastSeasonKey(
+                key,
+                &decoded),
+            qPrintable(key));
+        QCOMPARE(decoded, QStringLiteral("unchanged"));
+    }
+}
+
+void tst_core_sync_adapters::
+watchStateAdapterExportsCanonicalSnapshot() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    ProgressStore store(
+        QDir(temp.path())
+            .filePath(
+                QStringLiteral(
+                    "progress.ini")));
+
+    store.setWatchedMark(
+        QStringLiteral("movie-1"),
+        true);
+    store.setWatchedMark(
+        QStringLiteral("movie-2"),
+        false);
+    store.rememberLastSeason(
+        QStringLiteral("series-1"),
+        3);
+
+    WatchStateSyncAdapter adapter(
+        &store);
+    QCOMPARE(
+        adapter.categoryId(),
+        QStringLiteral("watch_state"));
+    QCOMPARE(adapter.schemaVersion(), 1);
+
+    SyncAdapterExport snapshot;
+    QString error;
+    QVERIFY2(
+        adapter.exportSnapshot(
+            &snapshot,
+            &error),
+        qPrintable(error));
+    QCOMPARE(snapshot.records.size(), 3);
+
+    QHash<QString, QJsonObject> records;
+    for (const SyncAdapterRecord &record :
+         snapshot.records) {
+        QVERIFY(record.payload.isObject());
+        records.insert(
+            record.recordKey,
+            record.payload.toObject());
+    }
+
+    QCOMPARE(
+        records.value(
+            CoreStateSyncProjection::
+                watchedMarkKey(
+                    QStringLiteral("movie-1"))),
+        QJsonObject({
+            {
+                QStringLiteral("id"),
+                QStringLiteral("movie-1")
+            },
+            {
+                QStringLiteral("mark"),
+                1
+            }
+        }));
+    QCOMPARE(
+        records.value(
+            CoreStateSyncProjection::
+                watchedMarkKey(
+                    QStringLiteral("movie-2"))),
+        QJsonObject({
+            {
+                QStringLiteral("id"),
+                QStringLiteral("movie-2")
+            },
+            {
+                QStringLiteral("mark"),
+                -1
+            }
+        }));
+    QCOMPARE(
+        records.value(
+            CoreStateSyncProjection::
+                lastSeasonKey(
+                    QStringLiteral("series-1"))),
+        QJsonObject({
+            {
+                QStringLiteral("seriesId"),
+                QStringLiteral("series-1")
+            },
+            {
+                QStringLiteral("season"),
+                3
+            }
+        }));
+}
+
+void tst_core_sync_adapters::
+watchStateAdapterEmitsLocalMutation() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    ProgressStore store(
+        QDir(temp.path())
+            .filePath(
+                QStringLiteral(
+                    "progress.ini")));
+    WatchStateSyncAdapter adapter(
+        &store);
+
+    QSignalSpy mutationSpy(
+        &adapter,
+        &WatchStateSyncAdapter::
+            localMutationAvailable);
+
+    store.setWatchedMark(
+        QStringLiteral("movie-1"),
+        true);
+    QCOMPARE(mutationSpy.count(), 1);
+
+    store.rememberLastSeason(
+        QStringLiteral("series-1"),
+        2);
+    QCOMPARE(mutationSpy.count(), 2);
+}
+
+void tst_core_sync_adapters::
+watchStateAdapterAppliesRemoteStateWithoutEcho() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    ProgressStore store(
+        QDir(temp.path())
+            .filePath(
+                QStringLiteral(
+                    "progress.ini")));
+    store.setWatchedMark(
+        QStringLiteral("movie-keep"),
+        true);
+    store.rememberLastSeason(
+        QStringLiteral("series-keep"),
+        4);
+
+    WatchStateSyncAdapter adapter(
+        &store);
+    SyncAdapterRegistry registry;
+    QVERIFY(
+        registry.registerAdapter(
+            &adapter));
+
+    QSignalSpy adapterMutationSpy(
+        &adapter,
+        &WatchStateSyncAdapter::
+            localMutationAvailable);
+    QSignalSpy registryMutationSpy(
+        &registry,
+        &SyncAdapterRegistry::
+            localMutationAvailable);
+
+    SyncAdapterMutation watchedPut;
+    watchedPut.categoryId =
+        QStringLiteral("watch_state");
+    watchedPut.recordKey =
+        CoreStateSyncProjection::
+            watchedMarkKey(
+                QStringLiteral("movie-remote"));
+    watchedPut.schemaVersion = 1;
+    watchedPut.operation =
+        SyncWireOperation::Put;
+    watchedPut.payload =
+        QJsonObject{
+            {
+                QStringLiteral("id"),
+                QStringLiteral("movie-remote")
+            },
+            {
+                QStringLiteral("mark"),
+                -1
+            }
+        };
+
+    QVERIFY(
+        registry.applyRemote(
+            watchedPut));
+    QCOMPARE(
+        store.watchedMark(
+            QStringLiteral("movie-remote")),
+        -1);
+    QCOMPARE(adapterMutationSpy.count(), 0);
+    QCOMPARE(registryMutationSpy.count(), 0);
+
+    SyncAdapterMutation seasonPut;
+    seasonPut.categoryId =
+        QStringLiteral("watch_state");
+    seasonPut.recordKey =
+        CoreStateSyncProjection::
+            lastSeasonKey(
+                QStringLiteral("series-remote"));
+    seasonPut.schemaVersion = 1;
+    seasonPut.operation =
+        SyncWireOperation::Put;
+    seasonPut.payload =
+        QJsonObject{
+            {
+                QStringLiteral("seriesId"),
+                QStringLiteral("series-remote")
+            },
+            {
+                QStringLiteral("season"),
+                5
+            }
+        };
+
+    QVERIFY(
+        registry.applyRemote(
+            seasonPut));
+    QCOMPARE(
+        store.lastSeason(
+            QStringLiteral("series-remote")),
+        5);
+    QCOMPARE(adapterMutationSpy.count(), 0);
+    QCOMPARE(registryMutationSpy.count(), 0);
+
+    const int revisionBeforeReplay =
+        store.revision();
+    QVERIFY(
+        registry.applyRemote(
+            watchedPut));
+    QVERIFY(
+        registry.applyRemote(
+            seasonPut));
+    QCOMPARE(
+        store.revision(),
+        revisionBeforeReplay);
+    QCOMPARE(adapterMutationSpy.count(), 0);
+
+    SyncAdapterMutation watchedDelete =
+        watchedPut;
+    watchedDelete.operation =
+        SyncWireOperation::Delete;
+    watchedDelete.payload =
+        QJsonValue();
+    QVERIFY(
+        registry.applyRemote(
+            watchedDelete));
+    QCOMPARE(
+        store.watchedMark(
+            QStringLiteral("movie-remote")),
+        0);
+    QCOMPARE(
+        store.lastSeason(
+            QStringLiteral("series-remote")),
+        5);
+    QCOMPARE(
+        store.watchedMark(
+            QStringLiteral("movie-keep")),
+        1);
+    QCOMPARE(
+        store.lastSeason(
+            QStringLiteral("series-keep")),
+        4);
+
+    SyncAdapterMutation seasonDelete =
+        seasonPut;
+    seasonDelete.operation =
+        SyncWireOperation::Delete;
+    seasonDelete.payload =
+        QJsonValue();
+    QVERIFY(
+        registry.applyRemote(
+            seasonDelete));
+    QCOMPARE(
+        store.lastSeason(
+            QStringLiteral("series-remote")),
+        -1);
+    QCOMPARE(
+        store.watchedMark(
+            QStringLiteral("movie-keep")),
+        1);
+    QCOMPARE(
+        store.lastSeason(
+            QStringLiteral("series-keep")),
+        4);
+    QCOMPARE(adapterMutationSpy.count(), 0);
+    QCOMPARE(registryMutationSpy.count(), 0);
+}
+
+void tst_core_sync_adapters::
+watchStateAdapterRejectsNoncanonicalRemoteState() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    ProgressStore store(
+        QDir(temp.path())
+            .filePath(
+                QStringLiteral(
+                    "progress.ini")));
+    WatchStateSyncAdapter adapter(
+        &store);
+
+    const QString watchedKey =
+        CoreStateSyncProjection::
+            watchedMarkKey(
+                QStringLiteral("movie-1"));
+    const QString seasonKey =
+        CoreStateSyncProjection::
+            lastSeasonKey(
+                QStringLiteral("series-1"));
+
+    QString error;
+    QVERIFY(
+        !adapter.applyRemote(
+            watchedKey,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("id"),
+                    QStringLiteral("movie-1")
+                },
+                {
+                    QStringLiteral("mark"),
+                    1
+                }
+            },
+            2,
+            &error));
+    QVERIFY(!error.isEmpty());
+
+    error.clear();
+    QVERIFY(
+        !adapter.applyRemote(
+            watchedKey,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("id"),
+                    QStringLiteral("different")
+                },
+                {
+                    QStringLiteral("mark"),
+                    1
+                }
+            },
+            1,
+            &error));
+    QVERIFY(!error.isEmpty());
+
+    error.clear();
+    QVERIFY(
+        !adapter.applyRemote(
+            watchedKey,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("id"),
+                    QStringLiteral("movie-1")
+                },
+                {
+                    QStringLiteral("mark"),
+                    0
+                }
+            },
+            1,
+            &error));
+    QVERIFY(!error.isEmpty());
+
+    error.clear();
+    QVERIFY(
+        !adapter.applyRemote(
+            seasonKey,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("seriesId"),
+                    QStringLiteral("series-1")
+                },
+                {
+                    QStringLiteral("season"),
+                    1.5
+                }
+            },
+            1,
+            &error));
+    QVERIFY(!error.isEmpty());
+
+    error.clear();
+    QVERIFY(
+        !adapter.applyRemote(
+            QStringLiteral("watch/other/Zg"),
+            SyncWireOperation::Delete,
+            QJsonValue(),
+            1,
+            &error));
+    QVERIFY(!error.isEmpty());
+
+    QCOMPARE(
+        store.watchedMark(
+            QStringLiteral("movie-1")),
+        0);
+    QCOMPARE(
+        store.lastSeason(
+            QStringLiteral("series-1")),
+        -1);
 }
 
 void tst_core_sync_adapters::

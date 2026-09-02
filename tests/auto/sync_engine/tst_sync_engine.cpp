@@ -31,12 +31,20 @@ constexpr auto kDeviceB =
 struct FixtureJournalEntry {
     quint64 serverSeq = 0;
     bool won = false;
+    bool canonical = false;
     SyncWireMutation mutation;
 };
 
 struct FixtureMutationResult {
     quint64 serverSeq = 0;
     bool won = false;
+};
+
+struct FixtureSnapshotPage {
+    quint64 cursor = 0;
+    bool hasMore = false;
+    QString nextPageToken;
+    QList<SyncWirePullEntry> entries;
 };
 
 QString recordIdentity(
@@ -62,13 +70,50 @@ public:
         return m_journal;
     }
 
+    void setCanonicalCurrentPullMode(bool enabled) {
+        m_canonicalCurrentPullMode = enabled;
+    }
+
+    void setSnapshotPages(
+        const QList<FixtureSnapshotPage> &pages) {
+        m_snapshotPages = pages;
+        m_snapshotServed = 0;
+    }
+
+    // Makes the next snapshot requests fail with a network error once
+    // the given number of pages has already been served.
+    void setSnapshotNetworkFailuresAfterPages(
+        int servedPages,
+        int failures) {
+        m_snapshotFailAfterServed = servedPages;
+        m_snapshotNetworkFailures = failures;
+    }
+
+    int snapshotRequestCount() const {
+        return m_snapshotRequestTokens.size();
+    }
+
+    QStringList snapshotRequestTokens() const {
+        return m_snapshotRequestTokens;
+    }
+
+    QStringList pushAttachmentIds() const {
+        return m_pushAttachmentIds;
+    }
+
+    QStringList pullRequestAfters() const {
+        return m_pullRequestAfters;
+    }
+
     void appendRemote(
         const SyncWireMutation &mutation,
-        bool won) {
+        bool won,
+        bool canonical = false) {
         FixtureJournalEntry entry;
         entry.serverSeq =
             m_nextServerSeq++;
         entry.won = won;
+        entry.canonical = canonical;
         entry.mutation =
             mutation;
         m_journal.append(entry);
@@ -83,7 +128,11 @@ public:
     }
 
     AccountTransportReply push(
-        const QJsonArray &mutations) {
+        const QJsonArray &mutations,
+        const QString &attachmentId) {
+        m_pushAttachmentIds.append(
+            attachmentId);
+
         AccountTransportReply reply;
         reply.statusCode = 200;
 
@@ -310,6 +359,11 @@ public:
             if (entry.serverSeq <= after)
                 continue;
 
+            if (m_canonicalCurrentPullMode
+                && !entry.won) {
+                continue;
+            }
+
             if (entries.size() >= 200) {
                 hasMore = true;
                 break;
@@ -324,6 +378,12 @@ public:
             object.insert(
                 QStringLiteral("won"),
                 entry.won);
+            if (m_canonicalCurrentPullMode
+                || entry.canonical) {
+                object.insert(
+                    QStringLiteral("canonical"),
+                    true);
+            }
             object.insert(
                 QStringLiteral("mutation"),
                 syncWireMutationToJson(
@@ -345,6 +405,98 @@ public:
         return reply;
     }
 
+    AccountTransportReply snapshot(
+        const QString &pageToken) {
+        m_snapshotRequestTokens.append(
+            pageToken);
+
+        AccountTransportReply reply;
+
+        if (m_snapshotServed
+                >= m_snapshotFailAfterServed
+            && m_snapshotNetworkFailures
+                > 0) {
+            --m_snapshotNetworkFailures;
+            reply.networkError = true;
+            reply.errorCode =
+                QStringLiteral("offline");
+            reply.errorMessage =
+                QStringLiteral(
+                    "fixture snapshot offline");
+            return reply;
+        }
+
+        if (m_snapshotServed
+            >= m_snapshotPages.size()) {
+            reply.statusCode = 400;
+            reply.errorCode =
+                QStringLiteral(
+                    "fixture_snapshot_exhausted");
+            return reply;
+        }
+
+        const FixtureSnapshotPage &page =
+            m_snapshotPages.at(
+                m_snapshotServed++);
+
+        reply.statusCode = 200;
+
+        QJsonArray entries;
+        for (const SyncWirePullEntry &entry :
+             page.entries) {
+            QJsonObject object;
+            object.insert(
+                QStringLiteral(
+                    "server_seq"),
+                QString::number(
+                    entry.serverSeq));
+            object.insert(
+                QStringLiteral("won"),
+                entry.won);
+            if (entry.canonical) {
+                object.insert(
+                    QStringLiteral(
+                        "canonical"),
+                    true);
+            }
+            object.insert(
+                QStringLiteral(
+                    "mutation"),
+                syncWireMutationToJson(
+                    entry.mutation));
+            entries.append(object);
+        }
+
+        reply.body.insert(
+            QStringLiteral(
+                "server_time_ms"),
+            QString::number(
+                serverTimeMs));
+        reply.body.insert(
+            QStringLiteral("cursor"),
+            QString::number(
+                page.cursor));
+        reply.body.insert(
+            QStringLiteral("entries"),
+            entries);
+        reply.body.insert(
+            QStringLiteral("has_more"),
+            page.hasMore);
+        if (!page.nextPageToken
+                 .isEmpty()) {
+            reply.body.insert(
+                QStringLiteral(
+                    "next_page_token"),
+                page.nextPageToken);
+        }
+        return reply;
+    }
+
+    void notePullAfter(quint64 after) {
+        m_pullRequestAfters.append(
+            QString::number(after));
+    }
+
 private:
     quint64 m_nextServerSeq = 1;
     QList<FixtureJournalEntry> m_journal;
@@ -352,6 +504,15 @@ private:
         m_idempotency;
     QHash<QString, SyncWireMutation>
         m_current;
+    bool m_canonicalCurrentPullMode = false;
+
+    QList<FixtureSnapshotPage> m_snapshotPages;
+    int m_snapshotServed = 0;
+    int m_snapshotNetworkFailures = 0;
+    int m_snapshotFailAfterServed = 0;
+    QStringList m_snapshotRequestTokens;
+    QStringList m_pushAttachmentIds;
+    QStringList m_pullRequestAfters;
 };
 
 class FixtureSyncTransport final
@@ -367,6 +528,10 @@ public:
 
     void setOnline(bool online) {
         m_online = online;
+    }
+
+    void setPushOnline(bool online) {
+        m_pushOnline = online;
     }
 
     void dropNextPushResponseAfterCommit() {
@@ -407,13 +572,31 @@ public:
             && request.path
                 == QLatin1String(
                     "/v1/sync/push")) {
+            if (!m_pushOnline) {
+                reply.networkError = true;
+                reply.errorCode =
+                    QStringLiteral("offline");
+                reply.errorMessage =
+                    QStringLiteral(
+                        "fixture push offline");
+                emit finished(
+                    requestId,
+                    reply);
+                return;
+            }
+
             reply =
                 m_service->push(
                     request.body
                         .value(
                             QStringLiteral(
                                 "mutations"))
-                        .toArray());
+                        .toArray(),
+                    request.body
+                        .value(
+                            QStringLiteral(
+                                "attachment_id"))
+                        .toString());
 
             if (m_dropNextPush) {
                 m_dropNextPush = false;
@@ -457,6 +640,8 @@ public:
                     QStringLiteral(
                         "invalid_cursor");
             } else {
+                m_service->notePullAfter(
+                    after);
                 reply =
                     m_service->pull(
                         after);
@@ -465,6 +650,39 @@ public:
             emit finished(
                 requestId,
                 reply);
+            return;
+        }
+
+        if (request.method
+                == QByteArrayLiteral("GET")
+            && request.path
+                == QLatin1String(
+                    "/v1/sync/snapshot")) {
+            emit finished(
+                requestId,
+                m_service->snapshot(
+                    QString()));
+            return;
+        }
+
+        if (request.method
+                == QByteArrayLiteral("GET")
+            && request.path.startsWith(
+                QStringLiteral(
+                    "/v1/sync/"
+                    "snapshot?after_"
+                    "key="))) {
+            const QString token =
+                request.path.mid(
+                    QStringLiteral(
+                        "/v1/sync/"
+                        "snapshot?"
+                        "after_key=")
+                        .size());
+            emit finished(
+                requestId,
+                m_service->snapshot(
+                    token));
             return;
         }
 
@@ -480,6 +698,7 @@ public:
 private:
     FixtureSyncService *m_service = nullptr;
     bool m_online = true;
+    bool m_pushOnline = true;
     bool m_dropNextPush = false;
 };
 
@@ -503,6 +722,10 @@ public:
 
     quint64 revision() const override {
         return m_revision;
+    }
+
+    bool missingRecordsAreDeletes() const override {
+        return m_missingRecordsAreDeletes;
     }
 
     bool exportSnapshot(
@@ -583,6 +806,14 @@ public:
         ++m_revision;
     }
 
+    // Simulates the local profile being replaced by a legacy import
+    // that lacks an account record, without emitting a mutation signal.
+    void removeLocalWithoutSignal(
+        const QString &recordKey) {
+        m_records.remove(recordKey);
+        ++m_revision;
+    }
+
     void putLocal(
         const QString &recordKey,
         const QString &value) {
@@ -632,6 +863,11 @@ public:
             enabled;
     }
 
+    void setMissingRecordsAreDeletes(
+        bool enabled) {
+        m_missingRecordsAreDeletes = enabled;
+    }
+
     int remoteApplyCount() const {
         return m_remoteApplyCount;
     }
@@ -641,6 +877,7 @@ private:
         m_records;
     quint64 m_revision = 0;
     bool m_emitDuringRemoteApply = false;
+    bool m_missingRecordsAreDeletes = true;
     int m_remoteApplyCount = 0;
 };
 
@@ -674,7 +911,8 @@ struct Replica {
         FixtureSyncService *service,
         const ProfilePaths &profileValue,
         const QString &deviceId,
-        qint64 *now)
+        qint64 *now,
+        bool missingRecordsAreDeletes = true)
         : transport(service),
           client(&transport),
           engine(
@@ -687,6 +925,8 @@ struct Replica {
         client.setAccessToken(
             QByteArrayLiteral(
                 "fixture-access"));
+        adapter.setMissingRecordsAreDeletes(
+            missingRecordsAreDeletes);
 
         if (!registry.registerAdapter(
                 &adapter)) {
@@ -743,6 +983,17 @@ SyncWireMutation remoteMutation(
             : QJsonValue();
     return mutation;
 }
+
+SyncWirePullEntry canonicalSnapshotEntry(
+    quint64 serverSeq,
+    const SyncWireMutation &mutation) {
+    SyncWirePullEntry entry;
+    entry.serverSeq = serverSeq;
+    entry.won = true;
+    entry.canonical = true;
+    entry.mutation = mutation;
+    return entry;
+}
 }
 
 class tst_sync_engine final
@@ -760,13 +1011,27 @@ private slots:
     void duplicatePushAfterLostResponseIsIdempotent();
     void twoReplicasConvergeByHLCTuple();
     void tombstoneBeatsOlderOfflinePut();
+    void immutableSnapshotNeverInfersDelete();
+    void immutablePausedReplayNeverSynthesizesDelete();
+    void immutablePausedReplayRequeuesUnsyncedBaselineFact();
     void remoteImportDoesNotEchoIntoOutbox();
     void futureClockIsRebasedAndRetried();
+    void canonicalOlderHlcAppliesByServerSeqAndPreservesPendingOutbox();
+    void canonicalPullThenPendingPushLossKeepsServerCanonical();
+    void canonicalPullThenPendingPushWinRepullsLocalWinner();
+    void legacyNonCanonicalOlderHlcRemainsSuppressed();
+    void unknownCanonicalCategoryDoesNotAdvanceCursor();
     void unknownWinningCategoryDoesNotAdvanceCursor();
     void bannedRemotePayloadDoesNotAdvanceCursor();
     void signOutFlushWarnsWhenNetworkUnavailable();
     void signOutFlushSucceedsAfterDrain();
     void accountSwitchUsesSeparateProfileState();
+    void attachmentModeStampsPushesWithEnvelopeId();
+    void attachmentSnapshotPagesApplyThenLoopStops();
+    void attachmentReplayDoesNotInferDeletesForDeleteCapableAdapter();
+    void attachmentCursorFreezesAheadThenPullResumesStrictlyAfter();
+    void attachmentCursorNeverRegressesWhenAlreadyAhead();
+    void attachmentModeRestoresAcrossRestartAndResumesPerPhase();
 };
 
 void tst_sync_engine::
@@ -1369,6 +1634,115 @@ tombstoneBeatsOlderOfflinePut() {
 }
 
 void tst_sync_engine::
+immutableSnapshotNeverInfersDelete() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    FixtureSyncService service;
+    qint64 now = 2100000;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now,
+        false);
+
+    replica.adapter.putLocal(
+        QStringLiteral("immutable/item"),
+        QStringLiteral("present"));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setNetworkEnabled(true);
+    replica.engine.requestImmediateSync();
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    const int acceptedBeforeDelete =
+        service.acceptedMutationCount();
+
+    replica.engine.setNetworkEnabled(false);
+    replica.adapter.deleteLocal(
+        QStringLiteral("immutable/item"));
+
+    QCOMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(
+        service.acceptedMutationCount(),
+        acceptedBeforeDelete);
+}
+
+void tst_sync_engine::
+immutablePausedReplayNeverSynthesizesDelete() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    FixtureSyncService service;
+    qint64 now = 2200000;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now,
+        false);
+
+    replica.adapter.putLocal(
+        QStringLiteral("immutable/paused"),
+        QStringLiteral("present"));
+    replica.engine.setNetworkEnabled(true);
+    replica.engine.requestImmediateSync();
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    const int acceptedBeforePause =
+        service.acceptedMutationCount();
+
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        false);
+    replica.adapter.deleteLocal(
+        QStringLiteral("immutable/paused"));
+    QVERIFY(!replica.adapter.contains(
+        QStringLiteral("immutable/paused")));
+
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        true);
+    QTRY_VERIFY(replica.adapter.contains(
+        QStringLiteral("immutable/paused")));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(
+        service.acceptedMutationCount(),
+        acceptedBeforePause);
+}
+
+void tst_sync_engine::
+immutablePausedReplayRequeuesUnsyncedBaselineFact() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    FixtureSyncService service;
+    qint64 now = 2250000;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now,
+        false);
+
+    replica.adapter.putLocal(
+        QStringLiteral("immutable/offline"),
+        QStringLiteral("local"));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        false);
+    QCOMPARE(replica.engine.pendingOutboxCount(), 0);
+
+    replica.engine.setNetworkEnabled(true);
+    replica.engine.setCategoryNetworkEnabled(
+        QStringLiteral("collection"),
+        true);
+
+    QTRY_COMPARE(service.acceptedMutationCount(), 1);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QVERIFY(replica.adapter.contains(
+        QStringLiteral("immutable/offline")));
+}
+
+void tst_sync_engine::
 remoteImportDoesNotEchoIntoOutbox() {
     QTemporaryDir tempA;
     QTemporaryDir tempB;
@@ -1461,6 +1835,296 @@ futureClockIsRebasedAndRetried() {
     QCOMPARE(
         service.journal().size(),
         1);
+}
+
+void tst_sync_engine::
+canonicalOlderHlcAppliesByServerSeqAndPreservesPendingOutbox() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile = accountProfile(&temp);
+
+    Replica replica(
+        &service,
+        profile,
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("local-pending"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    SyncStateStore stateStore;
+    QString stateError;
+    std::optional<SyncPersistentState> before;
+    QTRY_VERIFY_WITH_TIMEOUT(
+        ((before = stateStore.load(profile.syncStatePath(), &stateError)).has_value()
+         && before->outbox.size() == 1),
+        5000);
+    const SyncWireMutation pendingBefore = before->outbox.constFirst();
+
+    const qint64 canonicalHlc = now - 1000;
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/item"),
+            QString::fromLatin1(kDeviceB),
+            canonicalHlc,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("value"),
+                    QStringLiteral("server-canonical")
+                }
+            }),
+        false,
+        true);
+
+    replica.transport.setPushOnline(false);
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(
+        replica.engine.state(),
+        SyncEngine::State::Retrying);
+    QCOMPARE(
+        replica.adapter.value(QStringLiteral("manga/item")),
+        QStringLiteral("server-canonical"));
+    QCOMPARE(replica.engine.cursor(), quint64(1));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    const auto after =
+        stateStore.load(profile.syncStatePath(), &stateError);
+    QVERIFY2(after.has_value(), qPrintable(stateError));
+    QCOMPARE(after->cursor, quint64(1));
+    QCOMPARE(after->outbox.size(), 1);
+
+    const SyncWireMutation pendingAfter = after->outbox.constFirst();
+    QCOMPARE(pendingAfter.mutationId, pendingBefore.mutationId);
+    QCOMPARE(pendingAfter.hlc.physicalMs, pendingBefore.hlc.physicalMs);
+    QCOMPARE(pendingAfter.hlc.counter, pendingBefore.hlc.counter);
+    QCOMPARE(pendingAfter.operation, pendingBefore.operation);
+    QCOMPARE(pendingAfter.payload, pendingBefore.payload);
+
+    const SyncWinner canonicalWinner =
+        after->winners
+            .value(QStringLiteral("collection"))
+            .value(QStringLiteral("manga/item"));
+    QCOMPARE(canonicalWinner.hlc.physicalMs, canonicalHlc);
+    QCOMPARE(
+        canonicalWinner.hlc.deviceId,
+        QString::fromLatin1(kDeviceB));
+    QCOMPARE(
+        after->mirrors
+            .value(QStringLiteral("collection"))
+            .value(QStringLiteral("manga/item"))
+            .payload,
+        QJsonValue(QJsonObject{
+            {
+                QStringLiteral("value"),
+                QStringLiteral("server-canonical")
+            }
+        }));
+}
+
+void tst_sync_engine::
+canonicalPullThenPendingPushLossKeepsServerCanonical() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    service.setCanonicalCurrentPullMode(true);
+    qint64 now = service.serverTimeMs;
+
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("f1000000-0000-4000-8000-000000000001"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/item"),
+            QString::fromLatin1(kDeviceB),
+            now + 1000,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("value"),
+                    QStringLiteral("server-newer")
+                }
+            }),
+        true,
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("local-pending"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QCOMPARE(
+        replica.adapter.value(QStringLiteral("manga/item")),
+        QStringLiteral("server-newer"));
+    QCOMPARE(replica.engine.cursor(), quint64(1));
+    QCOMPARE(service.acceptedMutationCount(), 1);
+    QCOMPARE(service.journal().size(), 2);
+    QVERIFY(!service.journal().constLast().won);
+}
+
+void tst_sync_engine::
+canonicalPullThenPendingPushWinRepullsLocalWinner() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    service.setCanonicalCurrentPullMode(true);
+    qint64 now = service.serverTimeMs;
+
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("f2000000-0000-4000-8000-000000000002"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/item"),
+            QString::fromLatin1(kDeviceB),
+            now - 1000,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("value"),
+                    QStringLiteral("server-older")
+                }
+            }),
+        true,
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("local-winner"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 0);
+    QTRY_COMPARE(replica.engine.cursor(), quint64(2));
+    QTRY_COMPARE(replica.engine.state(), SyncEngine::State::Idle);
+    QCOMPARE(
+        replica.adapter.value(QStringLiteral("manga/item")),
+        QStringLiteral("local-winner"));
+    QCOMPARE(service.acceptedMutationCount(), 1);
+    QCOMPARE(service.journal().size(), 2);
+    QVERIFY(service.journal().constLast().won);
+    QCOMPARE(replica.adapter.remoteApplyCount(), 2);
+}
+
+void tst_sync_engine::
+legacyNonCanonicalOlderHlcRemainsSuppressed() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("local-newer"));
+    QTRY_COMPARE(replica.engine.pendingOutboxCount(), 1);
+
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("dddddddd-dddd-4ddd-8ddd-dddddddddddd"),
+            QStringLiteral("collection"),
+            QStringLiteral("manga/item"),
+            QString::fromLatin1(kDeviceB),
+            now - 1000,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("value"),
+                    QStringLiteral("legacy-older")
+                }
+            }),
+        true,
+        false);
+
+    replica.transport.setPushOnline(false);
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(
+        replica.engine.state(),
+        SyncEngine::State::Retrying);
+    QCOMPARE(
+        replica.adapter.value(QStringLiteral("manga/item")),
+        QStringLiteral("local-newer"));
+    QCOMPARE(replica.engine.cursor(), quint64(1));
+    QCOMPARE(replica.engine.pendingOutboxCount(), 1);
+}
+
+void tst_sync_engine::
+unknownCanonicalCategoryDoesNotAdvanceCursor() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+
+    service.appendRemote(
+        remoteMutation(
+            QStringLiteral("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+            QStringLiteral("extension_roster"),
+            QStringLiteral("extension/canonical-item"),
+            QString::fromLatin1(kDeviceB),
+            now,
+            0,
+            SyncWireOperation::Put,
+            QJsonObject{
+                {
+                    QStringLiteral("value"),
+                    QStringLiteral("remote")
+                }
+            }),
+        false,
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(
+        replica.engine.state(),
+        SyncEngine::State::Blocked);
+    QCOMPARE(replica.engine.cursor(), quint64(0));
+    QCOMPARE(
+        replica.engine.lastErrorCode(),
+        QStringLiteral("adapter_not_registered"));
 }
 
 void tst_sync_engine::
@@ -1769,6 +2433,1036 @@ accountSwitchUsesSeparateProfileState() {
     QCOMPARE(
         bState->outbox.size(),
         0);
+}
+
+void tst_sync_engine::
+attachmentModeStampsPushesWithEnvelopeId() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    // Ordinary (mode-inactive) pushes carry no envelope attachment id.
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item"),
+        QStringLiteral("ordinary"));
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        1);
+
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        0);
+    QCOMPARE(
+        service.pushAttachmentIds().size(),
+        1);
+    QVERIFY(service.pushAttachmentIds()
+                .constFirst()
+                .isEmpty());
+
+    replica.engine.setNetworkEnabled(false);
+
+    QString error;
+    QVERIFY(!replica.engine.beginAttachmentMode(
+        QStringLiteral("not-a-uuid"),
+        &error));
+    QVERIFY(
+        !replica.engine
+             .attachmentModeActive());
+    QVERIFY(
+        !replica.engine.endAttachmentMode(
+            &error));
+
+    const QString attachmentId =
+        QStringLiteral(
+            "36363636-3636-4363-8363-"
+            "363636363636");
+    QVERIFY2(
+        replica.engine.beginAttachmentMode(
+            attachmentId,
+            &error),
+        qPrintable(error));
+    QVERIFY(
+        replica.engine
+            .attachmentModeActive());
+    QCOMPARE(
+        replica.engine.attachmentId(),
+        attachmentId);
+    // One attachment mode at a time.
+    QVERIFY(
+        !replica.engine.beginAttachmentMode(
+            attachmentId,
+            &error));
+
+    // The bootstrap snapshot must complete before the attached push.
+    FixtureSnapshotPage finalPage;
+    finalPage.cursor = 1;
+    finalPage.hasMore = false;
+    service.setSnapshotPages(
+        {finalPage});
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item2"),
+        QStringLiteral("attached"));
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        1);
+
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        0);
+
+    QCOMPARE(
+        service.snapshotRequestCount(),
+        1);
+    QCOMPARE(
+        service.pushAttachmentIds().size(),
+        2);
+    QCOMPARE(
+        service.pushAttachmentIds()
+            .constLast(),
+        attachmentId);
+    QCOMPARE(
+        service.journal()
+            .constLast()
+            .mutation.payload
+            .toObject()
+            .value(QStringLiteral("value"))
+            .toString(),
+        QStringLiteral("attached"));
+
+    // Exiting the mode returns pushes to the ordinary envelope.
+    QVERIFY(
+        replica.engine.endAttachmentMode(
+            &error));
+    QVERIFY(
+        !replica.engine
+             .attachmentModeActive());
+    QVERIFY(replica.engine.attachmentId()
+                .isEmpty());
+
+    replica.adapter.putLocal(
+        QStringLiteral("manga/item3"),
+        QStringLiteral(
+            "ordinary-again"));
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        1);
+    replica.engine.requestImmediateSync();
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        0);
+    QCOMPARE(
+        service.pushAttachmentIds().size(),
+        3);
+    QVERIFY(service.pushAttachmentIds()
+                .constLast()
+                .isEmpty());
+}
+
+void tst_sync_engine::
+attachmentSnapshotPagesApplyThenLoopStops() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    const QString attachmentId =
+        QStringLiteral(
+            "35353535-3535-4353-8353-"
+            "353535353535");
+
+    auto pageEntry =
+        [&now](quint64 serverSeq,
+               const QString &mutationSuffix,
+               const QString &recordKey,
+               const QString &value) {
+            return canonicalSnapshotEntry(
+                serverSeq,
+                remoteMutation(
+                    QStringLiteral(
+                        "f3100000-0000-"
+                        "4000-8000-") +
+                        mutationSuffix,
+                    QStringLiteral(
+                        "collection"),
+                    recordKey,
+                    QString::fromLatin1(
+                        kDeviceB),
+                    now,
+                    0,
+                    SyncWireOperation::Put,
+                    QJsonObject{
+                        {
+                            QStringLiteral(
+                                "value"),
+                            value
+                        }
+                    }));
+        };
+
+    FixtureSnapshotPage page1;
+    page1.cursor = 4;
+    page1.hasMore = true;
+    page1.nextPageToken =
+        QStringLiteral("page-2");
+    page1.entries.append(
+        pageEntry(
+            1,
+            QStringLiteral(
+                "000000000001"),
+            QStringLiteral(
+                "manga/a"),
+            QStringLiteral("one")));
+
+    FixtureSnapshotPage page2;
+    page2.cursor = 4;
+    page2.hasMore = true;
+    page2.nextPageToken =
+        QStringLiteral("page-3");
+    page2.entries.append(
+        pageEntry(
+            2,
+            QStringLiteral(
+                "000000000002"),
+            QStringLiteral(
+                "manga/b"),
+            QStringLiteral("two")));
+    page2.entries.append(
+        pageEntry(
+            3,
+            QStringLiteral(
+                "000000000003"),
+            QStringLiteral(
+                "manga/c"),
+            QStringLiteral("three")));
+
+    FixtureSnapshotPage page3;
+    page3.cursor = 4;
+    page3.hasMore = false;
+    page3.entries.append(
+        pageEntry(
+            4,
+            QStringLiteral(
+                "000000000004"),
+            QStringLiteral(
+                "manga/d"),
+            QStringLiteral("four")));
+
+    service.setSnapshotPages(
+        {page1, page2, page3});
+
+    QVERIFY(replica.engine.beginAttachmentMode(
+        attachmentId));
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(
+        replica.adapter.value(
+            QStringLiteral("manga/a")),
+        QStringLiteral("one"));
+    QTRY_COMPARE(
+        replica.adapter.value(
+            QStringLiteral("manga/b")),
+        QStringLiteral("two"));
+    QTRY_COMPARE(
+        replica.adapter.value(
+            QStringLiteral("manga/c")),
+        QStringLiteral("three"));
+    QTRY_COMPARE(
+        replica.adapter.value(
+            QStringLiteral("manga/d")),
+        QStringLiteral("four"));
+
+    QCOMPARE(
+        service.snapshotRequestCount(),
+        3);
+    QCOMPARE(
+        service.snapshotRequestTokens(),
+        QStringList()
+            << QString()
+            << QStringLiteral("page-2")
+            << QStringLiteral("page-3"));
+    QCOMPARE(
+        replica.engine.cursor(),
+        quint64(4));
+
+    // The loop stops: nothing else fires while the engine idles, and an
+    // immediate sync issues an ordinary pull rather than a new snapshot.
+    QTest::qWait(50);
+    QCOMPARE(
+        service.snapshotRequestCount(),
+        3);
+    replica.engine.requestImmediateSync();
+    QTRY_COMPARE(
+        replica.engine.state(),
+        SyncEngine::State::Idle);
+    QCOMPARE(
+        service.snapshotRequestCount(),
+        3);
+    QVERIFY(
+        replica.engine
+            .attachmentModeActive());
+}
+
+void tst_sync_engine::
+attachmentReplayDoesNotInferDeletesForDeleteCapableAdapter() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    // The account already holds manga/a; this device synced it
+    // ordinarily, so the engine mirror contains it.
+    replica.adapter.putLocal(
+        QStringLiteral("manga/a"),
+        QStringLiteral(
+            "account-canonical"));
+    replica.engine.setNetworkEnabled(true);
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        0);
+    replica.engine.setNetworkEnabled(false);
+    const int ordinaryAccepted =
+        service.acceptedMutationCount();
+
+    // The legacy local profile being attached lacks the record.
+    replica.adapter.removeLocalWithoutSignal(
+        QStringLiteral("manga/a"));
+    QVERIFY(!replica.adapter.contains(
+        QStringLiteral("manga/a")));
+
+    const QString attachmentId =
+        QStringLiteral(
+            "34343434-3434-4343-8343-"
+            "343434343434");
+
+    auto snapshotMutation =
+        [&now](const QString &mutationId,
+               const QString &recordKey,
+               const QString &value) {
+            return remoteMutation(
+                mutationId,
+                QStringLiteral(
+                    "collection"),
+                recordKey,
+                QString::fromLatin1(
+                    kDeviceB),
+                now,
+                0,
+                SyncWireOperation::Put,
+                QJsonObject{
+                    {
+                        QStringLiteral(
+                            "value"),
+                        value
+                    }
+                });
+        };
+
+    FixtureSnapshotPage page1;
+    page1.cursor = 3;
+    page1.hasMore = true;
+    page1.nextPageToken =
+        QStringLiteral("replay-2");
+    page1.entries.append(
+        canonicalSnapshotEntry(
+            2,
+            snapshotMutation(
+                QStringLiteral(
+                    "f3200000-0000-4000-"
+                    "8000-000000000001"),
+                QStringLiteral(
+                    "manga/b"),
+                QStringLiteral(
+                    "from-snapshot"))));
+
+    FixtureSnapshotPage page2;
+    page2.cursor = 3;
+    page2.hasMore = false;
+    page2.entries.append(
+        canonicalSnapshotEntry(
+            3,
+            snapshotMutation(
+                QStringLiteral(
+                    "f3200000-0000-4000-"
+                    "8000-000000000002"),
+                QStringLiteral(
+                    "manga/a"),
+                QStringLiteral(
+                    "account-canonical"))));
+
+    service.setSnapshotPages(
+        {page1, page2});
+    // The page-2 resume fails once so the engine parks deterministically
+    // mid-replay with page 1 applied and the bootstrap unfinished.
+    service
+        .setSnapshotNetworkFailuresAfterPages(
+            1,
+            1);
+
+    QVERIFY(replica.engine.beginAttachmentMode(
+        attachmentId));
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(
+        replica.adapter.value(
+            QStringLiteral("manga/b")),
+        QStringLiteral(
+            "from-snapshot"));
+    QTRY_COMPARE(
+        replica.engine.state(),
+        SyncEngine::State::Retrying);
+
+    // A genuine local edit lands while the snapshot replay is still in
+    // progress: the mirror holds manga/a but the local profile lacks it.
+    replica.adapter.putLocal(
+        QStringLiteral("manga/c"),
+        QStringLiteral("local-edit"));
+    replica.engine.requestImmediateSync();
+
+    QTRY_COMPARE(
+        replica.engine.pendingOutboxCount(),
+        0);
+    // Union/merge: the snapshot record missing locally is restored, not
+    // deleted from the account.
+    QTRY_VERIFY(replica.adapter.contains(
+        QStringLiteral("manga/a")));
+    QCOMPARE(
+        replica.engine.cursor(),
+        quint64(3));
+    QCOMPARE(
+        service.snapshotRequestTokens(),
+        QStringList()
+            << QString()
+            << QStringLiteral("replay-2")
+            << QStringLiteral("replay-2"));
+
+    for (const FixtureJournalEntry &entry :
+         service.journal()) {
+        QVERIFY2(
+            !(entry.mutation.operation
+                  == SyncWireOperation::
+                      Delete
+              && entry.mutation.recordKey
+                  == QLatin1String(
+                      "manga/a")),
+            "attachment replay must never "
+            "infer a delete for a record "
+            "missing locally");
+    }
+    QCOMPARE(
+        service.acceptedMutationCount(),
+        ordinaryAccepted + 1);
+    QCOMPARE(
+        service.pushAttachmentIds()
+            .constLast(),
+        attachmentId);
+}
+
+void tst_sync_engine::
+attachmentCursorFreezesAheadThenPullResumesStrictlyAfter() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+
+    auto journalMutation =
+        [&now](const QString &mutationId,
+               const QString &recordKey,
+               const QString &value) {
+            return remoteMutation(
+                mutationId,
+                QStringLiteral(
+                    "collection"),
+                recordKey,
+                QString::fromLatin1(
+                    kDeviceB),
+                now,
+                0,
+                SyncWireOperation::Put,
+                QJsonObject{
+                    {
+                        QStringLiteral(
+                            "value"),
+                        value
+                    }
+                });
+        };
+
+    const SyncWireMutation baseline1 =
+        journalMutation(
+            QStringLiteral(
+                "f3300000-0000-4000-8000-"
+                "000000000001"),
+            QStringLiteral(
+                "manga/old1"),
+            QStringLiteral("one"));
+    const SyncWireMutation baseline2 =
+        journalMutation(
+            QStringLiteral(
+                "f3300000-0000-4000-8000-"
+                "000000000002"),
+            QStringLiteral(
+                "manga/old2"),
+            QStringLiteral("two"));
+    const SyncWireMutation afterFreeze =
+        journalMutation(
+            QStringLiteral(
+                "f3300000-0000-4000-8000-"
+                "000000000003"),
+            QStringLiteral(
+                "manga/after"),
+            QStringLiteral(
+                "after-frozen"));
+
+    service.appendRemote(
+        baseline1,
+        true,
+        true);
+    service.appendRemote(
+        baseline2,
+        true,
+        true);
+    service.appendRemote(
+        afterFreeze,
+        true,
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    FixtureSnapshotPage page1;
+    page1.cursor = 2;
+    page1.hasMore = true;
+    page1.nextPageToken =
+        QStringLiteral("cursor-2");
+    page1.entries.append(
+        canonicalSnapshotEntry(
+            1,
+            baseline1));
+
+    FixtureSnapshotPage page2;
+    page2.cursor = 2;
+    page2.hasMore = false;
+    page2.entries.append(
+        canonicalSnapshotEntry(
+            2,
+            baseline2));
+
+    service.setSnapshotPages(
+        {page1, page2});
+
+    QVERIFY(replica.engine.beginAttachmentMode(
+        QStringLiteral(
+            "33333333-3333-4333-8333-"
+            "333333333333")));
+    replica.engine.setNetworkEnabled(true);
+
+    // The post-freeze journal row arrives via the ordinary pull that
+    // resumes strictly after the frozen cursor.
+    QTRY_COMPARE(
+        replica.adapter.value(
+            QStringLiteral(
+                "manga/after")),
+        QStringLiteral(
+            "after-frozen"));
+
+    QCOMPARE(
+        replica.adapter.value(
+            QStringLiteral(
+                "manga/old1")),
+        QStringLiteral("one"));
+    QCOMPARE(
+        replica.adapter.value(
+            QStringLiteral(
+                "manga/old2")),
+        QStringLiteral("two"));
+    QCOMPARE(
+        replica.engine.cursor(),
+        quint64(3));
+    QCOMPARE(
+        service.snapshotRequestCount(),
+        2);
+    QCOMPARE(
+        service.pullRequestAfters(),
+        QStringList()
+            << QStringLiteral("2"));
+    // Each record applied exactly once: no skips, no duplicates.
+    QCOMPARE(
+        replica.adapter
+            .remoteApplyCount(),
+        3);
+}
+
+void tst_sync_engine::
+attachmentCursorNeverRegressesWhenAlreadyAhead() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+
+    auto journalMutation =
+        [&now](const QString &mutationId,
+               const QString &recordKey) {
+            return remoteMutation(
+                mutationId,
+                QStringLiteral(
+                    "collection"),
+                recordKey,
+                QString::fromLatin1(
+                    kDeviceB),
+                now,
+                0,
+                SyncWireOperation::Put,
+                QJsonObject{
+                    {
+                        QStringLiteral(
+                            "value"),
+                        QStringLiteral(
+                            "journal")
+                    }
+                });
+        };
+
+    service.appendRemote(
+        journalMutation(
+            QStringLiteral(
+                "f3400000-0000-4000-8000-"
+                "000000000001"),
+            QStringLiteral(
+                "manga/j1")),
+        true,
+        true);
+    service.appendRemote(
+        journalMutation(
+            QStringLiteral(
+                "f3400000-0000-4000-8000-"
+                "000000000002"),
+            QStringLiteral(
+                "manga/j2")),
+        true,
+        true);
+    service.appendRemote(
+        journalMutation(
+            QStringLiteral(
+                "f3400000-0000-4000-8000-"
+                "000000000003"),
+            QStringLiteral(
+                "manga/j3")),
+        true,
+        true);
+
+    Replica replica(
+        &service,
+        accountProfile(&temp),
+        QString::fromLatin1(kDeviceA),
+        &now);
+
+    // Ordinary sync first: cursor advances past the frozen baseline.
+    replica.engine.setNetworkEnabled(true);
+    QTRY_VERIFY(replica.adapter.contains(
+        QStringLiteral("manga/j3")));
+    QCOMPARE(
+        replica.engine.cursor(),
+        quint64(3));
+    QCOMPARE(
+        replica.adapter
+            .remoteApplyCount(),
+        3);
+    replica.engine.setNetworkEnabled(false);
+
+    // The frozen snapshot cursor sits behind the engine cursor.
+    FixtureSnapshotPage page;
+    page.cursor = 2;
+    page.hasMore = false;
+    page.entries.append(
+        canonicalSnapshotEntry(
+            1,
+            journalMutation(
+                QStringLiteral(
+                    "f3400000-0000-4000-"
+                    "8000-000000000001"),
+                QStringLiteral(
+                    "manga/j1"))));
+    page.entries.append(
+        canonicalSnapshotEntry(
+            2,
+            journalMutation(
+                QStringLiteral(
+                    "f3400000-0000-4000-"
+                    "8000-000000000002"),
+                QStringLiteral(
+                    "manga/j2"))));
+    service.setSnapshotPages({page});
+
+    QVERIFY(replica.engine.beginAttachmentMode(
+        QStringLiteral(
+            "32323232-3232-4323-8323-"
+            "323232323232")));
+    replica.engine.setNetworkEnabled(true);
+
+    QTRY_COMPARE(
+        service.snapshotRequestCount(),
+        1);
+    QTRY_COMPARE(
+        service.pullRequestAfters().size(),
+        2);
+    QCOMPARE(
+        service.pullRequestAfters()
+            .constFirst(),
+        QStringLiteral("0"));
+    QCOMPARE(
+        service.pullRequestAfters()
+            .constLast(),
+        QStringLiteral("3"));
+
+    // The cursor never regresses to the frozen baseline, and entries
+    // the engine already pulled are neither re-applied nor duplicated.
+    QCOMPARE(
+        replica.engine.cursor(),
+        quint64(3));
+    QCOMPARE(
+        replica.adapter
+            .remoteApplyCount(),
+        3);
+}
+
+void tst_sync_engine::
+attachmentModeRestoresAcrossRestartAndResumesPerPhase() {
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+
+    FixtureSyncService service;
+    qint64 now = service.serverTimeMs;
+    const ProfilePaths profile =
+        accountProfile(&temp);
+    const QString attachmentId =
+        QStringLiteral(
+            "37373737-3737-4373-8373-"
+            "373737373737");
+
+    auto snapshotMutation =
+        [&now](const QString &mutationId,
+               const QString &recordKey,
+               const QString &value) {
+            return remoteMutation(
+                mutationId,
+                QStringLiteral(
+                    "collection"),
+                recordKey,
+                QString::fromLatin1(
+                    kDeviceB),
+                now,
+                0,
+                SyncWireOperation::Put,
+                QJsonObject{
+                    {
+                        QStringLiteral(
+                            "value"),
+                        value
+                    }
+                });
+        };
+
+    FixtureSnapshotPage page1;
+    page1.cursor = 2;
+    page1.hasMore = true;
+    page1.nextPageToken =
+        QStringLiteral("resume-2");
+    page1.entries.append(
+        canonicalSnapshotEntry(
+            1,
+            snapshotMutation(
+                QStringLiteral(
+                    "f3500000-0000-4000-"
+                    "8000-000000000001"),
+                QStringLiteral(
+                    "manga/p1"),
+                QStringLiteral(
+                    "page-one"))));
+
+    FixtureSnapshotPage page2;
+    page2.cursor = 2;
+    page2.hasMore = false;
+    page2.entries.append(
+        canonicalSnapshotEntry(
+            2,
+            snapshotMutation(
+                QStringLiteral(
+                    "f3500000-0000-4000-"
+                    "8000-000000000002"),
+                QStringLiteral(
+                    "manga/p2"),
+                QStringLiteral(
+                    "page-two"))));
+
+    service.setSnapshotPages({page1, page2});
+
+    // The resume request after page 1 fails once, parking the engine
+    // mid-pagination with a durable continuation token.
+    service
+        .setSnapshotNetworkFailuresAfterPages(
+            1,
+            1);
+
+    SyntheticAdapter adapter;
+
+    {
+        FixtureSyncTransport transport(
+            &service);
+        AccountClient client(&transport);
+        client.setAccessToken(
+            QByteArrayLiteral(
+                "fixture-access"));
+
+        SyncAdapterRegistry registry;
+        QVERIFY(
+            registry.registerAdapter(
+                &adapter));
+
+        SyncEngine first(
+            &client,
+            &registry,
+            [&now]() {
+                return now;
+            });
+        first.setAutomaticSchedulingEnabled(
+            false);
+        first.setNetworkEnabled(false);
+
+        QString error;
+        QVERIFY2(
+            first.start(
+                profile,
+                QString::fromLatin1(
+                    kDeviceA),
+                &error),
+            qPrintable(error));
+        QVERIFY(
+            first.beginAttachmentMode(
+                attachmentId,
+                &error));
+        first.setNetworkEnabled(true);
+
+        QTRY_COMPARE(
+            adapter.value(
+                QStringLiteral(
+                    "manga/p1")),
+            QStringLiteral(
+                "page-one"));
+        QTRY_COMPARE(
+            first.state(),
+            SyncEngine::State::Retrying);
+        QVERIFY(
+            first.stopPreservingOutbox());
+    }
+
+    {
+        SyncStateStore store;
+        QString error;
+        const auto midState =
+            store.load(
+                profile.syncStatePath(),
+                &error);
+        QVERIFY2(
+            midState.has_value(),
+            qPrintable(error));
+        QVERIFY(
+            midState
+                ->attachmentModeActive);
+        QCOMPARE(
+            midState->attachmentId,
+            attachmentId);
+        QVERIFY(
+            !midState
+                 ->attachmentSnapshotDone);
+        QCOMPARE(
+            midState
+                ->attachmentSnapshotNextPageToken,
+            QStringLiteral("resume-2"));
+    }
+
+    // Restart 1: the restored mode resumes the snapshot from the
+    // durable token instead of restarting the bootstrap.
+    {
+        FixtureSyncTransport transport(
+            &service);
+        AccountClient client(&transport);
+        client.setAccessToken(
+            QByteArrayLiteral(
+                "fixture-access"));
+
+        SyncAdapterRegistry registry;
+        QVERIFY(
+            registry.registerAdapter(
+                &adapter));
+
+        SyncEngine second(
+            &client,
+            &registry,
+            [&now]() {
+                return now;
+            });
+        second.setAutomaticSchedulingEnabled(
+            false);
+        second.setNetworkEnabled(false);
+
+        QString error;
+        QVERIFY2(
+            second.start(
+                profile,
+                QString::fromLatin1(
+                    kDeviceA),
+                &error),
+            qPrintable(error));
+        QVERIFY(
+            second.attachmentModeActive());
+        QCOMPARE(
+            second.attachmentId(),
+            attachmentId);
+
+        second.setNetworkEnabled(true);
+
+        QTRY_COMPARE(
+            adapter.value(
+                QStringLiteral(
+                    "manga/p2")),
+            QStringLiteral(
+                "page-two"));
+        QCOMPARE(
+            second.cursor(),
+            quint64(2));
+        QCOMPARE(
+            service.snapshotRequestTokens()
+                .count(QString()),
+            1);
+        QCOMPARE(
+            service.snapshotRequestTokens()
+                .constLast(),
+            QStringLiteral("resume-2"));
+
+        // Park the engine with the snapshot complete but a pending
+        // attached push still in the outbox.
+        second.setNetworkEnabled(false);
+        adapter.putLocal(
+            QStringLiteral("manga/p3"),
+            QStringLiteral(
+                "attached-edit"));
+        QTRY_COMPARE(
+            second.pendingOutboxCount(),
+            1);
+        QVERIFY(
+            second.stopPreservingOutbox());
+    }
+
+    {
+        SyncStateStore store;
+        QString error;
+        const auto pushPhase =
+            store.load(
+                profile.syncStatePath(),
+                &error);
+        QVERIFY2(
+            pushPhase.has_value(),
+            qPrintable(error));
+        QVERIFY(
+            pushPhase
+                ->attachmentModeActive);
+        QCOMPARE(
+            pushPhase->attachmentId,
+            attachmentId);
+        QVERIFY(
+            pushPhase
+                ->attachmentSnapshotDone);
+        QVERIFY(pushPhase
+                    ->attachmentSnapshotNextPageToken
+                    .isEmpty());
+        QCOMPARE(
+            pushPhase->outbox.size(),
+            1);
+    }
+
+    // Restart 2: the durable phase says the bootstrap is done, so only
+    // the attached push remains to drain.
+    {
+        FixtureSyncTransport transport(
+            &service);
+        AccountClient client(&transport);
+        client.setAccessToken(
+            QByteArrayLiteral(
+                "fixture-access"));
+
+        SyncAdapterRegistry registry;
+        QVERIFY(
+            registry.registerAdapter(
+                &adapter));
+
+        SyncEngine third(
+            &client,
+            &registry,
+            [&now]() {
+                return now;
+            });
+        third.setAutomaticSchedulingEnabled(
+            false);
+        third.setNetworkEnabled(false);
+
+        QString error;
+        QVERIFY2(
+            third.start(
+                profile,
+                QString::fromLatin1(
+                    kDeviceA),
+                &error),
+            qPrintable(error));
+        QVERIFY(
+            third.attachmentModeActive());
+
+        third.setNetworkEnabled(true);
+        QTRY_COMPARE(
+            third.pendingOutboxCount(),
+            0);
+
+        QCOMPARE(
+            service.pushAttachmentIds(),
+            QStringList()
+                << attachmentId);
+        QCOMPARE(
+            service.snapshotRequestTokens()
+                .count(QString()),
+            1);
+
+        QVERIFY(
+            third.endAttachmentMode(
+                &error));
+        QVERIFY(
+            !third.attachmentModeActive());
+    }
 }
 
 QTEST_MAIN(tst_sync_engine)
