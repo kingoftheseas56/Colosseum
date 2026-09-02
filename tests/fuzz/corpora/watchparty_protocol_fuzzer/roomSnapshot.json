@@ -1,1 +1,0 @@
-{"version":3,"type":"roomSnapshot","roomId":"r1","senderId":"s1","sequence":8,"payload":{"participants":[{"participantId":"s1","displayName":"A"}],"timeline":{"playing":false,"positionMs":0},"source":{"kind":"url","uri":"x"}}}

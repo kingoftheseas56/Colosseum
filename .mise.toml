@@ -1,0 +1,37 @@
+[tools]
+rust = "1.98.0"
+
+# ── the rapid loop ────────────────────────────────────────────────────────────
+# inner (on save):   mise watch -t check -t test
+# gate (pre-commit): mise run lint
+# outer (on demand): mise run smoke
+
+[tasks.check]
+description = "fast type check — the inner loop"
+run = "cargo check --workspace"
+
+[tasks.test]
+description = "unit tests"
+run = "cargo test --workspace"
+
+[tasks.lint]
+description = "format check + clippy, warnings fatal"
+run = "cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings"
+
+[tasks.smoke]
+description = "boot daemon, hit both endpoints, kill"
+run = "scripts/smoke.sh"
+
+[tasks.watch]
+description = "inner loop: check+test on every save"
+run = "mise watch -t check -t test"
+
+# ── cross builds (rust-native tooling) ────────────────────────────────────────
+
+[tasks.build-windows]
+description = "cross-compile x86_64-pc-windows-msvc from macOS via cargo-xwin"
+run = "cargo xwin build --release --target x86_64-pc-windows-msvc --workspace"
+
+[tasks.build-macos]
+description = "native arm64 release build"
+run = "cargo build --release --workspace"

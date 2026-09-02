@@ -1,0 +1,8 @@
+[package]
+name = "catalog"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rusqlite.workspace = true
+serde.workspace = true

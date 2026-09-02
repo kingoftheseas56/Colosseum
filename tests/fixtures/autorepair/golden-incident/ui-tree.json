@@ -1,4 +1,0 @@
-{
-  "available": false,
-  "reason": "post-mortem packet: dump-ui requires a live session; this builder runs after the tagged session already exited"
-}

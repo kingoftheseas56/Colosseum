@@ -1,7 +1,0 @@
-{
-  "name": "lanista-self-visual",
-  "steps": [
-    { "label": "home matches its golden",
-      "expect_visual": { "target": "window", "golden": "harness_home", "maxDistance": 6 } }
-  ]
-}

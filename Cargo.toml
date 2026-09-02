@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = ["crates/catalog", "crates/account", "crates/daemon"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+# Library decisions for the POC. Rationale lives in docs/rust-poc.md;
+# adding a dep here should come with a line there.
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+argon2 = "0.5"
+rand = "0.9"
+uuid = { version = "1", features = ["v4"] }
+directories = "6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+time = { version = "0.3", features = ["serde", "formatting"] }
+
+[profile.dev]
+# POC: trade a little debug info for much faster link times in the inner loop
+debug = "line-tables-only"
