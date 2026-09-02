@@ -27,6 +27,7 @@
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><strong>Download latest</strong></a> &nbsp;|&nbsp;
   <a href="docs/README.md">Docs</a> &nbsp;|&nbsp;
   <a href="docs/build/windows.md">Build on Windows</a> &nbsp;|&nbsp;
+  <a href="docs/build/macos.md">Build on macOS</a> &nbsp;|&nbsp;
   <a href="https://github.com/kingoftheseas56/Colosseum/issues/new?template=bug_report.yml">Report a bug</a> &nbsp;|&nbsp;
   <a href="SUPPORT.md">Support</a> &nbsp;|&nbsp;
   <a href="CONTRIBUTING.md">Contribute</a> &nbsp;|&nbsp;
