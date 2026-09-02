@@ -47,8 +47,15 @@ StreamServer::StreamServer(QObject *parent)
 StreamServer::~StreamServer()
 {
     if (m_proc) {
-        m_proc->kill();
-        m_proc->waitForFinished(2000);
+        // Teardown is not a startup failure. Disconnect lifecycle callbacks before
+        // stopping the owned runtime so an intentional exit cannot emit the
+        // fail-before-ready warning path while this object is being destroyed.
+        disconnect(m_proc, nullptr, this, nullptr);
+        m_proc->terminate();
+        if (!m_proc->waitForFinished(2000)) {
+            m_proc->kill();
+            m_proc->waitForFinished(2000);
+        }
     }
 }
 
