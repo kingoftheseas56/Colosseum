@@ -80,19 +80,38 @@ jobs:
       - name: Install Chromium host tools (gperf, flex, bison)
         shell: pwsh
         run: |
-          # flex + bison via winflexbison (exposes win_flex/win_bison AND flex/bison shims)
-          choco install --no-progress -y winflexbison3
-          # gperf: Chromium's blink code-gen needs it on PATH. choco has no reliable
-          # gperf pkg, so fetch the GnuWin32 build we know works (3.0.1).
+          # All three host tools land in one dedicated dir (GPERF_DIR) that goes on
+          # PATH -- never the whole msys2/bin, which would shadow MSVC's link.exe.
           New-Item -ItemType Directory -Force -Path $env:GPERF_DIR | Out-Null
-          $zip = Join-Path $env:RUNNER_TEMP "gperf.zip"
-          $uri = "https://downloads.sourceforge.net/gnuwin32/gperf-3.0.1-bin.zip"
-          Invoke-WebRequest -Uri $uri -OutFile $zip -MaximumRetryCount 5 -RetryIntervalSec 10
-          Expand-Archive -Path $zip -DestinationPath $env:GPERF_DIR -Force
-          $gperf = Get-ChildItem $env:GPERF_DIR -Recurse -Filter gperf.exe | Select-Object -First 1
-          if (-not $gperf) { throw "gperf.exe not found after extract" }
-          $gperf.Directory.FullName | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
-          Write-Output "gperf at $($gperf.FullName)"
+
+          # flex + bison via winflexbison. Chromium invokes them as `flex`/`bison`,
+          # so alias win_flex/win_bison to those names; copy the whole tools dir so
+          # bison finds its data\ skeletons next to the exe.
+          choco install --no-progress -y winflexbison3
+          if ($LASTEXITCODE -ne 0) { throw "winflexbison3 install failed" }
+          $wfb = "C:\ProgramData\chocolatey\lib\winflexbison3\tools"
+          Copy-Item "$wfb\*" $env:GPERF_DIR -Recurse -Force
+          Copy-Item (Join-Path $env:GPERF_DIR "win_flex.exe")  (Join-Path $env:GPERF_DIR "flex.exe")  -Force
+          Copy-Item (Join-Path $env:GPERF_DIR "win_bison.exe") (Join-Path $env:GPERF_DIR "bison.exe") -Force
+
+          # gperf: prefer preinstalled MSYS2 (reliable); copy just gperf.exe + its
+          # runtime dll. Fallback to the GnuWin32 zip (correct SourceForge path).
+          $pacman = "C:\msys64\usr\bin\pacman.exe"
+          if (Test-Path $pacman) {
+            & $pacman -S --noconfirm --needed gperf
+            if ($LASTEXITCODE -ne 0) { throw "pacman gperf install failed" }
+            Copy-Item "C:\msys64\usr\bin\gperf.exe"    $env:GPERF_DIR -Force
+            Copy-Item "C:\msys64\usr\bin\msys-2.0.dll" $env:GPERF_DIR -Force
+          } else {
+            $zip = Join-Path $env:RUNNER_TEMP "gperf.zip"
+            Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/gnuwin32/gperf/3.0.1/gperf-3.0.1-bin.zip" -OutFile $zip -MaximumRetryCount 5 -RetryIntervalSec 15
+            Expand-Archive -Path $zip -DestinationPath $env:GPERF_DIR -Force
+          }
+
+          $env:GPERF_DIR | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $env:GPERF_DIR "gperf.exe") --version | Select-Object -First 1
+          & (Join-Path $env:GPERF_DIR "bison.exe") --version | Select-Object -First 1
+          & (Join-Path $env:GPERF_DIR "flex.exe")  --version | Select-Object -First 1
 
       - name: Verify toolchain
         shell: pwsh
