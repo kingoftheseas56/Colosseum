@@ -36,7 +36,7 @@ pub enum PlayerEvent {
     Failed(String),
 }
 
-pub trait Player: Send {
+pub trait Player {
     fn load(&mut self, url: &str) -> Result<(), PlayerError>;
     fn play(&mut self);
     fn pause(&mut self);
