@@ -1307,12 +1307,14 @@ add_custom_command(TARGET colosseum_qml_tests POST_BUILD
             "$<TARGET_FILE:Qt6::QuickTest>"
             "$<TARGET_FILE:Qt6::Test>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
             "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>"
             "${CMAKE_CURRENT_BINARY_DIR}/../platforms")
+endif()
 add_test(NAME colosseum.qml
          COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml")
 set_tests_properties(colosseum.qml PROPERTIES
@@ -2457,12 +2459,14 @@ add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::Quick>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
 add_custom_command(TARGET tst_profile_preferences_sync POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
             "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>"
             "${CMAKE_CURRENT_BINARY_DIR}/../platforms")
+endif()
 add_test(NAME colosseum.qttest.profile_preferences_sync
          COMMAND tst_profile_preferences_sync)
 set_tests_properties(colosseum.qttest.profile_preferences_sync PROPERTIES
