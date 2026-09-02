@@ -51,15 +51,15 @@ Item {
         if (crumb.keyboardSegment >= 0) crumb.segmentClicked(crumb.keyboardSegment)
         event.accepted = true
     }
-    Keys.onHomePressed: (event) => {
+    Keys.onPressed: (event) => {
         const list = crumb.clickableLayout
-        if (list.length) crumb.keyboardSegment = list[0]
-        event.accepted = list.length > 0
-    }
-    Keys.onEndPressed: (event) => {
-        const list = crumb.clickableLayout
-        if (list.length) crumb.keyboardSegment = list[list.length - 1]
-        event.accepted = list.length > 0
+        if (event.key === Qt.Key_Home) {
+            if (list.length) crumb.keyboardSegment = list[0]
+            event.accepted = list.length > 0
+        } else if (event.key === Qt.Key_End) {
+            if (list.length) crumb.keyboardSegment = list[list.length - 1]
+            event.accepted = list.length > 0
+        }
     }
 
     Theme { id: theme }

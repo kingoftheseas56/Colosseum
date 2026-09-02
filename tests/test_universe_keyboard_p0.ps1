@@ -50,12 +50,14 @@ Need 'qml\EraUniversePage.qml' 'appendSingleton: !!root.uni.comics' 'comics door
 NeedCount 'qml\EraUniversePage.qml' 'UniverseRailFocus {' 2 'books and extra rails must each be composite regions.'
 Need 'qml\EraUniversePage.qml' 'id: beginKey' 'golden-path watch button needs keyboard activation.'
 
-# Star Wars: the triptych is deliberately column-major, not flattened to a generic row-major grid.
-Need 'qml\GalaxyUniversePage.qml' 'id: triptychFocus' 'Skywalker triptych needs dedicated spatial navigation.'
-Need 'qml\GalaxyUniversePage.qml' 'itemsProperty: "films"' 'triptych Up/Down must walk films inside an era.'
-Need 'qml\GalaxyUniversePage.qml' 'UniverseRailFocus {' 'standalone/live/animated shelves need local arrows.'
-Need 'qml\GalaxyUniversePage.qml' 'id: galaxyComicsKey' 'comics archive door needs keyboard activation.'
-Need 'qml\GalaxyUniversePage.qml' 'id: beginKey' 'A New Hope golden path needs keyboard activation.'
+# Star Wars evolved after the Arc 41 snapshot into StarWarsGalaxySystem + StarWarsMediaShelf.
+# Verify the current runtime rather than the retired generic triptych identifiers.
+Need 'qml\GalaxyUniversePage.qml' 'KeyboardScrollController {' 'destination view needs keyboard scrolling.'
+Need 'qml\StarWarsGalaxySystem.qml' 'Keys.onUpPressed' 'galaxy destinations need Up navigation.'
+Need 'qml\StarWarsGalaxySystem.qml' 'Keys.onDownPressed' 'galaxy destinations need Down navigation.'
+Need 'qml\StarWarsGalaxySystem.qml' 'Keys.onSpacePressed' 'galaxy destinations need Space activation.'
+Need 'qml\StarWarsMediaShelf.qml' 'Keys.onLeftPressed' 'media shelves need local Left navigation.'
+Need 'qml\StarWarsMediaShelf.qml' 'Keys.onRightPressed' 'media shelves need local Right navigation.'
 
 # Sagas: Read/Watch halves, ordered novel shelf, adaptation rails, comics door.
 Need 'qml\SagaUniversePage.qml' 'id: halfKey' 'Read/Watch halves need keyboard activation.'
