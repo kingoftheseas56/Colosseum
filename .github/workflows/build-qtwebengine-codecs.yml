@@ -94,22 +94,31 @@ jobs:
           Copy-Item (Join-Path $env:GPERF_DIR "win_flex.exe")  (Join-Path $env:GPERF_DIR "flex.exe")  -Force
           Copy-Item (Join-Path $env:GPERF_DIR "win_bison.exe") (Join-Path $env:GPERF_DIR "bison.exe") -Force
 
-          # gperf: prefer preinstalled MSYS2 (reliable); copy just gperf.exe + its
-          # runtime dll. Fallback to the GnuWin32 zip (correct SourceForge path).
-          $pacman = "C:\msys64\usr\bin\pacman.exe"
+          # gperf: prefer preinstalled MSYS2. Its gperf.exe depends on several
+          # MSYS DLLs (libintl/libiconv, not just msys-2.0.dll) so it cannot be
+          # copied out standalone -- leave it in place and add usr\bin to PATH
+          # (appended LAST so it can never shadow MSVC/Qt tools already earlier
+          # on PATH). Fall back to the GnuWin32 zip if MSYS2 isn't present.
+          $msysBin = "C:\msys64\usr\bin"
+          $pacman  = Join-Path $msysBin "pacman.exe"
           if (Test-Path $pacman) {
-            & $pacman -S --noconfirm --needed gperf
-            if ($LASTEXITCODE -ne 0) { throw "pacman gperf install failed" }
-            Copy-Item "C:\msys64\usr\bin\gperf.exe"    $env:GPERF_DIR -Force
-            Copy-Item "C:\msys64\usr\bin\msys-2.0.dll" $env:GPERF_DIR -Force
+            & $pacman -Syu --noconfirm --needed 2>&1 | Out-Null   # sync db first; ignore benign hook noise
+            & $pacman -S --noconfirm --needed gperf 2>&1 | Tee-Object -Variable pacOut | Out-Null
+            $pacOut | ForEach-Object { Write-Output $_ }
+            if (-not (Test-Path (Join-Path $msysBin "gperf.exe"))) { throw "gperf.exe missing after pacman install" }
+            $msysBin | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+            $gperfExe = Join-Path $msysBin "gperf.exe"
           } else {
             $zip = Join-Path $env:RUNNER_TEMP "gperf.zip"
             Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/gnuwin32/gperf/3.0.1/gperf-3.0.1-bin.zip" -OutFile $zip -MaximumRetryCount 5 -RetryIntervalSec 15
             Expand-Archive -Path $zip -DestinationPath $env:GPERF_DIR -Force
+            $env:GPERF_DIR | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+            $gperfExe = Join-Path $env:GPERF_DIR "gperf.exe"
           }
 
-          $env:GPERF_DIR | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
-          & (Join-Path $env:GPERF_DIR "gperf.exe") --version | Select-Object -First 1
+          $env:GPERF_DIR | Out-File $env:GITHUB_PATH -Encoding utf8 -Append   # flex.exe/bison.exe live here
+          & $gperfExe --version | Select-Object -First 1
+          if ($LASTEXITCODE -ne 0) { throw "gperf.exe --version failed (exit $LASTEXITCODE)" }
           & (Join-Path $env:GPERF_DIR "bison.exe") --version | Select-Object -First 1
           & (Join-Path $env:GPERF_DIR "flex.exe")  --version | Select-Object -First 1
 
