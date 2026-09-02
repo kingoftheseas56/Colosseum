@@ -33,8 +33,8 @@ run = "mise watch -t loop"
 # ── cross builds (rust-native tooling) ────────────────────────────────────────
 
 [tasks.build-windows]
-description = "cross-compile x86_64-pc-windows-msvc from macOS via cargo-xwin"
-run = "cargo xwin build --release --target x86_64-pc-windows-msvc --workspace"
+description = "cross-compile x86_64-pc-windows-gnu from macOS via cargo-zigbuild"
+run = "cargo zigbuild --release --target x86_64-pc-windows-gnu --workspace"
 
 [tasks.build-macos]
 description = "native arm64 release build"
