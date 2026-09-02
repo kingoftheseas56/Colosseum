@@ -56,11 +56,13 @@ use serde::{Deserialize, Serialize};
 use tracing_subscriber::EnvFilter;
 
 use account::{CreateAccountRequest, RefreshRequest, Service as AccountService, SignInRequest};
+use addons::Registry;
 use catalog::Catalog;
 
 struct AppState {
     catalog: Arc<Catalog>,
     accounts: Arc<AccountService>,
+    addons: Arc<Registry>,
     ready: AtomicBool,
 }
 
@@ -139,6 +141,7 @@ async fn main() {
     let state = Arc::new(AppState {
         catalog: Arc::new(Catalog::open(&data_dir.join("catalog.db")).expect("open catalog")),
         accounts: Arc::new(AccountService::in_memory()),
+        addons: Arc::new(Registry::seeded()),
         ready: AtomicBool::new(false),
     });
     state.catalog.seed_demo();
@@ -151,6 +154,7 @@ async fn main() {
         .route("/catalog/search", get(search_catalog))
         .route("/catalog/home", get(catalog_home))
         .route("/catalog/series/{id}", get(catalog_series))
+        .route("/catalog/series/{id}/sources", get(catalog_sources))
         .route("/v1/accounts", post(create_account))
         .route("/v1/sessions", post(sign_in))
         .route("/v1/sessions/refresh", post(refresh_session))
@@ -213,6 +217,25 @@ async fn catalog_series(
     }
 }
 
+/// `GET /catalog/series/{id}/sources` — the seeded add-on sources for one
+/// series, candidates sorted per the addons crate's ranking (quality → seeders
+/// → release → language → install priority). Unknown ids 404 with the same
+/// envelope as the detail route.
+async fn catalog_sources(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<SeriesPath>,
+) -> Response {
+    if state.catalog.series(path.id).is_none() {
+        return write_api_error(
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "No series with that id.",
+        );
+    }
+    let sources = state.addons.sources("series", &path.id.to_string());
+    (StatusCode::OK, Json(sources)).into_response()
+}
+
 async fn create_account(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateAccountRequest>,
@@ -232,4 +255,78 @@ async fn refresh_session(
     Json(request): Json<RefreshRequest>,
 ) -> Response {
     account_response(state.accounts.refresh(request))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_state() -> Arc<AppState> {
+        let catalog = Catalog::open_in_memory().expect("in-memory catalog");
+        catalog.seed_demo();
+        Arc::new(AppState {
+            catalog: Arc::new(catalog),
+            accounts: Arc::new(AccountService::in_memory()),
+            addons: Arc::new(Registry::seeded()),
+            ready: AtomicBool::new(true),
+        })
+    }
+
+    async fn json_body(response: Response) -> serde_json::Value {
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("response body");
+        serde_json::from_slice(&bytes).expect("json body")
+    }
+
+    #[tokio::test]
+    async fn sources_returns_seeded_candidates_for_series_2() {
+        let state = test_state();
+        let response = catalog_sources(State(state), Path(SeriesPath { id: 2 })).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let json = json_body(response).await;
+        let candidates = json["candidates"].as_array().expect("candidates array");
+        assert_eq!(candidates.len(), 9);
+
+        // Quality first: the 4K rows lead across both add-ons, and a NoTorrent
+        // 4K direct row sorts above Torrentio 1080p rows (install priority is
+        // the last key, not the first).
+        assert_eq!(candidates[0]["addon"], "Torrentio");
+        assert_eq!(candidates[0]["kind"], "torrent");
+        assert_eq!(candidates[0]["quality"], "4K");
+        assert!(candidates[0]["info_hash"].is_string());
+        assert_eq!(candidates[0]["file_idx"], 0);
+
+        assert_eq!(candidates[1]["addon"], "NoTorrent");
+        assert_eq!(candidates[1]["kind"], "direct");
+        assert_eq!(candidates[1]["quality"], "4K");
+        assert!(candidates[1]["url"]
+            .as_str()
+            .expect("url")
+            .starts_with("https://"));
+
+        // Deterministic aggregate counts and install order.
+        let counts = json["counts_by_addon"].as_object().expect("counts");
+        assert_eq!(counts["Torrentio"], 6);
+        assert_eq!(counts["NoTorrent"], 3);
+
+        let installed = json["installed_addons"].as_array().expect("installed");
+        assert_eq!(installed.len(), 2);
+        assert_eq!(installed[0]["name"], "Torrentio");
+        assert_eq!(installed[0]["priority"], 0);
+        assert_eq!(installed[1]["name"], "NoTorrent");
+        assert_eq!(installed[1]["priority"], 1);
+    }
+
+    #[tokio::test]
+    async fn sources_404_for_unknown_series_id() {
+        let state = test_state();
+        let response = catalog_sources(State(state), Path(SeriesPath { id: 999 })).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        let json = json_body(response).await;
+        assert_eq!(json["error"]["code"], "not_found");
+        assert_eq!(json["error"]["message"], "No series with that id.");
+    }
 }

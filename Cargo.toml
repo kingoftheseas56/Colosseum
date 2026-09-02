@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/catalog", "crates/account", "crates/daemon", "crates/ui-gpui", "crates/player", "crates/ui-widgets"]
+members = ["crates/catalog", "crates/account", "crates/daemon", "crates/ui-gpui", "crates/player", "crates/ui-widgets", "crates/addons"]
 
 [workspace.package]
 edition = "2021"
@@ -12,6 +12,7 @@ version = "0.1.0"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 rusqlite = { version = "0.37", features = ["bundled"] }
 argon2 = "0.5"
 rand = "0.9"

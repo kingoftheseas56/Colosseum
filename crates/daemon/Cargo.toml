@@ -12,3 +12,7 @@ tracing-subscriber.workspace = true
 directories.workspace = true
 catalog = { path = "../catalog" }
 account = { path = "../account" }
+addons = { path = "../addons" }
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -1,0 +1,19 @@
+{
+  "streams": [
+    {
+      "name": "NoTorrent",
+      "title": "Demo.Series.Beta.S01E01.1080p.WEB-DL.H.264\n💾 5.50 GB",
+      "url": "https://cdn.notorrent.example/video/demo-series-beta-s01e01-1080p.mkv"
+    },
+    {
+      "name": "NoTorrent",
+      "title": "Demo.Series.Beta.S01E01.2160p.REMUX.HDR.HEVC\n💾 22.10 GB",
+      "url": "https://cdn.notorrent.example/video/demo-series-beta-s01e01-2160p.mkv"
+    },
+    {
+      "name": "NoTorrent",
+      "title": "Demo.Series.Beta.S01E01.720p.WEBRip.x264\n💾 2.20 GB",
+      "url": "https://cdn.notorrent.example/video/demo-series-beta-s01e01-720p.mkv"
+    }
+  ]
+}

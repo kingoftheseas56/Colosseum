@@ -1,0 +1,54 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio",
+      "title": "Alpha.Release.2022.1080p.WEBRip.x264-RLS\n👤 100 💾 1.90 GB\n🇬🇧",
+      "infoHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "fileIdx": 0
+    },
+    {
+      "name": "Torrentio",
+      "title": "Alpha.Release.2022.1080p.WEB-DL.DDP5.1.H.264-GRP\n👤 900 💾 4.11 GB\n🇬🇧",
+      "infoHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "fileIdx": 3,
+      "behaviorHints": {
+        "bingeGroup": "alpha-release-1080p",
+        "filename": "Alpha.Release.2022.1080p.mkv"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "Alpha.Release.2022.720p.WEB-DL.H.264-GRP\n👤 9999 💾 2.65 GB\n🇬🇧",
+      "infoHash": "ffffffffffffffffffffffffffffffffffffffff",
+      "fileIdx": 0
+    },
+    {
+      "name": "Torrentio",
+      "title": "Alpha.Release.2022.1080p.WEB-DL.DDP5.1.H.264-GRP\n👤 900 💾 4.20 GB\n🇬🇧 🇵🇱",
+      "infoHash": "cccccccccccccccccccccccccccccccccccccccc",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "alpha-release-1080p",
+        "filename": "Alpha.Release.2022.1080p.multi.mkv"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "Zeta.Release.2022.2160p.WEB-DL.DDP5.1.Atmos.HDR.DV.HEVC-FLUX\n👤 50 💾 18.42 GB\n🇬🇧",
+      "infoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "zeta-release-2160p"
+      }
+    },
+    {
+      "name": "Torrentio",
+      "title": "Beta.Release.2022.1080p.WEB-DL.DDP5.1.H.264-GRP\n👤 900 💾 5.02 GB\n🇬🇧",
+      "infoHash": "dddddddddddddddddddddddddddddddddddddddd",
+      "fileIdx": 1,
+      "behaviorHints": {
+        "bingeGroup": "beta-release-1080p"
+      }
+    }
+  ]
+}

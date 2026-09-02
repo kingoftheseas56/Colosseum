@@ -16,6 +16,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "addons"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1423,10 +1431,12 @@ name = "daemon"
 version = "0.1.0"
 dependencies = [
  "account",
+ "addons",
  "axum",
  "catalog",
  "directories",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -6647,6 +6657,13 @@ dependencies = [
  "serde_json",
  "smallvec",
  "tokio",
+]
+
+[[package]]
+name = "ui-widgets"
+version = "0.1.0"
+dependencies = [
+ "gpui",
 ]
 
 [[package]]
