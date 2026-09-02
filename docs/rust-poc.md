@@ -104,8 +104,9 @@ port, not a runtime dependency.
 Only the daemon cross-builds via zigbuild; the UI builds natively per-OS
 (macOS needs the Metal toolchain).
 
-QML→GPUI parity tracking is planned for `docs/parity.md` (a parity-ledger task
-is writing that file in parallel).
+**Parity ledger**: the surface-by-surface QML→GPUI inventory (per top-level
+`qml/` surface: reference files, daemon endpoints it needs, GPUI widgets it
+implies, phase) is [docs/parity.md](parity.md).
 
 ## Player architecture
 
