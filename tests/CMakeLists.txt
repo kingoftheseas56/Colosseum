@@ -1607,7 +1607,7 @@ add_executable(account_first_light
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 if(WIN32)
     target_link_libraries(account_first_light PRIVATE Advapi32 User32)
 elseif(UNIX AND NOT APPLE)
