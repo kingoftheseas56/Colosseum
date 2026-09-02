@@ -42,6 +42,8 @@ jobs:
       - name: Set build paths (RUNNER_TEMP is on the larger D drive)
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
           "WEBENGINE_SRC_DIR=$env:RUNNER_TEMP\qtwebengine-src"         | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "WEBENGINE_BUILD_DIR=$env:RUNNER_TEMP\qtwebengine-build"     | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "WEBENGINE_INSTALL_DIR=$env:RUNNER_TEMP\qtwebengine-install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
@@ -50,6 +52,8 @@ jobs:
       - name: Reclaim disk (Chromium build needs the space)
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
           foreach ($d in @("C:\Android","C:\Program Files (x86)\Android","C:\Miniconda","C:\hostedtoolcache\CodeQL")) {
             if (Test-Path $d) { Write-Output "removing $d"; Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue }
           }
@@ -80,6 +84,8 @@ jobs:
       - name: Install Chromium host tools (gperf, flex, bison)
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # choco writes its nuspec-license warning to stderr; must not abort the step
           # All three host tools land in ONE dedicated, self-contained directory
           # (GPERF_DIR) added to PATH. NEVER add msys64\usr\bin or any MSYS/Cygwin
           # bin dir to PATH: GITHUB_PATH entries are PREPENDED for later steps (not
@@ -135,6 +141,8 @@ jobs:
       - name: Verify toolchain
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
           cmake --version
           ninja --version
           python --version
@@ -145,6 +153,8 @@ jobs:
       - name: Download Qt WebEngine ${{ env.QT_VERSION }} source
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
           $v = $env:QT_VERSION
           $mm = ($v -split '\.')[0..1] -join '.'
           $tar = Join-Path $env:RUNNER_TEMP "qtwebengine-src.tar.xz"
@@ -160,6 +170,8 @@ jobs:
       - name: Configure WebEngine module (proprietary codecs, Release)
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # gn/python/cmake write routine progress to stderr; must not abort the step
           # Mirrors the local configure-webengine.cmd but as a stripped Release
           # build: -release => symbol_level=0, far smaller/faster/lighter than the
           # local RelWithDebInfo attempt. Proprietary codecs + Chrome ffmpeg branding
@@ -184,6 +196,15 @@ jobs:
       - name: Build WebEngine
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          # CRITICAL for this step specifically: cl.exe/ninja write routine compiler
+          # warnings to stderr constantly across a multi-hour Chromium build. Without
+          # this, PS7's native-stderr-as-terminating-error default would abort the
+          # ENTIRE build on the first warning anywhere in ~20k translation units --
+          # the exact failure mode that killed the "Install Chromium host tools" step
+          # on choco's harmless nuspec warning. Only the explicit $LASTEXITCODE check
+          # below decides pass/fail.
+          $PSNativeCommandUseErrorActionPreference = $false
           $jobs = [int]$env:NUMBER_OF_PROCESSORS
           Write-Output "building with -j$jobs"
           cmake --build "$env:WEBENGINE_BUILD_DIR" --parallel $jobs 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "webengine-build.log")
@@ -199,6 +220,8 @@ jobs:
       - name: Install WebEngine module
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
           cmake --install "$env:WEBENGINE_BUILD_DIR"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $core = Get-ChildItem $env:WEBENGINE_INSTALL_DIR -Recurse -Filter "Qt6WebEngineCore.dll" | Select-Object -First 1
@@ -208,6 +231,8 @@ jobs:
       - name: Package artifact
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
           $zip = Join-Path $env:RUNNER_TEMP "qtwebengine-$($env:QT_VERSION)-msvc2022_64-codecs.zip"
           Compress-Archive -Path (Join-Path $env:WEBENGINE_INSTALL_DIR '*') -DestinationPath $zip -Force
           "ARTIFACT_ZIP=$zip" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
