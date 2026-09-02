@@ -1,4 +1,4 @@
-param([switch]$NativeOnly)
+﻿param([switch]$NativeOnly)
 
 $ErrorActionPreference = 'Stop'
 
@@ -50,8 +50,14 @@ Require-Text $main 'routeDownloadedAudiobook' 'Main must route a completed audio
 Require-Text $main 'openAudiobookRequested.connect' 'DownloadsPage audiobook open signal is not connected.'
 Require-Text $reader 'function openAudioPanel' 'ReaderShell needs the narrow Audio-panel entry point.'
 
-# Explicit anti-scope: Hemanth removed these from this repair.
-Reject-Pattern $downloadsPage 'Keys\.on|KeyNavigation|activeFocus|Accessible\.' 'Keyboard/accessibility scope crept back into Downloads.'
-Reject-Pattern $downloadsPage 'DownloadsContextMenu|captureState\(|restoreState\(' 'Framework/state-restoration scope crept back into Downloads.'
+# Arc 41 keyboard-only contract: the old anti-keyboard scope is superseded.
+Require-Text $downloadsPage 'KeyboardScrollController' 'Downloads must expose keyboard scrolling.'
+Require-Text $downloadsPage 'activeFocusOnTab' 'Downloads must expose keyboard focus entry.'
+Require-Text $downloadsPage 'Accessible.' 'Downloads must expose accessible semantics for custom actions.'
+Require-Text $downloadsPage 'Keys.onEscapePressed' 'Downloads confirmations must be dismissible with Escape.'
+Require-Text $downloadsPage 'KeyboardCollectionController' 'Downloads media rails must support indexed keyboard navigation.'
+Require-Text $downloadsPage 'KeyboardAction' 'Downloads pointer actions must converge on semantic keyboard actions.'
+Reject-Pattern $downloadsPage 'DownloadsContextMenu|captureState\(|restoreState\(' 'Unrelated framework/state-restoration scope crept into Downloads.'
 
 Write-Host 'downloads essentials contract: OK'
+

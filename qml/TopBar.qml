@@ -77,6 +77,7 @@ Item {
     component SysIcon: Item {
         id: sysRoot
         property url source
+        property string accessibleName: ""
         signal clicked()
         width: 22; height: 22
         Image {
@@ -84,11 +85,14 @@ Item {
             source: sysRoot.source
             sourceSize.width: 22; sourceSize.height: 22
             fillMode: Image.PreserveAspectFit
-            opacity: sma.containsMouse ? 1.0 : 0.72
+            opacity: input.interactionActive ? 1.0 : 0.72
         }
-        MouseArea {
-            id: sma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: sysRoot.clicked()
+        KeyboardAction {
+            id: input
+            anchors.fill: parent
+            accessibleName: sysRoot.accessibleName
+            focusRadius: 6
+            onTriggered: sysRoot.clicked()
         }
     }
 
@@ -105,7 +109,7 @@ Item {
         property url icon
         property bool comingSoon: false
         readonly property bool active: bar.activeMedium === pill.label
-        readonly property bool hot: pma.containsMouse && !pill.comingSoon
+        readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
         implicitWidth: pillContent.implicitWidth + 34
         implicitHeight: 34
 
@@ -121,7 +125,7 @@ Item {
             spacing: 6
             Text {
                 text: pill.label
-                color: pill.active ? "#1a1408" : (pma.containsMouse && !pill.comingSoon ? theme.ink : theme.inkDim)
+                color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
                 font.family: theme.ui; font.pixelSize: 14
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
@@ -138,11 +142,13 @@ Item {
                 }
             }
         }
-        MouseArea {
-            id: pma; anchors.fill: parent
-            hoverEnabled: !pill.comingSoon
-            cursorShape: pill.comingSoon ? Qt.ArrowCursor : Qt.PointingHandCursor
-            onClicked: if (!pill.comingSoon) bar.mediumSelected(pill.label)
+        KeyboardAction {
+            id: pillInput
+            anchors.fill: parent
+            enabled: !pill.comingSoon
+            accessibleName: pill.label
+            focusRadius: pill.height / 2
+            onTriggered: bar.mediumSelected(pill.label)
         }
     }
 
@@ -205,6 +211,7 @@ Item {
         SysIcon {
             objectName: "topBarSearch"
             source: "../assets/icons/search.svg"
+            accessibleName: "Search"
             onClicked: bar.searchClicked()
             visible: bar.activeMedium !== ""
         }
@@ -213,10 +220,8 @@ Item {
         Item {
             width: 22; height: 22
             visible: bar.activeMedium === ""
-            opacity: updateMa.containsMouse ? 1.0 : 0.92
+            opacity: updateInput.interactionActive ? 1.0 : 0.92
             objectName: "colosseumTopbarUpdateButton"
-            Accessible.role: Accessible.Button
-            Accessible.name: bar.updateAvailable ? "Update available" : "Updates"
             Image {
                 anchors.fill: parent
                 source: "../assets/icons/update.svg"
@@ -239,9 +244,12 @@ Item {
                     PauseAnimation { duration: 900 }
                 }
             }
-            MouseArea {
-                id: updateMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: bar.updateClicked()
+            KeyboardAction {
+                id: updateInput
+                anchors.fill: parent
+                accessibleName: bar.updateAvailable ? "Update available" : "Updates"
+                focusRadius: 6
+                onTriggered: bar.updateClicked()
             }
         }
         // Account identity (Bundle 8C first-light): gold-ringed initial when
@@ -251,13 +259,7 @@ Item {
             width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
             height: 22
             objectName: "colosseumTopbarAccountButton"
-            opacity: accountMa.containsMouse ? 1.0 : 0.92
-            Accessible.role: Accessible.Button
-            Accessible.name: bar.localDevice
-                ? qsTr("Device")
-                : (bar.accountPresent
-                    ? ("Account: " + bar.accountController.username)
-                    : "Account")
+            opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
                 anchors.fill: parent
                 radius: bar.localDevice ? 11 : width / 2
@@ -310,12 +312,16 @@ Item {
                     font.weight: Font.DemiBold
                 }
             }
-            MouseArea {
-                id: accountMa
+            KeyboardAction {
+                id: accountInput
                 anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
+                accessibleName: bar.localDevice
+                    ? qsTr("Device")
+                    : (bar.accountPresent
+                        ? ("Account: " + bar.accountController.username)
+                        : "Account")
+                focusRadius: bar.localDevice ? 11 : width / 2
+                onTriggered: {
                     const anchor = accountButton.mapToItem(null, accountButton.width, accountButton.height)
                     bar.accountClicked(anchor.x, anchor.y)
                 }
@@ -327,17 +333,19 @@ Item {
         SysIcon {
             objectName: "topBarWallpaperButton"
             source: "../assets/icons/settings.svg"
+            accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()
         }
-        SysIcon { source: "../assets/icons/minimize.svg"; onClicked: bar.minimizeClicked() }
+        SysIcon { source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
         // rule): glyph shows the ACTION — expand while windowed, contract while
         // fullscreen. Drives the same shell flip as the F11 developer door.
         SysIcon {
             source: bar.shellWindowed ? "../assets/icons/fullscreen.svg"
                                       : "../assets/icons/fullscreen-exit.svg"
+            accessibleName: bar.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
             onClicked: bar.fullscreenClicked()
         }
-        SysIcon { source: "../assets/icons/power.svg";    onClicked: bar.powerClicked() }
+        SysIcon { source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
     }
 }

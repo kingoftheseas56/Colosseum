@@ -11,10 +11,16 @@ Rectangle {
     readonly property bool saved: (Collection.revision,
         entry && entry.id ? Collection.has(world, String(entry.id)) : false)
 
+    function toggleLibrary() {
+        if (!lib.entry || !lib.entry.id) return
+        if (lib.saved) Collection.remove(lib.world, String(lib.entry.id))
+        else Collection.add(lib.world, lib.entry)
+    }
+
     width: libRow.implicitWidth + 36
     height: 42
     radius: 11
-    color: libMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+    color: input.interactionActive ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
     border.width: 1
     border.color: theme.edge
 
@@ -39,15 +45,12 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    MouseArea {
-        id: libMa
+    KeyboardAction {
+        id: input
         anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            if (!lib.entry || !lib.entry.id) return
-            if (lib.saved) Collection.remove(lib.world, String(lib.entry.id))
-            else Collection.add(lib.world, lib.entry)
-        }
+        focusEnabled: lib.visible && lib.enabled && !!(lib.entry && lib.entry.id)
+        accessibleName: lib.saved ? "Remove from Library" : "Add to Library"
+        focusRadius: lib.radius
+        onTriggered: lib.toggleLibrary()
     }
 }

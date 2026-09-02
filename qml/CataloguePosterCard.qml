@@ -39,7 +39,7 @@ Item {
     readonly property bool effectiveHovered: hov.hovered || card.testHovered
     // the reveal block opens on pointer hover always, and ALSO on keyboard focus when a
     // caller opted in via revealOnFocus (Biblio); every other caller keeps hover-only.
-    readonly property bool revealActive: card.effectiveHovered || (card.revealOnFocus && card.keyboardFocused)
+    readonly property bool revealActive: card.effectiveHovered || card.keyboardFocused
     readonly property string capText: card.item ? (card.item.title || card.item.caption || "") : ""
     // Discover items carry `year`/`rating`; the Theatre catalogue carries `releaseInfo`/`imdbRating`.
     readonly property string yearText: card.item
@@ -57,7 +57,7 @@ Item {
     readonly property bool sourceVisible: card._gallery && !card.skeleton
                                           && card.revealActive && card.hoverSourceText.length > 0
     // classic keeps its centered play ring on hover; gallery never shows one.
-    readonly property bool centerPlayVisible: !card._gallery && !card.skeleton && card.effectiveHovered
+    readonly property bool centerPlayVisible: !card._gallery && !card.skeleton && card.revealActive
 
     // profile tokens exposed for harness inspection and layout math upstream.
     readonly property int posterWidthToken: card._m.posterWidth
@@ -77,6 +77,9 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: card.accessibleName
+    Accessible.onPressAction: {
+        if (!card.skeleton) card.activated(card.item)
+    }
 
     // ── poster plane (art + hover reveal), lifted as a render transform so geometry never shifts ──
     Item {
@@ -236,7 +239,7 @@ Item {
         anchors.top: frame.bottom; anchors.topMargin: card._gallery ? 10 : 8
         height: card._gallery ? Math.max(card.titleReserve, implicitHeight) : implicitHeight
         text: card.capText
-        color: card._gallery ? theme.ink : (card.effectiveHovered ? theme.ink : theme.inkDim)
+        color: card._gallery ? theme.ink : (card.revealActive ? theme.ink : theme.inkDim)
         font.family: theme.ui; font.pixelSize: card._m.titlePixels; font.weight: Font.DemiBold
         wrapMode: card._gallery ? Text.WordWrap : Text.NoWrap
         maximumLineCount: card._m.titleLines

@@ -196,7 +196,14 @@ Item {
     // (the brace defect at the old :781-786), so it was instantiated once per row —
     // 4 competing NumberAnimations on page.contentY before stage 1a, 13 after. One
     // instance, at page level, is the whole point of the component.
-    ScrollGlide { flick: page }
+    ScrollGlide { id: pageGlide; flick: page }
+
+    KeyboardScrollController { id: pageKeys; flick: page; glide: pageGlide }
+    Shortcut {
+        sequences: ["Ctrl+F"]
+        enabled: root.visible && !sheet.visible
+        onActivated: searchInput.forceActiveFocus(Qt.ShortcutFocusReason)
+    }
 
     // ---- which panes this world actually has ----------------------------------
     // Hemanth's ruling 2026-07-26: "remove discover and browser for the other worlds."
@@ -263,6 +270,10 @@ Item {
         contentHeight: col.implicitHeight + 150
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Pane
+        Accessible.name: "Extensions content"
+        Keys.onPressed: (event) => pageKeys.handle(event)
         ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
@@ -301,11 +312,28 @@ Item {
 
             // ---- worlds row: Installed's filter, not page chrome ----
             Row {
+                id: worldTabs
                 visible: root.worldTabsApply
                 height: visible ? implicitHeight : 0
                 topPadding: root.worldTabsApply ? 34 : 0
                 spacing: 34
+                property int currentIndex: root.world === "tankoban" ? 1 : root.world === "biblio" ? 2 : 0
+                activeFocusOnTab: visible
+                Accessible.role: Accessible.List
+                Accessible.name: "Installed extension world filter"
+                function selectIndex(i) {
+                    currentIndex = Math.max(0, Math.min(2, i));
+                    var it = worldRepeater.itemAt(currentIndex);
+                    if (it) root.world = it.modelData.key;
+                }
+                Keys.onLeftPressed: selectIndex(currentIndex - 1)
+                Keys.onRightPressed: selectIndex(currentIndex + 1)
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Home) { selectIndex(0); event.accepted = true }
+                    else if (event.key === Qt.Key_End) { selectIndex(2); event.accepted = true }
+                }
                 Repeater {
+                    id: worldRepeater
                     // All three worlds are live as of stage 1 — Tankoban and Biblio now
                     // carry real catalogues and wells, so the "arrives later" tag and both
                     // hand-written empty states are gone.
@@ -317,6 +345,7 @@ Item {
                     delegate: Item {
                         id: worldTab
                         required property var modelData
+                        required property int index
                         implicitWidth: worldRow.implicitWidth
                         implicitHeight: worldRow.implicitHeight + 12
                         Row {
@@ -342,12 +371,25 @@ Item {
                             color: theme.gold
                             visible: root.world === worldTab.modelData.key
                         }
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            radius: 7
+                            color: "transparent"
+                            border.width: 1
+                            border.color: theme.gold
+                            visible: worldTabs.activeFocus && worldTabs.currentIndex === worldTab.index
+                        }
                         MouseArea {
                             id: worldMa
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.world = worldTab.modelData.key
+                            onClicked: {
+                                worldTabs.currentIndex = worldTab.index;
+                                worldTabs.forceActiveFocus(Qt.MouseFocusReason);
+                                root.world = worldTab.modelData.key;
+                            }
                         }
                     }
                 }
@@ -368,12 +410,29 @@ Item {
                         id: paneTabs
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 26
+                        property int currentIndex: root.pane === "browse" ? 1 : root.pane === "installed" ? 2 : 0
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.List
+                        Accessible.name: "Extensions section tabs"
+                        function selectIndex(i) {
+                            currentIndex = Math.max(0, Math.min(root.paneModel.length - 1, i));
+                            var it = paneRepeater.itemAt(currentIndex);
+                            if (it) root.pane = it.modelData.key;
+                        }
+                        Keys.onLeftPressed: selectIndex(currentIndex - 1)
+                        Keys.onRightPressed: selectIndex(currentIndex + 1)
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Home) { selectIndex(0); event.accepted = true }
+                            else if (event.key === Qt.Key_End) { selectIndex(root.paneModel.length - 1); event.accepted = true }
+                        }
                         Repeater {
+                            id: paneRepeater
                             model: root.paneModel
                             delegate: Item {
                                 id: paneTab
                                 objectName: "extensionsPaneTab_" + String(modelData ? modelData.key : "")
                                 required property var modelData
+                                required property int index
                                 implicitWidth: paneLabel.implicitWidth
                                 implicitHeight: paneLabel.implicitHeight + 9
                                 Text {
@@ -398,12 +457,25 @@ Item {
                                     color: theme.gold
                                     visible: root.pane === paneTab.modelData.key
                                 }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -6
+                                    radius: 7
+                                    color: "transparent"
+                                    border.width: 1
+                                    border.color: theme.gold
+                                    visible: paneTabs.activeFocus && paneTabs.currentIndex === paneTab.index
+                                }
                                 MouseArea {
                                     id: paneMa
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.pane = paneTab.modelData.key
+                                    onClicked: {
+                                        paneTabs.currentIndex = paneTab.index;
+                                        paneTabs.forceActiveFocus(Qt.MouseFocusReason);
+                                        root.pane = paneTab.modelData.key;
+                                    }
                                 }
                             }
                         }
@@ -435,6 +507,8 @@ Item {
                                 color: theme.ink
                                 font.family: theme.ui; font.pixelSize: 14
                                 clip: true
+                                activeFocusOnTab: true
+                                Accessible.name: "Search extensions"
                                 onTextChanged: root.query = text
                                 Text {
                                     visible: !searchInput.text.length && !searchInput.activeFocus
@@ -451,14 +525,14 @@ Item {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Install from a link ›"
-                        color: addMa.containsMouse ? "#ffd968" : theme.gold
+                        color: addInput.interactionActive ? "#ffd968" : theme.gold
                         font.family: theme.ui; font.pixelSize: 14
-                        MouseArea {
-                            id: addMa
+                        KeyboardAction {
+                            id: addInput
                             anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: sheet.openSheet()
+                            accessibleName: "Install extension from a link"
+                            showFocusFrame: false
+                            onTriggered: sheet.openSheet()
                         }
                     }
                 }
@@ -699,8 +773,25 @@ Item {
                     spacing: 0
 
                     Row {
+                        id: sortTabs
                         spacing: 22
+                        property int currentIndex: root.sort === "new" ? 1 : root.sort === "rising" ? 2 : 0
+                        activeFocusOnTab: root.pane === "browse"
+                        Accessible.role: Accessible.List
+                        Accessible.name: "Browse sort"
+                        function selectIndex(i) {
+                            currentIndex = Math.max(0, Math.min(2, i));
+                            var it = sortRepeater.itemAt(currentIndex);
+                            if (it) root.sort = it.modelData.key;
+                        }
+                        Keys.onLeftPressed: selectIndex(currentIndex - 1)
+                        Keys.onRightPressed: selectIndex(currentIndex + 1)
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Home) { selectIndex(0); event.accepted = true }
+                            else if (event.key === Qt.Key_End) { selectIndex(2); event.accepted = true }
+                        }
                         Repeater {
+                            id: sortRepeater
                             model: [
                                 { key: "top", label: "Top" },
                                 { key: "new", label: "New" },
@@ -709,6 +800,7 @@ Item {
                             delegate: Item {
                                 id: sortTab
                                 required property var modelData
+                                required property int index
                                 implicitWidth: sortLabel.implicitWidth
                                 implicitHeight: sortLabel.implicitHeight + 7
                                 Text {
@@ -725,12 +817,25 @@ Item {
                                     color: theme.gold
                                     visible: root.sort === sortTab.modelData.key
                                 }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -5
+                                    radius: 6
+                                    color: "transparent"
+                                    border.width: 1
+                                    border.color: theme.gold
+                                    visible: sortTabs.activeFocus && sortTabs.currentIndex === sortTab.index
+                                }
                                 MouseArea {
                                     id: sortMa
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.sort = sortTab.modelData.key
+                                    onClicked: {
+                                        sortTabs.currentIndex = sortTab.index;
+                                        sortTabs.forceActiveFocus(Qt.MouseFocusReason);
+                                        root.sort = sortTab.modelData.key;
+                                    }
                                 }
                             }
                         }
@@ -838,16 +943,16 @@ Item {
                                                 : "Install"
                                             color: root.carried(crow.modelData) || root.pendingUrls[crow.modelData.url]
                                                    ? theme.inkDimmer
-                                                   : crowVerbMa.containsMouse ? "#ffd968" : theme.gold
+                                                   : crowInstallInput.interactionActive ? "#ffd968" : theme.gold
                                             font.family: theme.ui; font.pixelSize: 13
                                             font.weight: root.carried(crow.modelData) ? Font.Normal : Font.DemiBold
-                                            MouseArea {
-                                                id: crowVerbMa
+                                            KeyboardAction {
+                                                id: crowInstallInput
                                                 anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
                                                 enabled: !root.carried(crow.modelData)
-                                                onClicked: root.installFromCard(crow.modelData)
+                                                accessibleName: "Install " + crow.modelData.name
+                                                showFocusFrame: false
+                                                onTriggered: root.installFromCard(crow.modelData)
                                             }
                                         }
                                     }
@@ -949,6 +1054,19 @@ Item {
                                     visible: root.hit(irow.manifest.name || irow.modelData.id)
                                     width: installedCol.width
                                     height: 82 + (irow.startsGroup ? 30 : 0)
+                                    readonly property bool actionFocused:
+                                        toggleInput.activeFocus || removeInput.activeFocus || configureInput.activeFocus
+                                    Keys.onPressed: function(event) {
+                                        if (!(event.modifiers & Qt.ControlModifier)
+                                                || !(event.modifiers & Qt.ShiftModifier)) return;
+                                        if (event.key === Qt.Key_Up && irow.canMoveUp) {
+                                            root.moveWell(irow.modelData.id, -1);
+                                            event.accepted = true;
+                                        } else if (event.key === Qt.Key_Down && irow.canMoveDown) {
+                                            root.moveWell(irow.modelData.id, 1);
+                                            event.accepted = true;
+                                        }
+                                    }
 
                                     // ---- job header, drawn by the row that opens the group ----
                                     // The label alone. Its explanatory subtitle is gone by the
@@ -1007,7 +1125,7 @@ Item {
                                             visible: !irow.isCatalogue
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 4
-                                            opacity: irowMa.containsMouse ? 1 : 0.25
+                                            opacity: irowMa.containsMouse || irow.actionFocused ? 1 : 0.25
                                             Text {
                                                 text: "▲"; font.pixelSize: 10
                                                 color: upMa.containsMouse ? theme.ink : theme.inkDimmer
@@ -1092,22 +1210,27 @@ Item {
                                                     color: irow.isOn ? "#141207" : theme.inkDim
                                                     Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                                 }
-                                                MouseArea {
+                                                KeyboardAction {
+                                                    id: toggleInput
                                                     anchors.fill: parent
-                                                    cursorShape: irow.isCore ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                                    onClicked: if (!irow.isCore)
-                                                                   Extensions.setEnabled(irow.modelData.id, !irow.isOn)
+                                                    enabled: !irow.isCore
+                                                    focusEnabled: enabled
+                                                    accessibleName: (irow.isOn ? "Disable " : "Enable ")
+                                                        + (irow.manifest.name || irow.modelData.id)
+                                                    focusRadius: 11
+                                                    onTriggered: Extensions.setEnabled(irow.modelData.id, !irow.isOn)
                                                 }
                                             }
                                             Text {
                                                 visible: !irow.isCore
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 text: "Remove"
-                                                color: rmMa.containsMouse ? theme.ink : theme.inkDimmer
+                                                color: removeInput.interactionActive ? theme.ink : theme.inkDimmer
                                                 font.family: theme.ui; font.pixelSize: 13
-                                                MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.askRemove(irow.modelData) }
+                                                KeyboardAction { id: removeInput; anchors.fill: parent
+                                                    accessibleName: "Remove " + (irow.manifest.name || irow.modelData.id)
+                                                    showFocusFrame: false
+                                                    onTriggered: root.askRemove(irow.modelData) }
                                             }
                                             // A catalogue says plainly why there is no Remove, rather
                                             // than leaving an unexplained gap where every other row
@@ -1129,12 +1252,13 @@ Item {
                                                 text: irow.configurationRequired
                                                       ? "Configure required"
                                                       : (irow.isHouse ? "Settings" : "Configure ↗")
-                                                color: cfgMa.containsMouse ? theme.ink : theme.inkDim
+                                                color: configureInput.interactionActive ? theme.ink : theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
-                                                MouseArea {
-                                                    id: cfgMa; anchors.fill: parent; hoverEnabled: true
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: {
+                                                KeyboardAction {
+                                                    id: configureInput; anchors.fill: parent
+                                                    accessibleName: parent.text + " " + (irow.manifest.name || irow.modelData.id)
+                                                    showFocusFrame: false
+                                                    onTriggered: {
                                                         if (irow.isHouse) {
                                                             // Stage 4 builds the in-app sheet. Until then
                                                             // say so rather than opening a dead URL.
@@ -1180,18 +1304,18 @@ Item {
         Row {
             id: chromeRow
             spacing: 22
-            Text { text: "⌕"; color: sMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: sMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() } }
-            Text { text: "—"; color: mMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: mMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
-            Text { text: "⛶"; color: fMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: fMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
-            Text { text: "⏻"; color: pMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+            Text { text: "⌕"; color: searchChromeInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+                   KeyboardAction { id: searchChromeInput; anchors.fill: parent; accessibleName: "Search"; focusRadius: 5
+                                    onTriggered: root.searchClicked() } }
+            Text { text: "—"; color: minChromeInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+                   KeyboardAction { id: minChromeInput; anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5
+                                    onTriggered: root.minimizeRequested() } }
+            Text { text: "⛶"; color: fullChromeInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+                   KeyboardAction { id: fullChromeInput; anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5
+                                    onTriggered: root.fullscreenRequested() } }
+            Text { text: "⏻"; color: powerChromeInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+                   KeyboardAction { id: powerChromeInput; anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5
+                                    onTriggered: root.closeRequested() } }
         }
     }
     BackAction {
@@ -1225,24 +1349,33 @@ Item {
         anchors.fill: parent
         color: Qt.rgba(0.015, 0.02, 0.035, 0.62)
         visible: false
+        Keys.onEscapePressed: sheet.closeSheet()
 
         property string previewUrl: ""
         property var previewManifest: null
         property string error: ""
         property bool checking: false
+        property Item invoker: null
 
         function openSheet() {
             previewUrl = ""; previewManifest = null; error = ""; checking = false;
+            invoker = root.Window.window ? root.Window.window.activeFocusItem : null;
             urlInput.text = "";
             visible = true;
-            urlInput.forceActiveFocus();
+            urlInput.forceActiveFocus(Qt.TabFocusReason);
         }
         function openForUrl(rawUrl) {
             openSheet();
             urlInput.text = String(rawUrl || "");
             check();
         }
-        function closeSheet() { visible = false }
+        function closeSheet() {
+            var target = invoker;
+            visible = false;
+            invoker = null;
+            if (target && target.visible && target.enabled)
+                Qt.callLater(function() { target.forceActiveFocus(Qt.BacktabFocusReason) });
+        }
         function check() {
             if (!urlInput.text.trim().length) return;
             error = ""; previewManifest = null; checking = true;
@@ -1322,6 +1455,10 @@ Item {
                         color: theme.ink
                         font.family: theme.ui; font.pixelSize: 14
                         clip: true
+                        activeFocusOnTab: true
+                        Accessible.name: "Extension manifest URL"
+                        KeyNavigation.tab: cancelSheetInput
+                        KeyNavigation.backtab: readSheetInput
                         onAccepted: sheet.check()
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
@@ -1401,10 +1538,13 @@ Item {
                     spacing: 26
                     Text {
                         text: "Cancel"
-                        color: cancelMa.containsMouse ? theme.ink : theme.inkDim
+                        color: cancelSheetInput.interactionActive ? theme.ink : theme.inkDim
                         font.family: theme.ui; font.pixelSize: 14
-                        MouseArea { id: cancelMa; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor; onClicked: sheet.closeSheet() }
+                        KeyboardAction { id: cancelSheetInput; anchors.fill: parent
+                            accessibleName: "Cancel install"; showFocusFrame: false
+                            KeyNavigation.tab: readSheetInput
+                            KeyNavigation.backtab: urlInput
+                            onTriggered: sheet.closeSheet() }
                     }
                     Text {
                         text: sheet.previewManifest
@@ -1412,12 +1552,14 @@ Item {
                                  ? "Configure ↗"
                                  : "Install " + sheet.previewManifest.name)
                               : "Read it first"
-                        color: readMa.containsMouse ? "#ffd968" : theme.gold
+                        color: readSheetInput.interactionActive ? "#ffd968" : theme.gold
                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                        MouseArea {
-                            id: readMa; anchors.fill: parent; hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
+                        KeyboardAction {
+                            id: readSheetInput; anchors.fill: parent
+                            accessibleName: parent.text; showFocusFrame: false
+                            KeyNavigation.tab: urlInput
+                            KeyNavigation.backtab: cancelSheetInput
+                            onTriggered: {
                                 if (!sheet.previewManifest) {
                                     sheet.check();
                                     return;

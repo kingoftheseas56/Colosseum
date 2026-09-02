@@ -25,6 +25,48 @@ Item {
         { key: "library", label: "Library" }
     ]
 
+    property int keyboardIndex: 0
+    focusPolicy: Qt.TabFocus
+
+    function syncKeyboardIndex() {
+        for (var i = 0; i < tabs.tabModel.length; ++i) {
+            if (tabs.tabModel[i].key === tabs.currentTab) {
+                tabs.keyboardIndex = i
+                return
+            }
+        }
+        tabs.keyboardIndex = 0
+    }
+
+    function requestIndex(index, reason) {
+        if (tabs.tabModel.length <= 0) return
+        tabs.keyboardIndex = Math.max(0, Math.min(tabs.tabModel.length - 1, index))
+        if (reason !== undefined) tabs.forceActiveFocus(reason)
+        tabs.tabRequested(tabs.tabModel[tabs.keyboardIndex].key)
+    }
+
+    onCurrentTabChanged: tabs.syncKeyboardIndex()
+    Component.onCompleted: tabs.syncKeyboardIndex()
+
+    Keys.onPressed: (event) => {
+        var next = tabs.keyboardIndex
+        if (event.key === Qt.Key_Left) next--
+        else if (event.key === Qt.Key_Right) next++
+        else if (event.key === Qt.Key_Home) next = 0
+        else if (event.key === Qt.Key_End) next = tabs.tabModel.length - 1
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            tabs.requestIndex(tabs.keyboardIndex, Qt.ShortcutFocusReason)
+            event.accepted = true
+            return
+        } else {
+            return
+        }
+        if (next >= 0 && next < tabs.tabModel.length && next !== tabs.keyboardIndex) {
+            tabs.requestIndex(next, next < tabs.keyboardIndex ? Qt.BacktabFocusReason : Qt.TabFocusReason)
+            event.accepted = true
+        }
+    }
+
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
@@ -45,13 +87,15 @@ Item {
                 delegate: Rectangle {
                     id: pill
                     required property var modelData
+                    required property int index
+                    readonly property bool keyboardFocused: tabs.activeFocus && index === tabs.keyboardIndex
 
                     width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                     height: parent.height
                     radius: 14
-                    color: pill.modelData.key === tabs.currentTab ? theme.gold : (ma.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-                    border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                    border.width: pill.modelData.key === tabs.currentTab ? 0 : (pill.keyboardFocused ? 2 : 1)
+                    border.color: pill.keyboardFocused ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
 
                     Text {
                         anchors.centerIn: parent
@@ -67,7 +111,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: tabs.tabRequested(pill.modelData.key)
+                        onClicked: tabs.requestIndex(pill.index, Qt.MouseFocusReason)
                     }
 
                     Behavior on color { ColorAnimation { duration: 140 } }
@@ -92,35 +136,35 @@ Item {
                 width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "discover"
-                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("discover") }
+                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(0, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_movies"
                 width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "movies"
-                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("movies") }
+                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(1, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_shows"
                 width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "shows"
-                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("shows") }
+                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(2, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_anime"
                 width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "anime"
-                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("anime") }
+                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(3, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_library"
                 width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "library"
-                MouseArea { anchors.fill: parent; onClicked: tabs.tabRequested("library") }
+                MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(4, Qt.MouseFocusReason) }
             }
         }
     }

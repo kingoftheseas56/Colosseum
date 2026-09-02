@@ -28,12 +28,12 @@ Item {
     // component at all, which is why its back control was hand-built and out of law.
     property bool raisedLabel: false
     readonly property bool iconOnly: variant !== "plain"
-    readonly property bool hovered: ma.containsMouse
+    readonly property bool hovered: input.hovered
     signal triggered()
 
     Theme { id: theme }
 
-    readonly property color _c: ma.containsMouse ? hoverColor : idleColor
+    readonly property color _c: input.interactionActive ? hoverColor : idleColor
     readonly property int _chev: variant === "plain" ? 20 : (variant === "capsule" ? 18 : 24)
 
     implicitWidth: variant === "capsule" ? 42
@@ -48,7 +48,7 @@ Item {
         visible: root.variant === "capsule"
         anchors.fill: parent
         radius: height / 2
-        color: ma.containsMouse ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(0, 0, 0, 0.40)
+        color: input.interactionActive ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(0, 0, 0, 0.40)
         Behavior on color { ColorAnimation { duration: 120 } }
     }
 
@@ -122,19 +122,19 @@ Item {
         }
     }
 
-    MouseArea {
-        id: ma
+    KeyboardAction {
+        id: input
         anchors.fill: parent
         // stretch the interactive target to ≥44px in both axes without moving the visuals
         anchors.margins: -Math.max(0, Math.ceil((44 - Math.min(root.width, root.height)) / 2))
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.triggered()
+        accessibleName: root.tip.length > 0 ? root.tip : root.label
+        focusRadius: root.variant === "capsule" ? root.height / 2 : 7
+        onTriggered: root.triggered()
     }
 
     // hand-rolled tooltip (no Controls dependency) — icon-only variants announce themselves
     Rectangle {
-        visible: root.tip.length > 0 && ma.containsMouse && tipDelay.done
+        visible: root.tip.length > 0 && input.hovered && tipDelay.done
         anchors.top: parent.bottom; anchors.topMargin: 8
         anchors.horizontalCenter: parent.horizontalCenter
         width: tipText.implicitWidth + 18; height: 24; radius: 6
@@ -147,12 +147,9 @@ Item {
     Timer {
         id: tipDelay
         property bool done: false
-        interval: 550; running: ma.containsMouse && root.tip.length > 0
+        interval: 550; running: input.hovered && root.tip.length > 0
         onTriggered: done = true
     }
-    Connections { target: ma; function onContainsMouseChanged() { if (!ma.containsMouse) tipDelay.done = false } }
+    Connections { target: input; function onHoveredChanged() { if (!input.hovered) tipDelay.done = false } }
 
-    Accessible.role: Accessible.Button
-    Accessible.name: root.tip.length > 0 ? root.tip : root.label
-    Accessible.onPressAction: root.triggered()
 }

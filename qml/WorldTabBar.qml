@@ -20,6 +20,48 @@ Item {
     property string tabPrefix: "worldTab"
     signal tabRequested(string tab)
 
+    property int keyboardIndex: 0
+    focusPolicy: Qt.TabFocus
+
+    function syncKeyboardIndex() {
+        for (var i = 0; i < tabs.tabModel.length; ++i) {
+            if (tabs.tabModel[i].key === tabs.currentTab) {
+                tabs.keyboardIndex = i
+                return
+            }
+        }
+        tabs.keyboardIndex = 0
+    }
+
+    function requestIndex(index, reason) {
+        if (tabs.tabModel.length <= 0) return
+        tabs.keyboardIndex = Math.max(0, Math.min(tabs.tabModel.length - 1, index))
+        if (reason !== undefined) tabs.forceActiveFocus(reason)
+        tabs.tabRequested(tabs.tabModel[tabs.keyboardIndex].key)
+    }
+
+    onCurrentTabChanged: tabs.syncKeyboardIndex()
+    Component.onCompleted: tabs.syncKeyboardIndex()
+
+    Keys.onPressed: (event) => {
+        var next = tabs.keyboardIndex
+        if (event.key === Qt.Key_Left) next--
+        else if (event.key === Qt.Key_Right) next++
+        else if (event.key === Qt.Key_Home) next = 0
+        else if (event.key === Qt.Key_End) next = tabs.tabModel.length - 1
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            tabs.requestIndex(tabs.keyboardIndex, Qt.ShortcutFocusReason)
+            event.accepted = true
+            return
+        } else {
+            return
+        }
+        if (next >= 0 && next < tabs.tabModel.length && next !== tabs.keyboardIndex) {
+            tabs.requestIndex(next, next < tabs.keyboardIndex ? Qt.BacktabFocusReason : Qt.TabFocusReason)
+            event.accepted = true
+        }
+    }
+
     width: parent ? parent.width : 900
     height: 58
 
@@ -45,6 +87,8 @@ Item {
                 delegate: Rectangle {
                     id: pill
                     required property var modelData
+                    required property int index
+                    readonly property bool keyboardFocused: tabs.activeFocus && index === tabs.keyboardIndex
                     // Per-tab stable identity for Lanista/harness addressing (additive — a name
                     // changes no behavior). The stem is the owning world's tabPrefix so two worlds
                     // that share a key (e.g. "library") can't collide under resolveTarget's DFS
@@ -56,9 +100,9 @@ Item {
                     width: (parent.width - 6 * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
                     height: parent.height
                     radius: 14
-                    color: pill.modelData.key === tabs.currentTab ? theme.gold : (ma.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-                    border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                    border.width: pill.modelData.key === tabs.currentTab ? 0 : (pill.keyboardFocused ? 2 : 1)
+                    border.color: pill.keyboardFocused ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
 
                     Text {
                         anchors.centerIn: parent
@@ -74,7 +118,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: tabs.tabRequested(pill.modelData.key)
+                        onClicked: tabs.requestIndex(pill.index, Qt.MouseFocusReason)
                     }
 
                     Behavior on color { ColorAnimation { duration: 140 } }

@@ -100,10 +100,10 @@ Item {
         height: bar.closedSize
         radius: bar.open ? 18 : bar.closedSize / 2
         clip: true
-        color: startMa.containsMouse || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.78)
+        color: startInput.interactionActive || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.78)
                                                  : Qt.rgba(0.02, 0.02, 0.03, 0.72)
         border.width: 1
-        border.color: startMa.containsMouse ? Qt.rgba(0.94, 0.76, 0.35, 0.56)
+        border.color: startInput.interactionActive ? Qt.rgba(0.94, 0.76, 0.35, 0.56)
                                             : Qt.rgba(1, 1, 1, 0.16)
 
         Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
@@ -136,9 +136,9 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: bar.open ? 14 : 24
-                    color: startMa.containsMouse || homeAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: bar.open || homeAction.activeFocus ? 1 : 0
-                    border.color: homeAction.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.13)
+                    color: startInput.interactionActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: bar.open || startInput.activeFocus ? 1 : 0
+                    border.color: startInput.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.13)
 
                     Behavior on radius { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                     Behavior on color { ColorAnimation { duration: 140 } }
@@ -151,14 +151,14 @@ Item {
                     fillMode: Image.PreserveAspectFit
                 }
 
-                MouseArea {
-                    id: startMa
+                KeyboardAction {
+                    id: startInput
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
+                    accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
+                    focusRadius: bar.open ? 14 : 24
+                    onTriggered: {
                         bar.open = !bar.open
-                        bar.autoRevealed = false   // opened (or closed) by hand → sticky, no pullback
+                        bar.autoRevealed = false
                     }
                 }
                 Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
@@ -194,21 +194,21 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
-                    color: omMa.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    color: openMediaInput.interactionActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
                 }
                 Image {
                     anchors.centerIn: parent
                     width: 21; height: 21
                     source: "../assets/icons/open-media.svg"
                     fillMode: Image.PreserveAspectFit
-                    opacity: omMa.containsMouse ? 1 : 0.75
+                    opacity: openMediaInput.interactionActive ? 1 : 0.75
                 }
-                MouseArea {
-                    id: omMa
+                KeyboardAction {
+                    id: openMediaInput
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.openMediaClicked()
+                    accessibleName: "Open media"
+                    focusRadius: 13
+                    onTriggered: bar.openMediaClicked()
                 }
                 // Recent disclosure (Slice 9): the corner caret opens the remembered-files list;
                 // the icon itself still opens the picker (Slice 8 preserved). Declared after omMa
@@ -218,7 +218,7 @@ Item {
                     width: 15; height: 15; radius: 4
                     anchors.right: parent.right; anchors.bottom: parent.bottom
                     anchors.rightMargin: -1; anchors.bottomMargin: -1
-                    color: recentMa.containsMouse ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0.10, 0.10, 0.13, 0.95)
+                    color: recentInput.interactionActive ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0.10, 0.10, 0.13, 0.95)
                     border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.22)
                     Canvas {
                         anchors.centerIn: parent; width: 9; height: 6
@@ -228,12 +228,13 @@ Item {
                             ctx.beginPath(); ctx.moveTo(1, 1); ctx.lineTo(4.5, 4.5); ctx.lineTo(8, 1); ctx.stroke()
                         }
                     }
-                    MouseArea {
-                        id: recentMa
+                    KeyboardAction {
+                        id: recentInput
                         anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: bar.openRecentRequested()
+                        accessibleName: "Open recent media"
+                        focusRadius: 4
+                        focusInset: -2
+                        onTriggered: bar.openRecentRequested()
                     }
                 }
             }
@@ -248,9 +249,6 @@ Item {
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
                 visible: bar.open
-                activeFocusOnTab: visible
-                Accessible.role: Accessible.Button
-                Accessible.name: "Join Watch Party"
                 readonly property bool atlasActive: bar.watchPartyJoinOpen
 
                 Rectangle {
@@ -258,7 +256,7 @@ Item {
                     property bool activeState: watchPartyJoinAction.atlasActive
                     anchors.fill: parent
                     radius: 13
-                    color: watchPartyJoinAction.atlasActive || wpMa.containsMouse || watchPartyJoinAction.activeFocus
+                    color: watchPartyJoinAction.atlasActive || watchPartyInput.interactionActive || watchPartyJoinAction.activeFocus
                            ? Qt.rgba(1, 1, 1, 0.15)
                            : Qt.rgba(1, 1, 1, 0.055)
                     border.width: watchPartyJoinAction.atlasActive || watchPartyJoinAction.activeFocus ? 1 : 0
@@ -272,23 +270,20 @@ Item {
                     anchors.centerIn: parent
                     width: 22
                     height: 20
-                    opacity: watchPartyJoinAction.atlasActive || wpMa.containsMouse ? 1 : 0.75
+                    opacity: watchPartyJoinAction.atlasActive || watchPartyInput.interactionActive ? 1 : 0.75
                     Rectangle { x: 3; y: 2; width: 7; height: 7; radius: 3.5; color: parent.glyphColor }
                     Rectangle { x: 12; y: 4; width: 6; height: 6; radius: 3; color: parent.glyphColor }
                     Rectangle { x: 1; y: 11; width: 11; height: 7; radius: 5; color: parent.glyphColor }
                     Rectangle { x: 11; y: 12; width: 10; height: 6; radius: 5; color: parent.glyphColor }
                 }
 
-                MouseArea {
-                    id: wpMa
+                KeyboardAction {
+                    id: watchPartyInput
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.watchPartyJoinClicked()
+                    accessibleName: "Join Watch Party"
+                    focusRadius: 13
+                    onTriggered: bar.watchPartyJoinClicked()
                 }
-                Keys.onReturnPressed: bar.watchPartyJoinClicked()
-                Keys.onEnterPressed: bar.watchPartyJoinClicked()
-                Keys.onSpacePressed: bar.watchPartyJoinClicked()
             }
 
             // ---- Downloads: lives beside the Colosseum icon (ratified 2026-07-04) ----
@@ -310,8 +305,8 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
-                    color: dlMa.containsMouse || bar.downloadsActive || downloadsAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: downloadsAction.activeFocus ? 1 : 0
+                    color: downloadsInput.interactionActive || bar.downloadsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: downloadsInput.activeFocus ? 1 : 0
                     border.color: theme.gold
                 }
                 Image {
@@ -338,12 +333,12 @@ Item {
                            text: bar.downloadsBadge
                            color: "#141207"; font.pixelSize: 11; font.weight: Font.Bold }
                 }
-                MouseArea {
-                    id: dlMa
+                KeyboardAction {
+                    id: downloadsInput
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.downloadsClicked()
+                    accessibleName: "Downloads"
+                    focusRadius: 13
+                    onTriggered: bar.downloadsClicked()
                 }
                 Keys.onReturnPressed: bar.downloadsClicked()
                 Keys.onEnterPressed: bar.downloadsClicked()
@@ -364,8 +359,8 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
-                    color: extMa.containsMouse || bar.extensionsActive || extensionsAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: extensionsAction.activeFocus ? 1 : 0
+                    color: extensionsInput.interactionActive || bar.extensionsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: extensionsInput.activeFocus ? 1 : 0
                     border.color: theme.gold
                 }
                 Image {
@@ -382,12 +377,12 @@ Item {
                     width: 20; height: 3; radius: 2
                     color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
                 }
-                MouseArea {
-                    id: extMa
+                KeyboardAction {
+                    id: extensionsInput
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.extensionsClicked()
+                    accessibleName: "Extensions"
+                    focusRadius: 13
+                    onTriggered: bar.extensionsClicked()
                 }
                 Keys.onReturnPressed: bar.extensionsClicked()
                 Keys.onEnterPressed: bar.extensionsClicked()
@@ -410,8 +405,8 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
-                    color: settMa.containsMouse || bar.settingsActive || settingsAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: settingsAction.activeFocus ? 1 : 0
+                    color: settingsInput.interactionActive || bar.settingsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: settingsInput.activeFocus ? 1 : 0
                     border.color: theme.gold
                 }
                 Image {
@@ -428,12 +423,12 @@ Item {
                     width: 20; height: 3; radius: 2
                     color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
                 }
-                MouseArea {
-                    id: settMa
+                KeyboardAction {
+                    id: settingsInput
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.settingsClicked()
+                    accessibleName: "Settings"
+                    focusRadius: 13
+                    onTriggered: bar.settingsClicked()
                 }
                 Keys.onReturnPressed: bar.settingsClicked()
                 Keys.onEnterPressed: bar.settingsClicked()
@@ -510,7 +505,7 @@ Item {
                         width: 46
                         height: 46
                         radius: 23
-                        color: tileHover.hovered || tile.isActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                        color: tileInput.interactionActive || tile.isActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
                         border.width: tile.isActive ? 1.5 : 1
                         border.color: tile.isActive ? Qt.rgba(0.94, 0.77, 0.29, 0.85)
                                                     : Qt.rgba(1, 1, 1, 0.10)
@@ -521,7 +516,7 @@ Item {
                             sourceSize.width: 48; sourceSize.height: 48
                             source: bar.sessionIcon(tile.modelData)
                             fillMode: Image.PreserveAspectFit
-                            opacity: tileHover.hovered || tile.isActive ? 1 : 0.8
+                            opacity: tileInput.interactionActive || tile.isActive ? 1 : 0.8
                         }
 
                         // stack count — the circle can't say "(3)" in words anymore
@@ -542,23 +537,30 @@ Item {
                             }
                         }
 
-                        MouseArea {
-                            id: tileMa
+                        KeyboardAction {
+                            id: tileInput
                             anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
+                            accessibleName: {
+                                var sessions = tile.modelData.sessions || []
+                                if (sessions.length === 1) return sessions[0].title || "Open session"
+                                return "Open " + sessions.length + " sessions"
+                            }
+                            focusRadius: 23
+                            onTriggered: {
                                 var sessions = tile.modelData.sessions || []
                                 if (sessions.length === 1) {
                                     bar.switchRequested(sessions[0].id)
                                     bar.open = false
+                                    Qt.callLater(function() { startInput.forceActiveFocus(Qt.TabFocusReason) })
                                 } else {
-                                    fan.openFor(tile, sessions)
+                                    fan.openFor(tile, sessions, tileInput)
                                 }
                             }
                         }
-
-                        HoverHandler { id: tileHover }
+                        Keys.onDeletePressed: {
+                            var sessions = tile.modelData.sessions || []
+                            if (sessions.length === 1) bar.closeRequested(sessions[0].id)
+                        }
 
                         // Chrome-style close — single-session circles only (a stack fans
                         // out; the fan rows carry their own close). Rides the circle's
@@ -572,7 +574,7 @@ Item {
                             anchors.top: parent.top
                             anchors.topMargin: -3
                             width: 18; height: 18
-                            opacity: tileHover.hovered ? 1 : 0
+                            opacity: tileInput.interactionActive ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 120 } }
 
                             Rectangle {
@@ -597,7 +599,7 @@ Item {
                                 id: tileCloseMa
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                enabled: tileClose.visible && tileHover.hovered
+                                enabled: tileClose.visible && tileInput.interactionActive
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: bar.closeRequested(tile.modelData.sessions[0].id)
                             }
@@ -614,6 +616,7 @@ Item {
         property var sessions: []
         width: 292
         visible: false
+        property Item invoker: null
         height: fanCol.implicitHeight + 16
         radius: 18
         color: Qt.rgba(0.04, 0.04, 0.06, 0.96)
@@ -625,13 +628,26 @@ Item {
             onHoveredChanged: if (hovered && bar.autoRevealed) idleTimer.restart()
         }
 
-        function openFor(tile, nextSessions) {
+        function openFor(tile, nextSessions, invoker) {
             fan.sessions = nextSessions
+            fan.invoker = invoker
             var point = tile.mapToItem(bar, 0, 0)
             fan.x = Math.min(Math.max(bar.leftEdge, point.x), bar.width - fan.width - bar.leftEdge)
             fan.y = dock.y - fan.height - 8
             fan.visible = true
+            Qt.callLater(function() {
+                var first = fanRepeater.itemAt(0)
+                if (first) first.forceActiveFocus(Qt.TabFocusReason)
+            })
         }
+        function closeAndRestore() {
+            fan.visible = false
+            var target = fan.invoker
+            fan.invoker = null
+            if (target && target.visible && target.enabled)
+                Qt.callLater(function() { target.forceActiveFocus(Qt.BacktabFocusReason) })
+        }
+        Keys.onEscapePressed: fan.closeAndRestore()
 
         Column {
             id: fanCol
@@ -640,13 +656,33 @@ Item {
             spacing: 4
 
             Repeater {
+                id: fanRepeater
                 model: fan.sessions
                 delegate: Rectangle {
+                    id: fanRow
                     required property var modelData
                     width: parent.width
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData.title || "Session"
+                    Accessible.description: "Enter opens this session. Delete closes it."
                     height: 40
                     radius: 10
-                    color: rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                    color: rowMa.containsMouse || fanRow.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+
+                    Keys.onReturnPressed: fanRow.activateSession()
+                    Keys.onEnterPressed: fanRow.activateSession()
+                    Keys.onSpacePressed: fanRow.activateSession()
+                    Keys.onDeletePressed: {
+                        bar.closeRequested(fanRow.modelData.id)
+                        fan.closeAndRestore()
+                    }
+                    function activateSession() {
+                        bar.switchRequested(fanRow.modelData.id)
+                        fan.visible = false
+                        bar.open = false
+                        Qt.callLater(function() { startInput.forceActiveFocus(Qt.TabFocusReason) })
+                    }
 
                     Text {
                         anchors.left: parent.left
@@ -687,7 +723,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 bar.closeRequested(modelData.id)
-                                fan.visible = false
+                                fan.closeAndRestore()
                             }
                         }
                     }
@@ -698,9 +734,7 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            bar.switchRequested(modelData.id)
-                            fan.visible = false
-                            bar.open = false
+                            fanRow.activateSession()
                         }
                     }
                 }

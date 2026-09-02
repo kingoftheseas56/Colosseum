@@ -45,17 +45,24 @@ Item {
     property string confirmationBody: ""
     property string confirmationLabel: ""
     property var confirmationCallback: null
+    property Item confirmationInvoker: null
 
     function confirmAction(title, body, label, callback) {
         confirmationTitle = title;
         confirmationBody = body;
         confirmationLabel = label;
         confirmationCallback = callback;
+        confirmationInvoker = root.Window.window ? root.Window.window.activeFocusItem : null;
         confirmationOpen = true;
+        Qt.callLater(function() { cancelConfirmInput.forceActiveFocus(Qt.TabFocusReason) });
     }
     function closeConfirmation() {
+        var invoker = confirmationInvoker;
         confirmationOpen = false;
         confirmationCallback = null;
+        confirmationInvoker = null;
+        if (invoker && invoker.visible && invoker.enabled)
+            Qt.callLater(function() { invoker.forceActiveFocus(Qt.BacktabFocusReason) });
     }
     function runConfirmedAction() {
         var callback = confirmationCallback;
@@ -434,6 +441,10 @@ Item {
         clip: true
         pixelAligned: false
         boundsBehavior: Flickable.StopAtBounds
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Pane
+        Accessible.name: "Downloads content"
+        Keys.onPressed: (event) => pageKeys.handle(event)
         ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
@@ -536,11 +547,14 @@ Item {
                                         anchors.top: parent.top
                                         height: 1; color: Qt.rgba(1, 1, 1, 0.06)
                                     }
-                                    MouseArea {
+                                    KeyboardAction {
+                                        id: groupDisclosure
                                         anchors.fill: parent
                                         enabled: !grp.modelData.single
-                                        cursorShape: grp.modelData.single ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                        onClicked: root.toggleGroup(grp.modelData.key)
+                                        focusEnabled: enabled
+                                        accessibleName: (grp.open ? "Collapse " : "Expand ") + grp.modelData.title
+                                        focusRadius: 10
+                                        onTriggered: root.toggleGroup(grp.modelData.key)
                                     }
                                     Text { // chevron (fold handle) — multi-row groups only
                                         visible: !grp.modelData.single
@@ -649,21 +663,21 @@ Item {
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].canPlay === true
                                             text: "Play"
-                                            color: hPlayMa.containsMouse ? "#ffd968" : theme.gold
+                                            color: hPlayInput.interactionActive ? "#ffd968" : theme.gold
                                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                            MouseArea { id: hPlayMa; anchors.fill: parent; hoverEnabled: true
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: root.playArrivingRequested(grp.modelData.rows[0]) }
+                                            KeyboardAction { id: hPlayInput; anchors.fill: parent
+                                                accessibleName: "Play arriving download"; showFocusFrame: false
+                                                onTriggered: root.playArrivingRequested(grp.modelData.rows[0]) }
                                         }
                                         Text {
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].canRetry === true
                                             text: "Retry"
-                                            color: hRetryMa.containsMouse ? "#ffd968" : theme.gold
+                                            color: hRetryInput.interactionActive ? "#ffd968" : theme.gold
                                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                            MouseArea { id: hRetryMa; anchors.fill: parent; hoverEnabled: true
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: root.downloadsApi.retry(grp.modelData.world, grp.modelData.rows[0].id) }
+                                            KeyboardAction { id: hRetryInput; anchors.fill: parent
+                                                accessibleName: "Retry download"; showFocusFrame: false
+                                                onTriggered: root.downloadsApi.retry(grp.modelData.world, grp.modelData.rows[0].id) }
                                         }
                                         Text {
                                             id: hPauseT
@@ -683,36 +697,33 @@ Item {
                                             text: anyRunning
                                                   ? (grp.modelData.single ? "Pause" : "Pause season")
                                                   : (grp.modelData.single ? "Resume" : "Resume season")
-                                            color: hPauseMa.containsMouse ? "#ffd968" : theme.gold
+                                            color: hPauseInput.interactionActive ? "#ffd968" : theme.gold
                                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                            MouseArea { id: hPauseMa; anchors.fill: parent; hoverEnabled: true
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
-                                                            var rows = grp.modelData.rows;
-                                                            var pausing = hPauseT.anyRunning;
-                                                            // pause walks BACKWARD (pump can't promote a row the
-                                                            // loop is about to pause); resume walks FORWARD (the
-                                                            // earliest episode — holding the half-downloaded .part
-                                                            // and the live session url — takes the slot first).
-                                                            for (var k = 0; k < rows.length; k++) {
-                                                                var i = pausing ? rows.length - 1 - k : k;
-                                                                if (pausing && rows[i].canPause === true)
-                                                                    root.downloadsApi.pause(grp.modelData.world, rows[i].id);
-                                                                else if (!pausing && rows[i].canResume === true)
-                                                                    root.downloadsApi.resume(grp.modelData.world, rows[i].id);
-                                                            }
-                                                        } }
+                                            KeyboardAction { id: hPauseInput; anchors.fill: parent
+                                                accessibleName: hPauseT.text; showFocusFrame: false
+                                                onTriggered: {
+                                                    var rows = grp.modelData.rows;
+                                                    var pausing = hPauseT.anyRunning;
+                                                    for (var k = 0; k < rows.length; k++) {
+                                                        var i = pausing ? rows.length - 1 - k : k;
+                                                        if (pausing && rows[i].canPause === true)
+                                                            root.downloadsApi.pause(grp.modelData.world, rows[i].id);
+                                                        else if (!pausing && rows[i].canResume === true)
+                                                            root.downloadsApi.resume(grp.modelData.world, rows[i].id);
+                                                    }
+                                                } }
                                         }
                                         Text {
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].state === "failed"
                                                      && grp.modelData.rows[0].canRetry !== true
                                             text: grp.modelData.world === "biblio" ? "Open Biblio" : "Open Tankoban"
-                                            color: hSourceMa.containsMouse ? "#ffd968" : theme.gold
+                                            color: hSourceInput.interactionActive ? "#ffd968" : theme.gold
                                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                            MouseArea { id: hSourceMa; anchors.fill: parent; hoverEnabled: true
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: root.openWorldRequested(grp.modelData.world) }
+                                            KeyboardAction { id: hSourceInput; anchors.fill: parent
+                                                accessibleName: "Open " + (grp.modelData.world === "biblio" ? "Biblio" : "Tankoban")
+                                                showFocusFrame: false
+                                                onTriggered: root.openWorldRequested(grp.modelData.world) }
                                         }
                                         Text {
                                             readonly property bool anyCancelable: {
@@ -727,11 +738,11 @@ Item {
                                             text: grp.modelData.single && grp.modelData.rows[0].canDismiss === true
                                                   ? "Dismiss"
                                                   : (grp.modelData.single ? "Cancel" : "Cancel season")
-                                            color: hCancelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                            color: hCancelInput.interactionActive ? theme.ink : theme.inkDimmer
                                             font.family: theme.ui; font.pixelSize: 12
-                                            MouseArea { id: hCancelMa; anchors.fill: parent; hoverEnabled: true
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
+                                            KeyboardAction { id: hCancelInput; anchors.fill: parent
+                                                accessibleName: parent.text; showFocusFrame: false
+                                                onTriggered: {
                                                             var rows = grp.modelData.rows;
                                                             if (grp.modelData.single && rows[0].canDismiss === true) {
                                                                 root.downloadsApi.dismissFailure(grp.modelData.world, rows[0].id);
@@ -881,42 +892,42 @@ Item {
                                                 // single card — downloading + resolved url only.
                                                 visible: epRow.modelData.canPlay === true
                                                 text: "Play"
-                                                color: rPlayMa.containsMouse ? "#ffd968" : theme.gold
+                                                color: rPlayInput.interactionActive ? "#ffd968" : theme.gold
                                                 font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                                MouseArea { id: rPlayMa; anchors.fill: parent; hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.playArrivingRequested(epRow.modelData) }
+                                                KeyboardAction { id: rPlayInput; anchors.fill: parent
+                                                    accessibleName: "Play arriving download"; showFocusFrame: false
+                                                    onTriggered: root.playArrivingRequested(epRow.modelData) }
                                             }
                                             Text {
                                                 visible: epRow.modelData.canPause === true
                                                          || epRow.modelData.canResume === true
                                                 text: epRow.modelData.canResume === true ? "Resume" : "Pause"
-                                                color: rPauseMa.containsMouse ? "#ffd968" : theme.gold
+                                                color: rPauseInput.interactionActive ? "#ffd968" : theme.gold
                                                 font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                                MouseArea { id: rPauseMa; anchors.fill: parent; hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: epRow.modelData.canResume === true
-                                                                       ? root.downloadsApi.resume(epRow.modelData.world, epRow.modelData.id)
-                                                                       : root.downloadsApi.pause(epRow.modelData.world, epRow.modelData.id) }
+                                                KeyboardAction { id: rPauseInput; anchors.fill: parent
+                                                    accessibleName: parent.text; showFocusFrame: false
+                                                    onTriggered: epRow.modelData.canResume === true
+                                                               ? root.downloadsApi.resume(epRow.modelData.world, epRow.modelData.id)
+                                                               : root.downloadsApi.pause(epRow.modelData.world, epRow.modelData.id) }
                                             }
                                             Text {
                                                 visible: epRow.modelData.canRetry === true
                                                 text: "Retry"
-                                                color: rRetryMa.containsMouse ? "#ffd968" : theme.gold
+                                                color: rRetryInput.interactionActive ? "#ffd968" : theme.gold
                                                 font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                                MouseArea { id: rRetryMa; anchors.fill: parent; hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.downloadsApi.retry(epRow.modelData.world, epRow.modelData.id) }
+                                                KeyboardAction { id: rRetryInput; anchors.fill: parent
+                                                    accessibleName: "Retry download"; showFocusFrame: false
+                                                    onTriggered: root.downloadsApi.retry(epRow.modelData.world, epRow.modelData.id) }
                                             }
                                             Text {
                                                 visible: epRow.modelData.canCancel === true
                                                          || epRow.modelData.canDismiss === true
                                                 text: epRow.modelData.canDismiss === true ? "Dismiss" : "Cancel"
-                                                color: rCancelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                                color: rCancelInput.interactionActive ? theme.ink : theme.inkDimmer
                                                 font.family: theme.ui; font.pixelSize: 12
-                                                MouseArea { id: rCancelMa; anchors.fill: parent; hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: {
+                                                KeyboardAction { id: rCancelInput; anchors.fill: parent
+                                                    accessibleName: parent.text; showFocusFrame: false
+                                                    onTriggered: {
                                                                 if (epRow.modelData.canDismiss === true) {
                                                                     root.downloadsApi.dismissFailure(epRow.modelData.world, epRow.modelData.id);
                                                                     return;
@@ -997,14 +1008,14 @@ Item {
                                     anchors.right: parent.right; anchors.rightMargin: 26
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: managerAudioRow.st.state === "failed" ? "Dismiss" : "Cancel"
-                                    color: managerAudioMa.containsMouse ? theme.ink : theme.inkDimmer
+                                    color: managerAudioInput.interactionActive ? theme.ink : theme.inkDimmer
                                     font.family: theme.ui; font.pixelSize: 12
-                                    MouseArea {
-                                        id: managerAudioMa
+                                    KeyboardAction {
+                                        id: managerAudioInput
                                         anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
+                                        accessibleName: managerAudioAction.text
+                                        showFocusFrame: false
+                                        onTriggered: {
                                             if (managerAudioRow.st.state === "failed") {
                                                 root.audiobooksApi.dismissFailure(managerAudioRow.modelData);
                                                 root.abRefresh();
@@ -1103,16 +1114,18 @@ Item {
                                 }
                                 Text {
                                     text: "Open " + lane.modelData.title + " and pick something ›"
-                                    color: goMa.containsMouse ? "#ffd968" : theme.gold
+                                    color: goInput.interactionActive ? "#ffd968" : theme.gold
                                     font.family: theme.ui; font.pixelSize: 14
-                                    MouseArea { id: goMa; anchors.fill: parent; hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.openWorldRequested(lane.modelData.key) }
+                                    KeyboardAction { id: goInput; anchors.fill: parent
+                                        accessibleName: "Open " + lane.modelData.title
+                                        showFocusFrame: false
+                                        onTriggered: root.openWorldRequested(lane.modelData.key) }
                                 }
                             }
 
                             // series rail
                             Flickable {
+                                id: seriesRail
                                 visible: lane.laneList.length > 0
                                 width: shelfCol.width
                                 height: 214
@@ -1121,13 +1134,29 @@ Item {
                                 clip: true
                                 flickableDirection: Flickable.HorizontalFlick
                                 boundsBehavior: Flickable.StopAtBounds
+                                property int currentIndex: 0
+                                readonly property int itemCount: lane.laneList.length
+                                activeFocusOnTab: visible && itemCount > 0
+                                Accessible.role: Accessible.List
+                                Accessible.name: lane.modelData.title + " downloaded series"
+                                Keys.onPressed: (event) => seriesNav.handle(event)
+                                function ensureIndexVisible(i) {
+                                    var it = seriesRepeater.itemAt(i);
+                                    if (!it) return;
+                                    var left = it.x;
+                                    var right = it.x + it.width;
+                                    if (left < contentX) contentX = left;
+                                    else if (right > contentX + width) contentX = Math.max(0, right - width);
+                                }
                                 Row {
                                     id: railRow
                                     spacing: 16
                                     Repeater {
+                                        id: seriesRepeater
                                         model: lane.laneList
                                         delegate: Item {
                                             id: card
+                                            required property int index
                                             // Visibility phase 2, Slice J1-Manga: world-namespaced per the
                                             // Lanista ledger's DFS-collision rule (a bare "downloadsCard"
                                             // stem could resolve into a hidden pre-warmed world's own copy
@@ -1143,8 +1172,11 @@ Item {
                                                 id: cover
                                                 width: 148; height: 198
                                                 radius: 12
-                                                border.width: card.on ? 2 : 1
-                                                border.color: card.on ? Qt.rgba(0.94, 0.77, 0.29, 0.65) : theme.edge
+                                                readonly property bool keyboardCurrent: seriesRail.activeFocus
+                                                    && seriesRail.currentIndex === card.index
+                                                border.width: card.on || keyboardCurrent ? 2 : 1
+                                                border.color: card.on || keyboardCurrent
+                                                    ? Qt.rgba(0.94, 0.77, 0.29, 0.72) : theme.edge
                                                 gradient: Gradient {
                                                     GradientStop { position: 0; color: root.coverTone(card.modelData.title || "", false) }
                                                     GradientStop { position: 1; color: root.coverTone(card.modelData.title || "", true) }
@@ -1193,9 +1225,25 @@ Item {
                                             MouseArea {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.toggleLedger(lane.modelData.key, card.modelData.key)
+                                                onClicked: {
+                                                    seriesRail.currentIndex = card.index;
+                                                    seriesRail.forceActiveFocus(Qt.MouseFocusReason);
+                                                    root.toggleLedger(lane.modelData.key, card.modelData.key);
+                                                }
                                             }
                                         }
+                                    }
+                                }
+                                KeyboardCollectionController {
+                                    id: seriesNav
+                                    view: seriesRail
+                                    orientation: "horizontal"
+                                    count: seriesRail.itemCount
+                                    currentIndex: seriesRail.currentIndex
+                                    positionIndexFn: function(i) { seriesRail.ensureIndexVisible(i) }
+                                    onActivated: function(i) {
+                                        var it = seriesRepeater.itemAt(i);
+                                        if (it) root.toggleLedger(lane.modelData.key, it.modelData.key);
                                     }
                                 }
                             }
@@ -1220,8 +1268,13 @@ Item {
 
                                         Item {
                                             width: parent.width; height: 46
-                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                                        onClicked: root.toggleSeason(sgrp.modelData.season) }
+                                            KeyboardAction {
+                                                id: seasonInput
+                                                anchors.fill: parent
+                                                accessibleName: (sgrp.sOpen ? "Collapse season " : "Expand season ") + sgrp.modelData.season
+                                                focusRadius: 8
+                                                onTriggered: root.toggleSeason(sgrp.modelData.season)
+                                            }
                                             Text {
                                                 id: sChev
                                                 x: 4; anchors.verticalCenter: parent.verticalCenter
@@ -1332,14 +1385,14 @@ Item {
                             }
                             Text {
                                 text: "Open a book in Biblio and pick a release ›"
-                                color: emptyAudioMa.containsMouse ? "#ffd968" : theme.inkDimmer
+                                color: emptyAudioInput.interactionActive ? "#ffd968" : theme.inkDimmer
                                 font.family: theme.ui; font.pixelSize: 14
-                                MouseArea {
-                                    id: emptyAudioMa
+                                KeyboardAction {
+                                    id: emptyAudioInput
                                     anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.openWorldRequested("audiobook")
+                                    accessibleName: "Open Biblio audiobooks"
+                                    showFocusFrame: false
+                                    onTriggered: root.openWorldRequested("audiobook")
                                 }
                             }
                         }
@@ -1400,26 +1453,26 @@ Item {
                                         visible: !abDoneRow.modelData.missing
                                                  && String(abDoneRow.modelData.bookPath || "").length > 0
                                         text: "Open book"
-                                        color: abOpenMa.containsMouse ? "#ffd968" : theme.gold
+                                        color: abOpenInput.interactionActive ? "#ffd968" : theme.gold
                                         font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
-                                        MouseArea {
-                                            id: abOpenMa
+                                        KeyboardAction {
+                                            id: abOpenInput
                                             anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.openAudiobookRequested(abDoneRow.modelData)
+                                            accessibleName: "Open book"
+                                            showFocusFrame: false
+                                            onTriggered: root.openAudiobookRequested(abDoneRow.modelData)
                                         }
                                     }
                                     Text {
                                         text: "Delete local copy"
-                                        color: abDelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                        color: abDeleteInput.interactionActive ? theme.ink : theme.inkDimmer
                                         font.family: theme.ui; font.pixelSize: 13
-                                        MouseArea {
-                                            id: abDelMa
+                                        KeyboardAction {
+                                            id: abDeleteInput
                                             anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: {
+                                            accessibleName: "Delete local audiobook copy"
+                                            showFocusFrame: false
+                                            onTriggered: {
                                                 // Same delegate-teardown hazard: capture the id primitive before
                                                 // the async dialog, not the delegate id itself.
                                                 var abDoneId = abDoneRow.modelData.id;
@@ -1445,13 +1498,20 @@ Item {
         }
     }
 
-    ScrollGlide { flick: page }
+    ScrollGlide { id: pageGlide; flick: page }
+    KeyboardScrollController { id: pageKeys; flick: page; glide: pageGlide }
+    Shortcut {
+        sequences: ["Ctrl+F"]
+        enabled: root.visible && !root.confirmationOpen
+        onActivated: root.searchClicked()
+    }
 
     Rectangle {
         anchors.fill: parent
         visible: root.confirmationOpen
         z: 100
         color: Qt.rgba(0, 0, 0, 0.72)
+        Keys.onEscapePressed: root.closeConfirmation()
         MouseArea { anchors.fill: parent }
 
         Rectangle {
@@ -1494,7 +1554,7 @@ Item {
                         width: cancelConfirmText.implicitWidth + 28
                         height: 34
                         radius: 17
-                        color: cancelConfirmMa.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07)
+                        color: cancelConfirmInput.interactionActive ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07)
                         Text {
                             id: cancelConfirmText
                             anchors.centerIn: parent
@@ -1503,19 +1563,21 @@ Item {
                             font.family: theme.ui
                             font.pixelSize: 13
                         }
-                        MouseArea {
-                            id: cancelConfirmMa
+                        KeyboardAction {
+                            id: cancelConfirmInput
                             anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.closeConfirmation()
+                            accessibleName: "Go back"
+                            focusRadius: 17
+                            KeyNavigation.tab: confirmActionInput
+                            KeyNavigation.backtab: confirmActionInput
+                            onTriggered: root.closeConfirmation()
                         }
                     }
                     Rectangle {
                         width: confirmActionText.implicitWidth + 28
                         height: 34
                         radius: 17
-                        color: confirmActionMa.containsMouse ? "#ffd968" : theme.gold
+                        color: confirmActionInput.interactionActive ? "#ffd968" : theme.gold
                         Text {
                             id: confirmActionText
                             anchors.centerIn: parent
@@ -1525,12 +1587,14 @@ Item {
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
                         }
-                        MouseArea {
-                            id: confirmActionMa
+                        KeyboardAction {
+                            id: confirmActionInput
                             anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.runConfirmedAction()
+                            accessibleName: root.confirmationLabel
+                            focusRadius: 17
+                            KeyNavigation.tab: cancelConfirmInput
+                            KeyNavigation.backtab: cancelConfirmInput
+                            onTriggered: root.runConfirmedAction()
                         }
                     }
                 }
@@ -1545,22 +1609,31 @@ Item {
         Rectangle {
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 22
             width: 42; height: 34; radius: 17
-            color: backMa.hovered ? Qt.rgba(1,1,1,0.18) : Qt.rgba(0,0,0,0.40)
+            color: backInput.interactionActive ? Qt.rgba(1,1,1,0.18) : Qt.rgba(0,0,0,0.40)
             Text { anchors.centerIn: parent; text: "‹"; color: theme.ink; font.pixelSize: 22 }
-            HoverHandler { id: backMa }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.backRequested() }
+            KeyboardAction {
+                id: backInput
+                anchors.fill: parent
+                accessibleName: "Back"
+                focusRadius: 17
+                onTriggered: root.backRequested()
+            }
         }
         Row {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() } }
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Search"; focusRadius: 5
+                        onTriggered: root.searchClicked() } }
             Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5
+                        onTriggered: root.minimizeRequested() } }
             Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5
+                        onTriggered: root.fullscreenRequested() } }
             Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5
+                        onTriggered: root.closeRequested() } }
         }
     }
 
@@ -1625,19 +1698,19 @@ Item {
                 objectName: "downloadsReadAction_" + String(row.rowData.id)
                 visible: !row.rowData.missing
                 text: row.rowData.world === "theatre" ? "Play" : "Read"
-                color: openMa.containsMouse ? "#ffd968" : theme.gold
+                color: openInput.interactionActive ? "#ffd968" : theme.gold
                 font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
-                MouseArea { id: openMa; anchors.fill: parent; hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.openRequested(row.rowData) }
+                KeyboardAction { id: openInput; anchors.fill: parent
+                    accessibleName: parent.text; showFocusFrame: false
+                    onTriggered: root.openRequested(row.rowData) }
             }
             Text {
                 text: row.rowData.missing ? "Dismiss missing entry" : "Delete local copy"
-                color: rmMa.containsMouse ? theme.ink : theme.inkDimmer
+                color: removeInput.interactionActive ? theme.ink : theme.inkDimmer
                 font.family: theme.ui; font.pixelSize: 13
-                MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
+                KeyboardAction { id: removeInput; anchors.fill: parent
+                    accessibleName: parent.text; showFocusFrame: false
+                    onTriggered: {
                                 var world = row.rowData.world;
                                 var id = row.rowData.id;
                                 root.confirmAction(

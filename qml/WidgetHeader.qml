@@ -49,24 +49,26 @@ Item {
             Text {
                 visible: head.moreLabel !== ""
                 text: head.moreLabel
-                color: moreMa.containsMouse ? theme.gold : theme.ink
+                color: input.interactionActive ? theme.gold : theme.ink
                 font.family: theme.display; font.pixelSize: 17
                 anchors.verticalCenter: parent.verticalCenter
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
             Text {
                 text: "›"
-                color: moreMa.containsMouse ? theme.gold : theme.inkDim
+                color: input.interactionActive ? theme.gold : theme.inkDim
                 font.family: theme.display; font.pixelSize: 22
                 anchors.verticalCenter: parent.verticalCenter
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
         }
-        MouseArea {
-            id: moreMa
-            anchors.fill: parent; anchors.margins: -8
-            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: head.moreClicked()
+        KeyboardAction {
+            id: input
+            anchors.fill: parent
+            anchors.margins: -8
+            accessibleName: head.moreLabel !== "" ? head.moreLabel + " " + head.title : "Open " + head.title
+            focusRadius: 7
+            onTriggered: head.moreClicked()
         }
     }
 }
