@@ -105,25 +105,52 @@ jobs:
           Copy-Item (Join-Path $env:GPERF_DIR "win_bison.exe") (Join-Path $env:GPERF_DIR "bison.exe") -Force
 
           # gperf: self-contained GnuWin32 3.0.1 build (matches the recipe already
-          # proven on this exact source tree). Extract bin.zip; if the exe can't
-          # start (missing runtime DLL), also pull dep.zip into the SAME dir --
-          # GnuWin32 ships iconv/intl runtime deps separately for some tools.
+          # proven on this exact source tree). SourceForge can return an HTML error
+          # page with HTTP 200 from a bad mirror, so validate the ZIP before
+          # Expand-Archive and rotate mirrors instead of failing with a bare
+          # OperationStopped. The GnuWin32 binary is standalone on the Windows
+          # runner, so a non-running executable is a real toolchain failure.
           function Test-ExeRuns($exe) {
             try { & $exe --version *>$null; return ($LASTEXITCODE -eq 0) } catch { return $false }
           }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          function Download-ValidZip([string[]]$urls, [string]$path) {
+            foreach ($baseUri in $urls) {
+              for ($attempt = 1; $attempt -le 3; $attempt++) {
+                try {
+                  if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+                  $uri = "$baseUri&retry=$attempt"
+                  Write-Output "fetching archive from $uri"
+                  Invoke-WebRequest -Uri $uri -OutFile $path -MaximumRedirection 10 -MaximumRetryCount 2 -RetryIntervalSec 10
+                  $bytes = [System.IO.File]::ReadAllBytes($path)
+                  if ($bytes.Length -lt 4 -or $bytes[0] -ne 0x50 -or $bytes[1] -ne 0x4b) {
+                    throw "response is not a ZIP ($($bytes.Length) bytes)"
+                  }
+                  $zip = [System.IO.Compression.ZipFile]::OpenRead($path)
+                  try { $entryCount = $zip.Entries.Count } finally { $zip.Dispose() }
+                  if ($entryCount -lt 1) { throw "ZIP contains no entries" }
+                  Write-Output "valid ZIP received ($($bytes.Length) bytes, $entryCount entries)"
+                  return
+                } catch {
+                  Write-Output "archive attempt failed: $($_.Exception.Message)"
+                  if ($attempt -lt 3) { Start-Sleep -Seconds 5 }
+                }
+              }
+            }
+            throw "could not download a valid ZIP from any SourceForge mirror"
+          }
           $binZip = Join-Path $env:RUNNER_TEMP "gperf-bin.zip"
-          Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/gnuwin32/gperf/3.0.1/gperf-3.0.1-bin.zip" -OutFile $binZip -MaximumRetryCount 5 -RetryIntervalSec 15
+          Download-ValidZip @(
+            "https://sourceforge.net/projects/gnuwin32/files/gperf/3.0.1/gperf-3.0.1-bin.zip/download?download=1&use_mirror=gigenet",
+            "https://sourceforge.net/projects/gnuwin32/files/gperf/3.0.1/gperf-3.0.1-bin.zip/download?download=1&use_mirror=pilotfiber",
+            "https://sourceforge.net/projects/gnuwin32/files/gperf/3.0.1/gperf-3.0.1-bin.zip/download?download=1&use_mirror=cytranet-dal",
+            "https://downloads.sourceforge.net/project/gnuwin32/gperf/3.0.1/gperf-3.0.1-bin.zip?download=1"
+          ) $binZip
           Expand-Archive -Path $binZip -DestinationPath $env:GPERF_DIR -Force
           $gperfExe = Get-ChildItem $env:GPERF_DIR -Recurse -Filter "gperf.exe" | Select-Object -First 1
           if (-not $gperfExe) { throw "gperf.exe missing after bin.zip extract" }
           if (-not (Test-ExeRuns $gperfExe.FullName)) {
-            Write-Output "gperf.exe did not run from bin.zip alone -- pulling dep.zip for runtime DLLs"
-            $depZip = Join-Path $env:RUNNER_TEMP "gperf-dep.zip"
-            Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/gnuwin32/gperf/3.0.1/gperf-3.0.1-dep.zip" -OutFile $depZip -MaximumRetryCount 5 -RetryIntervalSec 15
-            Expand-Archive -Path $depZip -DestinationPath $env:GPERF_DIR -Force
-            # dep.zip's DLLs usually land in its own bin\ -- copy flat next to gperf.exe.
-            Get-ChildItem $env:GPERF_DIR -Recurse -Filter "*.dll" | Copy-Item -Destination $gperfExe.DirectoryName -Force
-            if (-not (Test-ExeRuns $gperfExe.FullName)) { throw "gperf.exe still fails to run after dep.zip" }
+            throw "gperf.exe did not run from the validated GnuWin32 archive"
           }
           # Flatten: PATH gets exactly $env:GPERF_DIR, so put working copies there.
           if ($gperfExe.DirectoryName -ne $env:GPERF_DIR) {
