@@ -83,7 +83,7 @@ Keep the direct migration URL separate from the pooled runtime URL. The migratio
 reads `MIGRATION_DATABASE_URL`; the service reads `DATABASE_URL` and never needs the
 direct endpoint.
 
-Avatar upload (`BUCKET_NAME`, `AWS_ENDPOINT_URL_S3`) is still not required at first launch
+Avatar upload (`BUCKET_NAME`, `AWS_ENDPOINT_URL_S3`) is deferred at first launch via `AVATAR_STORAGE=disabled` in the deploy command below — profiles then serve through avatar.DisabledStore
 — the shipped client uses built-in avatar ids, so object storage stays deferred regardless
 of hosting target.
 
@@ -154,7 +154,7 @@ gcloud run deploy colosseum-account-service \
   --min-instances 0 \
   --max-instances 3 \
   --concurrency 16 \
-  --set-env-vars COLOSSEUM_ACCOUNT_ENV=production,HTTP_ADDR=:8080,DATABASE_MAX_CONNECTIONS=8 \
+  --set-env-vars COLOSSEUM_ACCOUNT_ENV=production,HTTP_ADDR=:8080,DATABASE_MAX_CONNECTIONS=8,AVATAR_STORAGE=disabled \
   --set-secrets DATABASE_URL=database-url:latest,RECOVERY_HMAC_KEY=recovery-hmac-key:latest,ABUSE_HMAC_KEY=abuse-hmac-key:latest,SESSION_WRAP_KEY=session-wrap-key:latest,SYNC_DATA_KEY=sync-data-key:latest
 ```
 

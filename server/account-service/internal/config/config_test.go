@@ -54,6 +54,31 @@ func TestLoadRequiresProductionAvatarStorage(t *testing.T) {
 	}
 }
 
+func TestLoadAllowsProductionToDeferAvatarStorage(t *testing.T) {
+	setRequiredTestEnvironment(t)
+	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
+	t.Setenv("AVATAR_STORAGE", "disabled")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.RunDatabaseMigrations {
+		t.Fatal("RunDatabaseMigrations = true, want false in production")
+	}
+	if cfg.AvatarBucketName != "" {
+		t.Fatalf("AvatarBucketName = %q, want empty while deferred", cfg.AvatarBucketName)
+	}
+}
+
+func TestLoadKeepsAvatarRequirementForUnrecognizedAvatarStorageValue(t *testing.T) {
+	setRequiredTestEnvironment(t)
+	t.Setenv("COLOSSEUM_ACCOUNT_ENV", "production")
+	t.Setenv("AVATAR_STORAGE", "disable") // typo of the exact opt-out
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() accepted production without avatar storage for a non-exact AVATAR_STORAGE value")
+	}
+}
+
 func TestPositiveInt32EnvRejectsTooLargeValue(t *testing.T) {
 	t.Setenv("TEST_POSITIVE_INT32", "2147483648")
 	_, err := positiveInt32Env("TEST_POSITIVE_INT32", 1)

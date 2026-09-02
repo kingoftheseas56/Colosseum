@@ -110,7 +110,14 @@ func Load() (Config, error) {
 		avatarRegion = "auto"
 	}
 
-	if environment == "production" {
+	// Avatar object storage is deliberately deferrable in production: the
+	// shipped client uses built-in avatar ids only, so AVATAR_STORAGE=disabled
+	// opts this deployment out of S3-backed uploads (the service then serves
+	// profiles through avatar.DisabledStore). Any other value — including a
+	// typo — keeps the production requirement, so storage is never dropped by
+	// accident.
+	avatarStorage := strings.ToLower(strings.TrimSpace(os.Getenv("AVATAR_STORAGE")))
+	if environment == "production" && avatarStorage != "disabled" {
 		if avatarBucketName == "" {
 			return Config{}, errors.New("BUCKET_NAME is required in production")
 		}
