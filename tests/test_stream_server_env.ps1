@@ -6,7 +6,7 @@ $stream = Get-Content $streamPath -Raw
 $header = Get-Content $headerPath -Raw
 
 if ($stream -notmatch 'penv\.remove\(\s*QStringLiteral\("NODE_OPTIONS"\)\s*\)') {
-    throw "StreamServer must remove inherited NODE_OPTIONS before launching stremio-runtime.exe."
+    throw "StreamServer must remove inherited NODE_OPTIONS before launching the Stremio runtime."
 }
 
 if ($stream -notmatch 'NO_HTTPS_SERVER') {

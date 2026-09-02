@@ -19,6 +19,7 @@ import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
 import "ComicResolve.js" as Resolve
+import "ComicDownloadRoute.js" as ComicDownloadRoute
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
@@ -1087,6 +1088,7 @@ Window {
     }
 
     function openComicSeries(d) {
+        comicSeriesLayer.resumeChapterId = ""
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
         comicSeriesLayer.title = (d && d.title) || ""
@@ -1097,6 +1099,25 @@ Window {
             comicSeriesLayer.item.cover = comicSeriesLayer.cover
             comicSeriesLayer.item.locgMeta = comicSeriesLayer.locgMeta
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
+        } else comicSeriesLayer.active = true
+    }
+    function openComicSeriesAt(title, numericLocgId, chapterId) {
+        // Numeric gc: identities are LOCG/DB-backed. Load the catalogue before the
+        // reader target is assigned so ComicSeriesPage.attach() can establish gcTag
+        // synchronously; otherwise the reader mounts under the transient "gc:" key.
+        if (!ComicsDb.ready()) comicsDbLoader.active = true
+        comicSeriesLayer.resumeChapterId = chapterId || ""
+        comicSeriesLayer.locgSid = "locg:" + String(numericLocgId || "")
+        comicSeriesLayer.locgMeta = ({})
+        comicSeriesLayer.title = title || ""
+        comicSeriesLayer.cover = ""
+        if (comicSeriesLayer.active && comicSeriesLayer.item) {
+            var it = comicSeriesLayer.item
+            it.seriesTitle = comicSeriesLayer.title
+            it.cover = ""
+            it.locgMeta = ({})
+            it.locgId = comicSeriesLayer.locgSid             // DB identity first
+            it.openChapterId = comicSeriesLayer.resumeChapterId   // local reader second
         } else comicSeriesLayer.active = true
     }
     function closeComicSeries() { comicSeriesLayer.active = false }
@@ -1487,21 +1508,23 @@ Window {
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "id": item.id || item.path, "title": item.title || "", "author": item.author || "" })
         } else if (item.kind === "comic") {
-            // A demuxed pack child carries packRole (Slice 1 field, forwarded by
-            // tankobanItems from downloadedIssueRow). Route it to the downloads-backed
-            // pack shelf — NOT the live gc:/gcd: tag lanes, which can't see the demuxed
-            // volumes. Ordinary single issues (empty packRole) stay on the existing paths.
-            if (item.packRole && String(item.packRole).length > 0) {
+            var destination = ComicDownloadRoute.destination(item)
+            if (destination === "pack") {
                 win.openPackSeries({ seriesId: item.seriesId,
                                      seriesTitle: item.seriesTitle,
                                      resumeChapterId: item.id })
-            } else if (String(item.seriesId || "").indexOf("gc:") === 0)
+            } else if (destination === "locg") {
+                // DB-backed ComicSeriesPage stores its reader namespace as gc:<LOCG id>.
+                // That numeric suffix is not a GetComics tag and must reopen the DB lane.
+                win.openComicSeriesAt(item.seriesTitle, String(item.seriesId).slice(3), item.id)
+            } else if (destination === "getcomics") {
                 win.openWesternAt(item.seriesTitle, String(item.seriesId).slice(3), item.id)
-            else if (String(item.seriesId || "").indexOf("gcd:") === 0)
+            } else if (destination === "gcd") {
                 win.openGcdSeries({ gcdId: Number(String(item.seriesId).slice(4)),
                                     title: item.seriesTitle, resumeChapterId: item.id })
-            else
+            } else {
                 console.log("[route] ignoring unknown comic id:", item.seriesId)
+            }
         } else {
             win.openSeriesAt(item.seriesTitle, item.seriesId, item.id)
         }
@@ -1750,14 +1773,18 @@ Window {
             // service's per-series flag once the id resolves.
             win.openSeries(title)
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            if (String(entry.id || "").indexOf("gc:") === 0)
+            var comicDest = entry.kind === "comic"
+                ? ComicDownloadRoute.destination({ seriesId: entry.id || "" }) : "unknown"
+            if (comicDest === "locg")
+                win.openComicSeries({ id: "locg:" + String(entry.id).slice(3), title: title,
+                                      cover: entry.cover || "" })
+            else if (comicDest === "getcomics")
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
-            else if (String(entry.id || "").indexOf("gcd:") === 0)
+            else if (comicDest === "gcd")
                 win.openGcdSeries({ gcdId: Number(String(entry.id).slice(4)), title: title,
                                     cover: entry.cover || "" })
             else if (entry.kind === "comic")
-                // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12);
-                // comics open only via the gc: lane, so a stale id never opens the manga page
+                // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12)
                 console.log("[route] ignoring unknown comic id:", entry.id)
             else win.openSeries(title)                                   // manga → the chapter-list series page
         } else if (entry.kind === "book") {
@@ -2078,14 +2105,18 @@ Window {
                 } else vaultComicLayer.active = true
                 return
             }
-            if (String(t.seriesId || "").indexOf("gc:") === 0) {
-                // GetComics content (western shelf OR LOCG-catalogue page) restores via the
-                // GetComics shelf — same tag, same reader, resumed at the chapter.
+            var sessionComicDest = ComicDownloadRoute.destination({ seriesId: t.seriesId || "" })
+            if (sessionComicDest === "locg") {
+                win.openComicSeriesAt(t.title, String(t.seriesId).slice(3),
+                                      (st.chapterId || t.chapterId || ""))
+                return
+            }
+            if (sessionComicDest === "getcomics") {
                 win.openWesternAt(t.title, String(t.seriesId).slice(3), (st.chapterId || t.chapterId || ""))
                 if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
                 return
             }
-            if (String(t.seriesId || "").indexOf("gcd:") === 0) {
+            if (sessionComicDest === "gcd") {
                 // catalogue run page (baked mode, spec 2026-07-17) restores via the same
                 // western shelf, baked branch — same run, same reader, resumed at the chapter.
                 win.openGcdSeries({ gcdId: Number(String(t.seriesId).slice(4)), title: t.title,
@@ -2976,6 +3007,7 @@ Window {
         property string cover: ""
         property string locgSid: ""          // "locg:<id>" — the catalogue entry
         property var locgMeta: ({})          // {publisher, rating, startYear…} enriches the hero
+        property string resumeChapterId: "" // Downloads/Continue can enter the local reader directly
         source: "ComicSeriesPage.qml"
         onLoaded: {
             item.backdrop = wall
@@ -2990,7 +3022,9 @@ Window {
             item.readerCloseRequested.connect(win.closeComicReader)
             item.readerBackRequested.connect(win.closeComicReader)
             item.locgMeta = comicSeriesLayer.locgMeta
-            item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
+            item.locgId = comicSeriesLayer.locgSid       // identity first — triggers attach()
+            if (comicSeriesLayer.resumeChapterId)
+                item.openChapterId = comicSeriesLayer.resumeChapterId   // local reader second
         }
     }
 

@@ -63,6 +63,20 @@ int main(int argc, char** argv)
     CHECK(normal && normal->resourceRoot == QFileInfo(repoRoot).absoluteFilePath(),
           "normal launch retains source-shaped resource root");
 
+    const QString originalCwd = QDir::currentPath();
+    const QString outOfTreeAppDir = QDir(temp.path()).filePath(QStringLiteral("build/colosseum-linux"));
+    QDir().mkpath(outOfTreeAppDir);
+    writeManifest(QDir(outOfTreeAppDir).filePath(QStringLiteral("qml-build.manifest")), fingerprint);
+    CHECK(QDir::setCurrent(repoRoot), "out-of-tree launch working directory selected");
+    const auto outOfTree = resolveStartupLayout(
+        {QStringLiteral("colosseum")}, outOfTreeAppDir, &error);
+    CHECK(outOfTree.has_value(), "out-of-tree Linux launch resolves from source working directory");
+    CHECK(outOfTree && outOfTree->qmlPath == QFileInfo(mainQml).absoluteFilePath(),
+          "out-of-tree Linux launch uses source-shaped QML tree");
+    CHECK(outOfTree && outOfTree->resourceRoot == QFileInfo(repoRoot).absoluteFilePath(),
+          "out-of-tree Linux launch retains source-shaped resource root");
+    CHECK(QDir::setCurrent(originalCwd), "working directory restored after out-of-tree proof");
+
     const auto flagged = resolveStartupLayout(
         {QStringLiteral("colosseum.exe"), QStringLiteral("--update-result=success")}, appDir, &error);
     CHECK(flagged.has_value(), "flag-only updater launch resolves");

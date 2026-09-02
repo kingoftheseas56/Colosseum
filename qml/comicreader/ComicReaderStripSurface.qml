@@ -310,7 +310,17 @@ Item {
         // sweeps even if it opens on the page numbers the last one closed at" — and a QML memo that
         // did not reset alongside it would swallow the new entry's FIRST call and leave the window
         // wherever the previous volume left it.
-        function onEntryChanged() { root._rangeFirst = -1; root._rangeLast = -1; root._activityLastCentrePage = -1 }
+        function onEntryChanged() {
+            root._rangeFirst = -1
+            root._rangeLast = -1
+            root._activityLastCentrePage = -1
+            // A fresh book can arrive while Long Strip remains the active layout. In that case
+            // active/width/height/contentY do not have to change, so none of the usual viewport
+            // triggers is guaranteed to fire. The provider only serves pages already decoded by
+            // core.setStripViewport(), therefore re-prime the viewport on every entry crossing.
+            // _scheduleReport() already fails closed while this surface is inactive.
+            root._scheduleReport()
+        }
     }
 
     function _applyCompensation(delta) {

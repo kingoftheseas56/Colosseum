@@ -24,14 +24,20 @@ Item {
     // Rich enough to exercise every Task 8 pin mapping: Action genre + Seinen demographic.
     QtObject {
         id: fakeMal
+        property bool readyState: true
+        signal readyChanged()
         property var genreFacets: [{ value: "Action", count: 10 }, { value: "Adventure", count: 8 }]
         property var demographicFacets: [{ value: "Seinen", count: 5 }, { value: "Shounen", count: 20 }]
+        function ready() { return readyState }
+        function setReady(value) { readyState = value; readyChanged() }
         function discoverFilters(axis) {
             if (axis === "genre") return genreFacets
             if (axis === "demographic") return demographicFacets
             return []
         }
         function discoverPage(cat, fAxis, fKey, inclExp, off, lim) {
+            if (!readyState)
+                return { items: [], nextOffset: off, exhausted: true, freshness: "bundled", fallbackCatalog: "" }
             var rows = [
                 { mal_id: 1, title: "Berserk", type: "Manga", score: 9.5, year: 1989, explicit: false, availability: false },
                 { mal_id: 2, title: "Solo Leveling", type: "Manhwa", score: 8.5, year: 2018, explicit: false, availability: false }
@@ -46,6 +52,8 @@ Item {
     // Rich enough to exercise Marvel/DC/Image publisher pins.
     QtObject {
         id: fakeComics
+        signal readyChanged()
+        function ready() { return true }
         property var publisherFacets: [
             { key: "Marvel", label: "Marvel", count: 60 },
             { key: "DC", label: "DC", count: 40 },
@@ -86,6 +94,34 @@ Item {
         _xhrFactory: root.makeFakeXhr
     }
 
+    // Linux 1.1.6 readiness regression: a cold MAL catalogue can become ready while the
+    // retained Discover page is hidden. Returning to Discover must re-fetch the settled
+    // empty/exhausted first page instead of preserving "This catalogue answered with nothing."
+    QtObject {
+        id: coldMal
+        property bool readyState: false
+        signal readyChanged()
+        function ready() { return readyState }
+        function setReady(value) { readyState = value; readyChanged() }
+        function discoverFilters(axis) { return [] }
+        function discoverPage(cat, fAxis, fKey, inclExp, off, lim) {
+            if (!readyState)
+                return { items: [], nextOffset: off, exhausted: true, freshness: "bundled", fallbackCatalog: "" }
+            return { items: [{ mal_id: 99, title: "Linux Ready Manga", type: "Manga", explicit: false, availability: false }],
+                     nextOffset: off + 1, exhausted: true, freshness: "bundled", fallbackCatalog: "" }
+        }
+    }
+
+    UI.TankobanDiscoverPage {
+        id: coldPage
+        width: 1200; height: 700
+        malCatalog: coldMal
+        comicsCatalog: fakeComics
+        extensions: []
+        showExplicitContent: false
+        _xhrFactory: root.makeFakeXhr
+    }
+
     // resting-card proofs for BOTH Tankoban variants under the gallery profile (Task 9): a manga
     // card and a comics card must show POSTER + TITLE only at rest — no rating, no play ring, and no
     // demographic/publisher furniture (those stay in the Discover filters, not on the card).
@@ -103,6 +139,15 @@ Item {
         // The shell reads adapter.types()[0] = "manga" and adapter.defaultCatalog("manga") = "popular".
         eq(p.currentType, "manga", "default currentType: manga (Discover opens on the Manga wall)")
         // currentCatalogKey is set by the shell's init(); the adapter's defaultCatalog returns "popular".
+
+        // ── Linux catalogue readiness: warm DB and hidden-during-download cold DB ──
+        truthy(p.items.length > 0, "already-present MAL DB paints the first Manga page")
+        eq(coldPage.items.length, 0, "cold MAL DB initially settles to an empty wall")
+        coldPage.active = false
+        coldMal.setReady(true)
+        coldPage.active = true
+        truthy(coldPage.items.length > 0,
+               "returning after MAL becomes ready while hidden reloads the settled empty wall")
 
         // ── routing: a Manga card emits mangaSeriesRequested, a Comics card emits comicSeriesRequested ──
         var mangaOpens = 0, comicOpens = 0

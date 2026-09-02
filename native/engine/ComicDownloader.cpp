@@ -844,8 +844,10 @@ QVariantMap ComicDownloader::statusOf(const QString& issueId) const
         s[QStringLiteral("state")] = m_active->extracting ? QStringLiteral("extracting")
                                                           : QStringLiteral("downloading");
         s[QStringLiteral("done")]  = static_cast<double>(m_active->receivedBytes);
+        const qint64 expected = (m_active->expectedBytes >= m_active->receivedBytes)
+            ? m_active->expectedBytes : 0;
         s[QStringLiteral("total")] = static_cast<double>(
-            m_active->extracting ? m_active->receivedBytes : m_active->expectedBytes);
+            m_active->extracting ? m_active->receivedBytes : expected);
         return s;
     }
     for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
@@ -1331,7 +1333,13 @@ void ComicDownloader::onProgressFromReply(qint64 received, qint64 total)
 {
     if (!m_active || !m_active->reply) return;
     InFlight& f = *m_active;
-    if (total > 0) f.expectedBytes = total;
+    // `expectedBytes` is a byte hint from metadata. Preserve a larger valid hint
+    // when a response reports no/garbled length, and never publish total < received.
+    if (total > 0 && (f.expectedBytes <= 0 || total > f.expectedBytes))
+        f.expectedBytes = total;
+    if (f.expectedBytes > 0 && received > f.expectedBytes)
+        f.expectedBytes = (total >= received) ? total : 0;
+    const qint64 visibleTotal = (f.expectedBytes >= received) ? f.expectedBytes : 0;
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     const qint64 elapsedMs = (f.lastProgressEmit == 0) ? (kProgressThrottleMs + 1)
                                                        : (nowMs - f.lastProgressEmit);
@@ -1339,7 +1347,7 @@ void ComicDownloader::onProgressFromReply(qint64 received, qint64 total)
     if (elapsedMs >= kProgressThrottleMs || deltaBytes >= kProgressThrottleBytes) {
         f.lastProgressEmit = nowMs;
         f.lastProgressBytes = received;
-        emit progress(f.id, static_cast<double>(received), static_cast<double>(total));
+        emit progress(f.id, static_cast<double>(received), static_cast<double>(visibleTotal));
     }
 }
 
@@ -2911,7 +2919,8 @@ QVariantList ComicDownloader::activeIssueJobs() const
             {QStringLiteral("label"), f.label},
             {QStringLiteral("state"), state},
             {QStringLiteral("done"), double(f.receivedBytes)},
-            {QStringLiteral("total"), double(f.expectedBytes)},
+            {QStringLiteral("total"), double(
+                f.expectedBytes >= f.receivedBytes ? f.expectedBytes : 0)},
             // Empty today (no producer sets partGroupKey yet) — falls back to the row's own id
             // in the Downloads page's grouping, i.e. today's exact single-row rendering. Ready
             // for a future multi-part fix with zero further plumbing here.

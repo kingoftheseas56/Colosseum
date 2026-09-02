@@ -1475,6 +1475,33 @@ restoreLegacyAndRollback(
                 restoreError));
     }
 
+    // Reopening legacy mode replays the restored activity ledger into derived
+    // History/Progress stores. That deterministic, Colosseum-owned projection
+    // can legitimately change the personal-state semantic digest after the
+    // exact rollback verification above. Persist the post-replay digest as the
+    // RetryPending baseline so a later sign-in still rejects any mutation that
+    // happens after this trusted replay.
+    const auto retrySource =
+        m_profileRuntime->legacyStorage().capture(&restoreError);
+    if (!retrySource.has_value()) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Legacy state was reopened but its retry baseline could not be captured."),
+                restoreError));
+    }
+    if (!adoption->refreshRetrySourceSemanticDigest(
+            retrySource->semanticDigest(),
+            &restoreError)) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Legacy state was reopened but its retry baseline could not be persisted."),
+                restoreError));
+    }
+
     return true;
 }
 

@@ -16,6 +16,7 @@ Window {
         property int downloadCalls: 0
         property int cancelCalls: 0
         property int deleteCalls: 0
+        property real lastExpectedBytes: 0
         signal progress(string issueId, real done, real total)
         signal finished(string issueId)
         signal failed(string issueId, string reason)
@@ -42,6 +43,7 @@ Window {
         function localPages(id) { return pageMap[String(id)] || [] }
         function downloadIssue(id, url, seriesId, seriesTitle, label, expectedBytes) {
             downloadCalls += 1
+            lastExpectedBytes = Number(expectedBytes || 0)
             setState(String(id), "resolving", false)
         }
         function cancelDownload(id) {
@@ -87,7 +89,7 @@ Window {
     property var r6: ({ id: "r6", name: "Issue #6", url: "https://example/r6", cover: "file:///cover6", sizeMB: 10, year: 2026, collection: false })
     property var r7: ({ id: "r7", name: "Issue #7", url: "https://example/r7", cover: "file:///cover7", sizeMB: 10, year: 2026, collection: false })
     property var r8: ({ id: "r8", name: "Issue #8", url: "https://example/r8", cover: "file:///cover8", sizeMB: 10, year: 2026, collection: false })
-    property var r9: ({ id: "r9", name: "Issue #9", url: "https://example/r9", cover: "file:///cover9", sizeMB: 10, year: 2026, collection: false })
+    property var r9: ({ id: "r9", name: "Issue #9", url: "https://example/r9", cover: "file:///cover9", sizeMB: 114, year: 2026, collection: false })
     property var extra: ({ id: "extra", name: "Sketchbook", url: "https://example/extra", cover: "file:///coverx", sizeMB: 10, year: 2026, collection: false, packRole: "extra" })
     property var main: ({ id: "main", name: "Volume 1", url: "https://example/main", cover: "file:///coverm", sizeMB: 10, year: 2026, collection: false, packRole: "main" })
 
@@ -217,6 +219,8 @@ Window {
             // A failure clears foreground auto-open; retry is a new user assertion/generation.
             comics.setState("r9", "none", false)
             page.readRelease(r9, "none")
+            ck(comics.lastExpectedBytes === 114 * 1024 * 1024,
+               "114 MB source metadata must cross the native boundary as bytes, never as 114 raw units")
             ck(page.pendingReadReleaseId === "r9", "failure case must begin with pending Read")
             comics.fail("r9", "temporary network failure")
             ck(!page.pendingReadActive && page.openChapterId === "",

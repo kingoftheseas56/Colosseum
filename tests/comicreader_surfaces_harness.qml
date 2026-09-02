@@ -1171,6 +1171,10 @@ Item {
         s._flushRangeWindow()
         ck(coreRange.requestRangeCalls === 0, "range: precondition — the memo is holding at 0..0")
         coreRange.entryChanged()             // a new book opened on the same page numbers
+        ck(s._reportPending === true,
+           "range/decode: a fresh entry while Long Strip stays active must schedule a viewport report "
+           + "so core.setStripViewport() starts the new book's decode wave; got _reportPending="
+           + s._reportPending)
         s._flushViewportReport()
         ck(coreRange.requestRangeCalls === 1,
            "range: a fresh entry must re-sweep even on the same page numbers, got " + coreRange.requestRangeCalls)

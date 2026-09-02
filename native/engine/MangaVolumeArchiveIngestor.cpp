@@ -47,15 +47,27 @@ bool isImageFile(const QString& name)
 
 QString sevenZipPath()
 {
+#if defined(Q_OS_WIN)
     const QString p = QStringLiteral("C:/Program Files/7-Zip/7z.exe");
     return QFileInfo::exists(p) ? p : QString();
+#else
+    QString p = QStandardPaths::findExecutable(QStringLiteral("7z"));
+    if (p.isEmpty()) p = QStandardPaths::findExecutable(QStringLiteral("7zz"));
+    return p;
+#endif
 }
 
 QString bsdtarPath()
 {
+#if defined(Q_OS_WIN)
     const QString sys = QStringLiteral("C:/Windows/System32/tar.exe");
     if (QFileInfo::exists(sys)) return sys;
     return QStandardPaths::findExecutable(QStringLiteral("tar"));
+#else
+    // The extraction fallback needs libarchive semantics for zip/rar. GNU tar
+    // may be named "tar" on Linux but cannot satisfy that contract.
+    return QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
 }
 
 // A cheap "is this a real image" gate: sniff the leading magic bytes. Full pixel
@@ -272,8 +284,7 @@ void MangaVolumeArchiveIngestor::runExtractor(int which)
     }
     if (exe.isEmpty()) {
         if (which == 0) { runExtractor(1); return; }
-        failActive(QStringLiteral("no archive extractor available (probed C:/Windows/System32/tar.exe, "
-                                  "PATH tar, C:/Program Files/7-Zip/7z.exe)"));
+        failActive(QStringLiteral("no archive extractor available (need bsdtar or 7z on this platform)"));
         return;
     }
     if (m_proc) { m_proc->deleteLater(); m_proc = nullptr; }

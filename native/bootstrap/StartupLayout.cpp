@@ -111,17 +111,35 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
     }
 
     QDir resourceRoot(applicationDirPath);
-    if (!resourceRoot.cdUp() || !resourceRoot.cdUp()) {
-        setError(error, QStringLiteral("resource_root_unresolvable: ") + applicationDirPath);
-        return std::nullopt;
+    const bool ancestorRootResolved = resourceRoot.cdUp() && resourceRoot.cdUp();
+    QFileInfo mainQml;
+    if (ancestorRootResolved) {
+        const QString candidateQmlRoot = resourceRoot.filePath(QStringLiteral("qml"));
+        mainQml.setFile(QDir(candidateQmlRoot).filePath(QStringLiteral("Main.qml")));
+    }
+
+    // Windows builds traditionally live under repo/native/build-msvc, so walking two
+    // levels up finds the source root. Native Linux builds are intentionally out-of-tree
+    // (for example ~/build/colosseum-linux), so the source root is not an ancestor of the
+    // executable. For that development shape, accept the launch working directory only
+    // when it contains qml/Main.qml; the build manifest below still fingerprints the whole
+    // tree and fails closed if the runtime QML differs from what this binary was built with.
+    if (!mainQml.isFile()) {
+        const QDir workingRoot(QDir::currentPath());
+        const QFileInfo workingMainQml(
+            QDir(workingRoot.filePath(QStringLiteral("qml"))).filePath(QStringLiteral("Main.qml")));
+        if (!workingMainQml.isFile()) {
+            const QString missingPath = ancestorRootResolved
+                ? mainQml.absoluteFilePath()
+                : QDir(applicationDirPath).absoluteFilePath(QStringLiteral("../../qml/Main.qml"));
+            setError(error, QStringLiteral("qml_entrypoint_missing: ") + missingPath);
+            return std::nullopt;
+        }
+        resourceRoot = workingRoot;
+        mainQml = workingMainQml;
     }
 
     const QString qmlRoot = resourceRoot.filePath(QStringLiteral("qml"));
-    const QFileInfo mainQml(QDir(qmlRoot).filePath(QStringLiteral("Main.qml")));
-    if (!mainQml.isFile()) {
-        setError(error, QStringLiteral("qml_entrypoint_missing: ") + mainQml.absoluteFilePath());
-        return std::nullopt;
-    }
 
     const QString manifestPath =
         QDir(applicationDirPath).filePath(QStringLiteral("qml-build.manifest"));

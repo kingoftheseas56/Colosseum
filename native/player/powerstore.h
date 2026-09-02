@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 
+class QProcess;
+
 class PowerStore : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool inhibited READ inhibited NOTIFY inhibitedChanged)
@@ -23,4 +25,7 @@ private:
     bool applyPlatformInhibit(bool on, const QString &reason);
 
     bool m_inhibited = false;
+#if defined(Q_OS_LINUX)
+    QProcess *m_linuxInhibitor = nullptr;
+#endif
 };
