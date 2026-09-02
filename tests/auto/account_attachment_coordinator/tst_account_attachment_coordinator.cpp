@@ -3101,10 +3101,15 @@ void tst_account_attachment_coordinator::
             return true;
         });
 
-    // Lock the receipt file the moment retirement starts. On Windows a
-    // read handle without FILE_SHARE_DELETE blocks the QSaveFile replace,
-    // so the retire write fails before any clear can remove the file.
+    // Block replacement of the receipt the moment retirement starts.
+    // Windows uses an open read handle; POSIX makes the containing directory
+    // non-writable so QSaveFile cannot create/replace its temporary file.
     std::unique_ptr<QFile> receiptLock;
+#ifndef Q_OS_WIN
+    QString receiptDirectory;
+    QFile::Permissions receiptDirectoryPermissions;
+    bool receiptDirectoryWriteBlocked = false;
+#endif
     QObject::connect(
         &coordinator,
         &AccountAttachmentCoordinator::
@@ -3115,6 +3120,7 @@ void tst_account_attachment_coordinator::
                     == AccountAttachmentCoordinator::
                         State::Retiring
                 && !receiptLock) {
+#ifdef Q_OS_WIN
                 receiptLock =
                     std::make_unique<
                         QFile>(
@@ -3125,6 +3131,23 @@ void tst_account_attachment_coordinator::
                         QIODevice::
                             ReadOnly);
                 Q_UNUSED(lockHeld)
+#else
+                receiptDirectory = QFileInfo(
+                    profile.cloudAttachmentReceiptPath())
+                    .absolutePath();
+                receiptDirectoryPermissions =
+                    QFile::permissions(receiptDirectory);
+                QFile::Permissions blocked =
+                    receiptDirectoryPermissions;
+                blocked &= ~QFileDevice::WriteOwner;
+                blocked &= ~QFileDevice::WriteUser;
+                blocked &= ~QFileDevice::WriteGroup;
+                blocked &= ~QFileDevice::WriteOther;
+                receiptDirectoryWriteBlocked =
+                    QFile::setPermissions(
+                        receiptDirectory,
+                        blocked);
+#endif
             }
         });
 
@@ -3141,6 +3164,13 @@ void tst_account_attachment_coordinator::
     QTRY_COMPARE(
         recording.finishedCount,
         1);
+
+#ifndef Q_OS_WIN
+    QVERIFY(receiptDirectoryWriteBlocked);
+    QVERIFY(QFile::setPermissions(
+        receiptDirectory,
+        receiptDirectoryPermissions));
+#endif
 
     // The server committed and the flow reached retirement, but the
     // retire write failed closed: the receipt survives with the source

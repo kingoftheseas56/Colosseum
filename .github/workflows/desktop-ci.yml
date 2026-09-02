@@ -335,7 +335,7 @@ jobs:
             clang-tidy-20 \
             libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
             libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 \
-            ffmpeg p7zip-full libarchive-tools
+            xvfb xauth ffmpeg p7zip-full libarchive-tools
           ccache --max-size=1G
 
       - name: Verify Linux toolchain
@@ -424,6 +424,7 @@ jobs:
           tests = json.load(open(sys.argv[1], encoding="utf-8"))["tests"]
           windows = []
           non_windows = []
+          requires_x11 = []
           shell_leaks = []
           missing_commands = []
           canary = None
@@ -435,6 +436,8 @@ jobs:
                   windows.append(test["name"])
               else:
                   non_windows.append(test["name"])
+              if "requires-x11" in labels:
+                  requires_x11.append(test["name"])
               if "windows" not in labels and not command:
                   missing_commands.append(test["name"])
               if command and "powershell" in str(command[0]).lower() and "windows" not in labels:
@@ -445,6 +448,10 @@ jobs:
           print(f"CTEST_TOTAL={len(tests)}")
           print(f"CTEST_WINDOWS={len(windows)}")
           print(f"CTEST_NON_WINDOWS={len(non_windows)}")
+          print(f"CTEST_REQUIRES_X11={len(requires_x11)}")
+          expected_x11 = ["colosseum.qttest.journey_play_video"]
+          if requires_x11 != expected_x11:
+              raise SystemExit(f"unexpected X11 CTest inventory: {requires_x11}")
           if shell_leaks:
               raise SystemExit(f"PowerShell tests leaked into Linux surface: {shell_leaks}")
           if missing_commands:
@@ -460,6 +467,18 @@ jobs:
           QT_FORCE_STDERR_LOGGING: "1"
         run: |
           ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
+            -LE "windows|requires-x11" \
+            --output-on-failure \
+            --parallel 1
+
+      - name: Run X11-dependent Linux CTests
+        env:
+          QT_QPA_PLATFORM: xcb
+          QT_FORCE_STDERR_LOGGING: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          xvfb-run -a ctest --test-dir "$COLOSSEUM_LINUX_BUILD" \
+            -L requires-x11 \
             -LE windows \
             --output-on-failure \
             --parallel 1
