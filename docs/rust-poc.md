@@ -8,8 +8,8 @@ or the dependency set should update this file.
 
 ## Module boundaries
 
-The workspace is three crates: `catalog`, `account`, `daemon`
-(`Cargo.toml [workspace]`).
+Workspace members are `catalog`, `account`, `daemon` (the domain trio
+below), plus `player` and `ui-gpui` (see Player architecture / UI decision).
 
 - **Domain crates (`catalog`, `account`) expose a typed contract only**: one
   entry type (`Catalog`, `Service`), the serde DTOs, and a `thiserror` `Error`
@@ -27,8 +27,9 @@ The workspace is three crates: `catalog`, `account`, `daemon`
   discovery (`paths.rs` via `directories`), builds `AppState`, and maps domain
   contracts onto routes and status codes. It is the only crate that knows where
   data lives on disk; domains receive paths, never discover them.
-- **Dependencies flow one direction: `daemon` → {`catalog`, `account`}.** Domain
-  crates never depend on each other and never see axum/tokio/directories. An
+- **Dependencies flow one direction: `daemon` → {`catalog`, `account`} and
+  `ui-gpui` → `player`.** Domain crates never depend on each other and never
+  see axum/tokio/directories. An
   inter-domain or domain→daemon dep is a boundary violation; revise this file
   before adding one.
 
@@ -83,26 +84,67 @@ Go wins on disagreement. Status as of this writing:
 
 Re-run this check at the end of account-core and correct any drift.
 
-## UI options (decision deferred)
+## UI decision: GPUI
 
-The daemon is UI-agnostic: every option below talks to it over HTTP. Candidates
-and their stakes:
+`gpui` 0.2.2 (crates.io) wins the UI lane. Spike evidence (visual, moving
+video): `crates/ui-gpui` fetches `/catalog/search` from the daemon over HTTP
+and paints a window with the catalog list beside frames pulled from
+`crates/player`'s native backend, uploaded as `RenderImage` on a 10 ms timer
+pump. The daemon stays UI-agnostic; `qml/` remains the visual reference to
+port, not a runtime dependency.
 
-- **(a) cxx-qt + QML as a separate UI process** — keeps the cinematic QML
-  language the app is built in. The existing `qml/` tree on this branch is the
-  porting reference for screens, not a runtime dependency.
-- **(b) Slint** — Rust-native declarative UI; one toolchain, but a rewrite of
-  the QML visual language.
-- **(c) Tauri** — web-tech UI in the system webview; richest ecosystem, furthest
-  from the current QML design language.
+- **Evaluated, rejected for the app path**: gpui-video-player / GStreamer —
+  GStreamer runtime issues on the dev Mac, and the app needs platform-native
+  video. GStreamer survives only as `crates/player`'s future Linux backend
+  (linux-only dep; never in the macOS app path).
+- **Fallbacks if GPUI stalls**: Slint, then Tauri — either is a rewrite of the
+  QML visual language, not a drop-in.
 
-**Playback plan gates all of it**: prove the libmpv render API through Rust
-bindings before any visual investment — the player is the one irreplaceable
-native piece, and every UI lane must embed it.
+**Build consequence**: the UI is a native Rust binary — no Qt, no webview.
+Only the daemon cross-builds via zigbuild; the UI builds natively per-OS
+(macOS needs the Metal toolchain).
 
-**Build consequence**: whichever lane wins, the UI process links Qt or a
-webview and builds natively per-OS. Only the daemon cross-builds via zigbuild;
-the UI never does.
+QML→GPUI parity tracking is planned for `docs/parity.md` (a parity-ledger task
+is writing that file in parallel).
+
+## Player architecture
+
+`crates/player`: one pull-based contract, per-OS decode behind it.
+
+- **Contract** (`Player` trait): `load / play / pause / seek / position /
+  duration / next_frame / event`. Pull by design — the backend keeps only the
+  newest decoded frame, `next_frame` is latest-wins backpressure, and the UI
+  pumps at its own render cadence (~10 ms).
+- **NOT `Send`**: objc objects carry thread affinity, so a `Player` is pinned
+  to the thread that created it (`player::native()` → `Box<dyn Player>`); it
+  never crosses threads.
+- **macOS backend = AVAssetReader, not AVPlayer**: AVPlayer +
+  `AVPlayerItemVideoOutput` does not advance outside a full app event loop —
+  verified with a Swift CLI repro (item status never leaves `unknown`).
+  AVAssetReader is synchronous and callback-free: it runs headless and maps
+  1:1 onto the pull contract. `copyNextSampleBuffer` is non-blocking — never
+  busy-spin on `nil`. (No published objc2 crate covers AVFoundation; the few
+  classes used are hand-declared externs and the framework is force-linked.)
+- **Frames**: `VideoFrame` is tightly packed BGRA8 (`stride == width * 4`);
+  `ui-gpui` wraps the bytes as-is into `RenderImage` — BGRA on the wire, no
+  channel swap.
+- **Known gaps (POC scope)**: no audio, no A-V sync, software decode (no HW
+  accel), no subs, no precise seek.
+
+## IINA lesson + libmpv upgrade lane
+
+Production macOS video apps embed libmpv instead of hand-rolling decode —
+IINA (`github.com/iina/iina`) is the reference. Queue a `player-libmpv`
+backend (deferred past phase A, TODO-124cbd1e) behind the same contract once
+audio/sync/subs matter.
+
+GPUI integration cost, in rising order:
+
+1. **RenderImage CPU upload** (current) — decode → BGRA → GPU texture per frame.
+2. **IOSurface / MTLTexture zero-copy** — decoded surfaces pass straight to the
+   compositor, skipping the CPU copy.
+3. **mpv native layer beside/over the GPUI window** — escape hatch if GPUI
+   interop plateaus.
 
 ## Migration roadmap
 
