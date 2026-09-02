@@ -44,7 +44,8 @@ Need 'qml\VaultIdentityCeremonyDialog.qml' 'id: sameKey' 'Identity ceremony choi
 Need 'qml\VaultDoor.qml' 'vaultDoorKeyboardAction' 'Taskbar Vault door needs keyboard activation.'
 Need 'qml\VaultHomeWidget.qml' 'vaultHomeWidgetKeyboardAction' 'Vault home portal needs keyboard activation.'
 Need 'qml\VaultBrowseEmpty.qml' 'Clear Vault filters' 'Vault empty-state recovery action needs keyboard activation.'
-Need 'qml\VaultBrowseCrumb.qml' 'Keys.onHomePressed' 'Breadcrumb needs first-segment navigation.'
+Need 'qml\VaultBrowseCrumb.qml' 'Qt.Key_Home' 'Breadcrumb needs first-segment navigation.'
+Need 'qml\VaultBrowseCrumb.qml' 'Qt.Key_End' 'Breadcrumb needs last-segment navigation.'
 
 Need 'qml\WallpaperSearch.qml' 'id: animatedKeys' 'Animated wallpaper shelf needs horizontal keyboard navigation.'
 Need 'qml\WallpaperSearch.qml' 'id: nativeKeys' 'Native wallpaper shelf needs horizontal keyboard navigation.'
