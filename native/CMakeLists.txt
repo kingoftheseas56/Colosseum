@@ -279,6 +279,8 @@ add_executable(colosseum
     AudioPairingStore.h
     work/BackgroundWorkCoordinator.cpp
     work/BackgroundWorkCoordinator.h
+    work/ForegroundPriorityGovernor.cpp
+    work/ForegroundPriorityGovernor.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
     bootstrap/AppDataMigration.cpp
@@ -769,6 +771,13 @@ add_executable(background_work_coordinator_harness
     work/BackgroundWorkCoordinator.h)
 target_include_directories(background_work_coordinator_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(background_work_coordinator_harness PRIVATE Qt6::Core)
+
+add_executable(foreground_priority_governor_harness
+    ../tests/foreground_priority_governor_harness.cpp
+    work/ForegroundPriorityGovernor.cpp
+    work/ForegroundPriorityGovernor.h)
+target_include_directories(foreground_priority_governor_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(foreground_priority_governor_harness PRIVATE Qt6::Core Qt6::Gui)
 
 add_executable(background_activity_registry_harness
     ../tests/background_activity_registry_harness.cpp
@@ -2194,7 +2203,7 @@ add_executable(biblio_catalog_service_harness
     engine/BiblioCanonicalizer.h
 )
 target_include_directories(biblio_catalog_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql)
+target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 
 # ── CTest registration seam (test ledger, migration slice 2 — 2026-08-06) ────
 # One standard discovery layer over the EXISTING harness estate; registrations

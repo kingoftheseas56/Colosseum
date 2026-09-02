@@ -1559,15 +1559,20 @@ void VaultLibrary::setDownloadsRoot(VaultDownloadsRoot* root, const QString& pat
 
 bool VaultLibrary::immersive() const
 {
-    return m_watcher ? m_watcher->immersive() : false;
+    if (m_watcher)
+        return m_watcher->immersive();
+    return m_scanner ? m_scanner->applySuspended() : false;
 }
 
 void VaultLibrary::setImmersive(bool on)
 {
-    if (!m_watcher)
-        return;
-    m_watcher->setImmersive(on);
-    emit immersiveChanged();
+    const bool changed = immersive() != on;
+    if (m_watcher)
+        m_watcher->setImmersive(on);
+    if (m_scanner)
+        m_scanner->setApplySuspended(on);
+    if (changed)
+        emit immersiveChanged();
 }
 
 void VaultLibrary::onWatcherLanded(int count)

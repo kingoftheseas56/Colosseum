@@ -4,12 +4,14 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSet>
 #include <QTimer>
 #include <QVector>
+#include <QtConcurrentRun>
 
 namespace {
 
@@ -23,6 +25,12 @@ constexpr int kMaxConcurrent = 4;
 // deterministic for tests.
 constexpr int kMaxRetries = 3;
 constexpr int kRetryBaseDelayMs = 20;
+
+struct BiblioPublishResult {
+    bool success = false;
+    QString warning;
+    QDateTime publishedAt;
+};
 // How many DISTINCT title/author candidates surfaced by the RSS pass receive
 // bounded Apple Search + Open Library enrichment (one candidate => up to two
 // extra requests). A named constant — mirrors BiblioTaxonomy's
@@ -195,6 +203,12 @@ BiblioTransportReply *BiblioNetworkTransport::get(const QUrl &url, const QVarian
 BiblioCatalog::BiblioCatalog(const QString &dbPath, IBiblioTransport *transport, QObject *parent)
     : QObject(parent)
 {
+    // One serialized worker lane keeps provider parsing/canonicalization/ranking and
+    // snapshot publishing off the GUI thread without fanning out CPU or SQLite work.
+    m_cpuPool.setMaxThreadCount(1);
+    m_cpuPool.setExpiryTimeout(30000);
+
+    m_dbPath = dbPath;
     QDir().mkpath(QFileInfo(dbPath).absolutePath());
     m_store.open(dbPath);
 
@@ -209,6 +223,11 @@ BiblioCatalog::BiblioCatalog(const QString &dbPath, IBiblioTransport *transport,
     // instant this object exists, before any network reply lands.
     m_ready = m_store.hasSnapshot();
     m_lastSuccessfulRefresh = m_store.lastSuccessUtc();
+    // A successful publish is persisted by the store, so carry its local date into
+    // the process-local day gate. Without this, every app restart re-ran the full
+    // Apple/OpenLibrary refresh even when today's snapshot was already current.
+    if (m_lastSuccessfulRefresh.isValid())
+        m_lastAttemptDate = m_lastSuccessfulRefresh.toLocalTime().date();
     recomputeStale();
 }
 
@@ -329,8 +348,88 @@ QVariantList BiblioCatalog::mosaic(const QString &facetKey, int limit, bool incl
 
 // --- refresh coordinator ----------------------------------------------------
 
+void BiblioCatalog::setBackgroundWorkSuspended(bool suspended)
+{
+    if (m_backgroundWorkSuspended == suspended)
+        return;
+    m_backgroundWorkSuspended = suspended;
+
+    if (suspended) {
+        if (m_refreshing) {
+            m_resumeRefreshWhenUnsuspended = true;
+            const int generation = m_generation;
+            cancelGeneration(generation);
+            ++m_generation; // invalidate queued retry timers from the interrupted generation
+            m_queue.clear();
+            m_activeCount = 0;
+            m_pendingRetries = 0;
+            m_pendingParses = 0;
+            m_finalizing = false;
+            m_records.clear();
+            m_requestedUrls.clear();
+            m_enrichedCandidates.clear();
+            m_facetHints.clear();
+            m_mostReadOrder.clear();
+            m_classicsOrder.clear();
+            m_pendingEnrichmentAtStart.clear();
+            m_anySuccess = false;
+            m_enrichmentRemaining = 0;
+            setRefreshing(false);
+        }
+
+        QStringList cancelledLazyKeys;
+        const QList<BiblioTransportReply *> lazyReplies = m_lazyInFlight.keys();
+        for (BiblioTransportReply *reply : lazyReplies) {
+            cancelledLazyKeys.append(m_lazyInFlight.value(reply));
+            reply->disconnect(this);
+            reply->cancel();
+            m_lazyInFlight.remove(reply);
+            reply->deleteLater();
+        }
+        if (!cancelledLazyKeys.isEmpty()) {
+            m_store.clearFoldedPending(cancelledLazyKeys);
+            m_lazyEnrichedCatalogs.clear();
+        }
+        return;
+    }
+
+    if (m_resumeRefreshWhenUnsuspended) {
+        m_resumeRefreshWhenUnsuspended = false;
+        refreshIfDue();
+    }
+}
+
+void BiblioCatalog::setForegroundPriorityActive(bool active)
+{
+    if (m_foregroundPriorityActive == active)
+        return;
+    m_foregroundPriorityActive = active;
+    if (active)
+        return;
+
+    const bool resumeRefresh = m_resumeRefreshWhenForegroundIdle;
+    m_resumeRefreshWhenForegroundIdle = false;
+    if (resumeRefresh && !m_backgroundWorkSuspended)
+        refreshIfDue();
+
+    const QSet<QString> deferred = m_deferredEnrichmentCatalogs;
+    m_deferredEnrichmentCatalogs.clear();
+    if (!m_backgroundWorkSuspended) {
+        for (const QString &catalogId : deferred)
+            requestEnrichment(catalogId);
+    }
+}
+
 void BiblioCatalog::refreshIfDue(bool force)
 {
+    if (m_backgroundWorkSuspended) {
+        m_resumeRefreshWhenUnsuspended = true;
+        return;
+    }
+    if (m_foregroundPriorityActive && !force) {
+        m_resumeRefreshWhenForegroundIdle = true;
+        return;
+    }
     if (m_refreshing) {
         if (!force)
             return; // coalesced: a refresh is already running
@@ -358,6 +457,8 @@ void BiblioCatalog::startRefresh()
     m_queue.clear();
     m_activeCount = 0;
     m_pendingRetries = 0;
+    m_pendingParses = 0;
+    m_finalizing = false;
     m_anySuccess = false;
     m_enrichmentRemaining = kEnrichmentBudget;
     // Slice 4: snapshot the parked lazy-enrichment rows for this generation's
@@ -463,7 +564,8 @@ void BiblioCatalog::onReplyFinished(BiblioTransportReply *reply, int status,
     if (ok) {
         m_anySuccess = true;
         setOffline(false);
-        handleSuccess(generation, job, body);
+        ++m_pendingParses;
+        parseReplyAsync(generation, job, body);
     } else if ((transportError || transientHttp) && job.attempt < kMaxRetries) {
         scheduleRetry(generation, job);
     }
@@ -501,7 +603,8 @@ void BiblioCatalog::maybeFinalize(int generation)
 {
     if (generation != m_generation)
         return;
-    if (m_queue.isEmpty() && m_activeCount == 0 && m_pendingRetries == 0)
+    if (!m_finalizing && m_queue.isEmpty() && m_activeCount == 0
+        && m_pendingRetries == 0 && m_pendingParses == 0)
         finalizeGeneration(generation);
 }
 
@@ -523,6 +626,12 @@ void BiblioCatalog::cancelGeneration(int generation)
 
 void BiblioCatalog::requestEnrichment(const QString &catalogId)
 {
+    if (m_backgroundWorkSuspended)
+        return;
+    if (m_foregroundPriorityActive) {
+        m_deferredEnrichmentCatalogs.insert(catalogId);
+        return;
+    }
     // Session idempotence (locked design): one burst per (session, catalogue).
     // Mark FIRST so even a burst that finds no candidates is never re-run.
     if (m_lazyEnrichedCatalogs.contains(catalogId))
@@ -718,62 +827,80 @@ void BiblioCatalog::enqueueEnrichment(int generation, const BiblioSourceRecord &
     }
 }
 
-void BiblioCatalog::handleSuccess(int generation, const FetchJob &job, const QByteArray &body)
+void BiblioCatalog::parseReplyAsync(int generation, const FetchJob &job, const QByteArray &body)
 {
-    const QDateTime now = QDateTime::currentDateTimeUtc();
+    auto *watcher = new QFutureWatcher<QList<BiblioSourceRecord>>(this);
+    connect(watcher, &QFutureWatcher<QList<BiblioSourceRecord>>::finished, this,
+            [this, watcher, generation, job] {
+                const QList<BiblioSourceRecord> records = watcher->result();
+                watcher->deleteLater();
+                if (generation != m_generation)
+                    return;
+                if (m_pendingParses > 0)
+                    --m_pendingParses;
+                applyParsedSuccess(generation, job, records);
+                pumpQueue(generation);
+            });
+
+    watcher->setFuture(QtConcurrent::run(&m_cpuPool, [job, body] {
+        const QDateTime now = QDateTime::currentDateTimeUtc();
+        if (job.kind == QStringLiteral("apple-rss"))
+            return BiblioProviders::parseAppleRss(body, now);
+        if (job.kind == QStringLiteral("apple-search"))
+            return BiblioProviders::parseAppleSearch(body, now);
+        if (job.kind == QStringLiteral("openlibrary-trending"))
+            return BiblioProviders::parseOpenLibraryTrending(body, now);
+        if (job.kind == QStringLiteral("openlibrary-classics"))
+            return BiblioProviders::parseOpenLibraryClassics(body, now);
+        return BiblioProviders::parseOpenLibrarySearch(body, now);
+    }));
+}
+
+void BiblioCatalog::applyParsedSuccess(int generation, const FetchJob &job,
+                                       const QList<BiblioSourceRecord> &records)
+{
+    if (generation != m_generation)
+        return;
 
     if (job.kind == QStringLiteral("apple-rss")) {
-        const QList<BiblioSourceRecord> records = BiblioProviders::parseAppleRss(body, now);
         for (const BiblioSourceRecord &r : records) {
             if (!job.facetAxis.isEmpty() && !job.facetKey.isEmpty())
                 m_facetHints[r.sourceId].append({job.facetAxis, job.facetKey});
             m_records.append(r);
-            // Apple chart records are NOT Open Library data: enrich through
-            // BOTH storefronts (artwork/rating/description + OL identity).
             enqueueEnrichment(generation, r, /*alsoOpenLibrary=*/true);
         }
-    } else if (job.kind == QStringLiteral("apple-search")) {
-        m_records += BiblioProviders::parseAppleSearch(body, now);
-    } else if (job.kind == QStringLiteral("openlibrary")) {
-        m_records += BiblioProviders::parseOpenLibrarySearch(body, now);
     } else if (job.kind == QStringLiteral("openlibrary-trending")) {
-        // Payload order IS the most-read ranking: record each sourceId in the
-        // order the provider sent them (buildSnapshot maps them to canonical
-        // works — never re-ranks the merged pool).
-        const QList<BiblioSourceRecord> records = BiblioProviders::parseOpenLibraryTrending(body, now);
         for (const BiblioSourceRecord &r : records) {
             m_mostReadOrder.append(r.sourceId);
             m_records.append(r);
             enqueueEnrichment(generation, r, /*alsoOpenLibrary=*/false);
         }
     } else if (job.kind == QStringLiteral("openlibrary-classics")) {
-        // Same contract as trending: the payload's readinglog order is the
-        // classics ranking; the raw (noisy) year never orders.
-        const QList<BiblioSourceRecord> records = BiblioProviders::parseOpenLibraryClassics(body, now);
         for (const BiblioSourceRecord &r : records) {
             m_classicsOrder.append(r.sourceId);
             m_records.append(r);
             enqueueEnrichment(generation, r, /*alsoOpenLibrary=*/false);
         }
     } else if (job.kind == QStringLiteral("openlibrary-subject")) {
-        // Breadth seeding: stamp the requested (axis,key) hint through the
-        // same m_facetHints path the genre-tagged RSS feeds use.
-        const QList<BiblioSourceRecord> records = BiblioProviders::parseOpenLibrarySearch(body, now);
         for (const BiblioSourceRecord &r : records) {
             if (!job.facetAxis.isEmpty() && !job.facetKey.isEmpty())
                 m_facetHints[r.sourceId].append({job.facetAxis, job.facetKey});
             m_records.append(r);
             enqueueEnrichment(generation, r, /*alsoOpenLibrary=*/false);
         }
+    } else {
+        m_records += records;
     }
 }
 
-BiblioCatalogSnapshot BiblioCatalog::buildSnapshot(const QList<BiblioCanonicalWork> &canonical,
-                                                   const QStringList &mostReadOrder,
-                                                   const QStringList &classicsOrder) const
+BiblioCatalogSnapshot BiblioCatalog::buildSnapshot(
+    const QList<BiblioCanonicalWork> &canonical,
+    const QStringList &mostReadOrder, const QStringList &classicsOrder,
+    const QHash<QString, QList<QPair<QString, QString>>> &facetHints,
+    const QList<BiblioRankSnapshot> &priorHistory, const QDateTime &capturedAt)
 {
     BiblioCatalogSnapshot snap;
-    snap.capturedAt = QDateTime::currentDateTimeUtc();
+    snap.capturedAt = capturedAt;
 
     QList<BiblioWork> works;
     works.reserve(canonical.size());
@@ -843,8 +970,8 @@ BiblioCatalogSnapshot BiblioCatalog::buildSnapshot(const QList<BiblioCanonicalWo
         // field-sourcing record arrived on (see genreFeeds() above — the only
         // raw-subject evidence this task's providers carry).
         for (const BiblioFieldSource &fs : cw.fieldSources) {
-            const auto hintIt = m_facetHints.constFind(fs.sourceId);
-            if (hintIt == m_facetHints.constEnd())
+            const auto hintIt = facetHints.constFind(fs.sourceId);
+            if (hintIt == facetHints.constEnd())
                 continue;
             for (const auto &hint : hintIt.value())
                 addFacet(hint.first, hint.second);
@@ -853,19 +980,8 @@ BiblioCatalogSnapshot BiblioCatalog::buildSnapshot(const QList<BiblioCanonicalWo
 
     // --- rankings + ranking-history -----------------------------------------
     const QDateTime now = snap.capturedAt;
-    QList<BiblioRankSnapshot> history;
+    QList<BiblioRankSnapshot> history = priorHistory;
     for (const BiblioWork &w : works) {
-        // Prior daily readings already on disk (Trending's 7-day delta source).
-        const QVariantList rows = m_store.rankingHistoryFor(w.canonicalId);
-        for (const QVariant &row : rows) {
-            const QVariantMap m = row.toMap();
-            BiblioRankSnapshot s;
-            s.canonicalId = m.value(QStringLiteral("canonicalId")).toString();
-            s.capturedAt = m.value(QStringLiteral("capturedAt")).toDateTime();
-            s.demandScore = m.value(QStringLiteral("demandScore")).toDouble();
-            history.append(s);
-        }
-
         // Today's fresh demand reading: a zero-safe composite of the Apple
         // chart signal and the Open Library popularity signal. Persisted into
         // snap.history so tomorrow's refresh can compute an honest delta.
@@ -952,70 +1068,140 @@ BiblioCatalogSnapshot BiblioCatalog::buildSnapshot(const QList<BiblioCanonicalWo
 
 void BiblioCatalog::finalizeGeneration(int generation)
 {
+    if (generation != m_generation || m_finalizing)
+        return;
+    m_finalizing = true;
+
+    if (m_records.isEmpty()) {
+        finishGeneration(generation, false, QStringLiteral(
+            "refresh failed: no catalogue data retrieved from any provider"));
+        return;
+    }
+
+    QStringList foldedPendingKeys;
+    QList<QByteArray> foldedPendingBodies;
+    const QHash<QString, BiblioPendingEnrichmentRow> pending = m_store.pendingEnrichmentMap();
+    for (auto it = pending.constBegin(); it != pending.constEnd(); ++it) {
+        if (it.value().state != QStringLiteral("enriched"))
+            continue;
+        foldedPendingKeys.append(it.key());
+        foldedPendingBodies.append(it.value().body);
+    }
+
+    const QList<BiblioSourceRecord> records = m_records;
+    const QStringList mostReadOrder = m_mostReadOrder;
+    const QStringList classicsOrder = m_classicsOrder;
+    const auto facetHints = m_facetHints;
+
+    auto *canonicalWatcher = new QFutureWatcher<QList<BiblioCanonicalWork>>(this);
+    connect(canonicalWatcher, &QFutureWatcher<QList<BiblioCanonicalWork>>::finished, this,
+            [this, canonicalWatcher, generation, foldedPendingKeys,
+             mostReadOrder, classicsOrder, facetHints] {
+                const QList<BiblioCanonicalWork> canonical = canonicalWatcher->result();
+                canonicalWatcher->deleteLater();
+                if (generation != m_generation)
+                    return;
+                if (canonical.isEmpty()) {
+                    finishGeneration(generation, false,
+                                     QStringLiteral("refresh failed: no canonical works resolved"));
+                    return;
+                }
+
+                QList<BiblioRankSnapshot> priorHistory;
+                for (const BiblioCanonicalWork &cw : canonical) {
+                    const QVariantList rows = m_store.rankingHistoryFor(cw.work.canonicalId);
+                    for (const QVariant &row : rows) {
+                        const QVariantMap m = row.toMap();
+                        BiblioRankSnapshot h;
+                        h.canonicalId = m.value(QStringLiteral("canonicalId")).toString();
+                        h.capturedAt = m.value(QStringLiteral("capturedAt")).toDateTime();
+                        h.demandScore = m.value(QStringLiteral("demandScore")).toDouble();
+                        priorHistory.append(h);
+                    }
+                }
+                const QDateTime capturedAt = QDateTime::currentDateTimeUtc();
+                auto *snapshotWatcher = new QFutureWatcher<BiblioCatalogSnapshot>(this);
+                connect(snapshotWatcher, &QFutureWatcher<BiblioCatalogSnapshot>::finished, this,
+                        [this, snapshotWatcher, generation, foldedPendingKeys] {
+                            const BiblioCatalogSnapshot snapshot = snapshotWatcher->result();
+                            snapshotWatcher->deleteLater();
+                            if (generation != m_generation)
+                                return;
+
+                            auto *publishWatcher = new QFutureWatcher<BiblioPublishResult>(this);
+                            connect(publishWatcher, &QFutureWatcher<BiblioPublishResult>::finished,
+                                    this, [this, publishWatcher, generation] {
+                                const BiblioPublishResult result = publishWatcher->result();
+                                publishWatcher->deleteLater();
+                                if (generation != m_generation)
+                                    return;
+                                if (result.success) {
+                                    finishGeneration(generation, true, QString(), result.publishedAt);
+                                } else {
+                                    finishGeneration(generation, false,
+                                        result.warning.isEmpty()
+                                            ? QStringLiteral("refresh failed: snapshot did not validate")
+                                            : result.warning);
+                                }
+                            });
+                            const QString dbPath = m_dbPath;
+                            publishWatcher->setFuture(QtConcurrent::run(
+                                &m_cpuPool, [dbPath, snapshot, foldedPendingKeys] {
+                                    BiblioPublishResult result;
+                                    BiblioCatalogStore publisher;
+                                    if (!publisher.open(dbPath)) {
+                                        result.warning = publisher.lastWarning();
+                                        return result;
+                                    }
+                                    if (!publisher.publish(snapshot)) {
+                                        result.warning = publisher.lastWarning();
+                                        return result;
+                                    }
+                                    if (!foldedPendingKeys.isEmpty())
+                                        publisher.clearFoldedPending(foldedPendingKeys);
+                                    result.success = true;
+                                    result.publishedAt = publisher.lastSuccessUtc();
+                                    return result;
+                                }));
+                        });
+
+                snapshotWatcher->setFuture(QtConcurrent::run(
+                    &m_cpuPool,
+                    [canonical, mostReadOrder, classicsOrder, facetHints,
+                     priorHistory, capturedAt] {
+                        return BiblioCatalog::buildSnapshot(
+                            canonical, mostReadOrder, classicsOrder, facetHints,
+                            priorHistory, capturedAt);
+                    }));
+            });
+
+    canonicalWatcher->setFuture(QtConcurrent::run(
+        &m_cpuPool, [records, foldedPendingBodies] {
+            QList<BiblioSourceRecord> allRecords = records;
+            const QDateTime now = QDateTime::currentDateTimeUtc();
+            for (const QByteArray &body : foldedPendingBodies)
+                allRecords += BiblioProviders::parseAppleSearch(body, now);
+            return BiblioCanonicalizer::merge(allRecords);
+        }));
+}
+
+void BiblioCatalog::finishGeneration(int generation, bool success,
+                                     const QString &failureReason,
+                                     const QDateTime &publishedAt)
+{
     if (generation != m_generation)
         return;
 
+    m_finalizing = false;
     setRefreshing(false);
     m_lastAttemptDate = QDate::currentDate();
-
     if (!m_anySuccess)
         setOffline(true);
 
-    bool success = false;
-    QString failureReason;
-
-    if (m_records.isEmpty()) {
-        failureReason = QStringLiteral(
-            "refresh failed: no catalogue data retrieved from any provider");
-    } else {
-        // ── Slice 4 fold-in: parked lazy-enrichment rows fold into THIS
-        // publish. Load every 'enriched' row, parse its stored raw
-        // apple-search body, and append the records to the generation's pool
-        // — they merge onto the right canonical works by identity, and the
-        // canonicalizer's existing precedence already prefers Apple artwork
-        // and Apple ratings over Open Library rows, so the overlay needs no
-        // new precedence rule. A refresh that retrieved nothing never reaches
-        // here (see above), and a publish that fails to validate leaves every
-        // parked row intact for the next successful one — the lazy path can
-        // never publish anything by itself.
-        QStringList foldedPendingKeys;
-        const QHash<QString, BiblioPendingEnrichmentRow> pending =
-            m_store.pendingEnrichmentMap();
-        for (auto it = pending.constBegin(); it != pending.constEnd(); ++it) {
-            if (it.value().state != QStringLiteral("enriched"))
-                continue; // 'pending' markers and 'unavailable' gate rows stay parked
-            m_records += BiblioProviders::parseAppleSearch(
-                it.value().body, QDateTime::currentDateTimeUtc());
-            foldedPendingKeys.append(it.key());
-        }
-
-        const QList<BiblioCanonicalWork> canonical = BiblioCanonicalizer::merge(m_records);
-        if (canonical.isEmpty()) {
-            failureReason = QStringLiteral("refresh failed: no canonical works resolved");
-        } else {
-            // The generation's payload-order lists ride along as value params
-            // (buildSnapshot stays const; see its comment for why most-read/
-            // classics rows come from these, not BiblioRanking).
-            const BiblioCatalogSnapshot snapshot =
-                buildSnapshot(canonical, m_mostReadOrder, m_classicsOrder);
-            if (m_store.publish(snapshot)) {
-                success = true;
-                // Clear exactly the rows this publish folded in. The
-                // 'unavailable' rows stay (the ≤1/day gate reads them
-                // tomorrow); any live 'pending' markers stay too.
-                if (!foldedPendingKeys.isEmpty())
-                    m_store.clearFoldedPending(foldedPendingKeys);
-            } else {
-                failureReason = m_store.lastWarning().isEmpty()
-                    ? QStringLiteral("refresh failed: snapshot did not validate")
-                    : m_store.lastWarning();
-            }
-        }
-    }
-
     if (success) {
         setLastError(QString());
-        m_lastSuccessfulRefresh = m_store.lastSuccessUtc();
+        m_lastSuccessfulRefresh = publishedAt.isValid()
+            ? publishedAt : m_store.lastSuccessUtc();
         emit lastSuccessfulRefreshChanged();
         setReady(true);
         recomputeStale();
@@ -1023,8 +1209,6 @@ void BiblioCatalog::finalizeGeneration(int generation)
         emit revisionChanged();
     } else {
         setLastError(failureReason);
-        // A failed refresh NEVER revokes an existing good cache (spec §8):
-        // ready reflects only whether a snapshot has EVER published.
         setReady(m_store.hasSnapshot());
         recomputeStale();
     }
@@ -1034,6 +1218,8 @@ void BiblioCatalog::finalizeGeneration(int generation)
     m_enrichedCandidates.clear();
     m_mostReadOrder.clear();
     m_classicsOrder.clear();
-
+    m_pendingEnrichmentAtStart.clear();
+    m_pendingParses = 0;
+    m_enrichmentRemaining = 0;
     emit refreshFinished(success);
 }

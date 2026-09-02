@@ -315,6 +315,10 @@ Item {
     property int sleepEndEpisodesRemaining: 0
     property bool statsOverlayOpen: false
     property var playbackStats: ({})
+    property int diagnosticFrameDropDecoder: 0
+    property int diagnosticFrameDropOutput: 0
+    property string diagnosticHwdec: ""
+    property real diagnosticEstimatedFps: 0
 
     // ── Glanceable truth (Tier 1, 2026-07-20): the player states what it knows. ──
     // The state line only SPEAKS when there is something to say — silent in plain play.
@@ -2895,6 +2899,10 @@ Item {
             "width": mpv.mpvProperty("width"),
             "height": mpv.mpvProperty("height")
         }
+        root.diagnosticFrameDropDecoder = Number(root.playbackStats.frameDropDecoder || 0)
+        root.diagnosticFrameDropOutput = Number(root.playbackStats.frameDropOutput || 0)
+        root.diagnosticHwdec = String(root.playbackStats.hwdec || "")
+        root.diagnosticEstimatedFps = Number(root.playbackStats.estimatedFps || root.playbackStats.containerFps || 0)
     }
     function formatBitrate(value) {
         var n = Number(value || 0)

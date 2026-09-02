@@ -9,8 +9,11 @@
 // computes rankings or talks to the network directly — it only reads the
 // properties/invokables below.
 //
-// Threading: everything here runs on the GUI thread, event-driven (no worker
-// threads). Requests are bounded to kMaxConcurrent in flight at a time;
+// Threading: networking and UI-visible state stay on the GUI thread. Provider
+// parsing, canonicalization, ranking, and the atomic SQLite snapshot publish run
+// on one dedicated worker lane. The GUI-owned store remains the read/lazy-write
+// connection; snapshot publishing uses a separate worker-owned SQLite connection.
+// Requests are bounded to kMaxConcurrent in flight at a time;
 // transient failures (network error, 429, 5xx) retry with a bounded linear
 // backoff (kMaxRetries); a forced or day-due refresh that starts while a
 // prior one is still running cancels that prior generation's outstanding
@@ -54,6 +57,7 @@
 #include <QPair>
 #include <QQueue>
 #include <QSet>
+#include <QThreadPool>
 #include <QString>
 #include <QUrl>
 #include <QVariantList>
@@ -161,6 +165,8 @@ public:
     // immediately, day-gate or not. Never blocks — safe to call from
     // main.cpp right after construction.
     Q_INVOKABLE void refreshIfDue(bool force = false);
+    Q_INVOKABLE void setBackgroundWorkSuspended(bool suspended);
+    void setForegroundPriorityActive(bool active);
 
     // Proxies BiblioCatalogStore::page() in the identical {items,nextOffset,
     // exhausted,freshness,warning} shape (the DiscoverBrowser contract).
@@ -255,10 +261,14 @@ private:
     void issueLazyEnrichment(const QString &workKey, const QString &title);
     void onLazyReplyFinished(BiblioTransportReply *reply, int status,
                             const QByteArray &body, const QString &error);
-    void handleSuccess(int generation, const FetchJob &job, const QByteArray &body);
+    void parseReplyAsync(int generation, const FetchJob &job, const QByteArray &body);
+    void applyParsedSuccess(int generation, const FetchJob &job,
+                            const QList<BiblioSourceRecord> &records);
     void scheduleRetry(int generation, FetchJob job);
     void cancelGeneration(int generation);
     void finalizeGeneration(int generation);
+    void finishGeneration(int generation, bool success, const QString &failureReason,
+                          const QDateTime &publishedAt = QDateTime());
     void maybeFinalize(int generation);
     QString axisForFacetKey(const QString &key) const;
     // Reconciles the generation's accumulated records into a complete
@@ -274,13 +284,17 @@ private:
     // openLibraryPopularity mixes incommensurable scales (trending payload
     // index vs all-time readinglog counts) and a chart-pool work with a huge
     // readinglog must never contaminate the daily list.
-    BiblioCatalogSnapshot buildSnapshot(const QList<BiblioCanonicalWork> &canonical,
-                                        const QStringList &mostReadOrder,
-                                        const QStringList &classicsOrder) const;
+    static BiblioCatalogSnapshot buildSnapshot(
+        const QList<BiblioCanonicalWork> &canonical,
+        const QStringList &mostReadOrder, const QStringList &classicsOrder,
+        const QHash<QString, QList<QPair<QString, QString>>> &facetHints,
+        const QList<BiblioRankSnapshot> &priorHistory, const QDateTime &capturedAt);
 
     BiblioCatalogStore m_store;
+    QString m_dbPath; // immutable DB identity used by worker-owned SQLite publisher connections
     IBiblioTransport *m_transport = nullptr;
     BiblioNetworkTransport *m_ownedTransport = nullptr; // non-null only when we own it
+    QThreadPool m_cpuPool; // one serialized lane: parse/canonicalize/rank/publish, never GUI
 
     bool m_ready = false;
     bool m_refreshing = false;
@@ -291,11 +305,17 @@ private:
     QString m_lastError;
 
     int m_generation = 0;
-    QDate m_lastAttemptDate; // local date of the last COMPLETED refresh attempt (in-memory only)
+    QDate m_lastAttemptDate; // local gate, seeded from persisted last successful publish on restart
+    bool m_backgroundWorkSuspended = false;
+    bool m_resumeRefreshWhenUnsuspended = false;
+    bool m_foregroundPriorityActive = false;
+    bool m_resumeRefreshWhenForegroundIdle = false;
 
     QQueue<FetchJob> m_queue;
     int m_activeCount = 0;
     int m_pendingRetries = 0;
+    int m_pendingParses = 0;
+    bool m_finalizing = false;
     QSet<QString> m_requestedUrls;        // dedupe within one generation
     QSet<QString> m_enrichedCandidates;   // dedupe apple-search/openlibrary fan-out
     int m_enrichmentRemaining = 0;
@@ -318,6 +338,7 @@ private:
     // One burst per (session, catalogue): requestEnrichment marks the
     // catalogue here on entry, so repeat calls are a no-op.
     QSet<QString> m_lazyEnrichedCatalogs;
+    QSet<QString> m_deferredEnrichmentCatalogs;
     // The lazy path's own in-flight replies (never mixed into m_inFlight —
     // cancelGeneration must not reach them). Maps reply -> pending work_key.
     QHash<BiblioTransportReply *, QString> m_lazyInFlight;

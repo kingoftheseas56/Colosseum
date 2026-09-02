@@ -97,6 +97,7 @@ private slots:
     void flushPending();
 
 private:
+    void refreshInternal(bool retryDegradedTree);
     void watchRoot(const QString& root);
     void scheduleTreeWatch(const QString& root, bool replayIfInFlight = false);
     bool addDirectoryWatch(const QString& path);
