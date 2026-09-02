@@ -508,6 +508,7 @@ Window {
             vaultComicActive: vaultComicLayer.active,
             comicReaderActive: win.embeddedComicReaderOpen(),
             updateActive: updateLayer.active,
+            keyboardGuideActive: keyboardGuideLayer.active,
             settingsActive: settingsLayer.active,
             extensionsActive: extensionsLayer.active,
             vaultActive: vaultLayer.active,
@@ -598,6 +599,7 @@ Window {
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
+        case "keyboardGuide": win.closeKeyboardGuide(); return
         case "settings": win.closeSettingsPage(); return
         case "extensions": win.closeExtensionsPage(); return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
@@ -1321,6 +1323,7 @@ Window {
         setGuiStallContext("open", "Downloads")
         extensionsLayer.active = false
         settingsLayer.active = false
+        keyboardGuideLayer.active = false
         updateLayer.active = false
         vaultLayer.active = false
         downloadsLayer.active = true
@@ -1338,6 +1341,7 @@ Window {
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
+        keyboardGuideLayer.active = false
         updateLayer.active = false
         vaultLayer.active = true
         taskbar.open = false
@@ -1415,6 +1419,7 @@ Window {
     function openExtensionsPage(world) {
         downloadsLayer.active = false
         settingsLayer.active = false
+        keyboardGuideLayer.active = false
         updateLayer.active = false
         vaultLayer.active = false
         extensionsLayer.active = true
@@ -1427,18 +1432,35 @@ Window {
     function openSettingsPage() {
         downloadsLayer.active = false
         extensionsLayer.active = false
+        keyboardGuideLayer.active = false
         updateLayer.active = false
         vaultLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
     }
     function closeSettingsPage() { settingsLayer.active = false }
+
+    // ---- Keyboard Guide: essential controls, entered from the taskbar beside Settings. ----
+    function openKeyboardGuide() {
+        downloadsLayer.active = false
+        extensionsLayer.active = false
+        settingsLayer.active = false
+        updateLayer.active = false
+        vaultLayer.active = false
+        keyboardGuideLayer.active = true
+        taskbar.open = false
+        if (keyboardGuideLayer.item && keyboardGuideLayer.item.takeKeyboardFocus)
+            Qt.callLater(keyboardGuideLayer.item.takeKeyboardFocus)
+    }
+    function closeKeyboardGuide() { keyboardGuideLayer.active = false }
+
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
         downloadsLayer.active = false
         extensionsLayer.active = false
         settingsLayer.active = false
+        keyboardGuideLayer.active = false
         vaultLayer.active = false
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
@@ -3288,6 +3310,7 @@ Window {
     // ---- Downloads page: unified local-media vault, entered from the taskbar ----
     Loader {
         id: downloadsLayer
+        objectName: "downloadsLayer"
         anchors.fill: parent
         z: 56     // taskbar full-page: ABOVE every browsing/detail page (universe 52, series/book 53)
                   // so clicking Downloads always lands on top — below only the immersive surfaces
@@ -3457,6 +3480,7 @@ Window {
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
     Loader {
         id: extensionsLayer
+        objectName: "extensionsLayer"
         anchors.fill: parent
         z: 56     // taskbar full-page, same rule as downloadsLayer (see its comment)
         active: false
@@ -3478,6 +3502,7 @@ Window {
     // ---- Settings page: global preferences, entered from the taskbar gear (Task 2) ----
     Loader {
         id: settingsLayer
+        objectName: "settingsLayer"
         anchors.fill: parent
         z: 56     // taskbar full-page, same rule as downloadsLayer (see its comment)
         active: false
@@ -3490,6 +3515,21 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+        }
+    }
+
+    // ---- Keyboard Guide: essential controls, directly beside Settings on the taskbar. ----
+    Loader {
+        id: keyboardGuideLayer
+        objectName: "keyboardGuideLayer"
+        anchors.fill: parent
+        z: 56
+        active: false
+        visible: active
+        source: "KeyboardGuidePage.qml"
+        onLoaded: {
+            item.backRequested.connect(win.closeKeyboardGuide)
+            item.takeKeyboardFocus()
         }
     }
 
@@ -3568,6 +3608,8 @@ Window {
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
         settingsActive: settingsLayer.active
         onSettingsClicked: !settingsLayer.active ? win.openSettingsPage() : win.closeSettingsPage()
+        keyboardGuideActive: keyboardGuideLayer.active
+        onKeyboardGuideClicked: !keyboardGuideLayer.active ? win.openKeyboardGuide() : win.closeKeyboardGuide()
     }
 
     // Slice 6: the account-optional Room ID door lives outside immersive Player 1.
@@ -3722,6 +3764,23 @@ Window {
         sequences: ["Ctrl+Shift+V"]
         context: Qt.ApplicationShortcut
         onActivated: win.openVaultPage()
+    }
+
+    // Arc 41 essentials: direct doors for utility pages.
+    Shortcut {
+        sequences: ["Ctrl+Shift+D"]
+        context: Qt.ApplicationShortcut
+        onActivated: win.openDownloadsPage()
+    }
+    Shortcut {
+        sequences: ["Ctrl+Shift+E"]
+        context: Qt.ApplicationShortcut
+        onActivated: win.openExtensionsPage()
+    }
+    Shortcut {
+        sequences: ["Ctrl+Shift+S"]
+        context: Qt.ApplicationShortcut
+        onActivated: win.openSettingsPage()
     }
 
     // ── Open Recent panel (Slice 9): the Open Media control remembers ──

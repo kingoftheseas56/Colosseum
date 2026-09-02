@@ -43,6 +43,8 @@ Item {
     property bool extensionsActive: false // the Extensions page is the front surface
     signal settingsClicked()
     property bool settingsActive: false   // the Settings page is the front surface
+    signal keyboardGuideClicked()
+    property bool keyboardGuideActive: false // the Keyboard Guide is the front surface
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -122,17 +124,21 @@ Item {
             spacing: 14
 
             Item {
+                id: homeAction
                 objectName: "colosseumTaskbarHomeButton"
                 Layout.preferredWidth: 48
                 Layout.preferredHeight: 48
                 Layout.alignment: Qt.AlignVCenter
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: bar.open ? "Close taskbar" : "Open taskbar"
 
                 Rectangle {
                     anchors.fill: parent
                     radius: bar.open ? 14 : 24
-                    color: startMa.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: bar.open ? 1 : 0
-                    border.color: Qt.rgba(1, 1, 1, 0.13)
+                    color: startMa.containsMouse || homeAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: bar.open || homeAction.activeFocus ? 1 : 0
+                    border.color: homeAction.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.13)
 
                     Behavior on radius { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                     Behavior on color { ColorAnimation { duration: 140 } }
@@ -155,6 +161,9 @@ Item {
                         bar.autoRevealed = false   // opened (or closed) by hand → sticky, no pullback
                     }
                 }
+                Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
+                Keys.onEnterPressed: { bar.open = !bar.open; bar.autoRevealed = false }
+                Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
             }
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
@@ -284,6 +293,7 @@ Item {
 
             // ---- Downloads: lives beside the Colosseum icon (ratified 2026-07-04) ----
             Item {
+                id: downloadsAction
                 // Visibility phase 2, Slice J1-Manga: the taskbar dock had no stable name for
                 // this control (ledger 2026-08-13: "Main.qml Automation Surface... TankobanWorld
                 // and WorldPage Have Zero" — the same gap reaches this button). Named so an
@@ -294,10 +304,15 @@ Item {
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
                 visible: bar.open
+                activeFocusOnTab: visible
+                Accessible.role: Accessible.Button
+                Accessible.name: "Downloads"
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
-                    color: dlMa.containsMouse || bar.downloadsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    color: dlMa.containsMouse || bar.downloadsActive || downloadsAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: downloadsAction.activeFocus ? 1 : 0
+                    border.color: theme.gold
                 }
                 Image {
                     anchors.centerIn: parent
@@ -330,19 +345,28 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.downloadsClicked()
                 }
+                Keys.onReturnPressed: bar.downloadsClicked()
+                Keys.onEnterPressed: bar.downloadsClicked()
+                Keys.onSpacePressed: bar.downloadsClicked()
             }
 
             // ---- Extensions: the store, beside Downloads (ratified 2026-07-05) ----
             Item {
+                id: extensionsAction
                 objectName: "taskbarExtensions"
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
                 visible: bar.open
+                activeFocusOnTab: visible
+                Accessible.role: Accessible.Button
+                Accessible.name: "Extensions"
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
-                    color: extMa.containsMouse || bar.extensionsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    color: extMa.containsMouse || bar.extensionsActive || extensionsAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: extensionsAction.activeFocus ? 1 : 0
+                    border.color: theme.gold
                 }
                 Image {
                     anchors.centerIn: parent
@@ -365,20 +389,30 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.extensionsClicked()
                 }
+                Keys.onReturnPressed: bar.extensionsClicked()
+                Keys.onEnterPressed: bar.extensionsClicked()
+                Keys.onSpacePressed: bar.extensionsClicked()
             }
 
             // ---- Settings: the global preferences sliders, beside Extensions (Task 2).
             //      A distinct sliders glyph (not the gear) so it never reads as the
             //      wallpaper settings gear in TopBar (Hemanth, 2026-08-02). ----
             Item {
+                id: settingsAction
+                objectName: "taskbarSettings"
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
                 visible: bar.open
+                activeFocusOnTab: visible
+                Accessible.role: Accessible.Button
+                Accessible.name: "Settings"
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
-                    color: settMa.containsMouse || bar.settingsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    color: settMa.containsMouse || bar.settingsActive || settingsAction.activeFocus ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: settingsAction.activeFocus ? 1 : 0
+                    border.color: theme.gold
                 }
                 Image {
                     anchors.centerIn: parent
@@ -401,6 +435,54 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.settingsClicked()
                 }
+                Keys.onReturnPressed: bar.settingsClicked()
+                Keys.onEnterPressed: bar.settingsClicked()
+                Keys.onSpacePressed: bar.settingsClicked()
+            }
+
+            // ---- Keyboard Guide: the essentials sheet, directly beside Settings. ----
+            Item {
+                id: keyboardGuideAction
+                objectName: "taskbarKeyboardGuide"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                activeFocusOnTab: visible
+                Accessible.role: Accessible.Button
+                Accessible.name: "Keyboard Guide"
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: guideMa.containsMouse || bar.keyboardGuideActive || keyboardGuideAction.activeFocus
+                           ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: keyboardGuideAction.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "assets/keyboard-guide/keyboard.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.keyboardGuideActive ? 1 : 0.75
+                }
+                Rectangle {
+                    visible: bar.keyboardGuideActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                MouseArea {
+                    id: guideMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.keyboardGuideClicked()
+                }
+                Keys.onReturnPressed: bar.keyboardGuideClicked()
+                Keys.onEnterPressed: bar.keyboardGuideClicked()
+                Keys.onSpacePressed: bar.keyboardGuideClicked()
             }
 
             // Session tiles — the dock's fill-width content.

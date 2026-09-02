@@ -38,7 +38,8 @@ eq(action({ vaultComicActive: true, vaultActive: true }), 'comicReader', 'standa
 eq(action({ comicReaderActive: true, seriesActive: true }), 'comicReader', 'embedded comic reader owns Escape above its host page');
 eq(action({ activeSessionKind: 'comic', comicReaderActive: false }), 'comicReader', 'hidden active comic session is healed through comic authority');
 // Full-page peers are ordered by actual same-z document order, then browsing z-order.
-eq(action({ updateActive: true, settingsActive: true }), 'update', 'later update page wins a broken same-z overlap');
+eq(action({ updateActive: true, keyboardGuideActive: true }), 'update', 'later update page wins a broken same-z overlap');
+eq(action({ keyboardGuideActive: true, settingsActive: true }), 'keyboardGuide', 'keyboard guide wins above Settings when both are active');
 eq(action({ settingsActive: true, extensionsActive: true }), 'settings', 'settings wins a broken same-z overlap');
 eq(action({ extensionsActive: true, vaultActive: true }), 'extensions', 'extensions wins a broken same-z overlap');
 eq(action({ vaultActive: true, downloadsActive: true }), 'vault', 'Vault wins a broken same-z overlap');
