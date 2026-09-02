@@ -31,8 +31,8 @@ Need ($main.Contains('"lifecycleActive": worldStack.current === mode && !win.imm
     'Main must pass an immersive-aware initial world activation state before world completion.'
 Need ($main.Contains('return worldStack.current === mode && !win.immersiveSurfaceOpen')) `
     'Main must suspend retained-world lifecycle work underneath immersive surfaces.'
-Need ($main.Contains('BiblioCatalog.setBackgroundWorkSuspended(win.immersiveSurfaceOpen)')) `
-    'Immersive surfaces must suspend global Biblio network work, not only hide the Biblio world.'
+Need ($main.Contains('ForegroundPriority.setImmersiveSurfaceOpen(win.immersiveSurfaceOpen)')) `
+    'Immersive surfaces must flow through the foreground-priority governor so global background work is suspended centrally.'
 Need ($browser.Contains('property bool active: true')) `
     'DiscoverBrowser must expose an activation gate.'
 Need ($browser.Contains('if (!active || !adapter || loading')) `

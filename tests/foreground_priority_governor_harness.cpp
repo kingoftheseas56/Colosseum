@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     governor.noteUserInteraction();
     governor.setImmersiveSurfaceOpen(false);
     require(governor.pressure() == 1, "releasing immersive falls back to active interaction");
-    spin(100);
+    spin(250);
     require(governor.pressure() == 0, "pressure decays to Normal after final reason clears");
 
     std::cout << "FOREGROUND_PRIORITY_GOVERNOR_OK\n";

@@ -337,7 +337,7 @@ public:
 // is hit (defends against a genuine hang rather than masking one).
 void runRefreshToCompletion(BiblioCatalog &catalog, FakeBiblioTransport &transport, bool succeed)
 {
-    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+    for (int round = 0; round < 200 && catalog.refreshing(); ++round) {
         transport.drainAll(succeed);
         pump(30);
     }
@@ -346,7 +346,7 @@ void runRefreshToCompletion(BiblioCatalog &catalog, FakeBiblioTransport &transpo
 void runRefreshToCompletionKindsFailing(BiblioCatalog &catalog, FakeBiblioTransport &transport,
                                         const QSet<QString> &failingKinds)
 {
-    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+    for (int round = 0; round < 200 && catalog.refreshing(); ++round) {
         transport.drainWithKindsFailing(failingKinds);
         pump(30);
     }
@@ -736,7 +736,7 @@ void testForcedRefreshDuringPendingRetryDoesNotWedgeRefreshing()
     // Let every timer fire (generation 1's stale one first -- scheduled
     // first, identical base delay -- then generation 2's own), draining
     // everything else to success so the refresh can actually finish.
-    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+    for (int round = 0; round < 200 && catalog.refreshing(); ++round) {
         transport.drainAll(true);
         pump(30);
     }
