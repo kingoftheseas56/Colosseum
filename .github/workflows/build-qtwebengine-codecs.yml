@@ -81,6 +81,16 @@ jobs:
         with:
           arch: x64
 
+      - name: Install Qt WebEngine Python dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false  # pip can report progress on stderr
+          python -m pip install --disable-pip-version-check --no-warn-script-location "html5lib==1.1"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -c "import html5lib; print('html5lib', html5lib.__version__)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Install Chromium host tools (gperf, flex, bison)
         shell: pwsh
         run: |
@@ -175,7 +185,7 @@ jobs:
             -no-build-qtpdf `
             -- `
             -B "$env:WEBENGINE_BUILD_DIR" `
-            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_CONFIGURATION_TYPES=Release `
             "-DCMAKE_INSTALL_PREFIX=$env:WEBENGINE_INSTALL_DIR" `
             -DFEATURE_qtwebengine_widgets_build=OFF `
             -DFEATURE_webengine_geolocation=OFF `
@@ -201,7 +211,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false
           $jobs = [int]$env:NUMBER_OF_PROCESSORS
           Write-Output "building with -j$jobs"
-          cmake --build "$env:WEBENGINE_BUILD_DIR" --parallel $jobs 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "webengine-build.log")
+          cmake --build "$env:WEBENGINE_BUILD_DIR" --config Release --parallel $jobs 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "webengine-build.log")
           $rc = $LASTEXITCODE
           if ($rc -ne 0) {
             Get-Content (Join-Path $env:RUNNER_TEMP "webengine-build.log") | Where-Object { $_ -match 'FAILED:|fatal error|\berror\b|LNK\d+|No such' } | Select-Object -Last 40 | ForEach-Object {
@@ -216,7 +226,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Continue'
           $PSNativeCommandUseErrorActionPreference = $false  # native stderr must not abort the step
-          cmake --install "$env:WEBENGINE_BUILD_DIR"
+          cmake --install "$env:WEBENGINE_BUILD_DIR" --config Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $core = Get-ChildItem $env:WEBENGINE_INSTALL_DIR -Recurse -Filter "Qt6WebEngineCore.dll" | Select-Object -First 1
           if (-not $core) { throw "Qt6WebEngineCore.dll missing from install prefix" }
