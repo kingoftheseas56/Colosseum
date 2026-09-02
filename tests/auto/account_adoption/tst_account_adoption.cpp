@@ -664,9 +664,7 @@ rememberedAccountSessionMergesLaterLocalOnlyState() {
 
     QString error;
     QVERIFY2(
-        coordinator.prepareAccountSession(
-            QString::fromLatin1(kAccountA),
-            &error),
+        coordinator.prepareLocalOnly(&error),
         qPrintable(error));
 
     PersonalStateSnapshot laterLocalState;

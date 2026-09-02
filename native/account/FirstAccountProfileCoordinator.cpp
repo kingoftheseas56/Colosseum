@@ -551,8 +551,8 @@ prepareRememberedAccount(
                 "The remembered account profile is missing from this device."));
     }
 
-    return activate(
-        *paths,
+    return prepareAccountSession(
+        accountId,
         error);
 }
 
