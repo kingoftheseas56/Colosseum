@@ -435,9 +435,13 @@ void AccountAttachmentCoordinator::handleBeginReply(
 
     if (response->state
         == SyncWireAttachmentState::
-            Uploaded) {
-        // An uploaded attachment already accepted attached pushes, which
-        // the engine only sends after its stable snapshot completed.
+            Uploaded
+        && m_engine->attachmentModeActive()
+        && m_engine->attachmentId()
+            == m_receipt.attachmentId) {
+        // Uploaded proves a previously active attachment mode completed its
+        // stable snapshot. A newly entered mode still has to replay that
+        // snapshot locally before verification can retire the source.
         m_snapshotWitness = true;
     }
 
@@ -498,7 +502,10 @@ void AccountAttachmentCoordinator::handleGetReply(
 
     if (response->state
         == SyncWireAttachmentState::
-            Uploaded) {
+            Uploaded
+        && m_engine->attachmentModeActive()
+        && m_engine->attachmentId()
+            == m_receipt.attachmentId) {
         m_snapshotWitness = true;
     }
 
