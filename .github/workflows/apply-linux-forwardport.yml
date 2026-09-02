@@ -2,7 +2,7 @@ name: apply-linux-qualified-forward-port
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
 
 permissions:
   contents: write
@@ -16,19 +16,29 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
-      - name: Apply qualified Linux diff
+      - name: Apply qualified Linux non-workflow diff
         shell: bash
         run: |
           set -euo pipefail
+          coordinator="$(git hash-object native/account/AccountAttachmentCoordinator.cpp)"
+          cmake_tests="$(git hash-object tests/CMakeLists.txt)"
+          coordinator_test="$(git hash-object tests/auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp)"
+          if [[ "$coordinator" == "a99c5a44633a7abc8750151b771fae79a8c7e506" && \
+                "$cmake_tests" == "636d6eebf218a81681910d94b8878d094f0ea6b2" && \
+                "$coordinator_test" == "1e9e4b75041889bba2dea1bbcb1cfddbeab6e2d9" ]]; then
+            echo "QUALIFIED_NON_WORKFLOW_BLOBS_ALREADY_PRESENT"
+            exit 0
+          fi
           git apply --check .github/linux-forwardport.patch
           git apply .github/linux-forwardport.patch
           test "$(git hash-object .github/workflows/desktop-ci.yml)" = "0258d649c9844e8f43284d63c486211682af97d9"
           test "$(git hash-object native/account/AccountAttachmentCoordinator.cpp)" = "a99c5a44633a7abc8750151b771fae79a8c7e506"
           test "$(git hash-object tests/CMakeLists.txt)" = "636d6eebf218a81681910d94b8878d094f0ea6b2"
           test "$(git hash-object tests/auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp)" = "1e9e4b75041889bba2dea1bbcb1cfddbeab6e2d9"
-          git add .github/workflows/desktop-ci.yml native/account/AccountAttachmentCoordinator.cpp tests/CMakeLists.txt tests/auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp
+          git restore .github/workflows/desktop-ci.yml
+          git add native/account/AccountAttachmentCoordinator.cpp tests/CMakeLists.txt tests/auto/account_attachment_coordinator/tst_account_attachment_coordinator.cpp
           git diff --cached --check
           git config user.name "Colosseum Linux Integration"
           git config user.email "integration@local.invalid"
-          git commit -m "feat(linux): publish qualified forward-port"
+          git commit -m "feat(linux): publish qualified non-workflow forward-port"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
