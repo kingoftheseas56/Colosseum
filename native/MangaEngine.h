@@ -82,6 +82,63 @@ public:
     // QML entry points. Results arrive on the matching signal (async).
     Q_INVOKABLE void search(const QString &query) { m_wc->search(query); }
     Q_INVOKABLE void chapters(const QString &seriesId) { m_wc->fetchChapters(seriesId); }
+
+    // Arc 39: correlated one-shot chapter catalogue request. A dedicated scraper
+    // instance owns each request so late results can never be attributed to a newer
+    // series navigation. The requestId is caller-owned and returned unchanged.
+    Q_INVOKABLE void chapterCatalogue(const QString &requestId, const QString &title) {
+        auto *scraper = new WeebCentralScraper(m_nam, this);
+        scraper->setProperty("arc39Settled", false);
+        connect(scraper, &MangaScraper::errorOccurred, this,
+                [this, scraper, requestId](const QString &message) {
+            if (scraper->property("arc39Settled").toBool()) return;
+            scraper->setProperty("arc39Settled", true);
+            emit chapterCatalogueFailed(requestId, message);
+            scraper->deleteLater();
+        });
+        connect(scraper, &MangaScraper::searchFinished, this,
+                [this, scraper, requestId, title](const QList<MangaResult> &results) {
+            if (scraper->property("arc39Settled").toBool()) return;
+            if (results.isEmpty()) {
+                scraper->setProperty("arc39Settled", true);
+                emit chapterCatalogueFailed(requestId, QStringLiteral("Series not found on WeebCentral"));
+                scraper->deleteLater();
+                return;
+            }
+            MangaResult chosen = results.first();
+            const QString wanted = title.trimmed();
+            for (const MangaResult &candidate : results) {
+                if (candidate.title.trimmed().compare(wanted, Qt::CaseInsensitive) == 0) {
+                    chosen = candidate;
+                    break;
+                }
+            }
+            const QString sourceSeriesId = chosen.id;
+            connect(scraper, &MangaScraper::chaptersReady, this,
+                    [this, scraper, requestId, sourceSeriesId](const QList<ChapterInfo> &rows) {
+                if (scraper->property("arc39Settled").toBool()) return;
+                QVariantList out;
+                int rawOrder = 0;
+                for (const ChapterInfo &chapter : rows) {
+                    const QString label = chapter.name.isEmpty()
+                        ? QStringLiteral("Chapter %1").arg(chapter.chapterNumber)
+                        : chapter.name;
+                    out.append(QVariantMap{
+                        {"id", chapter.id}, {"seriesId", sourceSeriesId},
+                        {"number", chapter.chapterNumber}, {"name", label}, {"label", label},
+                        {"title", QString()}, {"source", QStringLiteral("weebcentral")},
+                        {"language", QStringLiteral("unknown")},
+                        {"date", QVariant::fromValue<qlonglong>(chapter.dateUpload)},
+                        {"volumeScanned", chapter.isVolumeScanned}, {"rawOrder", rawOrder++}});
+                }
+                scraper->setProperty("arc39Settled", true);
+                emit chapterCatalogueResults(requestId, sourceSeriesId, out);
+                scraper->deleteLater();
+            });
+            scraper->fetchChapters(sourceSeriesId);
+        });
+        scraper->search(title);
+    }
     // Reader: page images for a chapter. pages() = flat (long-strip/single/double);
     // pagesPaired() = MangaPlus facing-pairs (pageGroup set). Result → pagesResult.
     Q_INVOKABLE void pages(const QString &chapterId) { m_wc->fetchPages(chapterId); }
@@ -223,6 +280,9 @@ private:
 signals:
     void searchResults(const QVariantList &results);
     void chaptersResults(const QVariantList &chapters);
+    void chapterCatalogueResults(const QString &requestId, const QString &sourceSeriesId,
+                                 const QVariantList &chapters);
+    void chapterCatalogueFailed(const QString &requestId, const QString &message);
     void pagesResult(const QVariantList &pages);
     void detailResult(const QVariantMap &detail);
     void artResult(const QVariantMap &art);

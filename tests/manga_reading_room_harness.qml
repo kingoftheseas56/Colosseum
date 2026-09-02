@@ -2,16 +2,16 @@
 // It deliberately uses only fake service seams: no network, no live app state.
 //
 // Catalogue-independence Slice 3 (2026-08-20): fixtures are now catalogue-shaped rows
-// (number/cover/title, no chapterStart/chapterEnd — a baked TankobanCatalog row carries
+// (number/cover/title, no chapterStart/chapterEnd â€” a baked TankobanCatalog row carries
 // no chapter range at all). The WC thumb-scrape machinery this harness used to pin
 // (bounded cover-request bursts, range captions) is gone from MangaTankobanLibrary; this
-// harness proves the opposite contract — fetchThumb is NEVER called, and a card's cover
+// harness proves the opposite contract â€” fetchThumb is NEVER called, and a card's cover
 // resolves off the catalogue-baked field or, once a volume is on disk, its own first local
 // page, else the honest NO COVER glass.
 //
 // Catalogue-independence Slice 5 (2026-08-20): the old "chapter-only room" case (a
 // MangaReadingRoom seeded with a bare `chapters` array and asserted to render a chapter
-// tail) is replaced — chapters are deleted completely, on-disk bytes included, per
+// tail) is replaced â€” chapters are deleted completely, on-disk bytes included, per
 // Hemanth's lock. The room and its shelf no longer have any chapter-shaped property or
 // signal at all; a shelf-less series (no known volumes) now renders zero rows and the
 // chapter API surface is asserted fully absent (typeof undefined), not just unused.
@@ -20,11 +20,11 @@
 // Pages/Flow ListView continuum. Grid-shape assertions (columns/cellHeight/chip-word
 // captions) become flow-shape (bookHeight/bookWidth clamp, flowCurrentIndex, the
 // volumeNameFor/stateLineFor caption vocabulary). Every zero-chapter/cover/
-// fetchThumb-never assertion below is unchanged — those contracts did not move.
+// fetchThumb-never assertion below is unchanged â€” those contracts did not move.
 // ListView layout (positionViewAtIndex/currentIndex settling, delegate realization) runs
 // on a deferred Qt.callLater the same way the flow's own centring does (see
 // MangaTankobanLibrary.qml's centreFlow()/focusAtNumber()), so every assertion that reads
-// flow-layout state is itself wrapped in a matching Qt.callLater — checking synchronously,
+// flow-layout state is itself wrapped in a matching Qt.callLater â€” checking synchronously,
 // in the same call stack as object construction, would race the deferred layout and fail
 // vacuously.
 import QtQuick
@@ -37,7 +37,7 @@ Item {
 
     component FakeService: QtObject {
         property var volMap: ({})
-        // vid -> [{url}] — a volume's own extracted pages once it is "ready" on disk
+        // vid -> [{url}] â€” a volume's own extracted pages once it is "ready" on disk
         // (app-owned bytes; distinct from a catalogue-baked cover).
         property var localPageMap: ({})
         signal volumesChanged(string seriesId)
@@ -82,7 +82,7 @@ Item {
     FakeProgress { id: noResumeProgress; record: null }
     FakeDownloads { id: downloads }
 
-    // Catalogue-shaped rows only: number (string), cover, title — no chapterStart/
+    // Catalogue-shaped rows only: number (string), cover, title â€” no chapterStart/
     // chapterEnd. Volume "9" carries a baked catalogue cover+title (the harvest-covered
     // case); volume "2" carries no catalogue cover but is "ready" with a local first page
     // (the on-disk case); volume "12" carries a redundant "Volume 12" name (must collapse
@@ -174,8 +174,8 @@ Item {
             ck(lib.autoLandNumber === 74 && lib.autoLandIndex === 73,
                "the flow must auto-land on the continue volume index")
 
-            // ── the masthead's one contextual action honours the shelf's own truth ──
-            // A shelved series (root.library.showVolumes true) carries no masthead CTA —
+            // â”€â”€ the masthead's one contextual action honours the shelf's own truth â”€â”€
+            // A shelved series (root.library.showVolumes true) carries no masthead CTA â€”
             // the flow's own action bar is the one contextual action.
             function findByName(item, name) {
                 if (!item) return null
@@ -187,20 +187,18 @@ Item {
                 }
                 return null
             }
-            var primaryBtn = findByName(room, "tankobanSeriesPrimaryAction")
-            if (!primaryBtn) throw new Error("tankobanSeriesPrimaryAction button not found in tree")
-            ck(primaryBtn.visible === false,
-               "a shelved series must not show a redundant masthead CTA — the flow's action bar owns it")
+            ck(findByName(room, "tankobanSeriesPrimaryAction") === null,
+               "visible Search Nyaa hero action must stay removed")
 
-            // ── catalogue-independence Slice 3: no live thumb scraping, ever ──────────
+            // â”€â”€ catalogue-independence Slice 3: no live thumb scraping, ever â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ck(downloads.asked.length === 0,
-               "the shelf must never call fetchThumb — covers are catalogue-baked or local-only now")
+               "the shelf must never call fetchThumb â€” covers are catalogue-baked or local-only now")
             ckNegativeControl(function () {
                 downloads.fetchThumb("S", "some-chapter-id")   // simulate a reintroduced call site
                 ck(downloads.asked.length === 0, "negative control for fetchThumb-never-called")
             }, "the fetchThumb-never-called assertion must fail when a call site is reintroduced")
 
-            // ── catalogue-independence Slice 3: the cover ladder ──────────────────────
+            // â”€â”€ catalogue-independence Slice 3: the cover ladder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             var v9 = rowByNumber(lib.volumeRows, "9")
             var v2 = rowByNumber(lib.volumeRows, "2")
             var v1 = rowByNumber(lib.volumeRows, "1")
@@ -234,7 +232,7 @@ Item {
                && typeof lib.liveCaptionFor === "undefined" && typeof lib.volumeCaptionFor === "undefined",
                "the pre-v2.3 grid caption vocabulary must be fully removed, not just unused")
 
-            // ── v2.3 caption vocabulary: real name, redundant-name collapse, state line ──
+            // â”€â”€ v2.3 caption vocabulary: real name, redundant-name collapse, state line â”€â”€
             ck(lib.volumeNameFor(rowByNumber(lib.volumeRows, "9")) === "Real Volume Title",
                "a genuine volume name must reach the caption")
             ck(lib.volumeNameFor(rowByNumber(lib.volumeRows, "12")) === "",
@@ -244,7 +242,7 @@ Item {
             ck(lib.stateLineFor(rowByNumber(lib.volumeRows, "6")).indexOf("downloading") >= 0,
                "an in-flight volume's caption state line must name downloading")
             ck(lib.stateLineFor(rowByNumber(lib.volumeRows, "2")) === "",
-               "an owned (ready) volume's caption state line is empty — Read lives on the action bar")
+               "an owned (ready) volume's caption state line is empty â€” Read lives on the action bar")
 
             lib.selecting = true
             ck(lib.pressVolume(lib.focusIndex),
@@ -267,9 +265,9 @@ Item {
 
             // catalogue-independence Slice 5 (2026-08-20): chapters are gone completely.
             // A shelf-less series (no volumes known at all) renders an honest empty shelf
-            // — no chapter tail, no chapter API surface anywhere, on the room or the
+            // â€” no chapter tail, no chapter API surface anywhere, on the room or the
             // library it owns. It ALSO gets the masthead CTA back (search primary action,
-            // v2.3's own reconciliation) — the flow reserves no action bar with zero rows.
+            // v2.3's own reconciliation) â€” the flow reserves no action bar with zero rows.
             var chapterOnlyComp = Qt.createComponent("../qml/MangaReadingRoom.qml")
             chapterOnlyRoom = chapterOnlyComp.createObject(harness, {
                 "width": 1000, "height": 720, "seriesId": "C",
@@ -284,10 +282,8 @@ Item {
                "a series with no volumes must not reserve the flow's action bar")
             ck(chapterOnlyRoom.continueText === "Search nyaa",
                "the shelf-less honest primary label must read Search nyaa")
-            var shelflessBtn = findByName(chapterOnlyRoom, "tankobanSeriesPrimaryAction")
-            if (!shelflessBtn) throw new Error("tankobanSeriesPrimaryAction button not found on shelf-less room")
-            ck(shelflessBtn.visible === true,
-               "a shelf-less series must show the masthead CTA — it is the only way to reach primaryRequested")
+            ck(findByName(chapterOnlyRoom, "tankobanSeriesPrimaryAction") === null,
+               "shelf-less room must not resurrect visible Search Nyaa hero action")
             ck(typeof chapterOnlyRoom.chapters === "undefined"
                && typeof chapterOnlyRoom.chapterDisplayRows === "undefined"
                && typeof chapterOnlyRoom.openChapterRequested === "undefined"
@@ -316,11 +312,11 @@ Item {
             ck(tokenRoom.library.focusToken === "Extra" && tokenRoom.library.focusIndex === 1,
                "named volume tokens must remain the focused identity")
 
-            // ── flow-layout-dependent checks (ListView currentIndex settling, delegate
+            // â”€â”€ flow-layout-dependent checks (ListView currentIndex settling, delegate
             // realization) run on the same deferred tick the flow's own centreFlow() uses,
             // so they must be read after a Qt.callLater, never in this synchronous call
-            // stack — checking here would race the deferred positionViewAtIndex and either
-            // pass vacuously (stale -1) or fail spuriously. ──
+            // stack â€” checking here would race the deferred positionViewAtIndex and either
+            // pass vacuously (stale -1) or fail spuriously. â”€â”€
             Qt.callLater(function () {
                 try {
                     ck(lib.flowCurrentIndex === lib.focusIndex,

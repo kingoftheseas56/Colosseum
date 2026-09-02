@@ -64,7 +64,6 @@
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
 #include "engine/TankobanCatalog.h"
-#include "engine/TankobanChapterMigration.h"
 #include "engine/ImdbCatalog.h"
 #include "engine/BiblioCatalog.h"
 #include "engine/LocalDownloads.h"
@@ -1662,50 +1661,10 @@ int main(int argc, char *argv[]) {
     auto *accountRuntime = new AccountRuntime(&app);
     accountRuntime->prepareForQml(&engine);
 
-    // One-time WC-era chapter migration (catalogue-independence Slice 5, 2026-08-20;
-    // progress-purge rebind fix, closing-sweep 2026-08-21). Hemanth's explicit lock:
-    // chapters are deleted completely, on-disk bytes included. Hooked HERE, not at the
-    // earlier AppLog::install() point this class's own header comment originally assumed,
-    // because ground-truthing this boot sequence during Slice 5 found the Bundle 8C
-    // account/profile runtime (just above) is now the SOLE constructor of ProgressStore --
-    // no store exists any earlier in main() to purge kind:"manga" records from.
-    //
-    // Boot always starts behind ProfileStoreRuntime's Sealed placeholder (a throwaway
-    // QTemporaryDir-backed store — see ProfileStoreRuntime::createSealedStores); the
-    // user's onboarding choice ("continue local" / sign in) or a restored remembered
-    // session later rebinds it to the real, durable store. TankobanChapterMigration::run's
-    // `progressStoreIsDurable` flag (ground-truthed by the closing sweep, 2026-08-21: the
-    // progress purge was silently landing on the Sealed placeholder and burning the
-    // once-only marker before the real store was ever touched) keeps the marker withheld
-    // while Sealed. Running it once now covers the case a remembered session already
-    // rebound synchronously inside prepareForQml() above; the storesChanged connection
-    // covers every later rebind (continue-local, sign-in, sign-out-to-local, ...) so the
-    // real store gets the real purge exactly once, whenever it first becomes durable.
-    //
-    // One more transitional state storesChanged fires for: ProfileStoreRuntime::
-    // suspendPersonalStoresForMigration() (the first half of "continue local"/sign-in,
-    // called by FirstAccountProfileCoordinator::prepareLocalOnly() before it activates
-    // anything) tears the current store set down to nullptr and emits storesChanged
-    // BEFORE the replacement store exists. progressStore() returning null there is NOT
-    // the disk-only "no store handed in" contract TankobanChapterMigration::run's null
-    // parameter otherwise means (that contract is for a caller that deliberately never
-    // wants the progress step) — it is a live boot mid-rebind, and calling run() on it
-    // would purge nothing, write nothing, and (with a null progress arg) still burn the
-    // marker on the disk-only path, exactly re-creating the bug one signal later. Skip
-    // the call outright when there is no store yet; the very next storesChanged (once
-    // the real store is bound) runs it for real.
-    auto runTankobanChapterMigration = [accountRuntime]() {
-        ProfileStoreRuntime *stores = accountRuntime->profileStores();
-        ProgressStore *progress = stores->progressStore();
-        if (!progress)
-            return;
-        const bool durable = stores->activeProfile().kind() != ProfilePaths::Kind::Sealed;
-        TankobanChapterMigration::run(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation),
-                                      progress, durable);
-    };
-    runTankobanChapterMigration();
-    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
-                     &app, runTankobanChapterMigration);
+    // Arc 39 restores chapter mode. The 2026-08-20 one-time chapter purge is
+    // intentionally retired: future boots must preserve <AppData>/manga and kind:"manga"
+    // progress because those are live product data again. The migration implementation
+    // remains in-tree as historical/tested code, but production no longer invokes it.
 
     // Watch Party account bridge (arc 03): signed-in identity + bearer stay native.
     // UiController owns the bridge it dereferences, so its teardown cannot outlive

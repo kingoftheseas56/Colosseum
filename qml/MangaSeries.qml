@@ -45,6 +45,20 @@ Item {
     property var malCatalogRef: (typeof MalCatalog !== "undefined") ? MalCatalog : null
     property var tankobanCatalogRef: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
     property var tankobanVolumesRef: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
+    property var mangaEngineRef: (typeof Manga !== "undefined") ? Manga : null
+    property var downloadsRef: (typeof Downloads !== "undefined") ? Downloads : null
+
+    // Arc 39: Chapter mode is a sibling surface. The existing Tankoban page remains
+    // the default; switching to Chapters starts one correlated WeebCentral request.
+    property bool chapterMode: false
+    property string chapterSourceSeriesId: ""
+    property var chaptersModel: []
+    property bool chaptersLoading: false
+    property string chaptersError: ""
+    property int _chapterRequestGeneration: 0
+    property string _chapterRequestId: ""
+    property string pendingReadChapterId: ""
+    property string pendingReadChapterLabel: ""
 
     // Arc 19: a Read that needs transport stays a foreground consumption intent until
     // this exact series/volume becomes readable, the user leaves, or a newer Read wins.
@@ -124,8 +138,96 @@ Item {
     // latch + the reader's volume model whenever the id changes.
     onSeriesIdChanged: {
         page._invalidateReadIntent()
+        page._invalidateChapterRequest()
+        page._clearPendingChapterRead()
+        page.chapterMode = false
+        page.chapterSourceSeriesId = ""
+        page.chaptersModel = []
+        page.chaptersError = ""
         page._tankobanPrepared = false
         page.tankobanReaderEntries = []
+    }
+
+    function _invalidateChapterRequest() {
+        page._chapterRequestGeneration += 1
+        page._chapterRequestId = ""
+        page.chaptersLoading = false
+    }
+
+    function _clearPendingChapterRead() {
+        page.pendingReadChapterId = ""
+        page.pendingReadChapterLabel = ""
+    }
+
+    function _chapterLabelById(chapterId) {
+        var id = String(chapterId || "")
+        for (var i = 0; i < page.chaptersModel.length; ++i) {
+            var row = page.chaptersModel[i] || ({})
+            if (String(row.id || "") !== id) continue
+            return String(row.name || row.label || ("Chapter " + (row.number || "")))
+        }
+        return "Chapter"
+    }
+
+    function _loadChapterCatalogue(force) {
+        if (!page.chapterMode) return
+        if (!force && page.chaptersModel.length && page.chapterSourceSeriesId.length) return
+        if (!page.mangaEngineRef || !page.mangaEngineRef.chapterCatalogue) {
+            page.chaptersError = "Chapter source is unavailable."
+            page.chaptersLoading = false
+            return
+        }
+        page._chapterRequestGeneration += 1
+        page._chapterRequestId = page.seriesId + "|" + page._chapterRequestGeneration
+        page.chaptersModel = []
+        page.chapterSourceSeriesId = ""
+        page.chaptersError = ""
+        page.chaptersLoading = true
+        var title = page.sourceSearchTitle.length ? page.sourceSearchTitle : page.seriesTitle
+        page.mangaEngineRef.chapterCatalogue(page._chapterRequestId, title)
+    }
+
+    function _enterChapterMode() {
+        page._invalidateReadIntent()
+        page.openChapterId = ""
+        page.openChapterLabel = ""
+        page.openEntryKind = "manga"
+        page.chapterMode = true
+        page._loadChapterCatalogue(false)
+    }
+
+    function _enterTankobanMode() {
+        page._clearPendingChapterRead()
+        page._invalidateChapterRequest()
+        page.openChapterId = ""
+        page.openChapterLabel = ""
+        page.openEntryKind = "manga"
+        page.chapterMode = false
+    }
+
+    function _openChapter(chapterId, label) {
+        var id = String(chapterId || "")
+        if (!id.length) return
+        page.openChapterId = ""
+        page.openChapterLabel = ""
+        page.openEntryKind = "manga"
+        page.openChapterLabel = String(label || page._chapterLabelById(id))
+        page.openChapterId = id
+    }
+
+    function _readChapter(chapterId, label) {
+        var id = String(chapterId || "")
+        if (!id.length || !page.downloadsRef) return
+        var st = page.downloadsRef.statusOf(id) || ({})
+        if (String(st.state || "none") === "done") {
+            page._clearPendingChapterRead()
+            page._openChapter(id, label)
+            return
+        }
+        page.pendingReadChapterId = id
+        page.pendingReadChapterLabel = String(label || page._chapterLabelById(id))
+        page.downloadsRef.downloadChapter(id, page.seriesId, page.seriesTitle, page.pendingReadChapterLabel)
+        if (typeof Collection !== "undefined") Collection.add("tankoban", page.collectionEntry())
     }
 
     // TB-002 legacy re-file guard. A page instance attempts the re-file for a given
@@ -454,6 +556,43 @@ Item {
     }
 
     // --- volumes (Comick volume DB via MangaVolumes.js; complete ranges or none — gated) ---
+    Connections {
+        target: page.mangaEngineRef
+        ignoreUnknownSignals: true
+        function onChapterCatalogueResults(requestId, sourceSeriesId, rows) {
+            if (String(requestId) !== page._chapterRequestId || !page.chapterMode) return
+            page.chapterSourceSeriesId = String(sourceSeriesId || "")
+            page.chaptersModel = rows || []
+            page.chaptersLoading = false
+            page.chaptersError = ""
+        }
+        function onChapterCatalogueFailed(requestId, message) {
+            if (String(requestId) !== page._chapterRequestId || !page.chapterMode) return
+            page.chapterSourceSeriesId = ""
+            page.chaptersModel = []
+            page.chaptersLoading = false
+            page.chaptersError = String(message || "Unable to load chapters from WeebCentral.")
+        }
+    }
+
+    Connections {
+        target: page.downloadsRef
+        ignoreUnknownSignals: true
+        function onFinished(chapterId) {
+            if (!page.chapterMode || String(chapterId) !== page.pendingReadChapterId) return
+            var id = page.pendingReadChapterId
+            var label = page.pendingReadChapterLabel
+            page._clearPendingChapterRead()
+            page._openChapter(id, label)
+        }
+        function onFailed(chapterId, reason) {
+            if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
+        }
+        function onRemoved(chapterId) {
+            if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
+        }
+    }
+
     property var volumes: []                                  // [{number,cover,startNum,endNum,chapterStart,chapterEnd}]
 
     // ── the facts column beside the synopsis (Theatre's key/value stack) ─────
@@ -716,8 +855,8 @@ Item {
         id: readingRoom
         anchors.fill: parent
         z: 40
-        visible: !page.loading
-        opacity: page.loading ? 0.0 : 1.0
+        visible: !page.loading && !page.chapterMode
+        opacity: (page.loading || page.chapterMode) ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
         backdrop: page.backdrop
         seriesId: page.seriesId
@@ -744,6 +883,37 @@ Item {
         onReadVolumeRequested: (volumeId) => page._readVolume(volumeId)
         onSourcesRequested: (ctx) => page._openSources(ctx)
         onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
+        onChapterModeRequested: page._enterChapterMode()
+    }
+
+    MangaChapterSeriesView {
+        id: chapterSeriesView
+        anchors.fill: parent
+        z: 45
+        visible: !page.loading && page.chapterMode
+        backdrop: page.backdrop
+        seriesId: page.seriesId
+        sourceSeriesId: page.chapterSourceSeriesId
+        seriesTitle: page.seriesTitle
+        banner: page.banner
+        cover: page.cover
+        author: page.author
+        status: page.status
+        year: page.year
+        synopsis: page.synopsis
+        genres: page.genres
+        score: page.score
+        chapters: page.chaptersModel
+        downloader: page.downloadsRef
+        collectionEntry: page.collectionEntry()
+        loading: page.chaptersLoading
+        errorText: page.chaptersError
+        onBackRequested: { page._clearPendingChapterRead(); page.backRequested() }
+        onMinimizeRequested: page.minimizeRequested()
+        onFullscreenRequested: page.fullscreenRequested()
+        onCloseRequested: { page._clearPendingChapterRead(); page.closeRequested() }
+        onTankobanRequested: page._enterTankobanMode()
+        onReadChapterRequested: (chapterId, chapterLabel) => page._readChapter(chapterId, chapterLabel)
     }
 
     // ---- clean loading state ----
@@ -803,14 +973,22 @@ Item {
         // openEntryKind is never "manga" from a live route any more, so the reader's
         // chapters prop only ever needs the tankoban entries; [] covers the defensive
         // "manga" branch without an undefined chaptersModel reference.
-        chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : []
+        chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : page.chaptersModel
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
         // Do NOT clear openChapterId here — Main.qml's closeComicReader() reads it (still live)
         // to pick the right teardown lane. Clearing it first would make that routing fall
         // through to the wrong branch.
         onBackRequested: page.readerBackRequested()
-        onSourceRequested: (entryId) => page._handleVolumeSource(entryId)
+        onSourceRequested: (entryId) => {
+            if (page.openEntryKind === "tankoban") {
+                page._handleVolumeSource(entryId)
+                return
+            }
+            page.openChapterId = ""
+            page.openChapterLabel = ""
+            page._readChapter(String(entryId), page._chapterLabelById(entryId))
+        }
         onMinimizeRequested: page.readerMinimizeRequested()
         onFullscreenRequested: page.readerFullscreenRequested()
         onCloseRequested: page.readerCloseRequested()
