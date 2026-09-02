@@ -10,3 +10,4 @@ serde.workspace = true
 thiserror.workspace = true
 time.workspace = true
 uuid.workspace = true
+unicode-normalization = "0.1"
