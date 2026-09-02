@@ -41,7 +41,7 @@ else()
     message(STATUS "Compiler cache: disabled by COLOSSEUM_NO_COMPILER_CACHE=ON")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Quick3D Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -630,7 +630,7 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
 target_link_libraries(colosseum PRIVATE colosseum_update_crypto
-    Qt6::Quick Qt6::Quick3D Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
+    Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
