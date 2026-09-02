@@ -248,9 +248,10 @@ impl Player for AvFoundationPlayer {
                         return None;
                     }
                 }
-                let Some(sbuf) = r.output.copyNextSampleBuffer() else {
-                    continue;
-                };
+                // Non-blocking: nil means the decoder has no frame ready yet —
+                // yield now and let the caller poll again; busy-spinning here
+                // starves the reader and freezes playback after frame one.
+                let sbuf = r.output.copyNextSampleBuffer()?;
                 let pts = sbuf.presentation_time_stamp();
                 let Some(cv) = sbuf.image_buffer() else {
                     continue;
