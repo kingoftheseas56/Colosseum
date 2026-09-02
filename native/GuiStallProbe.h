@@ -29,6 +29,7 @@
 #include <QHash>
 #include <QString>
 #include <QMetaObject>
+#include <QNetworkReply>
 #include <QByteArray>
 #include <QThread>
 #include <QDebug>
@@ -157,6 +158,17 @@ public:
                                 ? QString::fromLatin1(receiver->metaObject()->className())
                                 : QStringLiteral("(null)");
         const QString name = receiver ? receiver->objectName() : QString();
+        const QObject *owner = receiver ? receiver->parent() : nullptr;
+        const QString ownerLabel = (cls == QLatin1String("QFutureWatcherBase") && owner && owner->metaObject())
+                                       ? QStringLiteral(" parent=%1%2")
+                                             .arg(QString::fromLatin1(owner->metaObject()->className()),
+                                                  owner->objectName().isEmpty() ? QString()
+                                                      : QStringLiteral("[") + owner->objectName() + QLatin1Char(']'))
+                                       : QString();
+        const auto *networkReply = qobject_cast<const QNetworkReply *>(receiver);
+        const QString networkLabel = networkReply
+            ? QStringLiteral(" url=%1").arg(networkReply->url().toString(QUrl::FullyEncoded))
+            : QString();
 
         QElapsedTimer t;
         t.start();
@@ -165,9 +177,9 @@ public:
         --m_depth;
 
         if (ms >= m_thresholdMs) {
-            const QString key = QStringLiteral("%1|%2%3")
+            const QString key = QStringLiteral("%1|%2%3%4%5")
                                     .arg(type)
-                                    .arg(cls, name.isEmpty() ? QString() : QStringLiteral(" [") + name + QLatin1Char(']'));
+                                    .arg(cls, name.isEmpty() ? QString() : QStringLiteral(" [") + name + QLatin1Char(']'), ownerLabel, networkLabel);
             // Emit immediately WITH a timestamp. Totals alone cannot separate start-up work from
             // work that blocks the thread mid-film, and that distinction is the whole point: a
             // 700ms stall during launch is invisible to the viewer, the same stall at 00:40 is a

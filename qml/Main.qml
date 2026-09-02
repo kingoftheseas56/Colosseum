@@ -61,6 +61,7 @@ Window {
         }
     }
     property bool startupIdleWorkArmed: false
+    property bool auxiliaryFontsReady: false
     Timer {
         id: startupIdleGate
         interval: 2500
@@ -71,6 +72,7 @@ Window {
                 win.armStartupIdleWork()
                 return
             }
+            auxiliaryFontsReady = true
             postFrameStartupWork.start()
             win.armHomeIntroWidgets()
             win.armHomeContinueRail()
@@ -1146,6 +1148,60 @@ Window {
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
+    // First PlayerPage construction is large enough to block weak machines for visible chunks.
+    // Keep the Loader cold until first use, incubate it across event-loop turns, then replay the
+    // one latest open request after onLoaded. Once created, the existing keep-alive policy wins.
+    property var pendingPlayerOpen: null
+
+    function ensurePlayerLayerLoading() {
+        if (!playerLayer.active)
+            playerLayer.active = true
+    }
+    function queuePlayerSessionOpen(sessionId) {
+        win.pendingPlayerOpen = { "kind": "session", "sessionId": String(sessionId || "") }
+        win.ensurePlayerLayerLoading()
+    }
+    function queueDirectPlayerOpen(infoHash, fileIdx, title, backdrop, subType, subId, candidates, context) {
+        win.pendingPlayerOpen = { "kind": "direct", "infoHash": infoHash, "fileIdx": fileIdx,
+                                  "title": title, "backdrop": backdrop, "subType": subType,
+                                  "subId": subId, "candidates": candidates || [], "context": context || ({}) }
+        win.ensurePlayerLayerLoading()
+    }
+
+    function queueWatchPartyPlayerOpen() {
+        win.pendingPlayerOpen = { "kind": "watchParty" }
+        win.ensurePlayerLayerLoading()
+    }
+    function clearPendingPlayerSession(sessionId) {
+        var p = win.pendingPlayerOpen
+        if (p && p.kind === "session" && p.sessionId === String(sessionId || "")) {
+            win.pendingPlayerOpen = null
+            return true
+        }
+        return false
+    }
+    function flushPendingPlayerOpen() {
+        if (!playerLayer.item || !win.pendingPlayerOpen)
+            return
+        var p = win.pendingPlayerOpen
+        win.pendingPlayerOpen = null
+        if (p.kind === "session") {
+            if (!win.playerOpen || Sessions.activeId !== p.sessionId)
+                return
+            var rec = Sessions.get(p.sessionId)
+            if (rec && rec.id)
+                win.activateMovieSession(rec)
+            return
+        }
+        if (p.kind === "direct") {
+            if (win.playerOpen)
+                playerLayer.item.playTorrent(p.infoHash, p.fileIdx, p.title, p.backdrop, p.subType, p.subId,
+                                             p.candidates || [], p.context || ({}))
+            return
+        }
+        if (p.kind === "watchParty" && win.playerOpen)
+            win.openWatchPartyRoomSource()
+    }
 
     // Gives the shell a moment to finish coming up before the player is opened on top of it.
     Timer {
@@ -1556,11 +1612,14 @@ Window {
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         setGuiStallContext("open", "Player")
-        if (!playerLayer.active) playerLayer.active = true
         win.playerOpen = true
-        // `backdrop` is the poster url; subType/subId (e.g. "movie"/"tt123" or "series"/"tt123:1:2")
-        // let the player fetch online subtitles for this exact title/episode.
-        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates || [], playbackContext || ({}))
+        if (!playerLayer.item) {
+            win.queueDirectPlayerOpen(infoHash, fileIdx, title, backdrop, subType, subId,
+                                      streamCandidates || [], playbackContext || ({}))
+            return
+        }
+        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId,
+                                     streamCandidates || [], playbackContext || ({}))
     }
 
     function openWatchPartyRoomSource() {
@@ -1579,15 +1638,18 @@ Window {
             playerLayer.item.syncWatchPartyPlayerObservation()
             return true
         }
-        if (!playerLayer.active) playerLayer.active = true
-        if (!playerLayer.item) return false
         win.playerOpen = true
+        if (!playerLayer.item) {
+            win.queueWatchPartyPlayerOpen()
+            return true
+        }
         var candidate = { "infoHash": hash, "fileIdx": fileIdx }
         playerLayer.item.playTorrent(hash, fileIdx, "Watch Party", "", "", "",
                                     [candidate], { "watchPartyJoin": true })
         return true
     }
     function closePlayer() {
+        win.pendingPlayerOpen = null
         if (playerLayer.item) playerLayer.item.stop()
         win.playerOpen = false
         setGuiStallContext("navigate", currentSurface || "Home")
@@ -2021,6 +2083,43 @@ Window {
     // (minimizeAudiobook / closeAudiobookSession retired with the standalone player, 2026-07-18.)
 
     // dispatcher: build the active surface from a record (+ restore its saved state).
+    // Player-specific half of session activation. This only runs with a READY Loader item.
+    // First-open callers queue the session id and onLoaded re-enters here on a later event turn.
+    function activateMovieSession(rec) {
+        if (!rec || !rec.id || !playerLayer.item)
+            return
+        var t = rec.target || ({})
+        var st = rec.savedState || ({})
+        if (win.warmPlayerSessionId === rec.id) {
+            playerLayer.item.resumeFromMinimize()
+        } else {
+            if (t.localPath && String(t.localPath).length)
+                playerLayer.item.playLocalFile(t)
+            else if (t.streamUrl && String(t.streamUrl).length) {
+                var landed = win.downloadedVideoPath(t.id || "")
+                if (landed.length) {
+                    t.localPath = landed
+                    playerLayer.item.playLocalFile(t)
+                } else if (t.partPath && String(t.partPath).length) {
+                    t.localPath = t.partPath
+                    t.arrivingUrl = t.streamUrl
+                    playerLayer.item.playLocalFile(t)
+                } else {
+                    playerLayer.item.playRemoteUrl(t)
+                }
+            } else {
+                playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop,
+                                             t.subType, t.subId, t.streamCandidates || [],
+                                             t.playbackContext || ({}))
+            }
+            var resumeSt = (st && Number(st.position) > 0) ? st
+                         : { "position": Number(t.position) || 0 }
+            if (playerLayer.item.restoreState)
+                playerLayer.item.restoreState(resumeSt)
+        }
+        win.warmPlayerSessionId = rec.id
+    }
+
     function activateSession(rec) {
         if (!rec || !rec.id) return
         var t = rec.target || ({})
@@ -2028,42 +2127,12 @@ Window {
         currentSurface = wallpaperWorldForSession(rec)
         refreshWallpaper()
         if (rec.contentKind === "movie") {
-            if (!playerLayer.active) playerLayer.active = true
             win.playerOpen = true
-            if (win.warmPlayerSessionId === rec.id && playerLayer.item) {
-                // warm: the stream was kept alive on minimize — resume in place, no re-stream.
-                playerLayer.item.resumeFromMinimize()
-            } else {
-                if (t.localPath && String(t.localPath).length)
-                    playerLayer.item.playLocalFile(t)   // downloaded file: stream-grade identity
-                else if (t.streamUrl && String(t.streamUrl).length) {
-                    // arriving download: watch the same url live; if it landed since
-                    // (restart restore), prefer the local copy over a dead url.
-                    var landed = win.downloadedVideoPath(t.id || "")
-                    if (landed.length) {
-                        t.localPath = landed
-                        playerLayer.item.playLocalFile(t)
-                    } else if (t.partPath && String(t.partPath).length) {
-                        // disk-first (2026-07-31): the job's .part already holds real bytes —
-                        // read those instead of re-streaming them. The player hands over to
-                        // arrivingUrl only if the watcher outruns the download frontier.
-                        t.localPath = t.partPath
-                        t.arrivingUrl = t.streamUrl
-                        playerLayer.item.playLocalFile(t)
-                    } else {
-                        playerLayer.item.playRemoteUrl(t)
-                    }
-                } else
-                    playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
-                                                 t.streamCandidates || [], t.playbackContext || ({}))
-                // Continue-Watching first-open resume: a fresh open has NO savedState, so the saved
-                // position rides in target.position (the tile's ProgressStore value). A fresher
-                // in-session captured position (minimize) still wins. [fix 2026-07-07: streamed CW
-                // resumed at 0 because playTorrent takes no position and savedState was empty.]
-                var resumeSt = (st && Number(st.position) > 0) ? st : { "position": Number(t.position) || 0 }
-                if (playerLayer.item.restoreState) playerLayer.item.restoreState(resumeSt)   // precision: Task 5
+            if (!playerLayer.item) {
+                win.queuePlayerSessionOpen(rec.id)
+                return
             }
-            win.warmPlayerSessionId = rec.id
+            win.activateMovieSession(rec)
         } else if (rec.contentKind === "comic") {
             if (t.vaultPath && String(t.vaultPath).length) {
                 // a loose local comic (Vault): no series page — mount the standalone reader
@@ -2156,11 +2225,15 @@ Window {
     function teardownSession(rec) {
         if (!rec || !rec.id) return
         if (rec.contentKind === "movie") {
-            // minimize keeps the stream WARM: pause + hide, never stop(), so reopening from
-            // the taskbar resumes instantly with no re-stream (Hemanth 2026-07-07, option a).
-            // The hard stop lives in closeSession — only a real close ends the stream.
-            if (playerLayer.item) playerLayer.item.suspendForMinimize()
-            win.warmPlayerSessionId = rec.id
+            // If first-open incubation has not dispatched playback yet, cancel that queued open;
+            // there is no warm stream to resume. Once playback exists, preserve the old keep-alive.
+            var wasPending = win.clearPendingPlayerSession(rec.id)
+            if (playerLayer.item && !wasPending) {
+                playerLayer.item.suspendForMinimize()
+                win.warmPlayerSessionId = rec.id
+            } else {
+                win.warmPlayerSessionId = ""
+            }
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — drop whichever is live
@@ -2181,26 +2254,26 @@ Window {
     FontLoader { source: "../assets/fonts/Fraunces-Italic.ttf" }
 
     // ---- player HUD face: Switzer (Harbor-parity), bundled weights (theme.hud) ----
-    FontLoader { source: "../assets/fonts/Switzer-Regular.otf" }
-    FontLoader { source: "../assets/fonts/Switzer-Medium.otf" }
-    FontLoader { source: "../assets/fonts/Switzer-Semibold.otf" }
-    FontLoader { source: "../assets/fonts/Switzer-Bold.otf" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Regular.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Medium.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Semibold.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Bold.otf" : "" }
 
     // ---- HUD fallback face: Inter statics (theme.hud flip target). STATICS ON PURPOSE:
     // a variable TTF registers under its typographic name ("Inter Variable"), so asking
     // for "Inter" silently falls back to Tahoma on Windows (probe-proven 2026-07-08).
     // The statics register as plain "Inter" and weight-match across files. ----
-    FontLoader { source: "../assets/fonts/Inter-Regular.otf" }
-    FontLoader { source: "../assets/fonts/Inter-Medium.otf" }
-    FontLoader { source: "../assets/fonts/Inter-SemiBold.otf" }
-    FontLoader { source: "../assets/fonts/Inter-Bold.otf" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-Regular.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-Medium.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-SemiBold.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-Bold.otf" : "" }
 
     // ---- reading serif: Literata statics for the FRESH reader's chrome (Appearance panel
     // card + serif UI). STATICS for the same reason as Inter above — the variable TTF would
     // register as "Literata Variable" and silently Tahoma-fall. The BOOK text gets Literata
     // separately via @font-face injected into the paper page (paper_glue.js FONT_FACE_CSS). ----
-    FontLoader { source: "../assets/fonts/Literata-Regular.ttf" }
-    FontLoader { source: "../assets/fonts/Literata-Italic.ttf" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Literata-Regular.ttf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Literata-Italic.ttf" : "" }
 
     // =====================================================================
     // BACKDROP — the persistent wallpaper everything composites over.
@@ -2642,7 +2715,7 @@ Window {
             delegate: Loader {
                 required property string mode
                 anchors.fill: parent
-                visible: worldStack.current === mode
+                visible: worldStack.current === mode && !win.immersiveSurfaceOpen
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
                 active: false
@@ -2652,14 +2725,14 @@ Window {
                 asynchronous: true
                 Component.onCompleted: {
                     setSource(win.worldSourceFor(mode), {
-                        "lifecycleActive": worldStack.current === mode
+                        "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen
                     })
                     active = true
                 }
                 onLoaded: {
                     if (item.lifecycleActive !== undefined)
                         item.lifecycleActive = Qt.binding(function() {
-                            return worldStack.current === mode
+                            return worldStack.current === mode && !win.immersiveSurfaceOpen
                         })
                     item.medium = mode
                     item.backdrop = wall
@@ -3136,6 +3209,9 @@ Window {
         z: 60
         active: false
         visible: win.playerOpen
+        // Spread first construction across event-loop turns. After the first load this Loader stays
+        // active forever, preserving the existing warm player/minimize behavior and avoiding churn.
+        asynchronous: true
         // The ONE production line that selects the backend. Player2Page.qml deliberately exposes the
         // same interface as PlayerPage.qml, so every playerLayer.item.* call site below stays as-is.
         source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"
@@ -3160,6 +3236,9 @@ Window {
                 item.backendRestartRequired.connect(function(reason) {
                     console.warn("[player2] failed after first frame: " + reason)
                 })
+            // Do not start media from the Loader's own completion event. Yield one turn so Qt can
+            // present the newly-created player/loading face before mpv/file-open work begins.
+            Qt.callLater(win.flushPendingPlayerOpen)
         }
     }
 
@@ -3353,7 +3432,7 @@ Window {
         anchors.fill: parent
         z: 56
         active: false
-        visible: active
+        visible: active && !win.immersiveSurfaceOpen
         // VaultPage is a large, taskbar-only surface. Spread component creation across
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
@@ -3575,6 +3654,7 @@ Window {
             ? (LocalDownloads.revision, Number(LocalDownloads.totals.active || 0)) : 0)
         + ((typeof Audiobooks !== "undefined") ? Audiobooks.activeCount : 0)
     onImmersiveSurfaceOpenChanged: {
+        ForegroundPriority.setImmersiveSurfaceOpen(win.immersiveSurfaceOpen)
         if (!immersiveSurfaceOpen && pendingDownloadReveal) {
             pendingDownloadReveal = false
             if (lastActiveDownloads > 0) taskbar.reveal()

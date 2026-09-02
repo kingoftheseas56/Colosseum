@@ -45,7 +45,7 @@ VaultWatcher::VaultWatcher(VaultIndex* index, VaultIdentity* identity, VaultConf
     connect(m_watcher, &QFileSystemWatcher::fileChanged, this,
             [this](const QString& path) { onDirectoryChanged(path); });
     connect(m_debounce, &QTimer::timeout, this, [this] { debounceExpired(); });
-    connect(m_probe, &QTimer::timeout, this, [this] { refresh(); });
+    connect(m_probe, &QTimer::timeout, this, [this] { refreshInternal(false); });
     m_probe->start();
 
     // A confirm (or a root added/removed/re-kind-chip) changes the watch set: reconcile.
@@ -65,6 +65,11 @@ void VaultWatcher::setImmersive(bool on)
 }
 
 void VaultWatcher::refresh()
+{
+    refreshInternal(true);
+}
+
+void VaultWatcher::refreshInternal(bool retryDegradedTree)
 {
     const QSet<QString> previouslyUnavailable = m_unavailable;
     QMap<QString, QString> configuredRoots; // normalized -> real/config path
@@ -86,12 +91,14 @@ void VaultWatcher::refresh()
             watchRoot(path);
             // The one-second probe is availability-only after initial registration. Recurse only
             // for a newly confirmed/revived root or when a directory event explicitly requests it.
-            if (!m_treeInitialized.contains(norm))
+            if (!m_treeInitialized.contains(norm)
+                && (retryDegradedTree || !m_treeDegraded.contains(norm)))
                 scheduleTreeWatch(path);
         } else {
             m_unavailable.insert(norm);
             m_watched.remove(norm);
             m_treeInitialized.remove(norm); // revival must rebuild recursive watches once
+            m_treeDegraded.remove(norm);   // revival earns one fresh recursive-watch attempt
             m_degraded.insert(norm); // rescan-on-open still needs to revisit the missing root
         }
     }

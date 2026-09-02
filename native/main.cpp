@@ -54,6 +54,7 @@
 #include "update/UpdateTrust.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
+#include "work/ForegroundPriorityGovernor.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
 #include "devtools/LanistaServer.h"
@@ -1588,6 +1589,31 @@ int main(int argc, char *argv[]) {
     backgroundActivity->setCoordinator(backgroundWork);
     engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
                                              backgroundActivity);
+
+    // Foreground-priority governor: direct user input gets a 350 ms latency-sensitive
+    // lease; immersive player/reader ownership dominates as Suspended. One reasoned
+    // pressure signal fans out to every adopted background seam.
+    auto *foregroundPriority = new work::ForegroundPriorityGovernor(350, &app);
+    app.installEventFilter(foregroundPriority);
+    engine.rootContext()->setContextProperty(QStringLiteral("ForegroundPriority"),
+                                             foregroundPriority);
+    QObject::connect(foregroundPriority, &work::ForegroundPriorityGovernor::pressureChanged,
+                     &app, [backgroundWork, biblioCatalog, vaultLibrary,
+                            catalogVaultClient](int pressure) {
+        work::Pressure nativePressure = work::Pressure::Normal;
+        if (pressure >= work::ForegroundPriorityGovernor::Suspended)
+            nativePressure = work::Pressure::Suspended;
+        else if (pressure >= work::ForegroundPriorityGovernor::LatencySensitive)
+            nativePressure = work::Pressure::LatencySensitive;
+        backgroundWork->setPressure(nativePressure);
+
+        const bool foregroundBusy = pressure >= work::ForegroundPriorityGovernor::LatencySensitive;
+        const bool immersive = pressure >= work::ForegroundPriorityGovernor::Suspended;
+        biblioCatalog->setForegroundPriorityActive(foregroundBusy);
+        biblioCatalog->setBackgroundWorkSuspended(immersive);
+        vaultLibrary->setImmersive(foregroundBusy);
+        catalogVaultClient->setForegroundPressure(pressure);
+    });
 
     // Watch-room / together backbone exposed to QML as `Room`. This first slice is
     // local and in-process, but it carries the participant/chat/sync model the

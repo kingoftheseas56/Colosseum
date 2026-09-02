@@ -409,6 +409,33 @@ int main(int argc, char** argv)
     require(server.requestCount == 0, "(h) empty managed set makes zero network requests");
     pass("(h) setManagedNames({}) is a total no-op fetch");
 
+    // ── (i) foreground pressure defers a new pass until Normal ───────────────
+    QTemporaryDir dirI;
+    require(dirI.isValid(), "temp vault dir I created");
+    server.tag = QStringLiteral("v5.0.0");
+    server.assetBytes = fixtureBytesFor(server.tag);
+    server.requestCount = 0;
+    CatalogVaultClient foregroundClient(&nam, dirI.path(), server.baseUrl());
+    foregroundClient.setManagedNames(QStringList{QStringLiteral("mal_catalog.db")});
+    bool foregroundFresh = false;
+    QObject::connect(&foregroundClient, &CatalogVaultClient::allFresh,
+                     [&](QString) { foregroundFresh = true; });
+    foregroundClient.setForegroundPressure(1);
+    foregroundClient.checkAndFetch();
+    QCoreApplication::processEvents();
+    require(server.requestCount == 0, "(i) foreground pressure prevents a new manifest request");
+    require(!foregroundClient.isFetching(), "(i) deferred pass does not claim to be fetching");
+    QEventLoop foregroundLoop;
+    QObject::connect(&foregroundClient, &CatalogVaultClient::allFresh,
+                     &foregroundLoop, &QEventLoop::quit);
+    QTimer::singleShot(1200, &foregroundLoop, &QEventLoop::quit);
+    foregroundClient.setForegroundPressure(0);
+    if (!foregroundFresh)
+        foregroundLoop.exec();
+    require(foregroundFresh, "(i) deferred pass resumes when foreground pressure returns Normal");
+    require(server.requestCount >= 2, "(i) resumed pass fetched manifest and managed asset");
+    pass("(i) foreground pressure defers and resumes a new pass");
+
     std::cout << "CATALOG_VAULT_CLIENT_OK\n";
     return 0;
 }

@@ -124,4 +124,13 @@ Need ($qmlMain.Contains('onDetailRequested: win.detailContinue(modelData)')) `
 Need ($qmlMain.Contains('onRemoveRequested: Progress.forget(modelData.kind, modelData.id)')) `
     'The deferred Continue rail must preserve remove routing.'
 
+Need ($qmlMain.Contains('property bool auxiliaryFontsReady: false')) `
+    'Player/reader-only fonts must have an explicit post-splash readiness gate.'
+Need ($qmlMain.Contains('source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Regular.otf" : ""')) `
+    'Switzer must not load on the pre-first-frame Main.qml path.'
+Need ($qmlMain.Contains('source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-Regular.otf" : ""')) `
+    'Inter must not load on the pre-first-frame Main.qml path.'
+Need ($qmlMain.Contains('source: win.auxiliaryFontsReady ? "../assets/fonts/Literata-Regular.ttf" : ""')) `
+    'Literata must not load on the pre-first-frame Main.qml path.'
+
 Write-Host 'Startup responsiveness probe contract: PASS'

@@ -40,6 +40,10 @@ public:
     // scan requested while one runs BUFFERS and runs after — never dropped.
     Q_INVOKABLE void scanRoot(const QString& root, const QStringList& scanIgnore = {});
     Q_INVOKABLE void cancel();
+    // Keep off-thread census work running, but park GUI-side candidate/publish commits
+    // while an immersive reader/player owns the frame budget.
+    void setApplySuspended(bool on);
+    bool applySuspended() const { return m_applySuspended; }
 
     // Publication (Slice 11): a confirm re-censuses EVERY confirmed root off-thread
     // and publishes their UNION in one atomic VaultIndex::publish — never a single
@@ -107,7 +111,14 @@ signals:
 private:
     VaultIndex* m_index;
     VaultIdentity* m_identity;
+    enum class DeferredApplyKind { None, Result, Publish };
     bool m_scanning = false;
+    bool m_applySuspended = false;
+    DeferredApplyKind m_deferredApplyKind = DeferredApplyKind::None;
+    RawResult m_deferredResult;
+    QList<RawResult> m_deferredPublishResults;
+    quint64 m_deferredPublishGeneration = 0;
+    QList<VaultIndex::FileRow> m_deferredPublishExtraRows;
     quint64 m_generation = 0;
     std::shared_ptr<VaultKit::CancellationToken> m_cancel;
     QList<QPair<QString, QStringList>> m_pending; // buffered scans (never dropped)

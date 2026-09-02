@@ -85,6 +85,8 @@ private slots:
     void build_scan_precancelled_is_cancelled();
     void apply_result_delivers_candidate_without_publishing();
     void apply_result_cancelled_delivers_cancelled_flag();
+    void immersive_defers_candidate_delivery_until_resume();
+    void immersive_defers_publish_commit_until_resume();
     void publish_confirmed_publishes_aggregate();
     void publish_confirmed_multi_root_does_not_wipe_first();
     void publish_confirmed_cancelled_aborts_without_publishing();
@@ -288,6 +290,42 @@ void tst_vault_scanner::apply_result_cancelled_delivers_cancelled_flag()
     QCOMPARE(idx.itemCount(), 0); // a cancelled census never publishes
     QCOMPARE(finished.count(), 1);
     QCOMPARE(finished.takeFirst().at(2).toBool(), true); // cancelled flag delivered
+}
+
+void tst_vault_scanner::immersive_defers_candidate_delivery_until_resume()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    QSignalSpy finished(&sc, &VaultScanner::scanFinished);
+    const quint64 g = sc.nextGeneration();
+    const auto r = VaultScanner::buildScan(mixedRoot(), {}, g, {});
+    sc.setApplySuspended(true);
+    sc.applyResult(r);
+    QCOMPARE(finished.count(), 0);
+    sc.setApplySuspended(false);
+    QCOMPARE(finished.count(), 1);
+}
+
+void tst_vault_scanner::immersive_defers_publish_commit_until_resume()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    VaultIndex idx(tmp.filePath(QStringLiteral("i.sqlite")));
+    VaultIdentity ident(tmp.path());
+    VaultScanner sc(&idx, &ident);
+    QSignalSpy published(&sc, &VaultScanner::indexPublished);
+    const quint64 g = sc.nextGeneration();
+    const auto r = VaultScanner::buildScan(mixedRoot(), {}, g, {});
+    sc.setApplySuspended(true);
+    sc.applyPublish({r}, g);
+    QCOMPARE(idx.itemCount(), 0);
+    QCOMPARE(published.count(), 0);
+    sc.setApplySuspended(false);
+    QCOMPARE(idx.itemCount(), kExpectedItems);
+    QCOMPARE(published.count(), 1);
 }
 
 void tst_vault_scanner::publish_confirmed_publishes_aggregate()
@@ -825,7 +863,14 @@ void tst_vault_scanner::watcher_directory_cap_marks_root_degraded()
     QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() >= 1, 5000);
     QVERIFY(w.isRootDegraded(root.path()));
 
-    // A later refresh must not clear the cap state just because the root itself is watchable;
+    // The 1-second availability probe must stay availability-only even for a capped tree.
+    // Retrying the 512-directory recursive walk every probe tick starves the GUI thread during
+    // playback on large Vault roots. Explicit refresh/directory-change paths still retry below.
+    const int afterFirstWalk = treeReady.count();
+    QTest::qWait(2500);
+    QCOMPARE(treeReady.count(), afterFirstWalk);
+
+    // A later explicit refresh must not clear the cap state just because the root itself is watchable;
     // VaultLibrary needs to observe the preserved degraded flag and run its silent fallback.
     w.refresh();
     QVERIFY(w.isRootDegraded(root.path()));

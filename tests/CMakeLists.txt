@@ -29,6 +29,7 @@ colosseum_register_harness(window_state_policy_harness   unit;windows)
 colosseum_register_harness(search_history_store_harness  unit)
 colosseum_register_harness(session_store_harness unit;session)
 colosseum_register_harness(background_work_coordinator_harness unit)
+colosseum_register_harness(foreground_priority_governor_harness unit;responsiveness)
 colosseum_register_harness(background_activity_registry_harness unit)
 colosseum_register_harness(background_work_composition_harness unit;composition)
 colosseum_register_harness(progress_store_harness        unit)
@@ -203,13 +204,14 @@ set_tests_properties(colosseum.qttest.capture_runner PROPERTIES
 # stays deterministic and does not boot the application or open a real window.
 add_executable(tst_gui_responsiveness_probe auto/lanista/tst_gui_responsiveness_probe.cpp)
 target_include_directories(tst_gui_responsiveness_probe PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_gui_responsiveness_probe PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+target_link_libraries(tst_gui_responsiveness_probe PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::Test)
 set_target_properties(tst_gui_responsiveness_probe PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_gui_responsiveness_probe POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:Qt6::Test>"
-            "${CMAKE_CURRENT_BINARY_DIR}/..")
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Core>" "${CMAKE_CURRENT_BINARY_DIR}/.."
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Gui>" "${CMAKE_CURRENT_BINARY_DIR}/.."
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Network>" "${CMAKE_CURRENT_BINARY_DIR}/.."
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.gui_responsiveness_probe
          COMMAND tst_gui_responsiveness_probe)
 set_tests_properties(colosseum.qttest.gui_responsiveness_probe PROPERTIES
@@ -254,6 +256,22 @@ set_tests_properties(colosseum.startup_responsiveness_probe PROPERTIES
     LABELS "unit;responsiveness"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+if(WIN32)
+    add_test(NAME colosseum.responsiveness_budget_gate
+             COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                     "${CMAKE_CURRENT_SOURCE_DIR}/test_responsiveness_budget_gate.ps1")
+    set_tests_properties(colosseum.responsiveness_budget_gate PROPERTIES
+        LABELS "unit;responsiveness;windows"
+        TIMEOUT 60)
+
+    add_test(NAME colosseum.anime_order_async_persist_contract
+             COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                     "${CMAKE_CURRENT_SOURCE_DIR}/test_anime_order_async_persist_p0.ps1")
+    set_tests_properties(colosseum.anime_order_async_persist_contract PROPERTIES
+        LABELS "unit;responsiveness;windows"
+        TIMEOUT 60)
+endif()
 
 # World-warmer containment contract: automatic warming is opt-in, while explicit world
 # navigation remains available for normal operation.
