@@ -39,7 +39,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set build paths (RUNNER_TEMP lives on the larger D: drive)
+      - name: Set build paths (RUNNER_TEMP is on the larger D drive)
         shell: pwsh
         run: |
           "WEBENGINE_SRC_DIR=$env:RUNNER_TEMP\qtwebengine-src"         | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
