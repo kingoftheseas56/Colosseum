@@ -20,6 +20,7 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QProcess>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
 #include <algorithm>
@@ -1360,6 +1361,17 @@ bool VaultLibrary::revealInExplorer(const QString& path) const
         return QProcess::startDetached(QStringLiteral("explorer.exe"), QStringList{native});
     return QProcess::startDetached(QStringLiteral("explorer.exe"),
                                    QStringList{QStringLiteral("/select,"), native});
+#elif defined(Q_OS_LINUX)
+    const QFileInfo fi(path);
+    if (path.trimmed().isEmpty() || !fi.exists())
+        return false;
+    const QString xdgOpen = QStandardPaths::findExecutable(QStringLiteral("xdg-open"));
+    if (xdgOpen.isEmpty())
+        return false;
+    // Freedesktop file managers do not share Explorer's /select contract. Open the
+    // containing directory for a file, or the directory itself for a folder.
+    const QString folder = fi.isDir() ? fi.absoluteFilePath() : fi.absolutePath();
+    return QProcess::startDetached(xdgOpen, QStringList{folder});
 #else
     Q_UNUSED(path);
     return false;

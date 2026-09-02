@@ -143,8 +143,9 @@ private slots:
             verify.value(QStringLiteral("continue/entries")).toByteArray();
         const QJsonDocument doc = QJsonDocument::fromJson(blob);
         QVERIFY(doc.isObject());
+        const QJsonObject entries = doc.object();
         bool found = false;
-        for (auto it = doc.object().constBegin(); it != doc.object().constEnd(); ++it) {
+        for (auto it = entries.constBegin(); it != entries.constEnd(); ++it) {
             if (it.value().toObject().value(QStringLiteral("id")).toString() == markerId)
                 found = true;
         }
@@ -182,8 +183,9 @@ private slots:
             verify.value(QStringLiteral("collection/entries")).toByteArray();
         const QJsonDocument doc = QJsonDocument::fromJson(blob);
         QVERIFY(doc.isObject());
+        const QJsonObject entries = doc.object();
         bool found = false;
-        for (auto it = doc.object().constBegin(); it != doc.object().constEnd(); ++it) {
+        for (auto it = entries.constBegin(); it != entries.constEnd(); ++it) {
             if (it.value().toObject().value(QStringLiteral("id")).toString() == markerId)
                 found = true;
         }

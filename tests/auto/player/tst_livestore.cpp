@@ -1,5 +1,6 @@
 #include "player/livestore.h"
 
+#include <QDir>
 #include <QElapsedTimer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -20,6 +21,9 @@ private slots:
     void stopIsPromptAndTerminalStateIsIdempotent();
     void naturalExitFinalizesExactlyOnce();
     void startErrorFinalizesExactlyOnce();
+#ifndef Q_OS_WIN
+    void missingRecorderIsReportedAsDependencyFailure();
+#endif
 };
 
 void tst_livestore::stopIsPromptAndTerminalStateIsIdempotent()
@@ -93,11 +97,14 @@ void tst_livestore::naturalExitFinalizesExactlyOnce()
 void tst_livestore::startErrorFinalizesExactlyOnce()
 {
     QTemporaryDir output;
-    QTemporaryFile recorder;
+    QTemporaryFile recorder(QDir::tempPath()
+                            + QStringLiteral("/colosseum-invalid-recorder-XXXXXX.exe"));
     QVERIFY(output.isValid());
     QVERIFY(recorder.open());
     recorder.write("not an executable");
     recorder.close();
+    QVERIFY(recorder.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                     | QFileDevice::ExeOwner));
     qputenv("COLOSSEUM_MPV", recorder.fileName().toUtf8());
     qputenv(kFakeRecorderMarker, "1");
     qunsetenv(kFakeRecorderExitMs);
@@ -118,6 +125,36 @@ void tst_livestore::startErrorFinalizesExactlyOnce()
     QCOMPARE(store.recordings().first().toMap().value(QStringLiteral("error")).toString(),
              QStringLiteral("Could not start mpv for DVR recording."));
 }
+
+#ifndef Q_OS_WIN
+void tst_livestore::missingRecorderIsReportedAsDependencyFailure()
+{
+    const QByteArray oldPath = qgetenv("PATH");
+    const QByteArray oldOverride = qgetenv("COLOSSEUM_MPV");
+    const bool overrideWasSet = qEnvironmentVariableIsSet("COLOSSEUM_MPV");
+    qputenv("PATH", QByteArrayLiteral("/definitely/no/mpv/here"));
+    qputenv("COLOSSEUM_MPV", QByteArrayLiteral("not-a-real-recorder"));
+
+    QTemporaryDir output;
+    QVERIFY(output.isValid());
+    LiveStore store;
+    const QString id = store.startRecording({
+        {QStringLiteral("url"), QStringLiteral("https://example.test/live")},
+        {QStringLiteral("outputPath"), output.filePath(QStringLiteral("capture.ts"))},
+    });
+    QVERIFY(!id.isEmpty());
+    const QVariantMap session = store.recordings().first().toMap();
+    QCOMPARE(session.value(QStringLiteral("state")).toString(), QStringLiteral("error"));
+    QCOMPARE(session.value(QStringLiteral("error")).toString(),
+             QStringLiteral("mpv is required for DVR recording but was not found."));
+
+    qputenv("PATH", oldPath);
+    if (overrideWasSet)
+        qputenv("COLOSSEUM_MPV", oldOverride);
+    else
+        qunsetenv("COLOSSEUM_MPV");
+}
+#endif
 
 int main(int argc, char **argv)
 {

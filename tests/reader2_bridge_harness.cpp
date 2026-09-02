@@ -101,6 +101,17 @@ int main(int argc, char** argv)
     // Native separators normalize to the SAME key (keyFor does QDir::fromNativeSeparators).
     check(bridge.bookKey(QStringLiteral("C:\\x\\y.epub")) == bridge.bookKey(p1),
           "bookKey normalizes backslashes to forward slashes");
+    const QString linuxLiteral = QStringLiteral("/home/test/Books/literal\\name.epub");
+    const QString linuxSlash = QStringLiteral("/home/test/Books/literal/name.epub");
+    check(bridge.bookKey(linuxLiteral) == QStringLiteral("73596b72159b8cc0ffa3"),
+          "bookKey preserves literal backslash in non-Windows Linux path");
+    check(bridge.bookKey(linuxSlash) == QStringLiteral("94a6376b60d41dbb4f45"),
+          "bookKey leaves normal Linux path fingerprint stable");
+    check(bridge.bookKey(linuxLiteral) != bridge.bookKey(linuxSlash),
+          "bookKey does not globally rewrite Linux filename backslashes");
+    check(bridge.bookKey(QStringLiteral("\\\\server\\share\\book.epub"))
+              == bridge.bookKey(QStringLiteral("//server/share/book.epub")),
+          "bookKey normalizes Windows UNC backslashes");
 
     // (e) PAPER GATE surface contract (least privilege — Codex re-review fix). The gate is
     //     the ONLY object Paper.qml registers on the paper's QWebChannel, and QWebChannel

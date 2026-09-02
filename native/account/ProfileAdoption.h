@@ -94,6 +94,14 @@ public:
         QString *error = nullptr);
     bool rollbackLocalAttachment(QString *error = nullptr);
 
+    // Legacy-mode bring-up may deterministically project a restored activity
+    // ledger into derived personal stores. Once that trusted replay finishes,
+    // rebase only the RetryPending source digest so the next sign-in still
+    // detects any later external mutation.
+    bool refreshRetrySourceSemanticDigest(
+        const QString &semanticDigest,
+        QString *error = nullptr);
+
     static QString stateName(State state);
 
 private:

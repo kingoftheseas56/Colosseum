@@ -4,6 +4,12 @@
 
 #include <QCryptographicHash>
 
+#if defined(Q_OS_LINUX)
+#include <QClipboard>
+#include <QCoreApplication>
+#include <QGuiApplication>
+#endif
+
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -148,6 +154,15 @@ bool WindowsAccountSensitiveClipboard::copyRecoveryKey(
     }
 
     return true;
+#elif defined(Q_OS_LINUX)
+    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    if (!app)
+        return false;
+    QClipboard *clipboard = app->clipboard();
+    if (!clipboard)
+        return false;
+    clipboard->setText(recoveryKey, QClipboard::Clipboard);
+    return clipboard->text(QClipboard::Clipboard) == recoveryKey;
 #else
     Q_UNUSED(recoveryKey);
     return false;
@@ -183,6 +198,20 @@ bool WindowsAccountSensitiveClipboard::clearIfTextMatchesDigest(
         return false;
 
     return EmptyClipboard() != FALSE;
+#elif defined(Q_OS_LINUX)
+    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    if (!app)
+        return false;
+    QClipboard *clipboard = app->clipboard();
+    if (!clipboard)
+        return false;
+    QString current = clipboard->text(QClipboard::Clipboard);
+    const QByteArray currentDigest = textDigest(current);
+    clearQString(current);
+    if (currentDigest != sha256Digest)
+        return false;
+    clipboard->clear(QClipboard::Clipboard);
+    return clipboard->text(QClipboard::Clipboard).isEmpty();
 #else
     Q_UNUSED(sha256Digest);
     return false;

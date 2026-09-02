@@ -226,23 +226,38 @@ QString LiveStore::buildOutputPath(const QVariantMap &request, const QString &ch
 }
 
 QString LiveStore::locateRecorder() const {
-    const QStringList candidates{
-        qEnvironmentVariable("COLOSSEUM_MPV"),
-        QCoreApplication::applicationDirPath() + QStringLiteral("/mpv.exe"),
-        QCoreApplication::applicationDirPath() + QStringLiteral("/mpv/mpv.exe"),
-        QStringLiteral("C:/mpv/mpv.exe"),
-        QStringLiteral("C:/Program Files/mpv/mpv.exe"),
-        QStringLiteral("mpv")
+    auto resolveExecutable = [](const QString &candidate) -> QString {
+        const QString value = candidate.trimmed();
+        if (value.isEmpty())
+            return QString();
+        const QFileInfo info(value);
+        if (info.isAbsolute()) {
+            return (info.exists() && info.isFile() && info.isExecutable())
+                ? info.absoluteFilePath() : QString();
+        }
+        return QStandardPaths::findExecutable(value);
     };
-    for (const QString &candidate : candidates) {
-        if (candidate.trimmed().isEmpty())
-            continue;
-        const QFileInfo info(candidate);
-        if (info.isAbsolute() && !info.exists())
-            continue;
-        return candidate;
+
+    const QString override = resolveExecutable(qEnvironmentVariable("COLOSSEUM_MPV"));
+    if (!override.isEmpty())
+        return override;
+
+    QStringList bundled;
+#ifdef Q_OS_WIN
+    bundled << QCoreApplication::applicationDirPath() + QStringLiteral("/mpv.exe")
+            << QCoreApplication::applicationDirPath() + QStringLiteral("/mpv/mpv.exe")
+            << QStringLiteral("C:/mpv/mpv.exe")
+            << QStringLiteral("C:/Program Files/mpv/mpv.exe");
+#else
+    bundled << QCoreApplication::applicationDirPath() + QStringLiteral("/mpv")
+            << QCoreApplication::applicationDirPath() + QStringLiteral("/mpv/mpv");
+#endif
+    for (const QString &candidate : bundled) {
+        const QString hit = resolveExecutable(candidate);
+        if (!hit.isEmpty())
+            return hit;
     }
-    return QString();
+    return QStandardPaths::findExecutable(QStringLiteral("mpv"));
 }
 
 QString LiveStore::sanitizeFilePart(const QString &value) const {

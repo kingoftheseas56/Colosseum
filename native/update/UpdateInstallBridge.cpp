@@ -118,6 +118,11 @@ QString UpdateInstallBridge::registryInstallRoot()
 
 bool UpdateInstallBridge::installedBuildEligible() const
 {
+#ifndef Q_OS_WIN
+    // The v1 updater contract is a Windows installer contract. Non-Windows
+    // builds fail closed until a platform-aware install bridge exists.
+    return false;
+#else
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV"))
         return false;
 
@@ -136,6 +141,7 @@ bool UpdateInstallBridge::installedBuildEligible() const
     if (registeredRoot.isEmpty())
         registeredRoot = registryInstallRoot();
     return !registeredRoot.isEmpty() && samePath(registeredRoot, installRoot);
+#endif
 }
 
 void UpdateInstallBridge::setError(QString* error, const QString& message)
@@ -148,6 +154,12 @@ std::optional<InstallLaunch> UpdateInstallBridge::prepare(const QString& verifie
                                                            const Version& target,
                                                            QString* error) const
 {
+#ifndef Q_OS_WIN
+    Q_UNUSED(verifiedInstaller);
+    Q_UNUSED(target);
+    setError(error, QStringLiteral("automatic_install_unsupported_platform"));
+    return std::nullopt;
+#else
     if (!installedBuildEligible()) {
         setError(error, QStringLiteral("installed_build_required"));
         return std::nullopt;
@@ -175,10 +187,16 @@ std::optional<InstallLaunch> UpdateInstallBridge::prepare(const QString& verifie
             QStringLiteral("update-%1.log").arg(target.canonical())),
     };
     return launch;
+#endif
 }
 
 bool UpdateInstallBridge::launchDetached(const InstallLaunch& launch, QString* error) const
 {
+#ifndef Q_OS_WIN
+    Q_UNUSED(launch);
+    setError(error, QStringLiteral("automatic_install_unsupported_platform"));
+    return false;
+#else
     if (launch.program.isEmpty() || launch.workingDirectory.isEmpty()) {
         setError(error, QStringLiteral("invalid_install_launch"));
         return false;
@@ -190,6 +208,7 @@ bool UpdateInstallBridge::launchDetached(const InstallLaunch& launch, QString* e
         return false;
     }
     return true;
+#endif
 }
 
 QString UpdateInstallBridge::exactSibling(const QString& name) const
@@ -212,6 +231,10 @@ bool UpdateInstallBridge::removeExactSibling(const QString& candidate,
 
 void UpdateInstallBridge::acknowledgeHealthyBoot(const QStringList& arguments)
 {
+#ifndef Q_OS_WIN
+    Q_UNUSED(arguments);
+    return;
+#else
     QString result;
     QString backup;
     QString target;
@@ -231,6 +254,7 @@ void UpdateInstallBridge::acknowledgeHealthyBoot(const QStringList& arguments)
         if (!target.isEmpty() && !removeExactSibling(target, QStringLiteral("Colosseum.__update-new")))
             qWarning("[update] refused unsafe rollback cleanup: %s", qUtf8Printable(target));
     }
+#endif
 }
 
 } // namespace Colosseum::Update

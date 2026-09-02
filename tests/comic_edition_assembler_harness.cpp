@@ -12,6 +12,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 
 #include <cstdlib>
@@ -57,6 +58,17 @@ ComicSelectedFile sf(int index, const QString& path, int order = -1)
 QString stagingPathFor(const QTemporaryDir& stagingRoot, const QString& editionId)
 {
     return stagingRoot.path() + QChar('/') + editionId + QStringLiteral(".staging");
+}
+
+QString fixtureArchiveTool()
+{
+#ifdef Q_OS_WIN
+    const QString systemTar = QStringLiteral("C:/Windows/System32/tar.exe");
+    if (QFileInfo::exists(systemTar)) return systemTar;
+    return QStandardPaths::findExecutable(QStringLiteral("tar"));
+#else
+    return QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
 }
 
 } // namespace
@@ -139,7 +151,9 @@ int main(int argc, char** argv)
         // magic-byte gate sees real image bytes (page_001=red, page_002=green).
         const QString extractDir = job.path() + QStringLiteral("/.src-extract");
         require(QDir().mkpath(extractDir), "mkpath extract dir (c)");
-        const int extractCode = QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
+        const QString extractor = fixtureArchiveTool();
+        require(!extractor.isEmpty(), "fixture archive extractor available (c)");
+        const int extractCode = QProcess::execute(extractor,
             {QStringLiteral("-xf"), fixturesDir() + QStringLiteral("/edition-one.cbz"),
              QStringLiteral("-C"), extractDir});
         require(extractCode == 0, "extract edition-one.cbz to seed loose pages (c)");

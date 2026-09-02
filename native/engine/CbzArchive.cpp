@@ -3,6 +3,7 @@
 #include "third_party/miniz/miniz.h"
 
 #include <QCollator>
+#include <QLocale>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -124,6 +125,9 @@ QVector<CbzPageEntry> CbzArchive::imageEntries(const QString& archivePath, QStri
     mz_zip_reader_end(&zip);
 
     QCollator collator;
+    // Keep page order deterministic in headless Linux: numeric collation is
+    // ineffective under the C locale used by CTest.
+    collator.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     collator.setNumericMode(true);
     collator.setCaseSensitivity(Qt::CaseInsensitive);
     std::sort(result.begin(), result.end(), [&collator](const CbzPageEntry& a,
@@ -307,6 +311,9 @@ CbzProbeResult CbzArchive::probe(const QString& archivePath, QString* error)
     mz_zip_reader_end(&zip);
 
     QCollator collator;
+    // Keep page order deterministic in headless Linux: numeric collation is
+    // ineffective under the C locale used by CTest.
+    collator.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     collator.setNumericMode(true);
     collator.setCaseSensitivity(Qt::CaseInsensitive);
     std::sort(result.entries.begin(), result.entries.end(),

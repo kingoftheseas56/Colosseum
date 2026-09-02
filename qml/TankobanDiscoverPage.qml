@@ -36,6 +36,7 @@ Item {
     // the visible world so hidden paging and refresh work can be paused without eviction.
     property bool active: true
     property bool _ready: false
+    property bool _catalogueReloadPending: false
 
     // ── routing: a normalized card opens the EXISTING series door by type ──
     signal mangaSeriesRequested(var item)      // Manga/Manhwa/Manhua card → seriesRequested(title)
@@ -77,7 +78,33 @@ Item {
     // revisions and on an explicit-preference flip — exactly the two shape changes.
     onExtensionsChanged: _rebuildAdapter()
     onShowExplicitContentChanged: _rebuildAdapter()
-    onActiveChanged: if (active && root._ready && browser.adapter) browser.refresh()
+
+    function _catalogueReadyForType(type) {
+        var catalog = type === "comics" ? comicsCatalog : malCatalog
+        return catalog && catalog.ready && catalog.ready()
+    }
+
+    function _handleCatalogueReady(type, catalog) {
+        if (!catalog || !catalog.ready || !catalog.ready()) return
+        if (browser.currentType !== type || browser.items.length !== 0) return
+        if (root.active) {
+            root._catalogueReloadPending = false
+            browser.reloadCurrent()
+        } else {
+            root._catalogueReloadPending = true
+        }
+    }
+
+    onActiveChanged: {
+        if (!active || !root._ready || !browser.adapter) return
+        if (root._catalogueReloadPending && browser.items.length === 0
+                && root._catalogueReadyForType(browser.currentType)) {
+            root._catalogueReloadPending = false
+            browser.reloadCurrent()
+            return
+        }
+        browser.refresh()
+    }
 
     // Data-vault Slice 3 (2026-08-22): the wall is empty-because-downloading only when its
     // CURRENT type's own catalog is the one still landing. malCatalog/comicsCatalog are
@@ -91,23 +118,18 @@ Item {
         ((browser.currentType === "manga" && malCatalog && !malCatalog.ready()) ||
          (browser.currentType === "comics" && comicsCatalog && !comicsCatalog.ready()))
 
-    // Wake-on-ready: a fresh install boots with an empty wall while the vault download is
-    // still in flight. The moment the backing catalog flips ready, re-run the initial page
-    // fetch so the wall paints without the user having to switch types or reopen the page.
-    // Guarded on items.length === 0 so a wall that is already populated (dev machine, or a
-    // catalog that flips ready a second time for an unrelated reason) never reloads under
-    // the user's hand.
+    // Wake-on-ready: a fresh install can settle an empty/exhausted first page while the vault
+    // download is still in flight. If readiness lands while visible, reload immediately. If it
+    // lands while this retained page is hidden, remember exactly that missed wake-up and replay it
+    // on reactivation; DiscoverBrowser.refresh() alone intentionally preserves an unchanged
+    // catalogue, including a previously settled empty one. Populated walls are never reloaded.
     Connections {
-        target: (typeof MalCatalog !== "undefined") ? MalCatalog : null
-        function onReadyChanged() {
-            if (root.active && browser.currentType === "manga" && browser.items.length === 0) browser.reloadCurrent()
-        }
+        target: root.malCatalog
+        function onReadyChanged() { root._handleCatalogueReady("manga", root.malCatalog) }
     }
     Connections {
-        target: (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null
-        function onReadyChanged() {
-            if (root.active && browser.currentType === "comics" && browser.items.length === 0) browser.reloadCurrent()
-        }
+        target: root.comicsCatalog
+        function onReadyChanged() { root._handleCatalogueReady("comics", root.comicsCatalog) }
     }
 
     DiscoverBrowser {

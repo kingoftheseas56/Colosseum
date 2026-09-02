@@ -16,6 +16,28 @@
 #include <QTimer>
 #include <QUrl>
 
+namespace {
+
+QString runtimeExecutableName()
+{
+#if defined(Q_OS_WIN)
+    return QStringLiteral("stremio-runtime.exe");
+#else
+    return QStringLiteral("stremio-runtime");
+#endif
+}
+
+QString engineUnavailableMessage()
+{
+#if defined(Q_OS_LINUX)
+    return QStringLiteral("Streaming engine unavailable. Install or start Stremio Service.");
+#else
+    return QStringLiteral("Streaming engine unavailable. Repair or reinstall Colosseum.");
+#endif
+}
+
+} // namespace
+
 StreamServer::StreamServer(QObject *parent)
     : QObject(parent)
 {
@@ -25,8 +47,15 @@ StreamServer::StreamServer(QObject *parent)
 StreamServer::~StreamServer()
 {
     if (m_proc) {
-        m_proc->kill();
-        m_proc->waitForFinished(2000);
+        // Teardown is not a startup failure. Disconnect lifecycle callbacks before
+        // stopping the owned runtime so an intentional exit cannot emit the
+        // fail-before-ready warning path while this object is being destroyed.
+        disconnect(m_proc, nullptr, this, nullptr);
+        m_proc->terminate();
+        if (!m_proc->waitForFinished(2000)) {
+            m_proc->kill();
+            m_proc->waitForFinished(2000);
+        }
     }
 }
 
@@ -49,7 +78,7 @@ void StreamServer::markEngineUnavailable(const QString &message)
 
 QString StreamServer::findRuntimeDir() const
 {
-    const QString exe = QStringLiteral("stremio-runtime.exe");
+    const QString exe = runtimeExecutableName();
     const QString appDir = QCoreApplication::applicationDirPath();
 
     QStringList candidates;
@@ -60,14 +89,23 @@ QString StreamServer::findRuntimeDir() const
     // 2) shipped next to the Colosseum exe (self-contained copy, gitignored)
     candidates << appDir + QStringLiteral("/stream_server");
     candidates << appDir + QStringLiteral("/../stream_server");
-    // 3) official Stremio Service install, resolved per-user without a maintainer-specific path
+#if defined(Q_OS_WIN)
+    // 3a) official Windows Stremio Service install.
     const QString genericData = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     if (!genericData.isEmpty())
         candidates << QDir(genericData).filePath(QStringLiteral("Programs/StremioService"));
+#elif defined(Q_OS_LINUX)
+    // 3b) official Stremio Service deb/rpm payload. A Flatpak service remains adopt-first:
+    // when it is already answering on :11470 we never need to enter its sandbox.
+    candidates << QStringLiteral("/usr/share/stremio-service");
+#endif
 
     for (const QString &dir : candidates) {
-        if (QFileInfo::exists(dir + QLatin1Char('/') + exe))
-            return QDir(dir).absolutePath();
+        const QDir runtimeDir(dir);
+        const QFileInfo runtime(runtimeDir.filePath(exe));
+        if (runtime.exists() && runtime.isFile() && runtime.isExecutable()
+            && QFileInfo::exists(runtimeDir.filePath(QStringLiteral("server.js"))))
+            return runtimeDir.absolutePath();
     }
     return {};
 }
@@ -121,8 +159,7 @@ void StreamServer::launchChild()
     if (dir.isEmpty()) {
         m_starting = false;
         Q_EMIT startingChanged();
-        markEngineUnavailable(
-            QStringLiteral("Streaming engine unavailable. Repair or reinstall Colosseum."));
+        markEngineUnavailable(engineUnavailableMessage());
         return;
     }
 
@@ -139,7 +176,7 @@ void StreamServer::launchChild()
     m_proc = new QProcess(this);
     m_proc->setProcessEnvironment(penv);
     m_proc->setWorkingDirectory(dir);
-    m_proc->setProgram(dir + QStringLiteral("/stremio-runtime.exe"));
+    m_proc->setProgram(QDir(dir).filePath(runtimeExecutableName()));
     m_proc->setArguments({QStringLiteral("server.js")});
     m_proc->setProcessChannelMode(QProcess::MergedChannels);
 
@@ -155,8 +192,7 @@ void StreamServer::launchChild()
         Q_EMIT readyChanged();
         Q_EMIT startingChanged();
         if (!m_engineUnavailable)
-            markEngineUnavailable(
-                QStringLiteral("Streaming engine unavailable. Repair or reinstall Colosseum."));
+            markEngineUnavailable(engineUnavailableMessage());
     };
 
     connect(process, &QProcess::errorOccurred, this,

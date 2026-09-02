@@ -537,12 +537,23 @@ QString makeCbrFromTar(QTemporaryDir& root, const QString& name, const QStringLi
         img.fill(qRgb(20, 120, 200));
         if (!img.save(full, "JPEG")) return QString();
     }
-    const QString tarPath = root.path() + QLatin1Char('/') + name + QStringLiteral(".tar");
-    const int rc = QProcess::execute(QStringLiteral("C:/Windows/System32/tar.exe"),
-        {QStringLiteral("-cf"), tarPath, QStringLiteral("-C"), pages, QStringLiteral(".")});
-    if (rc != 0) return QString();
+#ifdef Q_OS_WIN
+    const QString archivePath = root.path() + QLatin1Char('/') + name + QStringLiteral(".tar");
+    const QString packer = QStringLiteral("C:/Windows/System32/tar.exe");
+    const QStringList args{QStringLiteral("-cf"), archivePath,
+                           QStringLiteral("-C"), pages, QStringLiteral(".")};
+#else
+    // Use a real 7z payload renamed .cbr so GNU tar cannot accidentally make
+    // this extraction regression pass; libarchive bsdtar can read it.
+    const QString packer = QStandardPaths::findExecutable(QStringLiteral("7z"));
+    if (packer.isEmpty()) return QString();
+    const QString archivePath = root.path() + QLatin1Char('/') + name + QStringLiteral(".7z");
+    const QStringList args{QStringLiteral("a"), QStringLiteral("-t7z"), archivePath,
+                           pages + QStringLiteral("/.")};
+#endif
+    if (QProcess::execute(packer, args) != 0) return QString();
     const QString cbr = root.path() + QLatin1Char('/') + name + QStringLiteral(".cbr");
-    if (!QFile::rename(tarPath, cbr)) return QString();
+    if (!QFile::rename(archivePath, cbr)) return QString();
     return cbr;
 }
 

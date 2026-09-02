@@ -311,34 +311,34 @@ Item {
         root.browseRowsBeforeWatchedFilter = joined.length
         const watchedFiltered = root.filterWatched !== ""
             ? VaultApi.filterRowsByWatched(joined, root.filterWatched) : joined
-        let final = root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(watchedFiltered)
-                                               : watchedFiltered
+        let projected = root.sortMode === "recent" ? VaultApi.sortRowsRecentlyPlayed(watchedFiltered)
+                                                   : watchedFiltered
         // S17: on the show page, each season/supplemental tile gains its watched fact from the
         // derived structure. Join by the real browse key the C++ projection carries, never by
         // scraping a number out of displayTitle: "Bonus" legitimately has no ordinal, while
         // two differently named folders can legitimately share the same numeric season token.
         if (root.showPageActive && root.currentShowState.seasons.length) {
-            for (let i = 0; i < final.length; i++) {
-                const rowKey = String(final[i].key || "")
+            for (let i = 0; i < projected.length; i++) {
+                const rowKey = String(projected[i].key || "")
                 if (!rowKey) continue
                 for (const s of root.currentShowState.seasons) {
                     if (String(s.key || "") === rowKey) {
-                        final[i].watchedFact = s.watched + "/" + s.total
-                        final[i].unwatchedFact = s.unwatched
+                        projected[i].watchedFact = s.watched + "/" + s.total
+                        projected[i].unwatchedFact = s.unwatched
                         // The one physical-fact law (TB2) still holds: ONE factual line. The
                         // season tile's line becomes the count it owns — the card's own
                         // "N episodes" is the total, so the fact line gains only the watched
                         // fraction (never a synopsis, never an inference).
-                        const base = String(final[i].physicalFact || "")
-                        final[i].physicalFact = base ? (base + " · " + final[i].watchedFact
-                                                        + " watched") : (final[i].watchedFact
+                        const base = String(projected[i].physicalFact || "")
+                        projected[i].physicalFact = base ? (base + " · " + projected[i].watchedFact
+                                                        + " watched") : (projected[i].watchedFact
                                                           + " watched")
                         break
                     }
                 }
             }
         }
-        return final
+        return projected
     }
     // S13: the joined-row count BEFORE the watched filter — the QML half of the "filtered"
     // empty-cause trigger (the C++ half knows only the index-fact predicates).

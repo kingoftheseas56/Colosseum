@@ -86,17 +86,19 @@ add_test(NAME colosseum.catalogue_cancellation_contract
          COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                  -File "${CMAKE_CURRENT_SOURCE_DIR}/test_catalogue_cancellation_contract.ps1")
 set_tests_properties(colosseum.catalogue_cancellation_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+if(WIN32)
 add_test(NAME colosseum.session_model_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_session_model_p0.ps1")
 set_tests_properties(colosseum.session_model_contract PROPERTIES
-    LABELS "unit;session"
+    LABELS "unit;session;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # ── Qt Test targets (slice 3+) ───────────────────────────────────────────────
 # Test-only Qt components: discovered HERE, under BUILD_TESTING, never linked
@@ -237,73 +239,87 @@ set_tests_properties(colosseum.qttest.lanista_timing PROPERTIES
 
 # Startup deferral contract: verifies the expensive but idempotent Collection/Biblio scans
 # begin only after the native first-frame boundary and remain reachable from the timer.
+if(WIN32)
 add_test(NAME colosseum.startup_deferral_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_startup_deferral_contract.ps1")
 set_tests_properties(colosseum.startup_deferral_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Startup responsiveness probe contract: keeps the native first-frame/Biblio ordering and
 # deferred Home Continue rail wiring mechanically covered alongside the existing deferral gate.
+if(WIN32)
 add_test(NAME colosseum.startup_responsiveness_probe
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_startup_responsiveness_probe.ps1")
 set_tests_properties(colosseum.startup_responsiveness_probe PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # World-warmer containment contract: automatic warming is opt-in, while explicit world
 # navigation remains available for normal operation.
+if(WIN32)
 add_test(NAME colosseum.world_warmer_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_world_warmer_contract.ps1")
 set_tests_properties(colosseum.world_warmer_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Home hidden-work contract: the retained Home surface must stop its carousel timer while a
 # world is visible, without changing the explicit hide/show navigation boundary.
+if(WIN32)
 add_test(NAME colosseum.home_hidden_work_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_home_hidden_work_contract.ps1")
 set_tests_properties(colosseum.home_hidden_work_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Retained world lifecycle contract: hidden pages preserve state but stand down timers,
 # synchronous catalogue warmers, and Discover paging until activation.
+if(WIN32)
 add_test(NAME colosseum.world_lifecycle_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_world_lifecycle_contract.ps1")
 set_tests_properties(colosseum.world_lifecycle_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Search backpressure contract: surface exits and superseded queries abort transport while
 # generation guards reject any callback that races with cancellation.
+if(WIN32)
 add_test(NAME colosseum.search_cancellation_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_search_cancellation_contract.ps1")
 set_tests_properties(colosseum.search_cancellation_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Tankoban volume-index recovery must leave construction quickly and publish a
 # single readiness boundary before any index-backed operation is allowed.
+if(WIN32)
 add_test(NAME colosseum.tankoban_startup_recovery_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_tankoban_startup_recovery_contract.ps1")
 set_tests_properties(colosseum.tankoban_startup_recovery_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Downloads failure-title seam (2026-08-11 handoff): a fake volume owner exposes
 # activeVolumeJobs() plus failed(id, reason), so the test drives the real
@@ -895,45 +911,55 @@ set_tests_properties(colosseum.vault_launch_router_harness PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+if(WIN32)
 add_test(NAME colosseum.local_launch_async_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_local_launch_async_contract.ps1")
 set_tests_properties(colosseum.local_launch_async_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+endif()
 
+if(WIN32)
 add_test(NAME colosseum.manga_downloader_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_downloader_responsiveness_contract.ps1")
 set_tests_properties(colosseum.manga_downloader_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+endif()
 
+if(WIN32)
 add_test(NAME colosseum.book_torrent_delete_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_book_torrent_delete_responsiveness_contract.ps1")
 set_tests_properties(colosseum.book_torrent_delete_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+endif()
 
+if(WIN32)
 add_test(NAME colosseum.comic_downloader_probe_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_comic_downloader_probe_responsiveness_contract.ps1")
 set_tests_properties(colosseum.comic_downloader_probe_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+endif()
 
+if(WIN32)
 add_test(NAME colosseum.manga_volume_archive_adopt_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_volume_archive_adopt_responsiveness_contract.ps1")
 set_tests_properties(colosseum.manga_volume_archive_adopt_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+endif()
 
 # ── Vault forensics (Agent Visibility Phase 2, Slice F1-Core) ────────────────
 # VaultForensics — one bounded, read-only projection composing a REAL VaultLibrary (F0's named
@@ -1323,21 +1349,25 @@ set_tests_properties(colosseum.qml PROPERTIES
     TIMEOUT 300)
 
 # Function 0006: imported Tankoban Progress must reach the real active ComicReaderShell.
+if(WIN32)
 add_test(NAME colosseum.comicreader_sync_resume
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_comicreader_sync_resume.ps1")
 set_tests_properties(colosseum.comicreader_sync_resume PROPERTIES
-    LABELS "unit;comicreader"
+    LABELS "unit;comicreader;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
+if(WIN32)
 add_test(NAME colosseum.comicreader_sync_resume_shell
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_comicreader_sync_resume_shell.ps1")
 set_tests_properties(colosseum.comicreader_sync_resume_shell PROPERTIES
-    LABELS "unit;comicreader"
+    LABELS "unit;comicreader;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Arc 26 Task 3 RED: local privacy retention and coordinator contract.
 add_executable(tst_privacy_policy
@@ -1395,36 +1425,42 @@ set_tests_properties(colosseum.qttest.privacy_policy PROPERTIES
 # Deterministic Reading Room contract: qml.exe injects fake service, progress,
 # and download seams, so this gate is safe under the unit label and does not
 # require the live app or network.
+if(WIN32)
 add_test(NAME colosseum.manga_reading_room
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_reading_room.ps1")
 set_tests_properties(colosseum.manga_reading_room PROPERTIES
-    LABELS "unit"
+    LABELS "unit;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # MangaSeries.qml's catalogue-fed identity + masthead (catalogue-independence Slice 2,
 # amended 2026-08-20) — fake MalCatalog/TankobanCatalog/TankobanVolumes seams, same
 # qml.exe offscreen shape as colosseum.manga_reading_room above.
+if(WIN32)
 add_test(NAME colosseum.manga_series_catalogue
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_series_catalogue.ps1")
 set_tests_properties(colosseum.manga_series_catalogue PROPERTIES
-    LABELS "unit"
+    LABELS "unit;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # Tankoban series volume-flow (arc-08 v2.3 adoption, 2026-08-21): the horizontal
 # Pages/Flow continuum that replaced the vertical volume grid in MangaTankobanLibrary.qml.
 # Same qml.exe offscreen shape as colosseum.manga_reading_room above; fake service/progress/
 # downloader seams only, no live app or network.
+if(WIN32)
 add_test(NAME colosseum.manga_volume_flow
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_volume_flow.ps1")
 set_tests_properties(colosseum.manga_volume_flow PROPERTIES
-    LABELS "unit"
+    LABELS "unit;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
 # ── Installed chronicle (installed-release chronicle plan, Slice 2, 2026-08-09)
 # InstalledChronicle loads + verifies the bundled signed manifest that seeds the
@@ -1442,12 +1478,14 @@ foreach(_f3_test IN ITEMS
         taskbar_immersive_readers_p0
         back_action_p0
         taskbar_download_reveal_p0)
+    if(WIN32)
     add_test(NAME "colosseum.${_f3_test}"
              COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                      "${CMAKE_CURRENT_SOURCE_DIR}/test_${_f3_test}.ps1")
     set_tests_properties("colosseum.${_f3_test}" PROPERTIES
-        LABELS "unit;shell"
+        LABELS "unit;shell;windows"
         TIMEOUT 60)
+    endif()
 endforeach()
 add_executable(tst_installed_chronicle
     auto/update/tst_installed_chronicle.cpp
@@ -1577,9 +1615,11 @@ add_executable(account_first_light
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
-    Qt6::Core Qt6::Network Qt6::Qml Qt6::Sql)
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Sql)
 if(WIN32)
     target_link_libraries(account_first_light PRIVATE Advapi32 User32)
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(account_first_light PRIVATE Qt6::DBus)
 endif()
 set_target_properties(account_first_light PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -1802,6 +1842,8 @@ target_link_libraries(tst_account_identity PRIVATE
     Qt6::Test)
 if(WIN32)
     target_link_libraries(tst_account_identity PRIVATE Advapi32)
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(tst_account_identity PRIVATE Qt6::DBus)
 endif()
 set_target_properties(tst_account_identity PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -1949,11 +1991,13 @@ add_custom_command(TARGET tst_consumption_history POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Sql>" "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_consumption_history POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Core>" "${CMAKE_CURRENT_BINARY_DIR}/..")
-add_custom_command(TARGET tst_consumption_history POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${Qt6_DIR}/../../../plugins/sqldrivers/qsqlite.dll"
-            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/qsqlite.dll")
+if(WIN32)
+    add_custom_command(TARGET tst_consumption_history POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${Qt6_DIR}/../../../plugins/sqldrivers/qsqlite.dll"
+                "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/qsqlite.dll")
+endif()
 add_test(NAME colosseum.qttest.consumption_history COMMAND tst_consumption_history)
 set_tests_properties(colosseum.qttest.consumption_history PROPERTIES
     LABELS "unit;qttest;activity;history;profile"
@@ -2026,6 +2070,8 @@ target_link_libraries(tst_account_onboarding PRIVATE
     Qt6::Test)
 if(WIN32)
     target_link_libraries(tst_account_onboarding PRIVATE User32)
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(tst_account_onboarding PRIVATE Qt6::Gui)
 endif()
 set_target_properties(tst_account_onboarding PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
@@ -2958,12 +3004,14 @@ set_tests_properties(colosseum.qttest.livestore PROPERTIES
 # Function 0008: video source resolution, download acquisition, and playback handoff.
 # Static contract is deterministic and catches Direct-vs-torrent routing plus HTTP
 # request-header provenance across download and arriving-play seams.
+if(WIN32)
 add_test(NAME colosseum.video_source_handoff_p0
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
             "${CMAKE_CURRENT_SOURCE_DIR}/test_video_source_handoff_p0.ps1")
 set_tests_properties(colosseum.video_source_handoff_p0 PROPERTIES
-    LABELS "unit;contract"
+    LABELS "unit;contract;windows"
     TIMEOUT 30)
+endif()
 
 # Function 0008 wire proof: DownloadStore must send addon-owned HTTP headers.
 add_executable(downloadstore_source_headers_harness
@@ -3017,36 +3065,44 @@ set_tests_properties(colosseum.qttest.stream_server_failfast PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
+if(WIN32)
 add_test(NAME colosseum.stream_engine_failfast
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_stream_engine_failfast.ps1")
 set_tests_properties(colosseum.stream_engine_failfast PROPERTIES
-    LABELS "unit;player;contract"
+    LABELS "unit;player;contract;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+endif()
 
 # Function 0009: deterministic Player 1 source contracts. No network, mpv process,
 # or GUI is required; assembled runtime proof remains a separate Lanista gate.
+if(WIN32)
 add_test(NAME colosseum.player1_runtime_recovery
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_player1_runtime_recovery_p0.ps1")
 set_tests_properties(colosseum.player1_runtime_recovery PROPERTIES
-    LABELS "unit;player"
+    LABELS "unit;player;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
+if(WIN32)
 add_test(NAME colosseum.player1_resume_choice
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_player_resume_choice_p0.ps1")
 set_tests_properties(colosseum.player1_resume_choice PROPERTIES
-    LABELS "unit;player"
+    LABELS "unit;player;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()
 
+if(WIN32)
 add_test(NAME colosseum.player1_error_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_player_typed_recovery_p0.ps1")
 set_tests_properties(colosseum.player1_error_contract PROPERTIES
-    LABELS "unit;player"
+    LABELS "unit;player;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+endif()

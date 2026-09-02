@@ -7,11 +7,47 @@
 #include <QJsonObject>
 #include <QUuid>
 
+#ifdef Q_OS_LINUX
+#include <QDBusArgument>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusMessage>
+#include <QDBusMetaType>
+#include <QDBusObjectPath>
+#include <QDBusVariant>
+#include <QMap>
+#endif
+
 #include <string>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <wincred.h>
+#endif
+
+
+#ifdef Q_OS_LINUX
+struct ColosseumSecretValue {
+    QDBusObjectPath session;
+    QByteArray parameters;
+    QByteArray value;
+    QString contentType;
+};
+Q_DECLARE_METATYPE(ColosseumSecretValue)
+
+QDBusArgument &operator<<(QDBusArgument &argument, const ColosseumSecretValue &value) {
+    argument.beginStructure();
+    argument << value.session << value.parameters << value.value << value.contentType;
+    argument.endStructure();
+    return argument;
+}
+
+const QDBusArgument &operator>>(const QDBusArgument &argument, ColosseumSecretValue &value) {
+    argument.beginStructure();
+    argument >> value.session >> value.parameters >> value.value >> value.contentType;
+    argument.endStructure();
+    return argument;
+}
 #endif
 
 namespace {
@@ -28,11 +64,99 @@ QString taggedTargetKey() {
             tag.toUtf8(),
             QCryptographicHash::Sha256).toHex());
 }
+#ifdef Q_OS_LINUX
+constexpr auto kSecretServiceName = "org.freedesktop.secrets";
+constexpr auto kSecretServicePath = "/org/freedesktop/secrets";
+
+void registerSecretServiceTypes() {
+    static const bool registered = [] {
+        qDBusRegisterMetaType<ColosseumSecretValue>();
+        qDBusRegisterMetaType<QMap<QString, QString>>();
+        return true;
+    }();
+    Q_UNUSED(registered);
+}
+
+QMap<QString, QString> secretAttributes(const QString &target = QString()) {
+    QMap<QString, QString> attributes;
+    attributes.insert(QStringLiteral("application"), QStringLiteral("Colosseum"));
+    if (!target.isEmpty())
+        attributes.insert(QStringLiteral("target"), target);
+    return attributes;
+}
+
+std::optional<QDBusObjectPath> openSecretSession() {
+    registerSecretServiceTypes();
+    const QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected())
+        return std::nullopt;
+    QDBusInterface service(kSecretServiceName, kSecretServicePath,
+                           QStringLiteral("org.freedesktop.Secret.Service"), bus);
+    if (!service.isValid())
+        return std::nullopt;
+    const QDBusMessage reply = service.call(QStringLiteral("OpenSession"),
+        QStringLiteral("plain"), QVariant::fromValue(QDBusVariant(QString())));
+    if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().size() < 2)
+        return std::nullopt;
+    const QDBusObjectPath session = qvariant_cast<QDBusObjectPath>(reply.arguments().at(1));
+    if (session.path().isEmpty() || session.path() == QStringLiteral("/"))
+        return std::nullopt;
+    return session;
+}
+
+QList<QDBusObjectPath> searchSecretItems(const QString &target = QString()) {
+    registerSecretServiceTypes();
+    QList<QDBusObjectPath> items;
+    const QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected())
+        return items;
+    QDBusInterface service(kSecretServiceName, kSecretServicePath,
+                           QStringLiteral("org.freedesktop.Secret.Service"), bus);
+    const QDBusMessage reply = service.call(QStringLiteral("SearchItems"),
+        QVariant::fromValue(secretAttributes(target)));
+    if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().size() < 2)
+        return items;
+    items = qdbus_cast<QList<QDBusObjectPath>>(reply.arguments().at(0));
+    const auto locked = qdbus_cast<QList<QDBusObjectPath>>(reply.arguments().at(1));
+    for (const auto &path : locked)
+        if (!items.contains(path)) items.append(path);
+    return items;
+}
+
+void closeSecretSession(const QDBusObjectPath &session) {
+    if (session.path().isEmpty() || session.path() == QStringLiteral("/"))
+        return;
+    QDBusInterface iface(kSecretServiceName, session.path(),
+                         QStringLiteral("org.freedesktop.Secret.Session"),
+                         QDBusConnection::sessionBus());
+    if (iface.isValid())
+        iface.call(QStringLiteral("Close"));
+}
+
+bool secretServiceAvailable() {
+    registerSecretServiceTypes();
+    const QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected())
+        return false;
+    QDBusInterface collection(kSecretServiceName,
+                              QStringLiteral("/org/freedesktop/secrets/aliases/default"),
+                              QStringLiteral("org.freedesktop.Secret.Collection"), bus);
+    if (!collection.isValid() || collection.property("Locked").toBool())
+        return false;
+    const auto session = openSecretSession();
+    if (!session.has_value())
+        return false;
+    closeSecretSession(*session);
+    return true;
+}
+#endif
 }
 
 bool WindowsAccountCredentialStore::isAvailable() const {
 #ifdef Q_OS_WIN
     return true;
+#elif defined(Q_OS_LINUX)
+    return secretServiceAvailable();
 #else
     return false;
 #endif
@@ -178,6 +302,31 @@ bool WindowsAccountCredentialStore::writeGenericCredential(
     credential.UserName = const_cast<LPWSTR>(L"Colosseum");
 
     return CredWriteW(&credential, 0) == TRUE;
+#elif defined(Q_OS_LINUX)
+    if (target.isEmpty() || blob.isEmpty())
+        return false;
+    const auto session = openSecretSession();
+    if (!session.has_value())
+        return false;
+
+    QVariantMap properties;
+    properties.insert(QStringLiteral("org.freedesktop.Secret.Item.Label"), target);
+    properties.insert(QStringLiteral("org.freedesktop.Secret.Item.Attributes"),
+                      QVariant::fromValue(secretAttributes(target)));
+    const ColosseumSecretValue secret{*session, QByteArray(), blob,
+                                      QStringLiteral("application/octet-stream")};
+    QDBusInterface collection(kSecretServiceName,
+                              QStringLiteral("/org/freedesktop/secrets/aliases/default"),
+                              QStringLiteral("org.freedesktop.Secret.Collection"),
+                              QDBusConnection::sessionBus());
+    const QDBusMessage reply = collection.call(QStringLiteral("CreateItem"),
+        properties, QVariant::fromValue(secret), true);
+    closeSecretSession(*session);
+    if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().size() < 2)
+        return false;
+    const auto item = qvariant_cast<QDBusObjectPath>(reply.arguments().at(0));
+    const auto prompt = qvariant_cast<QDBusObjectPath>(reply.arguments().at(1));
+    return !item.path().isEmpty() && prompt.path() == QStringLiteral("/");
 #else
     Q_UNUSED(target);
     Q_UNUSED(blob);
@@ -203,6 +352,26 @@ std::optional<QByteArray> WindowsAccountCredentialStore::readGenericCredential(
         static_cast<qsizetype>(credential->CredentialBlobSize));
     CredFree(credential);
     return blob;
+#elif defined(Q_OS_LINUX)
+    const auto session = openSecretSession();
+    if (!session.has_value())
+        return std::nullopt;
+    const auto items = searchSecretItems(target);
+    for (const auto &path : items) {
+        QDBusInterface item(kSecretServiceName, path.path(),
+                            QStringLiteral("org.freedesktop.Secret.Item"),
+                            QDBusConnection::sessionBus());
+        const QDBusMessage reply = item.call(QStringLiteral("GetSecret"),
+                                             QVariant::fromValue(*session));
+        if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().isEmpty())
+            continue;
+        const ColosseumSecretValue secret =
+            qdbus_cast<ColosseumSecretValue>(reply.arguments().at(0));
+        closeSecretSession(*session);
+        return secret.value;
+    }
+    closeSecretSession(*session);
+    return std::nullopt;
 #else
     Q_UNUSED(target);
     return std::nullopt;
@@ -215,6 +384,25 @@ bool WindowsAccountCredentialStore::deleteGenericCredential(const QString &targe
     if (CredDeleteW(targetWide.c_str(), CRED_TYPE_GENERIC, 0) == TRUE)
         return true;
     return GetLastError() == ERROR_NOT_FOUND;
+#elif defined(Q_OS_LINUX)
+    const auto items = searchSecretItems(target);
+    if (items.isEmpty())
+        return true;
+    bool ok = true;
+    for (const auto &path : items) {
+        QDBusInterface item(kSecretServiceName, path.path(),
+                            QStringLiteral("org.freedesktop.Secret.Item"),
+                            QDBusConnection::sessionBus());
+        const QDBusMessage reply = item.call(QStringLiteral("Delete"));
+        if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().isEmpty()) {
+            ok = false;
+            continue;
+        }
+        const auto prompt = qvariant_cast<QDBusObjectPath>(reply.arguments().at(0));
+        if (prompt.path() != QStringLiteral("/"))
+            ok = false;
+    }
+    return ok;
 #else
     Q_UNUSED(target);
     return false;
@@ -239,6 +427,23 @@ QList<QString> WindowsAccountCredentialStore::enumerateTargets(const QString &pr
             targets.append(target);
     }
     CredFree(static_cast<void *>(credentials));
+#elif defined(Q_OS_LINUX)
+    const auto items = searchSecretItems();
+    for (const auto &path : items) {
+        QDBusInterface props(kSecretServiceName, path.path(),
+                             QStringLiteral("org.freedesktop.DBus.Properties"),
+                             QDBusConnection::sessionBus());
+        const QDBusMessage reply = props.call(QStringLiteral("Get"),
+            QStringLiteral("org.freedesktop.Secret.Item"),
+            QStringLiteral("Attributes"));
+        if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().isEmpty())
+            continue;
+        const QDBusVariant wrapped = qvariant_cast<QDBusVariant>(reply.arguments().at(0));
+        const auto attributes = qdbus_cast<QMap<QString, QString>>(wrapped.variant());
+        const QString target = attributes.value(QStringLiteral("target"));
+        if (target.startsWith(prefix))
+            targets.append(target);
+    }
 #else
     Q_UNUSED(prefix);
 #endif

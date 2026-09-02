@@ -10,8 +10,15 @@
 
 namespace {
 
+#if defined(Q_OS_LINUX)
+constexpr auto kRuntimeName = "stremio-runtime";
+constexpr auto kUnavailableMessage =
+    "Streaming engine unavailable. Install or start Stremio Service.";
+#else
+constexpr auto kRuntimeName = "stremio-runtime.exe";
 constexpr auto kUnavailableMessage =
     "Streaming engine unavailable. Repair or reinstall Colosseum.";
+#endif
 
 class ScopedEnvironment {
 public:
@@ -58,17 +65,63 @@ class tst_stream_server_failfast : public QObject
 
 private slots:
     void failedStartReportsAndCanRetry();
+    void readyChildShutdownIsNotReportedAsStartupFailure();
 };
+
+void tst_stream_server_failfast::readyChildShutdownIsNotReportedAsStartupFailure()
+{
+#if !defined(Q_OS_LINUX)
+    QSKIP("Linux packaged-runtime shutdown regression");
+#else
+    QTemporaryDir runtimeDir;
+    QVERIFY(runtimeDir.isValid());
+
+    QFile runtime(runtimeDir.filePath(QString::fromLatin1(kRuntimeName)));
+    QVERIFY(runtime.open(QIODevice::WriteOnly));
+    const QByteArray script =
+        "#!/bin/sh\n"
+        "echo 'EngineFS server started at http://127.0.0.1:11470'\n"
+        "trap 'exit 0' TERM INT\n"
+        "while :; do sleep 1; done\n";
+    QCOMPARE(runtime.write(script), script.size());
+    runtime.close();
+    QVERIFY(runtime.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                   | QFileDevice::ExeOwner));
+    QFile serverScript(runtimeDir.filePath(QStringLiteral("server.js")));
+    QVERIFY(serverScript.open(QIODevice::WriteOnly));
+    QVERIFY(serverScript.write("// fixture") > 0);
+    serverScript.close();
+
+    QTcpServer probe;
+    if (!probe.listen(QHostAddress::LocalHost, 11470))
+        QSKIP("127.0.0.1:11470 is occupied by an external Stremio service");
+    QObject::connect(&probe, &QTcpServer::newConnection, &probe, [&probe]() { rejectProbe(&probe); });
+
+    ScopedEnvironment runtimeOverride("COLOSSEUM_STREAM_SERVER", runtimeDir.path().toUtf8());
+    QTest::failOnWarning(QRegularExpression(QStringLiteral(".*engine failed before ready.*")));
+    {
+        StreamServer stream;
+        stream.warmUp();
+        QTRY_VERIFY_WITH_TIMEOUT(stream.ready(), 6000);
+    }
+#endif
+}
 
 void tst_stream_server_failfast::failedStartReportsAndCanRetry()
 {
     QTemporaryDir runtimeDir;
     QVERIFY(runtimeDir.isValid());
 
-    QFile invalidRuntime(runtimeDir.filePath(QStringLiteral("stremio-runtime.exe")));
+    QFile invalidRuntime(runtimeDir.filePath(QString::fromLatin1(kRuntimeName)));
     QVERIFY(invalidRuntime.open(QIODevice::WriteOnly));
-    QVERIFY(invalidRuntime.write("not a Windows executable") > 0);
+    QVERIFY(invalidRuntime.write("not a runtime executable") > 0);
     invalidRuntime.close();
+    QVERIFY(invalidRuntime.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                          | QFileDevice::ExeOwner));
+    QFile serverScript(runtimeDir.filePath(QStringLiteral("server.js")));
+    QVERIFY(serverScript.open(QIODevice::WriteOnly));
+    QVERIFY(serverScript.write("// fixture") > 0);
+    serverScript.close();
 
     QTcpServer probe;
     if (!probe.listen(QHostAddress::LocalHost, 11470))

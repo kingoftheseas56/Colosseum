@@ -5,6 +5,7 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QLocale>
 #include <QProcess>
 #include <QSet>
 #include <QStandardPaths>
@@ -28,9 +29,15 @@ QString sevenZipPath()
 
 QString bsdtarPath()
 {
+#ifdef Q_OS_WIN
     const QString sys = QStringLiteral("C:/Windows/System32/tar.exe");
     if (QFileInfo::exists(sys)) return sys;
     return QStandardPaths::findExecutable(QStringLiteral("tar"));
+#else
+    // Comic archives require libarchive semantics. GNU tar may be the default
+    // `tar` on Linux, but it cannot extract ZIP/CBZ/RAR payloads.
+    return QStandardPaths::findExecutable(QStringLiteral("bsdtar"));
+#endif
 }
 
 bool isImageFile(const QString& name)
@@ -134,6 +141,9 @@ QStringList collectValidatedImages(const QString& dir, QString* errorOut)
         return {};
     }
     QCollator coll;
+    // Archive page order must not depend on the process locale. QCollator's
+    // numeric mode is ineffective in the C locale used by headless Linux.
+    coll.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     coll.setNumericMode(true);
     coll.setCaseSensitivity(Qt::CaseInsensitive);
     std::sort(rel.begin(), rel.end(), [&coll](const QString& a, const QString& b) {
@@ -166,6 +176,9 @@ bool safeJobPath(const QString& cleanJobRoot, const QString& relPath, QString* a
 QList<ComicSelectedFile> naturalSortedByPath(QList<ComicSelectedFile> files)
 {
     QCollator coll;
+    // Archive page order must not depend on the process locale. QCollator's
+    // numeric mode is ineffective in the C locale used by headless Linux.
+    coll.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
     coll.setNumericMode(true);
     coll.setCaseSensitivity(Qt::CaseInsensitive);
     std::sort(files.begin(), files.end(), [&coll](const ComicSelectedFile& a, const ComicSelectedFile& b) {

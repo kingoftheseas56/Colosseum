@@ -1792,5 +1792,23 @@ int main(int argc, char *argv[]) {
         manga->volumes(QString(), QStringLiteral("One Piece"));
     }
 
+    // QObject children of QCoreApplication are normally destroyed from the app
+    // destructor, after Qt has already cleared the global QCoreApplication instance.
+    // These roots own live QSqlDatabase connections, whose destructors legitimately
+    // consult that instance while removing named connections. Queue their deletion
+    // from aboutToQuit instead: Qt still processes DeferredDelete events at this point,
+    // so database teardown finishes before the core application disappears.
+    const auto deleteBeforeCoreApplicationTeardown = [&app](QObject* object) {
+        QObject::connect(&app, &QCoreApplication::aboutToQuit, object, &QObject::deleteLater);
+    };
+    deleteBeforeCoreApplicationTeardown(vaultIndex);
+    deleteBeforeCoreApplicationTeardown(comicsCatalog);
+    deleteBeforeCoreApplicationTeardown(malCatalog);
+    deleteBeforeCoreApplicationTeardown(tankobanCatalog);
+    deleteBeforeCoreApplicationTeardown(imdbCatalog);
+    deleteBeforeCoreApplicationTeardown(biblioCatalog);
+    deleteBeforeCoreApplicationTeardown(tankobanVolumes);
+    deleteBeforeCoreApplicationTeardown(accountRuntime);
+
     return app.exec();
 }

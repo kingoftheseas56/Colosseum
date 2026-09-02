@@ -10,7 +10,6 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
-#include <QFutureWatcher>
 #include <QTimer>
 #include <QVariantMap>
 #include <QtConcurrent>
@@ -185,11 +184,22 @@ void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
     }
 
     m_treeScansInFlight.insert(norm);
-    auto* walker = new QFutureWatcher<QStringList>(this);
-    connect(walker, &QFutureWatcher<QStringList>::finished, this,
-            [this, walker, root, norm]() {
-                QStringList directories = walker->result();
-                walker->deleteLater();
+    auto future = QtConcurrent::run([root]() {
+        QStringList directories;
+        directories.append(root);
+        QDirIterator it(root, QDir::Dirs | QDir::NoDotAndDotDot,
+                        QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            if (directories.size() >= kMaxWatchedDirectoriesPerRoot) {
+                // An empty sentinel carries the cap state without a second result type.
+                directories.append(QString());
+                break;
+            }
+            directories.append(it.next());
+        }
+        return directories;
+    });
+    future.then(this, [this, root, norm](QStringList directories) {
                 m_treeScansInFlight.remove(norm);
 
                 if (!m_config || !m_config->isRootConfirmed(root) || !QDir(root).exists())
@@ -230,22 +240,6 @@ void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
                 if (m_dirty.contains(norm) && !m_immersive)
                     m_debounce->start();
             });
-
-    walker->setFuture(QtConcurrent::run([root]() {
-        QStringList directories;
-        directories.append(root);
-        QDirIterator it(root, QDir::Dirs | QDir::NoDotAndDotDot,
-                        QDirIterator::Subdirectories);
-        while (it.hasNext()) {
-            if (directories.size() >= kMaxWatchedDirectoriesPerRoot) {
-                // An empty sentinel carries the cap state without a second result type.
-                directories.append(QString());
-                break;
-            }
-            directories.append(it.next());
-        }
-        return directories;
-    }));
 }
 
 void VaultWatcher::onDirectoryChanged(const QString& path)

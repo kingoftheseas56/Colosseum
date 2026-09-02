@@ -128,13 +128,20 @@ void tst_vault_stores::config_normalizes_paths()
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
     VaultConfig c(tmp.path());
-    c.addRoot(QStringLiteral("D:\\Manga"));
-    QVERIFY(c.hasRoot(QStringLiteral("D:/Manga"))); // separators normalized
 #ifdef Q_OS_WIN
+    c.addRoot(QStringLiteral("D:\\Manga"));
+    QVERIFY(c.hasRoot(QStringLiteral("D:/Manga"))); // native separators normalized on Windows
     QVERIFY(c.hasRoot(QStringLiteral("d:/manga"))); // case-insensitive on Windows
-#endif
     c.setKind(QStringLiteral("D:\\Manga\\Berserk"), QStringLiteral("comic"));
     QCOMPARE(c.kindFor(QStringLiteral("D:/Manga/Berserk")), QStringLiteral("comic"));
+#else
+    const QString root = tmp.path() + QStringLiteral("/./Manga");
+    const QString cleanRoot = QDir::cleanPath(root);
+    c.addRoot(root);
+    QVERIFY(c.hasRoot(cleanRoot));
+    c.setKind(root + QStringLiteral("/./Berserk"), QStringLiteral("comic"));
+    QCOMPARE(c.kindFor(cleanRoot + QStringLiteral("/Berserk")), QStringLiteral("comic"));
+#endif
 }
 
 // ── Slice 18: synthetic + hidden downloads root ──
@@ -162,8 +169,11 @@ void tst_vault_stores::config_synthetic_root_is_preconfirmed_and_idempotent()
         const QVariantList roots = c.roots();
         QCOMPARE(roots.size(), 1);
         const QVariantMap m = roots.at(0).toMap();
-        QCOMPARE(m.value(QStringLiteral("path")).toString(),
-                 QDir::cleanPath(root).toLower());
+        QString expectedPath = QDir::cleanPath(root);
+#ifdef Q_OS_WIN
+        expectedPath = expectedPath.toLower();
+#endif
+        QCOMPARE(m.value(QStringLiteral("path")).toString(), expectedPath);
         QCOMPARE(m.value(QStringLiteral("synthetic")).toBool(), true);
         QCOMPARE(m.value(QStringLiteral("hidden")).toBool(), false);
         QCOMPARE(m.value(QStringLiteral("confirmed")).toBool(), true);
@@ -224,10 +234,11 @@ void tst_vault_stores::config_legacy_json_loads_clean_without_new_fields()
     writeRaw(QDir(tmp.path()).filePath(QStringLiteral("config.json")), legacy);
 
     VaultConfig c(tmp.path());
-    QVERIFY(c.hasRoot(QStringLiteral("D:/Legacy")));
-    QVERIFY(!c.isSyntheticRoot(QStringLiteral("D:/Legacy")));   // default false
-    QVERIFY(!c.isRootHidden(QStringLiteral("D:/Legacy")));       // default false
-    QVERIFY(c.isRootConfirmed(QStringLiteral("D:/Legacy")));     // unchanged
+    const QString legacyRoot = QStringLiteral("d:/legacy");
+    QVERIFY(c.hasRoot(legacyRoot));
+    QVERIFY(!c.isSyntheticRoot(legacyRoot));   // default false
+    QVERIFY(!c.isRootHidden(legacyRoot));      // default false
+    QVERIFY(c.isRootConfirmed(legacyRoot));    // unchanged
 
     // And a synthetic root added on top coexists with the legacy user root.
     c.addSyntheticRoot(QStringLiteral("D:/Downloads"));
@@ -248,11 +259,14 @@ void tst_vault_stores::id_is_stable_for_same_triple()
 
 void tst_vault_stores::id_normalizes_path()
 {
+#ifdef Q_OS_WIN
     QCOMPARE(VaultIdentity::computeId(QStringLiteral("D:\\A\\x.cbz"), 100, 5),
              VaultIdentity::computeId(QStringLiteral("D:/A/x.cbz"), 100, 5));
-#ifdef Q_OS_WIN
     QCOMPARE(VaultIdentity::computeId(QStringLiteral("D:/A/x.cbz"), 100, 5),
              VaultIdentity::computeId(QStringLiteral("d:/a/X.CBZ"), 100, 5));
+#else
+    QCOMPARE(VaultIdentity::computeId(QStringLiteral("/vault/A/./x.cbz"), 100, 5),
+             VaultIdentity::computeId(QStringLiteral("/vault/A/x.cbz"), 100, 5));
 #endif
 }
 

@@ -71,7 +71,7 @@ QString AccountDeviceIdentity::displayLabel() {
 }
 
 QString AccountDeviceIdentity::label() const {
-    return QStringLiteral("Windows desktop");
+    return platformName() + QStringLiteral(" desktop");
 }
 
 QString AccountDeviceIdentity::platform() const {

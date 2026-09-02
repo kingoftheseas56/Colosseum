@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.1.5 LANGUAGES C CXX)
+project(colosseum VERSION 1.1.6 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -29,19 +29,23 @@ option(COLOSSEUM_NO_COMPILER_CACHE
     "Disable automatic compiler-cache launcher discovery"
     OFF)
 if(NOT COLOSSEUM_NO_COMPILER_CACHE)
-    find_program(SCCACHE_PROGRAM NAMES sccache)
-    if(SCCACHE_PROGRAM AND EXISTS "${SCCACHE_PROGRAM}")
-        set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
-        set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
-        message(STATUS "Compiler cache: sccache (${SCCACHE_PROGRAM})")
+    find_program(COMPILER_CACHE_PROGRAM NAMES sccache ccache)
+    if(COMPILER_CACHE_PROGRAM AND EXISTS "${COMPILER_CACHE_PROGRAM}")
+        set(CMAKE_C_COMPILER_LAUNCHER "${COMPILER_CACHE_PROGRAM}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${COMPILER_CACHE_PROGRAM}")
+        get_filename_component(COMPILER_CACHE_NAME "${COMPILER_CACHE_PROGRAM}" NAME)
+        message(STATUS "Compiler cache: ${COMPILER_CACHE_NAME} (${COMPILER_CACHE_PROGRAM})")
     else()
-        message(STATUS "Compiler cache: sccache not found; building without compiler cache")
+        message(STATUS "Compiler cache: sccache/ccache not found; building without compiler cache")
     endif()
 else()
     message(STATUS "Compiler cache: disabled by COLOSSEUM_NO_COMPILER_CACHE=ON")
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
+if(UNIX AND NOT APPLE)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -640,6 +644,9 @@ target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(colosseum PRIVATE Qt6::DBus)
+endif()
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose
 # fingerprint differs; explicit dev/test QML overrides bypass this production gate.
@@ -758,6 +765,20 @@ add_executable(update_install_bridge_harness
 )
 target_include_directories(update_install_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(update_install_bridge_harness PRIVATE Qt6::Core Qt6::Network)
+
+add_executable(account_credential_persistence_harness
+    ../tests/account_credential_persistence_harness.cpp
+    account/WindowsAccountCredentialStore.cpp
+    account/WindowsAccountCredentialStore.h
+    account/AccountCredentialStore.h
+)
+target_include_directories(account_credential_persistence_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(account_credential_persistence_harness PRIVATE Qt6::Core)
+if(WIN32)
+    target_link_libraries(account_credential_persistence_harness PRIVATE Advapi32)
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(account_credential_persistence_harness PRIVATE Qt6::DBus)
+endif()
 
 
 add_executable(search_history_store_harness

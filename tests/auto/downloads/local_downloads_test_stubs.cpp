@@ -4,6 +4,16 @@
 #include "engine/MangaTankobanService.h"
 #include "player/downloadstore.h"
 
+MangaImageHostResolver::~MangaImageHostResolver() = default;
+MangaDownloader::~MangaDownloader() = default;
+BookDownloader::~BookDownloader() = default;
+ComicDownloader::~ComicDownloader() = default;
+MangaTankobanService::~MangaTankobanService() = default;
+
+void MangaNyaaSearchAdapter::search(const MangaTankoban::SeriesSnapshot&, const QString&) {}
+void MangaNyaaSearchAdapter::searchSeries(const MangaTankoban::SeriesSnapshot&) {}
+void MangaTorrentMetainfoFetcher::fetch(const QString&, const QString&) {}
+
 QVariantList MangaDownloader::downloadedChapters() const { return {}; }
 QVariantList MangaDownloader::activeChapterJobs() const { return {}; }
 void MangaDownloader::downloadChapter(const QString&, const QString&, const QString&, const QString&) {}

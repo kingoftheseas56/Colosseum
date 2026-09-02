@@ -573,6 +573,27 @@ bool ProfileAdoption::rollbackAfterLegacyRestore(
     return writeSnapshot(error);
 }
 
+bool ProfileAdoption::refreshRetrySourceSemanticDigest(
+    const QString &semanticDigest,
+    QString *error) {
+    if (m_snapshot.state != State::RetryPending) {
+        return setError(
+            error,
+            QStringLiteral(
+                "Retry source digest can only be refreshed for a pending retry."));
+    }
+
+    const QString normalized = normalizedDigest(semanticDigest);
+    if (normalized.isEmpty()) {
+        return setError(
+            error,
+            QStringLiteral("Retry source semantic digest is empty."));
+    }
+
+    m_snapshot.sourceSemanticDigest = normalized;
+    return writeSnapshot(error);
+}
+
 QString ProfileAdoption::stateName(State state) {
     switch (state) {
     case State::Preparing:

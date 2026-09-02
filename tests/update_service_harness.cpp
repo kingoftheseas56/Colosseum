@@ -167,6 +167,44 @@ int main()
         return launcherCalled;
     };
 
+    {
+        QTemporaryDir manualRoot;
+        require(manualRoot.isValid(), "manual-update temp root");
+        int manualDownloads = 0;
+        int manualLaunches = 0;
+        ReleaseCheckResult manualResult = signedLanistaResult();
+        manualResult.status = ReleaseCheckResult::Status::ManualUpdateRequired;
+        manualResult.assetUrls.clear();
+        UpdateServiceHooks manualHooks;
+        manualHooks.checkLatest = [manualResult](const QString&, UpdateReleaseClient::Callback done) {
+            done(manualResult);
+        };
+        manualHooks.startDownload = [&manualDownloads](
+            const DownloadRequest&, UpdateServiceHooks::DownloadProgress,
+            UpdateServiceHooks::DownloadCompleted, UpdateServiceHooks::DownloadFailed) {
+            ++manualDownloads;
+        };
+        manualHooks.installLauncher = [&manualLaunches](const QString&, const Version&, QString*) {
+            ++manualLaunches;
+            return true;
+        };
+        UpdateService manualService(version("1.1.0"), manualRoot.path(), manualHooks);
+        manualService.checkNow();
+        require(manualService.state() == UpdateService::ManualUpdateRequired,
+                "manual-only release enters ManualUpdateRequired");
+        require(manualService.latestVersion() == QStringLiteral("1.1.1")
+                    && manualService.updateAvailable(),
+                "manual-only release still exposes the newer verified version");
+        manualService.download();
+        manualService.restartAndUpdate();
+        require(manualDownloads == 0 && manualLaunches == 0,
+                "manual-only release cannot download or launch an installer");
+        UpdateService manualRestart(version("1.1.0"), manualRoot.path());
+        require(manualRestart.state() == UpdateService::ManualUpdateRequired
+                    && manualRestart.latestVersion() == QStringLiteral("1.1.1"),
+                "manual-only policy survives a signed offline restart");
+    }
+
     QTemporaryDir lifecycleRoot;
     require(lifecycleRoot.isValid(), "lifecycle temp root");
     UpdateService service(version("1.1.0"), lifecycleRoot.path(), hooks);

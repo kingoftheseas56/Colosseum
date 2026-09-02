@@ -247,8 +247,9 @@ public:
     Q_INVOKABLE void dismissCard();
     // Cancel an in-flight census.
     Q_INVOKABLE void cancelScan();
-    // Reveal a Vault folder (or file) in the OS file manager. A directory opens; a file is
-    // selected in its parent. Windows-only for now; returns false if the path is gone.
+    // Reveal a Vault folder (or file) in the OS file manager. A directory opens; Windows
+    // selects a file in its parent, while Linux opens the containing folder via xdg-open.
+    // Returns false if the path is gone or no supported file-manager launcher is available.
     Q_INVOKABLE bool revealInExplorer(const QString& path) const;
     // Watcher-failure fallback (Slice 15): silently rescan any confirmed root whose watcher
     // is degraded, the next time the Vault opens. Publishes the UNION (never one root alone).

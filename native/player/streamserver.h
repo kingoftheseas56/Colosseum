@@ -1,9 +1,9 @@
 // StreamServer — turns a torrent (infoHash + fileIdx) into a localhost HTTP URL mpv can play.
 //
-// It does NOT reimplement torrent streaming: it runs Tankoban 2's proven Stremio
-// stream-server (`stremio-runtime.exe server.js`) as a child process, the same way TB2
-// itself does. The runtime binds http://127.0.0.1:<port>/<infoHash>/<fileIdx> and we
-// surface that URL to QML.
+// It does NOT reimplement torrent streaming: it runs Stremio's proven stream-server
+// runtime (`stremio-runtime[.exe] server.js`) as a child process when no official
+// Stremio Service is already answering on :11470. The runtime binds
+// http://127.0.0.1:<port>/<infoHash>/<fileIdx> and we surface that URL to QML.
 //
 // Lifecycle: lazy — the 88 MB runtime is only spawned on the FIRST play() call, so a
 // session that never watches anything never pays for it. Killed on app exit.
@@ -89,10 +89,10 @@ private:
     };
 
     void ensureStarted();                 // adopt a running official server, else launch our own
-    void launchChild();                   // spawn stremio-runtime.exe server.js ourselves
+    void launchChild();                   // spawn the platform Stremio runtime + server.js ourselves
     void setEngineUnavailable(bool unavailable);
     void markEngineUnavailable(const QString &message);
-    QString findRuntimeDir() const;       // first dir that contains stremio-runtime.exe
+    QString findRuntimeDir() const;       // first dir containing this platform's runtime + server.js
     void onStdout();                      // scrape the "EngineFS server started at …:<port>" line
     void flushPending();
     void registerThenReady(const QString &infoHash, int fileIdx, bool fetch);  // POST /create, then emit URL

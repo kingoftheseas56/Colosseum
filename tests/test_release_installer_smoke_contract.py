@@ -8,8 +8,8 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
     def test_release_metadata_targets_1_1_5(self):
         cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
         workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
-        self.assertIn('project(colosseum VERSION 1.1.5 ', cmake)
-        self.assertIn("default: \"1.1.5\"", workflow)
+        self.assertIn('project(colosseum VERSION 1.1.6 ', cmake)
+        self.assertIn("default: \"1.1.6\"", workflow)
 
     def test_installer_branding_is_product_named_and_iconed(self):
         installer = (ROOT / 'scripts/installer/colosseum.nsi').read_text(encoding='utf-8')

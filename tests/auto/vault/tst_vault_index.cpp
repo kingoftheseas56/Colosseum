@@ -18,6 +18,10 @@
 
 #include <algorithm>
 
+namespace {
+constexpr int kExpectedVaultSchemaVersion = 7;
+}
+
 class tst_vault_index : public QObject
 {
     Q_OBJECT
@@ -110,7 +114,7 @@ private slots:
     // ── browse-face execution plan, Slice 1 ──
     void recent_groups_orders_newest_mtime_first_across_kinds();
     // ── vault-admission slice ──
-    void legacy_schema_migrates_and_stamps_v5();
+    void legacy_schema_migrates_and_stamps_current_version();
     void future_schema_fails_closed_without_downgrade();
     // ── browse-face execution plan, Slice 2 ──
     void identity_state_round_trips_and_survives_a_republish_that_still_carries_it();
@@ -454,7 +458,7 @@ void tst_vault_index::recent_groups_orders_newest_mtime_first_across_kinds()
     QCOMPARE(all.last().toMap().value(QStringLiteral("mtimeMs")).toLongLong(), 1500LL);
 }
 
-void tst_vault_index::legacy_schema_migrates_and_stamps_v5()
+void tst_vault_index::legacy_schema_migrates_and_stamps_current_version()
 {
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
@@ -466,9 +470,9 @@ void tst_vault_index::legacy_schema_migrates_and_stamps_v5()
         QVERIFY(idx.isOpen());
     }
 
-    // v5 adds identityState/identityCandidateCount (browse-face execution plan Slice 2) on top
-    // of the v4 admission/resilience/metadata/identity columns — same monotonic ALTER shape.
-    QCOMPARE(userVersionOf(path), 5);
+    // The migration is monotonic all the way to the schema owned by this build. Keep this
+    // expectation in lockstep with VaultIndex's kVaultSchemaVersion.
+    QCOMPARE(userVersionOf(path), kExpectedVaultSchemaVersion);
 }
 
 void tst_vault_index::future_schema_fails_closed_without_downgrade()
@@ -476,14 +480,15 @@ void tst_vault_index::future_schema_fails_closed_without_downgrade()
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
     const QString path = tmp.filePath(QStringLiteral("future.sqlite"));
-    QVERIFY(createLegacyVaultDb(path, 6)); // negative control: a newer owner stamped v6
+    const int futureVersion = kExpectedVaultSchemaVersion + 1;
+    QVERIFY(createLegacyVaultDb(path, futureVersion));
 
     {
         VaultIndex idx(path);
         QVERIFY(!idx.isOpen()); // must refuse to open, never downgrade
     }
 
-    QCOMPARE(userVersionOf(path), 6); // version untouched
+    QCOMPARE(userVersionOf(path), futureVersion); // version untouched
 }
 
 void tst_vault_index::identity_state_round_trips_and_survives_a_republish_that_still_carries_it()
