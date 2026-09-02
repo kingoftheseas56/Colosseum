@@ -99,7 +99,10 @@ Item {
             event.accepted = true
         }
     }
-    onVisibleChanged: if (visible) sheet.forceActiveFocus()
+    onVisibleChanged: if (visible) Qt.callLater(function() {
+        if (playKey.enabled) playKey.forceActiveFocus(Qt.TabFocusReason)
+        else hideKey.forceActiveFocus(Qt.TabFocusReason)
+    })
 
     function copiesHeldLabel(n) { return n + (n === 1 ? " copy held" : " copies held") }
 
@@ -127,11 +130,14 @@ Item {
             id: flick
             anchors.fill: parent
             anchors.margins: 30
+            activeFocusOnTab: true
+            Keys.onPressed: (event) => flickKeys.handle(event)
             contentWidth: width
             contentHeight: bodyCol.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: HouseScrollBar { flick: flick }
+            KeyboardScrollController { id: flickKeys; flick: flick }
 
             Row {
                 id: bodyCol
@@ -370,6 +376,13 @@ Item {
                                         text: "Play"
                                         color: theme.gold; font.family: theme.ui; font.pixelSize: 12
                                     }
+                                    KeyboardAction {
+                                        anchors.fill: parent
+                                        pointerEnabled: false
+                                        enabled: !!modelData.path
+                                        accessibleName: "Play " + (modelData.title || "Vault extra")
+                                        onTriggered: if (modelData.path) sheet.playRequested(modelData.path)
+                                    }
                                 }
                             }
                         }
@@ -420,6 +433,16 @@ Item {
                                 enabled: !!(sheet.detail && sheet.detail.playPath)
                                 onClicked: sheet.playRequested(sheet.detail.playPath)
                             }
+                            KeyboardAction {
+                                id: playKey
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                enabled: !!(sheet.detail && sheet.detail.playPath)
+                                accessibleName: "Play Vault media"
+                                KeyNavigation.backtab: markUnwatchedKey.enabled ? markUnwatchedKey
+                                    : markWatchedKey.enabled ? markWatchedKey : hideKey
+                                onTriggered: sheet.playRequested(sheet.detail.playPath)
+                            }
                         }
 
                         Text {
@@ -432,6 +455,9 @@ Item {
                             MouseArea { id: revealMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.revealRequested(sheet.detail.playPath) }
+                            KeyboardAction { id: revealKey; anchors.fill: parent; pointerEnabled: false
+                                enabled: parent.visible; accessibleName: "Reveal Vault media in Explorer"
+                                onTriggered: sheet.revealRequested(sheet.detail.playPath) }
                         }
 
                         Text {
@@ -444,6 +470,9 @@ Item {
                             MouseArea { id: identifyMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.identifyRequested(sheet.detail.key || "") }
+                            KeyboardAction { id: identifyKey; anchors.fill: parent; pointerEnabled: false
+                                enabled: parent.visible; accessibleName: "Identify Vault media"
+                                onTriggered: sheet.identifyRequested(sheet.detail.key || "") }
                         }
 
                         Text {
@@ -461,6 +490,9 @@ Item {
                             MouseArea { id: identifyAgainMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.identifyAgainRequested(sheet.detail.key || "") }
+                            KeyboardAction { id: identifyAgainKey; anchors.fill: parent; pointerEnabled: false
+                                enabled: parent.visible; accessibleName: "Identify Vault media again"
+                                onTriggered: sheet.identifyAgainRequested(sheet.detail.key || "") }
                         }
 
                         Text {
@@ -473,6 +505,9 @@ Item {
                             MouseArea { id: unidentifyMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.unidentifyRequested(sheet.detail.key || "") }
+                            KeyboardAction { id: unidentifyKey; anchors.fill: parent; pointerEnabled: false
+                                enabled: parent.visible; accessibleName: "Un-identify Vault media"
+                                onTriggered: sheet.unidentifyRequested(sheet.detail.key || "") }
                         }
 
                         Text {
@@ -484,6 +519,11 @@ Item {
                             MouseArea { id: hideMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.hideRequested(sheet.detail.key || "") }
+                            KeyboardAction { id: hideKey; anchors.fill: parent; pointerEnabled: false
+                                accessibleName: "Hide Vault media"
+                                KeyNavigation.tab: markUnwatchedKey.enabled ? markUnwatchedKey
+                                    : markWatchedKey.enabled ? markWatchedKey : playKey
+                                onTriggered: sheet.hideRequested(sheet.detail.key || "") }
                         }
                     }
 
@@ -504,6 +544,10 @@ Item {
                             MouseArea { id: markWatchedMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.markWatchedRequested(sheet.rowVaultId, true) }
+                            KeyboardAction { id: markWatchedKey; anchors.fill: parent; pointerEnabled: false
+                                enabled: parent.visible; accessibleName: "Mark Vault media watched"
+                                KeyNavigation.tab: playKey
+                                onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, true) }
                         }
                         Text {
                             objectName: "vaultBrowseSheetMarkUnwatched"
@@ -515,6 +559,10 @@ Item {
                             MouseArea { id: markUnwatchedMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: sheet.markWatchedRequested(sheet.rowVaultId, false) }
+                            KeyboardAction { id: markUnwatchedKey; anchors.fill: parent; pointerEnabled: false
+                                enabled: parent.visible; accessibleName: "Mark Vault media unwatched"
+                                KeyNavigation.tab: playKey
+                                onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, false) }
                         }
                     }
                 }

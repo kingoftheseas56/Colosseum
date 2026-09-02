@@ -21,7 +21,7 @@ Glass {
 
     Theme { id: theme }
 
-    readonly property bool hovered: hit.containsMouse
+    readonly property bool hovered: hit.containsMouse || keyboardAction.activeFocus
 
     Text {
         id: vaultTitle
@@ -381,5 +381,13 @@ Glass {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: vault.clicked()
+    }
+    KeyboardAction {
+        id: keyboardAction
+        objectName: "vaultHomeWidgetKeyboardAction"
+        anchors.fill: parent
+        pointerEnabled: false
+        accessibleName: "Open Vault"
+        onTriggered: vault.clicked()
     }
 }

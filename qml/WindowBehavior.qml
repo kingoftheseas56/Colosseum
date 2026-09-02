@@ -22,6 +22,27 @@ Item {
     anchors.fill: parent
     z: 100000
 
+    // Keyboard twins for the chrome-free pointer gestures. These deliberately invoke the
+    // exact controller actions used below rather than creating a second window-behavior path.
+    Shortcut {
+        sequence: "Alt+F7"
+        context: Qt.ApplicationShortcut
+        enabled: root.shellInteractive
+        onActivated: root.controller.startSystemMove(root.shell)
+    }
+    Shortcut {
+        sequence: "Alt+F8"
+        context: Qt.ApplicationShortcut
+        enabled: root.resizable
+        onActivated: root.controller.startSystemResize(root.shell, Qt.RightEdge | Qt.BottomEdge)
+    }
+    Shortcut {
+        sequence: "Alt+F10"
+        context: Qt.ApplicationShortcut
+        enabled: root.shellInteractive
+        onActivated: root.controller.toggleMaximized(root.shell)
+    }
+
     // Move + double-click surface, reparented behind TopBar's controls (z: -1). TopBar's
     // pills/system icons sit above it, so unused space drags while controls still click.
     // One MouseArea owns both gestures: crossing a small drag threshold hands off to the

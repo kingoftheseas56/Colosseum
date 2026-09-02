@@ -32,6 +32,7 @@ Window {
     ]
     property int current: 0
     property int activeLane: 0
+    onCurrentChanged: if (grid.currentIndex !== current) grid.currentIndex = current
 
     Item {
         id: wall
@@ -190,7 +191,17 @@ Window {
             }
 
             RowLayout {
+                id: laneRow
                 Layout.fillWidth: true; spacing: 22
+                activeFocusOnTab: true
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Left) root.activeLane = Math.max(0, root.activeLane - 1)
+                    else if (event.key === Qt.Key_Right) root.activeLane = Math.min(5, root.activeLane + 1)
+                    else if (event.key === Qt.Key_Home) root.activeLane = 0
+                    else if (event.key === Qt.Key_End) root.activeLane = 5
+                    else return
+                    event.accepted = true
+                }
                 Repeater {
                     model: [ "Your universes", "Anime", "Series", "Music", "Abstract", "Motion" ]
                     Item {
@@ -229,6 +240,21 @@ Window {
                 model: root.tiles
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: HouseScrollBar { flick: grid }
+                activeFocusOnTab: true
+                Component.onCompleted: currentIndex = root.current
+                onCurrentIndexChanged: if (currentIndex >= 0 && root.current !== currentIndex) root.current = currentIndex
+                Keys.onPressed: (event) => gridKeys.handle(event)
+                KeyboardCollectionController {
+                    id: gridKeys
+                    view: grid
+                    orientation: "grid"
+                    columns: 2
+                    onActivated: (index) => root.current = index
+                }
+                highlight: Rectangle {
+                    color: "transparent"; radius: 12; border.width: 2; border.color: theme.gold
+                    visible: grid.activeFocus
+                }
 
                 delegate: Item {
                     required property int index

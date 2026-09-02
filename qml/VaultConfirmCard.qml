@@ -18,6 +18,13 @@ import QtQuick.Layouts
 Item {
     id: card
     anchors.fill: parent
+    focus: visible
+    Keys.onEscapePressed: (event) => { card.dismissRequested(); event.accepted = true }
+    onVisibleChanged: if (visible) Qt.callLater(function() {
+        const first = sliceRep.count > 0 ? sliceRep.itemAt(0) : null
+        if (first && first.chipAction) first.chipAction.forceActiveFocus(Qt.TabFocusReason)
+        else shelveKey.forceActiveFocus(Qt.TabFocusReason)
+    })
 
     // ── inputs ──
     property var model: []
@@ -92,10 +99,13 @@ Item {
             id: flick
             anchors.fill: parent
             anchors.margins: 4
+            activeFocusOnTab: true
+            Keys.onPressed: (event) => flickKeys.handle(event)
             contentWidth: width
             contentHeight: bodyCol.implicitHeight + 68
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            KeyboardScrollController { id: flickKeys; flick: flick }
 
             Column {
                 id: bodyCol
@@ -146,6 +156,7 @@ Item {
 
                 // ── one slice per discovered subtree ──
                 Repeater {
+                    id: sliceRep
                     model: card.model
                     delegate: Rectangle {
                         id: sliceRow
@@ -158,6 +169,7 @@ Item {
                         z: card.openChipRow === index ? 5 : 0
                         // Lanista/tests read the row's live (possibly reassigned) kind here.
                         property string kind: card.kindOf(modelData, index)
+                        property alias chipAction: chipKey
 
                         width: bodyCol.width
                         height: rowGrid.implicitHeight + 32
@@ -206,6 +218,7 @@ Item {
 
                             // reassignable kind chip
                             Rectangle {
+                                id: kindChip
                                 objectName: "vaultCardRow_" + sliceRow.index + "_chip"
                                 Layout.alignment: Qt.AlignVCenter
                                 implicitWidth: chipRow.implicitWidth + 32
@@ -234,11 +247,34 @@ Item {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: card.openChipRow = (card.openChipRow === sliceRow.index) ? -1 : sliceRow.index
                                 }
+                                KeyboardAction {
+                                    id: chipKey
+                                    anchors.fill: parent
+                                    pointerEnabled: false
+                                    accessibleName: "Change " + (sliceRow.modelData.groupTitle || card.leafName(sliceRow.modelData.subtreePath)) + " kind"
+                                    KeyNavigation.tab: sliceRow.index + 1 < sliceRep.count
+                                        ? sliceRep.itemAt(sliceRow.index + 1).chipAction : shelveKey
+                                    KeyNavigation.backtab: sliceRow.index > 0
+                                        ? sliceRep.itemAt(sliceRow.index - 1).chipAction : notNowKey
+                                    onTriggered: {
+                                        const opening = card.openChipRow !== sliceRow.index
+                                        card.openChipRow = opening ? sliceRow.index : -1
+                                        if (opening) Qt.callLater(function() {
+                                            const first = pickRep.itemAt(0)
+                                            if (first && first.pickAction) first.pickAction.forceActiveFocus(Qt.TabFocusReason)
+                                        })
+                                    }
+                                }
 
                                 // kind picker (Comics / Books / Video)
                                 Rectangle {
                                     visible: card.openChipRow === sliceRow.index
                                     z: 50
+                                    Keys.onEscapePressed: (event) => {
+                                        card.openChipRow = -1
+                                        chipKey.forceActiveFocus(Qt.BacktabFocusReason)
+                                        event.accepted = true
+                                    }
                                     anchors.top: parent.bottom; anchors.topMargin: 6
                                     anchors.right: parent.right
                                     width: 140
@@ -251,11 +287,14 @@ Item {
                                         width: parent.width
                                         padding: 5
                                         Repeater {
+                                            id: pickRep
                                             model: [ { k: "comic", label: "Comics" },
                                                      { k: "book", label: "Books" },
                                                      { k: "video", label: "Video" } ]
                                             delegate: Rectangle {
                                                 required property var modelData
+                                                required property int index
+                                                property alias pickAction: pickKey
                                                 objectName: "vaultCardRow_" + sliceRow.index + "_pick_" + modelData.k
                                                 width: parent.width - 10
                                                 height: 34
@@ -278,6 +317,21 @@ Item {
                                                         ov[sliceRow.modelData.subtreePath] = modelData.k
                                                         card.kindOverrides = ov
                                                         card.openChipRow = -1
+                                                    }
+                                                }
+                                                KeyboardAction {
+                                                    id: pickKey
+                                                    anchors.fill: parent
+                                                    pointerEnabled: false
+                                                    accessibleName: "Use " + modelData.label
+                                                    KeyNavigation.tab: pickRep.itemAt((index + 1) % pickRep.count).pickAction
+                                                    KeyNavigation.backtab: pickRep.itemAt((index + pickRep.count - 1) % pickRep.count).pickAction
+                                                    onTriggered: {
+                                                        var ov = Object.assign({}, card.kindOverrides)
+                                                        ov[sliceRow.modelData.subtreePath] = modelData.k
+                                                        card.kindOverrides = ov
+                                                        card.openChipRow = -1
+                                                        chipKey.forceActiveFocus(Qt.TabFocusReason)
                                                     }
                                                 }
                                             }
@@ -319,6 +373,15 @@ Item {
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: card.shelveRequested(card.kindOverrides)
                         }
+                        KeyboardAction {
+                            id: shelveKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Shelve all detected Vault media"
+                            KeyNavigation.tab: notNowKey
+                            KeyNavigation.backtab: sliceRep.count > 0 ? sliceRep.itemAt(sliceRep.count - 1).chipAction : notNowKey
+                            onTriggered: card.shelveRequested(card.kindOverrides)
+                        }
                     }
                     Rectangle {
                         objectName: "vaultCardNotNow"
@@ -331,6 +394,15 @@ Item {
                             id: notNowMa
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: card.dismissRequested()
+                        }
+                        KeyboardAction {
+                            id: notNowKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Dismiss Vault shelving confirmation"
+                            KeyNavigation.tab: sliceRep.count > 0 ? sliceRep.itemAt(0).chipAction : shelveKey
+                            KeyNavigation.backtab: shelveKey
+                            onTriggered: card.dismissRequested()
                         }
                     }
                 }

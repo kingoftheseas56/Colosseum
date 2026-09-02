@@ -62,6 +62,14 @@ Item {
         sorting = mode
         runSearch()
     }
+    function revealResultIndex(index) {
+        Qt.callLater(function() {
+            if (!grid.currentItem) return
+            const y = grid.y + grid.currentItem.y
+            const target = y - Math.max(0, (bodyFlick.height - grid.currentItem.height) / 2)
+            bodyFlick.contentY = Math.max(0, Math.min(Math.max(0, bodyFlick.contentHeight - bodyFlick.height), target))
+        })
+    }
 
     Component.onCompleted: {
         searchField.text = WallpaperApi.defaultQueryFor(targetWorld)
@@ -105,7 +113,7 @@ Item {
                 source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22; sourceSize.height: 22
                 fillMode: Image.PreserveAspectFit
-                opacity: wpMinMa.containsMouse ? 1.0 : 0.72
+                opacity: wpMinMa.containsMouse || wpMinKey.activeFocus ? 1.0 : 0.72
             }
             MouseArea {
                 id: wpMinMa
@@ -113,6 +121,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.minimizeRequested()
             }
+            KeyboardAction { id: wpMinKey; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Minimize"; onTriggered: root.minimizeRequested() }
         }
         Item {
             width: 22; height: 22
@@ -123,7 +133,7 @@ Item {
                         : "../assets/icons/fullscreen-exit.svg"
                 sourceSize.width: 22; sourceSize.height: 22
                 fillMode: Image.PreserveAspectFit
-                opacity: wpFsMa.containsMouse ? 1.0 : 0.72
+                opacity: wpFsMa.containsMouse || wpFsKey.activeFocus ? 1.0 : 0.72
             }
             MouseArea {
                 id: wpFsMa
@@ -131,6 +141,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.fullscreenRequested()
             }
+            KeyboardAction { id: wpFsKey; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() }
         }
         Item {
             width: 22; height: 22
@@ -139,7 +151,7 @@ Item {
                 source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22
                 fillMode: Image.PreserveAspectFit
-                opacity: wpPowMa.containsMouse ? 1.0 : 0.72
+                opacity: wpPowMa.containsMouse || wpPowKey.activeFocus ? 1.0 : 0.72
             }
             MouseArea {
                 id: wpPowMa
@@ -147,6 +159,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.quitRequested()
             }
+            KeyboardAction { id: wpPowKey; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Close Colosseum"; onTriggered: root.quitRequested() }
         }
     }
 
@@ -189,6 +203,8 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.closeRequested()
                     }
+                    KeyboardAction { anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
+                        accessibleName: "Close wallpaper picker"; onTriggered: root.closeRequested() }
                 }
             }
 
@@ -238,6 +254,8 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.runSearch()
                     }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false
+                        accessibleName: "Search wallpapers"; onTriggered: root.runSearch() }
                 }
             }
 
@@ -277,6 +295,9 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.setSorting(sortPill.modelData.mode)
                         }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false
+                            accessibleName: "Sort wallpapers by " + sortPill.modelData.label
+                            onTriggered: root.setSorting(sortPill.modelData.mode) }
                     }
                 }
             }
@@ -300,10 +321,13 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
+                activeFocusOnTab: true
+                Keys.onPressed: (event) => bodyKeys.handle(event)
                 contentWidth: width
                 contentHeight: bodyCol.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: HouseScrollBar { flick: bodyFlick }
+                KeyboardScrollController { id: bodyKeys; flick: bodyFlick }
 
                 ColumnLayout {
                     id: bodyCol
@@ -378,6 +402,14 @@ Item {
                 model: WallpaperApi.nativeAnimatedPicks()
                 boundsBehavior: Flickable.StopAtBounds
                 delegate: nativeTileDelegate
+                activeFocusOnTab: count > 0
+                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
+                Keys.onPressed: (event) => animatedKeys.handle(event)
+                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: animatedStrip.activeFocus }
+                KeyboardCollectionController {
+                    id: animatedKeys; view: animatedStrip; orientation: "horizontal"
+                    onActivated: (index) => { const row = animatedStrip.model[index]; if (row) root.selectedPick = row }
+                }
 
                 WheelHandler {
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
@@ -408,6 +440,14 @@ Item {
                 model: WallpaperApi.nativeStaticPicks()
                 boundsBehavior: Flickable.StopAtBounds
                 delegate: nativeTileDelegate
+                activeFocusOnTab: count > 0
+                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
+                Keys.onPressed: (event) => nativeKeys.handle(event)
+                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: nativeStrip.activeFocus }
+                KeyboardCollectionController {
+                    id: nativeKeys; view: nativeStrip; orientation: "horizontal"
+                    onActivated: (index) => { const row = nativeStrip.model[index]; if (row) root.selectedPick = row }
+                }
 
                 WheelHandler {
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
@@ -441,6 +481,14 @@ Item {
                 clip: true
                 model: WallpaperApi.kdePicks()
                 boundsBehavior: Flickable.StopAtBounds
+                activeFocusOnTab: count > 0
+                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
+                Keys.onPressed: (event) => kdeKeys.handle(event)
+                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: kdeStrip.activeFocus }
+                KeyboardCollectionController {
+                    id: kdeKeys; view: kdeStrip; orientation: "horizontal"
+                    onActivated: (index) => { const row = kdeStrip.model[index]; if (row) root.selectedPick = row }
+                }
 
                 // a horizontal list ignores the vertical wheel by default — map it to
                 // sideways travel so the mouse wheel scrolls the strip.
@@ -526,6 +574,18 @@ Item {
                 cellHeight: 104
                 model: root.results
                 boundsBehavior: Flickable.StopAtBounds
+                activeFocusOnTab: count > 0
+                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
+                Keys.onPressed: (event) => resultKeys.handle(event)
+                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: grid.activeFocus }
+                KeyboardCollectionController {
+                    id: resultKeys
+                    view: grid
+                    orientation: "grid"
+                    columns: Math.max(1, Math.floor(grid.width / grid.cellWidth))
+                    positionIndexFn: (index) => root.revealResultIndex(index)
+                    onActivated: (index) => { const row = root.results[index]; if (row) root.selectedPick = row }
+                }
 
                 delegate: Rectangle {
                     id: resultTile
@@ -601,6 +661,13 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.fetchMore()
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            enabled: root.canLoadMore
+                            accessibleName: "Load more wallpapers"
+                            onTriggered: root.fetchMore()
                         }
                     }
                 }
@@ -678,6 +745,12 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.applyRequested(scopeButton.modelData.scope, root.targetWorld, root.selectedPick)
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Apply wallpaper " + scopeButton.modelData.label
+                            onTriggered: root.applyRequested(scopeButton.modelData.scope, root.targetWorld, root.selectedPick)
                         }
                     }
                 }

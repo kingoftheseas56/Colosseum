@@ -51,6 +51,16 @@ Item {
         if (crumb.keyboardSegment >= 0) crumb.segmentClicked(crumb.keyboardSegment)
         event.accepted = true
     }
+    Keys.onHomePressed: (event) => {
+        const list = crumb.clickableLayout
+        if (list.length) crumb.keyboardSegment = list[0]
+        event.accepted = list.length > 0
+    }
+    Keys.onEndPressed: (event) => {
+        const list = crumb.clickableLayout
+        if (list.length) crumb.keyboardSegment = list[list.length - 1]
+        event.accepted = list.length > 0
+    }
 
     Theme { id: theme }
 
@@ -107,7 +117,7 @@ Item {
                         border.width: 2
                         border.color: theme.inkDim
                         color: "transparent"
-                        visible: crumb.keyboardSegment === seg.modelData.index
+                        visible: crumb.activeFocus && crumb.keyboardSegment === seg.modelData.index
                     }
                     MouseArea {
                         anchors.fill: parent

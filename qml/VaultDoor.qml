@@ -35,7 +35,7 @@ Item {
         id: doorTile
         anchors.fill: parent
         radius: 13
-        color: doorMa.containsMouse || door.active ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+        color: doorMa.containsMouse || doorKey.activeFocus || door.active ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
 
         // arrival glow: a brief gold ring around the tile
         Rectangle {
@@ -82,5 +82,13 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: door.clicked()
+    }
+    KeyboardAction {
+        id: doorKey
+        objectName: "vaultDoorKeyboardAction"
+        anchors.fill: parent
+        pointerEnabled: false
+        accessibleName: "Open Vault"
+        onTriggered: door.clicked()
     }
 }

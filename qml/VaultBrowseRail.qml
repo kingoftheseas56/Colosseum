@@ -12,6 +12,7 @@
 // attention panel (a plain "path · reason" list from rootsDetail()'s per-root error facts)
 // opening from the same overflow menu, with the watcher-degraded consequence stated plainly.
 import QtQuick
+import QtQuick.Window
 
 Item {
     id: rail
@@ -63,16 +64,28 @@ Item {
     // like forgetArmed/S10's confirm pane.
     property bool attentionArmed: false
     property real menuRowY: 0
+    property Item menuFocusReturn: null
     function openRowMenu(row) {
         rail.forgetArmed = false
         rail.attentionArmed = false
+        rail.menuFocusReturn = row
         rail.menuRow = row
         rail.menuRowY = row.mapToItem(rail, 0, 0).y
+        Qt.callLater(function() { rescanKey.forceActiveFocus(Qt.TabFocusReason) })
+    }
+    function openRowMenuFromKeyboard(row) {
+        if (!rail.expanded) {
+            rail.toggleRequested()
+            Qt.callLater(function() { rail.openRowMenu(row) })
+        } else rail.openRowMenu(row)
     }
     function closeRowMenu() {
+        const restore = rail.menuFocusReturn
         rail.menuRow = null
+        rail.menuFocusReturn = null
         rail.forgetArmed = false
         rail.attentionArmed = false
+        if (restore) Qt.callLater(function() { restore.forceActiveFocus(Qt.TabFocusReason) })
     }
     // S11 — the per-root count line's label. Error facts first (the list has real reasons),
     // then the watcher-only degradation. The … marks the line's nature: it OPENS the list.
@@ -170,6 +183,12 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: rail.toggleRequested()
                 }
+                KeyboardAction {
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    accessibleName: rail.expanded ? "Collapse storage rail" : "Expand storage rail"
+                    onTriggered: rail.toggleRequested()
+                }
             }
         }
 
@@ -195,6 +214,14 @@ Item {
                 Keys.onReturnPressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
                 Keys.onEnterPressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
                 Keys.onSpacePressed: (event) => { if (rootRow.rootPath) rail.rootSelected(rootRow.rootPath); event.accepted = true }
+                Keys.onPressed: (event) => {
+                    const contextKey = event.key === Qt.Key_Menu
+                        || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))
+                    if (contextKey) {
+                        rail.openRowMenuFromKeyboard(rootRow)
+                        event.accepted = true
+                    }
+                }
                 // S11 (vault ux uplift) — the per-root error facts rootsDetail() now carries:
                 // how many indexed rows under this root carry a stored error state, the capped
                 // {path, reason} list the attention panel shows, and the watcher-degraded flag
@@ -321,7 +348,7 @@ Item {
                     objectName: "vaultBrowseRailRowOverflow"
                     visible: rail.expanded
                              && (rowMa.containsMouse || overflowMa.containsMouse
-                                 || rail.menuRow === rootRow)
+                                 || rootRow.activeFocus || rail.menuRow === rootRow)
                     anchors.right: parent.right
                     anchors.rightMargin: rootRow.isDownloads ? 28 : 4
                     anchors.verticalCenter: parent.verticalCenter
@@ -350,7 +377,7 @@ Item {
                     id: downloadsRemove
                     objectName: "vaultBrowseRailDownloadsRemove"
                     visible: rail.expanded && rootRow.isDownloads
-                             && (rowMa.containsMouse || removeMa.containsMouse)
+                             && (rowMa.containsMouse || removeMa.containsMouse || rootRow.activeFocus)
                     anchors.right: parent.right; anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
                     width: 22; height: 22
@@ -430,6 +457,12 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: rail.hiddenRequested()
             }
+            KeyboardAction {
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Open hidden Vault items"
+                onTriggered: rail.hiddenRequested()
+            }
         }
 
         Item { width: 1; height: 6 }
@@ -477,6 +510,12 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: rail.addRequested()
             }
+            KeyboardAction {
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Add Vault storage"
+                onTriggered: rail.addRequested()
+            }
         }
 
         Item { width: 1; height: 4 }
@@ -505,6 +544,15 @@ Item {
                     ignoreEditor.open()
                 }
             }
+            KeyboardAction {
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Edit Vault ignore patterns"
+                onTriggered: {
+                    ignoreField.text = (rail.scanIgnore || []).join(", ")
+                    ignoreEditor.open()
+                }
+            }
         }
     }
 
@@ -519,6 +567,7 @@ Item {
         visible: rail.menuRow !== null
         anchors.fill: parent
         z: 50
+        Keys.onEscapePressed: (event) => { rail.closeRowMenu(); event.accepted = true }
 
         // click-away close: swallows every click that is not on the panel itself
         MouseArea { anchors.fill: parent; onClicked: rail.closeRowMenu() }
@@ -563,6 +612,18 @@ Item {
                             rail.closeRowMenu()
                         }
                     }
+                    KeyboardAction {
+                        id: rescanKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Rescan this Vault storage"
+                        KeyNavigation.tab: forgetKey
+                        KeyNavigation.backtab: attKey.enabled ? attKey : forgetKey
+                        onTriggered: {
+                            rail.rescanRequested(rail.menuRow ? rail.menuRow.rootPath : "")
+                            rail.closeRowMenu()
+                        }
+                    }
                 }
                 Rectangle { width: parent.width; height: 1; color: theme.edge; opacity: 0.6 }
                 Item {
@@ -585,6 +646,19 @@ Item {
                                 forgetArmed = true
                             }
                         }
+                    KeyboardAction {
+                        id: forgetKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Forget this Vault storage"
+                        KeyNavigation.tab: attKey.enabled ? attKey : rescanKey
+                        KeyNavigation.backtab: rescanKey
+                        onTriggered: {
+                            rail.attentionArmed = false
+                            rail.forgetArmed = true
+                            Qt.callLater(function() { confirmKey.forceActiveFocus(Qt.TabFocusReason) })
+                        }
+                    }
                 }
                 Rectangle { width: parent.width; height: 1; color: theme.edge; opacity: 0.6 }
                 // the root's own path — the menu's one honest fact line, never clickable
@@ -630,6 +704,20 @@ Item {
                             rail.attentionArmed = true
                         }
                     }
+                    KeyboardAction {
+                        id: attKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        enabled: attLine.lineVisible
+                        accessibleName: "Show Vault storage attention details"
+                        KeyNavigation.tab: rescanKey
+                        KeyNavigation.backtab: forgetKey
+                        onTriggered: {
+                            rail.forgetArmed = false
+                            rail.attentionArmed = true
+                            Qt.callLater(function() { attentionBackKey.forceActiveFocus(Qt.TabFocusReason) })
+                        }
+                    }
                 }
             }
 
@@ -672,6 +760,18 @@ Item {
                                 rail.closeRowMenu()
                             }
                         }
+                        KeyboardAction {
+                            id: confirmKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Confirm forgetting this Vault storage"
+                            KeyNavigation.tab: cancelConfirmKey
+                            KeyNavigation.backtab: cancelConfirmKey
+                            onTriggered: {
+                                rail.forgetConfirmed(rail.menuRow ? rail.menuRow.rootPath : "")
+                                rail.closeRowMenu()
+                            }
+                        }
                     }
                     Item {
                         height: 30; width: 78
@@ -691,6 +791,18 @@ Item {
                             // Cancel disarms the confirm but keeps the menu up (the user
                             // may still want Rescan); click-away closes the whole menu.
                             onClicked: rail.forgetArmed = false
+                        }
+                        KeyboardAction {
+                            id: cancelConfirmKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Cancel forgetting this Vault storage"
+                            KeyNavigation.tab: confirmKey
+                            KeyNavigation.backtab: confirmKey
+                            onTriggered: {
+                                rail.forgetArmed = false
+                                Qt.callLater(function() { forgetKey.forceActiveFocus(Qt.TabFocusReason) })
+                            }
                         }
                     }
                 }
@@ -782,6 +894,18 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: rail.attentionArmed = false
                     }
+                    KeyboardAction {
+                        id: attentionBackKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Back to Vault storage actions"
+                        KeyNavigation.tab: attentionBackKey
+                        KeyNavigation.backtab: attentionBackKey
+                        onTriggered: {
+                            rail.attentionArmed = false
+                            Qt.callLater(function() { attKey.forceActiveFocus(Qt.TabFocusReason) })
+                        }
+                    }
                 }
                 Text {
                     objectName: "vaultBrowseRailAttentionPath"
@@ -808,8 +932,22 @@ Item {
         anchors.fill: parent
         z: 60
 
-        function open() { rail.forgetArmed = false; rail.closeRowMenu(); ignoreEditor.visible = true }
-        function close() { ignoreEditor.visible = false }
+        property Item focusReturnItem: null
+        function open() {
+            rail.forgetArmed = false
+            rail.closeRowMenu()
+            const w = rail.Window.window
+            ignoreEditor.focusReturnItem = w ? w.activeFocusItem : null
+            ignoreEditor.visible = true
+            Qt.callLater(function() { ignoreField.forceActiveFocus(Qt.TabFocusReason) })
+        }
+        function close() {
+            ignoreEditor.visible = false
+            const target = ignoreEditor.focusReturnItem
+            ignoreEditor.focusReturnItem = null
+            if (target) Qt.callLater(function() { target.forceActiveFocus(Qt.TabFocusReason) })
+        }
+        Keys.onEscapePressed: (event) => { ignoreEditor.close(); event.accepted = true }
 
         MouseArea { anchors.fill: parent; onClicked: ignoreEditor.close() }
 
@@ -862,6 +1000,8 @@ Item {
                         font.family: theme.ui; font.pixelSize: 12
                         verticalAlignment: TextInput.AlignVCenter
                         clip: true
+                        KeyNavigation.tab: ignoreSaveKey
+                        KeyNavigation.backtab: ignoreCancelKey
                     }
                 }
                 Row {
@@ -887,6 +1027,20 @@ Item {
                                 ignoreEditor.close()
                             }
                         }
+                        KeyboardAction {
+                            id: ignoreSaveKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Save Vault ignore patterns"
+                            KeyNavigation.tab: ignoreCancelKey
+                            KeyNavigation.backtab: ignoreField
+                            onTriggered: {
+                                const needles = ignoreField.text.split(/[,;]/)
+                                      .map(s => s.trim()).filter(s => s.length > 0)
+                                rail.scanIgnoreSaved(needles)
+                                ignoreEditor.close()
+                            }
+                        }
                     }
                     Item {
                         height: 28; width: 78
@@ -904,6 +1058,15 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: ignoreEditor.close()
+                        }
+                        KeyboardAction {
+                            id: ignoreCancelKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Cancel Vault ignore pattern editing"
+                            KeyNavigation.tab: ignoreField
+                            KeyNavigation.backtab: ignoreSaveKey
+                            onTriggered: ignoreEditor.close()
                         }
                     }
                 }

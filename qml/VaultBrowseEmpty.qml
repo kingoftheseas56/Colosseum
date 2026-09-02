@@ -119,6 +119,12 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.addStorageRequested()
             }
+            KeyboardAction {
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Add Vault storage"
+                onTriggered: root.addStorageRequested()
+            }
         }
 
         // S13 — the filtered cause's action: the copy always said "Clear the filter to see
@@ -149,6 +155,12 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.clearFilterRequested()
+            }
+            KeyboardAction {
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Clear Vault filters"
+                onTriggered: root.clearFilterRequested()
             }
         }
     }

@@ -42,11 +42,14 @@ Item {
     Flickable {
         id: page
         anchors.fill: parent
+        activeFocusOnTab: true
+        Keys.onPressed: (event) => pageKeyboard.handle(event)
         contentWidth: width
         contentHeight: col.implicitHeight + 150
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
+        KeyboardScrollController { id: pageKeyboard; flick: page }
 
         Column {
             id: col
@@ -138,6 +141,13 @@ Item {
                             enabled: root.preferences !== null
                             onClicked: root.preferences.showExplicit = !sw.checked
                         }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            enabled: root.preferences !== null
+                            accessibleName: "Show explicit content"
+                            onTriggered: root.preferences.showExplicit = !sw.checked
+                        }
                     }
                 }
             }
@@ -155,15 +165,21 @@ Item {
         Row {
             id: chromeRow
             spacing: 22
-            Text { text: "—"; color: mMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
+            Text { text: "—"; color: mMa.containsMouse || minKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: mMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
-            Text { text: "⛶"; color: fMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
+                               cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                   KeyboardAction { id: minKey; anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
+            Text { text: "⛶"; color: fMa.containsMouse || fullKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: fMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
-            Text { text: "⏻"; color: pMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
+                               cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                   KeyboardAction { id: fullKey; anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
+            Text { text: "⏻"; color: pMa.containsMouse || closeKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+                               cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                   KeyboardAction { id: closeKey; anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: "Close Colosseum"; onTriggered: root.closeRequested() } }
         }
     }
     BackAction {

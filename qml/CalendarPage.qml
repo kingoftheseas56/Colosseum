@@ -27,6 +27,21 @@ Item {
     property int viewYear: 2026
     property int viewMonth: 1            // 1-based
     property int selectedDay: 0         // 0 = none open
+    property int keyboardDay: 1
+    property int keyboardDayRow: 0
+
+    function daysInViewMonth() { return new Date(viewYear, viewMonth, 0).getDate() }
+    function dayHasEpisodes(day) {
+        if (!root.grid || !root.grid.weeks) return false
+        for (const week of root.grid.weeks)
+            for (const cell of week)
+                if (cell && cell.inMonth && cell.day === day)
+                    return !!(cell.chips && cell.chips.length > 0)
+        return false
+    }
+    function moveKeyboardDay(delta) {
+        root.keyboardDay = Math.max(1, Math.min(root.daysInViewMonth(), root.keyboardDay + delta))
+    }
 
     // live data (context properties absent in the headless harness → typeof guards)
     property int collectionRevision: (typeof Collection !== "undefined") ? Collection.revision : 0
@@ -57,6 +72,7 @@ Item {
         var d = new Date(nowMs)
         viewYear = d.getFullYear()
         viewMonth = d.getMonth() + 1
+        keyboardDay = d.getDate()
         rebuild()
     }
 
@@ -68,8 +84,16 @@ Item {
         : []
     readonly property bool shelfEmpty: comingRows.length === 0 && monthEpisodes === 0
 
-    function prevMonth() { selectedDay = 0; if (viewMonth === 1) { viewMonth = 12; viewYear-- } else viewMonth-- }
-    function nextMonth() { selectedDay = 0; if (viewMonth === 12) { viewMonth = 1; viewYear++ } else viewMonth++ }
+    function prevMonth() {
+        selectedDay = 0
+        if (viewMonth === 1) { viewMonth = 12; viewYear-- } else viewMonth--
+        keyboardDay = Math.min(keyboardDay, daysInViewMonth())
+    }
+    function nextMonth() {
+        selectedDay = 0
+        if (viewMonth === 12) { viewMonth = 1; viewYear++ } else viewMonth++
+        keyboardDay = Math.min(keyboardDay, daysInViewMonth())
+    }
     function chipRoute(seriesId, state) {
         var row = { seriesId: seriesId }
         if (state === "aired") root.playRequested(row); else root.seriesRequested(row)
@@ -88,12 +112,15 @@ Item {
     Flickable {
         id: page
         anchors.fill: parent
+        activeFocusOnTab: true
+        Keys.onPressed: (event) => pageKeys.handle(event)
         contentWidth: width
         contentHeight: col.implicitHeight + 60
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
         ScrollGlide { flick: page }
+        KeyboardScrollController { id: pageKeys; flick: page }
 
         Column {
             id: col
@@ -109,11 +136,13 @@ Item {
                 Row {
                     spacing: 14
                     Text {
-                        text: "‹"; color: backMa.containsMouse ? theme.gold : theme.ink
+                        text: "‹"; color: backMa.containsMouse || backKey.activeFocus ? theme.gold : theme.ink
                         font.family: theme.display; font.pixelSize: 30
                         anchors.verticalCenter: parent.verticalCenter
                         MouseArea { id: backMa; anchors.fill: parent; anchors.margins: -10
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.backRequested() }
+                        KeyboardAction { id: backKey; anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
+                            accessibleName: "Back from Calendar"; onTriggered: root.backRequested() }
                     }
                     Text { text: "THEATRE · COLLECTION"; color: theme.inkDimmer
                         font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold
@@ -142,6 +171,8 @@ Item {
                     Text { id: goText; anchors.centerIn: parent; text: "Browse Discover"
                         color: "#17120a"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.discoverRequested() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false
+                        accessibleName: "Browse Discover"; onTriggered: root.discoverRequested() }
                 }
             }
 
@@ -155,11 +186,30 @@ Item {
                     text: "All caught up — nothing dated ahead."
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14 }
                 ListView {
+                    id: comingList
                     visible: root.comingRows.length > 0
                     width: parent.width; height: 176
                     orientation: ListView.Horizontal; spacing: 14; clip: true
                     boundsBehavior: Flickable.StopAtBounds
+                    activeFocusOnTab: visible
+                    onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
+                    Keys.onPressed: (event) => comingKeys.handle(event)
                     model: root.comingRows
+                    highlight: Rectangle {
+                        color: "transparent"; radius: 12; border.width: 2; border.color: theme.inkDim
+                        visible: comingList.activeFocus
+                    }
+                    KeyboardCollectionController {
+                        id: comingKeys
+                        view: comingList
+                        orientation: "horizontal"
+                        onActivated: (index) => {
+                            const row = root.comingRows[index]
+                            if (!row) return
+                            if (row.state === "aired") root.playRequested(row)
+                            else root.seriesRequested(row)
+                        }
+                    }
                     delegate: Item {
                         id: rc
                         required property var modelData
@@ -219,14 +269,16 @@ Item {
                     Row {
                         id: monthTitleNav
                         spacing: 8; anchors.verticalCenter: parent.verticalCenter
-                        Rectangle { width: 34; height: 34; radius: 10; color: prevMa.containsMouse ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.05)
+                        Rectangle { width: 34; height: 34; radius: 10; color: prevMa.containsMouse || prevKey.activeFocus ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.05)
                             border.width: 1; border.color: theme.edge
                             Text { anchors.centerIn: parent; text: "‹"; color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
-                            MouseArea { id: prevMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.prevMonth() } }
-                        Rectangle { width: 34; height: 34; radius: 10; color: nextMa.containsMouse ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.05)
+                            MouseArea { id: prevMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.prevMonth() }
+                            KeyboardAction { id: prevKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Previous month"; onTriggered: root.prevMonth() } }
+                        Rectangle { width: 34; height: 34; radius: 10; color: nextMa.containsMouse || nextKey.activeFocus ? Qt.rgba(1,1,1,0.12) : Qt.rgba(1,1,1,0.05)
                             border.width: 1; border.color: theme.edge
                             Text { anchors.centerIn: parent; text: "›"; color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
-                            MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.nextMonth() } }
+                            MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.nextMonth() }
+                            KeyboardAction { id: nextKey; anchors.fill: parent; pointerEnabled: false; accessibleName: "Next month"; onTriggered: root.nextMonth() } }
                     }
                 }
                 // weekday header
@@ -242,9 +294,25 @@ Item {
                         }
                     }
                 }
-                // weeks
+                // weeks — one spatial focus unit; arrows move the day cursor, Enter/Space opens a populated day.
                 Column {
+                    id: monthGrid
                     width: parent.width; spacing: 6
+                    activeFocusOnTab: visible
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Left) root.moveKeyboardDay(-1)
+                        else if (event.key === Qt.Key_Right) root.moveKeyboardDay(1)
+                        else if (event.key === Qt.Key_Up) root.moveKeyboardDay(-7)
+                        else if (event.key === Qt.Key_Down) root.moveKeyboardDay(7)
+                        else if (event.key === Qt.Key_Home) root.keyboardDay = 1
+                        else if (event.key === Qt.Key_End) root.keyboardDay = root.daysInViewMonth()
+                        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            if (root.dayHasEpisodes(root.keyboardDay))
+                                root.selectedDay = root.selectedDay === root.keyboardDay ? 0 : root.keyboardDay
+                            else return
+                        } else return
+                        event.accepted = true
+                    }
                     Repeater {
                         model: root.grid ? root.grid.weeks : []
                         delegate: Row {
@@ -262,6 +330,11 @@ Item {
                                         border.width: 1
                                         border.color: modelData.isToday ? theme.gold
                                             : modelData.day === root.selectedDay ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
+                                        Rectangle {
+                                            anchors.fill: parent; anchors.margins: -1; radius: 10
+                                            color: "transparent"; border.width: 2; border.color: theme.inkDim
+                                            visible: monthGrid.activeFocus && modelData.inMonth && modelData.day === root.keyboardDay
+                                        }
                                         Text { anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 7
                                             text: modelData.day
                                             color: modelData.isToday ? theme.gold : theme.inkDim
@@ -289,7 +362,10 @@ Item {
                                         MouseArea { anchors.fill: parent
                                             enabled: modelData.chips && modelData.chips.length > 0
                                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                            onClicked: root.selectedDay = (root.selectedDay === modelData.day ? 0 : modelData.day) }
+                                            onClicked: {
+                                                root.keyboardDay = modelData.day
+                                                root.selectedDay = (root.selectedDay === modelData.day ? 0 : modelData.day)
+                                            } }
                                     }
                                 }
                             }
@@ -300,18 +376,35 @@ Item {
 
             // ── selected-day list ──
             Column {
+                id: dayListFocus
                 visible: root.selectedDay > 0 && root.dayRows.length > 0
                 width: parent.width
                 spacing: 10
+                activeFocusOnTab: visible
+                onVisibleChanged: if (visible) root.keyboardDayRow = Math.max(0, Math.min(root.keyboardDayRow, root.dayRows.length - 1))
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Up) root.keyboardDayRow = Math.max(0, root.keyboardDayRow - 1)
+                    else if (event.key === Qt.Key_Down) root.keyboardDayRow = Math.min(root.dayRows.length - 1, root.keyboardDayRow + 1)
+                    else if (event.key === Qt.Key_Home) root.keyboardDayRow = 0
+                    else if (event.key === Qt.Key_End) root.keyboardDayRow = root.dayRows.length - 1
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        const row = root.dayRows[root.keyboardDayRow]
+                        if (row) root.chipRoute(row.seriesId, row.state)
+                    } else return
+                    event.accepted = true
+                }
                 Text { text: root.grid ? (root.grid.label.split(" ")[0] + " " + root.selectedDay) : ""
                     color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
                 Repeater {
                     model: root.dayRows
                     delegate: Rectangle {
                         required property var modelData
+                        required property int index
                         width: parent.width; height: 52; radius: 10
-                        color: Qt.rgba(1, 1, 1, 0.04); border.width: 1
-                        border.color: modelData.state === "aired" ? Qt.rgba(0.94,0.77,0.29,0.4) : theme.edge
+                        color: Qt.rgba(1, 1, 1, 0.04)
+                        border.width: dayListFocus.activeFocus && index === root.keyboardDayRow ? 2 : 1
+                        border.color: dayListFocus.activeFocus && index === root.keyboardDayRow ? theme.inkDim
+                            : modelData.state === "aired" ? Qt.rgba(0.94,0.77,0.29,0.4) : theme.edge
                         Row {
                             anchors.left: parent.left; anchors.leftMargin: 16
                             anchors.verticalCenter: parent.verticalCenter; spacing: 12
@@ -326,7 +419,10 @@ Item {
                             color: modelData.state === "aired" ? theme.gold : theme.inkDimmer
                             font.family: theme.ui; font.pixelSize: 13 }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: root.chipRoute(modelData.seriesId, modelData.state) }
+                            onClicked: {
+                                root.keyboardDayRow = index
+                                root.chipRoute(modelData.seriesId, modelData.state)
+                            } }
                     }
                 }
             }
@@ -342,15 +438,19 @@ Item {
         spacing: 18
         Item {
             width: 17; height: 17
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"; opacity: minMa.containsMouse ? 1 : 0.7 }
+            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"; opacity: minMa.hovered || minKey.activeFocus ? 1 : 0.7 }
             HoverHandler { id: minMa }
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+            KeyboardAction { id: minKey; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                accessibleName: "Minimize"; onTriggered: root.minimizeRequested() }
         }
         Item {
             width: 17; height: 17
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"; opacity: powMa.containsMouse ? 1 : 0.7 }
+            Image { anchors.fill: parent; source: "../assets/icons/power.svg"; opacity: powMa.hovered || closeKey.activeFocus ? 1 : 0.7 }
             HoverHandler { id: powMa }
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+            KeyboardAction { id: closeKey; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                accessibleName: "Close Colosseum"; onTriggered: root.closeRequested() }
         }
     }
 }

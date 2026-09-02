@@ -96,13 +96,14 @@ Item {
         root.searchViewActive = true
         root.searchQuery = ""
         browseSearchField.text = ""
-        browseSearchField.forceActiveFocus()
+        Qt.callLater(function() { searchInput.forceActiveFocus(Qt.ShortcutFocusReason) })
     }
     function leaveSearchView() {
         if (!root.searchViewActive) return
         root.rememberCurrentScroll()
         root.searchViewActive = false
         root.searchQuery = ""
+        Qt.callLater(function() { if (grid.visible) grid.forceActiveFocus(Qt.BacktabFocusReason) })
     }
     property var contextRow: null            // the row a card's right-click context menu targets
 
@@ -142,7 +143,10 @@ Item {
         root.detailSheetRowVaultId = rowId.indexOf("vault:") === 0 ? rowId : ""
         root.detailSheetVisible = true
     }
-    function closeDetailSheet() { root.detailSheetVisible = false }
+    function closeDetailSheet() {
+        root.detailSheetVisible = false
+        Qt.callLater(function() { if (grid.visible) grid.forceActiveFocus(Qt.BacktabFocusReason) })
+    }
 
     // One semantic Back door for the whole Vault. The shell's Escape dispatcher and
     // the visible BackAction both call this, so a topmost Vault-local surface is never
@@ -346,25 +350,42 @@ Item {
     // The menu's open state + position (mapped imperatively at open — the rail menu's own
     // pattern; a publish/sort change can never invalidate what anchors would have held).
     property bool sortMenuOpen: false
+    property bool sortMenuKeyboardOpened: false
     property real sortMenuX: 0
     property real sortMenuY: 0
-    function toggleSortMenu() {
+    function toggleSortMenu(fromKeyboard) {
         if (root.sortMenuOpen) { root.sortMenuOpen = false; return }
         const p = browseSortControl.mapToItem(root, 0, browseSortControl.height)
         root.sortMenuX = Math.max(10, Math.min(p.x, root.width - 220))
         root.sortMenuY = p.y + 6
+        root.sortMenuKeyboardOpened = !!fromKeyboard
         root.sortMenuOpen = true
+        if (root.sortMenuKeyboardOpened) Qt.callLater(function() {
+            const first = sortMenuRep.itemAt(0)
+            if (first && first.keyboardAction) first.keyboardAction.forceActiveFocus(Qt.TabFocusReason)
+        })
+    }
+    onSortMenuOpenChanged: if (!sortMenuOpen && sortMenuKeyboardOpened) {
+        sortMenuKeyboardOpened = false
+        Qt.callLater(function() { sortControlKey.forceActiveFocus(Qt.TabFocusReason) })
     }
     // S13 — the filter panel's open state + position (the sort menu's own pattern).
     property bool filterMenuOpen: false
+    property bool filterMenuKeyboardOpened: false
     property real filterMenuX: 0
     property real filterMenuY: 0
-    function toggleFilterMenu() {
+    function toggleFilterMenu(fromKeyboard) {
         if (root.filterMenuOpen) { root.filterMenuOpen = false; return }
         const p = browseFilterControl.mapToItem(root, 0, browseFilterControl.height)
         root.filterMenuX = Math.max(10, Math.min(p.x - 120, root.width - 260))
         root.filterMenuY = p.y + 6
+        root.filterMenuKeyboardOpened = !!fromKeyboard
         root.filterMenuOpen = true
+        if (root.filterMenuKeyboardOpened) Qt.callLater(function() { filterKindVideoChip.keyboardAction.forceActiveFocus(Qt.TabFocusReason) })
+    }
+    onFilterMenuOpenChanged: if (!filterMenuOpen && filterMenuKeyboardOpened) {
+        filterMenuKeyboardOpened = false
+        Qt.callLater(function() { filterControlKey.forceActiveFocus(Qt.TabFocusReason) })
     }
     // One chip row per predicate axis: label + mutually exclusive options ("" = the axis is
     // off). Clicking the active option turns the axis off again (a chip toggle, not a lock).
@@ -719,9 +740,16 @@ Item {
         identifyDialog.feedback = ""
         identifyDialog.open()
     }
-    function openCardContextMenu(row) {
+    property bool contextMenuKeyboardOpened: false
+    function openCardContextMenu(row, fromKeyboard) {
         root.contextRow = row
+        root.contextMenuKeyboardOpened = !!fromKeyboard
         cardContextMenu.popup()
+    }
+    function openFocusedGridContextMenu() {
+        if (typeof grid === "undefined" || grid.currentIndex < 0 || grid.currentIndex >= gridModel.count) return
+        const rec = gridModel.get(grid.currentIndex)
+        if (rec && rec.modelData) root.openCardContextMenu(rec.modelData, true)
     }
     // Vault ux uplift S7: the vault id on the menu's target row — the live Progress join key
     // browseAt() carries on Film/Episode/Clip rows since S6. The watched verbs are Vault verbs:
@@ -922,11 +950,14 @@ Item {
         visible: !root.hasConfirmedStorage
         enabled: !root.hasConfirmedStorage
         anchors.fill: parent
+        activeFocusOnTab: enabled
+        Keys.onPressed: (event) => pageKeys.handle(event)
         contentWidth: width
         contentHeight: col.implicitHeight + 150
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
+        KeyboardScrollController { id: pageKeys; flick: page }
 
         Column {
             id: col
@@ -1028,6 +1059,13 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.addFolderRequested()
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            enabled: parent.visible
+                            accessibleName: "Add a Vault folder"
+                            onTriggered: root.addFolderRequested()
                         }
                     }
                 }
@@ -1158,8 +1196,24 @@ Item {
                 clip: true
                 cacheBuffer: width * 0.5
                 boundsBehavior: Flickable.StopAtBounds
+                activeFocusOnTab: visible
+                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
+                Keys.onPressed: (event) => continueKeys.handle(event)
                 model: root.continueItems
                 delegate: vaultContinueTileComp
+                highlight: Rectangle {
+                    color: "transparent"; radius: 12; border.width: 2; border.color: theme.inkDim
+                    visible: continueList.activeFocus
+                }
+                KeyboardCollectionController {
+                    id: continueKeys
+                    view: continueList
+                    orientation: "horizontal"
+                    onActivated: (index) => {
+                        const row = root.continueItems[index]
+                        if (row && row.path) root.openMediaRequested(row.path)
+                    }
+                }
             }
         }
 
@@ -1322,6 +1376,12 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.openSearch()
                     }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Search the Vault"
+                        onTriggered: root.openSearch()
+                    }
                 }
 
                 // ── Vault ux uplift S13 — the filter control: a quiet pill left of the sort
@@ -1359,7 +1419,14 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.toggleFilterMenu()
+                        onClicked: root.toggleFilterMenu(false)
+                    }
+                    KeyboardAction {
+                        id: filterControlKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Filter Vault items"
+                        onTriggered: root.toggleFilterMenu(true)
                     }
                 }
 
@@ -1396,7 +1463,14 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.toggleSortMenu()
+                        onClicked: root.toggleSortMenu(false)
+                    }
+                    KeyboardAction {
+                        id: sortControlKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Sort Vault items"
+                        onTriggered: root.toggleSortMenu(true)
                     }
                 }
 
@@ -1427,8 +1501,24 @@ Item {
                         height: 126
                         orientation: ListView.Horizontal
                         spacing: 14
+                        activeFocusOnTab: visible
+                        onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
+                        Keys.onPressed: (event) => nextUpKeys.handle(event)
                         model: root.showNextUpRows
                         delegate: vaultContinueTileComp
+                        highlight: Rectangle {
+                            color: "transparent"; radius: 12; border.width: 2; border.color: theme.inkDim
+                            visible: nextUpList.activeFocus
+                        }
+                        KeyboardCollectionController {
+                            id: nextUpKeys
+                            view: nextUpList
+                            orientation: "horizontal"
+                            onActivated: (index) => {
+                                const row = root.showNextUpRows[index]
+                                if (row && row.path) root.openMediaRequested(row.path)
+                            }
+                        }
                     }
                 }
 
@@ -1503,6 +1593,14 @@ Item {
                     }
                     Keys.onReturnPressed: (event) => { root.openFocusedGridCard(); event.accepted = true }
                     Keys.onEnterPressed: (event) => { root.openFocusedGridCard(); event.accepted = true }
+                    Keys.onPressed: (event) => {
+                        const contextKey = event.key === Qt.Key_Menu
+                            || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))
+                        if (contextKey) {
+                            root.openFocusedGridContextMenu()
+                            event.accepted = true
+                        }
+                    }
 
                     // ---- empty states (design §4.5/§9): distinct copy per cause, keyed off the
                     // C++ projection (VaultLibrary::browseEmptyCause) — this QML never infers the
@@ -1553,6 +1651,10 @@ Item {
     Menu {
         id: cardContextMenu
         objectName: "vaultBrowseContextMenu"
+        onClosed: {
+            if (root.contextMenuKeyboardOpened) Qt.callLater(function() { grid.forceActiveFocus(Qt.TabFocusReason) })
+            root.contextMenuKeyboardOpened = false
+        }
         MenuItem {
             objectName: "vaultBrowseContextReveal"
             text: "Reveal in Explorer"
@@ -1621,6 +1723,7 @@ Item {
         visible: root.sortMenuOpen
         anchors.fill: parent
         z: 55
+        Keys.onEscapePressed: (event) => { root.sortMenuOpen = false; event.accepted = true }
 
         MouseArea { anchors.fill: parent; onClicked: root.sortMenuOpen = false }
 
@@ -1639,10 +1742,13 @@ Item {
                 anchors.margins: 8
                 spacing: 2
                 Repeater {
+                    id: sortMenuRep
                     model: root.sortVocabulary
                     delegate: Item {
                         id: sortMenuItem
                         required property var modelData
+                        required property int index
+                        property alias keyboardAction: sortItemKey
                         objectName: "vaultBrowseSortItem_" + sortMenuItem.modelData.mode
                         width: parent.width; height: 32
                         Row {
@@ -1671,6 +1777,18 @@ Item {
                                 root.sortMenuOpen = false
                             }
                         }
+                        KeyboardAction {
+                            id: sortItemKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            accessibleName: "Sort Vault by " + sortMenuItem.modelData.label
+                            KeyNavigation.tab: sortMenuRep.itemAt((index + 1) % sortMenuRep.count).keyboardAction
+                            KeyNavigation.backtab: sortMenuRep.itemAt((index + sortMenuRep.count - 1) % sortMenuRep.count).keyboardAction
+                            onTriggered: {
+                                root.browseSettings_setSort(sortMenuItem.modelData.mode)
+                                root.sortMenuOpen = false
+                            }
+                        }
                     }
                 }
             }
@@ -1686,6 +1804,7 @@ Item {
         visible: root.filterMenuOpen
         anchors.fill: parent
         z: 55
+        Keys.onEscapePressed: (event) => { root.filterMenuOpen = false; event.accepted = true }
 
         MouseArea { anchors.fill: parent; onClicked: root.filterMenuOpen = false }
 
@@ -1708,6 +1827,9 @@ Item {
                     id: chip
                     property string label: ""
                     property bool active: false
+                    property Item tabTarget: null
+                    property Item backtabTarget: null
+                    property alias keyboardAction: chipKey
                     signal picked()
                     width: chipText.implicitWidth + 20; height: 26
                     Rectangle {
@@ -1731,6 +1853,15 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: chip.picked()
                     }
+                    KeyboardAction {
+                        id: chipKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: chip.label + " Vault filter"
+                        KeyNavigation.tab: chip.tabTarget
+                        KeyNavigation.backtab: chip.backtabTarget
+                        onTriggered: chip.picked()
+                    }
                 }
 
                 // Kind — the stored classification the identify gesture already trusts.
@@ -1740,14 +1871,20 @@ Item {
                            font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
-                        FilterChip { label: "Video"; active: root.filterKind === "video"
+                        FilterChip { id: filterKindVideoChip; label: "Video"; active: root.filterKind === "video"
                                      objectName: "vaultBrowseFilterKindVideo"
+                                     tabTarget: filterKindComicChip.keyboardAction
+                                     backtabTarget: clearFilterKey.enabled ? clearFilterKey : filterPresenceAwayChip.keyboardAction
                                      onPicked: root.setFilterAxis("kind", "video") }
-                        FilterChip { label: "Comics"; active: root.filterKind === "comic"
+                        FilterChip { id: filterKindComicChip; label: "Comics"; active: root.filterKind === "comic"
                                      objectName: "vaultBrowseFilterKindComic"
+                                     tabTarget: filterKindBookChip.keyboardAction
+                                     backtabTarget: filterKindVideoChip.keyboardAction
                                      onPicked: root.setFilterAxis("kind", "comic") }
-                        FilterChip { label: "Books"; active: root.filterKind === "book"
+                        FilterChip { id: filterKindBookChip; label: "Books"; active: root.filterKind === "book"
                                      objectName: "vaultBrowseFilterKindBook"
+                                     tabTarget: filterWatchedUnwatchedChip.keyboardAction
+                                     backtabTarget: filterKindComicChip.keyboardAction
                                      onPicked: root.setFilterAxis("kind", "book") }
                     }
                 }
@@ -1758,11 +1895,15 @@ Item {
                            font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
-                        FilterChip { label: "Unwatched"; active: root.filterWatched === "unwatched"
+                        FilterChip { id: filterWatchedUnwatchedChip; label: "Unwatched"; active: root.filterWatched === "unwatched"
                                      objectName: "vaultBrowseFilterWatchedUnwatched"
+                                     tabTarget: filterWatchedWatchedChip.keyboardAction
+                                     backtabTarget: filterKindBookChip.keyboardAction
                                      onPicked: root.setFilterAxis("watched", "unwatched") }
-                        FilterChip { label: "Watched"; active: root.filterWatched === "watched"
+                        FilterChip { id: filterWatchedWatchedChip; label: "Watched"; active: root.filterWatched === "watched"
                                      objectName: "vaultBrowseFilterWatchedWatched"
+                                     tabTarget: filterIdentChip.keyboardAction
+                                     backtabTarget: filterWatchedUnwatchedChip.keyboardAction
                                      onPicked: root.setFilterAxis("watched", "watched") }
                     }
                 }
@@ -1773,8 +1914,10 @@ Item {
                            font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
-                        FilterChip { label: "Needs identifying"; active: root.filterIdent === "uncertain"
+                        FilterChip { id: filterIdentChip; label: "Needs identifying"; active: root.filterIdent === "uncertain"
                                      objectName: "vaultBrowseFilterIdentUncertain"
+                                     tabTarget: filterPresenceHereChip.keyboardAction
+                                     backtabTarget: filterWatchedWatchedChip.keyboardAction
                                      onPicked: root.setFilterAxis("ident", "uncertain") }
                     }
                 }
@@ -1785,11 +1928,15 @@ Item {
                            font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
-                        FilterChip { label: "Here"; active: root.filterPresence === "present"
+                        FilterChip { id: filterPresenceHereChip; label: "Here"; active: root.filterPresence === "present"
                                      objectName: "vaultBrowseFilterPresencePresent"
+                                     tabTarget: filterPresenceAwayChip.keyboardAction
+                                     backtabTarget: filterIdentChip.keyboardAction
                                      onPicked: root.setFilterAxis("presence", "present") }
-                        FilterChip { label: "On other drives"; active: root.filterPresence === "away"
+                        FilterChip { id: filterPresenceAwayChip; label: "On other drives"; active: root.filterPresence === "away"
                                      objectName: "vaultBrowseFilterPresenceAway"
+                                     tabTarget: clearFilterKey.enabled ? clearFilterKey : filterKindVideoChip.keyboardAction
+                                     backtabTarget: filterPresenceHereChip.keyboardAction
                                      onPicked: root.setFilterAxis("presence", "away") }
                     }
                 }
@@ -1811,6 +1958,16 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.resetFilters()
+                    }
+                    KeyboardAction {
+                        id: clearFilterKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        enabled: parent.visible
+                        accessibleName: "Clear all Vault filters"
+                        KeyNavigation.tab: filterKindVideoChip.keyboardAction
+                        KeyNavigation.backtab: filterPresenceAwayChip.keyboardAction
+                        onTriggered: root.resetFilters()
                     }
                 }
             }
@@ -1898,6 +2055,13 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: if (typeof VaultLibrary !== "undefined") VaultLibrary.cancelScan()
                 }
+                KeyboardAction {
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    enabled: scanPill.visible
+                    accessibleName: "Cancel Vault scan"
+                    onTriggered: if (typeof VaultLibrary !== "undefined") VaultLibrary.cancelScan()
+                }
             }
         }
     }
@@ -1919,15 +2083,21 @@ Item {
         Row {
             id: chromeRow
             spacing: 22
-            Text { text: "—"; color: mMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
+            Text { text: "—"; color: mMa.containsMouse || minKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: mMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
-            Text { text: "⛶"; color: fMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
+                               cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                   KeyboardAction { id: minKey; anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
+            Text { text: "⛶"; color: fMa.containsMouse || fullKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: fMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
-            Text { text: "⏻"; color: pMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
+                               cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                   KeyboardAction { id: fullKey; anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
+            Text { text: "⏻"; color: pMa.containsMouse || closeKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+                               cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                   KeyboardAction { id: closeKey; anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: "Close Colosseum"; onTriggered: root.closeRequested() } }
         }
     }
     BackAction {

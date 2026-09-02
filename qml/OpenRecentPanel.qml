@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 
 // OpenRecentPanel — the Open Media control's recent-files popup (execution plan Slice 9).
 // Model-driven and self-contained so a Qt Quick Test can seed it directly. The host (Main.qml)
@@ -9,9 +10,45 @@ Rectangle {
     id: panel
 
     property var model: []
+    property Item focusReturnItem: null
     readonly property int rowCount: model ? model.length : 0
     signal reopenRequested(var entry)
     signal clearRequested()
+    signal dismissRequested()
+    Keys.onEscapePressed: (event) => { panel.dismissRequested(); event.accepted = true }
+    function focusableActions() {
+        const out = []
+        for (let i = 0; i < rows.count; ++i) {
+            const row = rows.itemAt(i)
+            if (row && row.keyboardAction && row.keyboardAction.enabled) out.push(row.keyboardAction)
+        }
+        if (clearKey.enabled) out.push(clearKey)
+        return out
+    }
+    function movePopupFocus(from, delta) {
+        const list = panel.focusableActions()
+        if (!list.length) return
+        let at = list.indexOf(from)
+        if (at < 0) at = 0
+        const next = (at + delta + list.length) % list.length
+        list[next].forceActiveFocus(delta < 0 ? Qt.BacktabFocusReason : Qt.TabFocusReason)
+    }
+    onVisibleChanged: {
+        if (visible) {
+            const w = panel.Window.window
+            panel.focusReturnItem = w ? w.activeFocusItem : null
+            Qt.callLater(function() {
+                const first = rows.count > 0 ? rows.itemAt(0) : null
+                if (first && first.keyboardAction.enabled) first.keyboardAction.forceActiveFocus(Qt.TabFocusReason)
+                else if (clearKey.enabled) clearKey.forceActiveFocus(Qt.TabFocusReason)
+                else panel.forceActiveFocus(Qt.TabFocusReason)
+            })
+        } else if (panel.focusReturnItem) {
+            const target = panel.focusReturnItem
+            panel.focusReturnItem = null
+            Qt.callLater(function() { if (target) target.forceActiveFocus(Qt.TabFocusReason) })
+        }
+    }
 
     width: 320
     height: contentCol.implicitHeight + 12
@@ -48,6 +85,16 @@ Rectangle {
                     hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: panel.clearRequested()
                 }
+                KeyboardAction {
+                    id: clearKey
+                    anchors.fill: parent; anchors.margins: -6
+                    pointerEnabled: false
+                    enabled: panel.rowCount > 0
+                    accessibleName: "Clear recent items"
+                    Keys.onTabPressed: (event) => { panel.movePopupFocus(clearKey, 1); event.accepted = true }
+                    Keys.onBacktabPressed: (event) => { panel.movePopupFocus(clearKey, -1); event.accepted = true }
+                    onTriggered: panel.clearRequested()
+                }
             }
         }
 
@@ -59,9 +106,12 @@ Rectangle {
         }
 
         Repeater {
+            id: rows
             model: panel.model
             delegate: Rectangle {
+                id: recentRow
                 objectName: "openRecentRow_" + index
+                property alias keyboardAction: rowKey
                 width: contentCol.width
                 height: 42
                 radius: 8
@@ -101,6 +151,16 @@ Rectangle {
                     enabled: modelData.available
                     cursorShape: modelData.available ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: panel.reopenRequested(modelData)
+                }
+                KeyboardAction {
+                    id: rowKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    enabled: !!modelData.available
+                    accessibleName: "Reopen " + (modelData.title || "file")
+                    Keys.onTabPressed: (event) => { panel.movePopupFocus(rowKey, 1); event.accepted = true }
+                    Keys.onBacktabPressed: (event) => { panel.movePopupFocus(rowKey, -1); event.accepted = true }
+                    onTriggered: panel.reopenRequested(modelData)
                 }
             }
         }

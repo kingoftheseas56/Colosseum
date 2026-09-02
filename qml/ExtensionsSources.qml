@@ -379,6 +379,12 @@ Item {
                                         onClicked: root.moveWell(row.modelData.id, -1,
                                                                  section.modelData.key)
                                     }
+                                    KeyboardAction {
+                                        anchors.fill: parent; anchors.margins: -9
+                                        pointerEnabled: false; enabled: row.canUp
+                                        accessibleName: "Move " + root.nameOf(row.modelData) + " earlier in " + section.modelData.title
+                                        onTriggered: root.moveWell(row.modelData.id, -1, section.modelData.key)
+                                    }
                                 }
                                 Text {
                                     text: "▼"; font.pixelSize: 9
@@ -390,6 +396,12 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: root.moveWell(row.modelData.id, 1,
                                                                  section.modelData.key)
+                                    }
+                                    KeyboardAction {
+                                        anchors.fill: parent; anchors.margins: -9
+                                        pointerEnabled: false; enabled: row.canDown
+                                        accessibleName: "Move " + root.nameOf(row.modelData) + " later in " + section.modelData.title
+                                        onTriggered: root.moveWell(row.modelData.id, 1, section.modelData.key)
                                     }
                                 }
                             }
@@ -458,6 +470,12 @@ Item {
                                                                 : Qt.PointingHandCursor
                                         onClicked: Extensions.setEnabled(row.modelData.id, !row.isOn)
                                     }
+                                    KeyboardAction {
+                                        anchors.fill: parent; anchors.margins: -11
+                                        pointerEnabled: false; enabled: !row.isCore
+                                        accessibleName: (row.isOn ? "Disable " : "Enable ") + root.nameOf(row.modelData)
+                                        onTriggered: Extensions.setEnabled(row.modelData.id, !row.isOn)
+                                    }
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
@@ -471,6 +489,12 @@ Item {
                                         hoverEnabled: true; enabled: !row.isCore
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: root.removeRequested(row.modelData)
+                                    }
+                                    KeyboardAction {
+                                        anchors.fill: parent; anchors.margins: -12
+                                        pointerEnabled: false; enabled: !row.isCore
+                                        accessibleName: "Remove " + root.nameOf(row.modelData)
+                                        onTriggered: root.removeRequested(row.modelData)
                                     }
                                 }
                                 Text {
@@ -487,6 +511,12 @@ Item {
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: root.configureRequested(row.modelData)
+                                    }
+                                    KeyboardAction {
+                                        anchors.fill: parent; anchors.margins: -12
+                                        pointerEnabled: false; enabled: parent.visible
+                                        accessibleName: "Configure " + root.nameOf(row.modelData)
+                                        onTriggered: root.configureRequested(row.modelData)
                                     }
                                 }
                             }

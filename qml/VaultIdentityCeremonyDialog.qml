@@ -33,6 +33,10 @@ Popup {
         dialog.choiceMade(String(dialog.ceremony.relationship || ""), choice)
         dialog.close()
     }
+    onOpened: Qt.callLater(function() {
+        const first = dialog.copyCeremony ? existingKey : sameKey
+        first.forceActiveFocus(Qt.TabFocusReason)
+    })
 
     background: Rectangle {
         radius: 16
@@ -83,6 +87,16 @@ Popup {
                 color: theme.gold
                 Text { id: sameMediaText; anchors.centerIn: parent; text: "Same Media"; color: "#151310"; font.pixelSize: 12; font.weight: Font.DemiBold }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("same-media") }
+                KeyboardAction {
+                    id: sameKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    enabled: sameMediaButtonRect.visible
+                    accessibleName: "Use the same media state"
+                    KeyNavigation.tab: newKey
+                    KeyNavigation.backtab: newKey
+                    onTriggered: dialog.choose("same-media")
+                }
             }
             Rectangle {
                 id: newMediaButtonRect
@@ -92,6 +106,16 @@ Popup {
                 color: Qt.rgba(1, 1, 1, 0.08); border.width: 1; border.color: theme.edge
                 Text { id: newMediaText; anchors.centerIn: parent; text: "New Media"; color: theme.ink; font.pixelSize: 12 }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("new-media") }
+                KeyboardAction {
+                    id: newKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    enabled: newMediaButtonRect.visible
+                    accessibleName: "Start new media state"
+                    KeyNavigation.tab: sameKey
+                    KeyNavigation.backtab: sameKey
+                    onTriggered: dialog.choose("new-media")
+                }
             }
             Rectangle {
                 id: useExistingStateRect
@@ -101,6 +125,16 @@ Popup {
                 color: theme.gold
                 Text { id: existingText; anchors.centerIn: parent; text: "Use Existing State"; color: "#151310"; font.pixelSize: 12; font.weight: Font.DemiBold }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("use-existing-state") }
+                KeyboardAction {
+                    id: existingKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    enabled: useExistingStateRect.visible
+                    accessibleName: "Use existing progress state"
+                    KeyNavigation.tab: separateKey
+                    KeyNavigation.backtab: separateKey
+                    onTriggered: dialog.choose("use-existing-state")
+                }
             }
             Rectangle {
                 id: separateCopyRect
@@ -110,6 +144,16 @@ Popup {
                 color: Qt.rgba(1, 1, 1, 0.08); border.width: 1; border.color: theme.edge
                 Text { id: separateText; anchors.centerIn: parent; text: "Separate Copy"; color: theme.ink; font.pixelSize: 12 }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("separate-copy") }
+                KeyboardAction {
+                    id: separateKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    enabled: separateCopyRect.visible
+                    accessibleName: "Use separate copy state"
+                    KeyNavigation.tab: existingKey
+                    KeyNavigation.backtab: existingKey
+                    onTriggered: dialog.choose("separate-copy")
+                }
             }
         }
     }

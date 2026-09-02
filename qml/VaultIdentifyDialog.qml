@@ -140,6 +140,9 @@ Popup {
             placeholderText: "Type a title"
             text: dialog.query
             selectByMouse: true
+            KeyNavigation.tab: resultList.count > 0 ? resultList : cancelKey
+            KeyNavigation.backtab: cancelKey
+            Keys.onEscapePressed: (event) => { dialog.close(); event.accepted = true }
             onTextChanged: {
                 if (dialog.query !== text) dialog.query = text
                 if (dialog.visible) dialog.searchNow()
@@ -153,13 +156,34 @@ Popup {
             clip: true
             spacing: 6
             model: dialog.results
+            activeFocusOnTab: count > 0
+            onCountChanged: {
+                if (count <= 0) currentIndex = -1
+                else if (currentIndex < 0) currentIndex = 0
+                else if (currentIndex >= count) currentIndex = count - 1
+            }
+            KeyNavigation.tab: cancelKey
+            KeyNavigation.backtab: queryField
+            onActiveFocusChanged: if (activeFocus && count > 0 && currentIndex < 0) currentIndex = 0
+            Keys.onPressed: (event) => resultKeys.handle(event)
+            KeyboardCollectionController {
+                id: resultKeys
+                view: resultList
+                orientation: "vertical"
+                pageStep: 4
+                onActivated: (index) => {
+                    const row = dialog.results[index]
+                    if (row) dialog.identityChosen(dialog.groupKey, row)
+                }
+            }
             delegate: Rectangle {
                 objectName: "vaultIdentifyRow_" + index
                 width: resultList.width
                 height: 58
                 radius: 9
                 color: Qt.rgba(1, 1, 1, 0.05)
-                border.width: 1; border.color: theme.edge
+                border.width: resultList.activeFocus && resultList.currentIndex === index ? 2 : 1
+                border.color: resultList.activeFocus && resultList.currentIndex === index ? theme.inkDim : theme.edge
                 Image {
                     x: 8; y: 7; width: 44; height: 44
                     source: modelData.coverUrl || ""
@@ -202,6 +226,15 @@ Popup {
                 color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: theme.edge
                 Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
                 MouseArea { anchors.fill: parent; onClicked: dialog.close() }
+                KeyboardAction {
+                    id: cancelKey
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    accessibleName: "Cancel Vault identification"
+                    KeyNavigation.tab: queryField
+                    KeyNavigation.backtab: resultList.count > 0 ? resultList : queryField
+                    onTriggered: dialog.close()
+                }
             }
         }
     }
