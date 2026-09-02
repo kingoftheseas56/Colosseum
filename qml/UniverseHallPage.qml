@@ -28,7 +28,15 @@ Item {
 
     Theme { id: theme }
 
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            root.backRequested()
+            event.accepted = true
+        }
+    }
+
     property int hovered: -1              // which bar breathes (-1 = the pile at rest)
+    Component.onCompleted: root.forceActiveFocus(Qt.TabFocusReason)
 
     // the breathe goes STILL while the pile moves (Hemanth 2026-07-13: "scrolling is a
     // nightmare" — bars ballooning under a stationary cursor shoved the content around
@@ -87,48 +95,21 @@ Item {
         z: 20
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.minimizeRequested() }
+        UniverseChromeAction { accessibleName: "Minimize"; source: "../assets/icons/minimize.svg"; onTriggered: root.minimizeRequested() }
+        UniverseChromeAction {
+            accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "Enter fullscreen" : "Exit fullscreen"
+            source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+            onTriggered: root.fullscreenRequested()
         }
-        Item {
-            width: 22
-            height: 22
-            Image {
-                anchors.fill: parent
-                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg"
-                        : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22
-                sourceSize.height: 22
-                fillMode: Image.PreserveAspectFit
-                opacity: fsMa.containsMouse ? 1.0 : 0.72
-            }
-            MouseArea {
-                id: fsMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.fullscreenRequested()
-            }
-        }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.closeRequested() }
-        }
+        UniverseChromeAction { accessibleName: "Close Colosseum"; source: "../assets/icons/power.svg"; onTriggered: root.closeRequested() }
     }
 
     // ---- THE STACK — the books lie flat, one world under another ----
     Flickable {
         id: stackWalk
+        property int currentIndex: root.universes.length > 0 ? 0 : -1
+        focusPolicy: root.universes.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => hallNav.handle(event)
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: parent.top; anchors.topMargin: 140
         anchors.bottom: parent.bottom; anchors.bottomMargin: 34
@@ -156,12 +137,13 @@ Item {
         readonly property int openH: 98
 
         Repeater {
+            id: hallRepeater
             model: root.universes
             delegate: Item {
                 id: bar
                 required property var modelData
                 required property int index
-                readonly property bool open: root.hovered === bar.index
+                readonly property bool open: root.hovered === bar.index || (stackWalk.activeFocus && stackWalk.currentIndex === bar.index)
                 width: pile.width
                 height: open ? pile.openH : pile.restH
                 Behavior on height { NumberAnimation { duration: 340; easing.type: Easing.OutCubic } }
@@ -251,12 +233,37 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: if (!root.walking) root.hovered = bar.index
+                    onEntered: if (!root.walking && !hallNav.keyboardRecentlyMoved) root.hovered = bar.index
                     onExited: if (root.hovered === bar.index) root.hovered = -1
-                    onClicked: root.exploreRequested(bar.modelData.extensionId, bar.modelData.name)
+                    onClicked: {
+                        stackWalk.currentIndex = bar.index
+                        root.exploreRequested(bar.modelData.extensionId, bar.modelData.name)
+                    }
                 }
             }
         }
     }
+        KeyboardCollectionController {
+            id: hallNav
+            view: stackWalk
+            count: root.universes.length
+            orientation: "vertical"
+            positionIndexFn: function(index) {
+                const item = hallRepeater.itemAt(index)
+                if (!item) return
+                const top = item.y
+                const bottom = item.y + item.height
+                const maxY = Math.max(0, stackWalk.contentHeight - stackWalk.height)
+                if (top < stackWalk.contentY) stackWalk.contentY = Math.max(0, top)
+                else if (bottom > stackWalk.contentY + stackWalk.height)
+                    stackWalk.contentY = Math.min(maxY, bottom - stackWalk.height)
+            }
+            onActivated: (index) => {
+                if (index >= 0 && index < root.universes.length) {
+                    const u = root.universes[index]
+                    root.exploreRequested(u.extensionId, u.name)
+                }
+            }
+        }
     }   // stackWalk (the pile scrolls down — never sideways)
 }

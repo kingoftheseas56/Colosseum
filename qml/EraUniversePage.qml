@@ -31,6 +31,21 @@ Item {
     signal bookRequested(var book)           // the books shelf → the Biblio book detail
 
     Theme { id: theme }
+
+    KeyboardScrollController {
+        id: pageKeyboardScroll
+        flick: page
+        arrowScrolling: false
+    }
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            root.backRequested()
+            event.accepted = true
+            return
+        }
+        if (!event.accepted)
+            pageKeyboardScroll.handle(event)
+    }
     property var uni: ({ name: "", blurb: "", banner: "", kicker: "THE ERAS", metaline: "",
                          eras: [], rails: [], books: [], novelsTitle: "The Novels",
                          comics: null, firstWatch: null, firstWatchLabel: "" })
@@ -52,7 +67,7 @@ Item {
         root.comicsBox = null
         Saga.loadEras(root.universeName, function(u) { if (u) root.uni = u; })
     }
-    Component.onCompleted: reload()
+    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
     onUniverseNameChanged: reload()
 
     // ---- the wall ----
@@ -140,11 +155,11 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: !!root.uni.firstWatch
                         gradient: Gradient {
-                            GradientStop { position: 0; color: beginMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
-                            GradientStop { position: 1; color: beginMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
+                            GradientStop { position: 0; color: (beginMa.containsMouse || beginKey.activeFocus) ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
+                            GradientStop { position: 1; color: (beginMa.containsMouse || beginKey.activeFocus) ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
                         }
                         border.width: 1
-                        border.color: beginMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
+                        border.color: (beginMa.containsMouse || beginKey.activeFocus) ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
                         Behavior on border.color { ColorAnimation { duration: 160 } }
                         Row {
                             id: beginRow; anchors.centerIn: parent; spacing: 10
@@ -154,6 +169,14 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { text: "→"; color: theme.gold; font.pixelSize: 16
                                 anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        KeyboardAction {
+                            id: beginKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: beginBtn.visible
+                            accessibleName: root.uni.firstWatchLabel.length ? root.uni.firstWatchLabel : "Begin here"
+                            onTriggered: if (root.uni.firstWatch) root.watchRequested(root.uni.firstWatch)
                         }
                         MouseArea {
                             id: beginMa; anchors.fill: parent
@@ -165,6 +188,7 @@ Item {
 
                 // ===== THE ERA GALLERY — epoch columns in a horizontal walk =====
                 Flickable {
+                    id: eraGallery
                     width: parent.width
                     height: eraRow.implicitHeight
                     contentWidth: eraRow.implicitWidth; contentHeight: height
@@ -176,10 +200,13 @@ Item {
                         id: eraRow
                         spacing: 22
                         Repeater {
+                            id: eraRepeater
                             model: root.uni.eras
                             delegate: Rectangle {
                                 id: era
                                 required property var modelData
+                                required property int index
+                                property alias itemRepeater: plateRepeater
                                 width: 330
                                 height: eraCol.implicitHeight + 36
                                 radius: 16
@@ -195,6 +222,7 @@ Item {
                                     Text { text: era.modelData.era; color: theme.gold
                                            font.family: theme.display; font.italic: true; font.pixelSize: 19 }
                                     Repeater {
+                                        id: plateRepeater
                                         model: era.modelData.items
                                         delegate: Rectangle {
                                             id: plate
@@ -204,14 +232,14 @@ Item {
                                             radius: 10; clip: true
                                             color: "#10141f"
                                             border.width: 1
-                                            border.color: plateMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                            border.color: (plateMa.containsMouse || (eraGalleryFocus.activeFocus && eraGalleryFocus.currentColumn === era.index && eraGalleryFocus.currentItem === plate.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                                                 : Qt.rgba(0.97,0.97,0.96,0.10)
                                             Image {
                                                 anchors.fill: parent
                                                 source: plate.modelData.art || plate.modelData.cover || ""
                                                 asynchronous: true; cache: true
                                                 fillMode: Image.PreserveAspectCrop
-                                                opacity: status === Image.Ready ? (plateMa.containsMouse ? 0.7 : 0.42) : 0
+                                                opacity: status === Image.Ready ? ((plateMa.containsMouse || (eraGalleryFocus.activeFocus && eraGalleryFocus.currentColumn === era.index && eraGalleryFocus.currentItem === plate.index)) ? 0.7 : 0.42) : 0
                                                 Behavior on opacity { NumberAnimation { duration: 220 } }
                                             }
                                             Rectangle {
@@ -267,6 +295,8 @@ Item {
                         // stands at the gallery's end when the curation pins a GC archive;
                         // one deep door plate → the existing archive index (A1's middle layer)
                         Rectangle {
+                            id: comicsColumn
+                            property var itemRepeater: null
                             width: 330
                             height: comicsCol.implicitHeight + 36
                             radius: 16
@@ -287,14 +317,14 @@ Item {
                                     radius: 10; clip: true
                                     color: "#241813"
                                     border.width: 1
-                                    border.color: comicsMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                    border.color: (comicsMa.containsMouse || (eraGalleryFocus.activeFocus && eraGalleryFocus.currentColumn === root.uni.eras.length)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                                          : Qt.rgba(0.97,0.97,0.96,0.10)
                                     Image {
                                         anchors.fill: parent
                                         source: root.uni.banner
                                         asynchronous: true; cache: true
                                         fillMode: Image.PreserveAspectCrop
-                                        opacity: status === Image.Ready ? (comicsMa.containsMouse ? 0.55 : 0.32) : 0
+                                        opacity: status === Image.Ready ? ((comicsMa.containsMouse || (eraGalleryFocus.activeFocus && eraGalleryFocus.currentColumn === root.uni.eras.length)) ? 0.55 : 0.32) : 0
                                         Behavior on opacity { NumberAnimation { duration: 220 } }
                                     }
                                     Rectangle {
@@ -340,6 +370,29 @@ Item {
                     }
                 }
 
+                UniverseSpatialColumnsFocus {
+                    id: eraGalleryFocus
+                    parent: eraGallery.contentItem
+                    x: eraGallery.contentX
+                    y: 0
+                    width: eraGallery.width
+                    height: eraGallery.height
+                    pageFlick: page
+                    horizontalFlick: eraGallery
+                    columnRepeater: eraRepeater
+                    columnsModel: root.uni.eras
+                    itemsProperty: "items"
+                    appendSingleton: !!root.uni.comics
+                    singletonItem: comicsColumn
+                    accessibleName: "Era gallery"
+                    onActivated: (column, item, singleton) => {
+                        if (singleton) root.comicsArchiveRequested(root.comicsDoor())
+                        else if (column >= 0 && column < root.uni.eras.length
+                                 && item >= 0 && item < root.uni.eras[column].items.length)
+                            root.watchRequested(root.uni.eras[column].items[item])
+                    }
+                }
+
                 Item { width: 1; height: 40 }
 
                 // ===== the BOOKS shelf — the canon's prose, when the curation names it =====
@@ -358,6 +411,7 @@ Item {
                                anchors.baseline: parent.children[0].baseline }
                     }
                     Flickable {
+                        id: bookRail
                         width: parent.width; height: 238
                         contentWidth: bookRow.width; contentHeight: height
                         clip: true
@@ -367,6 +421,7 @@ Item {
                             id: bookRow
                             spacing: 18
                             Repeater {
+                                id: bookRepeater
                                 model: root.uni.books
                                 delegate: Item {
                                     id: bTile
@@ -378,7 +433,7 @@ Item {
                                         radius: 8; clip: true
                                         color: "#20180f"
                                         border.width: 1
-                                        border.color: bMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                        border.color: (bMa.containsMouse || (bookRailFocus.activeFocus && bookRailFocus.currentIndex === bTile.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                                         : Qt.rgba(0.97,0.97,0.96,0.12)
                                         Image {
                                             anchors.fill: parent
@@ -428,6 +483,18 @@ Item {
                                 }
                             }
                         }
+                        UniverseRailFocus {
+                            id: bookRailFocus
+                            flick: bookRail
+                            repeater: bookRepeater
+                            count: root.uni.books.length
+                            itemGap: 18
+                            accessibleName: root.uni.novelsTitle
+                            onActivated: (index) => {
+                                if (index >= 0 && index < root.uni.books.length)
+                                    root.bookRequested(root.uni.books[index])
+                            }
+                        }
                     }
                 }
 
@@ -451,6 +518,7 @@ Item {
                                    anchors.baseline: parent.children[0].baseline }
                         }
                         Flickable {
+                            id: extrasRail
                             width: parent.width; height: 238
                             contentWidth: railInner.width; contentHeight: height
                             clip: true
@@ -460,17 +528,19 @@ Item {
                                 id: railInner
                                 spacing: 18
                                 Repeater {
+                                    id: extrasRepeater
                                     model: rail.modelData.items
                                     delegate: Item {
                                         id: rTile
                                         required property var modelData
+                                        required property int index
                                         width: 150; height: 232
                                         Rectangle {
                                             anchors.fill: parent
                                             radius: 8; clip: true
                                             color: "#131a28"
                                             border.width: 1
-                                            border.color: rMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                            border.color: (rMa.containsMouse || (extrasRailFocus.activeFocus && extrasRailFocus.currentIndex === rTile.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                                             : Qt.rgba(0.97,0.97,0.96,0.12)
                                             Image {
                                                 anchors.fill: parent
@@ -521,6 +591,18 @@ Item {
                                     }
                                 }
                             }
+                            UniverseRailFocus {
+                                id: extrasRailFocus
+                                flick: extrasRail
+                                repeater: extrasRepeater
+                                count: rail.modelData.items.length
+                                itemGap: 18
+                                accessibleName: rail.modelData.title
+                                onActivated: (index) => {
+                                    if (index >= 0 && index < rail.modelData.items.length)
+                                        root.watchRequested(rail.modelData.items[index])
+                                }
+                            }
                         }
                     }
                 }
@@ -539,42 +621,22 @@ Item {
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.minimizeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Minimize"
+            source: "../assets/icons/minimize.svg"
+            onTriggered: root.minimizeRequested()
         }
-        Item {
-            width: 22
-            height: 22
-            Image {
-                anchors.fill: parent
-                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg"
-                        : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22
-                sourceSize.height: 22
-                fillMode: Image.PreserveAspectFit
-                opacity: fsMa.containsMouse ? 1.0 : 0.72
-            }
-            MouseArea {
-                id: fsMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.fullscreenRequested()
-            }
+        UniverseChromeAction {
+            accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                            ? "Enter fullscreen" : "Exit fullscreen"
+            source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                    ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+            onTriggered: root.fullscreenRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.closeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Close Colosseum"
+            source: "../assets/icons/power.svg"
+            onTriggered: root.closeRequested()
         }
     }
 }

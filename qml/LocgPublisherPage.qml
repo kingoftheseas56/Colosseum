@@ -50,7 +50,22 @@ Item {
 
     Theme { id: theme }
 
-    Component.onCompleted: fetchMore()
+    KeyboardScrollController {
+        id: pageKeyboardScroll
+        flick: flick
+        arrowScrolling: false
+    }
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            page.backRequested()
+            event.accepted = true
+            return
+        }
+        if (!event.accepted)
+            pageKeyboardScroll.handle(event)
+    }
+
+    Component.onCompleted: { fetchMore(); page.forceActiveFocus(Qt.TabFocusReason) }
     onBoxChanged: { items = []; nextPage = 1; hasMore = true; lastFirstId = ""; loading = true; cooldownMs = 0; fetchMore() }
 
     function fetchMore() {
@@ -110,42 +125,22 @@ Item {
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.minimizeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Minimize"
+            source: "../assets/icons/minimize.svg"
+            onTriggered: page.minimizeRequested()
         }
-        Item {
-            width: 22
-            height: 22
-            Image {
-                anchors.fill: parent
-                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg"
-                        : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22
-                sourceSize.height: 22
-                fillMode: Image.PreserveAspectFit
-                opacity: fsMa.containsMouse ? 1.0 : 0.72
-            }
-            MouseArea {
-                id: fsMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: page.fullscreenRequested()
-            }
+        UniverseChromeAction {
+            accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                            ? "Enter fullscreen" : "Exit fullscreen"
+            source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                    ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+            onTriggered: page.fullscreenRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: page.closeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Close Colosseum"
+            source: "../assets/icons/power.svg"
+            onTriggered: page.closeRequested()
         }
     }
 
@@ -192,18 +187,30 @@ Item {
                     spacing: 8
                     topPadding: 6
                     Repeater {
+                        id: sortRepeater
                         model: [{ k: "new", l: "Newest" }, { k: "az", l: "A–Z" }]
                         delegate: Rectangle {
                             required property var modelData
+                            required property int index
                             height: 28; radius: 14
                             width: pillT.implicitWidth + 30
                             property bool on: page.sortMode === modelData.k
                             color: on ? Qt.rgba(0.94, 0.77, 0.29, 0.14) : theme.glassTint
                             border.width: 1
-                            border.color: on ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
+                            border.color: (on || sortKey.activeFocus) ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
                             Text { id: pillT; anchors.centerIn: parent; text: modelData.l
                                 color: parent.on ? theme.gold : theme.inkDim
                                 font.family: theme.ui; font.pixelSize: 13 }
+                            KeyboardAction {
+                                id: sortKey
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                accessibleName: "Sort " + modelData.l
+                                KeyNavigation.left: index > 0 ? sortRepeater.itemAt(index - 1).sortKeyItem : null
+                                KeyNavigation.right: index + 1 < sortRepeater.count ? sortRepeater.itemAt(index + 1).sortKeyItem : null
+                                onTriggered: page.sortMode = modelData.k
+                            }
+                            property alias sortKeyItem: sortKey
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                 onClicked: page.sortMode = modelData.k }
                         }
@@ -215,6 +222,9 @@ Item {
 
             Grid {
                 id: grid
+                property int currentIndex: page.shownItems.length > 0 ? 0 : -1
+                focusPolicy: page.shownItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: (event) => gridNav.handle(event)
                 x: theme.margin
                 width: parent.width - 2 * theme.margin
                 columns: 6
@@ -222,10 +232,12 @@ Item {
                 readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
 
                 Repeater {
+                    id: gridRepeater
                     model: page.shownItems
                     delegate: Column {
                         id: tile
                         required property var modelData
+                        required property int index
                         width: grid.cellW
                         spacing: 8
                         Item {
@@ -234,7 +246,7 @@ Item {
                                 anchors.fill: parent; radius: 10
                                 color: "#161821"
                                 border.width: 1
-                                border.color: tileMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : Qt.rgba(1, 1, 1, 0.1)
+                                border.color: (tileMa.containsMouse || (grid.activeFocus && grid.currentIndex === tile.index)) ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : Qt.rgba(1, 1, 1, 0.1)
                                 Text {
                                     anchors.centerIn: parent
                                     visible: art.status !== Image.Ready
@@ -258,17 +270,44 @@ Item {
                                 id: tileMa
                                 anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: page.seriesRequested({ id: tile.modelData.id,
-                                                                  title: tile.modelData.title,
-                                                                  cover: tile.modelData.cover })
+                                onClicked: {
+                                    grid.currentIndex = tile.index
+                                    page.seriesRequested({ id: tile.modelData.id,
+                                                           title: tile.modelData.title,
+                                                           cover: tile.modelData.cover })
+                                }
                             }
                         }
                         Text {
                             width: parent.width
                             text: tile.modelData.title
-                            color: tileMa.containsMouse ? theme.gold : theme.inkDim
+                            color: (tileMa.containsMouse || (grid.activeFocus && grid.currentIndex === tile.index)) ? theme.gold : theme.inkDim
                             font.family: theme.ui; font.pixelSize: 13
                             elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
+                        }
+                    }
+                }
+                KeyboardCollectionController {
+                    id: gridNav
+                    view: grid
+                    count: page.shownItems.length
+                    orientation: "grid"
+                    columns: grid.columns
+                    positionIndexFn: function(index) {
+                        const item = gridRepeater.itemAt(index)
+                        if (!item) return
+                        const p = item.mapToItem(flick.contentItem, 0, 0)
+                        const top = p.y
+                        const bottom = p.y + item.height
+                        const maxY = Math.max(0, flick.contentHeight - flick.height)
+                        if (top < flick.contentY) flick.contentY = Math.max(0, top)
+                        else if (bottom > flick.contentY + flick.height)
+                            flick.contentY = Math.min(maxY, bottom - flick.height)
+                    }
+                    onActivated: (index) => {
+                        if (index >= 0 && index < page.shownItems.length) {
+                            const entry = page.shownItems[index]
+                            page.seriesRequested({ id: entry.id, title: entry.title, cover: entry.cover })
                         }
                     }
                 }

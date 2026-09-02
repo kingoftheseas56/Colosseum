@@ -38,12 +38,28 @@ Item {
 
     Theme { id: theme }
 
+    KeyboardScrollController {
+        id: pageKeyboardScroll
+        flick: page
+        arrowScrolling: false
+    }
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            root.backRequested()
+            event.accepted = true
+            return
+        }
+        if (!event.accepted)
+            pageKeyboardScroll.handle(event)
+    }
+
     property var payload: null
     // No `Component.onCompleted: reload()`. Setting `extensionId` at construction — the only
     // way this page is ever opened — already fires onExtensionIdChanged, so the pair issued
     // TWO loads per open. Harmless while the payload is a cached local file; two in-flight
     // requests per open once §5.5 serves it over HTTPS.
     onExtensionIdChanged: root.reload()
+    Component.onCompleted: root.forceActiveFocus(Qt.TabFocusReason)
     function reload() {
         // A shorter universe must not open mid-page: contentY survives the swap otherwise.
         page.contentY = 0
@@ -229,7 +245,11 @@ Item {
                     Item { width: 1; height: 18 }
 
                     ListView {
+                        id: sectionRail
                         width: section.width
+                        focusPolicy: count > 0 ? Qt.TabFocus : Qt.NoFocus
+                        currentIndex: count > 0 ? 0 : -1
+                        Keys.onPressed: (event) => sectionRailNav.handle(event)
                         // the tile's own 236 art + 56 caption, plus the mock's 10px gutter
                         // under the row (`.row { padding-bottom: 10 }`). The mock's 246 is a
                         // min-height FLOOR, not the tile height — the tile is 292.
@@ -257,7 +277,22 @@ Item {
                             entry: modelData
                             kind: section.modelData.kind
                             order: index
-                            onActivated: root.openEntry(section.modelData.kind, modelData)
+                            focusManagedByCollection: true
+                            keyboardSelected: sectionRail.activeFocus && sectionRail.currentIndex === index
+                            onActivated: {
+                                sectionRail.currentIndex = index
+                                root.openEntry(section.modelData.kind, modelData)
+                            }
+                        }
+                        KeyboardCollectionController {
+                            id: sectionRailNav
+                            view: sectionRail
+                            count: sectionRail.count
+                            orientation: "horizontal"
+                            onActivated: (index) => {
+                                if (index >= 0 && index < section.railModel.length)
+                                    root.openEntry(section.modelData.kind, section.railModel[index])
+                            }
                         }
                     }
                     Item { width: 1; height: 40 }
@@ -283,42 +318,22 @@ Item {
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.minimizeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Minimize"
+            source: "../assets/icons/minimize.svg"
+            onTriggered: root.minimizeRequested()
         }
-        Item {
-            width: 22
-            height: 22
-            Image {
-                anchors.fill: parent
-                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg"
-                        : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22
-                sourceSize.height: 22
-                fillMode: Image.PreserveAspectFit
-                opacity: fsMa.containsMouse ? 1.0 : 0.72
-            }
-            MouseArea {
-                id: fsMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.fullscreenRequested()
-            }
+        UniverseChromeAction {
+            accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                            ? "Enter fullscreen" : "Exit fullscreen"
+            source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                    ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+            onTriggered: root.fullscreenRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.closeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Close Colosseum"
+            source: "../assets/icons/power.svg"
+            onTriggered: root.closeRequested()
         }
     }
 }

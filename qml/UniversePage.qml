@@ -34,6 +34,21 @@ Item {
     signal watchRequested(var item)         // anime / movie / WATCH → A4's TheatreSeries.qml
 
     Theme { id: theme }
+
+    KeyboardScrollController {
+        id: pageKeyboardScroll
+        flick: page
+        arrowScrolling: false
+    }
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            root.backRequested()
+            event.accepted = true
+            return
+        }
+        if (!event.accepted)
+            pageKeyboardScroll.handle(event)
+    }
     property var uni: ({ name: "", blurb: "", banner: "", metaline: "",
                          read: { sub: "" }, watch: { sub: "" },
                          manga: [], anime: [], movies: [] })
@@ -42,7 +57,7 @@ Item {
         if (!root.universeName.length) return   // no name yet — never load a default universe
         Api.loadUniverse(root.universeName, function(u) { if (u) root.uni = u; });
     }
-    Component.onCompleted: reload()
+    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
     onUniverseNameChanged: reload()
 
     // ---- persistent wallpaper the page floats over ----
@@ -202,14 +217,15 @@ Item {
         Row {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
-            Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() } }
-            Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
-            Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
-            Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+            UniverseChromeAction { iconSize: 17; idleOpacity: 0.7; accessibleName: "Search"; source: "../assets/icons/search.svg"; onTriggered: root.searchClicked() }
+            UniverseChromeAction { iconSize: 17; idleOpacity: 0.7; accessibleName: "Minimize"; source: "../assets/icons/minimize.svg"; onTriggered: root.minimizeRequested() }
+            UniverseChromeAction {
+                iconSize: 17; idleOpacity: 0.7
+                accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "Enter fullscreen" : "Exit fullscreen"
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+                onTriggered: root.fullscreenRequested()
+            }
+            UniverseChromeAction { iconSize: 17; idleOpacity: 0.7; accessibleName: "Close Colosseum"; source: "../assets/icons/power.svg"; onTriggered: root.closeRequested() }
         }
     }
 
@@ -227,7 +243,7 @@ Item {
         Rectangle {  // art: gradient base (shows while loading) + the medium's own photo
             id: art
             anchors.fill: parent
-            scale: hov.hovered ? 1.05 : 1.0
+            scale: (hov.hovered || halfKey.activeFocus) ? 1.05 : 1.0
             Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
             gradient: Gradient {
                 GradientStop { position: 0.0; color: half.warm ? "#5e1717" : "#0c2c46" }
@@ -267,11 +283,19 @@ Item {
                    anchors.right: half.align === Qt.AlignRight ? parent.right : undefined }
             Text { text: half.align === Qt.AlignLeft ? "Start reading →" : "Start watching →"
                    color: theme.gold; font.family: theme.ui; font.pixelSize: 14; font.bold: true
-                   opacity: hov.hovered ? 1 : 0; topPadding: 6
+                   opacity: (hov.hovered || halfKey.activeFocus) ? 1 : 0; topPadding: 6
                    anchors.right: half.align === Qt.AlignRight ? parent.right : undefined
                    Behavior on opacity { NumberAnimation { duration: 180 } } }
         }
         signal activated()
+        KeyboardAction {
+            id: halfKey
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: half.label
+            focusEnabled: half.visible && half.enabled
+            onTriggered: half.activated()
+        }
         HoverHandler { id: hov }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: half.activated() }
     }
@@ -297,6 +321,7 @@ Item {
         }
 
         Flickable {
+            id: mediumRail
             width: parent.width; height: 200
             contentWidth: tileRow.implicitWidth; contentHeight: height
             flickableDirection: Flickable.HorizontalFlick
@@ -305,14 +330,16 @@ Item {
                 id: tileRow
                 spacing: 16
                 Repeater {
+                    id: mediumRepeater
                     model: items
                     delegate: Item {
+                        required property int index
                         width: 132; height: 196
                         Rectangle {
                             id: cv
                             anchors.fill: parent; radius: 10; clip: true
-                            border.width: 1; border.color: cvHov.hovered ? theme.gold : Qt.rgba(1,1,1,0.08)
-                            scale: cvHov.hovered ? 1.04 : 1.0
+                            border.width: 1; border.color: (cvHov.hovered || (mediumRailFocus.activeFocus && mediumRailFocus.currentIndex === index)) ? theme.gold : Qt.rgba(1,1,1,0.08)
+                            scale: (cvHov.hovered || (mediumRailFocus.activeFocus && mediumRailFocus.currentIndex === index)) ? 1.04 : 1.0
                             Behavior on scale { NumberAnimation { duration: 130 } }
                             gradient: Gradient {
                                 GradientStop { position: 0.0; color: modelData.c1 || "#33445d" }
@@ -344,6 +371,20 @@ Item {
                                         } }
                         }
                     }
+                }
+            }
+            UniverseRailFocus {
+                id: mediumRailFocus
+                flick: mediumRail
+                repeater: mediumRepeater
+                count: mrow.items ? mrow.items.length : 0
+                itemGap: 16
+                accessibleName: mrow.title
+                onActivated: (index) => {
+                    const entry = mrow.items[index]
+                    if (!entry) return
+                    if (mrow.kind === "read") root.seriesRequested(entry.title)
+                    else if (mrow.kind === "watch") root.watchRequested(entry)
                 }
             }
         }

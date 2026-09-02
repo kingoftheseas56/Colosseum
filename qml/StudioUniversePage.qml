@@ -22,6 +22,21 @@ Item {
     signal watchRequested(var item)
 
     Theme { id: theme }
+
+    KeyboardScrollController {
+        id: pageKeyboardScroll
+        flick: page
+        arrowScrolling: false
+    }
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            root.backRequested()
+            event.accepted = true
+            return
+        }
+        if (!event.accepted)
+            pageKeyboardScroll.handle(event)
+    }
     property var uni: ({ name: "", blurb: "", banner: "", metaline: "",
                          films: [], firstWatch: null, firstWatchLabel: "" })
 
@@ -29,7 +44,7 @@ Item {
         if (!root.universeName.length) return      // never load a default universe
         Saga.loadStudio(root.universeName, function(u) { if (u) root.uni = u; })
     }
-    Component.onCompleted: reload()
+    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
     onUniverseNameChanged: reload()
 
     // ---- the screening-room dark ----
@@ -117,11 +132,11 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: !!root.uni.firstWatch
                         gradient: Gradient {
-                            GradientStop { position: 0; color: beginMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
-                            GradientStop { position: 1; color: beginMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
+                            GradientStop { position: 0; color: (beginMa.containsMouse || beginKey.activeFocus) ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
+                            GradientStop { position: 1; color: (beginMa.containsMouse || beginKey.activeFocus) ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
                         }
                         border.width: 1
-                        border.color: beginMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
+                        border.color: (beginMa.containsMouse || beginKey.activeFocus) ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
                         Behavior on border.color { ColorAnimation { duration: 160 } }
                         Row {
                             id: beginRow; anchors.centerIn: parent; spacing: 10
@@ -131,6 +146,14 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { text: "→"; color: theme.gold; font.pixelSize: 16
                                 anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        KeyboardAction {
+                            id: beginKey
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: beginBtn.visible
+                            accessibleName: root.uni.firstWatchLabel.length ? root.uni.firstWatchLabel : "Begin here"
+                            onTriggered: if (root.uni.firstWatch) root.watchRequested(root.uni.firstWatch)
                         }
                         MouseArea {
                             id: beginMa; anchors.fill: parent
@@ -154,9 +177,15 @@ Item {
                                anchors.baseline: parent.children[0].baseline }
                     }
                     Flow {
+                        id: filmFlow
+                        property int currentIndex: root.uni.films.length > 0 ? 0 : -1
+                        readonly property int keyboardColumns: Math.max(1, Math.floor((width + spacing) / (168 + spacing)))
+                        focusPolicy: root.uni.films.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: (event) => filmNav.handle(event)
                         width: parent.width
                         spacing: 20
                         Repeater {
+                            id: filmRepeater
                             model: root.uni.films
                             delegate: Item {
                                 id: film
@@ -168,7 +197,7 @@ Item {
                                     radius: 10; clip: true
                                     color: "#1b2420"
                                     border.width: 1
-                                    border.color: fMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                    border.color: (fMa.containsMouse || (filmFlow.activeFocus && filmFlow.currentIndex === film.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                                     : Qt.rgba(0.97,0.97,0.96,0.12)
                                     Image {
                                         anchors.fill: parent
@@ -219,6 +248,28 @@ Item {
                                 }
                             }
                         }
+                        KeyboardCollectionController {
+                            id: filmNav
+                            view: filmFlow
+                            count: root.uni.films.length
+                            orientation: "grid"
+                            columns: filmFlow.keyboardColumns
+                            positionIndexFn: function(index) {
+                                const item = filmRepeater.itemAt(index)
+                                if (!item) return
+                                const p = item.mapToItem(page.contentItem, 0, 0)
+                                const top = p.y
+                                const bottom = p.y + item.height
+                                const maxY = Math.max(0, page.contentHeight - page.height)
+                                if (top < page.contentY) page.contentY = Math.max(0, top)
+                                else if (bottom > page.contentY + page.height)
+                                    page.contentY = Math.min(maxY, bottom - page.height)
+                            }
+                            onActivated: (index) => {
+                                if (index >= 0 && index < root.uni.films.length)
+                                    root.watchRequested(root.uni.films[index])
+                            }
+                        }
                     }
                 }
 
@@ -236,42 +287,22 @@ Item {
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.minimizeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Minimize"
+            source: "../assets/icons/minimize.svg"
+            onTriggered: root.minimizeRequested()
         }
-        Item {
-            width: 22
-            height: 22
-            Image {
-                anchors.fill: parent
-                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg"
-                        : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22
-                sourceSize.height: 22
-                fillMode: Image.PreserveAspectFit
-                opacity: fsMa.containsMouse ? 1.0 : 0.72
-            }
-            MouseArea {
-                id: fsMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.fullscreenRequested()
-            }
+        UniverseChromeAction {
+            accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                            ? "Enter fullscreen" : "Exit fullscreen"
+            source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                    ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+            onTriggered: root.fullscreenRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.closeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Close Colosseum"
+            source: "../assets/icons/power.svg"
+            onTriggered: root.closeRequested()
         }
     }
 }

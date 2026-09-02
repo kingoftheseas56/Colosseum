@@ -30,6 +30,21 @@ Item {
     signal comicsArchiveRequested(var box)   // the comics door → the GC archive index
 
     Theme { id: theme }
+
+    KeyboardScrollController {
+        id: pageKeyboardScroll
+        flick: page
+        arrowScrolling: false
+    }
+    Keys.onPressed: (event) => {
+        if (event.key === Qt.Key_Escape) {
+            root.backRequested()
+            event.accepted = true
+            return
+        }
+        if (!event.accepted)
+            pageKeyboardScroll.handle(event)
+    }
     property var uni: ({ name: "", blurb: "", banner: "", metaline: "", books: [], films: [], shows: [],
                          comics: null })
 
@@ -49,7 +64,7 @@ Item {
         root.comicsBox = null
         Saga.loadSaga(root.universeName, function(u) { if (u) root.uni = u; })
     }
-    Component.onCompleted: reload()
+    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
     onUniverseNameChanged: reload()
 
     readonly property var firstBook: uni.books.length ? uni.books[0] : null
@@ -207,9 +222,14 @@ Item {
                             color: Qt.rgba(0.97, 0.97, 0.96, 0.14)
                         }
                         Row {
+                            id: bookRow
+                            property int currentIndex: root.uni.books.length > 0 ? 0 : -1
+                            focusPolicy: root.uni.books.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                            Keys.onPressed: (event) => bookNav.handle(event)
                             spacing: 22
                             anchors.bottom: parent.bottom; anchors.bottomMargin: 6
                             Repeater {
+                                id: bookRepeater
                                 model: root.uni.books
                                 delegate: Item {
                                     id: bookTile
@@ -221,7 +241,7 @@ Item {
                                         radius: 8; clip: true
                                         color: "#241c14"
                                         border.width: 1
-                                        border.color: bookMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                        border.color: (bookMa.containsMouse || (bookRow.activeFocus && bookRow.currentIndex === bookTile.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                                            : Qt.rgba(0.97,0.97,0.96,0.14)
                                         Image {
                                             anchors.fill: parent
@@ -273,6 +293,27 @@ Item {
                                     }
                                 }
                             }
+                            KeyboardCollectionController {
+                                id: bookNav
+                                view: bookRow
+                                count: root.uni.books.length
+                                orientation: "horizontal"
+                                positionIndexFn: function(index) {
+                                    const item = bookRepeater.itemAt(index)
+                                    if (!item) return
+                                    const p = item.mapToItem(page.contentItem, 0, 0)
+                                    const top = p.y
+                                    const bottom = p.y + item.height
+                                    const maxY = Math.max(0, page.contentHeight - page.height)
+                                    if (top < page.contentY) page.contentY = Math.max(0, top)
+                                    else if (bottom > page.contentY + page.height)
+                                        page.contentY = Math.min(maxY, bottom - page.height)
+                                }
+                                onActivated: (index) => {
+                                    if (index >= 0 && index < root.uni.books.length)
+                                        root.bookRequested(root.uni.books[index])
+                                }
+                            }
                         }
                     }
                 }
@@ -292,14 +333,14 @@ Item {
                     visible: !!root.uni.comics
                     color: "#241813"
                     border.width: 1
-                    border.color: sagaComicsMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                    border.color: (sagaComicsMa.containsMouse || sagaComicsKey.activeFocus) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                              : Qt.rgba(0.97,0.97,0.96,0.10)
                     Image {
                         anchors.fill: parent
                         source: root.uni.banner
                         asynchronous: true; cache: true
                         fillMode: Image.PreserveAspectCrop
-                        opacity: status === Image.Ready ? (sagaComicsMa.containsMouse ? 0.5 : 0.28) : 0
+                        opacity: status === Image.Ready ? ((sagaComicsMa.containsMouse || sagaComicsKey.activeFocus) ? 0.5 : 0.28) : 0
                         Behavior on opacity { NumberAnimation { duration: 220 } }
                     }
                     Rectangle {
@@ -332,6 +373,14 @@ Item {
                                font.pixelSize: 13; font.weight: Font.DemiBold }
                         Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
                     }
+                    KeyboardAction {
+                        id: sagaComicsKey
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        focusEnabled: parent.visible
+                        accessibleName: "Browse the comics archive"
+                        onTriggered: root.comicsArchiveRequested(root.comicsDoor())
+                    }
                     MouseArea {
                         id: sagaComicsMa
                         anchors.fill: parent
@@ -354,42 +403,22 @@ Item {
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.minimizeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Minimize"
+            source: "../assets/icons/minimize.svg"
+            onTriggered: root.minimizeRequested()
         }
-        Item {
-            width: 22
-            height: 22
-            Image {
-                anchors.fill: parent
-                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg"
-                        : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22
-                sourceSize.height: 22
-                fillMode: Image.PreserveAspectFit
-                opacity: fsMa.containsMouse ? 1.0 : 0.72
-            }
-            MouseArea {
-                id: fsMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.fullscreenRequested()
-            }
+        UniverseChromeAction {
+            accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                            ? "Enter fullscreen" : "Exit fullscreen"
+            source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                    ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+            onTriggered: root.fullscreenRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.closeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Close Colosseum"
+            source: "../assets/icons/power.svg"
+            onTriggered: root.closeRequested()
         }
     }
 
@@ -419,7 +448,7 @@ Item {
             source: half.artImage
             asynchronous: true; cache: true
             fillMode: Image.PreserveAspectCrop
-            opacity: status === Image.Ready ? (halfMa.containsMouse ? 0.65 : 0.45) : 0
+            opacity: status === Image.Ready ? ((halfMa.containsMouse || halfKey.activeFocus) ? 0.65 : 0.45) : 0
             Behavior on opacity { NumberAnimation { duration: 220 } }
         }
         Rectangle {
@@ -449,6 +478,14 @@ Item {
                 elide: Text.ElideRight
             }
         }
+        KeyboardAction {
+            id: halfKey
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: half.visible && half.enabled
+            accessibleName: half.label
+            onTriggered: half.activated()
+        }
         MouseArea {
             id: halfMa
             anchors.fill: parent
@@ -475,6 +512,7 @@ Item {
                    anchors.baseline: parent.children[0].baseline }
         }
         Flickable {
+            id: adaptationRail
             width: parent.width; height: 238
             contentWidth: rowContent.width; contentHeight: height
             clip: true
@@ -484,6 +522,7 @@ Item {
                 id: rowContent
                 spacing: 18
                 Repeater {
+                    id: adaptationRepeater
                     model: arow.items
                     delegate: Item {
                         id: wTile
@@ -495,7 +534,7 @@ Item {
                             radius: 8; clip: true
                             color: "#1a2030"
                             border.width: 1
-                            border.color: wMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                            border.color: (wMa.containsMouse || (adaptationRailFocus.activeFocus && adaptationRailFocus.currentIndex === wTile.index)) ? Qt.rgba(0.94,0.77,0.29,0.7)
                                                             : Qt.rgba(0.97,0.97,0.96,0.12)
                             Image {
                                 anchors.fill: parent
@@ -558,6 +597,18 @@ Item {
                             onClicked: root.watchRequested(wTile.modelData)
                         }
                     }
+                }
+            }
+            UniverseRailFocus {
+                id: adaptationRailFocus
+                flick: adaptationRail
+                repeater: adaptationRepeater
+                count: arow.items ? arow.items.length : 0
+                itemGap: 18
+                accessibleName: arow.title
+                onActivated: (index) => {
+                    if (index >= 0 && index < arow.items.length)
+                        root.watchRequested(arow.items[index])
                 }
             }
         }

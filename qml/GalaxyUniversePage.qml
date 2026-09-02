@@ -25,6 +25,16 @@ Item {
 
     Theme { id: theme }
 
+    KeyboardScrollController {
+        id: destinationKeyboardScroll
+        flick: destinationPage
+        arrowScrolling: true
+    }
+    Keys.onPressed: function(event) {
+        if (root.selectedDestinationId.length && !event.accepted)
+            destinationKeyboardScroll.handle(event)
+    }
+
     property bool reducedMotion: false
     readonly property var destinations: [
         { id:"high", name:"HIGH REPUBLIC", title:"High Republic", world:"VALO", env:"../assets/universes/star-wars/valo.jpg", orbit:170, angle:3.4915926536, speed:.000030, size:27, y:5, light:"#e8e4d8", mid:"#9d9a91", dark:"#242525", mark:"../assets/universes/star-wars/marks/high-republic.png", shelves:[ {ids:["high-republic-screen"],medium:"Theatre",note:"High Republic series"}, {ids:["high-republic-books","high-republic-ya"],medium:"Biblio",note:"Canon novels + young adult"}, {ids:["high-republic-comics"],medium:"Tankoban",note:"Collected comic lines"} ] },
@@ -99,7 +109,7 @@ Item {
             root.comicsArchiveRequested({ title: entry.title, posts: entry.posts, year: entry.year })
     }
 
-    Component.onCompleted: reload()
+    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
     onExtensionIdChanged: reload()
     Keys.onEscapePressed: function(event) {
         if (selectedDestinationId.length) closeDestination()
@@ -241,33 +251,22 @@ Item {
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.minimizeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Minimize"
+            source: "../assets/icons/minimize.svg"
+            onTriggered: root.minimizeRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image {
-                anchors.fill: parent
-                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
-                        ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: fsMa.containsMouse ? 1.0 : 0.72
-            }
-            MouseArea { id: fsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.fullscreenRequested() }
+        UniverseChromeAction {
+            accessibleName: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                            ? "Enter fullscreen" : "Exit fullscreen"
+            source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                    ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+            onTriggered: root.fullscreenRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: clMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: root.closeRequested() }
+        UniverseChromeAction {
+            accessibleName: "Close Colosseum"
+            source: "../assets/icons/power.svg"
+            onTriggered: root.closeRequested()
         }
     }
 }

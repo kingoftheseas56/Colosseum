@@ -18,7 +18,10 @@ Item {
     property var entry: ({})            // public API — left as-is; read through `e` below
     readonly property var e: tile.entry || ({})
     property string kind: "video"
-    property int order: 0               // NOT "index" — a delegate's own `index` would shadow it
+    property int order: 0               // NOT "index"
+    property bool focusManagedByCollection: false
+    property bool keyboardSelected: false
+    // NOT "index" — a delegate's own `index` would shadow it
                                          // under ComponentBehavior: Bound and freeze every tile at "1"
     signal activated()
 
@@ -61,7 +64,8 @@ Item {
         id: plate
         width: 150; height: 236; radius: 8
         color: "#12141a"
-        border.width: 1; border.color: theme.edge
+        border.width: (tileKey.activeFocus || tile.keyboardSelected) ? 2 : 1
+        border.color: (tileKey.activeFocus || tile.keyboardSelected) ? theme.gold : theme.edge
         clip: true
 
         Image {
@@ -111,6 +115,14 @@ Item {
             text: (tile.e.note || "").toUpperCase()
             color: theme.gold
             font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2
+        }
+        KeyboardAction {
+            id: tileKey
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: !tile.focusManagedByCollection && tile.visible && tile.enabled
+            accessibleName: tile.e.title || "Universe work"
+            onTriggered: tile.activated()
         }
         MouseArea {
             anchors.fill: parent
