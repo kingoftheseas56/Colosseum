@@ -1,13 +1,52 @@
 //! Daemon — the composition root. Owns HTTP, path discovery, and wiring.
 //! Domain logic lives in the `catalog` and `account` crates; this binary only
 //! maps their contracts onto routes.
+//!
+//! # Catalog endpoints (Phase A browse spine)
+//!
+//! All catalog routes read the local `catalog` store; there are no provider
+//! integrations yet (jikan/kitsu/anilist/metahub are a later daemon phase).
+//!
+//! ## GET /catalog/home
+//!
+//! Aggregate for the home screen. 200 `application/json`:
+//!
+//! ```json
+//! {
+//!   "continue_watching": [ { "id": 2, "title": "Demo Series Beta",
+//!     "source": "demo", "description": "…", "poster_color": "#64b5f6",
+//!     "added_at": "2026-01-02T00:00:00Z",
+//!     "last_watched_at": "2026-03-06T20:15:00Z",
+//!     "watch_position_secs": 720, "duration_secs": 1440,
+//!     "episode_count": 24 } ],
+//!   "trending": [ … newest-added first … ]
+//! }
+//! ```
+//!
+//! `continue_watching` holds every series with `watch_position_secs > 0`,
+//! most-recently-watched first; `trending` is the whole catalog ordered by
+//! `added_at` descending. Both are deterministic given the demo seed.
+//!
+//! ## GET /catalog/series/{id}
+//!
+//! Detail projection for one series. 200 `application/json`:
+//!
+//! ```json
+//! { "id": 7, "title": "Starlight Academy", "source": "demo",
+//!   "description": "Rival clubs chase the winter constellation cup.",
+//!   "poster_color": "#f06292", "added_at": "2026-02-01T00:00:00Z",
+//!   "episode_count": 12 }
+//! ```
+//!
+//! Unknown ids return 404 with the Go error envelope
+//! `{"error":{"code":"not_found","message":"No series with that id."}}`.
 
 mod paths;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::header;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -110,6 +149,8 @@ async fn main() {
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
         .route("/catalog/search", get(search_catalog))
+        .route("/catalog/home", get(catalog_home))
+        .route("/catalog/series/{id}", get(catalog_series))
         .route("/v1/accounts", post(create_account))
         .route("/v1/sessions", post(sign_in))
         .route("/v1/sessions/refresh", post(refresh_session))
@@ -147,6 +188,29 @@ async fn search_catalog(
     Query(query): Query<SearchQuery>,
 ) -> Json<Vec<catalog::Series>> {
     Json(state.catalog.search(&query.q))
+}
+
+async fn catalog_home(State(state): State<Arc<AppState>>) -> Json<catalog::Home> {
+    Json(state.catalog.home())
+}
+
+#[derive(Deserialize)]
+struct SeriesPath {
+    id: i64,
+}
+
+async fn catalog_series(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<SeriesPath>,
+) -> Response {
+    match state.catalog.series(path.id) {
+        Some(detail) => (StatusCode::OK, Json(detail)).into_response(),
+        None => write_api_error(
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "No series with that id.",
+        ),
+    }
 }
 
 async fn create_account(
