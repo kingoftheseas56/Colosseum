@@ -29,6 +29,8 @@ class VaultBrowseAwayTest final : public QObject
 
 private slots:
     void ownerRootPathResolvesNestedPathsAndShowSentinels();
+    void ownerRootPathPreservesAndroidContentUri();
+    void indexedBrowseAtProjectsAndroidContentTree();
     void ownerRootAwayFlipsWithMarkRootAwayAndReverts();
     void offlineBrowseAtServesGroupsWhenRootDirectoryIsGone();
     void offlineBrowseAtIsEmptyWithoutPriorPublishedRows();
@@ -77,6 +79,79 @@ void VaultBrowseAwayTest::ownerRootPathResolvesNestedPathsAndShowSentinels()
              QStringLiteral("C:/vault/root"));
     // A path outside every confirmed root resolves to nothing.
     QVERIFY(VaultBrowseAway::ownerRootPath(roots, QStringLiteral("D:/elsewhere")).isEmpty());
+}
+
+void VaultBrowseAwayTest::ownerRootPathPreservesAndroidContentUri()
+{
+    QVariantMap root;
+    root[QStringLiteral("path")] =
+        QStringLiteral("content://docs/tree/primary%3AMedia");
+    root[QStringLiteral("confirmed")] = true;
+    const QVariantList roots{root};
+
+    QCOMPARE(VaultBrowseAway::ownerRootPath(
+                 roots, QStringLiteral("content://docs/tree/primary%3AMedia/Dune")),
+             QStringLiteral("content://docs/tree/primary%3AMedia"));
+}
+
+void VaultBrowseAwayTest::indexedBrowseAtProjectsAndroidContentTree()
+{
+    QTemporaryDir vaultDir;
+    QVERIFY(vaultDir.isValid());
+    VaultIndex index(vaultDir.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+
+    const QString root = QStringLiteral("content://docs/tree/primary%3AMedia");
+    QVariantMap rootMap;
+    rootMap[QStringLiteral("path")] = root;
+    rootMap[QStringLiteral("confirmed")] = true;
+    const QVariantList roots{rootMap};
+
+    VaultIndex::FileRow episode = fileRow(
+        QStringLiteral("vault:e1"), root, root + QStringLiteral("/The Expanse"),
+        QStringLiteral("content://docs/document/video%3A101"));
+    episode.groupTitle = QStringLiteral("The Expanse");
+    episode.displayTitle = QStringLiteral("The Expanse S01E01");
+    episode.realName = QStringLiteral("The.Expanse.S01E01.mkv");
+    episode.subfolder = QStringLiteral("Season 01");
+    episode.size = 100;
+    episode.mtimeMs = 1000;
+
+    VaultIndex::FileRow film = fileRow(
+        QStringLiteral("vault:f1"), root, root + QStringLiteral("/Dune (2021)"),
+        QStringLiteral("content://docs/document/video%3A102"));
+    film.groupTitle = QStringLiteral("Dune");
+    film.displayTitle = QStringLiteral("Dune");
+    film.realName = QStringLiteral("Dune.2021.mkv");
+    film.size = 200;
+    film.mtimeMs = 2000;
+    QVERIFY(index.publish({episode, film}));
+
+    const QVariantList top = VaultBrowseAway::indexedBrowseAt(&index, roots, root);
+    QCOMPARE(top.size(), 2);
+    QCOMPARE(top.at(0).toMap().value(QStringLiteral("displayTitle")).toString(),
+             QStringLiteral("Dune"));
+    QCOMPARE(top.at(0).toMap().value(QStringLiteral("nodeType")).toString(),
+             QStringLiteral("film"));
+    QCOMPARE(top.at(0).toMap().value(QStringLiteral("path")).toString(), film.path);
+    QCOMPARE(top.at(1).toMap().value(QStringLiteral("nodeType")).toString(),
+             QStringLiteral("show"));
+
+    const QString showPath = root + QStringLiteral("/The Expanse");
+    const QVariantList show = VaultBrowseAway::indexedBrowseAt(&index, roots, showPath);
+    QCOMPARE(show.size(), 1);
+    QCOMPARE(show.first().toMap().value(QStringLiteral("nodeType")).toString(),
+             QStringLiteral("season"));
+    QCOMPARE(show.first().toMap().value(QStringLiteral("path")).toString(),
+             showPath + QStringLiteral("/Season 01"));
+
+    const QVariantList season = VaultBrowseAway::indexedBrowseAt(
+        &index, roots, showPath + QStringLiteral("/Season 01"));
+    QCOMPARE(season.size(), 1);
+    QCOMPARE(season.first().toMap().value(QStringLiteral("nodeType")).toString(),
+             QStringLiteral("episode"));
+    QCOMPARE(season.first().toMap().value(QStringLiteral("path")).toString(), episode.path);
+    QCOMPARE(season.first().toMap().value(QStringLiteral("id")).toString(), episode.id);
 }
 
 void VaultBrowseAwayTest::ownerRootAwayFlipsWithMarkRootAwayAndReverts()

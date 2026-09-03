@@ -14,6 +14,7 @@
 #include "VaultThumbnailer.h"
 #include "VaultPosterFetcher.h"
 #include "VaultArtworkResolver.h"
+#include "VaultLocation.h"
 
 #include <QCollator>
 #include <QDir>
@@ -29,11 +30,7 @@
 // Mirror VaultConfig::norm so an offered-root key matches the normalized path in roots().
 static QString normPath(const QString& p)
 {
-    QString n = QDir::cleanPath(p);
-#ifdef Q_OS_WIN
-    n = n.toLower();
-#endif
-    return n;
+    return VaultLocation::normalize(p);
 }
 
 // Browse-artwork execution plan, Slice 3 part 2: an Episode or Clip browse node's OWN `path` IS
@@ -205,12 +202,14 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
     // ── live shelves (Slice 15): the watcher owns the per-root QFileSystemWatcher + debounce; ──
     // VaultLibrary relays landings to the door (arrivalTick/liveArrival) and new-kind arrivals
     // to the one-slice confirmation card (S11 law). Watch the confirmed roots present at boot.
+#ifndef Q_OS_ANDROID
     m_watcher = new VaultWatcher(index, identity, config, this);
     connect(m_watcher, &VaultWatcher::landed, this, &VaultLibrary::onWatcherLanded);
     connect(m_watcher, &VaultWatcher::newKindArrival, this, &VaultLibrary::onWatcherNewKind);
     connect(m_watcher, &VaultWatcher::rootAvailabilityChanged, this,
             &VaultLibrary::onRootAvailabilityChanged);
     m_watcher->refresh();
+#endif
 }
 
 QVariantList VaultLibrary::identityCeremonies() const
@@ -570,6 +569,9 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
 {
     QVariantList out;
     const QVariantList roots = m_config ? m_config->roots() : QVariantList();
+    if (VaultLocation::isContentUri(rootOrPath))
+        return VaultBrowseAway::indexedBrowseAt(m_index, roots, rootOrPath, sort, filter);
+
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
     const QList<VaultKit::BrowseNode> nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore);
     const bool levelRootAway = VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath);
@@ -910,11 +912,15 @@ QVariantList VaultLibrary::rootsDetail() const
         const QString path = m.value(QStringLiteral("path")).toString();
         QVariantMap row;
         row.insert(QStringLiteral("path"), path);
-        const QString name = QFileInfo(path).fileName();
+        const QString name = VaultLocation::isContentUri(path)
+            ? QString() : QFileInfo(path).fileName();
         row.insert(QStringLiteral("name"), name.isEmpty() ? path : name);
-        row.insert(QStringLiteral("available"), QDir(path).exists());
         const QList<VaultIndex::FileRow> rootRows
             = m_index ? m_index->rowsForRoot(path) : QList<VaultIndex::FileRow>();
+        const bool available = VaultLocation::isContentUri(path)
+            ? (rootRows.isEmpty() || !rootRows.first().away)
+            : QDir(path).exists();
+        row.insert(QStringLiteral("available"), available);
         row.insert(QStringLiteral("fileCount"), rootRows.size());
         row.insert(QStringLiteral("itemCount"), browseAt(path).size());
         // Vault ux uplift S11 — per-root error facts, the "needs attention" affordance's data.

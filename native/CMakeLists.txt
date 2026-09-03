@@ -362,6 +362,11 @@ qt_add_executable(colosseum
     # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
     engine/VaultKit.cpp            # shared classifier / SxxExx grammar / walker (Slice 1)
     engine/VaultKit.h
+    engine/VaultLocation.h          # content:// identity-safe path normalization (Android)
+    engine/VaultAndroidIndexAdapter.cpp
+    engine/VaultAndroidIndexAdapter.h
+    engine/VaultAndroidStorageBridge.cpp
+    engine/VaultAndroidStorageBridge.h
     engine/VaultStoreIo.h          # header-only atomic save/load w/ .bak (Slice 2)
     engine/VaultIdentity.cpp       # content-addressed id — LocalLaunch::route keys progress to it (Slice 2)
     engine/VaultIdentity.h
