@@ -21,6 +21,3 @@ tokio.workspace = true
 reqwest.workspace = true
 serde_json.workspace = true
 librqbit.workspace = true
-
-[lints]
-workspace = true

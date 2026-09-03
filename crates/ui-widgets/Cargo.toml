@@ -5,6 +5,3 @@ edition.workspace = true
 
 [dependencies]
 gpui = "0.2"
-
-[lints]
-workspace = true
