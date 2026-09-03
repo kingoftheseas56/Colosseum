@@ -634,8 +634,9 @@ bool handleLegacy(const server::HttpRequest &request, server::HttpResponse respo
                                ? queryValue(request, QStringLiteral("from"))
                                : queryValue(request, QStringLiteral("subsUrl")));
 
-    AsyncMediaExecutor::run(request.cancellation,
-        [source, op, query, host, subtitleUrl, atMs, atSeconds, dependencies, serial]() mutable {
+    AsyncMediaExecutor::runCancellable(request.cancellation,
+        [source, op, query, host, subtitleUrl, atMs, atSeconds, dependencies, serial](
+            const std::atomic_bool *cancelled) mutable {
             std::lock_guard lock(*serial);
             Media::LegacyProbeResult probe;
             QString error;
@@ -669,19 +670,19 @@ bool handleLegacy(const server::HttpRequest &request, server::HttpResponse respo
                 const Media::ProcessInvocation invocation = Media::LegacyHls::segmentInvocation(
                     dependencies.executables, prepared, source, op.segment, op.value, op.stream);
                 return processResponse(invocation, Media::MediaProcess::run(
-                    invocation.program, invocation.arguments));
+                    invocation.program, invocation.arguments, 120000, cancelled));
             }
             case LegacyOperation::Dlna: {
                 const Media::ProcessInvocation invocation = Media::LegacyHls::dlnaInvocation(
                     dependencies.executables, prepared, source, atMs);
                 return processResponse(invocation, Media::MediaProcess::run(
-                    invocation.program, invocation.arguments));
+                    invocation.program, invocation.arguments, 120000, cancelled));
             }
             case LegacyOperation::Thumb: {
                 const Media::ProcessInvocation invocation = Media::LegacyHls::thumbnailInvocation(
                     dependencies.executables, source, atSeconds);
                 return processResponse(invocation, Media::MediaProcess::run(
-                    invocation.program, invocation.arguments));
+                    invocation.program, invocation.arguments, 120000, cancelled));
             }
             }
             return textResponse(500, QByteArrayLiteral("unsupported media route"));

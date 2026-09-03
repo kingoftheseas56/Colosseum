@@ -134,6 +134,21 @@ static void testErrorContract(TestState &t)
               "500 body preserves observable Express error text");
 }
 
+static void testProductionPlainHttpQuirk(TestState &t)
+{
+    QtProxyTransport transport;
+    ProxyService service(transport);
+    AppRequest request;
+    request.path = "/proxy/d=http%3A%2F%2F127.0.0.1%3A11580/range.bin";
+    const AppResponse response = service.handle(request);
+    t.equal(response.status, 500, "production proxy preserves plain-http 500 quirk");
+    t.equal(response.body.size(), qsizetype(148),
+            "production plain-http proxy body matches Express error shape");
+    t.equal(headerValue(response.headers, "content-type"),
+            QByteArray("text/html; charset=utf-8"),
+            "production plain-http proxy content type matches Express");
+}
+
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
@@ -142,5 +157,6 @@ int main(int argc, char **argv)
     testRelativeRedirectUsesOriginRoot(t);
     testPlaylistRewrite(t);
     testErrorContract(t);
+    testProductionPlainHttpQuirk(t);
     return finishTests(t, "proxy");
 }

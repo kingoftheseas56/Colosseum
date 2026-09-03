@@ -11,13 +11,31 @@ void AsyncMediaExecutor::run(
     const std::shared_ptr<server::CancellationToken> &cancellation,
     Work work, Completion completion)
 {
+    runCancellable(cancellation,
+        [work = std::move(work)](const std::atomic_bool *) mutable {
+            return work ? work() : app::AppResponse{};
+        }, std::move(completion));
+}
+
+void AsyncMediaExecutor::runCancellable(
+    const std::shared_ptr<server::CancellationToken> &cancellation,
+    CancellableWork work, Completion completion)
+{
+    auto cancelled = std::make_shared<std::atomic_bool>(false);
+    if (cancellation) {
+        cancellation->addCancelCallback([cancelled] {
+            cancelled->store(true, std::memory_order_release);
+        });
+    }
     QThreadPool::globalInstance()->start(
-        [cancellation, work = std::move(work), completion = std::move(completion)]() mutable {
-            if (cancellation && cancellation->isCancelled())
+        [cancellation, cancelled, work = std::move(work),
+         completion = std::move(completion)]() mutable {
+            if (cancelled->load(std::memory_order_acquire)
+                || (cancellation && cancellation->isCancelled()))
                 return;
             app::AppResponse result;
             try {
-                result = work ? work() : app::AppResponse{};
+                result = work ? work(cancelled.get()) : app::AppResponse{};
             } catch (const std::exception &error) {
                 result.status = 500;
                 result.headers = {{QByteArrayLiteral("Content-Type"),
@@ -29,7 +47,8 @@ void AsyncMediaExecutor::run(
                                    QByteArrayLiteral("text/plain")}};
                 result.body = QByteArrayLiteral("Internal Server Error");
             }
-            if (cancellation && cancellation->isCancelled())
+            if (cancelled->load(std::memory_order_acquire)
+                || (cancellation && cancellation->isCancelled()))
                 return;
             if (completion)
                 completion(std::move(result));

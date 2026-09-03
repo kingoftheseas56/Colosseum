@@ -10,6 +10,9 @@
 #include <QUrl>
 #include <QVector>
 
+#include <atomic>
+#include <functional>
+
 namespace ColosseumServer::Media {
 
 struct ProcessResult
@@ -26,7 +29,8 @@ class MediaProcess
 {
 public:
     static ProcessResult run(const QString &program, const QStringList &arguments,
-                             int timeoutMs = 120000);
+                             int timeoutMs = 120000,
+                             const std::atomic_bool *cancelled = nullptr);
 };
 struct Executables
 {

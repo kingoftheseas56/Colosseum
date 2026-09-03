@@ -1,5 +1,6 @@
 #include "core/ColosseumServer.h"
 #include "integration/FeatureRouteComposition.h"
+#include "media/MediaPipeline.h"
 
 #include <QCoreApplication>
 #include <QHostAddress>
@@ -7,8 +8,10 @@
 #include <QTcpSocket>
 
 #include <chrono>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
 
 using namespace colosseum::server;
 using namespace colosseum::server::integration;
@@ -120,6 +123,22 @@ QByteArray header(const QByteArray &wire, const QByteArray &name)
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+
+    std::atomic_bool cancelled{false};
+    std::thread canceller([&cancelled] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        cancelled.store(true, std::memory_order_release);
+    });
+    const auto cancelStart = std::chrono::steady_clock::now();
+    const Media::ProcessResult cancelledProcess = Media::MediaProcess::run(
+        QStringLiteral("C:/Windows/System32/cmd.exe"),
+        {QStringLiteral("/C"), QStringLiteral("ping 127.0.0.1 -n 10 > nul")},
+        10000, &cancelled);
+    canceller.join();
+    require(cancelledProcess.error == QStringLiteral("process cancelled"),
+            "media process cancellation must terminate the child process");
+    require(std::chrono::steady_clock::now() - cancelStart < std::chrono::seconds(5),
+            "media process cancellation must not wait for the full timeout");
 
     CertificateTransport certificateTransport;
     app::HttpsCertificateService certificates(certificateTransport, QString(), {});

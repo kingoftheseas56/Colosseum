@@ -94,7 +94,7 @@ void testNormalStoreMemoryLru()
     require(store.read(0) == QByteArray("ABCD"), "evicted memory piece remains available on disk");
 }
 
-void testCircularUncommittedProtection()
+void testCircularSourceCommittedEviction()
 {
     QTemporaryDir temp;
     QSet<int> have{0, 1};
@@ -105,11 +105,11 @@ void testCircularUncommittedProtection()
     CircularPieceStore store(temp.path(), crossFileLayout(), hooks,
                              CircularStoreOptions{CircularStoreType::Memory, 4});
     store.write(0, QByteArray("ABCD"), 10);
-    bool fullWasReported = false;
-    try { store.write(1, QByteArray("EFGH"), 20); }
-    catch (const std::runtime_error&) { fullWasReported = true; }
-    require(fullWasReported, "an uncommitted circular piece is never an eviction victim");
-    require(reset.isEmpty(), "uncommitted circular piece is not reset");
+    store.write(1, QByteArray("EFGH"), 20);
+    require(reset == QVector<int>{0},
+            "a freshly written circular piece is an eviction victim under module 847 truthiness");
+    require(store.read(1) == QByteArray("EFGH"),
+            "the replacement circular piece remains readable");
 }
 
 void testCircularStoreProtection()
@@ -323,7 +323,7 @@ int main()
 {
     testNormalStore();
     testNormalStoreMemoryLru();
-    testCircularUncommittedProtection();
+    testCircularSourceCommittedEviction();
     testCircularStoreProtection();
     testPeerDiscoveryPolicy();
     testSessionTimeoutsAndCap();

@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QProcess>
 #include <QProcessEnvironment>
@@ -29,7 +30,8 @@ QStringList pathCandidates(const QString &name)
 } // namespace
 ProcessResult MediaProcess::run(const QString &program,
                                 const QStringList &arguments,
-                                int timeoutMs)
+                                int timeoutMs,
+                                const std::atomic_bool *cancelled)
 {
     ProcessResult result;
     if (!executableExists(program)) {
@@ -47,8 +49,27 @@ ProcessResult MediaProcess::run(const QString &program,
         return result;
     }
 
-    if (!process.waitForFinished(timeoutMs)) {
-        result.timedOut = true;
+    QElapsedTimer elapsed;
+    elapsed.start();
+    bool cancelledByCaller = false;
+    bool finished = process.state() == QProcess::NotRunning;
+    while (!finished) {
+        if (cancelled && cancelled->load(std::memory_order_acquire)) {
+            cancelledByCaller = true;
+            break;
+        }
+        const qint64 remaining = qint64(timeoutMs) - elapsed.elapsed();
+        if (remaining <= 0)
+            break;
+        process.waitForFinished(static_cast<int>(qMin<qint64>(remaining, 50)));
+        finished = process.state() == QProcess::NotRunning;
+    }
+
+    if (cancelledByCaller || !finished) {
+        if (cancelledByCaller)
+            result.error = QStringLiteral("process cancelled");
+        else
+            result.timedOut = true;
 #ifdef Q_OS_WIN
         QProcess killer;
         killer.start(QStringLiteral("taskkill"),
@@ -64,7 +85,8 @@ ProcessResult MediaProcess::run(const QString &program,
     result.stdErr = process.readAllStandardError();
     result.exitCode = process.exitCode();
     result.crashed = process.exitStatus() == QProcess::CrashExit;
-    result.error = QStringLiteral("process timed out after %1 ms").arg(timeoutMs);
+    if (!cancelledByCaller)
+        result.error = QStringLiteral("process timed out after %1 ms").arg(timeoutMs);
     return result;
 }
 

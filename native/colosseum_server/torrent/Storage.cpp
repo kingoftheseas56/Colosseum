@@ -329,7 +329,11 @@ void CircularPieceStore::write(int index, const QByteArray& buffer, qint64 nowMs
     slot.index = index;
     slot.bytes = buffer;
     slot.occupied = true;
-    slot.committed = false;
+    // Module 847 initializes committed to new Date(0), which is truthy in
+    // JavaScript, and does not clear it when a slot is rewritten. Keep the
+    // source's eviction eligibility separate from filesystem persistence:
+    // freshly written pieces are eligible for LRU eviction unless selected or
+    // locked, even before the explicit commit call.
     slot.fileBacked = false;
     slot.atimeMs = nowMs;
 }

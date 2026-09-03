@@ -317,6 +317,12 @@ ProxyFetchResponse QtProxyTransport::fetch(const ProxyFetchRequest &request,
     if (cancelled && cancelled->load())
         return {.error = QStringLiteral("cancelled")};
 
+    // Stremio 4.20.17 always gives module 805 an https.Agent. Node's fetch
+    // path therefore rejects a plain-http destination; the resulting Express
+    // 500 is part of the frozen proxy-range contract.
+    if (request.url.scheme().compare(QStringLiteral("http"), Qt::CaseInsensitive) == 0)
+        return {.error = QStringLiteral("plain HTTP proxy destinations are unsupported")};
+
     QNetworkAccessManager manager;
     QNetworkRequest networkRequest(request.url);
     networkRequest.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
