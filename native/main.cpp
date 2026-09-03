@@ -559,7 +559,9 @@ int main(int argc, char *argv[]) {
               qUtf8Printable(appDataMigration.logPath));
     }
 
-    // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
+    // Shared QML binds to PlayerItem; desktop keeps MpvItem as the implementation.
+    // Android can register its native backend under the same neutral type name.
+    qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "PlayerItem");
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
 #ifdef COLOSSEUM_PLAYER2

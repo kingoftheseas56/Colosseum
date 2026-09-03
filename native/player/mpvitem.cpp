@@ -92,6 +92,23 @@ MpvItem::MpvItem(QQuickItem *parent)
     connect(&m_gifTimer, &QTimer::timeout, this, &MpvItem::gifCaptureFrame);
 }
 
+QVariantMap MpvItem::capabilities() const
+{
+    QVariantMap caps;
+    caps.insert(QStringLiteral("frameStepping"), true);
+    caps.insert(QStringLiteral("frameCapture"), true);
+    caps.insert(QStringLiteral("gifCapture"), true);
+    caps.insert(QStringLiteral("audioDelay"), true);
+    caps.insert(QStringLiteral("subtitleDelay"), true);
+    caps.insert(QStringLiteral("videoTransform"), true);
+    caps.insert(QStringLiteral("loudnessNormalization"), true);
+    caps.insert(QStringLiteral("playbackStats"), true);
+    caps.insert(QStringLiteral("subtitleStyling"), true);
+    caps.insert(QStringLiteral("audioOutputRefresh"), true);
+    caps.insert(QStringLiteral("pictureInPicture"), true);
+    return caps;
+}
+
 MpvItem::~MpvItem()
 {
     // App quitting mid-encode: our parented QProcess would otherwise be killed mid-write,
@@ -294,6 +311,19 @@ void MpvItem::loadFileWithHeaders(const QString &url, const QVariantMap &headers
     issueLoadFile(url);
 }
 
+void MpvItem::loadSource(const QString &url)
+{
+    loadFile(url);
+}
+
+void MpvItem::loadSource(const QString &url, const QVariantMap &headers)
+{
+    if (headers.isEmpty())
+        loadFile(url);
+    else
+        loadFileWithHeaders(url, headers);
+}
+
 void MpvItem::issueLoadFile(const QString &file)
 {
     auto url = QUrl::fromUserInput(file);
@@ -317,6 +347,52 @@ void MpvItem::issueLoadFile(const QString &file)
     command(QStringList() << QStringLiteral("loadfile")
                           << m_currentUrl.toString(QUrl::PreferLocalFile)
                           << QStringLiteral("replace"));
+}
+
+void MpvItem::stopPlayback()
+{
+    command(QStringList() << QStringLiteral("stop"));
+}
+
+void MpvItem::setHostLifecycleState(const QString &state)
+{
+    Q_UNUSED(state)
+}
+
+void MpvItem::setAudioFocusState(const QString &state)
+{
+    Q_UNUSED(state)
+}
+
+void MpvItem::releaseVideoSurface()
+{
+    // MpvQt owns the desktop QQuickItem surface lifecycle.
+}
+
+void MpvItem::restoreVideoSurface()
+{
+    // MpvQt owns the desktop QQuickItem surface lifecycle.
+}
+
+void MpvItem::applyPlaybackProfile()
+{
+    setProperty(QStringLiteral("scale"), QStringLiteral("bilinear"));
+    setProperty(QStringLiteral("cscale"), QStringLiteral("bilinear"));
+    setProperty(QStringLiteral("dscale"), QStringLiteral("bilinear"));
+    setProperty(QStringLiteral("dither"), QStringLiteral("no"));
+    setProperty(QStringLiteral("correct-downscaling"), QStringLiteral("no"));
+    setProperty(QStringLiteral("linear-downscaling"), QStringLiteral("no"));
+    setProperty(QStringLiteral("sigmoid-upscaling"), QStringLiteral("no"));
+    setProperty(QStringLiteral("hdr-compute-peak"), QStringLiteral("no"));
+}
+
+void MpvItem::refreshAudioOutput()
+{
+    const QString aid = audioTrack();
+    if (aid.isEmpty())
+        return;
+    setProperty(MpvProperties::self()->AudioId, QStringLiteral("no"));
+    setProperty(MpvProperties::self()->AudioId, aid);
 }
 
 void MpvItem::seekExact(double value)
@@ -381,6 +457,27 @@ void MpvItem::setAudioNormalization(const QString &mode)
     }
     // "off" / anything else -> empty -> no audio filter.
     setProperty(QStringLiteral("af"), af);
+}
+
+QVariant MpvItem::playbackStat(const QString &name)
+{
+    QString key;
+    if (name == QStringLiteral("videoBitrate")) key = QStringLiteral("video-bitrate");
+    else if (name == QStringLiteral("audioBitrate")) key = QStringLiteral("audio-bitrate");
+    else if (name == QStringLiteral("decoderDroppedFrames")) key = QStringLiteral("decoder-frame-drop-count");
+    else if (name == QStringLiteral("outputDroppedFrames")) key = QStringLiteral("frame-drop-count");
+    else if (name == QStringLiteral("estimatedFps")) key = QStringLiteral("estimated-vf-fps");
+    else if (name == QStringLiteral("containerFps")) key = QStringLiteral("container-fps");
+    else if (name == QStringLiteral("videoCodec")) key = QStringLiteral("video-codec");
+    else if (name == QStringLiteral("audioCodec")) key = QStringLiteral("audio-codec");
+    else if (name == QStringLiteral("hardwareDecoder")) key = QStringLiteral("hwdec-current");
+    else if (name == QStringLiteral("bufferingPercent")) key = QStringLiteral("cache-buffering-state");
+    else if (name == QStringLiteral("width")) key = QStringLiteral("width");
+    else if (name == QStringLiteral("height")) key = QStringLiteral("height");
+    else if (name == QStringLiteral("audioChannelCount")) key = QStringLiteral("audio-params/channel-count");
+    else if (name == QStringLiteral("videoTransfer")) key = QStringLiteral("video-params/transfer");
+    else return {};
+    return mpvProperty(key);
 }
 
 QVariant MpvItem::mpvProperty(const QString &name)
