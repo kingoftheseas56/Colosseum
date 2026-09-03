@@ -79,6 +79,7 @@ private:
         QHash<QByteArray, QByteArray> headers;
         bool started = false;
         bool streaming = false;
+        bool chunked = false;
         bool suppressBody = false;
         std::atomic_bool finished{false};
         std::function<void(int, const QHash<QByteArray, QByteArray> &, bool)> onHead;

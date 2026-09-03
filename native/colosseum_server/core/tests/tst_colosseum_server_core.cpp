@@ -105,6 +105,7 @@ private slots:
     void lifecycleRepeatedStartStop();
     void routeQueryJsonAndFormContract();
     void corsDlnaStreamingAndErrors();
+    void fixedLengthProgressiveBodyIsRaw();
     void cancellationTracksDisconnectedClient();
 };
 
@@ -286,6 +287,31 @@ void ColosseumServerCoreTest::cancellationTracksDisconnectedClient()
     QVERIFY(!observed->isCancelled());
     socket.abort();
     QTRY_VERIFY_WITH_TIMEOUT(observed->isCancelled(), 3000);
+
+    server.stop();
+}
+
+void ColosseumServerCoreTest::fixedLengthProgressiveBodyIsRaw()
+{
+    ColosseumServer server;
+    server.router().get("/fixed", [](HttpRequest &, HttpResponse response) {
+        response.setHeader("content-type", "application/octet-stream");
+        response.setHeader("content-length", "9");
+        response.write("alpha");
+        response.write("beta");
+        response.end();
+        return true;
+    });
+
+    QVERIFY2(server.start(0), qPrintable(server.lastError()));
+    const RawResponse fixed = parseResponse(exchange(
+        server.boundUrl(),
+        "GET /fixed HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"));
+
+    QCOMPARE(fixed.status, 200);
+    QCOMPARE(fixed.headers.value("content-length"), QByteArray("9"));
+    QVERIFY(!fixed.headers.contains("transfer-encoding"));
+    QCOMPARE(fixed.body, QByteArray("alphabeta"));
 
     server.stop();
 }

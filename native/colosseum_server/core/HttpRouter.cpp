@@ -287,6 +287,7 @@ bool HttpResponse::write(const QByteArray &data)
         return false;
 
     bool sendHead = false;
+    bool chunked = false;
     int status = 200;
     QHash<QByteArray, QByteArray> headers;
     std::function<void(int, const QHash<QByteArray, QByteArray> &, bool)> onHead;
@@ -296,17 +297,19 @@ bool HttpResponse::write(const QByteArray &data)
         if (!m_state->started) {
             m_state->started = true;
             m_state->streaming = true;
+            m_state->chunked = !m_state->headers.contains("content-length");
             sendHead = true;
         }
+        chunked = m_state->chunked;
         status = m_state->status;
         headers = m_state->headers;
         onHead = m_state->onHead;
         onData = m_state->onData;
     }
     if (sendHead && onHead)
-        onHead(status, headers, true);
+        onHead(status, headers, chunked);
     if (onData && !data.isEmpty())
-        onData(data, true);
+        onData(data, chunked);
     return true;
 }
 
@@ -316,7 +319,7 @@ void HttpResponse::end(const QByteArray &data)
         return;
 
     bool sendHead = false;
-    bool streaming = false;
+    bool chunked = false;
     int status = 200;
     QHash<QByteArray, QByteArray> headers;
     std::function<void(int, const QHash<QByteArray, QByteArray> &, bool)> onHead;
@@ -327,10 +330,11 @@ void HttpResponse::end(const QByteArray &data)
         if (!m_state->started) {
             m_state->started = true;
             sendHead = true;
+            m_state->chunked = false;
             if (!data.isEmpty() && !m_state->headers.contains("content-length"))
                 m_state->headers.insert("content-length", QByteArray::number(data.size()));
         }
-        streaming = m_state->streaming;
+        chunked = m_state->chunked;
         status = m_state->status;
         headers = m_state->headers;
         onHead = m_state->onHead;
@@ -339,11 +343,11 @@ void HttpResponse::end(const QByteArray &data)
     }
 
     if (sendHead && onHead)
-        onHead(status, headers, false);
+        onHead(status, headers, chunked);
     if (onData && !data.isEmpty())
-        onData(data, streaming);
+        onData(data, chunked);
     if (onEnd)
-        onEnd(streaming);
+        onEnd(chunked);
 }
 
 bool HttpResponse::isFinished() const
