@@ -207,6 +207,7 @@ Item {
                 delegate: Item {
                     id: res
                     required property var modelData
+                    required property int index
                     width: resList.width
                     height: resCol.implicitHeight + 20
 
@@ -214,7 +215,7 @@ Item {
                         anchors.fill: parent
                         anchors.leftMargin: 0
                         radius: 8
-                        color: (resList.activeFocus && resList.currentIndex === index) ? Theme.goldWash
+                        color: (resList.activeFocus && resList.currentIndex === res.index) ? Theme.goldWash
                                  : (resMa.containsMouse ? Theme.rowHover : "transparent")
                     }
                     Column {

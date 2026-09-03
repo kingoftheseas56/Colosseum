@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "SystemFocusContainment.js" as SystemFocusContainment
 
 Item {
     id: party
@@ -348,6 +349,27 @@ Item {
         Keys.onSpacePressed: party.toggleRequested(party.panelOpen)
     }
 
+    Shortcut {
+        sequence: "Tab"
+        enabled: party.panelOpen
+        onActivated: {
+            const windowObject = party.overlayParent
+                ? party.overlayParent.Window.window
+                : party.Window.window
+            SystemFocusContainment.move(windowObject, panelFocus, true)
+        }
+    }
+    Shortcut {
+        sequence: "Shift+Tab"
+        enabled: party.panelOpen
+        onActivated: {
+            const windowObject = party.overlayParent
+                ? party.overlayParent.Window.window
+                : party.Window.window
+            SystemFocusContainment.move(windowObject, panelFocus, false)
+        }
+    }
+
     // The atlas uses a deep, soft shadow behind the panel. Qt Quick's core primitives do not
     // provide a blur without pulling another effect module into Player 1, so Slice 01 keeps the
     // same depth cue as a restrained neutral shadow plate. It is presentation-only.
@@ -399,14 +421,41 @@ Item {
         onHeightChanged: party.positionPanel()
         onVisibleChanged: if (visible) {
             party.positionPanel()
-            panelFocus.forceActiveFocus()
+            Qt.callLater(function() {
+                if (party.panelOpen)
+                    closeControl.forceActiveFocus()
+            })
         }
 
         FocusScope {
             id: panelFocus
             objectName: "watchPartyPanelFocus"
             anchors.fill: parent
-            Keys.onEscapePressed: party.closeFromPanel()
+
+            KeyboardScrollController {
+                id: bodyKeyboardScroll
+                flick: bodyFlick
+            }
+
+            Keys.priority: Keys.AfterItem
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Escape) {
+                    party.closeFromPanel()
+                    event.accepted = true
+                    return
+                }
+                if (event.key === Qt.Key_Tab) {
+                    const forward = !(event.modifiers & Qt.ShiftModifier)
+                    const windowObject = party.overlayParent
+                        ? party.overlayParent.Window.window
+                        : party.Window.window
+                    if (SystemFocusContainment.move(windowObject, panelFocus, forward)) {
+                        event.accepted = true
+                        return
+                    }
+                }
+                bodyKeyboardScroll.handle(event)
+            }
 
             MouseArea {
                 anchors.fill: parent
@@ -460,7 +509,11 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 18
-                    color: closeMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.11) : "transparent"
+                    color: closeControl.activeFocus
+                        ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.12)
+                        : (closeMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.11) : "transparent")
+                    border.width: closeControl.activeFocus ? 1 : 0
+                    border.color: theme.gold
                 }
                 Text {
                     anchors.centerIn: parent
@@ -882,6 +935,7 @@ Item {
                             }
 
                             Rectangle {
+                                id: chatViewport
                                 objectName: "watchPartyChatViewport"
                                 width: parent.width
                                 height: Math.min(party.chatViewportMaxHeight,
@@ -889,6 +943,22 @@ Item {
                                 radius: 10
                                 color: Qt.rgba(1, 1, 1, 0.045)
                                 clip: true
+                                activeFocusOnTab: chatFlick.contentHeight > chatFlick.height + 1
+                                Accessible.role: Accessible.Pane
+                                Accessible.name: "Watch Party chat history"
+                                border.width: activeFocus ? 1 : 0
+                                border.color: theme.gold
+
+                                KeyboardScrollController {
+                                    id: chatKeyboardScroll
+                                    flick: chatFlick
+                                    lineStep: 36
+                                }
+
+                                Keys.priority: Keys.AfterItem
+                                Keys.onPressed: function(event) {
+                                    chatKeyboardScroll.handle(event)
+                                }
 
                                 Flickable {
                                     id: chatFlick

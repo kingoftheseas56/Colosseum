@@ -26,34 +26,15 @@ Item {
 
     Theme { id: theme }
 
-    // Every account screen hands the keyboard its first control when it appears. Without
-    // this the whole flow is mouse-only: the surface renders with nothing focused, so Enter
-    // and Space reach nothing and Tab has no origin to traverse from. The shell's own
-    // ignition item (shell.md Trap 13) deliberately does not reach across into a cover
-    // surface like this one, so each cover has to seed its own focus — and onboarding is
-    // the first thing a new install shows, which made it the first place the keyboard died.
-    //
-    // The search starts at panelColumn, the screen's own content, so it can never wander
-    // out into the shell chrome sitting behind the cover; the containment check makes that
-    // guarantee explicit rather than relying on the chain's ordering.
-    function takeKeyboardFocus() {
-        var first = panelColumn.nextItemInFocusChain(true)
-        if (!first || !root.containsItem(panelColumn, first))
-            return false
-        first.forceActiveFocus(Qt.TabFocusReason)
-        return true
+    KeyboardScrollController {
+        id: keyboardScroll
+        flick: scroller
     }
 
-    function containsItem(ancestor, item) {
-        for (var node = item; node; node = node.parent) {
-            if (node === ancestor)
-                return true
-        }
-        return false
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        keyboardScroll.handle(event)
     }
-
-    onVisibleChanged: if (root.visible) Qt.callLater(root.takeKeyboardFocus)
-    Component.onCompleted: if (root.visible) Qt.callLater(root.takeKeyboardFocus)
 
     Item {
         id: wallpaper

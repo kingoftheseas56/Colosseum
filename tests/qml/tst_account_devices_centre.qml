@@ -264,4 +264,30 @@ TestCase {
         verify(byName(page, "deviceRow_" + newerId).visible)
         verify(byName(page, "deviceRevokeConfirm_" + newerId).visible)
     }
+
+    function test_keyboard_escape_restores_the_same_device_action_focus() {
+        testWindow.requestActivate()
+        wait(20)
+        var scroller = byName(page, "devicesScrollRegion")
+        verify(scroller !== null)
+        verify(scroller.activeFocusOnTab)
+
+        var revoke = byName(page, "deviceRevoke_" + newerId)
+        verify(revoke !== null)
+        revoke.forceActiveFocus()
+        wait(0)
+        verify(revoke.activeFocus)
+        compare(page.keyboardFocusedDeviceId, newerId)
+
+        page.openRevoke(newerId)
+        wait(0)
+        verify(byName(page, "deviceConfirm_" + newerId).visible)
+
+        keyClick(Qt.Key_Escape)
+        wait(0)
+        wait(0)
+
+        compare(page.revokeTargetId, "")
+        verify(revoke.activeFocus)
+    }
 }

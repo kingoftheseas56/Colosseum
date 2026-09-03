@@ -38,6 +38,16 @@ Item {
 
     Theme { id: theme }
 
+    KeyboardScrollController {
+        id: keyboardScroll
+        flick: scroller
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        keyboardScroll.handle(event)
+    }
+
     function modelLength(model) {
         if (!model)
             return 0
