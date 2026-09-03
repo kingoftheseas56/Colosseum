@@ -41,8 +41,13 @@ else()
     message(STATUS "Compiler cache: disabled by COLOSSEUM_NO_COMPILER_CACHE=ON")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
+if(NOT ANDROID)
+    # Desktop Reader 2 still uses Foliate/Qt WebEngine; Android deliberately has no WebEngine product path.
+    find_package(Qt6 REQUIRED COMPONENTS WebEngineQuick WebChannel)
+endif()
 
+if(NOT ANDROID)
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
 # Toolchain-aware: MSVC (Qt WebEngine path, homeward-foundry) consumes the msvc
@@ -90,6 +95,8 @@ endif()
 # Colosseum adaptation (justified): missing libtorrent is FATAL here, not a
 # soft-disable — Colosseum has no stub lane; the engine is a commissioned organ
 # (spec 2026-07-13) and a silent stub would violate source-honesty doctrine.
+endif()
+
 add_library(colosseum_libtorrent INTERFACE)
 find_package(LibtorrentRasterbar CONFIG QUIET)
 find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
@@ -140,6 +147,10 @@ elseif(WIN32)
     else()
         message(FATAL_ERROR "libtorrent NOT found (find_package or C:/tools/libtorrent-2.0-msvc) — the tankorent engine requires it. See TB2 CMakeLists TANKORENT_DOWNLOAD_FLOW_FIX comment.")
     endif()
+elseif(ANDROID)
+    message(FATAL_ERROR
+        "libtorrent + Boost + OpenSSL NOT found for Android. Provide Android-ABI CMake packages "
+        "through CMAKE_PREFIX_PATH; Colosseum keeps TorrentEngine and the Aqueduct-ready core in the Android build.")
 else()
     # Linux: no C:/tools fallback exists off Windows. apt's libtorrent-rasterbar-dev/
     # libboost-all-dev/libssl-dev should satisfy find_package above; a failure here is a
@@ -147,6 +158,7 @@ else()
     message(FATAL_ERROR "libtorrent + Boost + OpenSSL NOT found via find_package on this platform — install libtorrent-rasterbar-dev, libboost-all-dev and libssl-dev (see guides/WSL-FIRST-BUILD.md).")
 endif()
 
+if(NOT ANDROID)
 add_library(colosseum_update_crypto INTERFACE)
 if(TARGET OpenSSL::Crypto)
     target_link_libraries(colosseum_update_crypto INTERFACE OpenSSL::Crypto)
@@ -159,7 +171,9 @@ else()
     message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
 endif()
 
-add_executable(colosseum
+endif()
+
+qt_add_executable(colosseum
     main.cpp
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
     account/AccountBootstrapStore.cpp
@@ -202,8 +216,6 @@ add_executable(colosseum
     account/SyncStateStore.cpp
     account/TankobanReaderPreferencesCodec.cpp
     account/TankobanReaderPreferencesSyncAdapter.cpp
-    account/WindowsAccountCredentialStore.cpp
-    account/WindowsAccountSensitiveClipboard.cpp
     account/AccountBootstrapStore.h
     account/AccountClient.h
     account/AccountController.h
@@ -249,30 +261,7 @@ add_executable(colosseum
     account/TankobanReaderPreferencesCodec.h
     account/TankobanReaderPreferencesOwner.h
     account/TankobanReaderPreferencesSyncAdapter.h
-    account/WindowsAccountCredentialStore.h
-    account/WindowsAccountSensitiveClipboard.h
-    update/UpdateVersion.cpp
-    update/UpdateVersion.h
-    update/UpdateManifest.cpp
-    update/UpdateManifest.h
-    update/UpdateTrust.cpp
-    update/UpdateTrust.h
-    update/UpdatePublicKey.h
-    update/UpdateTestPublicKey.h
-    update/InstalledChronicle.cpp
-    update/InstalledChronicle.h
-    update/UpdateCache.cpp
-    update/UpdateCache.h
-    update/UpdateDownload.cpp
-    update/UpdateDownload.h
-    update/UpdateReleaseClient.cpp
-    update/UpdateReleaseClient.h
-    update/UpdateService.cpp
-    update/UpdateService.h
-    update/UpdateInstallBridge.cpp
-    update/UpdateInstallBridge.h
     app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
-    installed_chronicle.qrc  # bundled installed-release chronicle (signed manifest + artwork)
     ClipboardHelper.h
     GuiStallProbe.h           # Q_OBJECT QML-facing diagnostic context bridge
     MangaEngine.h
@@ -401,8 +390,6 @@ add_executable(colosseum
     engine/VaultBookStateMigrator.h
     engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
     engine/VaultForensics.h
-    player/MediaAdmissionProbe.cpp # decoded-frame video admission gate, raw libmpv (Slice 6)
-    player/MediaAdmissionProbe.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
@@ -420,19 +407,8 @@ add_executable(colosseum
     player/caststore.h
     player/downloadstore.cpp
     player/downloadstore.h
-    player/livestore.cpp
-    player/livestore.h
-    player/mpvitem.cpp
-    player/mpvitem.h
-    player/seekthumbnailer.cpp
-    player/seekthumbnailer.h
-    player/mpvproperties.h
-    player/powerstore.cpp
-    player/powerstore.h
     player/roomstore.cpp
     player/roomstore.h
-    player/streamserver.cpp
-    player/streamserver.h
     player/windowmodestore.cpp
     player/windowmodestore.h
     player/windowstatepolicy.cpp
@@ -609,14 +585,61 @@ add_executable(colosseum
     engine/BiblioCatalog.cpp
     engine/BiblioCatalog.h
 )
+
+if(NOT ANDROID)
+    # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
+    target_sources(colosseum PRIVATE
+        account/WindowsAccountCredentialStore.cpp
+        account/WindowsAccountSensitiveClipboard.cpp
+        account/WindowsAccountCredentialStore.h
+        account/WindowsAccountSensitiveClipboard.h
+        update/UpdateVersion.cpp
+        update/UpdateVersion.h
+        update/UpdateManifest.cpp
+        update/UpdateManifest.h
+        update/UpdateTrust.cpp
+        update/UpdateTrust.h
+        update/UpdatePublicKey.h
+        update/UpdateTestPublicKey.h
+        update/InstalledChronicle.cpp
+        update/InstalledChronicle.h
+        update/UpdateCache.cpp
+        update/UpdateCache.h
+        update/UpdateDownload.cpp
+        update/UpdateDownload.h
+        update/UpdateReleaseClient.cpp
+        update/UpdateReleaseClient.h
+        update/UpdateService.cpp
+        update/UpdateService.h
+        update/UpdateInstallBridge.cpp
+        update/UpdateInstallBridge.h
+        installed_chronicle.qrc
+        player/MediaAdmissionProbe.cpp
+        player/MediaAdmissionProbe.h
+        player/livestore.cpp
+        player/livestore.h
+        player/mpvitem.cpp
+        player/mpvitem.h
+        player/seekthumbnailer.cpp
+        player/seekthumbnailer.h
+        player/mpvproperties.h
+        player/powerstore.cpp
+        player/powerstore.h
+        player/streamserver.cpp
+        player/streamserver.h
+    )
+endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")
 qt_add_resources(colosseum "tankoyomi_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})
-target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
-    ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
+target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
+if(NOT ANDROID)
+    # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API only on desktop.
+    target_include_directories(colosseum PRIVATE ${Libmpv_INCLUDE_DIRS})
+endif()
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
@@ -645,10 +668,17 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
         COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
-target_link_libraries(colosseum PRIVATE colosseum_update_crypto
-    Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
-    Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
-    ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
+target_link_libraries(colosseum PRIVATE
+    Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent
+    Qt6::WebSockets colosseum_libtorrent
+)
+if(NOT ANDROID)
+    target_link_libraries(colosseum PRIVATE
+        colosseum_update_crypto MpvQt::MpvQt
+        Qt6::WebEngineQuick Qt6::WebChannel
+        ${Libmpv_LIBRARIES}
+    )
+endif()
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose
 # fingerprint differs; explicit dev/test QML overrides bypass this production gate.
@@ -667,6 +697,8 @@ if(WIN32)
 endif()
 
 
+if(NOT ANDROID)
+# Desktop-only harness and Player 2 estate: none of this is configured for Android.
 add_executable(tankoyomi_provider_registry_harness
     ../tests/tankoyomi_provider_registry_harness.cpp
     engine/TankoyomiProviderRegistry.cpp
@@ -2274,3 +2306,4 @@ if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")
 endif()
+endif() # NOT ANDROID: desktop harness/test estate
