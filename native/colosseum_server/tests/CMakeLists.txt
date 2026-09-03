@@ -27,3 +27,8 @@ add_executable(libtorrent_block_transport_test
     libtorrent_block_transport_test.cpp)
 target_link_libraries(libtorrent_block_transport_test PRIVATE colosseum_server_native)
 add_test(NAME libtorrent_block_transport_test COMMAND libtorrent_block_transport_test)
+
+add_executable(torrent_piece_source_test
+    torrent_piece_source_test.cpp)
+target_link_libraries(torrent_piece_source_test PRIVATE colosseum_server_native)
+add_test(NAME torrent_piece_source_test COMMAND torrent_piece_source_test)

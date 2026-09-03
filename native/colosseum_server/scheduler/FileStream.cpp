@@ -117,10 +117,17 @@ void FileStream::scheduleRead(const std::size_t piece)
     inFlightPieces_.push_back(piece);
     ++inFlight_;
     const std::weak_ptr<int> weak = lifetime_;
-    store_.readPiece(piece, [weak, this, piece](std::error_code error,
-                                               std::vector<std::byte> data) {
+    const auto readToken = store_.readPiece(piece, [weak, this, piece](std::error_code error,
+                                                                       std::vector<std::byte> data) {
         if (weak.expired()) {
             return;
+        }
+        for (auto it = readTokens_.begin(); it != readTokens_.end();) {
+            if (it->second == piece) {
+                it = readTokens_.erase(it);
+            } else {
+                ++it;
+            }
         }
         scheduler_.unlockPiece(piece);
         const auto found = std::find(inFlightPieces_.begin(),
@@ -141,6 +148,11 @@ void FileStream::scheduleRead(const std::size_t piece)
             pump();
         }
     });
+    if (readToken != 0 && !destroyed_ &&
+        std::find(inFlightPieces_.begin(), inFlightPieces_.end(), piece)
+            != inFlightPieces_.end()) {
+        readTokens_[readToken] = piece;
+    }
 }
 
 void FileStream::updateMovingWindow()
@@ -223,6 +235,11 @@ void FileStream::destroy()
     destroyed_ = true;
     waiting_ = false;
     lifetime_.reset();
+    for (const auto &[token, piece] : readTokens_) {
+        (void)piece;
+        store_.cancelRead(token);
+    }
+    readTokens_.clear();
     for (const auto piece : inFlightPieces_) {
         scheduler_.unlockPiece(piece);
     }

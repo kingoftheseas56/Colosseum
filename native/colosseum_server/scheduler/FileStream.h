@@ -3,6 +3,7 @@
 #include "SchedulerSpine.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -14,11 +15,13 @@ namespace colosseum::server::scheduler {
 
 class IFilePieceStore {
 public:
+    using ReadToken = std::uint64_t;
     using ReadCallback = std::function<void(std::error_code,
                                             std::vector<std::byte>)>;
 
     virtual ~IFilePieceStore() = default;
-    virtual void readPiece(std::size_t piece, ReadCallback callback) = 0;
+    virtual ReadToken readPiece(std::size_t piece, ReadCallback callback) = 0;
+    virtual void cancelRead(ReadToken token) = 0;
 };
 
 struct FileSpan final {
@@ -113,6 +116,7 @@ private:
     SelectionHandle selection_;
     std::vector<SelectionHandle> recoverySelections_;
     std::vector<std::size_t> inFlightPieces_;
+    std::map<IFilePieceStore::ReadToken, std::size_t> readTokens_;
     std::map<std::size_t, std::vector<std::byte>> pendingPieces_;
     ChunkObserver chunkObserver_;
     ErrorObserver errorObserver_;

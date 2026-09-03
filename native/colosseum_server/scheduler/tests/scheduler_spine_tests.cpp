@@ -22,13 +22,23 @@ void require(bool condition, const std::string &message)
 class FakePieceStore final : public IFilePieceStore {
 public:
     struct Pending final {
+        ReadToken token = 0;
         std::size_t piece = 0;
         ReadCallback callback;
     };
 
-    void readPiece(const std::size_t piece, ReadCallback callback) override
+    ReadToken readPiece(const std::size_t piece, ReadCallback callback) override
     {
-        pending.push_back({piece, std::move(callback)});
+        const auto token = nextToken++;
+        pending.push_back({token, piece, std::move(callback)});
+        return token;
+    }
+
+    void cancelRead(const ReadToken token) override
+    {
+        pending.erase(std::remove_if(pending.begin(), pending.end(),
+            [token](const Pending &request) { return request.token == token; }),
+            pending.end());
     }
 
     [[nodiscard]] std::size_t pendingCount() const noexcept
@@ -47,6 +57,7 @@ public:
     }
 
     std::vector<Pending> pending;
+    ReadToken nextToken = 1;
 };
 
 std::vector<std::byte> bytes(const std::string &text)
