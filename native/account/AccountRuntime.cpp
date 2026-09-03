@@ -91,6 +91,21 @@ AccountRuntime::AccountRuntime(QObject *parent)
             storesAboutToChange,
         this,
         [this]() {
+            // Store replacement is a sync boundary. Preserve the current
+            // profile's outbox while its adapters still point at the old
+            // stores; otherwise the engine stays active after the registry is
+            // emptied and the next account profile is never reconciled.
+            if (m_syncEngine.active()) {
+                QString error;
+                if (!m_syncEngine.stopPreservingOutbox(
+                        &error)) {
+                    m_controller.setSyncObservation(
+                        AccountController::
+                            SyncState::Blocked,
+                        m_syncEngine
+                            .pendingOutboxCount());
+                }
+            }
             clearCoreSyncAdapters();
         });
 
