@@ -6,3 +6,6 @@ edition.workspace = true
 [dependencies]
 rusqlite.workspace = true
 serde.workspace = true
+
+[lints]
+workspace = true

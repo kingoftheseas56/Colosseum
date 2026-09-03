@@ -20,3 +20,6 @@ addons = { path = "../addons" }
 [dev-dependencies]
 serde_json.workspace = true
 tempfile = "3"
+
+[lints]
+workspace = true

@@ -21,3 +21,6 @@ ui-widgets = { path = "../ui-widgets" }
 [package.metadata.bundle]
 name = "Colosseum"
 identifier = "io.Brotherhood.Colosseum"
+
+[lints]
+workspace = true
