@@ -35,9 +35,18 @@ Glass {
         id: f
         property var books: []
         readonly property int count: Math.min(5, books.length)
+        property int currentIndex: count > 0 ? 0 : -1
         signal activated(int index)
 
         width: 560; height: shelf.coverH + 72
+        focusPolicy: count > 0 ? Qt.TabFocus : Qt.NoFocus
+        onCountChanged: currentIndex = count > 0 ? Math.min(Math.max(0, currentIndex), count - 1) : -1
+        Keys.onPressed: (event) => fanKeys.handle(event)
+
+        KeyboardCollectionController {
+            id: fanKeys; view: f; orientation: "horizontal"; count: f.count
+            onActivated: (index) => f.activated(index)
+        }
 
         // the fan opens a little wider on hover (a spread hand)
         HoverHandler { id: fh }
@@ -114,9 +123,11 @@ Glass {
                 // resting inset edge: 1px white 8%; becomes 2px soft gold on hover (the shared gallery edge).
                 Rectangle {
                     anchors.fill: parent; radius: shelf._coverRadius; color: "transparent"
-                    border.width: cma.containsMouse ? 2 : 1
-                    border.color: cma.containsMouse ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
-                                                    : Qt.rgba(1, 1, 1, 0.08)
+                    readonly property bool keyboardSelected: f.activeFocus && f.currentIndex === card.index
+                    border.width: cma.containsMouse || keyboardSelected ? 2 : 1
+                    border.color: cma.containsMouse || keyboardSelected
+                                  ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.72)
+                                  : Qt.rgba(1, 1, 1, 0.08)
                     Behavior on border.color { ColorAnimation { duration: 220 } }
                 }
 
@@ -137,6 +148,13 @@ Glass {
         MouseArea {
             anchors.fill: parent; anchors.margins: -12
             cursorShape: Qt.PointingHandCursor; onClicked: shelf.clicked()
+        }
+        KeyboardAction {
+            anchors.fill: parent; anchors.margins: -12
+            pointerEnabled: false
+            accessibleName: "Open " + shelf.heading
+            focusRadius: 8
+            onTriggered: shelf.clicked()
         }
     }
     // ---- half labels in the outer corners ----

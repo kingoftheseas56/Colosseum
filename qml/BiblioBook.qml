@@ -44,6 +44,8 @@ Item {
     property string readError: ""
     property bool readChoiceOpen: false
     property var readChoiceRows: []
+    property int readChoiceIndex: 0
+    property Item readChoiceReturn: null
     property int sourceGeneration: 0
     readonly property bool pendingReadActive: detail.pendingReadTransport.length > 0
 
@@ -66,6 +68,8 @@ Item {
     property bool audioLocal: false                     // recomputed in loadEditions + on Audiobooks.finished
 
     Theme { id: theme }
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => { if (!event.accepted) biblioBookScrollKeys.handle(event) }
     MouseArea { anchors.fill: parent }                 // swallow clicks to the world beneath
     // SOLID page (doctrine: books = page solid, frame OS) — a calm dark reading ground so the busy
     // world page never bleeds through and the long-form text stays legible.
@@ -350,8 +354,16 @@ Item {
         detail.pendingReadTransport = "choice"
         detail.pendingReadAcquisitionId = ""
         detail.pendingReadState = "choice"
+        detail.readChoiceIndex = 0
+        detail.readChoiceReturn = primaryReadKeyboard
         detail.readChoiceOpen = true
+        Qt.callLater(function() { readChoiceFocus.forceActiveFocus(Qt.PopupFocusReason) })
         return true
+    }
+    function restoreReadChoiceFocus() {
+        var target = detail.readChoiceReturn
+        detail.readChoiceReturn = null
+        if (target) Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
     function _targetReadCandidate(candidate, gen) {
         if (!candidate || !candidate.id || !detail._readIntentCurrent(gen)) return false
@@ -392,10 +404,12 @@ Item {
         var gen = detail.pendingReadGeneration
         if (detail.pendingReadTransport !== "choice" || !detail._readIntentCurrent(gen)) return
         detail._targetReadCandidate(candidate, gen)
+        detail.restoreReadChoiceFocus()
     }
     function cancelReadChoice() {
         detail._invalidateReadIntent()
         detail.readError = ""
+        detail.restoreReadChoiceFocus()
     }
     function _finishRead(transport, id, gen) {
         if (!detail._readIntentCurrent(gen)
@@ -510,6 +524,40 @@ Item {
         detail.clearExistingCopies()
         detail.collectBook()
         detail.bookTorrentsRef.download(hash, detail.book.title || "", detail.book.author || "")
+    }
+    function ensureBookItemVisible(item) {
+        if (!item || !page) return
+        var p=item.mapToItem(page.contentItem,0,0)
+        if (p.y < page.contentY + 12) page.contentY=Math.max(0,p.y-12)
+        else if (p.y+item.height > page.contentY+page.height-12)
+            page.contentY=Math.min(Math.max(0,page.contentHeight-page.height),p.y+item.height-page.height+12)
+    }
+    function activateTorrentRow(row) {
+        if (!row) return
+        var st=detail._status(detail.bookTorrentsRef,String(row.infoHash||"").toLowerCase())
+        if (String(st.state||"") === "done" || detail._inFlight(String(st.state||""))) return
+        detail.downloadTorrent(row)
+    }
+    function activateEditionRow(row) {
+        if (!row) return
+        var st=detail._status(detail.booksRef,String(row.md5||""))
+        if (String(st.state||"") === "done" || detail._inFlight(String(st.state||""))) return
+        detail.downloadEdition(row)
+    }
+    function activateAudiobookRow(row) {
+        if (!row) return
+        var rowState = row.slug === abCol.abActiveSlug ? abCol.abState : "idle"
+        if (rowState === "done") { if (detail.localPath) detail.readRequested(detail.localPath, detail.book); return }
+        if (abCol.abState === "downloading" || abCol.abState === "resolving") return
+        if (typeof Audiobooks === 'undefined') return
+        abCol.abActiveSlug = row.slug; abCol.abState = "resolving"
+        Abb.fetchInfoHash(row.slug, function(d) {
+            if (!d || !d.infoHash) { abCol.abState = "failed"; return }
+            detail.abInfoHash = d.infoHash
+            var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined') ? Reader2Bridge.bookKey(detail.localPath) : ""
+            Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash, detail.book.title || "", detail.book.author || "", bookId, detail.localPath || "")
+            if (detail.collectionRef) detail.collectionRef.add("biblio", detail.collectionEntry())
+        })
     }
 
     // "Do I have a readable copy?" remains one book-level question across BOTH transports.
@@ -649,6 +697,15 @@ Item {
                             else if (modelData.a === "pow") detail.closeRequested()
                         }
                     }
+                    KeyboardAction {
+                        anchors.fill: parent; pointerEnabled: false; focusRadius: parent.radius
+                        accessibleName: modelData.a === "min" ? "Minimize" : (modelData.a === "fs" ? "Toggle fullscreen" : "Close")
+                        onTriggered: {
+                            if (modelData.a === "min") detail.minimizeRequested()
+                            else if (modelData.a === "fs") detail.fullscreenRequested()
+                            else detail.closeRequested()
+                        }
+                    }
                 }
             }
         }
@@ -744,6 +801,11 @@ Item {
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: detail.readBook()
                         }
+                        KeyboardAction {
+                            id: primaryReadKeyboard; anchors.fill: parent; pointerEnabled: false
+                            focusEnabled: primaryCta.enabled; accessibleName: detail.primaryReadLabel()
+                            focusRadius: primaryCta.radius; onTriggered: detail.readBook()
+                        }
                     }
                     Text {
                         objectName: "biblioPrimaryReadStatus"
@@ -828,10 +890,20 @@ Item {
                 }
                 Item { width: 1; height: 12; visible: typeof BookTorrents !== 'undefined' }
                 Glass {
+                    id: torrentList
                     visible: typeof BookTorrents !== 'undefined'
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: torCol.implicitHeight
+                    property int currentIndex: detail.torrents.length > 0 ? 0 : -1
+                    focusPolicy: detail.torrents.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => torrentKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: torrentKeys; view: torrentList; orientation: "vertical"
+                        count: detail.torExpanded ? detail.torrents.length : Math.min(detail.torCap, detail.torrents.length)
+                        positionIndexFn: function(index) { var it=torrentRepeater.itemAt(index); if(it) detail.ensureBookItemVisible(it) }
+                        onActivated: (index) => detail.activateTorrentRow(detail.torrents[index])
+                    }
                     Column {
                         id: torCol
                         width: parent.width
@@ -846,6 +918,7 @@ Item {
                             }
                         }
                         Repeater {
+                            id: torrentRepeater
                             // collapsed to the top torCap matches; "See more" reveals the rest
                             model: detail.torExpanded ? detail.torrents : detail.torrents.slice(0, detail.torCap)
                             delegate: Item {
@@ -869,8 +942,10 @@ Item {
                                     function onRemoved(h) { if (h === torRow.modelData.infoHash) { torRow.dlState = "idle"; torRow.dlPct = 0 } }
                                 }
                                 // Top row = the recommended pick (best title-match × seeders) — subtly lit; the rest stay one tap away.
-                                Rectangle { anchors.fill: parent; color: torMa.containsMouse ? Qt.rgba(1,1,1,0.06)
-                                    : (index === 0 ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent") }
+                                Rectangle { anchors.fill: parent; color: torrentList.activeFocus && torrentList.currentIndex === index
+                                    ? Qt.rgba(0.94,0.77,0.29,0.11)
+                                    : (torMa.containsMouse ? Qt.rgba(1,1,1,0.06)
+                                    : (index === 0 ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent")) }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 // No format pill on torrents: a torrent is an opaque bundle,
                                 // so any format tag is a title-guess (often wrong) — and after
@@ -909,9 +984,9 @@ Item {
                                 MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: torRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
                                     onClicked: {
-                                        if (torRow.dlState === "done" || torRow.dlState === "downloading"
-                                                || torRow.dlState === "resolving") return
-                                        detail.downloadTorrent(torRow.modelData)
+                                        torrentList.currentIndex = torRow.index
+                                        torrentList.forceActiveFocus(Qt.MouseFocusReason)
+                                        detail.activateTorrentRow(torRow.modelData)
                                     }
                                 }
                             }
@@ -929,6 +1004,10 @@ Item {
                             }
                             MouseArea { id: seeMoreMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: detail.torExpanded = !detail.torExpanded }
+                            KeyboardAction {
+                                anchors.fill: parent; pointerEnabled: false; accessibleName: detail.torExpanded ? "See less torrents" : "See more torrents"
+                                onTriggered: detail.torExpanded = !detail.torExpanded
+                            }
                         }
                     }
                 }
@@ -943,9 +1022,18 @@ Item {
                 }
                 Item { width: 1; height: 12 }
                 Glass {
+                    id: editionList
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: edCol.implicitHeight
+                    property int currentIndex: detail.editions.length > 0 ? 0 : -1
+                    focusPolicy: detail.editions.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => editionKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: editionKeys; view: editionList; orientation: "vertical"; count: detail.editions.length
+                        positionIndexFn: function(index) { var it=editionRepeater.itemAt(index); if(it) detail.ensureBookItemVisible(it) }
+                        onActivated: (index) => detail.activateEditionRow(detail.editions[index])
+                    }
                     Column {
                         id: edCol
                         width: parent.width
@@ -962,6 +1050,7 @@ Item {
                         }
 
                         Repeater {
+                            id: editionRepeater
                             model: detail.editions
                             delegate: Item {
                                 id: edRow
@@ -983,8 +1072,10 @@ Item {
                                     function onFailed(md5, why) { if (md5 === edRow.modelData.md5) edRow.dlState = "failed" }
                                     function onRemoved(md5) { if (md5 === edRow.modelData.md5) { edRow.dlState = "idle"; edRow.dlPct = 0 } }
                                 }
-                                Rectangle { anchors.fill: parent; color: edMa.containsMouse ? Qt.rgba(1,1,1,0.06)
-                                    : (modelData.best ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent") }
+                                Rectangle { anchors.fill: parent; color: editionList.activeFocus && editionList.currentIndex === index
+                                    ? Qt.rgba(0.94,0.77,0.29,0.11)
+                                    : (edMa.containsMouse ? Qt.rgba(1,1,1,0.06)
+                                    : (modelData.best ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent")) }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 Row {
                                     anchors.left: parent.left; anchors.leftMargin: 18
@@ -1021,9 +1112,9 @@ Item {
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: edRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
                                     onClicked: {
-                                        if (edRow.dlState === "done" || edRow.dlState === "downloading"
-                                                || edRow.dlState === "resolving") return
-                                        detail.downloadEdition(edRow.modelData)
+                                        editionList.currentIndex = edRow.index
+                                        editionList.forceActiveFocus(Qt.MouseFocusReason)
+                                        detail.activateEditionRow(edRow.modelData)
                                     }
                                 }
                             }
@@ -1041,9 +1132,18 @@ Item {
                 }
                 Item { width: 1; height: 12 }
                 Glass {
+                    id: audiobookList
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: abCol.implicitHeight
+                    property int currentIndex: detail.abRows.length > 0 ? 0 : -1
+                    focusPolicy: detail.abRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => audiobookKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: audiobookKeys; view: audiobookList; orientation: "vertical"; count: detail.abRows.length
+                        positionIndexFn: function(index) { var it=audiobookRepeater.itemAt(index); if(it) detail.ensureBookItemVisible(it) }
+                        onActivated: (index) => detail.activateAudiobookRow(detail.abRows[index])
+                    }
                     Column {
                         id: abCol
                         width: parent.width
@@ -1092,6 +1192,7 @@ Item {
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
                         }
                         Repeater {
+                            id: audiobookRepeater
                             model: detail.abRows
                             delegate: Item {
                                 id: abRow
@@ -1100,7 +1201,9 @@ Item {
                                 width: parent.width; height: 52
                                 // this row reflects the download state ONLY if it's the active pick
                                 readonly property string rowState: (modelData.slug === abCol.abActiveSlug) ? abCol.abState : "idle"
-                                Rectangle { anchors.fill: parent; color: abRowMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent" }
+                                Rectangle { anchors.fill: parent; color: audiobookList.activeFocus && audiobookList.currentIndex === index
+                                    ? Qt.rgba(0.94,0.77,0.29,0.11)
+                                    : (abRowMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent") }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 Row {
                                     anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter; spacing: 16
@@ -1126,33 +1229,9 @@ Item {
                                 }
                                 MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        // ✓ row → into the READER (the one audiobook surface): the shell
-                                        // self-heals the pairing and its HUD/Audio tab carry playback.
-                                        if (abRow.rowState === "done") {
-                                            if (detail.localPath) detail.readRequested(detail.localPath, detail.book)
-                                            return
-                                        }
-                                        // one download at a time: ignore clicks while another row is resolving/downloading
-                                        if (abCol.abState === "downloading" || abCol.abState === "resolving") return
-                                        if (typeof Audiobooks === 'undefined') return
-                                        abCol.abActiveSlug = abRow.modelData.slug   // THIS row is the pick
-                                        abCol.abState = "resolving"
-                                        Abb.fetchInfoHash(abRow.modelData.slug, function(d) {
-                                            if (!d || !d.infoHash) { abCol.abState = "failed"; return }
-                                            detail.abInfoHash = d.infoHash
-                                            // Auto-attach key: the reader's bookId = keyFor(<ebook path>),
-                                            // the SAME id the reader's Audio tab reads the pairing by. Only
-                                            // when the ebook is on disk (detail.localPath) can we produce it;
-                                            // mirror ReaderShell's guard — empty path → "" (NEVER bookKey(""),
-                                            // which the reader never queries). No path yet → no attach, no
-                                            // mismatched key.
-                                            var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined')
-                                                ? Reader2Bridge.bookKey(detail.localPath) : ""
-                                            Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash,
-                                                detail.book.title || "", detail.book.author || "", bookId,
-                                                detail.localPath || "")
-                                            Collection.add("biblio", detail.collectionEntry())
-                                        })
+                                        audiobookList.currentIndex = abRow.index
+                                        audiobookList.forceActiveFocus(Qt.MouseFocusReason)
+                                        detail.activateAudiobookRow(abRow.modelData)
                                     }
                                 }
                             }
@@ -1180,6 +1259,23 @@ Item {
             radius: 18
             backdrop: detail.backdrop
 
+            FocusScope {
+                id: readChoiceFocus; anchors.fill: parent; z: 5
+                Keys.onPressed: (event) => {
+                    var n=detail.readChoiceRows.length
+                    if (event.key === Qt.Key_Escape) { detail.cancelReadChoice(); event.accepted=true; return }
+                    if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted=true; return }
+                    if (!n) return
+                    if (event.key === Qt.Key_Up) detail.readChoiceIndex=(detail.readChoiceIndex+n-1)%n
+                    else if (event.key === Qt.Key_Down) detail.readChoiceIndex=(detail.readChoiceIndex+1)%n
+                    else if (event.key === Qt.Key_Home) detail.readChoiceIndex=0
+                    else if (event.key === Qt.Key_End) detail.readChoiceIndex=n-1
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        detail.chooseReadSource(detail.readChoiceRows[detail.readChoiceIndex]); event.accepted=true; return
+                    } else return
+                    event.accepted=true
+                }
+            }
             Column {
                 id: readChoiceCol
                 x: 24; y: 24
@@ -1196,13 +1292,18 @@ Item {
                     wrapMode: Text.WordWrap
                 }
                 Repeater {
+                    id: readChoiceRepeater
                     model: detail.readChoiceRows
                     delegate: Rectangle {
                         id: readChoiceRow
                         required property var modelData
+                        required property int index
                         width: readChoiceCol.width; height: 58; radius: 10
-                        color: readChoiceMa.containsMouse ? Qt.rgba(1,1,1,0.08) : Qt.rgba(1,1,1,0.035)
-                        border.width: 1; border.color: theme.edge
+                        color: readChoiceFocus.activeFocus && detail.readChoiceIndex === index
+                            ? Qt.rgba(0.94,0.77,0.29,0.11)
+                            : (readChoiceMa.containsMouse ? Qt.rgba(1,1,1,0.08) : Qt.rgba(1,1,1,0.035))
+                        border.width: readChoiceFocus.activeFocus && detail.readChoiceIndex === index ? 2 : 1
+                        border.color: readChoiceFocus.activeFocus && detail.readChoiceIndex === index ? theme.gold : theme.edge
                         Column {
                             anchors.left: parent.left; anchors.leftMargin: 16
                             anchors.right: readChoiceVerb.left; anchors.rightMargin: 14
@@ -1233,5 +1334,6 @@ Item {
         }
     }
 
-    ScrollGlide { flick: page }
+    ScrollGlide { id: biblioBookGlide; flick: page }
+    KeyboardScrollController { id: biblioBookScrollKeys; flick: page; glide: biblioBookGlide }
 }

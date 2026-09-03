@@ -24,6 +24,10 @@ Glass {
     height: 400
 
     Theme { id: theme }
+    KeyboardAction {
+        id: stripKeyboard; anchors.fill: parent; pointerEnabled: false
+        accessibleName: "Open Theatre"; focusRadius: strip.radius; onTriggered: strip.clicked()
+    }
 
     // ---- load: top 3 per lane, interleaved deterministically (async completion order varies) ----
     property var _lanes: ({})

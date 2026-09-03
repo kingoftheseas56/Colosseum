@@ -53,6 +53,8 @@ Item {
     readonly property bool isEmpty: queryInput.text.trim().length === 0
 
     Theme { id: theme }
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => { if (!event.accepted) searchScrollKeys.handle(event) }
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
         search.loadRecent()
@@ -146,6 +148,13 @@ Item {
     function openBook(book) { search.cancelAllRequests(); search.commitCurrentQuery(); search.bookRequested(book) }
     function openTop() { if (search.results.length > 0) search.openBook(search.results[0]) }
     function removeRecent(q) { if (search.historyStore) search.recent = search.historyStore.remove("biblio", q) }
+    function keepSearchDelegateVisible(item) {
+        if (!item || !scroll) return
+        const p = item.mapToItem(scroll.contentItem, 0, 0)
+        if (p.y < scroll.contentY + 12) scroll.contentY = Math.max(0, p.y - 12)
+        else if (p.y + item.height > scroll.contentY + scroll.height - 12)
+            scroll.contentY = Math.min(Math.max(0, scroll.contentHeight - scroll.height), p.y + item.height - scroll.height + 12)
+    }
 
     Timer { id: debounce; interval: 200; onTriggered: search.runAppleSearch() }
 
@@ -211,6 +220,8 @@ Item {
                 Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
+                KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
+                    onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {                              // Esc hint
                 width: escTxt.width + 16; height: 24; radius: 6
@@ -219,6 +230,8 @@ Item {
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.5 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { search.cancelAllRequests(); search.backRequested() } }
+                KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Exit search"; focusRadius: 6
+                    onTriggered: { search.cancelAllRequests(); search.backRequested() } }
             }
         }
     }
@@ -254,15 +267,29 @@ Item {
                 }
                 Item { visible: search.recent.length > 0; width: 1; height: 16 }
                 Flow {
+                    id: recentFlow
                     visible: search.recent.length > 0
                     width: parent.width; spacing: 10
+                    property int currentIndex: search.recent.length > 0 ? 0 : -1
+                    focusPolicy: search.recent.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => recentKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: recentKeys; view: recentFlow; orientation: "horizontal"
+                        count: search.recent.length; contextEnabled: true
+                        onActivated: (index) => search.fillAndSearch(search.recent[index])
+                        onContextRequested: (index) => search.removeRecent(search.recent[index])
+                    }
                     Repeater {
+                        id: recentRepeater
                         model: search.recent
                         delegate: Rectangle {
                             required property var modelData
+                            required property int index
+                            readonly property bool keyboardSelected: recentFlow.activeFocus && recentFlow.currentIndex === index
                             height: 40; radius: 999; width: rcLabel.implicitWidth + 57
-                            color: rcMa.containsMouse ? Qt.rgba(1,1,1,0.12) : theme.glassTint
-                            border.width: 1; border.color: theme.edge
+                            color: rcMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.12) : theme.glassTint
+                            border.width: keyboardSelected ? 2 : 1
+                            border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: rcLabel; anchors.left: parent.left; anchors.leftMargin: 17
                                 anchors.right: removeRecentButton.left; anchors.rightMargin: 5
                                 anchors.verticalCenter: parent.verticalCenter; text: modelData; color: theme.ink
@@ -287,14 +314,29 @@ Item {
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
                 Item { width: 1; height: 16 }
                 Row {
+                    id: jumpRow
                     spacing: 12
+                    property int currentIndex: 0
+                    focusPolicy: Qt.TabFocus
+                    Keys.onPressed: (event) => jumpKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: jumpKeys; view: jumpRow; orientation: "horizontal"; count: 3
+                        onActivated: (index) => {
+                            const row = jumpRepeater.itemAt(index)
+                            if (!row) return
+                            if (row.modelData.a === "home") search.homeRequested(); else search.backRequested()
+                        }
+                    }
                     Repeater {
+                        id: jumpRepeater
                         model: [ { t: "Home", a: "home" }, { t: "Top 10", a: "back" }, { t: "Genres", a: "back" } ]
                         delegate: Rectangle {
                             required property var modelData
+                            required property int index
+                            readonly property bool keyboardSelected: jumpRow.activeFocus && jumpRow.currentIndex === index
                             height: 48; radius: 999; width: jLbl.width + 44
-                            color: jMa.containsMouse ? Qt.rgba(1,1,1,0.12) : theme.glassTint
-                            border.width: 1; border.color: theme.edge
+                            color: jMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.12) : theme.glassTint
+                            border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: jLbl; anchors.centerIn: parent; text: modelData.t; color: theme.ink
                                 font.family: theme.display; font.pixelSize: 15 }
                             MouseArea { id: jMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -308,8 +350,18 @@ Item {
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
                 Item { width: 1; height: 16 }
                 Flow {
+                    id: genreFlow
                     width: parent.width; spacing: 10
+                    property int currentIndex: genreRepeater.count > 0 ? 0 : -1
+                    focusPolicy: genreRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => genreKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: genreKeys; view: genreFlow; orientation: "grid"; columns: 4
+                        count: genreRepeater.count
+                        onActivated: (index) => { const row = genreRepeater.itemAt(index); if (row) search.fillAndSearch(row.modelData.q) }
+                    }
                     Repeater {
+                        id: genreRepeater
                         model: [
                             { t: "Fiction", q: "fiction" }, { t: "Mystery & Thriller", q: "thriller" },
                             { t: "Romance", q: "romance" }, { t: "Sci-Fi & Fantasy", q: "science fiction" },
@@ -318,9 +370,11 @@ Item {
                         ]
                         delegate: Rectangle {
                             required property var modelData
+                            required property int index
+                            readonly property bool keyboardSelected: genreFlow.activeFocus && genreFlow.currentIndex === index
                             height: 44; radius: 999; width: gLbl.width + 36
-                            color: gMa.containsMouse ? Qt.rgba(1,1,1,0.10) : theme.glassTint
-                            border.width: 1; border.color: theme.edge
+                            color: gMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
+                            border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: gLbl; anchors.centerIn: parent; text: modelData.t
                                 color: gMa.containsMouse ? theme.ink : theme.inkDim
                                 font.family: theme.ui; font.pixelSize: 13 }
@@ -398,6 +452,8 @@ Item {
                             onClicked: if (topCard.m) search.openBook(topCard.m) }
                     }
                     MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) search.openBook(topCard.m) }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Open top match"; focusRadius: 18
+                        onTriggered: if (topCard.m) search.openBook(topCard.m) }
                 }
                 Item { visible: search.results.length > 0; width: 1; height: 38 }
 
@@ -414,15 +470,29 @@ Item {
                     width: parent.width; columns: 6
                     columnSpacing: 22; rowSpacing: 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
+                    readonly property var visibleItems: search.booksExpanded ? search.restResults : search.restResults.slice(0, bookGrid.columns)
+                    property int currentIndex: visibleItems.length > 0 ? 0 : -1
+                    focusPolicy: visibleItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => bookKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: bookKeys; view: bookGrid; orientation: "grid"; columns: bookGrid.columns; count: bookGrid.visibleItems.length
+                        positionIndexFn: function(index) { search.keepSearchDelegateVisible(bookRepeater.itemAt(index)) }
+                        onActivated: (index) => search.openBook(bookGrid.visibleItems[index])
+                    }
                     Repeater {
-                        model: search.booksExpanded ? search.restResults : search.restResults.slice(0, bookGrid.columns)
+                        id: bookRepeater
+                        model: bookGrid.visibleItems
                         delegate: Column {
                             required property var modelData
+                            required property int index
+                            readonly property bool keyboardSelected: bookGrid.activeFocus && bookGrid.currentIndex === index
                             width: bookGrid.cellW; spacing: 9
                             Item {
                                 width: parent.width; height: width * 1.5
                                 Rectangle {
                                     width: parent.width; height: parent.height; radius: 8; clip: true; color: "#14131a"
+                                    border.width: parent.parent.keyboardSelected ? 2 : 0
+                                    border.color: theme.gold
                                     Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
                                     Text { visible: !modelData.cover; anchors.centerIn: parent; width: parent.width - 18
@@ -471,15 +541,29 @@ Item {
                     width: parent.width; columns: 6
                     columnSpacing: 22; rowSpacing: 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
+                    readonly property var visibleItems: search.audioExpanded ? search.audioResults : search.audioResults.slice(0, audioGrid.columns)
+                    property int currentIndex: visibleItems.length > 0 ? 0 : -1
+                    focusPolicy: visibleItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => audioKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: audioKeys; view: audioGrid; orientation: "grid"; columns: audioGrid.columns; count: audioGrid.visibleItems.length
+                        positionIndexFn: function(index) { search.keepSearchDelegateVisible(audioRepeater.itemAt(index)) }
+                        onActivated: (index) => search.openBook(audioGrid.visibleItems[index])
+                    }
                     Repeater {
-                        model: search.audioExpanded ? search.audioResults : search.audioResults.slice(0, audioGrid.columns)
+                        id: audioRepeater
+                        model: audioGrid.visibleItems
                         delegate: Column {
                             required property var modelData
+                            required property int index
+                            readonly property bool keyboardSelected: audioGrid.activeFocus && audioGrid.currentIndex === index
                             width: audioGrid.cellW; spacing: 9
                             Item {
                                 width: parent.width; height: width * 1.5
                                 Rectangle {
                                     width: parent.width; height: parent.height; radius: 8; clip: true; color: "#14131a"
+                                    border.width: parent.parent.keyboardSelected ? 2 : 0
+                                    border.color: theme.gold
                                     Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
                                     Text { visible: !modelData.cover; anchors.centerIn: parent; width: parent.width - 18
@@ -533,7 +617,10 @@ Item {
         }
     }
 
-    ScrollGlide { flick: scroll }
+    ScrollGlide { id: searchGlide; flick: scroll }
+    KeyboardScrollController {
+        id: searchScrollKeys; flick: scroll; glide: searchGlide; arrowScrolling: false
+    }
 
     // window chrome (fullscreen rule removed 2026-07-20): the canonical
     // minimize · fullscreen-toggle · power cluster every page carries.
@@ -562,6 +649,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: search.minimizeRequested()
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4
+                onTriggered: search.minimizeRequested() }
         }
         Item {
             width: 22
@@ -576,6 +665,8 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4
+                onTriggered: search.fullscreenRequested() }
             MouseArea {
                 id: fsMa
                 anchors.fill: parent
@@ -595,6 +686,8 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 opacity: chromePowMa.containsMouse ? 1.0 : 0.72
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close Colosseum"; focusRadius: 4
+                onTriggered: { search.cancelAllRequests(); search.closeRequested() } }
             MouseArea {
                 id: chromePowMa
                 anchors.fill: parent

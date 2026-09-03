@@ -83,6 +83,7 @@ Item {
 
     property bool keyboardMode: false        // true once arrows are used -> shows the focus ring
     property bool catalogMenuOpen: false     // the Fraunces shelf-name doubles as the catalog picker
+    property Item catalogFocusReturn: null   // invoker restored when the catalogue popup closes
 
     // ── injectable copy (world-neutral defaults; the wrapper sets its world's exact words) ──
     property string textNoCatalogue: "Nothing to browse here yet."
@@ -176,6 +177,45 @@ Item {
     function activateIndex(i) {
         if (i < 0 || i >= items.length) return           // skeletons / out-of-range never activate
         itemOpenRequested(items[i])
+    }
+    function catalogSelectable(index) {
+        return index >= 0 && index < catalogMenuModel.length && catalogMenuModel[index].header === undefined
+    }
+    function nextCatalogSelectable(start, delta) {
+        var i = start
+        while (i >= 0 && i < catalogMenuModel.length) {
+            if (catalogSelectable(i)) return i
+            i += delta
+        }
+        return -1
+    }
+    function selectedCatalogIndex() {
+        for (var i = 0; i < catalogMenuModel.length; ++i)
+            if (catalogSelectable(i) && catalogMenuModel[i].key === currentCatalogKey) return i
+        return nextCatalogSelectable(0, 1)
+    }
+    function openCatalogMenu(invoker) {
+        if (!hasCatalogs) return
+        filterPicker.open = false
+        catalogFocusReturn = invoker || null
+        catalogMenuOpen = true
+        menuList.currentIndex = selectedCatalogIndex()
+        if (menuList.currentIndex >= 0) menuList.positionViewAtIndex(menuList.currentIndex, ListView.Contain)
+        Qt.callLater(function() { menuList.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeCatalogMenu(restoreFocus) {
+        const target = catalogFocusReturn
+        catalogFocusReturn = null
+        catalogMenuOpen = false
+        if (restoreFocus !== false && target)
+            Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function chooseCatalog(index) {
+        if (!catalogSelectable(index)) return
+        const target = catalogFocusReturn || catalogAction
+        catalogFocusReturn = null
+        selectCatalog(catalogMenuModel[index].key)
+        Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
     onVisibleChanged: if (visible && active && wall) wall.forceActiveFocus()
@@ -456,6 +496,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: browser.backRequested()
             }
+            KeyboardAction { anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                accessibleName: "Back"; focusRadius: 7; onTriggered: browser.backRequested() }
         }
 
         // ── type lens: underlined text tabs (NOT filled pills) ──
@@ -465,12 +507,30 @@ Item {
             anchors.bottom: mastheadRule.top
             anchors.bottomMargin: 12
             spacing: 28
+            property int currentIndex: 0
+            focusPolicy: typeRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
+            function syncCurrent() {
+                var types = browser.adapter ? browser.adapter.types() : []
+                for (var i = 0; i < types.length; ++i)
+                    if (types[i].key === browser.currentType) { currentIndex = i; return }
+                currentIndex = types.length ? 0 : -1
+            }
+            Keys.onPressed: (event) => typeKeys.handle(event)
+            KeyboardCollectionController {
+                id: typeKeys; view: typeSwitch; orientation: "horizontal"; count: typeRepeater.count
+                onActivated: (index) => { const tab = typeRepeater.itemAt(index); if (tab) browser.selectType(tab.modelData.key) }
+            }
+            Component.onCompleted: syncCurrent()
+            Connections { target: browser; function onCurrentTypeChanged() { typeSwitch.syncCurrent() } }
             Repeater {
+                id: typeRepeater
                 model: (browser.adapterRev, browser.adapter ? browser.adapter.types() : [])
                 delegate: Item {
                     id: typeTab
                     required property var modelData
+                    required property int index
                     readonly property bool active: browser.currentType === typeTab.modelData.key
+                    readonly property bool keyboardSelected: typeSwitch.activeFocus && typeSwitch.currentIndex === typeTab.index
                     width: tlabel.implicitWidth
                     height: tlabel.implicitHeight + 9
                     Text {
@@ -486,6 +546,11 @@ Item {
                         anchors.left: tlabel.left; anchors.right: tlabel.right
                         anchors.bottom: parent.bottom
                         height: 3; radius: 2; color: theme.gold
+                    }
+                    Rectangle {
+                        visible: typeTab.keyboardSelected
+                        anchors.fill: parent; anchors.margins: -6; radius: 7
+                        color: "transparent"; border.width: 2; border.color: Qt.rgba(240/255,196/255,74/255,0.72)
                     }
                     HoverHandler { id: tHov }
                     MouseArea {
@@ -539,7 +604,13 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 enabled: browser.hasCatalogs
-                onClicked: browser.catalogMenuOpen = !browser.catalogMenuOpen
+                onClicked: browser.catalogMenuOpen ? browser.closeCatalogMenu(false) : browser.openCatalogMenu(catalogAction)
+            }
+            KeyboardAction {
+                id: catalogAction
+                anchors.fill: nameRow; pointerEnabled: false; focusEnabled: browser.hasCatalogs
+                accessibleName: "Choose catalogue"; focusRadius: 8
+                onTriggered: browser.catalogMenuOpen ? browser.closeCatalogMenu(true) : browser.openCatalogMenu(catalogAction)
             }
             Text {
                 id: byline
@@ -578,10 +649,30 @@ Item {
                 model: browser.catalogMenuModel
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: HouseScrollBar { flick: menuList }
+                Keys.onPressed: (event) => {
+                    var delta = 0
+                    if (event.key === Qt.Key_Down || (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier))) delta = 1
+                    else if (event.key === Qt.Key_Up || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) delta = -1
+                    if (delta !== 0) {
+                        var next = browser.nextCatalogSelectable(menuList.currentIndex + delta, delta)
+                        if (next < 0) next = delta > 0 ? browser.nextCatalogSelectable(0, 1)
+                                                       : browser.nextCatalogSelectable(browser.catalogMenuModel.length - 1, -1)
+                        if (next >= 0) { menuList.currentIndex = next; menuList.positionViewAtIndex(next, ListView.Contain) }
+                        event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Home) { menuList.currentIndex = browser.nextCatalogSelectable(0, 1); event.accepted = true; return }
+                    if (event.key === Qt.Key_End) { menuList.currentIndex = browser.nextCatalogSelectable(browser.catalogMenuModel.length - 1, -1); event.accepted = true; return }
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        browser.chooseCatalog(menuList.currentIndex); event.accepted = true; return
+                    }
+                    if (event.key === Qt.Key_Escape) { browser.closeCatalogMenu(true); event.accepted = true }
+                }
                 delegate: Item {
                     id: mopt
                     required property var modelData
+                    required property int index
                     readonly property bool isHeader: modelData.header !== undefined
+                    readonly property bool keyboardSelected: menuList.activeFocus && menuList.currentIndex === mopt.index
                     width: menuList.width
                     height: isHeader ? 27 : 38
 
@@ -602,7 +693,9 @@ Item {
                         readonly property bool sel: !mopt.isHeader && !!browser.currentCatalog
                                                     && mopt.modelData.key === browser.currentCatalog.key
                         color: mrow.sel ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
-                             : mrowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                             : (mrowMa.containsMouse || mopt.keyboardSelected) ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                        border.width: mopt.keyboardSelected ? 2 : 0
+                        border.color: theme.gold
                         Text {
                             id: mcat
                             text: mopt.isHeader ? "" : mopt.modelData.text
@@ -626,10 +719,7 @@ Item {
                             id: mrowMa
                             anchors.fill: parent
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                browser.catalogMenuOpen = false
-                                browser.selectCatalog(mopt.modelData.key)
-                            }
+                            onClicked: browser.chooseCatalog(mopt.index)
                         }
                     }
                 }
@@ -642,7 +732,7 @@ Item {
         anchors.fill: parent
         z: 95
         visible: browser.catalogMenuOpen
-        onClicked: browser.catalogMenuOpen = false
+        onClicked: browser.closeCatalogMenu(true)
     }
 
     // ═══ filter chips — the genuine filters collapsed to ONE active selection ═══
@@ -669,7 +759,7 @@ Item {
             currentKey: browser.filterKey.length ? (browser.filterGroup + browser._filterSep + browser.filterKey) : ""
             onPicked: (key) => browser._applyFilterKey(key)
             onCleared: browser.clearFilter()
-            onOpenChanged: if (open) browser.catalogMenuOpen = false
+            onOpenChanged: if (open && browser.catalogMenuOpen) browser.closeCatalogMenu(true)
         }
     }
 
@@ -758,7 +848,7 @@ Item {
                     || event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
                     browser.keyboardMode = true
                     event.accepted = false            // let GridView move currentIndex
-                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
                     browser.keyboardMode = true
                     browser.activateIndex(wall.currentIndex)
                     event.accepted = true

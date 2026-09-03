@@ -45,33 +45,6 @@ Item {
     property var malCatalogRef: (typeof MalCatalog !== "undefined") ? MalCatalog : null
     property var tankobanCatalogRef: (typeof TankobanCatalog !== "undefined") ? TankobanCatalog : null
     property var tankobanVolumesRef: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
-    property var mangaEngineRef: (typeof Manga !== "undefined") ? Manga : null
-    property var downloadsRef: (typeof Downloads !== "undefined") ? Downloads : null
-    property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
-    readonly property bool tankoyomiEnabled: {
-        var ext = page.extensionsRef
-        if (!ext) return false
-        var revision = ext.revision
-        var rows = ext.installed() || []
-        for (var i = 0; i < rows.length; ++i)
-            if (rows[i] && String(rows[i].id || "") === "colosseum.well.tankoyomi")
-                return rows[i].enabled === true
-        return false
-    }
-
-    // Arc 39: Chapter mode is a sibling surface. The existing Tankoban page remains
-    // the default; switching to Chapters enters the enabled Tankoyomi provider chain.
-    property bool chapterMode: false
-    property var chapterLanguages: []
-    property string selectedChapterLanguage: "en"
-    property string chapterSourceSeriesId: ""
-    property var chaptersModel: []
-    property bool chaptersLoading: false
-    property string chaptersError: ""
-    property int _chapterRequestGeneration: 0
-    property string _chapterRequestId: ""
-    property string pendingReadChapterId: ""
-    property string pendingReadChapterLabel: ""
 
     // Arc 19: a Read that needs transport stays a foreground consumption intent until
     // this exact series/volume becomes readable, the user leaves, or a newer Read wins.
@@ -87,8 +60,6 @@ Item {
     property string sourceSearchTitle: ""
     property var sourceSearchAliases: []
     property var sourceRequiredMarkers: []
-    property string requestedVolumeNumber: "" // temporary universe volume landing
-    onRequestedVolumeNumberChanged: Qt.callLater(page.openRequestedVolume)
     // The catalogue-resolved numeric identity (0 = unresolved). seriesId below is derived
     // from this ("mal:"+resolvedMalId) the moment a single row is found; a title that never
     // resolves to exactly one candidate leaves both at their unresolved value — the honest
@@ -151,123 +122,8 @@ Item {
     // latch + the reader's volume model whenever the id changes.
     onSeriesIdChanged: {
         page._invalidateReadIntent()
-        page._invalidateChapterRequest()
-        page._clearPendingChapterRead()
-        page.chapterMode = false
-        page.chapterSourceSeriesId = ""
-        page.chaptersModel = []
-        page.chaptersError = ""
         page._tankobanPrepared = false
         page.tankobanReaderEntries = []
-    }
-
-    function _invalidateChapterRequest() {
-        page._chapterRequestGeneration += 1
-        page._chapterRequestId = ""
-        page.chaptersLoading = false
-    }
-
-    function _clearPendingChapterRead() {
-        page.pendingReadChapterId = ""
-        page.pendingReadChapterLabel = ""
-    }
-
-    function _chapterLabelById(chapterId) {
-        var id = String(chapterId || "")
-        for (var i = 0; i < page.chaptersModel.length; ++i) {
-            var row = page.chaptersModel[i] || ({})
-            if (String(row.id || "") !== id) continue
-            return String(row.name || row.label || ("Chapter " + (row.number || "")))
-        }
-        return "Chapter"
-    }
-
-    function _refreshChapterLanguages() {
-        var rows = (page.mangaEngineRef && page.mangaEngineRef.chapterLanguages)
-            ? (page.mangaEngineRef.chapterLanguages() || []) : []
-        page.chapterLanguages = rows.length ? rows : [{ "code": "en", "label": "English", "providerCount": 1 }]
-        var found = false
-        for (var i = 0; i < page.chapterLanguages.length; ++i)
-            if (String(page.chapterLanguages[i].code || "") === page.selectedChapterLanguage) found = true
-        if (!found) page.selectedChapterLanguage = "en"
-    }
-
-    function _selectChapterLanguage(code) {
-        var next = String(code || "").trim().toLowerCase()
-        if (!next.length || next === page.selectedChapterLanguage) return
-        page.selectedChapterLanguage = next
-        page._clearPendingChapterRead()
-        if (page.chapterMode) page._loadChapterCatalogue(true)
-    }
-
-    function _loadChapterCatalogue(force) {
-        if (!page.chapterMode) return
-        if (!page.tankoyomiEnabled) {
-            page._chapterRequestGeneration += 1
-            page._chapterRequestId = ""
-            page.chapterSourceSeriesId = ""
-            page.chaptersModel = []
-            page.chaptersLoading = false
-            page.chaptersError = "Tankoyomi is off. Enable it in Extensions to load chapters."
-            return
-        }
-        if (!force && page.chaptersModel.length && page.chapterSourceSeriesId.length) return
-        if (!page.mangaEngineRef || !page.mangaEngineRef.chapterCatalogueForLanguage) {
-            page.chaptersError = "Chapter source is unavailable."
-            page.chaptersLoading = false
-            return
-        }
-        page._chapterRequestGeneration += 1
-        page._chapterRequestId = page.seriesId + "|" + page._chapterRequestGeneration
-        page.chaptersModel = []
-        page.chapterSourceSeriesId = ""
-        page.chaptersError = ""
-        page.chaptersLoading = true
-        var title = page.sourceSearchTitle.length ? page.sourceSearchTitle : page.seriesTitle
-        page.mangaEngineRef.chapterCatalogueForLanguage(page._chapterRequestId, title, page.selectedChapterLanguage)
-    }
-
-    function _enterChapterMode() {
-        page._invalidateReadIntent()
-        page.openChapterId = ""
-        page.openChapterLabel = ""
-        page.openEntryKind = "manga"
-        page.chapterMode = true
-        page._loadChapterCatalogue(false)
-    }
-
-    function _enterTankobanMode() {
-        page._clearPendingChapterRead()
-        page._invalidateChapterRequest()
-        page.openChapterId = ""
-        page.openChapterLabel = ""
-        page.openEntryKind = "manga"
-        page.chapterMode = false
-    }
-
-    function _openChapter(chapterId, label) {
-        var id = String(chapterId || "")
-        if (!id.length) return
-        page.openChapterId = ""
-        page.openChapterLabel = ""
-        page.openEntryKind = "manga"
-        page.openChapterLabel = String(label || page._chapterLabelById(id))
-        page.openChapterId = id
-    }
-
-    function _readChapter(chapterId, label) {
-        var id = String(chapterId || "")
-        if (!id.length || !page.downloadsRef) return
-        var st = page.downloadsRef.statusOf(id) || ({})
-        if (String(st.state || "none") === "done") {
-            page._clearPendingChapterRead()
-            page._openChapter(id, label)
-            return
-        }
-        page.pendingReadChapterId = id
-        page.pendingReadChapterLabel = String(label || page._chapterLabelById(id))
-        page.downloadsRef.downloadChapter(id, page.seriesId, page.seriesTitle, page.pendingReadChapterLabel)
-        if (typeof Collection !== "undefined") Collection.add("tankoban", page.collectionEntry())
     }
 
     // TB-002 legacy re-file guard. A page instance attempts the re-file for a given
@@ -348,21 +204,6 @@ Item {
             requiredTitleMarkers: page.sourceRequiredMarkers
         }, vols, [])
         page._rebuildTankobanEntries()
-        Qt.callLater(page.openRequestedVolume)
-    }
-
-    function openRequestedVolume() {
-        var want = String(page.requestedVolumeNumber || "")
-        var svc = page.tankobanVolumesRef
-        if (!want.length || !svc || !page.seriesId.length) return
-        var rows = svc.volumesForSeries(page.seriesId) || []
-        for (var i = 0; i < rows.length; i++) {
-            if (String(rows[i].number) === want) {
-                page.requestedVolumeNumber = ""
-                page._readVolume(String(rows[i].id))
-                return
-            }
-        }
     }
 
     // --- reader entry kind: "manga" (chapters) or "tankoban" (volumes). The one
@@ -575,11 +416,7 @@ Item {
     Connections {
         target: page.tankobanVolumesRef
         ignoreUnknownSignals: true
-        function onVolumesChanged(sid) {
-            if (sid !== page.seriesId) return
-            page._rebuildTankobanEntries()
-            Qt.callLater(page.openRequestedVolume)
-        }
+        function onVolumesChanged(sid) { if (sid === page.seriesId) page._rebuildTankobanEntries() }
         function onFinished(volumeId) {
             if (!page.pendingReadActive || page._pendingReadViaSources) return
             if (String(volumeId) !== page.pendingReadVolumeId) return
@@ -596,43 +433,6 @@ Item {
     }
 
     // --- volumes (Comick volume DB via MangaVolumes.js; complete ranges or none — gated) ---
-    Connections {
-        target: page.mangaEngineRef
-        ignoreUnknownSignals: true
-        function onChapterCatalogueResults(requestId, sourceSeriesId, rows) {
-            if (String(requestId) !== page._chapterRequestId || !page.chapterMode) return
-            page.chapterSourceSeriesId = String(sourceSeriesId || "")
-            page.chaptersModel = rows || []
-            page.chaptersLoading = false
-            page.chaptersError = ""
-        }
-        function onChapterCatalogueFailed(requestId, message) {
-            if (String(requestId) !== page._chapterRequestId || !page.chapterMode) return
-            page.chapterSourceSeriesId = ""
-            page.chaptersModel = []
-            page.chaptersLoading = false
-            page.chaptersError = String(message || "Unable to load chapters from Tankoyomi.")
-        }
-    }
-
-    Connections {
-        target: page.downloadsRef
-        ignoreUnknownSignals: true
-        function onFinished(chapterId) {
-            if (!page.chapterMode || String(chapterId) !== page.pendingReadChapterId) return
-            var id = page.pendingReadChapterId
-            var label = page.pendingReadChapterLabel
-            page._clearPendingChapterRead()
-            page._openChapter(id, label)
-        }
-        function onFailed(chapterId, reason) {
-            if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
-        }
-        function onRemoved(chapterId) {
-            if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
-        }
-    }
-
     property var volumes: []                                  // [{number,cover,startNum,endNum,chapterStart,chapterEnd}]
 
     // ── the facts column beside the synopsis (Theatre's key/value stack) ─────
@@ -690,11 +490,7 @@ Item {
     Theme { id: theme }
 
     onSeriesTitleChanged: resolve()
-    onMangaEngineRefChanged: page._refreshChapterLanguages()
-    Component.onCompleted: {
-        page._refreshChapterLanguages()
-        if (seriesTitle.length) resolve()
-    }
+    Component.onCompleted: if (seriesTitle.length) resolve()
 
     // Data-vault Slice 3 (2026-08-22): wake-on-ready. A fresh install can open this page
     // before MalCatalog's download lands (id>0/title given but the db not open yet), leaving
@@ -858,6 +654,8 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
+            KeyboardAction { id: mangaSeriesMinKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Minimize"; focusRadius: 6; onTriggered: page.minimizeRequested() }
         }
         Item {
             width: 22
@@ -879,6 +677,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
             }
+            KeyboardAction { id: mangaSeriesFsKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Toggle fullscreen"; focusRadius: 6; onTriggered: page.fullscreenRequested() }
         }
         Item {
             width: 22; height: 22
@@ -887,6 +687,8 @@ Item {
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
+            KeyboardAction { id: mangaSeriesCloseKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Close"; focusRadius: 6; onTriggered: page.closeRequested() }
         }
     }
 
@@ -899,8 +701,8 @@ Item {
         id: readingRoom
         anchors.fill: parent
         z: 40
-        visible: !page.loading && !page.chapterMode
-        opacity: (page.loading || page.chapterMode) ? 0.0 : 1.0
+        visible: !page.loading
+        opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
         backdrop: page.backdrop
         seriesId: page.seriesId
@@ -919,7 +721,6 @@ Item {
         service: page.tankobanVolumesRef
         pendingReadVolumeId: page.pendingReadVolumeId
         collectionEntry: page.collectionEntry()
-        chapterLanguages: page.chapterLanguages
         onBackRequested: { page._invalidateReadIntent(); page.backRequested() }
         onMinimizeRequested: { page._invalidateReadIntent(); page.minimizeRequested() }
         onFullscreenRequested: page.fullscreenRequested()
@@ -928,42 +729,6 @@ Item {
         onReadVolumeRequested: (volumeId) => page._readVolume(volumeId)
         onSourcesRequested: (ctx) => page._openSources(ctx)
         onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
-        onChapterModeRequested: page._enterChapterMode()
-    }
-
-    MangaChapterSeriesView {
-        id: chapterSeriesView
-        anchors.fill: parent
-        z: 45
-        visible: !page.loading && page.chapterMode
-        backdrop: page.backdrop
-        seriesId: page.seriesId
-        sourceSeriesId: page.chapterSourceSeriesId
-        seriesTitle: page.seriesTitle
-        banner: page.banner
-        cover: page.cover
-        author: page.author
-        status: page.status
-        year: page.year
-        synopsis: page.synopsis
-        genres: page.genres
-        score: page.score
-        chapters: page.chaptersModel
-        downloader: page.downloadsRef
-        collectionEntry: page.collectionEntry()
-        chapterLanguages: page.chapterLanguages
-        selectedChapterLanguage: page.selectedChapterLanguage
-        loading: page.chaptersLoading
-        errorText: page.chaptersError
-        sourceEnabled: page.tankoyomiEnabled
-        onBackRequested: { page._clearPendingChapterRead(); page.backRequested() }
-        onMinimizeRequested: page.minimizeRequested()
-        onFullscreenRequested: page.fullscreenRequested()
-        onCloseRequested: { page._clearPendingChapterRead(); page.closeRequested() }
-        onTankobanRequested: page._enterTankobanMode()
-        onChapterLanguageRequested: (code) => page._selectChapterLanguage(code)
-        onReadChapterRequested: (chapterId, chapterLabel) => page._readChapter(chapterId, chapterLabel)
-        onOpenExtensionsRequested: page.openExtensionsRequested()
     }
 
     // ---- clean loading state ----
@@ -999,11 +764,6 @@ Item {
     // visible:false removes it from input.
     property string openChapterId: ""
     property string openChapterLabel: ""
-    // Shell Escape is not reader Back. ComicReaderShell owns Escape as a local
-    // overlay/chrome close, while the visible Back control keeps raising readerBackRequested.
-    function requestReaderEscape() {
-        if (readerLayer.visible) readerLayer.closeTop()
-    }
     MangaReader {
         id: readerLayer
         anchors.fill: parent; z: 60
@@ -1023,22 +783,14 @@ Item {
         // openEntryKind is never "manga" from a live route any more, so the reader's
         // chapters prop only ever needs the tankoban entries; [] covers the defensive
         // "manga" branch without an undefined chaptersModel reference.
-        chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : page.chaptersModel
+        chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : []
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
         // Do NOT clear openChapterId here — Main.qml's closeComicReader() reads it (still live)
         // to pick the right teardown lane. Clearing it first would make that routing fall
         // through to the wrong branch.
         onBackRequested: page.readerBackRequested()
-        onSourceRequested: (entryId) => {
-            if (page.openEntryKind === "tankoban") {
-                page._handleVolumeSource(entryId)
-                return
-            }
-            page.openChapterId = ""
-            page.openChapterLabel = ""
-            page._readChapter(String(entryId), page._chapterLabelById(entryId))
-        }
+        onSourceRequested: (entryId) => page._handleVolumeSource(entryId)
         onMinimizeRequested: page.readerMinimizeRequested()
         onFullscreenRequested: page.readerFullscreenRequested()
         onCloseRequested: page.readerCloseRequested()

@@ -53,6 +53,8 @@ Item {
     property bool surprising: false
 
     Theme { id: theme }
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => { if (!event.accepted) searchScrollKeys.handle(event) }
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
         surf.loadRecent()
@@ -146,6 +148,13 @@ Item {
     function openItem(data) { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.itemRequested(data) }
     function openTop() { if (surf.results.length > 0) surf.openItem(surf.results[0].data) }
     function removeRecent(q) { if (surf.historyStore) surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
+    function keepSearchDelegateVisible(item) {
+        if (!item || !scroll) return
+        const p = item.mapToItem(scroll.contentItem, 0, 0)
+        if (p.y < scroll.contentY + 12) scroll.contentY = Math.max(0, p.y - 12)
+        else if (p.y + item.height > scroll.contentY + scroll.height - 12)
+            scroll.contentY = Math.min(Math.max(0, scroll.contentHeight - scroll.height), p.y + item.height - scroll.height + 12)
+    }
 
     // Harbor's genre-browse: open a genre into an inline grid (guarded so a slow reply for a genre
     // you've since left doesn't paint over the new one).
@@ -250,6 +259,8 @@ Item {
                 Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
+                KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
+                    onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {
                 width: escTxt.width + 16; height: 24; radius: 6
@@ -258,6 +269,8 @@ Item {
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.5 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { surf.cancelAllRequests(); surf.backRequested() } }
+                KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Exit search"; focusRadius: 6
+                    onTriggered: { surf.cancelAllRequests(); surf.backRequested() } }
             }
         }
     }
@@ -325,13 +338,26 @@ Item {
                         visible: surf.browseItems.length > 0
                         width: parent.width; columns: 6; columnSpacing: 22; rowSpacing: 26
                         property real cellW: (width - columnSpacing * (columns - 1)) / columns
+                        property int currentIndex: surf.browseItems.length > 0 ? 0 : -1
+                        focusPolicy: surf.browseItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: (event) => browseKeys.handle(event)
+                        KeyboardCollectionController {
+                            id: browseKeys; view: browseGrid; orientation: "grid"; columns: browseGrid.columns; count: surf.browseItems.length
+                            positionIndexFn: function(index) { surf.keepSearchDelegateVisible(browseRepeater.itemAt(index)) }
+                            onActivated: (index) => surf.openItem(surf.browseItems[index].data)
+                        }
                         Repeater {
+                            id: browseRepeater
                             model: surf.browseItems
                             delegate: Column {
+                                id: browseCard
                                 required property var modelData
+                                required property int index
+                                readonly property bool keyboardSelected: browseGrid.activeFocus && browseGrid.currentIndex === index
                                 width: browseGrid.cellW; spacing: 9
                                 Rectangle {
                                     width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
+                                    border.width: browseCard.keyboardSelected ? 2 : 0; border.color: theme.gold
                                     Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
                                     scale: bcMa.containsMouse ? 1.03 : 1.0
@@ -377,15 +403,27 @@ Item {
                     }
                     Item { visible: surf.recent.length > 0; width: 1; height: 16 }
                     Flow {
+                        id: recentFlow
                         visible: surf.recent.length > 0
                         width: parent.width; spacing: 10
+                        property int currentIndex: surf.recent.length > 0 ? 0 : -1
+                        focusPolicy: surf.recent.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: (event) => recentKeys.handle(event)
+                        KeyboardCollectionController {
+                            id: recentKeys; view: recentFlow; orientation: "horizontal"; count: surf.recent.length; contextEnabled: true
+                            onActivated: (index) => surf.fillAndSearch(surf.recent[index])
+                            onContextRequested: (index) => surf.removeRecent(surf.recent[index])
+                        }
                         Repeater {
+                            id: recentRepeater
                             model: surf.recent
                             delegate: Rectangle {
                                 required property var modelData
+                                required property int index
+                                readonly property bool keyboardSelected: recentFlow.activeFocus && recentFlow.currentIndex === index
                                 height: 40; radius: 999; width: rcRow.width + 30
-                                color: rcMa.containsMouse ? Qt.rgba(1,1,1,0.10) : theme.glassTint
-                                border.width: 1; border.color: theme.edge
+                                color: rcMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
+                                border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                                 MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: surf.fillAndSearch(modelData) }
                                 Row { id: rcRow; anchors.centerIn: parent; spacing: 8
@@ -410,14 +448,25 @@ Item {
                     }
                     Item { width: 1; height: 16 }
                     Flow {
+                        id: genreFlow
                         width: parent.width; spacing: 10
+                        property int currentIndex: surf.genres.length > 0 ? 0 : -1
+                        focusPolicy: surf.genres.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: (event) => genreKeys.handle(event)
+                        KeyboardCollectionController {
+                            id: genreKeys; view: genreFlow; orientation: "grid"; columns: Math.max(1, Math.min(4, surf.genres.length)); count: surf.genres.length
+                            onActivated: (index) => surf.openGenre(surf.genres[index])
+                        }
                         Repeater {
+                            id: genreRepeater
                             model: surf.genres
                             delegate: Rectangle {
                                 required property var modelData
+                                required property int index
+                                readonly property bool keyboardSelected: genreFlow.activeFocus && genreFlow.currentIndex === index
                                 height: 44; radius: 999; width: gLbl.width + 36
-                                color: gMa.containsMouse ? Qt.rgba(1,1,1,0.10) : theme.glassTint
-                                border.width: 1; border.color: theme.edge
+                                color: gMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
+                                border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                                 Text { id: gLbl; anchors.centerIn: parent; text: modelData
                                     color: gMa.containsMouse ? theme.ink : theme.inkDim
                                     font.family: theme.ui; font.pixelSize: 13 }
@@ -442,6 +491,8 @@ Item {
                         }
                         MouseArea { id: surMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: surf.doSurprise() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Surprise me"; focusRadius: 8
+                            onTriggered: surf.doSurprise() }
                     }
                 }
             }
@@ -518,6 +569,8 @@ Item {
                             onClicked: if (topCard.m) surf.openItem(topCard.m.data) }
                     }
                     MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) surf.openItem(topCard.m.data) }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Open top match"; focusRadius: 18
+                        onTriggered: if (topCard.m) surf.openItem(topCard.m.data) }
                 }
                 Item { visible: surf.results.length > 0; width: 1; height: 38 }
 
@@ -528,6 +581,13 @@ Item {
                         id: section
                         required property var modelData          // { group, items }
                         readonly property bool expanded: surf.expandedGroups.indexOf(modelData.group) >= 0
+                        function toggleExpanded() {
+                            var g = section.modelData.group
+                            var open = surf.expandedGroups.slice()
+                            var at = open.indexOf(g)
+                            if (at >= 0) open.splice(at, 1); else open.push(g)
+                            surf.expandedGroups = open
+                        }
                         width: parent.width; spacing: 0
                         Text {
                             text: modelData.group.toUpperCase() + "  ·  " + modelData.items.length
@@ -539,12 +599,23 @@ Item {
                             id: secGrid
                             width: parent.width; columns: 6; columnSpacing: 22; rowSpacing: 26
                             property real cellW: (width - columnSpacing * (columns - 1)) / columns
+                            readonly property var visibleItems: section.expanded ? section.modelData.items : section.modelData.items.slice(0, secGrid.columns)
+                            property int currentIndex: visibleItems.length > 0 ? 0 : -1
+                            focusPolicy: visibleItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                            Keys.onPressed: (event) => resultKeys.handle(event)
+                            KeyboardCollectionController {
+                                id: resultKeys; view: secGrid; orientation: "grid"; columns: secGrid.columns; count: secGrid.visibleItems.length
+                                positionIndexFn: function(index) { surf.keepSearchDelegateVisible(resultRepeater.itemAt(index)) }
+                                onActivated: (index) => surf.openItem(secGrid.visibleItems[index].data)
+                            }
                             Repeater {
-                                model: section.expanded ? modelData.items
-                                                        : modelData.items.slice(0, secGrid.columns)
+                                id: resultRepeater
+                                model: secGrid.visibleItems
                                 delegate: Column {
                                     id: resultCard
                                     required property var modelData
+                                    required property int index
+                                    readonly property bool keyboardSelected: secGrid.activeFocus && secGrid.currentIndex === index
                                     // Same keyed precedent as topCard above (DiscoverBrowser.qml:727): id-or-title, never index.
                                     objectName: modelData && modelData.title
                                                 ? ("searchResult_" + String(modelData.data && modelData.data.id ? modelData.data.id : modelData.title))
@@ -552,6 +623,7 @@ Item {
                                     width: secGrid.cellW; spacing: 9
                                     Rectangle {
                                         width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
+                                        border.width: resultCard.keyboardSelected ? 2 : 0; border.color: theme.gold
                                         Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
                                             fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
                                         scale: cardMa.containsMouse ? 1.03 : 1.0
@@ -595,13 +667,11 @@ Item {
                             MouseArea {
                                 id: seeMoreMa; anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    var g = section.modelData.group
-                                    var open = surf.expandedGroups.slice()
-                                    var at = open.indexOf(g)
-                                    if (at >= 0) open.splice(at, 1); else open.push(g)
-                                    surf.expandedGroups = open
-                                }
+                                onClicked: section.toggleExpanded()
+                            }
+                            KeyboardAction { anchors.fill: parent; pointerEnabled: false
+                                accessibleName: section.expanded ? "Show less" : "See more"; focusRadius: 17
+                                onTriggered: section.toggleExpanded()
                             }
                         }
                         Item { width: 1; height: 34 }
@@ -623,7 +693,10 @@ Item {
         }
     }
 
-    ScrollGlide { flick: scroll }
+    ScrollGlide { id: searchGlide; flick: scroll }
+    KeyboardScrollController {
+        id: searchScrollKeys; flick: scroll; glide: searchGlide; arrowScrolling: false
+    }
 
     // window chrome (fullscreen rule removed 2026-07-20): the canonical
     // minimize · fullscreen-toggle · power cluster every page carries.
@@ -652,6 +725,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: surf.minimizeRequested()
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4
+                onTriggered: surf.minimizeRequested() }
         }
         Item {
             width: 22
@@ -666,6 +741,8 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4
+                onTriggered: surf.fullscreenRequested() }
             MouseArea {
                 id: fsMa
                 anchors.fill: parent
@@ -685,6 +762,8 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 opacity: chromePowMa.containsMouse ? 1.0 : 0.72
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close Colosseum"; focusRadius: 4
+                onTriggered: { surf.cancelAllRequests(); surf.closeRequested() } }
             MouseArea {
                 id: chromePowMa
                 anchors.fill: parent

@@ -13,6 +13,7 @@ Item {
     property string currentKey: ""
     property bool open: false
     property bool clearable: true             // an active filter shows an ✕ that resets it
+    property Item focusReturn: null
     signal picked(string key)
     signal cleared()
 
@@ -26,6 +27,57 @@ Item {
 
     implicitWidth: Math.max(150, pillRow.implicitWidth + 38)
     implicitHeight: 40
+
+    function selectable(index) {
+        return index >= 0 && index < picker.options.length
+            && picker.options[index].header === undefined
+    }
+    function nextSelectable(start, delta) {
+        var i = start
+        while (i >= 0 && i < picker.options.length) {
+            if (picker.selectable(i)) return i
+            i += delta
+        }
+        return -1
+    }
+    function selectedOptionIndex() {
+        for (var i = 0; i < picker.options.length; ++i)
+            if (picker.selectable(i) && picker.options[i].key === picker.currentKey) return i
+        return picker.nextSelectable(0, 1)
+    }
+    function openPopup(invoker) {
+        picker.focusReturn = invoker || null
+        picker.open = true
+        list.currentIndex = picker.selectedOptionIndex()
+        if (list.currentIndex >= 0) list.positionViewAtIndex(list.currentIndex, ListView.Contain)
+        Qt.callLater(function() { list.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closePopup(restoreFocus) {
+        const target = picker.focusReturn
+        picker.open = false
+        picker.focusReturn = null
+        if (restoreFocus !== false && target)
+            Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function togglePopup(invoker) {
+        if (picker.open) picker.closePopup(true)
+        else picker.openPopup(invoker)
+    }
+    function choose(index) {
+        if (!picker.selectable(index)) return
+        const key = picker.options[index].key
+        const target = picker.focusReturn || pillAction
+        picker.open = false
+        picker.focusReturn = null
+        picker.picked(key)
+        Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function clearSelection() {
+        picker.open = false
+        picker.focusReturn = null
+        picker.cleared()
+        Qt.callLater(function() { pillAction.forceActiveFocus(Qt.PopupFocusReason) })
+    }
 
     Theme { id: theme }
 
@@ -76,7 +128,16 @@ Item {
             id: ma
             anchors.fill: parent
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: picker.open = !picker.open
+            onClicked: picker.togglePopup(pillAction)
+        }
+        KeyboardAction {
+            id: pillAction
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: picker.hasValue ? picker.current.text : picker.label
+            accessibleDescription: "Open filter options"
+            focusRadius: pill.radius
+            onTriggered: picker.togglePopup(pillAction)
         }
         // clear hit-area — sits over the ✕ (declared after `ma`, so it wins the click there)
         MouseArea {
@@ -85,7 +146,17 @@ Item {
             anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
             width: 36
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: { picker.open = false; picker.cleared() }
+            onClicked: picker.clearSelection()
+        }
+        KeyboardAction {
+            id: clearAction
+            visible: pill.showClear
+            anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+            width: 36
+            pointerEnabled: false
+            accessibleName: "Clear " + picker.label
+            focusRadius: pill.radius
+            onTriggered: picker.clearSelection()
         }
     }
 
@@ -107,10 +178,26 @@ Item {
             anchors.fill: parent; anchors.margins: 6
             clip: true
             model: picker.options
+            currentIndex: -1
+            keyNavigationEnabled: false
             boundsBehavior: Flickable.StopAtBounds
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape) { picker.closePopup(true); event.accepted = true; return }
+                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted = true; return }
+                var next = list.currentIndex
+                if (event.key === Qt.Key_Down) next = picker.nextSelectable(list.currentIndex + 1, 1)
+                else if (event.key === Qt.Key_Up) next = picker.nextSelectable(list.currentIndex - 1, -1)
+                else if (event.key === Qt.Key_Home) next = picker.nextSelectable(0, 1)
+                else if (event.key === Qt.Key_End) next = picker.nextSelectable(picker.options.length - 1, -1)
+                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    picker.choose(list.currentIndex); event.accepted = true; return
+                } else return
+                if (next >= 0) { list.currentIndex = next; list.positionViewAtIndex(next, ListView.Contain); event.accepted = true }
+            }
             delegate: Item {
                 id: opt
                 required property var modelData
+                required property int index
                 readonly property bool isHeader: modelData.header !== undefined
                 width: list.width
                 height: isHeader ? 27 : 38
@@ -132,7 +219,10 @@ Item {
                     anchors.fill: parent
                     radius: 9
                     color: opt.modelData.key === picker.currentKey ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
-                         : rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                         : rowMa.containsMouse || (list.activeFocus && list.currentIndex === opt.index)
+                           ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                    border.width: list.activeFocus && list.currentIndex === opt.index ? 1 : 0
+                    border.color: theme.gold
                     Text {
                         id: catText
                         text: opt.isHeader ? "" : opt.modelData.text
@@ -156,11 +246,11 @@ Item {
                         id: rowMa
                         anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: { picker.open = false; picker.picked(opt.modelData.key); }
+                        onClicked: picker.choose(opt.index)
                     }
                 }
             }
         }
     }
-    Keys.onEscapePressed: picker.open = false
+    Keys.onEscapePressed: if (picker.open) picker.closePopup(true)
 }

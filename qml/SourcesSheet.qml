@@ -52,6 +52,13 @@ Item {
     // keeps today's behavior exactly. Ordering itself is untouched — no silent re-ranking.
     property string extFilter: "all"
     property bool extMenuOpen: false
+    property Item focusReturnItem: null
+    property Item extMenuReturnItem: null
+    property int extMenuIndex: 0
+    property bool sourceContextOpen: false
+    property int sourceContextIndex: 0
+    property int sourceContextChoice: 0
+    readonly property var qualityOptions: ["all", "4K", "1080p", "720p", "SD"].filter(function(q) { return q === "all" || sheet.countFor(q) > 0 })
     property var visibleRows: filteredRows()
     // Slice-2 automation surface (no visual effect): row counts read by the bridge via
     // `qml-get sourcesSheet.*`. `loading` (below) is the sheet's own state; these count what shows.
@@ -77,6 +84,30 @@ Item {
     // offering a choice that can't be honored.
     property bool titleQueued: false
 
+    function activateSource(index) {
+        if (index < 0 || index >= sheet.visibleRows.length) return
+        var row=sheet.visibleRows[index]
+        if (sheet.mode !== "play") { sheet.downloadRequested(row); sheet.hide() }
+        else sheet.playRequested(row.infoHash, row.fileIdx, sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, sheet.rows, sheet.playbackContext)
+    }
+    function copySource(index) {
+        if (index < 0 || index >= sheet.visibleRows.length) return
+        var link=Magnet.linkFor(sheet.visibleRows[index]); if(!link.length) return
+        Clipboard.copy(link)
+        if (list.itemAtIndex) { var item=list.itemAtIndex(index); if(item && item.markCopied) item.markCopied() }
+    }
+    function downloadSource(index) {
+        if (sheet.mode !== "play" || sheet.titleQueued || index < 0 || index >= sheet.visibleRows.length) return
+        sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true
+    }
+    function activateSourceContext(choice) {
+        var index=sheet.sourceContextIndex
+        if (choice===0) sheet.activateSource(index)
+        else if (choice===1) sheet.copySource(index)
+        else if (choice===2) sheet.downloadSource(index)
+        sheet.closeSourceContext(true)
+    }
+
     function refreshTitleQueued() {
         if (typeof Download === "undefined" || !sheet.subId.length) { sheet.titleQueued = false; return }
         if (Download.hasVideo(sheet.subId)) { sheet.titleQueued = true; return }
@@ -99,7 +130,40 @@ Item {
 
     Theme { id: theme }
 
+    function openExtMenu(invoker) {
+        if (sheet.extMenuOpen) { sheet.extMenuOpen=false; return }
+        sheet.extMenuReturnItem=invoker || null
+        var opts=sheet.extOptions(), idx=0
+        for (var i=0;i<opts.length;i++) if (opts[i].name===sheet.extFilter) { idx=i; break }
+        sheet.extMenuIndex=idx; sheet.extMenuOpen=true
+        Qt.callLater(function(){ extMenuFocus.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeExtMenu(restore) {
+        sheet.extMenuOpen=false
+        var target=sheet.extMenuReturnItem; sheet.extMenuReturnItem=null
+        if (restore!==false && target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function activateExtOption(index) {
+        var opts=sheet.extOptions(); if(index<0||index>=opts.length) return
+        sheet.extFilter=opts[index].name; sheet.closeExtMenu(true)
+    }
+    function sourceContextOptions() {
+        var out=[sheet.mode === "play" ? "Play" : "Choose source", "Copy link"]
+        if (sheet.mode === "play" && typeof Download !== "undefined") out.push("Download")
+        return out
+    }
+    function openSourceContext(index) {
+        sheet.sourceContextIndex=index; sheet.sourceContextChoice=0; sheet.sourceContextOpen=true
+        Qt.callLater(function(){ sourceContextFocus.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeSourceContext(restore) {
+        sheet.sourceContextOpen=false
+        if (restore!==false) Qt.callLater(function(){ if(list.visible) list.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+
     function show(type, id, lbl, context, pickMode) {
+        var w=sheet.Window.window
+        sheet.focusReturnItem=w ? w.activeFocusItem : null
         sheet.mode = (pickMode === "download" || pickMode === "season") ? pickMode : "play";
         sheet.pickSeason = (context && context.season !== undefined) ? Number(context.season) : 0;
         sheet.subType = type ? type : "";
@@ -118,6 +182,7 @@ Item {
         sheet.loading = true;
         sheet.open = true;
         sheet.gen += 1;
+        Qt.callLater(function(){ sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
         var myGen = sheet.gen;
         timeout.restart();
 
@@ -186,9 +251,12 @@ Item {
 
     function hide() {
         sheet.gen += 1;
-        sheet.open = false;
+        sheet.sourceContextOpen = false;
         sheet.extMenuOpen = false;
+        sheet.open = false;
         timeout.stop();
+        var target=sheet.focusReturnItem; sheet.focusReturnItem=null
+        if(target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
     // the mode's row universe: season mode sees only full-season torrents,
@@ -308,6 +376,7 @@ Item {
 
     // ---- back ----
     BackAction {
+        id: sourcesBack
         x: theme.margin; y: 30; z: 20
         onTriggered: sheet.hide()
     }
@@ -382,28 +451,41 @@ Item {
         // The extension picker (2026-08-07). This bar LOOKED like a picker and did nothing —
         // now it filters the table to one extension's rows (the NoTorrent burial fix).
         MouseArea { id: tbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: sheet.extMenuOpen = !sheet.extMenuOpen }
+            onClicked: sheet.openExtMenu(extTriggerKeyboard) }
+        KeyboardAction {
+            id: extTriggerKeyboard; anchors.fill: parent; pointerEnabled: false
+            accessibleName: "Choose source extension"; focusRadius: topBar.radius
+            onTriggered: sheet.openExtMenu(extTriggerKeyboard)
+        }
     }
 
     // quality quick-filter pills (active = gold fill)
     Row {
         id: pills
+        property int currentIndex: 0
         anchors.left: parent.left; anchors.leftMargin: theme.margin
         anchors.top: topBar.bottom; anchors.topMargin: 14
         spacing: 12
         visible: sheet.rows.length > 0
+        focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => qualityKeys.handle(event)
+        KeyboardCollectionController {
+            id: qualityKeys; view: pills; orientation: "horizontal"; count: sheet.qualityOptions.length
+            onActivated: (index) => sheet.qualityFilter = sheet.qualityOptions[index]
+        }
         Repeater {
-            model: ["all", "4K", "1080p", "720p", "SD"]
+            model: sheet.qualityOptions
             delegate: Rectangle {
                 id: pill
                 required property string modelData
+                required property int index
                 property bool on: sheet.qualityFilter === pill.modelData
                 property int n: sheet.countFor(pill.modelData)
                 visible: n > 0 || pill.modelData === "all"
                 width: pillRow.implicitWidth + 36; height: 40; radius: 20
                 color: pill.on ? theme.gold : (pMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05))
-                border.width: pill.on ? 0 : 1
-                border.color: theme.edge
+                border.width: pills.activeFocus && pills.currentIndex === index ? 2 : (pill.on ? 0 : 1)
+                border.color: pills.activeFocus && pills.currentIndex === index ? theme.gold : theme.edge
                 Row {
                     id: pillRow; anchors.centerIn: parent; spacing: 8
                     Text {
@@ -420,7 +502,11 @@ Item {
                     }
                 }
                 MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor; onClicked: sheet.qualityFilter = pill.modelData }
+                    cursorShape: Qt.PointingHandCursor; onClicked: {
+                        pills.currentIndex = pill.index
+                        pills.forceActiveFocus(Qt.MouseFocusReason)
+                        sheet.qualityFilter = pill.modelData
+                    } }
             }
         }
     }
@@ -479,6 +565,14 @@ Item {
             visible: sheet.visibleRows.length > 0
             model: sheet.visibleRows
             boundsBehavior: Flickable.StopAtBounds
+            focusPolicy: sheet.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: (event) => sourceKeys.handle(event)
+            KeyboardCollectionController {
+                id: sourceKeys; view: list; orientation: "vertical"; count: sheet.visibleRows.length
+                contextEnabled: true
+                onActivated: (index) => sheet.activateSource(index)
+                onContextRequested: (index) => sheet.openSourceContext(index)
+            }
             ScrollBar.vertical: HouseScrollBar { flick: list }
 
             delegate: Item {
@@ -486,6 +580,7 @@ Item {
                 required property var modelData
                 required property int index
                 property bool copiedTick: false
+                function markCopied() { row.copiedTick = true; copyTickTimer.restart() }
                 // Slice-2 automation surface (no visual effect): names each source row and exposes
                 // read-only state so the Lanista bridge can address it and prove slices 5–7 in the
                 // running app. dump-ui sees only named items; this is that name.
@@ -513,7 +608,9 @@ Item {
                 width: ListView.view.width
                 height: 150
 
-                Rectangle { anchors.fill: parent; color: rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent" }
+                Rectangle { anchors.fill: parent; color: list.activeFocus && list.currentIndex === row.index
+                    ? Qt.rgba(0.94, 0.77, 0.29, 0.08)
+                    : (rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent") }
 
                 // provider logo
                 Rectangle {
@@ -612,14 +709,9 @@ Item {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (sheet.mode !== "play") {   // download & season: the pick IS the download
-                            sheet.downloadRequested(row.modelData)
-                            sheet.hide()
-                        } else {
-                            sheet.playRequested(row.modelData.infoHash, row.modelData.fileIdx,
-                                                sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId,
-                                                sheet.rows, sheet.playbackContext)
-                        }
+                        list.currentIndex = row.index
+                        list.forceActiveFocus(Qt.MouseFocusReason)
+                        sheet.activateSource(row.index)
                     }
                 }
 
@@ -645,12 +737,9 @@ Item {
                         id: copyMa; anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            var link = Magnet.linkFor(row.modelData)
-                            if (!link.length)
-                                return
-                            Clipboard.copy(link)
-                            row.copiedTick = true
-                            copyTickTimer.restart()
+                            list.currentIndex = row.index
+                            list.forceActiveFocus(Qt.MouseFocusReason)
+                            sheet.copySource(row.index)
                         }
                     }
                 }
@@ -678,10 +767,9 @@ Item {
                         id: dlMa; anchors.fill: parent; hoverEnabled: true
                         cursorShape: sheet.titleQueued ? Qt.ArrowCursor : Qt.PointingHandCursor
                         onClicked: {
-                            if (sheet.titleQueued)
-                                return
-                            sheet.downloadRequested(row.modelData)
-                            sheet.titleQueued = true
+                            list.currentIndex = row.index
+                            list.forceActiveFocus(Qt.MouseFocusReason)
+                            sheet.downloadSource(row.index)
                         }
                     }
                 }
@@ -691,12 +779,51 @@ Item {
         ScrollGlide { flick: list }
     }
 
+    Rectangle {
+        id: sourceContextMenu
+        visible: sheet.sourceContextOpen
+        z: 120
+        anchors.centerIn: parent
+        width: 210; height: sourceContextCol.implicitHeight + 12; radius: 12
+        color: Qt.rgba(0.045, 0.05, 0.075, 0.98); border.width: 1; border.color: theme.edge
+        FocusScope {
+            id: sourceContextFocus; anchors.fill: parent
+            Keys.onPressed: (event) => {
+                var n=sheet.sourceContextOptions().length
+                if (event.key === Qt.Key_Escape) { sheet.closeSourceContext(true); event.accepted=true; return }
+                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted=true; return }
+                if (event.key === Qt.Key_Up) sheet.sourceContextChoice=(sheet.sourceContextChoice+n-1)%n
+                else if (event.key === Qt.Key_Down) sheet.sourceContextChoice=(sheet.sourceContextChoice+1)%n
+                else if (event.key === Qt.Key_Home) sheet.sourceContextChoice=0
+                else if (event.key === Qt.Key_End) sheet.sourceContextChoice=n-1
+                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    sheet.activateSourceContext(sheet.sourceContextChoice); event.accepted=true; return
+                } else return
+                event.accepted=true
+            }
+        }
+        Column {
+            id: sourceContextCol; anchors.left: parent.left; anchors.right: parent.right
+            anchors.top: parent.top; anchors.topMargin: 6
+            Repeater {
+                model: sheet.sourceContextOptions()
+                delegate: Rectangle {
+                    required property string modelData; required property int index
+                    width: sourceContextCol.width; height: 36; radius: 8
+                    color: sourceContextFocus.activeFocus && sheet.sourceContextChoice === index ? Qt.rgba(1,1,1,0.11) : "transparent"
+                    Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sheet.activateSourceContext(index) }
+                }
+            }
+        }
+    }
+
     // ===================== extension picker menu (declared after the table so it stacks above) =====
     // Click-away closer: any click outside the menu closes it without falling through.
     MouseArea {
         anchors.fill: parent
         visible: sheet.extMenuOpen
-        onClicked: sheet.extMenuOpen = false
+        onClicked: sheet.closeExtMenu(true)
     }
     Rectangle {
         id: extMenu
@@ -708,6 +835,23 @@ Item {
         radius: 16
         color: "#141414"
         border.width: 1; border.color: theme.edge
+        FocusScope {
+            id: extMenuFocus; anchors.fill: parent; z: 5
+            Keys.onPressed: (event) => {
+                var n=sheet.extOptions().length
+                if (event.key === Qt.Key_Escape) { sheet.closeExtMenu(true); event.accepted=true; return }
+                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted=true; return }
+                if (!n) return
+                if (event.key === Qt.Key_Up) sheet.extMenuIndex=(sheet.extMenuIndex+n-1)%n
+                else if (event.key === Qt.Key_Down) sheet.extMenuIndex=(sheet.extMenuIndex+1)%n
+                else if (event.key === Qt.Key_Home) sheet.extMenuIndex=0
+                else if (event.key === Qt.Key_End) sheet.extMenuIndex=n-1
+                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    sheet.activateExtOption(sheet.extMenuIndex); event.accepted=true; return
+                } else return
+                event.accepted=true
+            }
+        }
         Column {
             id: extMenuCol
             anchors.left: parent.left; anchors.right: parent.right
@@ -724,7 +868,9 @@ Item {
                     Rectangle {
                         anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
                         radius: 10
-                        color: extOptMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent"
+                        color: extMenuFocus.activeFocus && sheet.extMenuIndex === extOpt.index
+                            ? Qt.rgba(0.94, 0.77, 0.29, 0.10)
+                            : (extOptMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
                     }
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 28
@@ -744,8 +890,8 @@ Item {
                         id: extOptMa; anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            sheet.extFilter = extOpt.modelData.name
-                            sheet.extMenuOpen = false
+                            sheet.extMenuIndex = extOpt.index
+                            sheet.activateExtOption(extOpt.index)
                         }
                     }
                 }

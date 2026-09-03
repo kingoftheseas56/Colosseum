@@ -85,6 +85,9 @@ Item {
     })
 
     Theme { id: theme }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => { if (!event.accepted) exploreScrollKeys.handle(event) }
     BiblioExplorePreferences { id: _internalPrefs }
     readonly property var _prefs: page.preferences ? page.preferences : _internalPrefs
 
@@ -495,13 +498,21 @@ Item {
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: page.editMode ? "Done" : "Customize shelves"
-                    color: custMa.containsMouse ? theme.ink : theme.inkDim
+                    color: custMa.containsMouse || customizeAction.activeFocus ? theme.ink : theme.inkDim
                     font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                     MouseArea {
                         id: custMa
                         anchors.fill: parent; anchors.margins: -8
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: page.editMode = !page.editMode
+                    }
+                    KeyboardAction {
+                        id: customizeAction
+                        anchors.fill: parent; anchors.margins: -8
+                        pointerEnabled: false
+                        accessibleName: page.editMode ? "Finish shelf customization" : "Customize shelves"
+                        focusRadius: 6
+                        onTriggered: page.editMode = !page.editMode
                     }
                 }
             }
@@ -531,9 +542,23 @@ Item {
                         Rectangle {
                             id: dragHandle
                             width: 28; height: 28; radius: 6
-                            color: (dragHandleMa.containsMouse || page.draggingKey === rowBlock.rowKey)
+                            color: (dragHandleMa.containsMouse || dragHandle.activeFocus || page.draggingKey === rowBlock.rowKey)
                                    ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                            border.width: 1; border.color: theme.edge
+                            border.width: dragHandle.activeFocus ? 2 : 1
+                            border.color: dragHandle.activeFocus ? theme.gold : theme.edge
+                            focusPolicy: editControls.visible ? Qt.TabFocus : Qt.NoFocus
+                            Accessible.role: Accessible.Button
+                            Accessible.name: "Reorder " + rowBlock.modelData.title
+                            Accessible.description: "Ctrl+Shift+Up or Ctrl+Shift+Down moves this shelf"
+                            Keys.onPressed: (event) => {
+                                const reorder = (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)
+                                if (!reorder) return
+                                if (event.key === Qt.Key_Up && page.canMoveUp(rowBlock.rowKey)) {
+                                    page.moveRowBy(rowBlock.rowKey, -1); event.accepted = true
+                                } else if (event.key === Qt.Key_Down && page.canMoveDown(rowBlock.rowKey)) {
+                                    page.moveRowBy(rowBlock.rowKey, 1); event.accepted = true
+                                }
+                            }
                             Text { anchors.centerIn: parent; text: "⠿"; color: theme.ink; font.pixelSize: 14 }
                             MouseArea {
                                 id: dragHandleMa
@@ -556,7 +581,7 @@ Item {
                         Rectangle {
                             width: 28; height: 28; radius: 6
                             border.width: 1; border.color: theme.edge
-                            color: upMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                            color: upMa.containsMouse || moveUpAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveUp(rowBlock.rowKey) ? 1 : 0.35
                             Text { anchors.centerIn: parent; text: "▲"; color: theme.ink; font.pixelSize: 12 }
                             MouseArea {
@@ -565,11 +590,18 @@ Item {
                                 enabled: page.canMoveUp(rowBlock.rowKey)
                                 onClicked: page.moveRowBy(rowBlock.rowKey, -1)
                             }
+                            KeyboardAction {
+                                id: moveUpAction; anchors.fill: parent; pointerEnabled: false
+                                focusEnabled: editControls.visible && page.canMoveUp(rowBlock.rowKey)
+                                accessibleName: "Move " + rowBlock.modelData.title + " up"
+                                focusRadius: 6
+                                onTriggered: page.moveRowBy(rowBlock.rowKey, -1)
+                            }
                         }
                         Rectangle {
                             width: 28; height: 28; radius: 6
                             border.width: 1; border.color: theme.edge
-                            color: downMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                            color: downMa.containsMouse || moveDownAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveDown(rowBlock.rowKey) ? 1 : 0.35
                             Text { anchors.centerIn: parent; text: "▼"; color: theme.ink; font.pixelSize: 12 }
                             MouseArea {
@@ -578,11 +610,18 @@ Item {
                                 enabled: page.canMoveDown(rowBlock.rowKey)
                                 onClicked: page.moveRowBy(rowBlock.rowKey, 1)
                             }
+                            KeyboardAction {
+                                id: moveDownAction; anchors.fill: parent; pointerEnabled: false
+                                focusEnabled: editControls.visible && page.canMoveDown(rowBlock.rowKey)
+                                accessibleName: "Move " + rowBlock.modelData.title + " down"
+                                focusRadius: 6
+                                onTriggered: page.moveRowBy(rowBlock.rowKey, 1)
+                            }
                         }
                         Rectangle {
                             width: 64; height: 28; radius: 6
                             border.width: 1; border.color: theme.edge
-                            color: hideMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                            color: hideMa.containsMouse || hideAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             Text {
                                 anchors.centerIn: parent
                                 text: rowBlock.modelData.hidden ? "Show" : "Hide"
@@ -592,6 +631,13 @@ Item {
                                 id: hideMa; anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: page._prefs.setVisible(rowBlock.rowKey, rowBlock.modelData.hidden === true)
+                            }
+                            KeyboardAction {
+                                id: hideAction; anchors.fill: parent; pointerEnabled: false
+                                focusEnabled: editControls.visible
+                                accessibleName: (rowBlock.modelData.hidden ? "Show " : "Hide ") + rowBlock.modelData.title
+                                focusRadius: 6
+                                onTriggered: page._prefs.setVisible(rowBlock.rowKey, rowBlock.modelData.hidden === true)
                             }
                         }
                     }
@@ -637,7 +683,11 @@ Item {
                         radius: 14
                         visible: tile.mosaicItems.length > 0
                         color: Qt.rgba(1, 1, 1, 0.04)
-                        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.09)
+                        border.width: tile.activeFocus ? 2 : 1
+                        border.color: tile.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.09)
+                        focusPolicy: tile.visible ? Qt.TabFocus : Qt.NoFocus
+                        Accessible.role: Accessible.Button
+                        Accessible.name: tile.modelData.title
 
                         Row {
                             anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
@@ -670,7 +720,11 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: page.discoverPinRequested(page.mosaicPin(tile.modelData))
                         }
-                        Keys.onReturnPressed: page.discoverPinRequested(page.mosaicPin(tile.modelData))
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                                page.discoverPinRequested(page.mosaicPin(tile.modelData)); event.accepted = true
+                            }
+                        }
                     }
                 }
             }
@@ -678,4 +732,10 @@ Item {
     }
 
     ScrollGlide { id: pageGlide; flick: mainFlick }
+    KeyboardScrollController {
+        id: exploreScrollKeys
+        flick: mainFlick
+        glide: pageGlide
+        arrowScrolling: false
+    }
 }

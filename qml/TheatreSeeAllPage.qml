@@ -109,6 +109,10 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: seeAll.backRequested()
             }
+            KeyboardAction {
+                id: backKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Back"; focusRadius: 8; onTriggered: seeAll.backRequested()
+            }
         }
 
         Column {
@@ -167,6 +171,10 @@ Item {
             }
             MouseArea { id: retryMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: seeAll.retry() }
+            KeyboardAction {
+                id: retryKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Retry"; focusRadius: parent.radius; onTriggered: seeAll.retry()
+            }
         }
     }
 

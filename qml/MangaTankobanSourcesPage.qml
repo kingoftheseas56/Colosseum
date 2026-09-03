@@ -85,6 +85,7 @@ Item {
     // Computed fresh every show() — never cached at construction — so an
     // Extensions-page toggle is honored the next time this sheet opens, no restart.
     property bool sourcesEnabled: false
+    property Item focusReturnItem: null
 
     // ── live-pick state (approved mock: colosseum-tankoban-sources-live-download-mock.html,
     // 2026-08-16). A pick no longer hides the sheet: the picked row's gold button becomes
@@ -200,10 +201,13 @@ Item {
     }
 
     function show(contextObject) {
+        var w = sheet.Window.window
+        sheet.focusReturnItem = w ? w.activeFocusItem : null
         context = contextObject
         rows = []
         loading = true; complete = false; failureText = ""
         open = true
+        Qt.callLater(function() { sourcesBack.forceActiveFocus(Qt.PopupFocusReason) })
         // Extension gate (R1, 2026-08-21): nyaa ships dark on a fresh install. No
         // auto-enable, no nag — a dark well means an honest empty state here, never
         // a silent no-op; the "get"/"search" click that opened this sheet still
@@ -233,6 +237,9 @@ Item {
         loading = false; complete = false; failureText = ""
         _resetLive()
         closed()
+        var target = sheet.focusReturnItem
+        sheet.focusReturnItem = null
+        if (target) Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
         if (abandonConsume && volumeId.length) consumeAbandoned(volumeId, generation)
     }
 
@@ -590,6 +597,7 @@ Item {
     }
 
     BackAction {
+        id: sourcesBack
         // World-namespaced automation reach (catalogue-independence Slice 4,
         // 2026-08-20): the Lanista smoke scenario needs to dismiss the picker
         // without knowing pixel coordinates. Mirrors tankobanReadingRoomBack.
@@ -715,6 +723,11 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: sheet.openExtensionsRequested()
             }
+            KeyboardAction {
+                id: enableRouteKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Open Extensions"; focusRadius: parent.radius
+                onTriggered: sheet.openExtensionsRequested()
+            }
         }
 
         ListView {
@@ -728,6 +741,16 @@ Item {
             visible: sheet.rows.length > 0
             model: sheet.rows
             boundsBehavior: Flickable.StopAtBounds
+            focusPolicy: sheet.rows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: (event) => sourceKeys.handle(event)
+            KeyboardCollectionController {
+                id: sourceKeys; view: list; orientation: "vertical"; count: sheet.rows.length
+                onActivated: (index) => {
+                    if (sheet.liveIds.length > 0) return
+                    var row=sheet.rows[index]
+                    if (row && row.enabled !== false) sheet.pickNyaa(row)
+                }
+            }
             ScrollBar.vertical: HouseScrollBar { flick: list }
 
             delegate: Item {
@@ -752,7 +775,9 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: (rowMa.containsMouse && row.rowEnabled) ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+                    color: list.activeFocus && list.currentIndex === row.index
+                        ? Qt.rgba(0.94, 0.77, 0.29, 0.08)
+                        : ((rowMa.containsMouse && row.rowEnabled) ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
                 }
 
                 // ── NYAA release row (the only kind this sheet renders — Slice 4) ──
@@ -860,6 +885,8 @@ Item {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: row.rowEnabled && !sheet.liveIds.length ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
+                        list.currentIndex = row.index
+                        list.forceActiveFocus(Qt.MouseFocusReason)
                         if (sheet.liveIds.length > 0) return   // a pick is running — wait or back out
                         sheet.pickNyaa(row.modelData)
                     }

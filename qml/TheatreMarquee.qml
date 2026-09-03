@@ -23,6 +23,10 @@ Glass {
     clip: true
 
     Theme { id: theme }
+    KeyboardAction {
+        id: marqueeKeyboard; anchors.fill: parent; pointerEnabled: false
+        accessibleName: "Open Theatre"; focusRadius: marquee.radius; onTriggered: marquee.clicked()
+    }
 
     Component.onCompleted: TheatreApi.loadHome(function(rows) {
         if (rows.featured.length > 0)
@@ -132,6 +136,15 @@ Glass {
     }
 
     Row {
+        id: continueRail
+        property int currentIndex: marquee.continueItems.length > 0 ? 0 : -1
+        focusPolicy: marquee.continueItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => continueKeys.handle(event)
+        KeyboardCollectionController {
+            id: continueKeys; view: continueRail; orientation: "horizontal"
+            count: Math.min(5, marquee.continueItems.length)
+            onActivated: (index) => marquee.movieClicked(index)
+        }
         anchors.right: parent.right
         anchors.rightMargin: 38
         anchors.bottom: parent.bottom
@@ -154,8 +167,9 @@ Glass {
                     height: marquee.posterH
                     radius: 10
                     color: card.itemData.c2 !== undefined ? card.itemData.c2 : "#10151b"
-                    border.width: 1
-                    border.color: posterMouse.containsMouse ? theme.gold : Qt.rgba(1, 1, 1, 0.14)
+                    border.width: continueRail.activeFocus && card.index === continueRail.currentIndex ? 2 : 1
+                    border.color: continueRail.activeFocus && card.index === continueRail.currentIndex
+                        ? theme.gold : (posterMouse.containsMouse ? theme.gold : Qt.rgba(1, 1, 1, 0.14))
                     clip: true
 
                     Image {
@@ -199,7 +213,11 @@ Glass {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: marquee.movieClicked(card.index)
+                    onClicked: {
+                        continueRail.currentIndex = card.index
+                        continueRail.forceActiveFocus(Qt.MouseFocusReason)
+                        marquee.movieClicked(card.index)
+                    }
                 }
             }
         }

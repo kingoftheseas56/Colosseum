@@ -6,6 +6,20 @@ import QtQuick
 Column {
     id: gm
     property string title: ""
+    property int currentIndex: genres.length > 0 ? 0 : -1
+    focusPolicy: genres.length > 0 ? Qt.TabFocus : Qt.NoFocus
+    onGenresChanged: currentIndex = genres.length > 0 ? Math.min(Math.max(0, currentIndex), genres.length - 1) : -1
+    Keys.onPressed: (event) => genreKeys.handle(event)
+
+    KeyboardCollectionController {
+        id: genreKeys
+        view: gm
+        orientation: "grid"
+        columns: Math.max(1, gm.columns)
+        count: gm.genres.length
+        pageStep: Math.max(1, gm.columns * 2)
+        onActivated: (index) => gm.genreClicked(index)
+    }
     property string moreLabel: "Explore"
     property var genres: []
     property var covers: []
@@ -72,7 +86,8 @@ Column {
                 }
                 Rectangle {
                     anchors.fill: parent; radius: parent.radius; color: "transparent"
-                    border.width: ma.containsMouse ? 2 : 0; border.color: theme.gold
+                    border.width: ma.containsMouse || (gm.activeFocus && gm.currentIndex === cell.index) ? 2 : 0
+                    border.color: theme.gold
                 }
                 MouseArea {
                     id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
