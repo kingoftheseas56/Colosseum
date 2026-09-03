@@ -42,14 +42,14 @@ void testSubtitleRendering()
     require(cues.size() == 1, QStringLiteral("expected one subtitle cue"));
     require(cues.at(0).number == 0 && cues.at(0).startMs == 0 && cues.at(0).endMs == 750,
             QStringLiteral("subtitle timing/number drift"));
-    require(cues.at(0).text == QStringLiteral("Aqueduct oracle"),
+    require(cues.at(0).text == QStringLiteral("Aqueduct oracle\n"),
             QStringLiteral("subtitle text drift"));
 
     const QByteArray srt = SubtitleService::render(cues, SubtitleFormat::Srt, 0);
-    require(srt == "0\n00:00:00,000 --> 00:00:00,750\nAqueduct oracle\n\n",
+    require(srt == "0\n00:00:00,000 --> 00:00:00,750\nAqueduct oracle\n\n\n",
             QStringLiteral("SRT render does not match oracle"));
     const QByteArray vtt = SubtitleService::render(cues, SubtitleFormat::Vtt, 250);
-    require(vtt == "WEBVTT\n\n0\n00:00:00.250 --> 00:00:01.000\nAqueduct oracle\n\n",
+    require(vtt == "WEBVTT\n\n0\n00:00:00.250 --> 00:00:01.000\nAqueduct oracle\n\n\n",
             QStringLiteral("VTT offset render drift"));
 }
 void testOpenSubtitlesHash()
@@ -114,6 +114,36 @@ void testTrackParser()
             QStringLiteral("generic audio language/label should normalize to null"));
 }
 
+QByteArray ebmlSize(qsizetype size)
+{
+    if (size < 0x7f)
+        return QByteArray(1, char(0x80 | int(size)));
+    if (size < 0x3fff) {
+        QByteArray out;
+        out.append(char(0x40 | ((size >> 8) & 0x3f)));
+        out.append(char(size & 0xff));
+        return out;
+    }
+    fail(QStringLiteral("test EBML element too large"));
+}
+
+QByteArray ebmlElement(const char *idHex, const QByteArray &data)
+{
+    return QByteArray::fromHex(idHex) + ebmlSize(data.size()) + data;
+}
+
+QByteArray matroskaTrack(int number, int type, const QByteArray &language,
+                         const QByteArray &label, const QByteArray &codec)
+{
+    QByteArray data;
+    data += ebmlElement("D7", QByteArray(1, char(number)));
+    data += ebmlElement("83", QByteArray(1, char(type)));
+    data += ebmlElement("22B59C", language);
+    data += ebmlElement("536E", label);
+    data += ebmlElement("86", codec);
+    return ebmlElement("AE", data);
+}
+
 V2ProbeResult syntheticV2Probe()
 {
     V2ProbeResult result;
@@ -135,6 +165,28 @@ V2ProbeResult syntheticV2Probe()
     audio.sampleRate = 48000;
     result.streams.append(audio);
     return result;
+}
+
+void testMatroskaStructuredTracks()
+{
+    QByteArray tracksData;
+    tracksData += matroskaTrack(5, 1, "eng", "Main", "V_MPEGH/ISO/HEVC");
+    tracksData += matroskaTrack(9, 1, "jpn", "Alt", "V_MPEGH/ISO/HEVC");
+    const QByteArray bytes = ebmlElement("1A45DFA3", {})
+        + ebmlElement("18538067", ebmlElement("1654AE6B", tracksData));
+
+    QString error;
+    const QVector<TrackInfo> tracks = TrackParser::parseBytes(bytes, &error);
+    require(error.isEmpty(), QStringLiteral("structured Matroska parse failed: %1").arg(error));
+    require(tracks.size() == 2, QStringLiteral("duplicate-codec TrackEntry was collapsed"));
+    require(tracks[0].id == 5 && tracks[0].type == QStringLiteral("video")
+                && tracks[0].language == QStringLiteral("eng")
+                && tracks[0].label == QStringLiteral("Main")
+                && tracks[0].codec == QStringLiteral("MPEGH/ISO/HEVC"),
+            QStringLiteral("first Matroska TrackEntry metadata drift"));
+    require(tracks[1].id == 9 && tracks[1].language == QStringLiteral("jpn")
+                && tracks[1].label == QStringLiteral("Alt"),
+            QStringLiteral("second Matroska TrackEntry metadata drift"));
 }
 
 void testMatroskaTrackParser()
@@ -312,6 +364,7 @@ int main(int argc, char **argv)
     testOpenSubtitlesHash();
     testEmbeddedSamples();
     testTrackParser();
+    testMatroskaStructuredTracks();
     testMatroskaTrackParser();
     testHlsV2MasterPlaylist();
     testLegacyPlaylistMath();

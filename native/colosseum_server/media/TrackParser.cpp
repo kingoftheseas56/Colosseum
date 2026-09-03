@@ -42,6 +42,71 @@ const Atom *findAtom(const QVector<Atom> &list, const QByteArray &type)
     return nullptr;
 }
 
+struct EbmlElement { QByteArray id; qsizetype data = 0; qsizetype end = 0; };
+
+bool readEbmlVint(const QByteArray &b, qsizetype off, quint64 *value, int *length)
+{
+    if (off < 0 || off >= b.size()) return false;
+    const uchar first = uchar(b.at(off));
+    uchar marker = 0x80;
+    int len = 1;
+    while (len <= 8 && !(first & marker)) { marker >>= 1; ++len; }
+    if (len > 8 || off + len > b.size()) return false;
+    quint64 v = first & quint64(marker - 1);
+    for (int i = 1; i < len; ++i) v = (v << 8) | uchar(b.at(off + i));
+    if (value) *value = v;
+    if (length) *length = len;
+    return true;
+}
+
+bool readEbmlElement(const QByteArray &b, qsizetype off, qsizetype limit,
+                     EbmlElement *element, qsizetype *next)
+{
+    quint64 ignored = 0, dataSize = 0;
+    int idLength = 0, sizeLength = 0;
+    if (!readEbmlVint(b, off, &ignored, &idLength)
+        || !readEbmlVint(b, off + idLength, &dataSize, &sizeLength)) return false;
+    const qsizetype data = off + idLength + sizeLength;
+    if (data > limit || dataSize > quint64(limit - data)) return false;
+    if (element) *element = {b.mid(off, idLength).toHex().toUpper(), data,
+                             data + qsizetype(dataSize)};
+    if (next) *next = data + qsizetype(dataSize);
+    return true;
+}
+
+QVector<EbmlElement> ebmlElements(const QByteArray &b, qsizetype begin, qsizetype end)
+{
+    QVector<EbmlElement> out;
+    for (qsizetype off = begin; off < end;) {
+        EbmlElement element;
+        qsizetype next = off;
+        if (!readEbmlElement(b, off, end, &element, &next) || next <= off) break;
+        out.append(element);
+        off = next;
+    }
+    return out;
+}
+
+const EbmlElement *findEbml(const QVector<EbmlElement> &list, const QByteArray &id)
+{
+    for (const EbmlElement &element : list) if (element.id == id) return &element;
+    return nullptr;
+}
+
+quint64 ebmlUInt(const QByteArray &b, const EbmlElement *element)
+{
+    if (!element || element->end <= element->data || element->end - element->data > 8) return 0;
+    quint64 value = 0;
+    for (qsizetype off = element->data; off < element->end; ++off)
+        value = (value << 8) | uchar(b.at(off));
+    return value;
+}
+
+QString ebmlString(const QByteArray &b, const EbmlElement *element)
+{
+    return element ? QString::fromUtf8(b.mid(element->data, element->end - element->data)) : QString();
+}
+
 QVector<TrackInfo> parseMp4(const QByteArray &bytes, QString *error)
 {
     QVector<TrackInfo> result;
@@ -83,6 +148,53 @@ QVector<TrackInfo> parseMp4(const QByteArray &bytes, QString *error)
     return result;
 }
 
+QVector<TrackInfo> parseMatroska(const QByteArray &bytes, QString *error)
+{
+    QVector<TrackInfo> result;
+    const QVector<EbmlElement> root = ebmlElements(bytes, 0, bytes.size());
+    const EbmlElement *segment = findEbml(root, QByteArrayLiteral("18538067"));
+    if (!segment) { setError(error, QStringLiteral("This file type is not supported")); return result; }
+    const QVector<EbmlElement> segmentElements = ebmlElements(bytes, segment->data, segment->end);
+    const EbmlElement *tracks = findEbml(segmentElements, QByteArrayLiteral("1654AE6B"));
+    if (!tracks) { setError(error, QStringLiteral("This file type is not supported")); return result; }
+
+    const QVector<EbmlElement> entries = ebmlElements(bytes, tracks->data, tracks->end);
+    for (const EbmlElement &entry : entries) {
+        if (entry.id != QByteArrayLiteral("AE")) continue;
+        const QVector<EbmlElement> fields = ebmlElements(bytes, entry.data, entry.end);
+        const EbmlElement *trackNumber = findEbml(fields, QByteArrayLiteral("D7"));
+        const EbmlElement *trackType = findEbml(fields, QByteArrayLiteral("83"));
+        const EbmlElement *language = findEbml(fields, QByteArrayLiteral("22B59C"));
+        const EbmlElement *languageBcp47 = findEbml(fields, QByteArrayLiteral("22B59D"));
+        const EbmlElement *name = findEbml(fields, QByteArrayLiteral("536E"));
+        const EbmlElement *codecId = findEbml(fields, QByteArrayLiteral("86"));
+
+        TrackInfo info;
+        if (trackNumber) info.id = int(ebmlUInt(bytes, trackNumber));
+        const quint64 type = ebmlUInt(bytes, trackType);
+        if (type == 1) info.type = QStringLiteral("video");
+        else if (type == 2) info.type = QStringLiteral("audio");
+        else if (type == 17) info.type = QStringLiteral("text");
+
+        QString lang = ebmlString(bytes, language);
+        if (lang == QStringLiteral("und")) lang.clear();
+        if (lang.isEmpty()) {
+            lang = ebmlString(bytes, languageBcp47);
+            if (lang == QStringLiteral("und")) lang.clear();
+        }
+        if (!lang.isEmpty()) info.language = lang;
+        const QString label = ebmlString(bytes, name);
+        if (!label.isEmpty()) info.label = label;
+        QString codec = ebmlString(bytes, codecId);
+        if (codec.startsWith(QStringLiteral("V_")) || codec.startsWith(QStringLiteral("A_"))
+            || codec.startsWith(QStringLiteral("S_"))) codec.remove(0, 2);
+        if (!codec.isEmpty()) info.codec = codec;
+        result.append(info);
+    }
+    setError(error, {});
+    return result;
+}
+
 } // namespace
 
 QVector<TrackInfo> TrackParser::parseFile(const QString &path, qint64 maxBytes, QString *error)
@@ -104,36 +216,8 @@ QVector<TrackInfo> TrackParser::parseBytes(const QByteArray &bytes, QString *err
     if (bytes.size() >= 12 && bytes.mid(4, 4) == QByteArrayLiteral("ftyp"))
         return parseMp4(bytes, error);
     if (bytes.size() >= 4 && uchar(bytes[0]) == 0x1a && uchar(bytes[1]) == 0x45
-        && uchar(bytes[2]) == 0xdf && uchar(bytes[3]) == 0xa3) {
-        QVector<TrackInfo> tracks;
-        const QByteArrayList prefixes{QByteArrayLiteral("V_"), QByteArrayLiteral("A_"), QByteArrayLiteral("S_")};
-        for (const QByteArray &prefix : prefixes) {
-            qsizetype pos = 0;
-            while ((pos = bytes.indexOf(prefix, pos)) >= 0) {
-                qsizetype end = pos;
-                while (end < bytes.size() && end - pos < 64) {
-                    const uchar c = uchar(bytes[end]);
-                    if (c < 0x20 || c > 0x7e) break;
-                    ++end;
-                }
-                const QByteArray codec = bytes.mid(pos, end - pos);
-                if (codec.size() > 2) {
-                    TrackInfo info;
-                    info.id = tracks.size() + 1;
-                    info.type = prefix == QByteArrayLiteral("V_") ? QStringLiteral("video")
-                              : prefix == QByteArrayLiteral("A_") ? QStringLiteral("audio")
-                              : QStringLiteral("text");
-                    info.codec = QString::fromLatin1(codec.mid(2));
-                    bool duplicate = false;
-                    for (const TrackInfo &track : tracks)
-                        duplicate = duplicate || (track.type == info.type && track.codec == info.codec);
-                    if (!duplicate) tracks.append(info);
-                }
-                pos = qMax(end, pos + 2);
-            }
-        }
-        if (!tracks.isEmpty()) { setError(error, {}); return tracks; }
-    }
+        && uchar(bytes[2]) == 0xdf && uchar(bytes[3]) == 0xa3)
+        return parseMatroska(bytes, error);
     setError(error, QStringLiteral("This file type is not supported"));
     return {};
 }
