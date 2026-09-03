@@ -629,6 +629,35 @@ if(NOT ANDROID)
         player/streamserver.h
     )
 endif()
+
+if(ANDROID)
+    # Android deploys/scans a filtered QML tree. Keep desktop-only QML in source,
+    # but never expose it to androiddeployqt/qmlimportscanner.
+    set(COLOSSEUM_QML_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../qml")
+    set(COLOSSEUM_ANDROID_QML_ROOT "${CMAKE_CURRENT_BINARY_DIR}/android-qml")
+    file(REMOVE_RECURSE "${COLOSSEUM_ANDROID_QML_ROOT}")
+    file(GLOB_RECURSE COLOSSEUM_ANDROID_QML_FILES CONFIGURE_DEPENDS
+        LIST_DIRECTORIES false RELATIVE "${COLOSSEUM_QML_SOURCE_ROOT}"
+        "${COLOSSEUM_QML_SOURCE_ROOT}/*")
+    list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^reader2/Paper[.]qml$")
+    list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2/")
+    list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
+    foreach(_qml_rel IN LISTS COLOSSEUM_ANDROID_QML_FILES)
+        get_filename_component(_qml_out_dir "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" DIRECTORY)
+        file(MAKE_DIRECTORY "${_qml_out_dir}")
+        configure_file("${COLOSSEUM_QML_SOURCE_ROOT}/${_qml_rel}"
+                       "${COLOSSEUM_ANDROID_QML_ROOT}/${_qml_rel}" COPYONLY)
+    endforeach()
+    # The staged qmldir must not advertise the desktop Paper type after its file is excluded.
+    set(_android_reader_qmldir "${COLOSSEUM_ANDROID_QML_ROOT}/reader2/qmldir")
+    if(EXISTS "${_android_reader_qmldir}")
+        file(READ "${_android_reader_qmldir}" _android_reader_qmldir_text)
+        string(REPLACE "Paper Paper.qml\r\n" "" _android_reader_qmldir_text "${_android_reader_qmldir_text}")
+        string(REPLACE "Paper Paper.qml\n" "" _android_reader_qmldir_text "${_android_reader_qmldir_text}")
+        file(WRITE "${_android_reader_qmldir}" "${_android_reader_qmldir_text}")
+    endif()
+    set_property(TARGET colosseum PROPERTY QT_QML_ROOT_PATH "${COLOSSEUM_ANDROID_QML_ROOT}")
+endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")
 qt_add_resources(colosseum "tankoyomi_resources"

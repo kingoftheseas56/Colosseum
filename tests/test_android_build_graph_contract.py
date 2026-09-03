@@ -98,6 +98,16 @@ class AndroidBuildGraphContract(unittest.TestCase):
         self.assertIn("Qt6::WebSockets", block)
         self.assertIn("colosseum_libtorrent", block)
 
+    def test_android_qml_deployment_uses_filtered_staging_root(self):
+        text = cmake_text()
+        self.assertIn("COLOSSEUM_ANDROID_QML_ROOT", text)
+        self.assertIn("QT_QML_ROOT_PATH", text)
+        self.assertIn('^reader2/Paper[.]qml$', text)
+        self.assertIn('^player2/', text)
+        self.assertIn('^player2host/', text)
+        self.assertIn('Paper Paper.qml', text)
+        self.assertIn('string(REPLACE', text)
+
     def test_desktop_harness_estate_is_not_configured_on_android(self):
         text = cmake_text()
         self.assertIn("# Desktop-only harness and Player 2 estate", text)
