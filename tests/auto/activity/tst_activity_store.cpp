@@ -536,7 +536,7 @@ void tst_activity_store::portableSyncFactsSanitizeMachineLocalCover() {
         QStringLiteral("movie:x"), QStringLiteral("movie:x"), QStringLiteral("X"),
         localMs(2026, 8, 15, 10, 0, 0), 20000, 1000, 330,
         QStringLiteral("11111111-1111-4111-8111-111111111111"));
-    fact[QStringLiteral("cover")] = QStringLiteral("C:\\Users\\Suprabha\\Pictures\\cover.jpg");
+    fact[QStringLiteral("cover")] = QStringLiteral("C:\\Users\\testuser\\Pictures\\cover.jpg");
     QVERIFY(store.recordPlaybackDelta(fact));
 
     QString error;
@@ -552,7 +552,7 @@ void tst_activity_store::portableSyncFactsSanitizeMachineLocalCover() {
     const QList<QVariantMap> local = store.historyProjectionFacts();
     QCOMPARE(local.size(), 1);
     QCOMPARE(local.first().value(QStringLiteral("cover")).toString(),
-             QStringLiteral("C:\\Users\\Suprabha\\Pictures\\cover.jpg"));
+             QStringLiteral("C:\\Users\\testuser\\Pictures\\cover.jpg"));
 }
 
 void tst_activity_store::applySyncedPortableFactImportsAndProjects() {

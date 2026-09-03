@@ -161,6 +161,8 @@ endif()
 
 add_executable(colosseum
     main.cpp
+    bootstrap/InstanceLock.cpp
+    bootstrap/InstanceLock.h
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
     account/AccountBootstrapStore.cpp
     account/AccountClient.cpp
@@ -995,6 +997,14 @@ add_executable(startup_layout_harness
 )
 target_include_directories(startup_layout_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(startup_layout_harness PRIVATE Qt6::Core)
+
+add_executable(instance_lock_harness
+    ../tests/instance_lock_harness.cpp
+    bootstrap/InstanceLock.cpp
+    bootstrap/InstanceLock.h
+)
+target_include_directories(instance_lock_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(instance_lock_harness PRIVATE Qt6::Core)
 
 add_executable(app_data_migration_harness
     ../tests/app_data_migration_harness.cpp
