@@ -644,19 +644,30 @@ impl CatalogApp {
         };
         div()
             .size_full()
+            .relative()
             .flex()
             .flex_row()
             .bg(theme::colors::STAGE)
             .text_color(theme::colors::INK)
             .font_family(".SystemUIFont")
+            .child(backdrop())
             .child(self.render_nav_rail(cx))
             .child(
                 div()
-                    .id("shell-content")
+                    .relative()
                     .flex_1()
                     .h_full()
-                    .overflow_y_scroll()
-                    .child(content),
+                    .flex()
+                    .flex_col()
+                    .child(self.render_top_bar())
+                    .child(
+                        div()
+                            .id("shell-content")
+                            .relative()
+                            .flex_1()
+                            .overflow_y_scroll()
+                            .child(content),
+                    ),
             )
             .into_any_element()
     }
@@ -669,6 +680,7 @@ impl CatalogApp {
             NavItem::Settings,
         ];
         div()
+            .relative()
             .flex()
             .flex_col()
             .w(px(220.0))
@@ -677,14 +689,39 @@ impl CatalogApp {
             .gap_2()
             .border_r_1()
             .border_color(theme::colors::EDGE)
-            .bg(theme::colors::STAGE_DEEP)
+            .bg(theme::colors::GLASS_TINT)
+            .child(div().absolute().inset_0().bg(theme::colors::GLASS_SCRIM))
             .child(
                 div()
-                    .text_size(px(20.0))
-                    .font_weight(FontWeight::BOLD)
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .right_0()
+                    .h_px()
+                    .bg(theme::colors::EDGE_HI),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap_2()
                     .px_2()
                     .py_2()
-                    .child("Colosseum"),
+                    .child(
+                        div()
+                            .w(px(8.0))
+                            .h(px(8.0))
+                            .rounded_full()
+                            .bg(theme::colors::GOLD),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(20.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::colors::INK)
+                            .child("Colosseum"),
+                    ),
             )
             .children(items.iter().map(|item| {
                 let item = *item;
@@ -694,9 +731,9 @@ impl CatalogApp {
                     .id(label)
                     .py_2()
                     .px_3()
-                    .rounded_md()
+                    .rounded(theme::radius::CARD)
                     .cursor_pointer()
-                    .text_size(px(14.0))
+                    .text_size(theme::typography::NAV_PX)
                     .bg(if active {
                         theme::colors::GOLD
                     } else {
@@ -711,7 +748,7 @@ impl CatalogApp {
                         style.bg(if active {
                             shade(theme::colors::GOLD, 0.06)
                         } else {
-                            gpui::hsla(0.6, 0.2, 0.14, 1.0)
+                            theme::colors::GLASS_HI
                         })
                     })
                     .on_click(cx.listener(move |state, _ev, _window, cx| {
@@ -724,6 +761,116 @@ impl CatalogApp {
                 div()
                     .px_2()
                     .text_size(px(11.0))
+                    .text_color(theme::colors::INK_DIMMER)
+                    .child(self.status.clone()),
+            )
+            .into_any_element()
+    }
+
+    /// The shared TopBar chrome (port of `qml/TopBar.qml`): a glass band with
+    /// the wordmark on the left, the library-mode pills in a glass capsule, and
+    /// a dim status line on the right. The gold "Theatre" pill is the focus
+    /// accent; the POC's real navigation stays on the left rail.
+    fn render_top_bar(&self) -> AnyElement {
+        let capsule = div()
+            .relative()
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap_1()
+            .p_1()
+            .rounded_full()
+            .border_1()
+            .border_color(theme::colors::EDGE)
+            .bg(theme::colors::GLASS_TINT)
+            .child(
+                div()
+                    .absolute()
+                    .inset_0()
+                    .rounded_full()
+                    .bg(theme::colors::GLASS_SCRIM),
+            )
+            .child(top_bar_pill("Tankoban", false))
+            .child(top_bar_pill("Biblio", false))
+            .child(top_bar_pill("Theatre", true))
+            .child(
+                div()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap_1()
+                    .px_3()
+                    .py_1()
+                    .rounded_full()
+                    .text_color(theme::colors::INK_DIMMER)
+                    .text_size(theme::typography::NAV_PX)
+                    .font_weight(FontWeight::MEDIUM)
+                    .child("Vinyl")
+                    .child(
+                        div()
+                            .rounded(px(4.0))
+                            .px_1()
+                            .py_px()
+                            .bg(theme::colors::GLASS_HI)
+                            .child(
+                                div()
+                                    .text_size(px(8.0))
+                                    .text_color(theme::colors::INK_DIM)
+                                    .child("SOON"),
+                            ),
+                    ),
+            )
+            .into_any_element();
+
+        div()
+            .relative()
+            .flex()
+            .flex_row()
+            .items_center()
+            .h(px(56.0))
+            .px(theme::spacing::MARGIN)
+            .border_b_1()
+            .border_color(theme::colors::EDGE)
+            .bg(theme::colors::GLASS_TINT)
+            .child(div().absolute().inset_0().bg(theme::colors::GLASS_SCRIM))
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .right_0()
+                    .h_px()
+                    .bg(theme::colors::EDGE_HI),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .w(px(8.0))
+                            .h(px(8.0))
+                            .rounded_full()
+                            .bg(theme::colors::GOLD),
+                    )
+                    .child(
+                        div()
+                            .text_size(theme::typography::RAIL_TITLE_PX)
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::colors::INK)
+                            .child("Colosseum"),
+                    ),
+            )
+            .child(div().flex_1())
+            .child(capsule)
+            .child(div().flex_1())
+            .child(
+                div()
+                    .max_w(px(360.0))
+                    .truncate()
+                    .text_size(theme::typography::RAIL_SUB_PX)
                     .text_color(theme::colors::INK_DIMMER)
                     .child(self.status.clone()),
             )
@@ -747,7 +894,8 @@ impl CatalogApp {
         div()
             .flex()
             .flex_col()
-            .p_6()
+            .px(theme::spacing::MARGIN)
+            .py(px(24.0))
             .gap_y(theme::spacing::SHELF_GAP)
             .child(rail("Continue Watching", continue_items))
             .child(rail("Trending", trending_items))
@@ -762,52 +910,48 @@ impl CatalogApp {
         let title = detail.title.clone();
         let description = detail.description.clone();
         let color = hex_to_hsla(&detail.poster_color);
-        let hero = linear_gradient(
-            180.0,
-            linear_color_stop(shade(color, 0.06), 0.0),
-            linear_color_stop(shade(color, -0.32), 1.0),
-        );
+        let back = self.back_button("detail-back", cx);
+        let cta = self.play_button(cx, id);
         div()
             .flex()
             .flex_col()
             .gap_4()
-            .p_6()
-            .child(
-                div()
-                    .id("detail-back")
-                    .cursor_pointer()
-                    .py_1()
-                    .px_3()
-                    .rounded_md()
-                    .text_color(theme::colors::INK_DIM)
-                    .hover(|style| style.text_color(theme::colors::INK))
-                    .on_click(cx.listener(|state, _ev, _window, cx| state.go_home(cx)))
-                    .child("‹ Back to Home"),
-            )
-            .child(
-                div()
-                    .w_full()
-                    .rounded(theme::radius::PANEL)
-                    .bg(hero)
-                    .p_6()
-                    .flex()
-                    .flex_col()
-                    .gap_3()
-                    .child(
-                        div()
-                            .text_size(px(30.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(theme::colors::INK)
-                            .child(SharedString::from(title)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(15.0))
-                            .text_color(theme::colors::INK)
-                            .child(SharedString::from(description)),
-                    )
-                    .child(self.play_button(cx, id)),
-            )
+            .px(theme::spacing::MARGIN)
+            .py(px(24.0))
+            .child(hero_panel(
+                shade(color, 0.10),
+                shade(color, -0.30),
+                "Series · Theatre",
+                &title,
+                "",
+                &description,
+                back,
+                cta,
+            ))
+            .into_any_element()
+    }
+
+    /// A floating back chip over the hero's top scrim. Dim → ink on hover
+    /// matches `TopBar.qml`'s BackAction treatment (gold never goes up here).
+    fn back_button(&self, id: &'static str, cx: &mut Context<Self>) -> AnyElement {
+        div()
+            .id(id)
+            .cursor_pointer()
+            .py_1()
+            .px_3()
+            .rounded(theme::radius::CARD)
+            .border_1()
+            .border_color(theme::colors::EDGE)
+            .bg(theme::colors::GLASS_TINT)
+            .text_color(theme::colors::INK_DIM)
+            .text_size(theme::typography::BODY_SM_PX)
+            .hover(|style| {
+                style
+                    .text_color(theme::colors::INK)
+                    .bg(theme::colors::GLASS_HI)
+            })
+            .on_click(cx.listener(|state, _ev, _window, cx| state.go_home(cx)))
+            .child("‹ Back to Home")
             .into_any_element()
     }
 
@@ -817,11 +961,11 @@ impl CatalogApp {
             .cursor_pointer()
             .px_4()
             .py_2()
-            .rounded(theme::radius::CARD)
+            .rounded(theme::radius::BUTTON)
             .bg(theme::colors::GOLD)
             .text_color(theme::colors::ON_GOLD)
             .font_weight(FontWeight::BOLD)
-            .text_size(px(16.0))
+            .text_size(theme::typography::BUTTON_PX)
             .hover(|style| style.bg(shade(theme::colors::GOLD, 0.08)))
             .on_click(cx.listener(|state, _ev, _window, cx| {
                 let title = state
@@ -957,10 +1101,11 @@ impl CatalogApp {
             .flex()
             .flex_col()
             .gap_4()
-            .p_6()
+            .px(theme::spacing::MARGIN)
+            .py(px(24.0))
             .child(
                 div()
-                    .text_size(px(22.0))
+                    .text_size(theme::typography::RAIL_TITLE_PX)
                     .font_weight(FontWeight::BOLD)
                     .text_color(theme::colors::INK)
                     .child("Search"),
@@ -1076,23 +1221,6 @@ impl CatalogApp {
         _media_type: &str,
         tt_id: &str,
     ) -> AnyElement {
-        let hero = linear_gradient(
-            180.0,
-            linear_color_stop(shade(theme::colors::COVER_C1, 0.04), 0.0),
-            linear_color_stop(shade(theme::colors::COVER_C2, -0.18), 1.0),
-        );
-
-        let back = div()
-            .id("imdb-back")
-            .cursor_pointer()
-            .py_1()
-            .px_3()
-            .rounded_md()
-            .text_color(theme::colors::INK_DIM)
-            .hover(|style| style.text_color(theme::colors::INK))
-            .on_click(cx.listener(|state, _ev, _window, cx| state.go_home(cx)))
-            .child("‹ Back to Home");
-
         let hero_elem: AnyElement = match &self.imdb_meta {
             Some(meta) => {
                 let title = meta.title();
@@ -1112,52 +1240,32 @@ impl CatalogApp {
                     }
                     details.push_str(runtime);
                 }
-                let mut hero_panel = div()
-                    .w_full()
-                    .rounded(theme::radius::PANEL)
-                    .bg(hero)
-                    .p_6()
-                    .flex()
-                    .flex_col()
-                    .gap_3()
-                    .child(
-                        div()
-                            .text_size(px(30.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(theme::colors::INK)
-                            .child(SharedString::from(title)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .text_color(theme::colors::INK_DIM)
-                            .child(SharedString::from(subtitle)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(15.0))
-                            .text_color(theme::colors::INK)
-                            .child(SharedString::from(description)),
-                    );
+                let mut meta_line = subtitle;
                 if !details.is_empty() {
-                    hero_panel = hero_panel.child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(theme::colors::INK_DIM)
-                            .child(SharedString::from(details)),
-                    );
+                    meta_line = format!("{meta_line} · {details}");
                 }
-                hero_panel.child(self.sources_button(cx)).into_any_element()
+                let back = self.back_button("imdb-back", cx);
+                let cta = self.sources_button(cx);
+                hero_panel(
+                    shade(theme::colors::COVER_C1, 0.04),
+                    shade(theme::colors::COVER_C2, -0.18),
+                    "Movie · Theatre",
+                    &title,
+                    &meta_line,
+                    &description,
+                    back,
+                    cta,
+                )
             }
-            None => self.render_placeholder(&format!("Loading {tt_id}…")),
+            None => return self.render_placeholder(&format!("Loading {tt_id}…")),
         };
 
         div()
             .flex()
             .flex_col()
             .gap_4()
-            .p_6()
-            .child(back)
+            .px(theme::spacing::MARGIN)
+            .py(px(24.0))
             .child(hero_elem)
             .child(self.render_sources_sheet(cx))
             .into_any_element()
@@ -1171,11 +1279,11 @@ impl CatalogApp {
             .cursor_pointer()
             .px_4()
             .py_2()
-            .rounded(theme::radius::CARD)
+            .rounded(theme::radius::BUTTON)
             .bg(theme::colors::GOLD)
             .text_color(theme::colors::ON_GOLD)
             .font_weight(FontWeight::BOLD)
-            .text_size(px(16.0))
+            .text_size(theme::typography::BUTTON_PX)
             .hover(|style| style.bg(shade(theme::colors::GOLD, 0.08)))
             .on_click(cx.listener(|state, _ev, _window, cx| {
                 state.fetch_sources(cx);
@@ -1400,7 +1508,8 @@ impl CatalogApp {
             .flex()
             .flex_col()
             .gap_2()
-            .p_6()
+            .px(theme::spacing::MARGIN)
+            .py(px(24.0))
             .child(
                 div()
                     .text_size(px(20.0))
@@ -1497,6 +1606,160 @@ impl CatalogApp {
         )
         .into_any_element()
     }
+}
+
+/// The wallpaper-ish backdrop scene behind the chrome: a deep navy stage
+/// (`Theme.qml` biblio wash) plus a faint gold-tinted diagonal glow. gpui has
+/// no radial gradient, so the scene is two layered linear gradients — the glow
+/// is a SPARING wash, not chrome gold.
+fn backdrop() -> AnyElement {
+    let stage = linear_gradient(
+        180.0,
+        linear_color_stop(theme::colors::BIBLIO_WASH_TOP, 0.0),
+        linear_color_stop(theme::colors::BIBLIO_WASH_BOTTOM, 1.0),
+    );
+    let glow = linear_gradient(
+        160.0,
+        linear_color_stop(
+            Hsla {
+                a: 0.05,
+                ..theme::colors::GOLD
+            },
+            0.0,
+        ),
+        linear_color_stop(gpui::transparent_black(), 0.6),
+    );
+    div()
+        .absolute()
+        .inset_0()
+        .bg(stage)
+        .child(div().absolute().inset_0().bg(glow))
+        .into_any_element()
+}
+
+/// One library-mode pill in the TopBar capsule (`TopBar.qml` `Pill`). Static
+/// in the POC: the gold active state is the focus accent; inactive pills rest
+/// at `inkDim`. No click handler — the POC's navigation lives on the rail.
+fn top_bar_pill(label: &str, active: bool) -> AnyElement {
+    div()
+        .flex()
+        .flex_row()
+        .items_center()
+        .px_3()
+        .py_1()
+        .rounded_full()
+        .bg(if active {
+            theme::colors::GOLD
+        } else {
+            gpui::transparent_black()
+        })
+        .text_color(if active {
+            theme::colors::ON_GOLD
+        } else {
+            theme::colors::INK_DIM
+        })
+        .text_size(theme::typography::NAV_PX)
+        .font_weight(if active {
+            FontWeight::SEMIBOLD
+        } else {
+            FontWeight::MEDIUM
+        })
+        .child(label.to_string())
+        .into_any_element()
+}
+
+/// A detail hero panel: a poster-wash gradient, a `ChromeScrim`-style top band
+/// for the floating back chip, a bottom scrim (`TheatreSeries.qml` math) that
+/// seats the copy, an eyebrow + display title + meta + body from the type
+/// scale, and a gold CTA. Everything is clipped to the slide radius.
+#[allow(clippy::too_many_arguments)]
+fn hero_panel(
+    wash_top: Hsla,
+    wash_bottom: Hsla,
+    eyebrow: &str,
+    title: &str,
+    meta_line: &str,
+    description: &str,
+    back: AnyElement,
+    cta: AnyElement,
+) -> AnyElement {
+    let wash = linear_gradient(
+        180.0,
+        linear_color_stop(wash_top, 0.0),
+        linear_color_stop(wash_bottom, 1.0),
+    );
+    let bottom_scrim = linear_gradient(
+        180.0,
+        linear_color_stop(gpui::transparent_black(), 0.0),
+        linear_color_stop(theme::colors::SCRIM_HERO_BOTTOM, 1.0),
+    );
+    let top_scrim = linear_gradient(
+        180.0,
+        linear_color_stop(theme::colors::SCRIM_CHROME, 0.0),
+        linear_color_stop(gpui::transparent_black(), 1.0),
+    );
+
+    let mut body = div()
+        .relative()
+        .flex()
+        .flex_col()
+        .gap_3()
+        .px(px(48.0))
+        .py(px(44.0))
+        .child(
+            div()
+                .text_size(theme::typography::EYEBROW_PX)
+                .font_weight(FontWeight::BOLD)
+                .text_color(theme::colors::GOLD)
+                .child(SharedString::from(eyebrow.to_ascii_uppercase())),
+        )
+        .child(
+            div()
+                .w_full()
+                .text_size(theme::typography::HERO_TITLE_PX)
+                .font_weight(FontWeight::BOLD)
+                .text_color(theme::colors::INK)
+                .line_clamp(2)
+                .child(SharedString::from(title.to_string())),
+        );
+    if !meta_line.is_empty() {
+        body = body.child(
+            div()
+                .text_size(theme::typography::META_PX)
+                .text_color(theme::colors::INK_DIM)
+                .child(SharedString::from(meta_line.to_string())),
+        );
+    }
+    body = body
+        .child(
+            div()
+                .text_size(theme::typography::BODY_PX)
+                .text_color(theme::colors::INK_DIM)
+                .child(SharedString::from(description.to_string())),
+        )
+        .child(div().pt_2().child(cta));
+
+    div()
+        .relative()
+        .w_full()
+        .rounded(theme::radius::SLIDE)
+        .border_1()
+        .border_color(theme::colors::EDGE)
+        .overflow_hidden()
+        .bg(wash)
+        .child(div().absolute().inset_0().bg(bottom_scrim))
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .h(px(120.0))
+                .bg(top_scrim),
+        )
+        .child(div().absolute().top(px(20.0)).left(px(24.0)).child(back))
+        .child(body)
+        .into_any_element()
 }
 
 /// A poster card wrapped in a clickable host that opens its series detail.

@@ -175,6 +175,50 @@ pub mod colors {
         l: 0.023529,
         a: 1.0,
     };
+
+    /// Glass adaptive scrim — `rgba(0, 0, 0, 0.14)` (`Glass.qml` `scrim`).
+    /// Keeps text legible over any wallpaper; layered under panel content.
+    pub const GLASS_SCRIM: Hsla = Hsla {
+        h: 0.0,
+        s: 0.0,
+        l: 0.0,
+        a: 0.14,
+    };
+
+    /// Hairline top-edge highlight — `Glass.qml`'s bright edge intent
+    /// (`glassHi` value reused as a 1px top hairline on glass chrome).
+    pub const EDGE_HI: Hsla = Hsla {
+        h: 0.0,
+        s: 0.0,
+        l: 1.0,
+        a: 0.14,
+    };
+
+    /// Focus halo (outer ring) — `rgba(240, 196, 74, 0.18)`
+    /// (`CataloguePosterCard.qml` double gold focus halo).
+    pub const GOLD_HALO: Hsla = Hsla {
+        h: 0.122490,
+        s: 0.846939,
+        l: 0.615686,
+        a: 0.18,
+    };
+
+    /// Chrome scrim top stop — `rgba(0, 0, 0, 0.55)` (`ChromeScrim.qml`).
+    pub const SCRIM_CHROME: Hsla = Hsla {
+        h: 0.0,
+        s: 0.0,
+        l: 0.0,
+        a: 0.55,
+    };
+
+    /// Detail hero bottom scrim — `rgba(0, 0, 0, 0.92)`
+    /// (`TheatreSeries.qml` banner bottom stop).
+    pub const SCRIM_HERO_BOTTOM: Hsla = Hsla {
+        h: 0.0,
+        s: 0.0,
+        l: 0.0,
+        a: 0.92,
+    };
 }
 
 /// Spacing tokens (gallery profile). These are [`Pixels`], so consumers can
@@ -203,11 +247,45 @@ pub mod spacing {
     /// Gap between a poster plane and its title — the gallery title top gap.
     pub const TITLE_GAP: Pixels = px(10.0);
 
-    /// Poster title size — `gallery.titlePixels`.
-    pub const TITLE_PX: Pixels = px(13.0);
+    /// Reserved two-line title measure — `gallery.titleMinHeight`.
+    pub const TITLE_MIN_HEIGHT: Pixels = px(35.0);
+}
 
-    /// Rail/section header size (approximated from the QML landing headers).
-    pub const RAIL_TITLE_PX: Pixels = px(20.0);
+/// Type-scale tokens (port of `Theme.qml` + the QML widget font sizes).
+/// GPUI ships only the system font face in this POC, so the QML `display`
+/// (Fraunces) serif is approximated with the same sizes in the system face.
+pub mod typography {
+    use gpui::{px, Pixels};
+
+    /// Hero display title — `TheatreSeries.qml` / `TheatreCinemaHero.qml`.
+    pub const HERO_TITLE_PX: Pixels = px(64.0);
+
+    /// Rail/section header — `WidgetHeader.qml` (22px Fraunces).
+    pub const RAIL_TITLE_PX: Pixels = px(22.0);
+
+    /// Rail sub-caption — `WidgetHeader.qml` `sub`.
+    pub const RAIL_SUB_PX: Pixels = px(12.0);
+
+    /// Body / description text.
+    pub const BODY_PX: Pixels = px(15.0);
+
+    /// Secondary body text.
+    pub const BODY_SM_PX: Pixels = px(13.0);
+
+    /// Meta line (year · genres · runtime).
+    pub const META_PX: Pixels = px(14.0);
+
+    /// Eyebrow / kicker (`TheatreSeries.qml` gold hero kicker).
+    pub const EYEBROW_PX: Pixels = px(11.0);
+
+    /// Primary CTA button label.
+    pub const BUTTON_PX: Pixels = px(14.0);
+
+    /// Poster title (gallery profile).
+    pub const POSTER_TITLE_PX: Pixels = px(13.0);
+
+    /// Nav-rail item label.
+    pub const NAV_PX: Pixels = px(14.0);
 }
 
 /// Corner-radius tokens. These are [`Pixels`], for `rounded(…)`.
@@ -225,4 +303,7 @@ pub mod radius {
 
     /// Glass panel radius — `Bookshelf.qml`.
     pub const PANEL: Pixels = px(18.0);
+
+    /// Primary CTA / pill radius — `TheatreSeries.qml` Watch button.
+    pub const BUTTON: Pixels = px(11.0);
 }
