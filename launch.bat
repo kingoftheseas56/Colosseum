@@ -61,6 +61,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM VsDevCmd can rebuild PATH for the developer shell. Restore the Qt and
+REM build-directory runtime paths after that call so the freshly built app
+REM can locate its Qt, mpv, and companion DLLs when launched from the service.
+if exist "%QT_ROOT%\bin" set "PATH=%QT_ROOT%\bin;%PATH%"
+if exist "%BUILD_DIR%" set "PATH=%BUILD_DIR%;%PATH%"
+
 cmake --build "%BUILD_DIR%" --target colosseum --parallel 4
 if errorlevel 1 (
   echo.
