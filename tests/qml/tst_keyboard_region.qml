@@ -72,7 +72,8 @@ TestCase {
         region = regionComp.createObject(testWindow)
         verify(region !== null)
         escapeSpy.target = region
-        wait(20)
+        testWindow.requestActivate()
+        wait(40)
     }
 
     function cleanup() {
@@ -87,12 +88,15 @@ TestCase {
     }
 
     function test_entry_focus_chooses_first_valid_control() {
+        compare(region.focusableItems().length, 2)
         verify(region.focusEntry())
         verify(region.firstAction.activeFocus)
     }
 
     function test_tab_and_backtab_stay_inside_trapped_region() {
-        verify(region.firstAction.forceActiveFocus())
+        region.firstAction.forceActiveFocus()
+        wait(5)
+        verify(region.firstAction.activeFocus)
         verify(region.handleKey(Qt.Key_Tab, Qt.NoModifier))
         verify(region.secondAction.activeFocus)
         verify(region.handleKey(Qt.Key_Backtab, Qt.NoModifier))
@@ -107,7 +111,9 @@ TestCase {
     }
 
     function test_last_focus_restores_only_while_valid() {
-        verify(region.secondAction.forceActiveFocus())
+        region.secondAction.forceActiveFocus()
+        wait(5)
+        verify(region.secondAction.activeFocus)
         verify(region.rememberFocus(region.secondAction))
         verify(region.restoreFocus())
         verify(region.secondAction.activeFocus)

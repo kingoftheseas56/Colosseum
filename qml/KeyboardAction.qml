@@ -12,6 +12,7 @@ Item {
     property bool pointerEnabled: true
     property bool spaceActivates: true
     property bool contextEnabled: false
+    property QtObject command: null
     property bool showFocusFrame: true
     property real focusRadius: 10
     property real focusInset: -2
@@ -25,14 +26,21 @@ Item {
     signal triggered()
     signal contextRequested()
 
-    focusPolicy: focusEnabled ? Qt.TabFocus : Qt.NoFocus
+    // Keep the focus policy stable while a focused action is being hidden or disabled.
+    // Qt warns when an active item changes its policy to NoFocus during that transition;
+    // the focus engine already excludes invisible/disabled items, while focusEnabled still
+    // controls activation and accessibility eligibility.
+    focusPolicy: Qt.TabFocus
 
     function activate(focusReason) {
         if (!action.enabled || !action.visible)
-            return
+            return false
         if (action.focusEnabled && focusReason !== undefined)
             action.forceActiveFocus(focusReason)
+        if (action.command && action.command.invoke)
+            return action.command.invoke(action)
         action.triggered()
+        return true
     }
     function requestContext(focusReason) {
         if (!action.enabled || !action.visible || !action.contextEnabled)
@@ -40,6 +48,7 @@ Item {
         if (action.focusEnabled && focusReason !== undefined)
             action.forceActiveFocus(focusReason)
         action.contextRequested()
+        return true
     }
 
     Keys.onPressed: (event) => {
