@@ -8,7 +8,7 @@
 pub mod cinemeta;
 pub mod torrentio;
 
-pub use cinemeta::{Cinemeta, MetaPreview};
+pub use cinemeta::{Cinemeta, MetaPreview, MetaResponse};
 pub use torrentio::Torrentio;
 
 /// Errors from a live provider. The daemon treats any of these as "provider

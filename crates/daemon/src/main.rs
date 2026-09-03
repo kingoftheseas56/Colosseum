@@ -213,6 +213,7 @@ async fn main() {
         .route("/catalog/home", get(catalog_home))
         .route("/catalog/series/{id}", get(catalog_series))
         .route("/catalog/series/{id}/sources", get(catalog_sources))
+        .route("/catalog/meta/{media_type}/{tt_id}", get(catalog_meta))
         .route("/sources/imdb/{tt_id}", get(sources_imdb))
         .route("/torrents/spool", post(spool_torrent))
         .route("/v1/accounts", post(create_account))
@@ -351,6 +352,44 @@ async fn catalog_sources(
     }
     let sources = state.addons.sources("series", &path.id.to_string());
     (StatusCode::OK, Json(sources)).into_response()
+}
+
+#[derive(Deserialize)]
+struct MetaPath {
+    media_type: String,
+    tt_id: String,
+}
+
+/// `GET /catalog/meta/{media_type}/{tt_id}` — the live Cinemeta meta (detail)
+/// for one id, the detail-by-imdb half of the torrent lane. This mirrors the
+/// `/sources/imdb` live gate exactly: without `ADDONS_LIVE=1` it returns 404
+/// with the Go envelope, and a down/timeout provider returns 502. The seeded
+/// `/catalog/series/{id}` detail route is untouched.
+async fn catalog_meta(State(state): State<Arc<AppState>>, Path(path): Path<MetaPath>) -> Response {
+    let Some(live) = &state.live else {
+        return write_api_error(
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Live metadata is disabled; run with ADDONS_LIVE=1.",
+        );
+    };
+
+    match live.meta(&path.media_type, &path.tt_id).await {
+        Ok(meta) => (StatusCode::OK, Json(meta)).into_response(),
+        Err(err) => {
+            tracing::warn!(
+                error = %err,
+                tt_id = %path.tt_id,
+                media_type = %path.media_type,
+                "live Cinemeta meta failed"
+            );
+            write_api_error(
+                StatusCode::BAD_GATEWAY,
+                "provider_unavailable",
+                "Cinemeta metadata lookup failed.",
+            )
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -657,6 +696,51 @@ mod tests {
             json["error"]["message"],
             "Live sources are disabled; run with ADDONS_LIVE=1."
         );
+    }
+
+    #[tokio::test]
+    async fn catalog_meta_404s_offline() {
+        let state = test_state(); // live Cinemeta is None
+        let response = catalog_meta(
+            State(state),
+            Path(MetaPath {
+                media_type: "movie".to_string(),
+                tt_id: "tt1160419".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        let json = json_body(response).await;
+        assert_eq!(json["error"]["code"], "not_found");
+        assert_eq!(
+            json["error"]["message"],
+            "Live metadata is disabled; run with ADDONS_LIVE=1."
+        );
+    }
+
+    #[tokio::test]
+    async fn catalog_meta_returns_502_when_cinemeta_is_down() {
+        let mut state = test_state();
+        Arc::get_mut(&mut state)
+            .expect("fresh state has a single owner")
+            .live = Some(Arc::new(Cinemeta::with_base(
+            "http://127.0.0.1:1".to_string(),
+        )));
+
+        let response = catalog_meta(
+            State(state),
+            Path(MetaPath {
+                media_type: "movie".to_string(),
+                tt_id: "tt1160419".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+
+        let json = json_body(response).await;
+        assert_eq!(json["error"]["code"], "provider_unavailable");
+        assert_eq!(json["error"]["message"], "Cinemeta metadata lookup failed.");
     }
 
     #[tokio::test]

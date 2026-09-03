@@ -88,7 +88,9 @@ pub mod registry;
 pub mod stream;
 
 pub use manifest::Manifest;
-pub use providers::{CatalogSearch, Cinemeta, LiveError, MetaPreview, StreamSearch, Torrentio};
+pub use providers::{
+    CatalogSearch, Cinemeta, LiveError, MetaPreview, MetaResponse, StreamSearch, Torrentio,
+};
 pub use rank::{compare, sort_rows, Kind, Quality, RankedStream};
 pub use registry::{sources_for_addon, Addon, Candidate, InstalledAddon, Registry, Sources};
 pub use stream::{BehaviorHints, Stream, StreamResponse};

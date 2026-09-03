@@ -8,15 +8,24 @@
 //! `COLOSSEUM_UI_LEGACY=1`.
 //!
 //! Dev hooks (for the text-only gate, no human click required):
-//! - `COLOSSEUM_UI_START_VIEW=detail:<id>` opens the detail view directly on
-//!   launch (e.g. `detail:7` for "Starlight Academy").
+//! - `COLOSSEUM_UI_START_VIEW=detail:<id>` opens the seeded series detail
+//!   directly on launch (e.g. `detail:7` for "Starlight Academy").
+//! - `COLOSSEUM_UI_START_VIEW=imdb:tt1160419` opens the live detail-by-imdb
+//!   view directly (a bare `tt` id defaults to `movie`; `imdb:movie:` /
+//!   `imdb:series:` prefixes are also accepted).
+//! - `COLOSSEUM_UI_START_VIEW=search:<query>` opens the Search view pre-filled
+//!   with `<query>` and fetches immediately (e.g. `search:dune`).
 //! - `COLOSSEUM_UI_AUTOPLAY=1` auto-hits Play: on the detail start view it
 //!   plays the moment the detail arrives; on the home start view it plays the
 //!   top continue-watching title (falling back to trending).
+//! - `COLOSSEUM_UI_AUTOPLAY_SOURCE=1` auto-spools the top torrent candidate
+//!   the moment a detail-by-imdb SourcesSheet arrives (the spool path then
+//!   reaches the player without a human click).
 
 mod gpui_tokio;
 mod http;
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use gpui::prelude::*;
@@ -32,11 +41,13 @@ const DAEMON_URL_DEFAULT: &str = "http://127.0.0.1:8123";
 const TEST_CLIP: &str = "file:///tmp/colosseum-ui-test.mp4";
 
 /// Which surface the shell is showing. Home/Detail/Player are the Phase A
-/// spine; Search and Settings are placeholders parked on the nav rail.
-#[derive(Clone, Copy)]
+/// spine; Search and Settings sit on the nav rail. `DetailImdb` is the slice-4
+/// live detail-by-imdb surface (Cinemeta meta + Torrentio SourcesSheet).
+#[derive(Clone)]
 enum AppView {
     Home,
     Detail { series_id: i64 },
+    DetailImdb { media_type: String, tt_id: String },
     Player,
     Search,
     Settings,
@@ -81,16 +92,38 @@ struct CatalogApp {
     series: Vec<http::Series>,
     selected: Option<usize>,
 
+    // Search view state (nav-rail Search made real in slice 4).
+    search_query: String,
+    search_focus: Option<gpui::FocusHandle>,
+    search_seq: u64,
+    search_results: Vec<http::SearchRow>,
+
+    // Detail-by-imdb state (live Cinemeta meta + Torrentio SourcesSheet).
+    imdb_type: String,
+    imdb_id: String,
+    imdb_meta: Option<http::CinemetaMeta>,
+    sources: Option<http::Sources>,
+    source_filter: Option<String>,
+    sources_status: SharedString,
+    autoplay_source: bool,
+
     // Shared player state.
     player: Option<Box<dyn Player>>,
     frame: Option<Arc<gpui::RenderImage>>,
 }
 
 impl CatalogApp {
-    fn new(daemon_url: String, legacy: bool, start_view: Option<String>, autoplay: bool) -> Self {
+    fn new(
+        daemon_url: String,
+        legacy: bool,
+        start_view: Option<String>,
+        autoplay: bool,
+        autoplay_source: bool,
+    ) -> Self {
         Self {
             legacy,
             autoplay,
+            autoplay_source,
             daemon_url,
             start_view,
             view: AppView::Home,
@@ -101,6 +134,16 @@ impl CatalogApp {
             status: "connecting to daemon…".into(),
             series: Vec::new(),
             selected: None,
+            search_query: String::new(),
+            search_focus: None,
+            search_seq: 0,
+            search_results: Vec::new(),
+            imdb_type: String::new(),
+            imdb_id: String::new(),
+            imdb_meta: None,
+            sources: None,
+            source_filter: None,
+            sources_status: SharedString::default(),
             player: None,
             frame: None,
         }
@@ -108,20 +151,33 @@ impl CatalogApp {
 
     /// Kick off the first fetch for whichever mode/env hook was requested.
     fn spawn_initial(&mut self, cx: &mut Context<Self>) {
+        self.search_focus = Some(cx.focus_handle());
         if self.legacy {
             self.fetch_catalog_legacy(cx);
             return;
         }
-        let detail_id = self
-            .start_view
-            .as_deref()
-            .and_then(|s| s.strip_prefix("detail:"))
-            .and_then(|s| s.trim().parse::<i64>().ok());
-        if let Some(id) = detail_id {
-            self.open_detail(id, cx);
-        } else {
+        let Some(start) = self.start_view.clone() else {
             self.fetch_home(cx);
+            return;
+        };
+        let start = start.as_str();
+
+        if let Some(id) = start
+            .strip_prefix("detail:")
+            .and_then(|s| s.trim().parse::<i64>().ok())
+        {
+            self.open_detail(id, cx);
+            return;
         }
+        if let Some((media_type, tt_id)) = parse_imdb_hook(start) {
+            self.open_detail_imdb(&media_type, &tt_id, cx);
+            return;
+        }
+        if let Some(query) = start.strip_prefix("search:") {
+            self.open_search(query, cx);
+            return;
+        }
+        self.fetch_home(cx);
     }
 
     fn fetch_home(&mut self, cx: &mut Context<Self>) {
@@ -228,10 +284,234 @@ impl CatalogApp {
         cx.notify();
     }
 
+    /// Open the Search view, optionally pre-filling a query and fetching right
+    /// away (the `search:<query>` dev hook).
+    fn open_search(&mut self, query: &str, cx: &mut Context<Self>) {
+        self.nav = NavItem::Search;
+        self.view = AppView::Search;
+        self.stop_playback();
+        if !query.is_empty() {
+            self.search_query = query.to_string();
+            self.fetch_search(query, cx);
+        }
+        cx.notify();
+    }
+
+    /// Open the live detail-by-imdb view for one `tt` id and fetch its
+    /// Cinemeta meta.
+    fn open_detail_imdb(&mut self, media_type: &str, tt_id: &str, cx: &mut Context<Self>) {
+        self.imdb_type = media_type.to_string();
+        self.imdb_id = tt_id.to_string();
+        self.imdb_meta = None;
+        self.sources = None;
+        self.source_filter = None;
+        self.sources_status = SharedString::default();
+        self.view = AppView::DetailImdb {
+            media_type: media_type.to_string(),
+            tt_id: tt_id.to_string(),
+        };
+        self.status = format!("loading {tt_id}…").into();
+        self.stop_playback();
+        self.fetch_meta(cx);
+        cx.notify();
+    }
+
+    /// `GET /catalog/meta/{type}/{tt_id}` — the live detail hero.
+    fn fetch_meta(&mut self, cx: &mut Context<Self>) {
+        let base = self.daemon_url.clone();
+        let media_type = self.imdb_type.clone();
+        let tt_id = self.imdb_id.clone();
+        let tt_label = tt_id.clone();
+        cx.spawn(async move |this, cx| {
+            let fetched = gpui_tokio::Tokio::spawn(cx, async move {
+                http::meta(&base, &media_type, &tt_id).await
+            })
+            .await
+            .unwrap_or_else(|e| Err(format!("tokio join failed: {e}")));
+            let _ = this.update(cx, |state: &mut CatalogApp, cx| {
+                match fetched {
+                    Ok(meta) => {
+                        let title = meta.title();
+                        state.imdb_meta = Some(meta);
+                        state.status = format!("loaded {tt_label}: {title}").into();
+                        // `AUTOPLAY_SOURCE=1` reaches the spool path without a
+                        // click: once the hero arrives, fetch the candidates
+                        // (which then auto-spool the top torrent row).
+                        if state.autoplay_source {
+                            state.fetch_sources(cx);
+                        }
+                    }
+                    Err(e) => state.status = SharedString::from(e),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// `GET /sources/imdb/{tt}` — ranked Torrentio candidates, then
+    /// (optionally) auto-spool the top torrent row via `AUTOPLAY_SOURCE=1`.
+    fn fetch_sources(&mut self, cx: &mut Context<Self>) {
+        let base = self.daemon_url.clone();
+        let tt_id = self.imdb_id.clone();
+        self.sources_status = format!("loading sources for {tt_id}…").into();
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let fetched =
+                gpui_tokio::Tokio::spawn(
+                    cx,
+                    async move { http::sources_imdb(&base, &tt_id).await },
+                )
+                .await
+                .unwrap_or_else(|e| Err(format!("tokio join failed: {e}")));
+            let _ = this.update(cx, |state: &mut CatalogApp, cx| {
+                match fetched {
+                    Ok(sources) => {
+                        let n = sources.candidates.len();
+                        state.status = format!("sources loaded: {n} candidates").into();
+                        state.sources_status = format!(
+                            "{n} candidates · {}",
+                            summarize_counts(&sources.counts_by_addon)
+                        )
+                        .into();
+                        state.sources = Some(sources);
+                        // Text-only gate: spool the top torrent candidate the
+                        // moment the sheet arrives, no click required.
+                        if state.autoplay_source {
+                            if let Some(cid) = state.first_torrent_candidate() {
+                                state.spool_candidate(&cid, cx);
+                            } else {
+                                state.sources_status =
+                                    "no torrent candidates to spool (direct/offline)".into();
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        let msg = SharedString::from(e);
+                        state.sources_status = msg.clone();
+                        state.status = msg;
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// `POST /torrents/spool` for one candidate. Sets an honest status line
+    /// through the request; on success the returned `file://` path is handed
+    /// to the existing player view. Direct/offline rows never reach here (the
+    /// sheet reports them instead) and a real-swarm stall is surfaced as the
+    /// daemon's own `stalled`/`…` envelope message.
+    fn spool_candidate(&mut self, candidate_id: &str, cx: &mut Context<Self>) {
+        let base = self.daemon_url.clone();
+        let cid = candidate_id.to_string();
+        let status: SharedString = format!("spooling {cid}…").into();
+        self.status = status.clone();
+        self.sources_status = status;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let fetched =
+                gpui_tokio::Tokio::spawn(cx, async move { http::spool(&base, &cid).await })
+                    .await
+                    .unwrap_or_else(|e| Err(format!("tokio join failed: {e}")));
+            let _ = this.update(cx, |state: &mut CatalogApp, cx| {
+                match fetched {
+                    Ok(resp) => {
+                        let path = resp.path.clone();
+                        state.status = format!("spool complete: {path}").into();
+                        state.sources_status = format!("spool complete: {path}").into();
+                        state.enter_player_url(&path, &path, cx);
+                    }
+                    Err(e) => {
+                        let msg = format!("spool failed: {e}");
+                        state.status = msg.clone().into();
+                        state.sources_status = msg.into();
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// The top-ranked torrent candidate id (direct rows are skipped — they
+    /// carry a `u:` id and never reach the spool route).
+    fn first_torrent_candidate(&self) -> Option<String> {
+        self.sources
+            .as_ref()?
+            .candidates
+            .iter()
+            .find(|c| c.is_torrent())
+            .map(|c| c.id.clone())
+    }
+
+    /// Debounce-ish search fetch: every keystroke schedules a ~350 ms delayed
+    /// fetch, and only the latest query wins (a generation counter invalidates
+    /// stale tasks).
+    fn search_debounced(&mut self, cx: &mut Context<Self>) {
+        let query = self.search_query.clone();
+        self.search_seq += 1;
+        let seq = self.search_seq;
+        cx.spawn(async move |this, cx| {
+            cx.background_executor()
+                .timer(std::time::Duration::from_millis(350))
+                .await;
+            let _ = this.update(cx, |state: &mut CatalogApp, cx| {
+                if state.search_seq == seq && state.search_query == query {
+                    state.fetch_search(&query, cx);
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// `GET /catalog/search?q=…` for the Search view (live Cinemeta rows or
+    /// the seeded offline rows, both handled by `http::SearchRow`).
+    fn fetch_search(&mut self, query: &str, cx: &mut Context<Self>) {
+        let base = self.daemon_url.clone();
+        let query = query.to_string();
+        let query_label = query.clone();
+        self.status = format!("searching {query}…").into();
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let fetched =
+                gpui_tokio::Tokio::spawn(cx, async move { http::search_rows(&base, &query).await })
+                    .await
+                    .unwrap_or_else(|e| Err(format!("tokio join failed: {e}")));
+            let _ = this.update(cx, |state: &mut CatalogApp, cx| {
+                match fetched {
+                    Ok(rows) => {
+                        let n = rows.len();
+                        state.search_results = rows;
+                        state.status = format!("{n} results for \"{query_label}\"").into();
+                    }
+                    Err(e) => state.status = SharedString::from(e),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Filter the SourcesSheet to one add-on name, or `None` for All.
+    fn cycle_source_filter(&mut self, name: Option<String>) {
+        self.source_filter = name;
+    }
+
     fn enter_player(&mut self, title: &str, cx: &mut Context<Self>) {
         self.playing_title = Some(title.to_string());
         self.view = AppView::Player;
         self.start_playback(cx, title, TEST_CLIP);
+        cx.notify();
+    }
+
+    /// Enter the player with a specific URL (the spool-complete `file://`
+    /// path) rather than the demo clip.
+    fn enter_player_url(&mut self, title: &str, url: &str, cx: &mut Context<Self>) {
+        self.playing_title = Some(title.to_string());
+        self.view = AppView::Player;
+        self.start_playback(cx, title, url);
         cx.notify();
     }
 
@@ -246,14 +526,19 @@ impl CatalogApp {
         cx.notify();
     }
 
-    /// Back from the player: return to the detail we came from, or Home.
+    /// Back from the player: return to the content we came from (live imdb
+    /// detail, seeded series detail, or Home).
     fn go_back(&mut self, cx: &mut Context<Self>) {
         self.stop_playback();
-        let detail_id = self.detail.as_ref().map(|d| d.id);
-        self.view = match detail_id {
-            Some(id) => AppView::Detail { series_id: id },
-            None => AppView::Home,
-        };
+        if !self.imdb_id.is_empty() {
+            let media_type = self.imdb_type.clone();
+            let tt_id = self.imdb_id.clone();
+            self.view = AppView::DetailImdb { media_type, tt_id };
+        } else if let Some(d) = &self.detail {
+            self.view = AppView::Detail { series_id: d.id };
+        } else {
+            self.view = AppView::Home;
+        }
         cx.notify();
     }
 
@@ -266,9 +551,9 @@ impl CatalogApp {
 
     fn nav_item_active(&self, item: NavItem) -> bool {
         match item {
-            NavItem::Home | NavItem::Continue => matches!(self.view, AppView::Home),
-            NavItem::Search => matches!(self.view, AppView::Search),
-            NavItem::Settings => matches!(self.view, AppView::Settings),
+            NavItem::Home | NavItem::Continue => matches!(&self.view, AppView::Home),
+            NavItem::Search => matches!(&self.view, AppView::Search),
+            NavItem::Settings => matches!(&self.view, AppView::Settings),
         }
     }
 
@@ -347,11 +632,14 @@ impl Render for CatalogApp {
 
 impl CatalogApp {
     fn render_shell(&self, cx: &mut Context<Self>) -> AnyElement {
-        let content = match self.view {
+        let content = match &self.view {
             AppView::Home => self.render_home(cx),
-            AppView::Detail { series_id } => self.render_detail(cx, series_id),
+            AppView::Detail { series_id } => self.render_detail(cx, *series_id),
+            AppView::DetailImdb { media_type, tt_id } => {
+                self.render_detail_imdb(cx, media_type, tt_id)
+            }
             AppView::Player => self.render_player(cx),
-            AppView::Search => self.render_placeholder("Search"),
+            AppView::Search => self.render_search(cx),
             AppView::Settings => self.render_placeholder("Settings"),
         };
         div()
@@ -609,6 +897,503 @@ impl CatalogApp {
             .into_any_element()
     }
 
+    /// The Search view: a text input that fetches `/catalog/search` on a
+    /// ~350 ms debounce, plus one clickable row per result. Live Cinemeta rows
+    /// open detail-by-imdb; seeded offline rows open the existing series
+    /// detail. The `search:<query>` dev hook pre-fills and fetches so the
+    /// text-only gate needs no keyboard.
+    fn render_search(&self, cx: &mut Context<Self>) -> AnyElement {
+        let input_text = if self.search_query.is_empty() {
+            "Type to search…".to_string()
+        } else {
+            self.search_query.clone()
+        };
+        let input = div()
+            .id("search-input")
+            .flex()
+            .flex_row()
+            .items_center()
+            .px_3()
+            .py_2()
+            .rounded(theme::radius::CARD)
+            .border_1()
+            .border_color(theme::colors::EDGE)
+            .bg(theme::colors::STAGE_DEEP)
+            .text_color(theme::colors::INK)
+            .text_size(px(15.0))
+            .cursor_text()
+            .on_key_down(
+                cx.listener(|state, event: &gpui::KeyDownEvent, _window, cx| {
+                    state.handle_search_key(event, cx);
+                }),
+            )
+            .child(SharedString::from(input_text));
+        let input = match &self.search_focus {
+            Some(focus) => input.track_focus(focus),
+            None => input,
+        };
+
+        let body: AnyElement = if self.search_results.is_empty() {
+            div()
+                .text_size(px(13.0))
+                .text_color(theme::colors::INK_DIM)
+                .child("Search Cinemeta for live titles (e.g. \"dune\").")
+                .into_any_element()
+        } else {
+            let rows: Vec<AnyElement> = self
+                .search_results
+                .iter()
+                .map(|row| self.search_row(row, cx))
+                .collect();
+            div()
+                .flex()
+                .flex_col()
+                .gap_2()
+                .children(rows)
+                .into_any_element()
+        };
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_4()
+            .p_6()
+            .child(
+                div()
+                    .text_size(px(22.0))
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(theme::colors::INK)
+                    .child("Search"),
+            )
+            .child(input)
+            .child(body)
+            .into_any_element()
+    }
+
+    /// One clickable search-result row.
+    fn search_row(&self, row: &http::SearchRow, cx: &mut Context<Self>) -> AnyElement {
+        let title = row.title();
+        let subtitle = row.subtitle();
+        let target = match row {
+            http::SearchRow::Live(meta) => {
+                let media_type = meta
+                    .media_type
+                    .clone()
+                    .unwrap_or_else(|| "movie".to_string());
+                let tt_id = meta.id.clone().unwrap_or_default();
+                SearchTarget::Imdb { media_type, tt_id }
+            }
+            http::SearchRow::Seeded(series) => SearchTarget::Series(series.id),
+        };
+        div()
+            .id(SharedString::from(format!("search-row-{title}")))
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap_3()
+            .px_3()
+            .py_2()
+            .rounded(theme::radius::CARD)
+            .bg(theme::colors::GLASS_TINT)
+            .cursor_pointer()
+            .hover(|style| style.bg(theme::colors::GLASS_HI))
+            .on_click(cx.listener(move |state, _ev, _window, cx| match &target {
+                SearchTarget::Imdb { media_type, tt_id } => {
+                    state.open_detail_imdb(media_type, tt_id, cx);
+                }
+                SearchTarget::Series(id) => state.open_detail(*id, cx),
+            }))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .text_size(px(15.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::colors::INK)
+                            .child(SharedString::from(title)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(theme::colors::INK_DIM)
+                            .child(SharedString::from(subtitle)),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    /// Minimal text-entry handling for the Search input (no IME): printable
+    /// keys append, backspace/escape/enter behave as expected, and each edit
+    /// re-arms the debounced fetch.
+    fn handle_search_key(&mut self, event: &gpui::KeyDownEvent, cx: &mut Context<Self>) {
+        let ks = &event.keystroke;
+        if ks.modifiers.control
+            || ks.modifiers.platform
+            || ks.modifiers.alt
+            || ks.modifiers.function
+        {
+            return;
+        }
+        match ks.key.as_str() {
+            "backspace" => {
+                self.search_query.pop();
+                self.search_debounced(cx);
+            }
+            "enter" => {
+                let query = self.search_query.clone();
+                self.fetch_search(&query, cx);
+            }
+            "escape" => {
+                self.search_query.clear();
+                self.search_results.clear();
+                cx.notify();
+            }
+            "space" => {
+                self.search_query.push(' ');
+                self.search_debounced(cx);
+            }
+            _ => {
+                let ch = ks
+                    .key_char
+                    .clone()
+                    .or_else(|| (ks.key.chars().count() == 1).then(|| ks.key.clone()));
+                if let Some(ch) = ch.filter(|c| !c.chars().any(char::is_control)) {
+                    self.search_query.push_str(&ch);
+                    self.search_debounced(cx);
+                }
+            }
+        }
+    }
+
+    /// The live detail-by-imdb view: Cinemeta hero + a SourcesSheet for
+    /// Torrentio candidates.
+    fn render_detail_imdb(
+        &self,
+        cx: &mut Context<Self>,
+        _media_type: &str,
+        tt_id: &str,
+    ) -> AnyElement {
+        let hero = linear_gradient(
+            180.0,
+            linear_color_stop(shade(theme::colors::COVER_C1, 0.04), 0.0),
+            linear_color_stop(shade(theme::colors::COVER_C2, -0.18), 1.0),
+        );
+
+        let back = div()
+            .id("imdb-back")
+            .cursor_pointer()
+            .py_1()
+            .px_3()
+            .rounded_md()
+            .text_color(theme::colors::INK_DIM)
+            .hover(|style| style.text_color(theme::colors::INK))
+            .on_click(cx.listener(|state, _ev, _window, cx| state.go_home(cx)))
+            .child("‹ Back to Home");
+
+        let hero_elem: AnyElement = match &self.imdb_meta {
+            Some(meta) => {
+                let title = meta.title();
+                let subtitle = meta.subtitle();
+                let description = meta
+                    .description
+                    .clone()
+                    .filter(|d| !d.is_empty())
+                    .unwrap_or_else(|| "No description from Cinemeta.".to_string());
+                // Genres + runtime give the hero a bit more of the Cinemeta
+                // full-meta surface (poster/background are remote URLs, so the
+                // hero stays on the gradient fallback).
+                let mut details = meta.genres.join(" · ");
+                if let Some(runtime) = meta.runtime.as_deref().filter(|r| !r.is_empty()) {
+                    if !details.is_empty() {
+                        details.push_str(" · ");
+                    }
+                    details.push_str(runtime);
+                }
+                let mut hero_panel = div()
+                    .w_full()
+                    .rounded(theme::radius::PANEL)
+                    .bg(hero)
+                    .p_6()
+                    .flex()
+                    .flex_col()
+                    .gap_3()
+                    .child(
+                        div()
+                            .text_size(px(30.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::colors::INK)
+                            .child(SharedString::from(title)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .text_color(theme::colors::INK_DIM)
+                            .child(SharedString::from(subtitle)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(15.0))
+                            .text_color(theme::colors::INK)
+                            .child(SharedString::from(description)),
+                    );
+                if !details.is_empty() {
+                    hero_panel = hero_panel.child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(theme::colors::INK_DIM)
+                            .child(SharedString::from(details)),
+                    );
+                }
+                hero_panel.child(self.sources_button(cx)).into_any_element()
+            }
+            None => self.render_placeholder(&format!("Loading {tt_id}…")),
+        };
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_4()
+            .p_6()
+            .child(back)
+            .child(hero_elem)
+            .child(self.render_sources_sheet(cx))
+            .into_any_element()
+    }
+
+    /// The Play/Sources CTA on a loaded imdb hero: fetches ranked candidates
+    /// and opens the sheet.
+    fn sources_button(&self, cx: &mut Context<Self>) -> AnyElement {
+        div()
+            .id("sources")
+            .cursor_pointer()
+            .px_4()
+            .py_2()
+            .rounded(theme::radius::CARD)
+            .bg(theme::colors::GOLD)
+            .text_color(theme::colors::ON_GOLD)
+            .font_weight(FontWeight::BOLD)
+            .text_size(px(16.0))
+            .hover(|style| style.bg(shade(theme::colors::GOLD, 0.08)))
+            .on_click(cx.listener(|state, _ev, _window, cx| {
+                state.fetch_sources(cx);
+            }))
+            .child("▶ Sources")
+            .into_any_element()
+    }
+
+    /// The candidate sheet under the imdb hero. Only appears once a fetch has
+    /// been requested (`sources_status` set) or completed (`sources` present).
+    fn render_sources_sheet(&self, cx: &mut Context<Self>) -> AnyElement {
+        if self.sources_status.is_empty() && self.sources.is_none() {
+            return div().into_any_element();
+        }
+
+        let mut sheet = div()
+            .id("sources-sheet")
+            .flex()
+            .flex_col()
+            .gap_3()
+            .rounded(theme::radius::PANEL)
+            .border_1()
+            .border_color(theme::colors::EDGE)
+            .bg(theme::colors::STAGE_DEEP)
+            .p_4();
+
+        sheet = sheet.child(
+            div()
+                .flex()
+                .flex_row()
+                .items_center()
+                .gap_3()
+                .child(
+                    div()
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(theme::colors::INK)
+                        .child("Sources"),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .text_color(theme::colors::INK_DIM)
+                        .child(self.sources_status.clone()),
+                ),
+        );
+
+        let Some(sources) = &self.sources else {
+            return sheet.into_any_element();
+        };
+
+        // Filter pills follow the install (priority) order from the registry,
+        // restricted to the addons that actually contributed candidates and
+        // de-duplicated (the live registry can list Torrentio twice).
+        let mut addon_names: Vec<String> = Vec::new();
+        for addon in &sources.installed_addons {
+            if sources.counts_by_addon.contains_key(&addon.name)
+                && !addon_names.contains(&addon.name)
+            {
+                addon_names.push(addon.name.clone());
+            }
+        }
+        for name in sources.counts_by_addon.keys() {
+            if !addon_names.contains(name) {
+                addon_names.push(name.clone());
+            }
+        }
+        let mut pills: Vec<AnyElement> =
+            vec![self.filter_pill(cx, "All", self.source_filter.is_none(), None)];
+        for name in &addon_names {
+            pills.push(self.filter_pill(
+                cx,
+                name,
+                self.source_filter.as_deref() == Some(name.as_str()),
+                Some(name.clone()),
+            ));
+        }
+        sheet = sheet.child(div().flex().flex_row().flex_wrap().gap_2().children(pills));
+
+        let filtered: Vec<&http::Candidate> = sources
+            .candidates
+            .iter()
+            .filter(|c| match &self.source_filter {
+                Some(name) => &c.addon == name,
+                None => true,
+            })
+            .collect();
+        let body: AnyElement = if filtered.is_empty() {
+            div()
+                .text_size(px(13.0))
+                .text_color(theme::colors::INK_DIM)
+                .child("No candidates for this filter.")
+                .into_any_element()
+        } else {
+            let rows: Vec<AnyElement> = filtered
+                .into_iter()
+                .map(|c| self.candidate_row(c, cx))
+                .collect();
+            div()
+                .flex()
+                .flex_col()
+                .gap_2()
+                .children(rows)
+                .into_any_element()
+        };
+        sheet = sheet.child(body);
+
+        sheet.into_any_element()
+    }
+
+    /// One filter pill (All or a single add-on name).
+    fn filter_pill(
+        &self,
+        cx: &mut Context<Self>,
+        label: &str,
+        active: bool,
+        value: Option<String>,
+    ) -> AnyElement {
+        let id = SharedString::from(format!("filter-{label}"));
+        let label = SharedString::from(label.to_owned());
+        div()
+            .id(id)
+            .cursor_pointer()
+            .px_3()
+            .py_1()
+            .rounded_full()
+            .bg(if active {
+                theme::colors::GOLD
+            } else {
+                gpui::transparent_black()
+            })
+            .text_color(if active {
+                theme::colors::ON_GOLD
+            } else {
+                theme::colors::INK_DIM
+            })
+            .text_size(px(12.0))
+            .on_click(cx.listener(move |state, _ev, _window, cx| {
+                state.cycle_source_filter(value.clone());
+                cx.notify();
+            }))
+            .child(label)
+            .into_any_element()
+    }
+
+    /// One candidate row: quality badge + label + addon/kind/size. Torrent
+    /// rows spool on click; direct rows report the honest offline/test-clip
+    /// limitation instead.
+    fn candidate_row(&self, c: &http::Candidate, cx: &mut Context<Self>) -> AnyElement {
+        let quality = c
+            .quality
+            .clone()
+            .filter(|q| !q.is_empty())
+            .unwrap_or_else(|| "—".to_string());
+        let is_torrent = c.is_torrent();
+        let kind = if is_torrent { "torrent" } else { "direct" };
+        let label = c.label.clone();
+        let addon = c.addon.clone();
+        let info = match c.size_bytes.map(format_size) {
+            Some(size) => format!("{addon} · {kind} · {size}"),
+            None => format!("{addon} · {kind}"),
+        };
+        let cid = c.id.clone();
+
+        div()
+            .id(SharedString::from(format!("candidate-{cid}")))
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap_3()
+            .px_3()
+            .py_2()
+            .rounded(theme::radius::CARD)
+            .bg(theme::colors::GLASS_TINT)
+            .cursor_pointer()
+            .hover(|style| style.bg(theme::colors::GLASS_HI))
+            .on_click(cx.listener(move |state, _ev, _window, cx| {
+                if is_torrent {
+                    state.spool_candidate(&cid, cx);
+                } else {
+                    let msg = "direct source: no spool route (test clip / offline only)";
+                    state.status = msg.into();
+                    state.sources_status = msg.into();
+                    cx.notify();
+                }
+            }))
+            .child(
+                div()
+                    .px_2()
+                    .py_1()
+                    .rounded(theme::radius::CARD)
+                    .bg(theme::colors::GOLD)
+                    .text_color(theme::colors::ON_GOLD)
+                    .text_size(px(11.0))
+                    .font_weight(FontWeight::BOLD)
+                    .child(SharedString::from(quality)),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .text_size(px(14.0))
+                            .text_color(theme::colors::INK)
+                            .child(SharedString::from(label)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(theme::colors::INK_DIM)
+                            .child(SharedString::from(info)),
+                    ),
+            )
+            .into_any_element()
+    }
+
     fn render_placeholder(&self, label: &str) -> AnyElement {
         let label = SharedString::from(label.to_owned());
         div()
@@ -788,11 +1573,69 @@ fn rgb_to_hsla(r: f32, g: f32, b: f32) -> Hsla {
     Hsla { h, s, l, a: 1.0 }
 }
 
+/// Click target for a search-result row: a live Cinemeta `tt` id (detail-by-
+/// imdb) or a seeded series id (existing detail view).
+enum SearchTarget {
+    Imdb { media_type: String, tt_id: String },
+    Series(i64),
+}
+
+/// Parse a `COLOSSEUM_UI_START_VIEW` imdb dev hook. `imdb:tt1160419` defaults
+/// to `movie`; `imdb:movie:tt…` / `imdb:series:tt…` set the media type
+/// explicitly (series ids keep their colon separators inside the id).
+fn parse_imdb_hook(start: &str) -> Option<(String, String)> {
+    let rest = start.strip_prefix("imdb:")?;
+    if rest.is_empty() {
+        return None;
+    }
+    let (media_type, tt_id) = match rest.split_once(':') {
+        Some((prefix, id)) if prefix == "movie" || prefix == "series" => {
+            (prefix.to_string(), id.to_string())
+        }
+        _ => ("movie".to_string(), rest.to_string()),
+    };
+    if tt_id.is_empty() {
+        return None;
+    }
+    Some((media_type, tt_id))
+}
+
+/// A one-line per-addon candidate count, e.g. `Torrentio 74 · NoTorrent 3`
+/// (most candidates first, ties broken alphabetically).
+fn summarize_counts(counts: &BTreeMap<String, usize>) -> String {
+    let mut entries: Vec<(&String, &usize)> = counts.iter().collect();
+    entries.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+    let parts: Vec<String> = entries
+        .into_iter()
+        .map(|(name, n)| format!("{name} {n}"))
+        .collect();
+    if parts.is_empty() {
+        "no sources".to_string()
+    } else {
+        parts.join(" · ")
+    }
+}
+
+/// Human-readable byte size for a candidate row's `size_bytes`.
+fn format_size(bytes: u64) -> String {
+    const GB: f64 = 1024.0 * 1024.0 * 1024.0;
+    const MB: f64 = 1024.0 * 1024.0;
+    let b = bytes as f64;
+    if b >= GB {
+        format!("{:.1} GB", b / GB)
+    } else if b >= MB {
+        format!("{:.0} MB", b / MB)
+    } else {
+        format!("{bytes} B")
+    }
+}
+
 fn main() {
     env_logger::init();
     let daemon_url = std::env::var("DAEMON_URL").unwrap_or_else(|_| DAEMON_URL_DEFAULT.to_string());
     let legacy = std::env::var("COLOSSEUM_UI_LEGACY").is_ok_and(|v| v == "1");
     let autoplay = std::env::var("COLOSSEUM_UI_AUTOPLAY").is_ok_and(|v| v == "1");
+    let autoplay_source = std::env::var("COLOSSEUM_UI_AUTOPLAY_SOURCE").is_ok_and(|v| v == "1");
     let start_view = std::env::var("COLOSSEUM_UI_START_VIEW").ok();
 
     Application::new().run(move |cx| {
@@ -812,8 +1655,13 @@ fn main() {
             },
             |_, cx| {
                 cx.new(|cx| {
-                    let mut app =
-                        CatalogApp::new(daemon_url.clone(), legacy, start_view.clone(), autoplay);
+                    let mut app = CatalogApp::new(
+                        daemon_url.clone(),
+                        legacy,
+                        start_view.clone(),
+                        autoplay,
+                        autoplay_source,
+                    );
                     app.spawn_initial(cx);
                     app
                 })

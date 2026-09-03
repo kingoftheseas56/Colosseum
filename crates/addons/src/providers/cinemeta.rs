@@ -68,6 +68,16 @@ pub struct CatalogResponse {
     pub metas: Vec<MetaPreview>,
 }
 
+/// The `{ "meta": {...} }` envelope a meta endpoint returns. Extra fields
+/// (cast, director, trailers, …) are ignored — [`MetaPreview`] already models
+/// the fields the UI reads (name, description, poster, background,
+/// releaseInfo, year, genres, imdbRating).
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct MetaResponse {
+    #[serde(default)]
+    pub meta: MetaPreview,
+}
+
 /// The live Cinemeta client. Cheap to clone (`reqwest::Client` is an `Arc`);
 /// construction performs no network I/O.
 #[derive(Clone, Debug)]
@@ -128,6 +138,30 @@ impl Cinemeta {
             .error_for_status()?;
         let body: CatalogResponse = response.json().await?;
         Ok(body.metas)
+    }
+
+    /// Build the `GET /meta/{type}/{id}.json` URL. The id goes into the path
+    /// raw, matching the stream resource's convention (a bare `tt` id has no
+    /// separators; series ids keep their colons literal).
+    fn meta_url(&self, media_type: &str, id: &str) -> reqwest::Url {
+        let url = format!("{}/meta/{}/{}.json", self.base, media_type, id);
+        reqwest::Url::parse(&url).expect("cinemeta meta URL is a valid absolute URL")
+    }
+
+    /// Fetch the full meta detail for one id — the live `meta` resource (the
+    /// detail-by-imdb half of slice 4). Reuses [`MetaPreview`] because it
+    /// already models the full-meta fields; the meta endpoint returns the same
+    /// field set, only always-complete (no compact rows). Bounded by the
+    /// client's 10s timeout and surfaced as a [`LiveError`] like search.
+    pub async fn meta(&self, media_type: &str, id: &str) -> Result<MetaPreview, LiveError> {
+        let response = self
+            .client
+            .get(self.meta_url(media_type, id))
+            .send()
+            .await?
+            .error_for_status()?;
+        let body: MetaResponse = response.json().await?;
+        Ok(body.meta)
     }
 }
 
@@ -262,6 +296,20 @@ mod tests {
         assert_eq!(
             addon.search_url("series", "dune part two").as_str(),
             "https://v3-cinemeta.strem.io/catalog/series/top/search=dune%20part%20two.json"
+        );
+    }
+
+    #[test]
+    fn meta_url_builds_the_meta_resource_path() {
+        let addon = Cinemeta::new();
+        assert_eq!(
+            addon.meta_url("movie", "tt1160419").as_str(),
+            "https://v3-cinemeta.strem.io/meta/movie/tt1160419.json"
+        );
+        // Series ids keep their colons literal in the path.
+        assert_eq!(
+            addon.meta_url("series", "tt10466872").as_str(),
+            "https://v3-cinemeta.strem.io/meta/series/tt10466872.json"
         );
     }
 }
