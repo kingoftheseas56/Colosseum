@@ -3,6 +3,7 @@
 // grows out of the button instead of swapping between two separate pieces.
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 
 Item {
     id: bar
@@ -22,6 +23,46 @@ Item {
     // dock HEIGHT and the closed corner radius (changing closedSize itself would make a 130-tall
     // capsule with a 65px radius). (Slice 10)
     readonly property int closedWidth: 130
+    readonly property bool televisionMode: {
+        const w = bar.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
+
+    function isInside(item) {
+        var p = item
+        while (p) {
+            if (p === bar) return true
+            p = p.parent
+        }
+        return false
+    }
+    function focusFromActive(forward, stayInside) {
+        const w = bar.Window.window
+        const from = w ? w.activeFocusItem : null
+        if (!from || !bar.isInside(from)) return false
+        var target = from.nextItemInFocusChain(forward)
+        var guard = 0
+        while (target && target !== from && guard++ < 96) {
+            if (target.visible && target.enabled && target.activeFocusOnTab) {
+                if (stayInside && !bar.isInside(target)) return false
+                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                return true
+            }
+            target = target.nextItemInFocusChain(forward)
+        }
+        return false
+    }
+    function moveHorizontalFocus(forward) { return bar.focusFromActive(forward, true) }
+    function moveVerticalFocus(forward) { return bar.focusFromActive(forward, false) }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => {
+        if (!bar.televisionMode) return
+        if (event.key === Qt.Key_Left) event.accepted = bar.moveHorizontalFocus(false)
+        else if (event.key === Qt.Key_Right) event.accepted = bar.moveHorizontalFocus(true)
+        else if (event.key === Qt.Key_Up) event.accepted = bar.moveVerticalFocus(false)
+        else if (event.key === Qt.Key_Down) event.accepted = bar.moveVerticalFocus(true)
+    }
 
     signal switchRequested(string id)
     signal closeRequested(string id)

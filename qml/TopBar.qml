@@ -6,6 +6,7 @@
 // Emits intent signals; the host (home / world) decides what navigation happens.
 
 import QtQuick
+import QtQuick.Window
 
 Item {
     id: bar
@@ -32,6 +33,58 @@ Item {
             || accountController.mode === "offline")
     readonly property bool localDevice: accountController
         && accountController.mode === "localOnly"
+    readonly property bool televisionMode: {
+        const w = bar.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
+
+    function isInside(item) {
+        var p = item
+        while (p) {
+            if (p === bar) return true
+            p = p.parent
+        }
+        return false
+    }
+    function focusFromActive(forward, stayInside) {
+        const w = bar.Window.window
+        const from = w ? w.activeFocusItem : null
+        if (!from || !bar.isInside(from)) return false
+        var target = from.nextItemInFocusChain(forward)
+        var guard = 0
+        while (target && target !== from && guard++ < 48) {
+            if (target.visible && target.enabled && target.activeFocusOnTab) {
+                if (stayInside && !bar.isInside(target)) return false
+                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                return true
+            }
+            target = target.nextItemInFocusChain(forward)
+        }
+        return false
+    }
+    function moveHorizontalFocus(forward) { return bar.focusFromActive(forward, true) }
+    function moveVerticalFocus(forward) { return bar.focusFromActive(forward, false) }
+    function focusFirst() {
+        var target = bar.nextItemInFocusChain(true)
+        var guard = 0
+        while (target && target !== bar && guard++ < 32) {
+            if (bar.isInside(target) && target.visible && target.enabled && target.activeFocusOnTab) {
+                target.forceActiveFocus(Qt.TabFocusReason)
+                return true
+            }
+            target = target.nextItemInFocusChain(true)
+        }
+        return false
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => {
+        if (!bar.televisionMode) return
+        if (event.key === Qt.Key_Left) event.accepted = bar.moveHorizontalFocus(false)
+        else if (event.key === Qt.Key_Right) event.accepted = bar.moveHorizontalFocus(true)
+        else if (event.key === Qt.Key_Up) event.accepted = bar.moveVerticalFocus(false)
+        else if (event.key === Qt.Key_Down) event.accepted = bar.moveVerticalFocus(true)
+    }
 
     signal mediumSelected(string medium)
     signal homeRequested()
@@ -58,7 +111,7 @@ Item {
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
-    implicitHeight: adaptive.topBarHeight
+    implicitHeight: bar.televisionMode ? 68 : adaptive.topBarHeight
 
     Theme { id: theme }
 
@@ -86,11 +139,11 @@ Item {
         property url source
         property string accessibleName: ""
         signal clicked()
-        width: 22; height: 22
+        width: bar.televisionMode ? 30 : 22; height: width
         Image {
             anchors.fill: parent
             source: sysRoot.source
-            sourceSize.width: 22; sourceSize.height: 22
+            sourceSize.width: bar.televisionMode ? 30 : 22; sourceSize.height: sourceSize.width
             fillMode: Image.PreserveAspectFit
             opacity: input.interactionActive ? 1.0 : 0.72
         }
@@ -98,7 +151,7 @@ Item {
             id: input
             anchors.fill: parent
             accessibleName: sysRoot.accessibleName
-            focusRadius: 6
+            focusRadius: bar.televisionMode ? 9 : 6
             onTriggered: sysRoot.clicked()
         }
     }
@@ -117,8 +170,8 @@ Item {
         property bool comingSoon: false
         readonly property bool active: bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + (bar.compactLayout ? 18 : 34)
-        implicitHeight: bar.compactLayout ? 32 : 34
+        implicitWidth: pillContent.implicitWidth + (bar.televisionMode ? 44 : (bar.compactLayout ? 18 : 34))
+        implicitHeight: bar.televisionMode ? 42 : (bar.compactLayout ? 32 : 34)
 
         Rectangle {
             anchors.fill: parent; radius: 999
@@ -134,7 +187,7 @@ Item {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: bar.compactLayout ? 12 : 14
+                font.family: theme.ui; font.pixelSize: bar.televisionMode ? 16 : (bar.compactLayout ? 12 : 14)
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -180,11 +233,11 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: bar.compactLayout ? 19 : 32 }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.compactLayout ? 10 : 16
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: bar.compactLayout ? 2 : 4 }
+                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: bar.televisionMode ? 36 : (bar.compactLayout ? 19 : 32) }
+                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 18 : (bar.compactLayout ? 10 : 16)
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: bar.televisionMode ? 4 : (bar.compactLayout ? 2 : 4) }
             }
-            Text { visible: !bar.compactLayout; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { visible: bar.televisionMode || !bar.compactLayout; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 15 : 13 }
         }
     }
 
@@ -194,8 +247,8 @@ Item {
         x: Math.round((bar.width - width) / 2)
         y: bar.compactLayout ? bar.height - height : Math.round((bar.height - height) / 2)
         radius: 999
-        width: Math.min(bar.width, pillsRow.implicitWidth + (bar.compactLayout ? 8 : 14))
-        height: bar.compactLayout ? 42 : 46
+        width: Math.min(bar.width, pillsRow.implicitWidth + (bar.televisionMode ? 18 : (bar.compactLayout ? 8 : 14)))
+        height: bar.televisionMode ? 56 : (bar.compactLayout ? 42 : 46)
         Row {
             id: pillsRow
             anchors.centerIn: parent
@@ -218,8 +271,8 @@ Item {
     Row {
         id: rightCluster
         x: bar.width - width
-        y: bar.compactLayout ? 7 : Math.round((bar.height - height) / 2)
-        spacing: bar.compactLayout ? 12 : 20
+        y: bar.televisionMode ? Math.round((bar.height - height) / 2) : (bar.compactLayout ? 7 : Math.round((bar.height - height) / 2))
+        spacing: bar.televisionMode ? 24 : (bar.compactLayout ? 12 : 20)
         // Search — worlds only.
         SysIcon {
             objectName: "topBarSearch"

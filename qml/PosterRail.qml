@@ -135,7 +135,7 @@ Column {
         Keys.onPressed: (event) => {
             if (event.key === Qt.Key_Left) { rail.navigate(-1); event.accepted = true; }
             else if (event.key === Qt.Key_Right) { rail.navigate(1); event.accepted = true; }
-            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Select) {
                 rail.activateFocused(); event.accepted = true;
             }
         }
