@@ -43,21 +43,6 @@ public:
     void requestImmediateSync();
     void beginSignOutFlush();
 
-    // Attachment execution mode: entered explicitly after an ordinary
-    // start(), bound to one lowercase-UUID attachment id, and exited
-    // explicitly. While active, pushes carry the envelope attachment id
-    // and the engine bootstraps through the stable snapshot before
-    // ordinary pull and push resume.
-    bool beginAttachmentMode(
-        const QString &attachmentId,
-        QString *error = nullptr);
-
-    bool endAttachmentMode(
-        QString *error = nullptr);
-
-    bool attachmentModeActive() const;
-    QString attachmentId() const;
-
     void setAutomaticSchedulingEnabled(
         bool enabled);
 
@@ -95,8 +80,7 @@ private:
     enum class NetworkPhase {
         None,
         Pull,
-        Push,
-        Snapshot
+        Push
     };
 
     struct RequestContext {
@@ -139,16 +123,8 @@ private:
     void maybeRunNetwork();
     void beginPull();
     void beginPush();
-    void beginSnapshot();
-
-    bool attachmentSnapshotPending() const;
 
     bool processPullReply(
-        const AccountTransportReply &reply,
-        QString *errorCode,
-        QString *errorMessage);
-
-    bool processSnapshotReply(
         const AccountTransportReply &reply,
         QString *errorCode,
         QString *errorMessage);
@@ -158,7 +134,7 @@ private:
         QString *errorCode,
         QString *errorMessage);
 
-    bool applyPullEntry(
+    bool applyWinningPullEntry(
         const SyncWirePullEntry &entry,
         QString *errorCode,
         QString *errorMessage);

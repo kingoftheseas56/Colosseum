@@ -54,6 +54,7 @@
 #include "update/UpdateTrust.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
+#include "work/ForegroundPriorityGovernor.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
 #include "devtools/LanistaServer.h"
@@ -940,7 +941,7 @@ int main(int argc, char *argv[]) {
     // a live stream: a chapter is downloaded to loose local files once, then the
     // reader reads those offline. Own plain NAM (no cache) — it persists to disk itself.
     auto *dlNam = new QNetworkAccessManager(&app);
-    auto *downloads = new MangaDownloader(dlNam, &app);
+    auto *downloads = new MangaDownloader(dlNam, &app, {}, {}, manga->tankoyomiService());
     downloads->setIpv4Pins(initialPins);   // cached pins are available before async refresh
     pinStore->setPinChangedCallback([manga, downloads, pinStore](const QString&, const QString&) {
         const QHash<QString, QString> pins = pinStore->snapshot();
@@ -1589,6 +1590,31 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
                                              backgroundActivity);
 
+    // Foreground-priority governor: direct user input gets a 350 ms latency-sensitive
+    // lease; immersive player/reader ownership dominates as Suspended. One reasoned
+    // pressure signal fans out to every adopted background seam.
+    auto *foregroundPriority = new work::ForegroundPriorityGovernor(350, &app);
+    app.installEventFilter(foregroundPriority);
+    engine.rootContext()->setContextProperty(QStringLiteral("ForegroundPriority"),
+                                             foregroundPriority);
+    QObject::connect(foregroundPriority, &work::ForegroundPriorityGovernor::pressureChanged,
+                     &app, [backgroundWork, biblioCatalog, vaultLibrary,
+                            catalogVaultClient](int pressure) {
+        work::Pressure nativePressure = work::Pressure::Normal;
+        if (pressure >= work::ForegroundPriorityGovernor::Suspended)
+            nativePressure = work::Pressure::Suspended;
+        else if (pressure >= work::ForegroundPriorityGovernor::LatencySensitive)
+            nativePressure = work::Pressure::LatencySensitive;
+        backgroundWork->setPressure(nativePressure);
+
+        const bool foregroundBusy = pressure >= work::ForegroundPriorityGovernor::LatencySensitive;
+        const bool immersive = pressure >= work::ForegroundPriorityGovernor::Suspended;
+        biblioCatalog->setForegroundPriorityActive(foregroundBusy);
+        biblioCatalog->setBackgroundWorkSuspended(immersive);
+        vaultLibrary->setImmersive(foregroundBusy);
+        catalogVaultClient->setForegroundPressure(pressure);
+    });
+
     // Watch-room / together backbone exposed to QML as `Room`. This first slice is
     // local and in-process, but it carries the participant/chat/sync model the
     // network transport will publish later.
@@ -1659,6 +1685,7 @@ int main(int argc, char *argv[]) {
     // hold — the split-brain risk of two owners binding the same QML names is
     // closed by construction.
     auto *accountRuntime = new AccountRuntime(&app);
+    accountRuntime->setDownloadSource(localDownloads);
     accountRuntime->prepareForQml(&engine);
 
     // Arc 39 restores chapter mode. The 2026-08-20 one-time chapter purge is
@@ -1791,24 +1818,6 @@ int main(int argc, char *argv[]) {
         // is keyed by the WC id and is proved by opening a real series page.
         manga->volumes(QString(), QStringLiteral("One Piece"));
     }
-
-    // QObject children of QCoreApplication are normally destroyed from the app
-    // destructor, after Qt has already cleared the global QCoreApplication instance.
-    // These roots own live QSqlDatabase connections, whose destructors legitimately
-    // consult that instance while removing named connections. Queue their deletion
-    // from aboutToQuit instead: Qt still processes DeferredDelete events at this point,
-    // so database teardown finishes before the core application disappears.
-    const auto deleteBeforeCoreApplicationTeardown = [&app](QObject* object) {
-        QObject::connect(&app, &QCoreApplication::aboutToQuit, object, &QObject::deleteLater);
-    };
-    deleteBeforeCoreApplicationTeardown(vaultIndex);
-    deleteBeforeCoreApplicationTeardown(comicsCatalog);
-    deleteBeforeCoreApplicationTeardown(malCatalog);
-    deleteBeforeCoreApplicationTeardown(tankobanCatalog);
-    deleteBeforeCoreApplicationTeardown(imdbCatalog);
-    deleteBeforeCoreApplicationTeardown(biblioCatalog);
-    deleteBeforeCoreApplicationTeardown(tankobanVolumes);
-    deleteBeforeCoreApplicationTeardown(accountRuntime);
 
     return app.exec();
 }

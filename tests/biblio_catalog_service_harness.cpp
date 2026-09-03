@@ -337,7 +337,7 @@ public:
 // is hit (defends against a genuine hang rather than masking one).
 void runRefreshToCompletion(BiblioCatalog &catalog, FakeBiblioTransport &transport, bool succeed)
 {
-    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+    for (int round = 0; round < 200 && catalog.refreshing(); ++round) {
         transport.drainAll(succeed);
         pump(30);
     }
@@ -346,7 +346,7 @@ void runRefreshToCompletion(BiblioCatalog &catalog, FakeBiblioTransport &transpo
 void runRefreshToCompletionKindsFailing(BiblioCatalog &catalog, FakeBiblioTransport &transport,
                                         const QSet<QString> &failingKinds)
 {
-    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+    for (int round = 0; round < 200 && catalog.refreshing(); ++round) {
         transport.drainWithKindsFailing(failingKinds);
         pump(30);
     }
@@ -359,7 +359,10 @@ void runRefreshWithKindBodies(BiblioCatalog &catalog, FakeBiblioTransport &trans
                               const QHash<QString, QByteArray> &kindBody,
                               const QSet<QString> &failingKinds = QSet<QString>())
 {
-    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+    // Snapshot canonicalization and atomic publish now complete on the serialized worker lane.
+    // Give that worker up to 6 seconds on loaded/low-power machines instead of treating the
+    // former 1.5-second synchronous-era timing as a correctness contract.
+    for (int round = 0; round < 200 && catalog.refreshing(); ++round) {
         transport.drainWithKindBodies(kindBody, failingKinds);
         pump(30);
     }
@@ -451,6 +454,67 @@ void testRequestCoalescing()
     require(!catalog.refreshing(), "refresh completes after draining");
 }
 
+void testReplyCompletionYieldsBeforeCatalogFinalize()
+{
+    QTemporaryDir dir;
+    const QString dbPath = dir.path() + QStringLiteral("/async-reply.sqlite");
+    FakeBiblioTransport transport;
+    BiblioCatalog catalog(dbPath, &transport);
+
+    catalog.refreshIfDue();
+    transport.drainAll(true);
+
+    require(catalog.refreshing(),
+            "successful network completions must yield before CPU-heavy catalog finalization");
+
+    runRefreshToCompletion(catalog, transport, true);
+    require(!catalog.refreshing(), "async reply processing eventually completes the refresh");
+    require(catalog.ready(), "async reply processing still publishes a usable snapshot");
+}
+
+void testBackgroundWorkSuspensionCancelsAndResumesRefresh()
+{
+    QTemporaryDir dir;
+    const QString dbPath = dir.path() + QStringLiteral("/suspend.sqlite");
+    FakeBiblioTransport transport;
+    BiblioCatalog catalog(dbPath, &transport);
+
+    catalog.refreshIfDue();
+    require(catalog.refreshing(), "background refresh starts before suspension");
+    const int initialCalls = transport.calls.size();
+    require(initialCalls == 4, "suspension case begins with the bounded four requests in flight");
+
+    catalog.setBackgroundWorkSuspended(true);
+    require(!catalog.refreshing(), "suspension immediately drops refreshing false");
+    int cancelled = 0;
+    for (int i = 0; i < initialCalls; ++i)
+        if (transport.calls.at(i).reply->isCancelled()) ++cancelled;
+    require(cancelled == initialCalls, "suspension cancels every in-flight Biblio request");
+
+    const int callsAfterSuspend = transport.calls.size();
+    catalog.setBackgroundWorkSuspended(false);
+    require(catalog.refreshing(), "resuming restarts the interrupted due refresh");
+    require(transport.calls.size() > callsAfterSuspend,
+            "resuming issues a fresh generation instead of reviving cancelled replies");
+    catalog.setBackgroundWorkSuspended(true);
+}
+
+void testForegroundPriorityDefersOptionalRefresh()
+{
+    QTemporaryDir dir;
+    FakeBiblioTransport transport;
+    BiblioCatalog catalog(dir.path() + QStringLiteral("/foreground.sqlite"), &transport);
+
+    catalog.setForegroundPriorityActive(true);
+    catalog.refreshIfDue();
+    require(transport.calls.isEmpty(), "foreground interaction defers automatic Biblio refresh");
+    require(!catalog.refreshing(), "deferred foreground refresh never enters refreshing state");
+
+    catalog.setForegroundPriorityActive(false);
+    require(!transport.calls.isEmpty(), "Biblio refresh resumes when foreground pressure clears");
+    catalog.setBackgroundWorkSuspended(true);
+}
+
 void testOneRefreshPerLocalDayThenForced()
 {
     QTemporaryDir dir;
@@ -474,6 +538,29 @@ void testOneRefreshPerLocalDayThenForced()
             "a forced refreshIfDue issues new requests even on the same local day");
     runRefreshToCompletion(catalog, transport, true);
     require(!catalog.refreshing(), "forced refresh also completes");
+}
+
+void testPersistedSameDayGateSurvivesRestart()
+{
+    QTemporaryDir dir;
+    const QString dbPath = dir.path() + QStringLiteral("/persisted-day-gate.sqlite");
+    {
+        FakeBiblioTransport transport;
+        BiblioCatalog catalog(dbPath, &transport);
+        catalog.refreshIfDue();
+        runRefreshToCompletion(catalog, transport, true);
+        require(catalog.ready(), "first process publishes today's snapshot");
+    }
+
+    FakeBiblioTransport restartedTransport;
+    BiblioCatalog restarted(dbPath, &restartedTransport);
+    restarted.refreshIfDue();
+    require(restartedTransport.calls.isEmpty(),
+            "a new process must not re-fetch after a successful same-day publish");
+
+    restarted.refreshIfDue(/*force=*/true);
+    require(!restartedTransport.calls.isEmpty(),
+            "forced refresh still bypasses the persisted same-day gate");
 }
 
 void testBoundedConcurrency()
@@ -649,7 +736,7 @@ void testForcedRefreshDuringPendingRetryDoesNotWedgeRefreshing()
     // Let every timer fire (generation 1's stale one first -- scheduled
     // first, identical base delay -- then generation 2's own), draining
     // everything else to success so the refresh can actually finish.
-    for (int round = 0; round < 50 && catalog.refreshing(); ++round) {
+    for (int round = 0; round < 200 && catalog.refreshing(); ++round) {
         transport.drainAll(true);
         pump(30);
     }
@@ -1572,7 +1659,11 @@ int main(int argc, char **argv)
     testCachedFirstPaint();
     testFirstRunFailureLeavesNotReady();
     testRequestCoalescing();
+    testReplyCompletionYieldsBeforeCatalogFinalize();
+    testBackgroundWorkSuspensionCancelsAndResumesRefresh();
+    testForegroundPriorityDefersOptionalRefresh();
     testOneRefreshPerLocalDayThenForced();
+    testPersistedSameDayGateSurvivesRestart();
     testBoundedConcurrency();
     testPartialProviderFailureStillPublishes();
     testTotalFailurePreservesOldSnapshot();

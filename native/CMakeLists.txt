@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.1.6 LANGUAGES C CXX)
+project(colosseum VERSION 1.1.5 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -29,23 +29,19 @@ option(COLOSSEUM_NO_COMPILER_CACHE
     "Disable automatic compiler-cache launcher discovery"
     OFF)
 if(NOT COLOSSEUM_NO_COMPILER_CACHE)
-    find_program(COMPILER_CACHE_PROGRAM NAMES sccache ccache)
-    if(COMPILER_CACHE_PROGRAM AND EXISTS "${COMPILER_CACHE_PROGRAM}")
-        set(CMAKE_C_COMPILER_LAUNCHER "${COMPILER_CACHE_PROGRAM}")
-        set(CMAKE_CXX_COMPILER_LAUNCHER "${COMPILER_CACHE_PROGRAM}")
-        get_filename_component(COMPILER_CACHE_NAME "${COMPILER_CACHE_PROGRAM}" NAME)
-        message(STATUS "Compiler cache: ${COMPILER_CACHE_NAME} (${COMPILER_CACHE_PROGRAM})")
+    find_program(SCCACHE_PROGRAM NAMES sccache)
+    if(SCCACHE_PROGRAM AND EXISTS "${SCCACHE_PROGRAM}")
+        set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}")
+        message(STATUS "Compiler cache: sccache (${SCCACHE_PROGRAM})")
     else()
-        message(STATUS "Compiler cache: sccache/ccache not found; building without compiler cache")
+        message(STATUS "Compiler cache: sccache not found; building without compiler cache")
     endif()
 else()
     message(STATUS "Compiler cache: disabled by COLOSSEUM_NO_COMPILER_CACHE=ON")
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
-if(UNIX AND NOT APPLE)
-    find_package(Qt6 REQUIRED COMPONENTS DBus)
-endif()
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -166,10 +162,6 @@ endif()
 add_executable(colosseum
     main.cpp
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
-    # Arc 36 Wave 4B N-16: resumable attachment flow orchestrator.
-    account/AccountAttachmentCoordinator.cpp
-    # Arc 36 Wave 4A N-14: crash-safe cloud attachment receipt (persistence only).
-    account/AccountAttachmentReceipt.cpp
     account/AccountBootstrapStore.cpp
     account/AccountClient.cpp
     account/AccountController.cpp
@@ -186,6 +178,8 @@ add_executable(colosseum
     # Slice D3: transient ActivityPlaybackTracker (not QML-registered this slice).
     account/ActivityPlaybackTracker.cpp
     account/CollectionSyncAdapter.cpp
+    account/DownloadIntentStore.cpp
+    account/DownloadIntentSyncAdapter.cpp
     account/CoreStateSyncProjection.cpp
     account/FirstAccountProfileCoordinator.cpp
     account/HistoryStore.cpp
@@ -199,7 +193,6 @@ add_executable(colosseum
     account/ProfileStoreRuntime.cpp
     account/ConsumptionHistoryBridge.cpp
     account/ProgressSyncAdapter.cpp
-    account/WatchStateSyncAdapter.cpp
     account/SharedPcProfileCoordinator.cpp
     account/SyncAdapterRegistry.cpp
     account/SyncEngine.cpp
@@ -212,9 +205,6 @@ add_executable(colosseum
     account/TankobanReaderPreferencesSyncAdapter.cpp
     account/WindowsAccountCredentialStore.cpp
     account/WindowsAccountSensitiveClipboard.cpp
-    # Arc 36 Wave 4B N-16: Q_OBJECT — moc needs the header listed.
-    account/AccountAttachmentCoordinator.h
-    account/AccountAttachmentReceipt.h
     account/AccountBootstrapStore.h
     account/AccountClient.h
     account/AccountController.h
@@ -234,6 +224,8 @@ add_executable(colosseum
     # Slice D3: transient ActivityPlaybackTracker (Q_OBJECT — moc needs the header listed).
     account/ActivityPlaybackTracker.h
     account/CollectionSyncAdapter.h
+    account/DownloadIntentStore.h
+    account/DownloadIntentSyncAdapter.h
     account/CoreStateSyncProjection.h
     account/FirstAccountProfileCoordinator.h
     account/HistoryStore.h
@@ -247,7 +239,6 @@ add_executable(colosseum
     account/ProfileStoreRuntime.h
     account/ConsumptionHistoryBridge.h
     account/ProgressSyncAdapter.h
-    account/WatchStateSyncAdapter.h
     account/SharedPcProfileCoordinator.h
     account/SyncAdapter.h
     account/SyncAdapterRegistry.h
@@ -294,6 +285,8 @@ add_executable(colosseum
     AudioPairingStore.h
     work/BackgroundWorkCoordinator.cpp
     work/BackgroundWorkCoordinator.h
+    work/ForegroundPriorityGovernor.cpp
+    work/ForegroundPriorityGovernor.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
     bootstrap/AppDataMigration.cpp
@@ -314,6 +307,14 @@ add_executable(colosseum
     engine/AppLog.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
     engine/MangaScraper.h
     engine/MangaResult.h
     engine/MangaSeriesDetail.h
@@ -610,6 +611,12 @@ add_executable(colosseum
     engine/BiblioCatalog.cpp
     engine/BiblioCatalog.h
 )
+file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")
+qt_add_resources(colosseum "tankoyomi_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent
     ${Libmpv_INCLUDE_DIRS})   # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API (Slice 8)
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
@@ -644,9 +651,6 @@ target_link_libraries(colosseum PRIVATE colosseum_update_crypto
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent
     ${Libmpv_LIBRARIES})   # MediaAdmissionProbe links libmpv directly, not via MpvQt (Slice 8)
-if(UNIX AND NOT APPLE)
-    target_link_libraries(colosseum PRIVATE Qt6::DBus)
-endif()
 # Function 0001 bootstrap contract: bind the native executable to the exact QML
 # tree present when it was built. Normal startup refuses a live QML tree whose
 # fingerprint differs; explicit dev/test QML overrides bypass this production gate.
@@ -665,6 +669,47 @@ if(WIN32)
 endif()
 
 
+add_executable(tankoyomi_provider_registry_harness
+    ../tests/tankoyomi_provider_registry_harness.cpp
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h)
+target_include_directories(tankoyomi_provider_registry_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_provider_registry_harness PRIVATE Qt6::Core)
+add_executable(tankoyomi_identity_harness
+    ../tests/tankoyomi_identity_harness.cpp
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h)
+target_include_directories(tankoyomi_identity_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_identity_harness PRIVATE Qt6::Core)
+
+add_executable(tankoyomi_service_runtime_harness
+    ../tests/tankoyomi_service_runtime_harness.cpp
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h)
+target_include_directories(tankoyomi_service_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_service_runtime_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+qt_add_resources(tankoyomi_service_runtime_harness "tankoyomi_service_runtime_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
+add_executable(tankoyomi_provider_live_harness
+    ../tests/tankoyomi_provider_live_harness.cpp
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h)
+target_include_directories(tankoyomi_provider_live_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_provider_live_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+qt_add_resources(tankoyomi_provider_live_harness "tankoyomi_provider_live_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
 add_executable(update_version_harness
     ../tests/update_version_harness.cpp
     update/UpdateVersion.cpp
@@ -766,20 +811,6 @@ add_executable(update_install_bridge_harness
 target_include_directories(update_install_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(update_install_bridge_harness PRIVATE Qt6::Core Qt6::Network)
 
-add_executable(account_credential_persistence_harness
-    ../tests/account_credential_persistence_harness.cpp
-    account/WindowsAccountCredentialStore.cpp
-    account/WindowsAccountCredentialStore.h
-    account/AccountCredentialStore.h
-)
-target_include_directories(account_credential_persistence_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(account_credential_persistence_harness PRIVATE Qt6::Core)
-if(WIN32)
-    target_link_libraries(account_credential_persistence_harness PRIVATE Advapi32)
-elseif(UNIX AND NOT APPLE)
-    target_link_libraries(account_credential_persistence_harness PRIVATE Qt6::DBus)
-endif()
-
 
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp
@@ -801,6 +832,13 @@ add_executable(background_work_coordinator_harness
     work/BackgroundWorkCoordinator.h)
 target_include_directories(background_work_coordinator_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(background_work_coordinator_harness PRIVATE Qt6::Core)
+
+add_executable(foreground_priority_governor_harness
+    ../tests/foreground_priority_governor_harness.cpp
+    work/ForegroundPriorityGovernor.cpp
+    work/ForegroundPriorityGovernor.h)
+target_include_directories(foreground_priority_governor_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(foreground_priority_governor_harness PRIVATE Qt6::Core Qt6::Gui)
 
 add_executable(background_activity_registry_harness
     ../tests/background_activity_registry_harness.cpp
@@ -1522,9 +1560,17 @@ add_executable(manga_downloader_cancel_harness
     engine/MangaScraper.h
     engine/MangaImageHostResolver.cpp
     engine/MangaImageHostResolver.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
 )
 target_include_directories(manga_downloader_cancel_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
+target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
 
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp
@@ -2226,7 +2272,7 @@ add_executable(biblio_catalog_service_harness
     engine/BiblioCanonicalizer.h
 )
 target_include_directories(biblio_catalog_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql)
+target_link_libraries(biblio_catalog_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 
 # ── CTest registration seam (test ledger, migration slice 2 — 2026-08-06) ────
 # One standard discovery layer over the EXISTING harness estate; registrations
@@ -2237,14 +2283,4 @@ include(CTest)
 if(BUILD_TESTING)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tests"
                      "${CMAKE_CURRENT_BINARY_DIR}/tests")
-
-    # Arc 36 N-07 owns CMake registration but not tests/CMakeLists.txt. Add the
-    # watch-state production source to the existing focused domain-adapter target
-    # after that child directory has defined it.
-    target_sources(tst_core_sync_adapters PRIVATE
-        account/WatchStateSyncAdapter.cpp
-        account/WatchStateSyncAdapter.h)
-    target_sources(account_first_light PRIVATE
-        account/WatchStateSyncAdapter.cpp
-        account/WatchStateSyncAdapter.h)
 endif()

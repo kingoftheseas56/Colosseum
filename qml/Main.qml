@@ -19,7 +19,6 @@ import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
 import "ComicResolve.js" as Resolve
-import "ComicDownloadRoute.js" as ComicDownloadRoute
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
@@ -62,6 +61,7 @@ Window {
         }
     }
     property bool startupIdleWorkArmed: false
+    property bool auxiliaryFontsReady: false
     Timer {
         id: startupIdleGate
         interval: 2500
@@ -72,6 +72,7 @@ Window {
                 win.armStartupIdleWork()
                 return
             }
+            auxiliaryFontsReady = true
             postFrameStartupWork.start()
             win.armHomeIntroWidgets()
             win.armHomeContinueRail()
@@ -631,6 +632,87 @@ Window {
     Shortcut { sequences: ["Escape"]; onActivated: win.handleEscape() }
     Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
 
+    // ── Keyboard ignition (Arc 41 repair) ──────────────────────────────────────────
+    // Qt Quick starts a Tab traversal only from an item that BOTH holds focus and has
+    // activeFocusOnTab. On a cold launch nothing in the shell claims focus, so the
+    // window's contentItem holds it — and contentItem.activeFocusOnTab is false. Every
+    // focus-dependent key (Tab, Backtab, the arrows) therefore died on arrival, while the
+    // ApplicationShortcut chords kept working because Qt's shortcut map never consults
+    // focus. That asymmetry was the whole bug: Arc 41's chain, controllers and focus rings
+    // were all correct, with no origin to start from.
+    //
+    // This item is the missing origin. It holds focus at rest and paints nothing, so a
+    // mouse user is never greeted by a focus ring; the first navigation key hands focus to
+    // the first real control, and from there Arc 41's own machinery carries it.
+    Item {
+        id: keyboardIgnition
+        objectName: "keyboardIgnition"
+        width: 0
+        height: 0
+        focus: true
+        // Deliberately NOT activeFocusOnTab: the origin must never become a stop in the
+        // chain, or Tab would eventually cycle back into an invisible item.
+
+        readonly property var navigationKeys: [
+            Qt.Key_Tab, Qt.Key_Backtab, Qt.Key_Up, Qt.Key_Down,
+            Qt.Key_Left, Qt.Key_Right, Qt.Key_Home, Qt.Key_End
+        ]
+
+        // Hand focus to the chain's first (or last, going backwards) reachable control.
+        // contentItem is the chain's anchor, so this stays surface-agnostic — whatever the
+        // shell is showing, the first control of the current tree is what lights up.
+        function ignite(forward) {
+            if (!win.contentItem)
+                return false
+            var first = win.contentItem.nextItemInFocusChain(forward)
+            if (!first || first === keyboardIgnition || first === win.contentItem)
+                return false
+            first.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+            return true
+        }
+
+        Keys.onPressed: (event) => {
+            if (keyboardIgnition.navigationKeys.indexOf(event.key) < 0)
+                return
+            var backward = event.key === Qt.Key_Backtab
+                || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier) !== 0)
+            if (keyboardIgnition.ignite(!backward))
+                event.accepted = true
+        }
+    }
+
+    // Keyboard focus is dead when no live control owns it. Three ways that happens here:
+    // nothing has claimed it yet (a cold launch), it fell back to the window's contentItem,
+    // or — the one that actually strands the running shell — it is still held by an item
+    // that has since been hidden or disabled. Onboarding leaves focus on a hidden control
+    // when it dismisses, and the layer closers (closeVaultPage, closeKeyboardGuide and
+    // friends) deactivate a Loader the same way. A hidden owner is worse than no owner:
+    // Qt keeps delivering keys to it, and it traverses nothing, so every navigation key
+    // disappears into an item the user cannot see.
+    // This has to be a BINDING, not a function called from onActiveFocusItemChanged. The
+    // stranding case never changes activeFocusItem at all — the same item keeps focus and
+    // simply goes invisible — so no focus signal is emitted and a change handler would
+    // never re-run. Reading visible/enabled here makes them binding dependencies, so the
+    // shell notices the moment its focus owner stops being real.
+    readonly property bool keyboardFocusDead: {
+        var item = win.activeFocusItem
+        if (!item || item === win.contentItem)
+            return true
+        return item.visible !== true || item.enabled !== true
+    }
+
+    // Returning focus to the ignition item keeps the next keypress live without showing a
+    // ring in the meantime. callLater lets a surface that seeds its own focus win the race
+    // rather than fighting it for the same frame.
+    onKeyboardFocusDeadChanged: {
+        if (!win.keyboardFocusDead)
+            return
+        Qt.callLater(function() {
+            if (win.keyboardFocusDead)
+                keyboardIgnition.forceActiveFocus()
+        })
+    }
+
     // The secret developer door: F11 flips the whole shell between fullscreen (Colosseum's
     // public identity) and the frameless developer window. Application-scoped so it works on
     // home, world pages, readers, overlays, and active playback alike. The native store is the
@@ -1088,7 +1170,6 @@ Window {
     }
 
     function openComicSeries(d) {
-        comicSeriesLayer.resumeChapterId = ""
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
         comicSeriesLayer.title = (d && d.title) || ""
@@ -1099,25 +1180,6 @@ Window {
             comicSeriesLayer.item.cover = comicSeriesLayer.cover
             comicSeriesLayer.item.locgMeta = comicSeriesLayer.locgMeta
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
-        } else comicSeriesLayer.active = true
-    }
-    function openComicSeriesAt(title, numericLocgId, chapterId) {
-        // Numeric gc: identities are LOCG/DB-backed. Load the catalogue before the
-        // reader target is assigned so ComicSeriesPage.attach() can establish gcTag
-        // synchronously; otherwise the reader mounts under the transient "gc:" key.
-        if (!ComicsDb.ready()) comicsDbLoader.active = true
-        comicSeriesLayer.resumeChapterId = chapterId || ""
-        comicSeriesLayer.locgSid = "locg:" + String(numericLocgId || "")
-        comicSeriesLayer.locgMeta = ({})
-        comicSeriesLayer.title = title || ""
-        comicSeriesLayer.cover = ""
-        if (comicSeriesLayer.active && comicSeriesLayer.item) {
-            var it = comicSeriesLayer.item
-            it.seriesTitle = comicSeriesLayer.title
-            it.cover = ""
-            it.locgMeta = ({})
-            it.locgId = comicSeriesLayer.locgSid             // DB identity first
-            it.openChapterId = comicSeriesLayer.resumeChapterId   // local reader second
         } else comicSeriesLayer.active = true
     }
     function closeComicSeries() { comicSeriesLayer.active = false }
@@ -1167,6 +1229,60 @@ Window {
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
+    // First PlayerPage construction is large enough to block weak machines for visible chunks.
+    // Keep the Loader cold until first use, incubate it across event-loop turns, then replay the
+    // one latest open request after onLoaded. Once created, the existing keep-alive policy wins.
+    property var pendingPlayerOpen: null
+
+    function ensurePlayerLayerLoading() {
+        if (!playerLayer.active)
+            playerLayer.active = true
+    }
+    function queuePlayerSessionOpen(sessionId) {
+        win.pendingPlayerOpen = { "kind": "session", "sessionId": String(sessionId || "") }
+        win.ensurePlayerLayerLoading()
+    }
+    function queueDirectPlayerOpen(infoHash, fileIdx, title, backdrop, subType, subId, candidates, context) {
+        win.pendingPlayerOpen = { "kind": "direct", "infoHash": infoHash, "fileIdx": fileIdx,
+                                  "title": title, "backdrop": backdrop, "subType": subType,
+                                  "subId": subId, "candidates": candidates || [], "context": context || ({}) }
+        win.ensurePlayerLayerLoading()
+    }
+
+    function queueWatchPartyPlayerOpen() {
+        win.pendingPlayerOpen = { "kind": "watchParty" }
+        win.ensurePlayerLayerLoading()
+    }
+    function clearPendingPlayerSession(sessionId) {
+        var p = win.pendingPlayerOpen
+        if (p && p.kind === "session" && p.sessionId === String(sessionId || "")) {
+            win.pendingPlayerOpen = null
+            return true
+        }
+        return false
+    }
+    function flushPendingPlayerOpen() {
+        if (!playerLayer.item || !win.pendingPlayerOpen)
+            return
+        var p = win.pendingPlayerOpen
+        win.pendingPlayerOpen = null
+        if (p.kind === "session") {
+            if (!win.playerOpen || Sessions.activeId !== p.sessionId)
+                return
+            var rec = Sessions.get(p.sessionId)
+            if (rec && rec.id)
+                win.activateMovieSession(rec)
+            return
+        }
+        if (p.kind === "direct") {
+            if (win.playerOpen)
+                playerLayer.item.playTorrent(p.infoHash, p.fileIdx, p.title, p.backdrop, p.subType, p.subId,
+                                             p.candidates || [], p.context || ({}))
+            return
+        }
+        if (p.kind === "watchParty" && win.playerOpen)
+            win.openWatchPartyRoomSource()
+    }
 
     // Gives the shell a moment to finish coming up before the player is opened on top of it.
     Timer {
@@ -1508,23 +1624,21 @@ Window {
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "id": item.id || item.path, "title": item.title || "", "author": item.author || "" })
         } else if (item.kind === "comic") {
-            var destination = ComicDownloadRoute.destination(item)
-            if (destination === "pack") {
+            // A demuxed pack child carries packRole (Slice 1 field, forwarded by
+            // tankobanItems from downloadedIssueRow). Route it to the downloads-backed
+            // pack shelf — NOT the live gc:/gcd: tag lanes, which can't see the demuxed
+            // volumes. Ordinary single issues (empty packRole) stay on the existing paths.
+            if (item.packRole && String(item.packRole).length > 0) {
                 win.openPackSeries({ seriesId: item.seriesId,
                                      seriesTitle: item.seriesTitle,
                                      resumeChapterId: item.id })
-            } else if (destination === "locg") {
-                // DB-backed ComicSeriesPage stores its reader namespace as gc:<LOCG id>.
-                // That numeric suffix is not a GetComics tag and must reopen the DB lane.
-                win.openComicSeriesAt(item.seriesTitle, String(item.seriesId).slice(3), item.id)
-            } else if (destination === "getcomics") {
+            } else if (String(item.seriesId || "").indexOf("gc:") === 0)
                 win.openWesternAt(item.seriesTitle, String(item.seriesId).slice(3), item.id)
-            } else if (destination === "gcd") {
+            else if (String(item.seriesId || "").indexOf("gcd:") === 0)
                 win.openGcdSeries({ gcdId: Number(String(item.seriesId).slice(4)),
                                     title: item.seriesTitle, resumeChapterId: item.id })
-            } else {
+            else
                 console.log("[route] ignoring unknown comic id:", item.seriesId)
-            }
         } else {
             win.openSeriesAt(item.seriesTitle, item.seriesId, item.id)
         }
@@ -1579,11 +1693,14 @@ Window {
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         setGuiStallContext("open", "Player")
-        if (!playerLayer.active) playerLayer.active = true
         win.playerOpen = true
-        // `backdrop` is the poster url; subType/subId (e.g. "movie"/"tt123" or "series"/"tt123:1:2")
-        // let the player fetch online subtitles for this exact title/episode.
-        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates || [], playbackContext || ({}))
+        if (!playerLayer.item) {
+            win.queueDirectPlayerOpen(infoHash, fileIdx, title, backdrop, subType, subId,
+                                      streamCandidates || [], playbackContext || ({}))
+            return
+        }
+        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId,
+                                     streamCandidates || [], playbackContext || ({}))
     }
 
     function openWatchPartyRoomSource() {
@@ -1602,15 +1719,18 @@ Window {
             playerLayer.item.syncWatchPartyPlayerObservation()
             return true
         }
-        if (!playerLayer.active) playerLayer.active = true
-        if (!playerLayer.item) return false
         win.playerOpen = true
+        if (!playerLayer.item) {
+            win.queueWatchPartyPlayerOpen()
+            return true
+        }
         var candidate = { "infoHash": hash, "fileIdx": fileIdx }
         playerLayer.item.playTorrent(hash, fileIdx, "Watch Party", "", "", "",
                                     [candidate], { "watchPartyJoin": true })
         return true
     }
     function closePlayer() {
+        win.pendingPlayerOpen = null
         if (playerLayer.item) playerLayer.item.stop()
         win.playerOpen = false
         setGuiStallContext("navigate", currentSurface || "Home")
@@ -1773,18 +1893,14 @@ Window {
             // service's per-series flag once the id resolves.
             win.openSeries(title)
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            var comicDest = entry.kind === "comic"
-                ? ComicDownloadRoute.destination({ seriesId: entry.id || "" }) : "unknown"
-            if (comicDest === "locg")
-                win.openComicSeries({ id: "locg:" + String(entry.id).slice(3), title: title,
-                                      cover: entry.cover || "" })
-            else if (comicDest === "getcomics")
+            if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
-            else if (comicDest === "gcd")
+            else if (String(entry.id || "").indexOf("gcd:") === 0)
                 win.openGcdSeries({ gcdId: Number(String(entry.id).slice(4)), title: title,
                                     cover: entry.cover || "" })
             else if (entry.kind === "comic")
-                // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12)
+                // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12);
+                // comics open only via the gc: lane, so a stale id never opens the manga page
                 console.log("[route] ignoring unknown comic id:", entry.id)
             else win.openSeries(title)                                   // manga → the chapter-list series page
         } else if (entry.kind === "book") {
@@ -2048,6 +2164,43 @@ Window {
     // (minimizeAudiobook / closeAudiobookSession retired with the standalone player, 2026-07-18.)
 
     // dispatcher: build the active surface from a record (+ restore its saved state).
+    // Player-specific half of session activation. This only runs with a READY Loader item.
+    // First-open callers queue the session id and onLoaded re-enters here on a later event turn.
+    function activateMovieSession(rec) {
+        if (!rec || !rec.id || !playerLayer.item)
+            return
+        var t = rec.target || ({})
+        var st = rec.savedState || ({})
+        if (win.warmPlayerSessionId === rec.id) {
+            playerLayer.item.resumeFromMinimize()
+        } else {
+            if (t.localPath && String(t.localPath).length)
+                playerLayer.item.playLocalFile(t)
+            else if (t.streamUrl && String(t.streamUrl).length) {
+                var landed = win.downloadedVideoPath(t.id || "")
+                if (landed.length) {
+                    t.localPath = landed
+                    playerLayer.item.playLocalFile(t)
+                } else if (t.partPath && String(t.partPath).length) {
+                    t.localPath = t.partPath
+                    t.arrivingUrl = t.streamUrl
+                    playerLayer.item.playLocalFile(t)
+                } else {
+                    playerLayer.item.playRemoteUrl(t)
+                }
+            } else {
+                playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop,
+                                             t.subType, t.subId, t.streamCandidates || [],
+                                             t.playbackContext || ({}))
+            }
+            var resumeSt = (st && Number(st.position) > 0) ? st
+                         : { "position": Number(t.position) || 0 }
+            if (playerLayer.item.restoreState)
+                playerLayer.item.restoreState(resumeSt)
+        }
+        win.warmPlayerSessionId = rec.id
+    }
+
     function activateSession(rec) {
         if (!rec || !rec.id) return
         var t = rec.target || ({})
@@ -2055,42 +2208,12 @@ Window {
         currentSurface = wallpaperWorldForSession(rec)
         refreshWallpaper()
         if (rec.contentKind === "movie") {
-            if (!playerLayer.active) playerLayer.active = true
             win.playerOpen = true
-            if (win.warmPlayerSessionId === rec.id && playerLayer.item) {
-                // warm: the stream was kept alive on minimize — resume in place, no re-stream.
-                playerLayer.item.resumeFromMinimize()
-            } else {
-                if (t.localPath && String(t.localPath).length)
-                    playerLayer.item.playLocalFile(t)   // downloaded file: stream-grade identity
-                else if (t.streamUrl && String(t.streamUrl).length) {
-                    // arriving download: watch the same url live; if it landed since
-                    // (restart restore), prefer the local copy over a dead url.
-                    var landed = win.downloadedVideoPath(t.id || "")
-                    if (landed.length) {
-                        t.localPath = landed
-                        playerLayer.item.playLocalFile(t)
-                    } else if (t.partPath && String(t.partPath).length) {
-                        // disk-first (2026-07-31): the job's .part already holds real bytes —
-                        // read those instead of re-streaming them. The player hands over to
-                        // arrivingUrl only if the watcher outruns the download frontier.
-                        t.localPath = t.partPath
-                        t.arrivingUrl = t.streamUrl
-                        playerLayer.item.playLocalFile(t)
-                    } else {
-                        playerLayer.item.playRemoteUrl(t)
-                    }
-                } else
-                    playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
-                                                 t.streamCandidates || [], t.playbackContext || ({}))
-                // Continue-Watching first-open resume: a fresh open has NO savedState, so the saved
-                // position rides in target.position (the tile's ProgressStore value). A fresher
-                // in-session captured position (minimize) still wins. [fix 2026-07-07: streamed CW
-                // resumed at 0 because playTorrent takes no position and savedState was empty.]
-                var resumeSt = (st && Number(st.position) > 0) ? st : { "position": Number(t.position) || 0 }
-                if (playerLayer.item.restoreState) playerLayer.item.restoreState(resumeSt)   // precision: Task 5
+            if (!playerLayer.item) {
+                win.queuePlayerSessionOpen(rec.id)
+                return
             }
-            win.warmPlayerSessionId = rec.id
+            win.activateMovieSession(rec)
         } else if (rec.contentKind === "comic") {
             if (t.vaultPath && String(t.vaultPath).length) {
                 // a loose local comic (Vault): no series page — mount the standalone reader
@@ -2105,18 +2228,14 @@ Window {
                 } else vaultComicLayer.active = true
                 return
             }
-            var sessionComicDest = ComicDownloadRoute.destination({ seriesId: t.seriesId || "" })
-            if (sessionComicDest === "locg") {
-                win.openComicSeriesAt(t.title, String(t.seriesId).slice(3),
-                                      (st.chapterId || t.chapterId || ""))
-                return
-            }
-            if (sessionComicDest === "getcomics") {
+            if (String(t.seriesId || "").indexOf("gc:") === 0) {
+                // GetComics content (western shelf OR LOCG-catalogue page) restores via the
+                // GetComics shelf — same tag, same reader, resumed at the chapter.
                 win.openWesternAt(t.title, String(t.seriesId).slice(3), (st.chapterId || t.chapterId || ""))
                 if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
                 return
             }
-            if (sessionComicDest === "gcd") {
+            if (String(t.seriesId || "").indexOf("gcd:") === 0) {
                 // catalogue run page (baked mode, spec 2026-07-17) restores via the same
                 // western shelf, baked branch — same run, same reader, resumed at the chapter.
                 win.openGcdSeries({ gcdId: Number(String(t.seriesId).slice(4)), title: t.title,
@@ -2187,11 +2306,15 @@ Window {
     function teardownSession(rec) {
         if (!rec || !rec.id) return
         if (rec.contentKind === "movie") {
-            // minimize keeps the stream WARM: pause + hide, never stop(), so reopening from
-            // the taskbar resumes instantly with no re-stream (Hemanth 2026-07-07, option a).
-            // The hard stop lives in closeSession — only a real close ends the stream.
-            if (playerLayer.item) playerLayer.item.suspendForMinimize()
-            win.warmPlayerSessionId = rec.id
+            // If first-open incubation has not dispatched playback yet, cancel that queued open;
+            // there is no warm stream to resume. Once playback exists, preserve the old keep-alive.
+            var wasPending = win.clearPendingPlayerSession(rec.id)
+            if (playerLayer.item && !wasPending) {
+                playerLayer.item.suspendForMinimize()
+                win.warmPlayerSessionId = rec.id
+            } else {
+                win.warmPlayerSessionId = ""
+            }
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — drop whichever is live
@@ -2212,26 +2335,26 @@ Window {
     FontLoader { source: "../assets/fonts/Fraunces-Italic.ttf" }
 
     // ---- player HUD face: Switzer (Harbor-parity), bundled weights (theme.hud) ----
-    FontLoader { source: "../assets/fonts/Switzer-Regular.otf" }
-    FontLoader { source: "../assets/fonts/Switzer-Medium.otf" }
-    FontLoader { source: "../assets/fonts/Switzer-Semibold.otf" }
-    FontLoader { source: "../assets/fonts/Switzer-Bold.otf" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Regular.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Medium.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Semibold.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Switzer-Bold.otf" : "" }
 
     // ---- HUD fallback face: Inter statics (theme.hud flip target). STATICS ON PURPOSE:
     // a variable TTF registers under its typographic name ("Inter Variable"), so asking
     // for "Inter" silently falls back to Tahoma on Windows (probe-proven 2026-07-08).
     // The statics register as plain "Inter" and weight-match across files. ----
-    FontLoader { source: "../assets/fonts/Inter-Regular.otf" }
-    FontLoader { source: "../assets/fonts/Inter-Medium.otf" }
-    FontLoader { source: "../assets/fonts/Inter-SemiBold.otf" }
-    FontLoader { source: "../assets/fonts/Inter-Bold.otf" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-Regular.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-Medium.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-SemiBold.otf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Inter-Bold.otf" : "" }
 
     // ---- reading serif: Literata statics for the FRESH reader's chrome (Appearance panel
     // card + serif UI). STATICS for the same reason as Inter above — the variable TTF would
     // register as "Literata Variable" and silently Tahoma-fall. The BOOK text gets Literata
     // separately via @font-face injected into the paper page (paper_glue.js FONT_FACE_CSS). ----
-    FontLoader { source: "../assets/fonts/Literata-Regular.ttf" }
-    FontLoader { source: "../assets/fonts/Literata-Italic.ttf" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Literata-Regular.ttf" : "" }
+    FontLoader { source: win.auxiliaryFontsReady ? "../assets/fonts/Literata-Italic.ttf" : "" }
 
     // =====================================================================
     // BACKDROP — the persistent wallpaper everything composites over.
@@ -2297,8 +2420,7 @@ Window {
     //      activeMedium "" → HOME: no pill selected (the no-selection rule). Tapping a pill
     //      enters that world. ----
     TopBar {
-        onAccountClicked: (anchorRight, anchorBottom) =>
-            accountFlyout.toggleAt(anchorRight, anchorBottom)
+        onAccountClicked: (anchorRight, anchorBottom) => accountFlyout.toggleAt(anchorRight, anchorBottom)
         id: topbar
         z: 20
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
@@ -2674,7 +2796,7 @@ Window {
             delegate: Loader {
                 required property string mode
                 anchors.fill: parent
-                visible: worldStack.current === mode
+                visible: worldStack.current === mode && !win.immersiveSurfaceOpen
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
                 active: false
@@ -2684,14 +2806,14 @@ Window {
                 asynchronous: true
                 Component.onCompleted: {
                     setSource(win.worldSourceFor(mode), {
-                        "lifecycleActive": worldStack.current === mode
+                        "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen
                     })
                     active = true
                 }
                 onLoaded: {
                     if (item.lifecycleActive !== undefined)
                         item.lifecycleActive = Qt.binding(function() {
-                            return worldStack.current === mode
+                            return worldStack.current === mode && !win.immersiveSurfaceOpen
                         })
                     item.medium = mode
                     item.backdrop = wall
@@ -3010,7 +3132,6 @@ Window {
         property string cover: ""
         property string locgSid: ""          // "locg:<id>" — the catalogue entry
         property var locgMeta: ({})          // {publisher, rating, startYear…} enriches the hero
-        property string resumeChapterId: "" // Downloads/Continue can enter the local reader directly
         source: "ComicSeriesPage.qml"
         onLoaded: {
             item.backdrop = wall
@@ -3025,9 +3146,7 @@ Window {
             item.readerCloseRequested.connect(win.closeComicReader)
             item.readerBackRequested.connect(win.closeComicReader)
             item.locgMeta = comicSeriesLayer.locgMeta
-            item.locgId = comicSeriesLayer.locgSid       // identity first — triggers attach()
-            if (comicSeriesLayer.resumeChapterId)
-                item.openChapterId = comicSeriesLayer.resumeChapterId   // local reader second
+            item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
         }
     }
 
@@ -3171,6 +3290,9 @@ Window {
         z: 60
         active: false
         visible: win.playerOpen
+        // Spread first construction across event-loop turns. After the first load this Loader stays
+        // active forever, preserving the existing warm player/minimize behavior and avoiding churn.
+        asynchronous: true
         // The ONE production line that selects the backend. Player2Page.qml deliberately exposes the
         // same interface as PlayerPage.qml, so every playerLayer.item.* call site below stays as-is.
         source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"
@@ -3195,6 +3317,9 @@ Window {
                 item.backendRestartRequired.connect(function(reason) {
                     console.warn("[player2] failed after first frame: " + reason)
                 })
+            // Do not start media from the Loader's own completion event. Yield one turn so Qt can
+            // present the newly-created player/loading face before mpv/file-open work begins.
+            Qt.callLater(win.flushPendingPlayerOpen)
         }
     }
 
@@ -3367,6 +3492,10 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.openRequested.connect(win.routeDownloadItem)
+            item.redownloadRequested.connect(function(downloadItem) {
+                var result = LocalDownloads.redownload(downloadItem);
+                item.finishMutation(result, "This file could not be queued again.");
+            })
             item.openWorldRequested.connect(win.routeDownloadWorld)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openAudiobookRequested.connect(win.routeDownloadedAudiobook)
@@ -3384,7 +3513,7 @@ Window {
         anchors.fill: parent
         z: 56
         active: false
-        visible: active
+        visible: active && !win.immersiveSurfaceOpen
         // VaultPage is a large, taskbar-only surface. Spread component creation across
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
@@ -3606,6 +3735,7 @@ Window {
             ? (LocalDownloads.revision, Number(LocalDownloads.totals.active || 0)) : 0)
         + ((typeof Audiobooks !== "undefined") ? Audiobooks.activeCount : 0)
     onImmersiveSurfaceOpenChanged: {
+        ForegroundPriority.setImmersiveSurfaceOpen(win.immersiveSurfaceOpen)
         if (!immersiveSurfaceOpen && pendingDownloadReveal) {
             pendingDownloadReveal = false
             if (lastActiveDownloads > 0) taskbar.reveal()
@@ -3997,8 +4127,6 @@ Window {
         objectName: "accountCenter"
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null
-        onSignInRequested: accountHost.openSignIn()
-        onCreateAccountRequested: accountHost.openCreateAccount()
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
@@ -4010,10 +4138,6 @@ Window {
         id: accountFlyout
         objectName: "accountFlyout"
         controller: typeof AccountController !== "undefined" ? AccountController : null
-        onSignInRequested: accountHost.openSignIn()
-        onCreateAccountRequested: accountHost.openCreateAccount()
-        onYourColosseumRequested: accountCenter.open("colosseum")
-        onPrivacyRequested: accountCenter.open("privacy")
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
@@ -4040,6 +4164,10 @@ Window {
     // Every entry point (F11, global chrome, player, book, comic) reaches this same gate.
     FullscreenTransitionShield {
         id: fullscreenTransition
+        // Named so automation can wait out the shell-mode flip instead of racing it: the
+        // shield animates and holds a 250ms settle timer, so a get-state fired straight
+        // after F11 reads the OLD window state and reports a phantom failure.
+        objectName: "fullscreenTransition"
         anchors.fill: parent
         onApplyRequested: WindowMode.toggleShellMode(win)
     }

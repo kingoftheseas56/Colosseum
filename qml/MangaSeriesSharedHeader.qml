@@ -17,6 +17,8 @@ Item {
     property real score: 0
     property string synopsis: ""
     property var collectionEntry: null
+    property var chapterLanguages: []
+    property string selectedChapterLanguage: "en"
     readonly property real modeSwitchX: modeSwitch.x
     readonly property real modeSwitchY: modeSwitch.y
     readonly property real modeSwitchWidth: modeSwitch.width
@@ -31,6 +33,14 @@ Item {
     signal closeRequested()
     signal tankobanRequested()
     signal chapterRequested()
+    signal chapterLanguageRequested(string code)
+
+    function languageIndex(code) {
+        var wanted = String(code || "en")
+        for (var i = 0; i < root.chapterLanguages.length; ++i)
+            if (String(root.chapterLanguages[i].code || "") === wanted) return i
+        return -1
+    }
 
     function toggleLibrary() {
         if (!root.libraryAvailable) return
@@ -181,6 +191,63 @@ Item {
             visible: root.synopsis.length > 0
         }
 
+
+        Rectangle {
+            id: languageSelector
+            objectName: "mangaLanguageSelector"
+            anchors.right: parent.right; anchors.rightMargin: theme.margin
+            anchors.top: parent.top; anchors.topMargin: 76
+            width: 258; height: 36; radius: 10; z: 11
+            color: Qt.rgba(.06,.065,.075,.92)
+            border.width: 1; border.color: theme.edge
+            Text {
+                anchors.left: parent.left; anchors.leftMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Language"; color: root.tankobanMode ? theme.inkDimmer : theme.inkDim
+                font.family: theme.ui; font.pixelSize: 11
+            }
+            ComboBox {
+                id: languageCombo
+                objectName: "mangaLanguageCombo"
+                anchors.right: parent.right; anchors.rightMargin: 4
+                anchors.verticalCenter: parent.verticalCenter
+                width: 166; height: 28
+                model: root.chapterLanguages
+                textRole: "label"
+                enabled: !root.tankobanMode
+                currentIndex: root.languageIndex(root.tankobanMode ? "en" : root.selectedChapterLanguage)
+                displayText: root.tankobanMode ? "English"
+                    : (currentIndex >= 0 && root.chapterLanguages[currentIndex]
+                       ? String(root.chapterLanguages[currentIndex].label || "English") : "English")
+                onActivated: function(index) {
+                    if (!root.tankobanMode && index >= 0 && root.chapterLanguages[index])
+                        root.chapterLanguageRequested(String(root.chapterLanguages[index].code || "en"))
+                }
+                contentItem: Text {
+                    leftPadding: 10; rightPadding: 24; verticalAlignment: Text.AlignVCenter
+                    text: languageCombo.displayText
+                    color: languageCombo.enabled ? theme.ink : theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight
+                }
+                indicator: Text {
+                    x: languageCombo.width - width - 9; anchors.verticalCenter: parent.verticalCenter
+                    text: "▾"; visible: languageCombo.enabled; color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 12
+                }
+                background: Rectangle {
+                    radius: 7; color: Qt.rgba(1,1,1, languageCombo.enabled ? .045 : .018)
+                    border.width: 1; border.color: languageCombo.activeFocus ? theme.gold : Qt.rgba(1,1,1,.07)
+                }
+            }
+            MouseArea {
+                id: lockedLanguageMa; anchors.fill: parent; z: 4
+                enabled: root.tankobanMode; hoverEnabled: true
+                cursorShape: Qt.ForbiddenCursor
+            }
+            ToolTip.visible: root.tankobanMode && lockedLanguageMa.containsMouse
+            ToolTip.text: "Available in Chapter Mode"
+            ToolTip.delay: 350
+        }
 
         Rectangle {
             id: modeSwitch

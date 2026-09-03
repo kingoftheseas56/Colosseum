@@ -298,12 +298,12 @@ function isWell(entry) {
 // table and NOT a manifest field: slimManifest keeps only a fixed key allowlist, so
 // a custom field would survive seeding and be silently dropped on re-install. It
 // also can't be derived from `types`, because two wells can share one type
-// (WeebCentral "chapter pages" and Nyaa "volume torrents" are both `manga`).
+// (Tankoyomi "chapter pages" and Nyaa "volume torrents" are both `manga`).
 // Mirrors AddonLogos.js's table pattern.  (spec §3.3, and A5's own spec self-review)
 // ─────────────────────────────────────────────────────────────────────────────
 var JOB = {
     "colosseum.well.nyaa":              "volume torrents",
-    "colosseum.well.weebcentral.pages": "chapter pages",
+    "colosseum.well.tankoyomi":          "chapter pages",
     "colosseum.well.getcomics.issues":  "issue downloads",
     "colosseum.well.libgen":            "book files",
     // Three indexers, not four (Knaben is off in TankorentSearchService), and the search

@@ -152,14 +152,38 @@ QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
 // window-set-state's reply (requested-then-observed), so a client's "minimized"
 // request and a later get-state read can never disagree about what to call the
 // same state.
-QString windowStateName(const QQuickWindow* w)
+//
+// F11-repair (2026-09-03): WindowModeStore's public "fullscreen" shell identity
+// is a borderless window sized to the active monitor, deliberately left at
+// QWindow::Windowed visibility rather than native Qt::WindowFullScreen so the
+// D3D swapchain never tears down to a second native surface (windowmodestore.cpp
+// applyBorderlessGeometry(); see commit "keep fullscreen on one native surface").
+// Windows' own platform layer sometimes promotes a screen-covering borderless
+// window to real FullScreen visibility on its own (observed here after a
+// minimize/taskbar-restore cycle) but NOT on the in-place setGeometry() resize
+// the F11 windowed->fullscreen toggle performs — an OS quirk outside this app's
+// control, so raw visibility() cannot be trusted to name the Windowed case. The
+// real single authority for which windowed state this is is WindowModeStore's
+// own `shellWindowed`/`pipMode` properties (registered as the `WindowMode`
+// context property in main.cpp); ask it instead of guessing from geometry.
+QString windowStateName(const QQuickWindow* w, const QQmlApplicationEngine* engine)
 {
     switch (w->visibility()) {
     case QWindow::Hidden:      return QStringLiteral("hidden");
     case QWindow::Minimized:   return QStringLiteral("minimized");
     case QWindow::Maximized:   return QStringLiteral("maximized");
     case QWindow::FullScreen:  return QStringLiteral("fullscreen");
-    case QWindow::Windowed:    return QStringLiteral("normal");
+    case QWindow::Windowed: {
+        QObject* windowMode = engine
+            ? engine->rootContext()->contextProperty(QStringLiteral("WindowMode")).value<QObject*>()
+            : nullptr;
+        if (windowMode
+            && !windowMode->property("pipMode").toBool()
+            && !windowMode->property("shellWindowed").toBool()) {
+            return QStringLiteral("fullscreen");
+        }
+        return QStringLiteral("normal");
+    }
     case QWindow::AutomaticVisibility:
     default:                   return QStringLiteral("unknown");
     }
@@ -995,7 +1019,7 @@ QJsonObject LanistaServer::cmdGetState() const
             // "maximized"/"fullscreen" — see windowStateName()'s header note.
             // A tray/minimize journey polls THIS field after window-set-state
             // rather than trusting the mutating call's own echo.
-            {QStringLiteral("state"), windowStateName(w)}});
+            {QStringLiteral("state"), windowStateName(w, m_engine)}});
     }
     return {{QStringLiteral("windows"), windows},
             // Reported as a path; it is not created until an artifact is written.
@@ -1526,7 +1550,7 @@ void LanistaServer::cmdWindowSetState(const QJsonObject& p, Replier reply) const
         w->hide();
 
     reply.reply({{QStringLiteral("objectName"), w->objectName()},
-                 {QStringLiteral("state"), windowStateName(w)},
+                 {QStringLiteral("state"), windowStateName(w, m_engine)},
                  {QStringLiteral("visible"), w->isVisible()},
                  {QStringLiteral("active"), w->isActive()}});
 }

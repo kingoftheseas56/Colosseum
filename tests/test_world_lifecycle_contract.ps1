@@ -25,10 +25,14 @@ Need ($worldPage.Contains('property bool lifecycleActive: true')) `
     'WorldPage must expose the retained-world lifecycle seam.'
 Need ($topBar.Contains('running: bar.lifecycleActive')) `
     'Retained hidden worlds must stop their TopBar clock timer.'
-Need ($main.Contains('"lifecycleActive": worldStack.current === mode')) `
-    'Main must pass the initial world activation state before world completion.'
-Need ($main.Contains('return worldStack.current === mode')) `
-    'Main must keep the world lifecycle seam bound to the current world.'
+Need ($main.Contains('visible: worldStack.current === mode && !win.immersiveSurfaceOpen')) `
+    'Retained worlds must stop painting underneath immersive surfaces.'
+Need ($main.Contains('"lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen')) `
+    'Main must pass an immersive-aware initial world activation state before world completion.'
+Need ($main.Contains('return worldStack.current === mode && !win.immersiveSurfaceOpen')) `
+    'Main must suspend retained-world lifecycle work underneath immersive surfaces.'
+Need ($main.Contains('ForegroundPriority.setImmersiveSurfaceOpen(win.immersiveSurfaceOpen)')) `
+    'Immersive surfaces must flow through the foreground-priority governor so global background work is suspended centrally.'
 Need ($browser.Contains('property bool active: true')) `
     'DiscoverBrowser must expose an activation gate.'
 Need ($browser.Contains('if (!active || !adapter || loading')) `
@@ -82,6 +86,9 @@ Need ($tankobanLibrary.Contains('property bool active: true') -and $tankobanLibr
 # openVaultPage() only flips active and vaultBack() already handles item-not-yet-loaded.
 $vaultLoaderStart = $main.IndexOf('id: vaultLayer')
 $vaultLoaderEnd = $main.IndexOf('source: "VaultPage.qml"', $vaultLoaderStart)
+Need ($vaultLoaderStart -ge 0 -and $vaultLoaderEnd -gt $vaultLoaderStart `
+      -and $main.Substring($vaultLoaderStart, $vaultLoaderEnd - $vaultLoaderStart).Contains('visible: active && !win.immersiveSurfaceOpen')) `
+    'The retained Vault page must stop painting underneath immersive surfaces.'
 Need ($vaultLoaderStart -ge 0 -and $vaultLoaderEnd -gt $vaultLoaderStart `
       -and $main.Substring($vaultLoaderStart, $vaultLoaderEnd - $vaultLoaderStart).Contains('asynchronous: true')) `
     'The large VaultPage Loader must construct asynchronously to preserve shell responsiveness.'

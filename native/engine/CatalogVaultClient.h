@@ -24,7 +24,8 @@
 
 class QNetworkAccessManager;
 class QNetworkReply;
-class QFile;
+class QThread;
+class CatalogVaultIoWorker;
 
 class CatalogVaultClient final : public QObject {
     Q_OBJECT
@@ -36,6 +37,7 @@ public:
         const QString& apiBaseUrl =
             QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum-Data"),
         QObject* parent = nullptr);
+    ~CatalogVaultClient() override;
 
     bool isFetching() const { return m_fetching; }
     QString currentTag() const { return m_currentTag; }
@@ -51,6 +53,7 @@ public:
     // ignored; an empty/never-called call manages all four (the Slice-1 default). Call
     // BEFORE checkAndFetch(); changing it mid-fetch does not affect an in-flight pass.
     Q_INVOKABLE void setManagedNames(const QStringList& names);
+    void setForegroundPressure(int pressure);
 
 signals:
     void databaseUpdated(QString name, QString path);
@@ -80,8 +83,12 @@ private:
     void beginDownloads(const QString& newTag, const QVector<AssetInfo>& toDownload,
                         const QHash<QString, qint64>& finalSizes);
     void downloadNext();
+    void startNetworkDownload(int queueIndex);
     void onDownloadFinished();
-    bool landDownload(const QString& name, const QString& tmpPath, const QString& targetPath);
+    void onIoPrepared(int queueIndex, bool ok, const QString& error);
+    void onIoDownloadClosed(int queueIndex, qint64 bytesWritten, const QString& error);
+    void onIoLanded(int queueIndex, qint64 bytesWritten, const QString& error);
+    void continueLanding(int queueIndex, qint64 bytesWritten);
 
     QNetworkAccessManager* m_nam = nullptr;
     QString m_vaultDir;
@@ -96,6 +103,15 @@ private:
     QVector<AssetInfo> m_queue;
     QHash<QString, qint64> m_finalSizes;
     int m_queueIndex = 0;
-    QFile* m_downloadFile = nullptr;
+    QThread* m_ioThread = nullptr;
+    CatalogVaultIoWorker* m_ioWorker = nullptr;
     QNetworkReply* m_downloadReply = nullptr;
+    int m_foregroundPressure = 0;
+    bool m_deferredCheck = false;
+    bool m_deferredDownloadStart = false;
+    bool m_deferredLanding = false;
+    int m_deferredLandingQueueIndex = -1;
+    qint64 m_deferredLandingBytes = -1;
+
+    friend class CatalogVaultIoWorker;
 };

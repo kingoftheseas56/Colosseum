@@ -5,9 +5,11 @@
 #include "ComicDownloader.h"
 #include "MangaTankobanService.h"
 #include "../player/downloadstore.h"
+#include "../account/DownloadIntentStore.h"
 
 #include <QMetaObject>
 #include <QRegularExpression>
+#include <QSet>
 #include <QTimer>
 
 namespace {
@@ -167,6 +169,130 @@ void LocalDownloads::initialize() {
 void LocalDownloads::armRevision() {
     if (m_coalesce && !m_coalesce->isActive())
         m_coalesce->start();
+}
+
+void LocalDownloads::setDownloadIntentStore(DownloadIntentStore *store) {
+    m_downloadIntents = store;
+}
+
+QVariantList LocalDownloads::portableDownloadIntents() const {
+    QVariantList result;
+    for (const QString &world : {QStringLiteral("tankoban"),
+                                 QStringLiteral("biblio"),
+                                 QStringLiteral("theatre")}) {
+        const QVariantList rows = itemsForWorld(world);
+        for (const QVariant &value : rows) {
+            const QVariantMap row = value.toMap();
+            if (row.value(QStringLiteral("id")).toString().trimmed().isEmpty())
+                continue;
+            QVariantMap intent;
+            for (const QString &field : {
+                     QStringLiteral("id"), QStringLiteral("world"),
+                     QStringLiteral("kind"), QStringLiteral("title"),
+                     QStringLiteral("subtitle"), QStringLiteral("seriesTitle"),
+                     QStringLiteral("season"), QStringLiteral("episode"),
+                     QStringLiteral("seriesId"), QStringLiteral("label"),
+                     QStringLiteral("author")}) {
+                if (row.contains(field))
+                    intent.insert(field, row.value(field));
+            }
+            intent.insert(QStringLiteral("world"), world);
+            result.append(intent);
+        }
+    }
+    return result;
+}
+
+QVariantList LocalDownloads::availableElsewhere() const {
+    if (!m_downloadIntents)
+        return {};
+
+    QSet<QString> localKeys;
+    for (const QString &world : {QStringLiteral("tankoban"),
+                                 QStringLiteral("biblio"),
+                                 QStringLiteral("theatre")}) {
+        for (const QVariant &value : itemsForWorld(world)) {
+            const QVariantMap row = value.toMap();
+            if (row.value(QStringLiteral("missing")).toBool())
+                continue;
+            localKeys.insert(world + QLatin1Char('/')
+                             + row.value(QStringLiteral("id")).toString());
+        }
+    }
+
+    QVariantList result;
+    for (const QVariant &value : m_downloadIntents->records()) {
+        QVariantMap row = value.toMap();
+        const QString key = row.value(QStringLiteral("world")).toString()
+            + QLatin1Char('/') + row.value(QStringLiteral("id")).toString();
+        if (localKeys.contains(key))
+            continue;
+        const QString world = row.value(QStringLiteral("world")).toString();
+        const QString kind = row.value(QStringLiteral("kind")).toString();
+        row.insert(QStringLiteral("availableElsewhere"), true);
+        row.insert(QStringLiteral("missing"), true);
+        row.insert(QStringLiteral("canRedownload"),
+                   world == QStringLiteral("theatre")
+                   || world == QStringLiteral("biblio")
+                   || (world == QStringLiteral("tankoban")
+                       && kind == QStringLiteral("manga")));
+        result.append(row);
+    }
+    return result;
+}
+
+QVariantMap LocalDownloads::redownload(const QVariantMap &item) {
+    const QString world = item.value(QStringLiteral("world")).toString();
+    const QString id = item.value(QStringLiteral("id")).toString();
+    if (id.isEmpty())
+        return {{QStringLiteral("success"), false},
+                {QStringLiteral("message"), QStringLiteral("This download has no usable identity.")}};
+
+    if (world == QStringLiteral("theatre") && m_videos) {
+        for (const QVariant &value : m_videos->downloadedVideos()) {
+            const QVariantMap row = value.toMap();
+            if (row.value(QStringLiteral("id")).toString() == id
+                && row.value(QStringLiteral("missing")).toBool()) {
+                const QVariantMap removed = m_videos->removeVideo(id);
+                if (removed.value(QStringLiteral("success")).toBool() == false)
+                    return removed;
+                break;
+            }
+        }
+        QVariantMap request = item;
+        request.remove(QStringLiteral("availableElsewhere"));
+        request.remove(QStringLiteral("missing"));
+        request.remove(QStringLiteral("canRedownload"));
+        m_videos->enqueue(request);
+        bump();
+        return {{QStringLiteral("success"), true}};
+    }
+
+    if (world == QStringLiteral("biblio") && m_books) {
+        m_books->downloadBook(
+            id,
+            QString(),
+            item.value(QStringLiteral("title")).toString(),
+            0,
+            item.value(QStringLiteral("author")).toString());
+        bump();
+        return {{QStringLiteral("success"), true}};
+    }
+
+    if (world == QStringLiteral("tankoban")
+        && item.value(QStringLiteral("kind")).toString() == QStringLiteral("manga")
+        && m_manga) {
+        m_manga->downloadChapter(
+            id,
+            item.value(QStringLiteral("seriesId")).toString(),
+            item.value(QStringLiteral("seriesTitle")).toString(),
+            item.value(QStringLiteral("label")).toString());
+        bump();
+        return {{QStringLiteral("success"), true}};
+    }
+
+    return {{QStringLiteral("success"), false},
+            {QStringLiteral("message"), QStringLiteral("This item needs its original source selected again on this device.")}};
 }
 
 void LocalDownloads::onTestVolumeFailed(const QString &id, const QString &reason) {

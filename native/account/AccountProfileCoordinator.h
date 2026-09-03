@@ -16,12 +16,6 @@ public:
         const QString &accountId,
         QString *error = nullptr) = 0;
 
-    virtual bool attachLocalProfileToAccount(
-        const QString &accountId,
-        QString *error = nullptr) {
-        return prepareAccountSession(accountId, error);
-    }
-
     virtual bool prepareRememberedAccount(
         const QString &accountId,
         QString *error = nullptr) = 0;

@@ -53,25 +53,6 @@
       ]
     },
     {
-      "id": "watch_state",
-      "disposition": "syncable",
-      "owner_status": "confirmed",
-      "payload_eligible": true,
-      "live_owner": "native/ProgressStore.h",
-      "cumulative_owner": "ProfileStoreRuntime -> ProgressStore",
-      "read_seam": "syncWatchedMarks() / syncLastSeasons()",
-      "write_seam": "applySyncedWatchedMark/removeSyncedWatchedMark / applySyncedLastSeason/removeSyncedLastSeason",
-      "change_seam": "revision + changed(); remote apply is idempotent and WatchStateSyncAdapter suppresses remote echo",
-      "future_slice": 14,
-      "note": "Manual watched overrides (-1/1) and positive last-season state are portable watch_state records separate from continue_progress resume payloads; absence is represented by record deletion.",
-      "denial_code": "",
-      "inspection_base_commit": "1672c0f29e91880077173edd873b10dee9179fed",
-      "fields": [
-        "watched_mark",
-        "last_season"
-      ]
-    },
-    {
       "id": "full_history",
       "disposition": "syncable",
       "owner_status": "confirmed",
@@ -461,19 +442,19 @@
     {
       "id": "desired_download_intent",
       "disposition": "syncable",
-      "owner_status": "partial",
-      "payload_eligible": false,
-      "live_owner": "native/player/downloadstore.* is current acquisition/queue owner, not a dedicated portable desired-intent authority",
-      "cumulative_owner": "",
-      "read_seam": "jobs()/downloadedVideos() are local acquisition state, not approved desired-intent snapshot",
-      "write_seam": "enqueue/cancel/remove are local acquisition actions",
-      "change_seam": "queueRevision/changed/libraryChanged",
+      "owner_status": "confirmed",
+      "payload_eligible": true,
+      "live_owner": "native/account/DownloadIntentStore.*",
+      "cumulative_owner": "ProfileStoreRuntime -> DownloadIntentStore",
+      "read_seam": "portableRecords() — logical media identity only",
+      "write_seam": "applyRemote()/redownload()",
+      "change_seam": "revision + changed()",
       "future_slice": 20,
-      "note": "Slice 20 must introduce/confirm desired-download intent separate from queue, URLs, paths, bytes, and historical acquisition transactions.",
+      "note": "Only the logical identity and display metadata sync. Device paths, URLs, headers, queue state, partial files, bytes, and acquisition history remain local.",
       "denial_code": "",
       "inspection_base_commit": "e2ec3416bb706f324a24a004deace05c5a026edc",
       "fields": [
-        "current_desired_downloads"
+        "download_intent"
       ]
     },
     {

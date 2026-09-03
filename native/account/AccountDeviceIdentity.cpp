@@ -2,7 +2,6 @@
 
 #include "AccountDeviceIdentity.h"
 
-#include <QCryptographicHash>
 #include <QSettings>
 #include <QUuid>
 
@@ -51,27 +50,8 @@ QString AccountDeviceIdentity::installId() {
     return created;
 }
 
-QString AccountDeviceIdentity::displayNumber() {
-    const QByteArray digest = QCryptographicHash::hash(
-        installId().toUtf8(),
-        QCryptographicHash::Sha256);
-
-    quint32 reduced = 0;
-    for (const char byte : digest) {
-        reduced = (reduced * 256u
-                   + static_cast<quint8>(byte))
-            % 900000u;
-    }
-
-    return QString::number(100000u + reduced);
-}
-
-QString AccountDeviceIdentity::displayLabel() {
-    return QStringLiteral("Device ") + displayNumber();
-}
-
 QString AccountDeviceIdentity::label() const {
-    return platformName() + QStringLiteral(" desktop");
+    return QStringLiteral("Windows desktop");
 }
 
 QString AccountDeviceIdentity::platform() const {

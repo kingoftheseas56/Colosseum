@@ -15,12 +15,11 @@ var syncAllowedCategories = map[string]int{
 	"collection":                  1,
 	"continue_progress":           1,
 	"full_history":                1,
+	"activity_fact":               1,
 	"explicit_content_preference": 1,
 	"theatre_track_preferences":   1,
 	"theatre_row_customization":   1,
 	"extension_roster":            1,
-	"watch_state":                 1,
-	"activity_fact":               1,
 }
 
 var syncForbiddenFields = map[string]struct{}{

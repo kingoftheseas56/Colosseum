@@ -9,8 +9,6 @@ public:
     explicit AccountDeviceIdentity(const QString &settingsPath = QString());
 
     QString installId();
-    QString displayNumber();
-    QString displayLabel();
     QString label() const;
     QString platform() const;
 

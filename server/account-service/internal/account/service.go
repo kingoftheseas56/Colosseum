@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -33,25 +32,6 @@ const (
 	reauthLimit               = 5
 )
 
-const defaultDatabaseAcquireTimeout = 2 * time.Second
-
-var ErrDatabaseBusy = errors.New("database busy")
-
-type DatabaseBusyError struct {
-	Cause error
-}
-
-func (e *DatabaseBusyError) Error() string {
-	if e == nil || e.Cause == nil {
-		return ErrDatabaseBusy.Error()
-	}
-	return fmt.Sprintf("%s: %v", ErrDatabaseBusy, e.Cause)
-}
-
-func (e *DatabaseBusyError) Unwrap() error {
-	return ErrDatabaseBusy
-}
-
 type Service struct {
 	pool                    *pgxpool.Pool
 	passwordPolicy          PasswordPolicy
@@ -62,7 +42,6 @@ type Service struct {
 	sessionCipher           *SessionCipher
 	syncCipher              *SyncPayloadCipher
 	syncMaxFutureSkew       time.Duration
-	databaseAcquireTimeout  time.Duration
 	rateLimiter             *RateLimiter
 	avatarStore             avatar.Store
 	clock                   Clock
@@ -77,7 +56,6 @@ type Dependencies struct {
 	SessionCipher           *SessionCipher
 	SyncCipher              *SyncPayloadCipher
 	SyncMaxFutureSkew       time.Duration
-	DatabaseAcquireTimeout  time.Duration
 	RateLimiter             *RateLimiter
 	AvatarStore             avatar.Store
 	Clock                   Clock
@@ -102,12 +80,6 @@ func NewService(dependencies Dependencies) (*Service, error) {
 	}
 	if dependencies.SyncMaxFutureSkew <= 0 {
 		return nil, fmt.Errorf("account service requires a positive sync future-skew limit")
-	}
-	if dependencies.DatabaseAcquireTimeout == 0 {
-		dependencies.DatabaseAcquireTimeout = defaultDatabaseAcquireTimeout
-	}
-	if dependencies.DatabaseAcquireTimeout < 0 {
-		return nil, fmt.Errorf("account service requires a non-negative database acquire timeout")
 	}
 	if dependencies.RateLimiter == nil {
 		return nil, fmt.Errorf("account service requires a rate limiter")
@@ -138,22 +110,11 @@ func NewService(dependencies Dependencies) (*Service, error) {
 		sessionCipher:           dependencies.SessionCipher,
 		syncCipher:              dependencies.SyncCipher,
 		syncMaxFutureSkew:       dependencies.SyncMaxFutureSkew,
-		databaseAcquireTimeout:  dependencies.DatabaseAcquireTimeout,
 		rateLimiter:             dependencies.RateLimiter,
 		avatarStore:             dependencies.AvatarStore,
 		clock:                   dependencies.Clock,
 		registrationGlobalLimit: dependencies.RegistrationGlobalLimit,
 	}, nil
-}
-
-func (s *Service) acquireDatabaseConnection(ctx context.Context) (*pgxpool.Conn, error) {
-	acquireCtx, cancel := context.WithTimeout(ctx, s.databaseAcquireTimeout)
-	conn, err := s.pool.Acquire(acquireCtx)
-	cancel()
-	if err != nil {
-		return nil, &DatabaseBusyError{Cause: err}
-	}
-	return conn, nil
 }
 
 func (s *Service) PruneAuthRateEvents(ctx context.Context, before time.Time) error {

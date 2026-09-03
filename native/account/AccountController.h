@@ -28,7 +28,6 @@ class AccountController final : public QObject {
     Q_PROPERTY(QString restoreStage READ restoreStage NOTIFY restoreStageChanged)
     Q_PROPERTY(QString username READ username NOTIFY usernameChanged)
     Q_PROPERTY(QString avatarId READ avatarId NOTIFY avatarIdChanged)
-    Q_PROPERTY(QString localDeviceLabel READ localDeviceLabel CONSTANT)
     Q_PROPERTY(bool onboardingRequired READ onboardingRequired NOTIFY onboardingRequiredChanged)
     Q_PROPERTY(int deviceCount READ deviceCount NOTIFY deviceCountChanged)
     Q_PROPERTY(QJsonArray devices READ devices NOTIFY devicesChanged)
@@ -108,7 +107,6 @@ public:
 
     QString username() const;
     QString avatarId() const;
-    QString localDeviceLabel();
     bool onboardingRequired() const;
     int deviceCount() const;
     QJsonArray devices() const;
@@ -258,7 +256,6 @@ private:
         quint64 accessTokenGeneration,
         const AccountTransportReply &reply);
 
-    bool enterLocalOnlyMode();
     bool prepareLocalOnlyProfile();
     bool prepareRememberedProfile(
         const StoredAccountCredential &credential);
@@ -314,6 +311,7 @@ private:
     void scheduleChallengePoll();
     void scheduleApprovalPoll(int delayMs = 0);
     void scheduleOfflineRefreshRetry();
+    bool reloadNewerSharedRefreshToken();
 
     void beginDeviceChallenge(
         const QString &challengeToken,
@@ -374,7 +372,6 @@ private:
     QTimer m_approvalTimer;
     quint64 m_refreshRequestId = 0;
     bool m_accessTokenRecoveryInFlight = false;
-    bool m_attachLocalProfilePending = false;
 
     quint64 m_generation = 1;
     QHash<quint64, quint64> m_requestGenerations;

@@ -13,6 +13,31 @@ VaultScanner::VaultScanner(VaultIndex* index, VaultIdentity* identity, QObject* 
 {
 }
 
+void VaultScanner::setApplySuspended(bool on)
+{
+    if (m_applySuspended == on)
+        return;
+    m_applySuspended = on;
+    if (on || m_deferredApplyKind == DeferredApplyKind::None)
+        return;
+
+    const DeferredApplyKind kind = m_deferredApplyKind;
+    m_deferredApplyKind = DeferredApplyKind::None;
+    if (kind == DeferredApplyKind::Result) {
+        const RawResult result = m_deferredResult;
+        m_deferredResult = RawResult();
+        applyResult(result);
+        return;
+    }
+    const QList<RawResult> results = m_deferredPublishResults;
+    const quint64 generation = m_deferredPublishGeneration;
+    const QList<VaultIndex::FileRow> extraRows = m_deferredPublishExtraRows;
+    m_deferredPublishResults.clear();
+    m_deferredPublishExtraRows.clear();
+    m_deferredPublishGeneration = 0;
+    applyPublish(results, generation, extraRows);
+}
+
 QString VaultScanner::subfolderOf(const QString& subtree, const QString& filePath)
 {
     const QString parent = QFileInfo(filePath).absolutePath();
@@ -190,6 +215,14 @@ void VaultScanner::applyResult(const RawResult& result)
 {
     if (result.generation != m_generation)
         return; // stale — a newer scan superseded this one
+    if (m_applySuspended) {
+        m_deferredApplyKind = DeferredApplyKind::Result;
+        m_deferredResult = result;
+        m_deferredPublishResults.clear();
+        m_deferredPublishExtraRows.clear();
+        m_deferredPublishGeneration = 0;
+        return;
+    }
 
     m_scanning = false;
 
@@ -211,6 +244,14 @@ void VaultScanner::applyPublish(const QList<RawResult>& results, quint64 generat
 {
     if (generation != m_generation)
         return; // a newer scan/publish superseded this aggregate
+    if (m_applySuspended) {
+        m_deferredApplyKind = DeferredApplyKind::Publish;
+        m_deferredPublishResults = results;
+        m_deferredPublishGeneration = generation;
+        m_deferredPublishExtraRows = extraRows;
+        m_deferredResult = RawResult();
+        return;
+    }
 
     m_scanning = false;
 

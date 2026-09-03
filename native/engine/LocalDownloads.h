@@ -22,6 +22,7 @@ class BookDownloader;
 class ComicDownloader;
 class DownloadStore;
 class MangaTankobanService;
+class DownloadIntentStore;
 class QTimer;
 
 class LocalDownloads : public QObject {
@@ -50,6 +51,10 @@ public:
     Q_INVOKABLE QVariantList series(const QString &world) const;
     Q_INVOKABLE QVariantList items(const QString &world, const QString &seriesKey) const;
     Q_INVOKABLE QVariantList activeJobs() const;    // cross-world, for the Now-Arriving strip
+    Q_INVOKABLE QVariantList portableDownloadIntents() const;
+    Q_INVOKABLE QVariantList availableElsewhere() const;
+    Q_INVOKABLE QVariantMap redownload(const QVariantMap &item);
+    void setDownloadIntentStore(DownloadIntentStore *store);
 
     Q_INVOKABLE void cancel(const QString &world, const QString &id);
     Q_INVOKABLE QVariantMap remove(const QString &world, const QString &id);
@@ -82,6 +87,7 @@ private:
     DownloadStore *m_videos = nullptr;
     MangaTankobanService *m_volumes = nullptr;   // Tankoban volume mode
     QObject *m_volumeSource = nullptr;           // test-only fake volume owner
+    DownloadIntentStore *m_downloadIntents = nullptr;
     QTimer *m_coalesce = nullptr;
     QHash<QString, QVariantMap> m_failures;
     int m_revision = 0;

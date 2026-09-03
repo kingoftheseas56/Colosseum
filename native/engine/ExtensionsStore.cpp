@@ -32,7 +32,7 @@ constexpr int kDescriptionCap = 400;
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 11;
+constexpr int kHouseDefaultsVersion = 12;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -237,8 +237,9 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     add("colosseum.well.nyaa", "colosseum://well/nyaa", false,
         manifest("colosseum.well.nyaa", "Nyaa", "",
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
-    add("colosseum.well.weebcentral.pages", "colosseum://well/weebcentral.pages", false,
-        manifest("colosseum.well.weebcentral.pages", "WeebCentral", "",
+    add("colosseum.well.tankoyomi", "colosseum://well/tankoyomi", false,
+        manifest("colosseum.well.tankoyomi", "Tankoyomi",
+                 "Language-aware chapter sources for Tankoban Chapter Mode.",
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
     add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
         manifest("colosseum.well.getcomics.issues", "GetComics", "",
@@ -322,6 +323,7 @@ void ExtensionsStore::seed()
 static const char* const kRetiredIds[] = {
     "colosseum.catalogue.weebcentral",
     "colosseum.catalogue.getcomics",
+    "colosseum.well.weebcentral.pages",
     // Generation 10: the VidKing hosted player is gone from the app (House HTTP slice 4) —
     // a profile still carrying the row would render nothing for it.
     "net.vidking.player",
@@ -336,6 +338,15 @@ void ExtensionsStore::migrateDefaults()
     // zero, and a manifest refresh changes no count at all. Track the edit explicitly or
     // the UI never refreshes.
     bool changed = false;
+
+    // Generation 12: Tankoyomi replaces the standalone WeebCentral chapter well.
+    // Rename in place first so enabled state, install timestamp and user ordering survive.
+    const int legacyWeebCentralAt = indexOfId(QStringLiteral("colosseum.well.weebcentral.pages"));
+    if (legacyWeebCentralAt >= 0 && indexOfId(QStringLiteral("colosseum.well.tankoyomi")) < 0) {
+        m_items[legacyWeebCentralAt].insert(QStringLiteral("id"), QStringLiteral("colosseum.well.tankoyomi"));
+        m_items[legacyWeebCentralAt].insert(QStringLiteral("transportUrl"), QStringLiteral("colosseum://well/tankoyomi"));
+        changed = true;
+    }
 
     for (const char* id : kRetiredIds) {
         const int at = indexOfId(QString::fromLatin1(id));

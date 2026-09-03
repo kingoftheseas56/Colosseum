@@ -52,6 +52,7 @@
 class QNetworkAccessManager;
 class QNetworkReply;
 class WeebCentralScraper;
+class TankoyomiChapterService;
 
 class MangaDownloader : public QObject
 {
@@ -62,7 +63,8 @@ public:
     explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr,
                              MangaImageHostResolver::Lookup lookup = {},
                              // Empty in production; injectable only for deterministic cleanup tests.
-                             DownloadFileOps::Remover cleanupRemover = {});
+                             DownloadFileOps::Remover cleanupRemover = {},
+                             TankoyomiChapterService* tankoyomi = nullptr);
     ~MangaDownloader() override;
 
     // Host → IPv4 pins (dead-IPv6 machine). Manga art hosts publish AAAA records, so
@@ -144,6 +146,7 @@ private:
         QString chapterLabel;
         QString dir;                 // resolved chapter directory
         WeebCentralScraper* scraper = nullptr;
+        QObject* pageResolverScope = nullptr;
         QList<PageInfo> pages;
         QStringList files;           // index-aligned saved filenames ("" until saved)
         int total = 0;
@@ -212,6 +215,7 @@ private:
     void writeEntry(const Job* job);
 
     QNetworkAccessManager* m_nam = nullptr;
+    TankoyomiChapterService* m_tankoyomi = nullptr; // shared with MangaEngine in production
     MangaImageHostResolver m_hostResolver;
     DownloadFileOps::Remover m_cleanupRemover;
     QHash<QString, QString> m_pins;                // host -> IPv4 (dead-IPv6 machine)

@@ -31,37 +31,6 @@ func (s *Service) PushSync(
 	auth AuthenticatedSession,
 	inputs []SyncMutationInput,
 ) (SyncPushResponse, error) {
-	return s.pushSyncMutations(ctx, auth, "", inputs)
-}
-
-// PushSyncWithAttachment processes a push envelope carrying an
-// attachment_id. The envelope tags newly accepted journal and Activity rows
-// with the attachment and never changes mutation identity: replays return
-// their original results untouched. Only an attachment owned by the
-// authenticated account/device and still in open or uploaded state is
-// accepted.
-func (s *Service) PushSyncWithAttachment(
-	ctx context.Context,
-	auth AuthenticatedSession,
-	attachmentID string,
-	inputs []SyncMutationInput,
-) (SyncPushResponse, error) {
-	normalized, err := normalizeProfileAttachmentID(attachmentID)
-	if err != nil {
-		return SyncPushResponse{}, err
-	}
-	if err := s.loadOwnedActiveAttachment(ctx, auth, normalized); err != nil {
-		return SyncPushResponse{}, err
-	}
-	return s.pushSyncMutations(ctx, auth, normalized, inputs)
-}
-
-func (s *Service) pushSyncMutations(
-	ctx context.Context,
-	auth AuthenticatedSession,
-	attachmentID string,
-	inputs []SyncMutationInput,
-) (SyncPushResponse, error) {
 	now := s.clock.Now().UTC()
 	response := SyncPushResponse{
 		ServerTimeMS: now.UnixMilli(),
@@ -116,7 +85,6 @@ func (s *Service) pushSyncMutations(
 				auth,
 				parsed,
 				fact,
-				attachmentID,
 				now)
 			if err != nil {
 				return response, err
@@ -129,7 +97,6 @@ func (s *Service) pushSyncMutations(
 			ctx,
 			auth,
 			parsed,
-			attachmentID,
 			now)
 		if err != nil {
 			return response, err
@@ -144,16 +111,9 @@ func (s *Service) pushOneSyncMutation(
 	ctx context.Context,
 	auth AuthenticatedSession,
 	parsed parsedSyncMutation,
-	attachmentID string,
 	now time.Time,
 ) (SyncPushResult, error) {
-	conn, err := s.acquireDatabaseConnection(ctx)
-	if err != nil {
-		return SyncPushResult{}, fmt.Errorf("begin sync mutation: %w", err)
-	}
-	defer conn.Release()
-
-	tx, err := conn.Begin(ctx)
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return SyncPushResult{}, fmt.Errorf("begin sync mutation: %w", err)
 	}
@@ -188,11 +148,6 @@ func (s *Service) pushOneSyncMutation(
 		}
 	}
 
-	var attachmentParam any
-	if attachmentID != "" {
-		attachmentParam = attachmentID
-	}
-
 	var serverSeq int64
 	err = tx.QueryRow(ctx, `
         INSERT INTO account_sync_journal(
@@ -207,12 +162,11 @@ func (s *Service) pushOneSyncMutation(
             operation,
             payload_ciphertext,
             won,
-            received_at,
-            attachment_id
+            received_at
         )
         VALUES(
             $1::uuid, $2::uuid, $3::uuid, $4, $5, $6,
-            $7, $8, $9, $10, false, $11, $12::uuid
+            $7, $8, $9, $10, false, $11
         )
         ON CONFLICT(account_id, mutation_id) DO NOTHING
         RETURNING server_seq
@@ -227,8 +181,7 @@ func (s *Service) pushOneSyncMutation(
 		int64(parsed.HLCCounter),
 		parsed.Operation,
 		ciphertext,
-		now,
-		attachmentParam).Scan(&serverSeq)
+		now).Scan(&serverSeq)
 
 	if err == pgx.ErrNoRows {
 		existing, found, loadErr := loadJournalByMutationIDTx(
@@ -255,13 +208,6 @@ func (s *Service) pushOneSyncMutation(
 	}
 	if err != nil {
 		return SyncPushResult{}, fmt.Errorf("insert sync journal: %w", err)
-	}
-
-	// The first accepted attached mutation atomically advances the
-	// attachment open -> uploaded in the same transaction as its journal row.
-	if err := markAttachmentUploadedTx(
-		ctx, tx, auth.Account.ID, attachmentID, now); err != nil {
-		return SyncPushResult{}, err
 	}
 
 	recordLockKey :=
@@ -292,40 +238,7 @@ func (s *Service) pushOneSyncMutation(
 		current.HLCCounter,
 		current.DeviceID) > 0
 
-	var currentPlain json.RawMessage
-	if found && current.Operation == "put" {
-		plain, openErr := s.syncCipher.Open(
-			auth.Account.ID,
-			current.Category,
-			current.RecordKey,
-			current.PayloadCipher)
-		if openErr != nil {
-			return SyncPushResult{}, fmt.Errorf("decrypt current sync payload: %w", openErr)
-		}
-		if !json.Valid(plain) {
-			return SyncPushResult{}, fmt.Errorf("decrypted current sync payload is malformed")
-		}
-		currentPlain = json.RawMessage(plain)
-	}
-
-	currentMerge := syncMergeCurrent{}
-	if found {
-		currentMerge = syncMergeCurrent{
-			MutationID:    current.MutationID,
-			DeviceID:      current.DeviceID,
-			SchemaVersion: current.SchemaVersion,
-			HLCPhysicalMS: current.HLCPhysicalMS,
-			HLCCounter:    current.HLCCounter,
-			Operation:     current.Operation,
-			Payload:       currentPlain,
-		}
-	}
-	resolution, resolveErr := resolveMutableSync(currentMerge, found, parsed)
-	if resolveErr != nil {
-		return SyncPushResult{}, fmt.Errorf("resolve mutable sync state: %w", resolveErr)
-	}
-
-	if resolution.Changed {
+	if won {
 		if found {
 			if _, err := tx.Exec(ctx, `
                 INSERT INTO account_sync_versions(
@@ -355,19 +268,7 @@ func (s *Service) pushOneSyncMutation(
 				int64(current.ServerSeq),
 				now,
 				parsed.MutationID); err != nil {
-				return SyncPushResult{}, fmt.Errorf("archive sync current state: %w", err)
-			}
-		}
-
-		var resolvedCiphertext []byte
-		if resolution.Operation == "put" {
-			resolvedCiphertext, err = s.syncCipher.Seal(
-				auth.Account.ID,
-				parsed.Category,
-				parsed.RecordKey,
-				resolution.Payload)
-			if err != nil {
-				return SyncPushResult{}, fmt.Errorf("encrypt resolved sync payload: %w", err)
+				return SyncPushResult{}, fmt.Errorf("archive sync winner: %w", err)
 			}
 		}
 
@@ -398,16 +299,16 @@ func (s *Service) pushOneSyncMutation(
 			auth.Account.ID,
 			parsed.Category,
 			parsed.RecordKey,
-			resolution.WinnerMutationID,
-			resolution.WinnerDeviceID,
-			resolution.WinnerSchemaVersion,
-			resolution.WinnerHLCPhysicalMS,
-			int64(resolution.WinnerHLCCounter),
-			resolution.Operation,
-			resolvedCiphertext,
+			parsed.MutationID,
+			parsed.DeviceID,
+			parsed.SchemaVersion,
+			parsed.HLCPhysicalMS,
+			int64(parsed.HLCCounter),
+			parsed.Operation,
+			ciphertext,
 			serverSeq,
 			now); err != nil {
-			return SyncPushResult{}, fmt.Errorf("store canonical sync state: %w", err)
+			return SyncPushResult{}, fmt.Errorf("store sync winner: %w", err)
 		}
 	}
 
@@ -446,16 +347,6 @@ func (s *Service) PullSync(
 		return response, fmt.Errorf("sync cursor is too large")
 	}
 
-	// Unified global server_seq stream: committed mutable canonical rows from
-	// account_sync_current plus immutable Activity facts from
-	// account_activity_facts, both drawing server_seq from the shared
-	// account_change_seq. Activity rows materialize as canonical PUT records
-	// keyed activity/<lowercase-eventId> with their stored metadata; the
-	// decrypted canonical payload was sealed under exactly that
-	// (account, category, recordKey) AAD, so decodeStoredMutation serves both
-	// row kinds unchanged. Pulls never allocate sequence values; gaps from
-	// superseded losers or semantic duplicates are legal and pagination
-	// continues strictly by server_seq.
 	rows, err := s.pool.Query(ctx, `
         SELECT
             server_seq,
@@ -468,8 +359,9 @@ func (s *Service) PullSync(
             hlc_counter,
             operation,
             payload_ciphertext,
-            updated_at
-        FROM account_sync_current
+            won,
+            received_at
+        FROM account_sync_journal
         WHERE account_id = $1::uuid
           AND server_seq > $2
         UNION ALL
@@ -484,6 +376,7 @@ func (s *Service) PullSync(
             hlc_counter,
             'put',
             payload_ciphertext,
+            true,
             received_at
         FROM account_activity_facts
         WHERE account_id = $1::uuid
@@ -492,7 +385,7 @@ func (s *Service) PullSync(
         LIMIT $3
     `, auth.Account.ID, int64(after), syncPullPageSize+1)
 	if err != nil {
-		return response, fmt.Errorf("query unified sync state: %w", err)
+		return response, fmt.Errorf("query sync journal: %w", err)
 	}
 	defer rows.Close()
 
@@ -511,11 +404,12 @@ func (s *Service) PullSync(
 			&counter,
 			&stored.Operation,
 			&stored.PayloadCipher,
+			&stored.Won,
 			&stored.ReceivedAt); err != nil {
-			return response, fmt.Errorf("scan canonical sync state: %w", err)
+			return response, fmt.Errorf("scan sync journal: %w", err)
 		}
 		if serverSeq <= 0 || counter < 0 {
-			return response, fmt.Errorf("canonical sync state contains invalid numeric state")
+			return response, fmt.Errorf("sync journal contains invalid numeric state")
 		}
 		stored.ServerSeq = uint64(serverSeq)
 		stored.HLCCounter = uint64(counter)
@@ -533,13 +427,12 @@ func (s *Service) PullSync(
 		}
 		response.Entries = append(response.Entries, SyncPullEntry{
 			ServerSeq: stored.ServerSeq,
-			Won:       true,
-			Canonical: true,
+			Won:       stored.Won,
 			Mutation:  view,
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return response, fmt.Errorf("iterate canonical sync state: %w", err)
+		return response, fmt.Errorf("iterate sync journal: %w", err)
 	}
 
 	return response, nil

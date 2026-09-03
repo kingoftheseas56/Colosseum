@@ -73,8 +73,35 @@ Item {
     // the picker's _nyaaEnabled() reads is unused by it.
     component FakeExtensions: QtObject {
         property bool nyaaEnabled: false
+        property bool tankoyomiEnabled: false
+        property int revision: 0
         function installed() {
-            return [ { "id": "colosseum.well.nyaa", "enabled": nyaaEnabled } ]
+            return [
+                { "id": "colosseum.well.nyaa", "enabled": nyaaEnabled },
+                { "id": "colosseum.well.tankoyomi", "enabled": tankoyomiEnabled }
+            ]
+        }
+        function setTankoyomiEnabled(v) { tankoyomiEnabled = v; revision += 1 }
+    }
+
+    component FakeMangaEngine: QtObject {
+        property int catalogueCalls: 0
+        property string lastLanguage: ""
+        signal chapterCatalogueResults(string requestId, string sourceSeriesId, var rows)
+        signal chapterCatalogueFailed(string requestId, string message)
+        signal pagesResult(var rows)
+        signal engineError(string message)
+        function chapterLanguages() {
+            return [
+                { "code": "en", "label": "English", "providerCount": 1 },
+                { "code": "es", "label": "Espa?ol", "providerCount": 2 },
+                { "code": "pt", "label": "Portugu?s (Brasil)", "providerCount": 3 },
+                { "code": "fr", "label": "Fran?ais", "providerCount": 4 }
+            ]
+        }
+        function chapterCatalogueForLanguage(requestId, title, language) {
+            catalogueCalls += 1
+            lastLanguage = String(language)
         }
     }
 
@@ -82,6 +109,7 @@ Item {
     FakeTankobanCatalog { id: tankCatalog }
     FakeVolumesService { id: volService }
     FakeExtensions { id: fakeExtensions }
+    FakeMangaEngine { id: fakeMangaEngine }
 
     function ck(condition, message) {
         if (!condition) throw new Error(message)
@@ -265,6 +293,29 @@ Item {
                "case6b: sourcesEnabled must be true once the nyaa well is enabled")
 
             // ── Case 7 (data-vault Slice 3, 2026-08-22): wake-on-ready ──
+            // Case 6c: Tankoyomi is a real extension gate, not a decorative row.
+            var p6c = makePage("1", "Monster")
+            p6c.extensionsRef = fakeExtensions
+            p6c.mangaEngineRef = fakeMangaEngine
+            fakeMangaEngine.catalogueCalls = 0
+            fakeExtensions.setTankoyomiEnabled(false)
+            p6c._enterChapterMode()
+            ck(p6c.chapterMode === true, "case6c: Chapter Mode still opens while Tankoyomi is off")
+            ck(p6c.tankoyomiEnabled === false, "case6c: page must observe Tankoyomi disabled")
+            ck(fakeMangaEngine.catalogueCalls === 0,
+               "case6c: disabled Tankoyomi must make zero provider calls")
+            ck(p6c.chaptersLoading === false, "case6c: disabled Tankoyomi must not hang loading")
+            ck(p6c.chaptersError.indexOf("Tankoyomi") >= 0,
+               "case6c: disabled state must name Tankoyomi honestly")
+
+            fakeExtensions.setTankoyomiEnabled(true)
+            p6c._loadChapterCatalogue(true)
+            ck(p6c.tankoyomiEnabled === true, "case6d: page must observe Tankoyomi enabled")
+            ck(fakeMangaEngine.catalogueCalls === 1,
+               "case6d: enabling Tankoyomi must allow the Chapter Mode provider call")
+            ck(fakeMangaEngine.lastLanguage === "en",
+               "case6d: enabled Tankoyomi preserves the selected language")
+
             // 7a: the catalog starts not-ready — malId-open must stay honestly unresolved,
             // never a guess (mirrors resolve()'s existing "id>0 but no row found" path).
             malCatalog.setReady(false)

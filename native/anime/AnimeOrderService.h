@@ -73,7 +73,9 @@ private:
 
     bool hasIndex() const;
     bool loadFromCache(CacheHit* out) const;
-    QString writeGeneration(const QByteArray& fribb, const QByteArray& xml, qint64 fetchedAt) const;
+    static QString writeGeneration(const QString& cacheRoot, const Sources& sources,
+                                   const QByteArray& fribb, const QByteArray& xml,
+                                   qint64 fetchedAt);
     bool writeCurrentPointer(const QString& genId) const;
     void pruneGenerations(const QString& keepActive, const QString& keepPrevious) const;
 

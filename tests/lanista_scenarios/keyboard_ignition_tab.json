@@ -1,0 +1,29 @@
+{
+  "name": "keyboard-ignition-tab",
+  "comment": "Arc 41 repair: a cold shell must own a keyboard origin. Before the ignition item, nothing in the shell held focus, so the window contentItem did — and contentItem.activeFocusOnTab is false, which made Qt drop every Tab and arrow on arrival while the ApplicationShortcut chords kept working. Onboarding is dismissed by click here on purpose: its own continue-local action does not take focus either, so the keyboard path out of onboarding is a separate gap and must not mask this one.",
+  "steps": [
+    { "cmd": "ping", "label": "isolated drive session answers",
+      "expect": [
+        { "path": "schema", "op": "matches", "value": "^colosseum\.dev\.v1" },
+        { "path": "gates.drive", "op": "==", "value": "true" }
+      ] },
+    { "cmd": "ui-wait-for", "label": "boot splash leaves",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-wait-for", "label": "fresh tag starts at onboarding",
+      "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 30000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-click", "label": "leave onboarding for the shell", "payload": { "target": "accountWelcomeContinueLocal" } },
+    { "cmd": "ui-wait-for", "label": "shell is the live surface",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 30000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+
+    { "cmd": "ui-wait-for", "label": "shell holds a keyboard origin at rest (no ring is shown yet)",
+      "payload": { "object": "keyboardIgnition", "prop": "activeFocus", "value": true, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
+    { "cmd": "ui-keypress", "label": "first Tab enters the focus chain", "payload": { "key": "Tab" } },
+    { "cmd": "ui-wait-for", "label": "focus leaves the origin for a real control",
+      "payload": { "object": "keyboardIgnition", "prop": "activeFocus", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] }
+  ]
+}

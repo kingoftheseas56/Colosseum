@@ -10,6 +10,8 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPointer>
+#include <QThread>
 
 namespace {
 
@@ -28,10 +30,144 @@ const QStringList& knownAssets()
 
 } // namespace
 
+class CatalogVaultIoWorker final : public QObject {
+public:
+    void prepare(int queueIndex, const QString& tmpPath, QPointer<CatalogVaultClient> client)
+    {
+        closeActive();
+        m_error.clear();
+        QFile::remove(tmpPath);
+        QDir().mkpath(QFileInfo(tmpPath).absolutePath());
+        m_file = new QFile(tmpPath);
+        const bool ok = m_file->open(QIODevice::WriteOnly);
+        const QString error = ok ? QString() : QStringLiteral("cannot open temp file");
+        if (!ok) closeActive();
+        post(client, [queueIndex, ok, error](CatalogVaultClient* c) {
+            c->onIoPrepared(queueIndex, ok, error);
+        });
+    }
+
+    void append(const QByteArray& bytes)
+    {
+        if (!m_file || bytes.isEmpty() || !m_error.isEmpty()) return;
+        if (m_file->write(bytes) != bytes.size())
+            m_error = QStringLiteral("temp file write failed");
+    }
+
+    void finish(int queueIndex, const QString& tmpPath, qint64 expectedSize,
+                const QString& networkError, QPointer<CatalogVaultClient> client)
+    {
+        QString error = m_error;
+        if (m_file) {
+            if (!m_file->flush() && error.isEmpty())
+                error = QStringLiteral("temp file flush failed");
+            m_file->close();
+        }
+        const qint64 bytesWritten = QFileInfo(tmpPath).size();
+        closeActive();
+        if (error.isEmpty() && !networkError.isEmpty()) error = networkError;
+        if (error.isEmpty() && expectedSize > 0 && bytesWritten != expectedSize)
+            error = QStringLiteral("truncated download");
+        if (!error.isEmpty()) QFile::remove(tmpPath);
+        post(client, [queueIndex, bytesWritten, error](CatalogVaultClient* c) {
+            c->onIoDownloadClosed(queueIndex, bytesWritten, error);
+        });
+    }
+
+    void land(int queueIndex, const QString& tmpPath, const QString& targetPath,
+              qint64 bytesWritten, QPointer<CatalogVaultClient> client)
+    {
+        QString error;
+        if (QFile::exists(targetPath) && !QFile::remove(targetPath))
+            error = QStringLiteral("target locked");
+        if (error.isEmpty() && !QFile::rename(tmpPath, targetPath))
+            error = QStringLiteral("target locked");
+        post(client, [queueIndex, bytesWritten, error](CatalogVaultClient* c) {
+            c->onIoLanded(queueIndex, bytesWritten, error);
+        });
+    }
+
+    void shutdown() { closeActive(); }
+
+private:
+    template <typename Fn>
+    static void post(QPointer<CatalogVaultClient> client, Fn fn)
+    {
+        if (!client) return;
+        CatalogVaultClient* target = client.data();
+        QMetaObject::invokeMethod(target, [client, fn] {
+            if (client) fn(client.data());
+        }, Qt::QueuedConnection);
+    }
+
+    void closeActive()
+    {
+        if (!m_file) return;
+        if (m_file->isOpen()) m_file->close();
+        delete m_file;
+        m_file = nullptr;
+        m_error.clear();
+    }
+
+    QFile* m_file = nullptr;
+    QString m_error;
+};
+
 CatalogVaultClient::CatalogVaultClient(QNetworkAccessManager* nam, const QString& vaultDir,
                                        const QString& apiBaseUrl, QObject* parent)
     : QObject(parent), m_nam(nam), m_vaultDir(vaultDir), m_apiBaseUrl(apiBaseUrl)
 {
+    m_ioThread = new QThread(this);
+    m_ioThread->setObjectName(QStringLiteral("CatalogVaultIo"));
+    m_ioWorker = new CatalogVaultIoWorker();
+    m_ioWorker->moveToThread(m_ioThread);
+    connect(m_ioThread, &QThread::finished, m_ioWorker, &QObject::deleteLater);
+    m_ioThread->start();
+}
+
+CatalogVaultClient::~CatalogVaultClient()
+{
+    if (m_downloadReply) {
+        m_downloadReply->disconnect(this);
+        m_downloadReply->abort();
+        m_downloadReply->deleteLater();
+        m_downloadReply = nullptr;
+    }
+    if (m_ioWorker && m_ioThread && m_ioThread->isRunning()) {
+        QMetaObject::invokeMethod(m_ioWorker, [worker = m_ioWorker] { worker->shutdown(); },
+                                  Qt::BlockingQueuedConnection);
+        m_ioThread->quit();
+        m_ioThread->wait();
+    }
+}
+
+void CatalogVaultClient::setForegroundPressure(int pressure)
+{
+    const int next = qBound(0, pressure, 2);
+    if (m_foregroundPressure == next)
+        return;
+    m_foregroundPressure = next;
+    if (m_foregroundPressure != 0)
+        return;
+
+    if (m_deferredLanding) {
+        const int queueIndex = m_deferredLandingQueueIndex;
+        const qint64 bytesWritten = m_deferredLandingBytes;
+        m_deferredLanding = false;
+        m_deferredLandingQueueIndex = -1;
+        m_deferredLandingBytes = -1;
+        continueLanding(queueIndex, bytesWritten);
+        return;
+    }
+    if (m_deferredDownloadStart) {
+        m_deferredDownloadStart = false;
+        downloadNext();
+        return;
+    }
+    if (m_deferredCheck) {
+        m_deferredCheck = false;
+        checkAndFetch();
+    }
 }
 
 void CatalogVaultClient::setFetching(bool value)
@@ -123,6 +259,11 @@ void CatalogVaultClient::writeState(const QString& tag, const QHash<QString, qin
 
 void CatalogVaultClient::checkAndFetch()
 {
+    if (m_foregroundPressure != 0) {
+        m_deferredCheck = true;
+        return;
+    }
+    m_deferredCheck = false;
     if (managedAssetNames().isEmpty()) {
         // Every asset the caller cares about resolved to a local dev override —
         // nothing for this client to manage. Zero network, zero work.
@@ -244,6 +385,11 @@ void CatalogVaultClient::beginDownloads(const QString& newTag, const QVector<Ass
 
 void CatalogVaultClient::downloadNext()
 {
+    if (m_foregroundPressure != 0 && m_queueIndex < m_queue.size()) {
+        m_deferredDownloadStart = true;
+        return;
+    }
+    m_deferredDownloadStart = false;
     if (m_queueIndex >= m_queue.size()) {
         writeState(m_pendingTag, m_finalSizes);
         setCurrentTag(m_pendingTag);
@@ -254,18 +400,28 @@ void CatalogVaultClient::downloadNext()
 
     const AssetInfo asset = m_queue.at(m_queueIndex);
     const QString tmpPath = m_vaultDir + QLatin1Char('/') + asset.name + QStringLiteral(".downloading");
-    QFile::remove(tmpPath); // stale leftover from a previous crash/kill
+    const int queueIndex = m_queueIndex;
+    QPointer<CatalogVaultClient> self(this);
+    QMetaObject::invokeMethod(m_ioWorker, [worker = m_ioWorker, queueIndex, tmpPath, self] {
+        worker->prepare(queueIndex, tmpPath, self);
+    }, Qt::QueuedConnection);
+}
 
-    QDir().mkpath(m_vaultDir);
-    m_downloadFile = new QFile(tmpPath, this);
-    if (!m_downloadFile->open(QIODevice::WriteOnly)) {
-        delete m_downloadFile;
-        m_downloadFile = nullptr;
+void CatalogVaultClient::onIoPrepared(int queueIndex, bool ok, const QString& error)
+{
+    if (queueIndex != m_queueIndex || !m_fetching) return;
+    if (!ok) {
         setFetching(false);
-        emit fetchFailed(asset.name, QStringLiteral("cannot open temp file"));
+        emit fetchFailed(m_queue.at(queueIndex).name, error);
         return;
     }
+    startNetworkDownload(queueIndex);
+}
 
+void CatalogVaultClient::startNetworkDownload(int queueIndex)
+{
+    if (queueIndex != m_queueIndex || !m_fetching) return;
+    const AssetInfo asset = m_queue.at(queueIndex);
     QNetworkRequest request{asset.url};
     request.setRawHeader("User-Agent", kUserAgent);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
@@ -274,8 +430,11 @@ void CatalogVaultClient::downloadNext()
     m_downloadReply = reply;
 
     connect(reply, &QNetworkReply::readyRead, this, [this, reply] {
-        if (m_downloadFile)
-            m_downloadFile->write(reply->readAll());
+        const QByteArray chunk = reply->readAll();
+        if (chunk.isEmpty() || !m_ioWorker) return;
+        QMetaObject::invokeMethod(m_ioWorker, [worker = m_ioWorker, chunk] {
+            worker->append(chunk);
+        }, Qt::QueuedConnection);
     });
     connect(reply, &QNetworkReply::finished, this, &CatalogVaultClient::onDownloadFinished);
 }
@@ -283,59 +442,77 @@ void CatalogVaultClient::downloadNext()
 void CatalogVaultClient::onDownloadFinished()
 {
     QNetworkReply* reply = m_downloadReply;
-    if (!reply)
-        return;
+    if (!reply) return;
+    const int queueIndex = m_queueIndex;
+    const AssetInfo asset = m_queue.at(queueIndex);
+    const QString tmpPath = m_vaultDir + QLatin1Char('/') + asset.name + QStringLiteral(".downloading");
+
+    const QByteArray tail = reply->readAll();
+    if (!tail.isEmpty()) {
+        QMetaObject::invokeMethod(m_ioWorker, [worker = m_ioWorker, tail] {
+            worker->append(tail);
+        }, Qt::QueuedConnection);
+    }
+    const QString networkError = reply->error() == QNetworkReply::NoError
+        ? QString() : reply->errorString();
     reply->deleteLater();
     m_downloadReply = nullptr;
 
-    const AssetInfo asset = m_queue.at(m_queueIndex);
+    QPointer<CatalogVaultClient> self(this);
+    QMetaObject::invokeMethod(m_ioWorker,
+        [worker = m_ioWorker, queueIndex, tmpPath, expectedSize = asset.size, networkError, self] {
+            worker->finish(queueIndex, tmpPath, expectedSize, networkError, self);
+        }, Qt::QueuedConnection);
+}
+
+void CatalogVaultClient::onIoDownloadClosed(int queueIndex, qint64 bytesWritten,
+                                            const QString& error)
+{
+    if (queueIndex != m_queueIndex || !m_fetching) return;
+    const AssetInfo asset = m_queue.at(queueIndex);
+    if (!error.isEmpty()) {
+        setFetching(false);
+        emit fetchFailed(asset.name, error);
+        return;
+    }
+    if (m_foregroundPressure != 0) {
+        m_deferredLanding = true;
+        m_deferredLandingQueueIndex = queueIndex;
+        m_deferredLandingBytes = bytesWritten;
+        return;
+    }
+    continueLanding(queueIndex, bytesWritten);
+}
+
+void CatalogVaultClient::continueLanding(int queueIndex, qint64 bytesWritten)
+{
+    if (queueIndex != m_queueIndex || !m_fetching) return;
+    const AssetInfo asset = m_queue.at(queueIndex);
     const QString tmpPath = m_vaultDir + QLatin1Char('/') + asset.name + QStringLiteral(".downloading");
     const QString targetPath = m_vaultDir + QLatin1Char('/') + asset.name;
+    if (QFile::exists(targetPath))
+        emit aboutToReplace(asset.name);
 
-    if (m_downloadFile) {
-        m_downloadFile->write(reply->readAll());
-        m_downloadFile->close();
-    }
-    const qint64 bytesWritten = m_downloadFile ? QFileInfo(tmpPath).size() : -1;
-    delete m_downloadFile;
-    m_downloadFile = nullptr;
+    QPointer<CatalogVaultClient> self(this);
+    QMetaObject::invokeMethod(m_ioWorker,
+        [worker = m_ioWorker, queueIndex, tmpPath, targetPath, bytesWritten, self] {
+            worker->land(queueIndex, tmpPath, targetPath, bytesWritten, self);
+        }, Qt::QueuedConnection);
+}
 
-    const bool networkOk = reply->error() == QNetworkReply::NoError;
-    const bool sizeOk = asset.size <= 0 || bytesWritten == asset.size;
-
-    if (!networkOk || !sizeOk) {
-        QFile::remove(tmpPath);
+void CatalogVaultClient::onIoLanded(int queueIndex, qint64 bytesWritten, const QString& error)
+{
+    if (queueIndex != m_queueIndex || !m_fetching) return;
+    const AssetInfo asset = m_queue.at(queueIndex);
+    if (!error.isEmpty()) {
         setFetching(false);
-        emit fetchFailed(asset.name,
-                        networkOk ? QStringLiteral("truncated download") : reply->errorString());
-        return; // abort the rest of this pass — state.json stays unchanged
+        emit fetchFailed(asset.name, error);
+        return;
     }
 
-    if (!landDownload(asset.name, tmpPath, targetPath)) {
-        setFetching(false);
-        return; // landDownload already emitted fetchFailed; .downloading left in place
-    }
-
+    const QString targetPath = m_vaultDir + QLatin1Char('/') + asset.name;
     m_finalSizes.insert(asset.name, bytesWritten);
     emit databaseUpdated(asset.name, targetPath);
     ++m_queueIndex;
     downloadNext();
-}
-
-bool CatalogVaultClient::landDownload(const QString& name, const QString& tmpPath,
-                                      const QString& targetPath)
-{
-    if (QFile::exists(targetPath)) {
-        // Synchronous — direct-connected slot may close its SQLite handle right here.
-        emit aboutToReplace(name);
-        if (QFile::exists(targetPath) && !QFile::remove(targetPath)) {
-            emit fetchFailed(name, QStringLiteral("target locked"));
-            return false;
-        }
-    }
-    if (!QFile::rename(tmpPath, targetPath)) {
-        emit fetchFailed(name, QStringLiteral("target locked"));
-        return false;
-    }
-    return true;
 }

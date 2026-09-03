@@ -279,27 +279,38 @@ void AnimeOrderService::fetchUrl(const QUrl& url, qint64 cap, int redirectDepth,
 void AnimeOrderService::onDownloadsReady(const QByteArray& fribb, const QByteArray& xml)
 {
     const qint64 fetchedAt = QDateTime::currentMSecsSinceEpoch();
-    const QString genId = writeGeneration(fribb, xml, fetchedAt);
-    if (genId.isEmpty()) {
-        finishFailure();
-        return;
-    }
-    launchParse(fribb, xml, genId, fetchedAt, /*activate=*/true);
+    const QString cacheRoot = m_cacheRoot;
+    const Sources sources = m_sources;
+    auto* watcher = new QFutureWatcher<QString>(this);
+    connect(watcher, &QFutureWatcher<QString>::finished, this,
+            [this, watcher, fribb, xml, fetchedAt] {
+                const QString genId = watcher->result();
+                watcher->deleteLater();
+                if (genId.isEmpty()) {
+                    finishFailure();
+                    return;
+                }
+                launchParse(fribb, xml, genId, fetchedAt, /*activate=*/true);
+            });
+    watcher->setFuture(QtConcurrent::run([cacheRoot, sources, fribb, xml, fetchedAt] {
+        return AnimeOrderService::writeGeneration(cacheRoot, sources, fribb, xml, fetchedAt);
+    }));
 }
 
-QString AnimeOrderService::writeGeneration(const QByteArray& fribb, const QByteArray& xml,
-                                           qint64 fetchedAt) const
+QString AnimeOrderService::writeGeneration(const QString& cacheRoot, const Sources& sources,
+                                           const QByteArray& fribb, const QByteArray& xml,
+                                           qint64 fetchedAt)
 {
     const QString genId = genIdFor(fribb, xml);
-    const QString genDir = m_cacheRoot + QStringLiteral("/generations/") + genId;
+    const QString genDir = cacheRoot + QStringLiteral("/generations/") + genId;
     if (!QDir().mkpath(genDir))
         return {};
 
     QJsonObject manifest;
     manifest.insert(QStringLiteral("schemaVersion"), 1);
     manifest.insert(QStringLiteral("fetchedAt"), static_cast<double>(fetchedAt));
-    manifest.insert(QStringLiteral("fribbUrl"), m_sources.fribb.toString());
-    manifest.insert(QStringLiteral("mappingsUrl"), m_sources.mappings.toString());
+    manifest.insert(QStringLiteral("fribbUrl"), sources.fribb.toString());
+    manifest.insert(QStringLiteral("mappingsUrl"), sources.mappings.toString());
     manifest.insert(QStringLiteral("fribbBytes"), fribb.size());
     manifest.insert(QStringLiteral("mappingsBytes"), xml.size());
     manifest.insert(QStringLiteral("fribbSha256"), sha256Hex(fribb));

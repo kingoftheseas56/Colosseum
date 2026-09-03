@@ -126,22 +126,10 @@ QString ProfilePaths::syncMetaIniPath() const {
     return childPath(QStringLiteral("sync/meta.ini"));
 }
 
-QString ProfilePaths::cloudAttachmentReceiptPath() const {
-    if (m_kind != Kind::Account)
-        return QString();
-    return childPath(QStringLiteral("cloud-attachment/receipt.json"));
-}
-
 QString ProfilePaths::accountStagingRoot() const {
     if (m_kind != Kind::Account)
         return QString();
     return QDir::cleanPath(m_profileRoot + QLatin1String(".adopting"));
-}
-
-QString ProfilePaths::accountReplacementBackupRoot() const {
-    if (m_kind != Kind::Account)
-        return QString();
-    return QDir::cleanPath(m_profileRoot + QLatin1String(".pre-attachment"));
 }
 
 QString ProfilePaths::adoptionJournalPath() const {
@@ -149,15 +137,6 @@ QString ProfilePaths::adoptionJournalPath() const {
         return QString();
     return QDir::cleanPath(m_appDataRoot
                            + QLatin1String("/profile-adoption/")
-                           + m_profileId
-                           + QLatin1String(".json"));
-}
-
-QString ProfilePaths::localAttachmentJournalPath() const {
-    if (m_kind != Kind::Account)
-        return QString();
-    return QDir::cleanPath(m_appDataRoot
-                           + QLatin1String("/profile-attachment/")
                            + m_profileId
                            + QLatin1String(".json"));
 }

@@ -28,12 +28,14 @@ Assert-Contains $main 'warmPlayerSessionId' "Main must track the warm minimized-
 $td = Isolate $main 'function teardownSession(rec) {' 'teardownSession'
 Assert-NotContains $td 'playerLayer.item.stop()' "Minimize teardown must NOT stop the movie stream - it stays warm for instant resume."
 Assert-Contains $td 'suspendForMinimize' "Minimize teardown must suspend pause-plus-keep-alive the movie player."
-Assert-Contains $td 'warmPlayerSessionId = rec.id' "Minimize teardown must mark the movie session warm."
+Assert-Contains $td 'warmPlayerSessionId = rec.id' "Minimize teardown must mark the movie session warm once playback exists."
 
 # --- reopening a warm session must RESUME in place, not re-stream ---
 $as = Isolate $main 'function activateSession(rec) {' 'activateSession'
-Assert-Contains $as 'warmPlayerSessionId === rec.id' "Activate must detect a warm player and resume instead of re-streaming."
-Assert-Contains $as 'resumeFromMinimize' "Warm resume must call resumeFromMinimize with no playTorrent reload."
+Assert-Contains $as 'activateMovieSession(rec)' "Activate must delegate ready movie sessions to the player-specific activation helper."
+$ams = Isolate $main 'function activateMovieSession(rec) {' 'activateMovieSession'
+Assert-Contains $ams 'warmPlayerSessionId === rec.id' "Movie activation must detect a warm player and resume instead of re-streaming."
+Assert-Contains $ams 'resumeFromMinimize' "Warm resume must call resumeFromMinimize with no playTorrent reload."
 
 # --- a real CLOSE must still end the stream: only minimize keeps it warm ---
 $cs = Isolate $main 'function closeSession(id) {' 'closeSession'

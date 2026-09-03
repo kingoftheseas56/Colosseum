@@ -136,22 +136,6 @@ public:
     // adoption code compares against, not a fabricated digest of zero bytes.
     static QString fileDigestSha256(const QString &path);
 
-    // Stable semantic digest over event_id + canonical_hash, independent of
-    // SQLite page layout/WAL state. Empty string is the valid no-file/no-event
-    // sentinel when `databasePath` does not exist.
-    static QString semanticEventDigest(
-        const QString &databasePath,
-        QString *error = nullptr);
-
-    // Union portable local activity into an account-owned target ledger.
-    // Existing event ids must have the same canonical hash; a conflicting id
-    // fails closed. Events carrying filesystem/resource paths are local-only
-    // and are deliberately not copied into the account profile.
-    static bool mergePortableEvents(
-        const QString &sourceDatabasePath,
-        const QString &targetDatabasePath,
-        QString *error = nullptr);
-
 signals:
     void changed();
     void integrityError(const QString &code, const QString &detail);
