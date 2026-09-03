@@ -66,6 +66,9 @@ REM build-directory runtime paths after that call so the freshly built app
 REM can locate its Qt, mpv, and companion DLLs when launched from the service.
 if exist "%QT_ROOT%\bin" set "PATH=%QT_ROOT%\bin;%PATH%"
 if exist "%BUILD_DIR%" set "PATH=%BUILD_DIR%;%PATH%"
+if exist "C:\tools\mpvqt-feasibility\mpvqt-msvc-install\bin" set "PATH=C:\tools\mpvqt-feasibility\mpvqt-msvc-install\bin;%PATH%"
+if exist "C:\tools\mpvqt-feasibility\libmpv-prefix\bin" set "PATH=C:\tools\mpvqt-feasibility\libmpv-prefix\bin;%PATH%"
+if exist "C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin" set "PATH=C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin;%PATH%"
 
 cmake --build "%BUILD_DIR%" --target colosseum --parallel 4
 if errorlevel 1 (
