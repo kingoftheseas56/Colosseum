@@ -83,9 +83,11 @@
 //! `{"error":{"code":"provider_unavailable","message":"Torrentio stream lookup failed."}}`.
 
 mod paths;
+mod sidecar;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::{Path, Query, State};
 use axum::http::header;
@@ -99,6 +101,7 @@ use tracing_subscriber::EnvFilter;
 use account::{CreateAccountRequest, RefreshRequest, Service as AccountService, SignInRequest};
 use addons::{sources_for_addon, CatalogSearch, Cinemeta, Registry, StreamSearch, Torrentio};
 use catalog::Catalog;
+use sidecar::{parse_candidate_id, spool, SidecarSupervisor, SpoolError};
 
 struct AppState {
     catalog: Arc<Catalog>,
@@ -112,6 +115,8 @@ struct AppState {
     /// when `ADDONS_LIVE=1`. Supplies `installed_addons` for the live sources
     /// route without constructing the registry per request.
     live_addons: Option<Arc<Registry>>,
+    /// The torrent sidecar supervisor (lazy spawn on first torrent spool).
+    sidecar: tokio::sync::Mutex<SidecarSupervisor>,
     ready: AtomicBool,
 }
 
@@ -194,6 +199,7 @@ async fn main() {
         live: live_cinemeta().map(Arc::new),
         live_torrentio: live_torrentio().map(Arc::new),
         live_addons: live_addons().map(Arc::new),
+        sidecar: tokio::sync::Mutex::new(SidecarSupervisor::new(data_dir.join("torrent-cache"))),
         ready: AtomicBool::new(false),
     });
     state.catalog.seed_demo();
@@ -208,10 +214,11 @@ async fn main() {
         .route("/catalog/series/{id}", get(catalog_series))
         .route("/catalog/series/{id}/sources", get(catalog_sources))
         .route("/sources/imdb/{tt_id}", get(sources_imdb))
+        .route("/torrents/spool", post(spool_torrent))
         .route("/v1/accounts", post(create_account))
         .route("/v1/sessions", post(sign_in))
         .route("/v1/sessions/refresh", post(refresh_session))
-        .with_state(state);
+        .with_state(state.clone());
 
     let port: u16 = std::env::var("DAEMON_PORT")
         .ok()
@@ -221,7 +228,16 @@ async fn main() {
         .await
         .expect("bind");
     tracing::info!("listening on http://{}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.expect("serve");
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async {
+            let _ = tokio::signal::ctrl_c().await;
+            tracing::info!("ctrl-c received, shutting down");
+        })
+        .await
+        .expect("serve");
+
+    // The daemon owns the sidecar's lifecycle: kill it on shutdown.
+    state.sidecar.lock().await.shutdown().await;
 }
 
 async fn healthz() -> &'static str {
@@ -399,6 +415,87 @@ async fn sources_imdb(State(state): State<Arc<AppState>>, Path(path): Path<ImdbP
     }
 }
 
+/// `POST /torrents/spool` body: the torrent-kind candidate's wire-model row id
+/// (`t:<infoHash>:<fileIdx>`), which is the addons crate's `_rowKey` and the
+/// natural client key for a ranked candidate.
+#[derive(Deserialize)]
+struct SpoolBody {
+    candidate_id: String,
+}
+
+/// Spool poll cadence (the app's own stats cadence, ~1 Hz) and the daemon-side
+/// watchdog bound (`stalled`).
+const SPOOL_POLL: Duration = Duration::from_secs(1);
+const SPOOL_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+/// `POST /torrents/spool` — lazily start the sidecar, add one torrent-kind
+/// candidate, poll until its file is piece-verified complete, and return the
+/// completed `file://` path for the UI layer (the daemon does not own the
+/// player).
+async fn spool_torrent(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<SpoolBody>,
+) -> Response {
+    let request = match parse_candidate_id(&body.candidate_id) {
+        Ok(request) => request,
+        Err(err) => return spool_error_response(&err),
+    };
+
+    let client = {
+        let mut supervisor = state.sidecar.lock().await;
+        match supervisor.ensure_running().await {
+            Ok(client) => client,
+            Err(err) => return spool_error_response(&err),
+        }
+    };
+
+    match spool(
+        &client,
+        &request.info_hash,
+        request.file_idx,
+        SPOOL_POLL,
+        SPOOL_TIMEOUT,
+    )
+    .await
+    {
+        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+        Err(SpoolError::SidecarUnavailable(_)) => {
+            // Restart-once supervision: kill, respawn, retry the add once.
+            let mut supervisor = state.sidecar.lock().await;
+            if supervisor.restarted() {
+                return spool_error_response(&SpoolError::SidecarUnavailable(
+                    "sidecar unavailable after restart".into(),
+                ));
+            }
+            supervisor.mark_restarted();
+            let retry = supervisor.restart().await;
+            drop(supervisor);
+            match retry {
+                Ok(client) => {
+                    match spool(
+                        &client,
+                        &request.info_hash,
+                        request.file_idx,
+                        SPOOL_POLL,
+                        SPOOL_TIMEOUT,
+                    )
+                    .await
+                    {
+                        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+                        Err(err) => spool_error_response(&err),
+                    }
+                }
+                Err(err) => spool_error_response(&err),
+            }
+        }
+        Err(err) => spool_error_response(&err),
+    }
+}
+
+fn spool_error_response(err: &SpoolError) -> Response {
+    write_api_error(err.status(), err.code(), &err.to_string())
+}
+
 async fn create_account(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateAccountRequest>,
@@ -427,6 +524,7 @@ mod tests {
     fn test_state() -> Arc<AppState> {
         let catalog = Catalog::open_in_memory().expect("in-memory catalog");
         catalog.seed_demo();
+        let tmp = tempfile::tempdir().expect("temp dir");
         Arc::new(AppState {
             catalog: Arc::new(catalog),
             accounts: Arc::new(AccountService::in_memory()),
@@ -434,6 +532,9 @@ mod tests {
             live: None,
             live_torrentio: None,
             live_addons: None,
+            sidecar: tokio::sync::Mutex::new(SidecarSupervisor::new(
+                tmp.path().join("torrent-cache"),
+            )),
             ready: AtomicBool::new(true),
         })
     }

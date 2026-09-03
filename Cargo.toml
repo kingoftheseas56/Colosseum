@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/catalog", "crates/account", "crates/daemon", "crates/ui-gpui", "crates/player", "crates/ui-widgets", "crates/addons"]
+members = ["crates/catalog", "crates/account", "crates/daemon", "crates/ui-gpui", "crates/player", "crates/ui-widgets", "crates/addons", "crates/torrent-sidecar"]
 
 [workspace.package]
 edition = "2021"
@@ -23,6 +23,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 thiserror = "2"
 time = { version = "0.3", features = ["serde", "formatting"] }
+librqbit = { version = "9.0.1", default-features = false, features = ["rust-tls", "disable-upload"] }
 
 [profile.dev]
 # POC: trade a little debug info for much faster link times in the inner loop

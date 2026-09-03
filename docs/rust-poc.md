@@ -62,6 +62,7 @@ with a line here.
 | `tracing` + `tracing-subscriber` (`env-filter`) | structured logs with runtime filter control via env, defaulting to `daemon=info` |
 | `thiserror` | typed domain errors with `Display`; `Error::code()` carries the Go wire vocabulary |
 | `time` | RFC 3339 serde/formatting for timestamps, matching the Go service's wire format |
+| `librqbit` 9.0.1 (no default-tls, `rust-tls` + `disable-upload`) | torrent engine for the `crates/torrent-sidecar` spooler (torrent-parity slice 3); Apache-2.0, library-first, pure-Rust — the only engine meeting add-by-infoHash, `only_files` selection, download-to-dir, Json persistence/fastresume, and macOS+Windows from one build (`docs/research/torrent-sidecar-phase0/00-engine-decision.md`). `rust-tls` keeps the build ring/rustls-only (no native TLS); `disable-upload` + upload-rate 0 pin the pure-downloader posture (seeders are distributors) |
 | `cargo-zigbuild` | cross-compiles `x86_64-pc-windows-gnu` from macOS; landed — `mise run build-windows` produces `daemon.exe` |
 
 Deferred (deliberately not decided yet):

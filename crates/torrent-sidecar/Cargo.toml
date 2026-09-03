@@ -1,5 +1,5 @@
 [package]
-name = "daemon"
+name = "torrent-sidecar"
 version.workspace = true
 edition.workspace = true
 
@@ -10,13 +10,14 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-directories.workspace = true
-reqwest.workspace = true
+rand.workspace = true
 thiserror.workspace = true
-catalog = { path = "../catalog" }
-account = { path = "../account" }
-addons = { path = "../addons" }
+librqbit.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
 tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+tokio.workspace = true
+reqwest.workspace = true
+serde_json.workspace = true
+librqbit.workspace = true
