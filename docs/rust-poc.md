@@ -6,11 +6,48 @@ source of truth for account wire shapes, error codes, and domain policy until
 each slice is ported and its spec tests go green. Changes to module boundaries
 or the dependency set should update this file.
 
+## Current status (2026-09-03)
+
+Workspace members (8): `catalog`, `account`, `addons`, `daemon`, `player`,
+`torrent-sidecar`, `ui-widgets`, `ui-gpui`.
+
+Live daemon routes (all on branch HEAD):
+
+| Route | Notes |
+|---|---|
+| `GET /healthz` `GET /readyz` | readiness |
+| `POST /v1/accounts` `POST /v1/sessions` `POST /v1/sessions/refresh` | Go-core port (create/sign-in/refresh; oracle-reconciled) |
+| `GET /catalog/search?q=` | seeded offline; live Cinemeta rows when `ADDONS_LIVE=1` |
+| `GET /catalog/home` | `continue_watching` + `trending` from the seeded store |
+| `GET /catalog/series/{id}` `GET /catalog/series/{id}/sources` | detail + seeded fake-addon sources |
+| `GET /catalog/meta/{type}/{tt}` | live Cinemeta detail (live-gated) |
+| `GET /sources/imdb/{tt}` | live Torrentio candidates, ranked (live-gated; 404 offline) |
+| `POST /torrents/spool` `{candidate_id}` | librqbit sidecar spool → piece-verified `file://` path |
+
+Milestones (each runtime-verified, OCR/hash evidence on record):
+
+- **Cores + smoke**: catalog (SQLite), account (Go port, 8-leg smoke), daemon; windows cross-build green.
+- **Native video**: `crates/player` pull contract, macOS AVAssetReader → BGRA `RenderImage`; transport
+  boundary `file://`/`http(s)://` only; finding: AVAssetReader rejects remote assets (`-11838`) →
+  spool-to-local-file is the required adapter. No audio yet.
+- **Torrent lane complete end-to-end** (native Rust, no JS engine): addons layer + ranking (slice 1),
+  live Cinemeta + Torrentio providers (slices 2b/3), librqbit sidecar spool (slice 3), and the GPUI
+  journey search → detail-by-imdb → SourcesSheet → spool → player (slice 4). Debrid slice deferred
+  (needs a provider account). Known gap: >15-min/very-large spools surface `stalled`.
+- **UI**: `ui-widgets` kit (theme tokens audited vs `qml/Theme.qml` + `Glass.qml`, poster/rail/grid),
+  phase-a shell (Home rails → detail → player), Qt-look restyle (glass chrome, scrims, gold, type
+  scale), `Colosseum.app` via cargo-bundle. Legacy single-pane view + dev hooks preserved.
+- **Docs**: `docs/parity.md` (24-surface QML→GPUI ledger), torrent-sidecar phase-0 dossier.
+
+Open / next: `player-libmpv` audio/sync lane (nothing can make sound until it lands); Home-from-live
+rails + continue-watching writeback (last wave queued); parity B/C breadth per the ledger; account
+Go migration slices 1–7 (below).
+
 ## Module boundaries
 
 Workspace members are `catalog`, `account`, `daemon` (the domain trio
-below), plus `addons`, `player` and `ui-gpui` (see Player architecture / UI
-decision).
+below), plus `addons`, `player`, `torrent-sidecar`, `ui-widgets` and
+`ui-gpui` (see Player architecture / UI decision).
 
 - **Domain crates (`catalog`, `account`) expose a typed contract only**: one
   entry type (`Catalog`, `Service`), the serde DTOs, and a `thiserror` `Error`
@@ -26,12 +63,17 @@ decision).
   separate roadmap item, not this crate's concern yet.
 - **`addons` is the Stremio add-on client layer** (sources + catalog). It owns
   the `Addon` trait, the seeded fixture-backed fakes (the offline default), and
-  the live Cinemeta catalog provider behind the daemon's `ADDONS_LIVE=1` flag.
-  Live providers are async-only — the sync `Addon` trait can't express network
-  I/O — so Cinemeta implements the async `CatalogSearch` trait for
-  `/catalog/search` and the sync `Addon` trait for install identity only
-  (`streams()` empty until the Torrentio slice). Its transport is `reqwest`
-  (rustls, no API key; plain HTTPS-JSON).
+  the live providers behind the daemon's `ADDONS_LIVE=1` flag. Live providers
+  are async-only — the sync `Addon` trait can't express network I/O — so
+  Cinemeta (search + meta) and Torrentio (streams) implement async seam traits
+  (`CatalogSearch`, `StreamSearch`) plus the sync `Addon` trait for install
+  identity. Transport is `reqwest` (rustls, no API key; plain HTTPS-JSON).
+- **`torrent-sidecar` is the spooler** (torrent-parity slice 3): a separate
+  binary owning the librqbit session, downloads, and the cache dir; daemon
+  spawns/supervises it. Token-gated loopback control API; spools
+  `infoHash+file_idx` to a piece-verified cache file the player loads via
+  `file://` (the `-11838` adapter — it never streams http to the player).
+  Design: `docs/research/torrent-sidecar-phase0/`.
 - **`daemon` is the composition root.** It owns HTTP routing (axum), data-dir
   discovery (`paths.rs` via `directories`), builds `AppState`, and maps domain
   contracts onto routes and status codes. It is the only crate that knows where
@@ -57,7 +99,7 @@ with a line here.
 | `rand` | CSPRNG for opaque tokens and salts |
 | `uuid` | v4 ids for accounts, devices, challenges |
 | `directories` | cross-platform data-dir discovery — daemon only (see `paths.rs`) |
-| `reqwest` (rustls, `json`) | async HTTP client for live add-on providers (`crates/addons`); no native TLS, no API key — Cinemeta and the later Torrentio slice |
+| `reqwest` (rustls, `json`) | async HTTP client for live add-on providers (`crates/addons`); no native TLS, no API key — Cinemeta (search/meta) and Torrentio (streams), both landed |
 | `rquickjs` (planned) | embedded JS engine when the daemon must execute addon/provider/extension code (stremio-style addons, qml-era JS glue) — NEVER hand-rolled interpreters or silent re-ports; `boa_engine` as pure-Rust fallback, `deno_core` only if V8 isolation is required |
 | `tracing` + `tracing-subscriber` (`env-filter`) | structured logs with runtime filter control via env, defaulting to `daemon=info` |
 | `thiserror` | typed domain errors with `Display`; `Error::code()` carries the Go wire vocabulary |
@@ -166,9 +208,9 @@ GPUI integration cost, in rising order:
 
 ## Migration roadmap
 
-Ported so far (`crates/daemon/src/main.rs`): `GET /healthz`, `GET /readyz`,
-`POST /v1/accounts`, `POST /v1/sessions`, `POST /v1/sessions/refresh`, plus the
-POC-only `GET /catalog/search`. Remaining Go surface from
+Ported so far: the Go-core surface (`POST /v1/accounts`, `POST /v1/sessions`,
+`POST /v1/sessions/refresh` + `healthz`/`readyz`) plus the POC-only catalog/addons
+routes above (see Current status). Remaining Go surface from
 `server/account-service`, in suggested slice order (each slice = routes +
 domain behind them, spec tests green before the next):
 

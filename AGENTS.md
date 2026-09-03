@@ -2,6 +2,21 @@
 
 These instructions apply to contributors and automation working in this repository.
 
+## Rust POC lane (`feature/rust-core-poc`)
+
+Work on the Rust port branch must start from these docs — they carry the
+current status, architecture decisions, and the live work queue:
+
+- `docs/rust-poc.md` — architecture + decisions + **current status** (crates,
+  live daemon routes, milestones, open work).
+- `docs/parity.md` — the QML→GPUI feature-parity ledger (24 surfaces, phases
+  A/B/C, per-surface endpoint/widget needs).
+- `TODO.md` — ops manual for the ralph-loop work queue (gates, env facts,
+  verification rituals, open items).
+
+The `qml/` tree is design reference only on that branch; `master` is the
+C++/Qt product lane.
+
 ## Source of truth
 
 Use this order when evidence disagrees:

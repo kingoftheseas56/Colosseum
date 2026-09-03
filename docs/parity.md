@@ -23,7 +23,7 @@ drives the B (breadth) and C (bespoke) waves after Phase A lands.
 
 | Piece | State |
 |---|---|
-| daemon routes | `GET /healthz`, `GET /readyz`, `GET /catalog/search`, `GET /catalog/home`, `GET /catalog/series/{id}`, `POST /v1/accounts`, `POST /v1/sessions`, `POST /v1/sessions/refresh` — nothing else |
+| daemon routes | `GET /healthz` `GET /readyz`; catalog: `GET /catalog/search` (seeded; live Cinemeta rows w/ `ADDONS_LIVE=1`), `GET /catalog/home`, `GET /catalog/series/{id}`, `GET /catalog/series/{id}/sources`, `GET /catalog/meta/{type}/{tt}` (live-gated); torrent: `GET /sources/imdb/{tt}` (live Torrentio), `POST /torrents/spool` (librqbit sidecar → `file://`); account: `POST /v1/accounts` `POST /v1/sessions` `POST /v1/sessions/refresh`. Genre/source-search/download endpoints still missing |
 | `crates/player` | `Player` trait, `native()` → avfoundation; load/play/pause/seek/position/duration/next_frame/event; BGRA `VideoFrame`; **silent, no audio** |
 | `crates/ui-gpui` | GPUI 0.2.2 shell: daemon HTTP over gpui_tokio, catalog list, frames → `RenderImage` at a 10 ms pump |
 | GPUI media-widget kit | **does not exist** (TODO-2e161921: poster grid/rail/hero/list/dialog) — nothing under `(c)` below is built |
