@@ -69,6 +69,30 @@ func (s *Service) PushSync(
 			continue
 		}
 
+		if parsed.Category == "activity_fact" {
+			fact, activityCode, activityMessage := parseActivityFact(parsed)
+			if activityCode != "" {
+				response.Results = append(response.Results, SyncPushResult{
+					MutationID: parsed.MutationID,
+					Accepted:   false,
+					Code:       activityCode,
+					Message:    activityMessage,
+				})
+				continue
+			}
+			result, err := s.pushOneActivityFact(
+				ctx,
+				auth,
+				parsed,
+				fact,
+				now)
+			if err != nil {
+				return response, err
+			}
+			response.Results = append(response.Results, result)
+			continue
+		}
+
 		result, err := s.pushOneSyncMutation(
 			ctx,
 			auth,
@@ -338,6 +362,23 @@ func (s *Service) PullSync(
             won,
             received_at
         FROM account_sync_journal
+        WHERE account_id = $1::uuid
+          AND server_seq > $2
+        UNION ALL
+        SELECT
+            server_seq,
+            mutation_id::text,
+            origin_device_id::text,
+            'activity_fact',
+            'activity/' || event_id::text,
+            schema_version,
+            hlc_physical_ms,
+            hlc_counter,
+            'put',
+            payload_ciphertext,
+            true,
+            received_at
+        FROM account_activity_facts
         WHERE account_id = $1::uuid
           AND server_seq > $2
         ORDER BY server_seq ASC

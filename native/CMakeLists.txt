@@ -174,6 +174,7 @@ add_executable(colosseum
     account/ActivityProjector.cpp
     # Slice D2: profile-owned SQLite ActivityStore (durable ledger writer).
     account/ActivityStore.cpp
+    account/ActivitySyncAdapter.cpp
     # Slice D3: transient ActivityPlaybackTracker (not QML-registered this slice).
     account/ActivityPlaybackTracker.cpp
     account/CollectionSyncAdapter.cpp
@@ -219,6 +220,7 @@ add_executable(colosseum
     account/AccountTransport.h
     # Slice D2: profile-owned SQLite ActivityStore (Q_OBJECT — moc needs the header listed).
     account/ActivityStore.h
+    account/ActivitySyncAdapter.h
     # Slice D3: transient ActivityPlaybackTracker (Q_OBJECT — moc needs the header listed).
     account/ActivityPlaybackTracker.h
     account/CollectionSyncAdapter.h

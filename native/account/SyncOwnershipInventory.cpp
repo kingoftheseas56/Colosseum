@@ -51,6 +51,21 @@ const QList<SyncOwnershipEntry> &entries() {
             QStringLiteral("No live native/HistoryStore.h exists at the 7B evidence head; Bundle 7B promotes the cumulative profile-owned HistoryStore into the dedicated full-history authority. Continue/progress remains separate.")
         },
         SyncOwnershipEntry{
+            QStringLiteral("activity_fact"),
+            SyncDisposition::Syncable,
+            SyncOwnerStatus::Confirmed,
+            true,
+            QStringList{QStringLiteral("activity_fact")},
+            QStringLiteral("native/account/ActivityStore.*"),
+            QStringLiteral("ProfileStoreRuntime -> ActivityStore -> ActivitySyncAdapter"),
+            QStringLiteral("portableSyncFacts()"),
+            QStringLiteral("applySyncedPortableFact(fact)"),
+            QStringLiteral("revision + changed(); factCommitted() only for newly committed facts; ActivitySyncAdapter suppresses remote echo"),
+            14,
+            QStringLiteral(""),
+            QStringLiteral("Immutable Activity facts are portable PUT-only records; missing facts never imply delete tombstones. Machine-local cover paths are sanitized by the ActivityStore portable projection.")
+        },
+        SyncOwnershipEntry{
             QStringLiteral("per_world_customization"),
             SyncDisposition::Syncable,
             SyncOwnerStatus::Partial,

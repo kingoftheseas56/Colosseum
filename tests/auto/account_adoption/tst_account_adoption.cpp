@@ -266,6 +266,7 @@ private slots:
     void directAccountSwitchRequiresSealing();
 
     void existingAccountMergeAcceptsCompletedActivity();
+    void activityOnlyLocalStateIsMergedIntoExistingAccount();
     void firstAccountAdoptionMigratesActivityLedger();
     void interruptedAdoptionRestoresLegacyActivityLedger();
 };
@@ -1168,6 +1169,40 @@ existingAccountMergeAcceptsCompletedActivity() {
     QCOMPARE(facts.size(), 1);
     QCOMPARE(facts.first().value(QStringLiteral("type")).toString(),
              QStringLiteral("media_completed"));
+}
+
+void tst_account_adoption::
+activityOnlyLocalStateIsMergedIntoExistingAccount() {
+    AdoptionFixture fixture;
+
+    const ProfilePaths paths = fixture.accountPaths();
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(paths);
+    QVERIFY(accountStorage.has_value());
+    QVERIFY(QDir().mkpath(paths.profileRoot()));
+    QVERIFY(accountStorage->restorePersonalState(PersonalStateSnapshot{}));
+
+    {
+        ActivityStore legacyActivity(fixture.legacy.activityDbPath());
+        QVERIFY(legacyActivity.healthy());
+        QVERIFY(legacyActivity.recordPlaybackDelta(fixtureMovieFact()));
+    }
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+
+    QString error;
+    QVERIFY2(
+        coordinator.prepareAccountSession(QString::fromLatin1(kAccountA), &error),
+        qPrintable(error));
+
+    ActivityStore mergedActivity(paths.activityDbPath());
+    QVERIFY(mergedActivity.healthy());
+    const QList<QVariantMap> facts = mergedActivity.historyProjectionFacts();
+    QCOMPARE(facts.size(), 1);
+    QCOMPARE(
+        facts.first().value(QStringLiteral("type")).toString(),
+        QStringLiteral("playback_delta"));
 }
 
 void tst_account_adoption::

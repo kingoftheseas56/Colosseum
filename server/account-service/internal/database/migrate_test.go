@@ -77,4 +77,33 @@ func TestRunMigrationsFromEmptyDatabase(t *testing.T) {
 			t.Fatalf("identity/security table %s was not created", table)
 		}
 	}
+
+	var activityTableExists bool
+	if err := pool.QueryRow(ctx, `
+        SELECT to_regclass('public.account_activity_facts') IS NOT NULL
+    `).Scan(&activityTableExists); err != nil {
+		t.Fatalf("check account_activity_facts: %v", err)
+	}
+	if !activityTableExists {
+		t.Fatal("account_activity_facts table was not created")
+	}
+
+	var activitySequenceDefault string
+	if err := pool.QueryRow(ctx, `
+        SELECT pg_get_expr(adbin, adrelid)
+        FROM pg_attrdef
+        WHERE adrelid = 'account_activity_facts'::regclass
+          AND adnum = (
+              SELECT attnum
+              FROM pg_attribute
+              WHERE attrelid = 'account_activity_facts'::regclass
+                AND attname = 'server_seq'
+                AND NOT attisdropped
+          )
+    `).Scan(&activitySequenceDefault); err != nil {
+		t.Fatalf("read account_activity_facts server_seq default: %v", err)
+	}
+	if activitySequenceDefault != "nextval('account_sync_journal_server_seq_seq'::regclass)" {
+		t.Fatalf("activity server_seq default = %q, want shared sync journal sequence", activitySequenceDefault)
+	}
 }

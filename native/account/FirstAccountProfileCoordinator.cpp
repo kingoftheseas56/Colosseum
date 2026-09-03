@@ -321,6 +321,27 @@ bool matchesWithActivityProjection(
 
     return current.historyRecords == projected.historyRecords;
 }
+
+bool migrationSourceHasActivity(
+    ProfileStoreRuntime *profileRuntime,
+    const LegacyPersonalStateStorage &sourceStorage) {
+    const ProfilePaths::Kind activeKind =
+        profileRuntime->activeProfile().kind();
+    if ((activeKind == ProfilePaths::Kind::LegacyLocal
+         || activeKind == ProfilePaths::Kind::LocalOnly)
+        && profileRuntime->activityStore()) {
+        return !profileRuntime->activityStore()
+                    ->historyProjectionFacts()
+                    .isEmpty();
+    }
+
+    if (!QFileInfo::exists(sourceStorage.activityDbPath()))
+        return false;
+
+    ActivityStore sourceActivity(sourceStorage.activityDbPath());
+    return sourceActivity.healthy()
+        && !sourceActivity.historyProjectionFacts().isEmpty();
+}
 }
 
 FirstAccountProfileCoordinator::
@@ -472,7 +493,11 @@ prepareAccountSession(
                     captureError));
         }
 
-        if (!source->isEmpty()) {
+        const bool hasActivity =
+            migrationSourceHasActivity(
+                m_profileRuntime,
+                *sourceStorage);
+        if (!source->isEmpty() || hasActivity) {
             if (!QFileInfo::exists(paths->profileRoot())) {
                 if (explicitProfile)
                     return runLocalOnlyAdoption(
@@ -621,7 +646,10 @@ currentMigrationSource(
                 return std::nullopt;
             }
         } else if (active.kind() == ProfilePaths::Kind::LocalOnly
-                   || !local->isEmpty()) {
+                   || !local->isEmpty()
+                   || migrationSourceHasActivity(
+                       m_profileRuntime,
+                       *localStorage)) {
             if (explicitProfile)
                 *explicitProfile = true;
             return localStorage;
@@ -640,7 +668,10 @@ currentMigrationSource(
             return std::nullopt;
         }
     } else if (active.kind() == ProfilePaths::Kind::LegacyLocal
-               || !legacy->isEmpty()) {
+               || !legacy->isEmpty()
+               || migrationSourceHasActivity(
+                   m_profileRuntime,
+                   m_profileRuntime->legacyStorage())) {
         return m_profileRuntime->legacyStorage();
     }
 

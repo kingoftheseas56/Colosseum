@@ -15,6 +15,8 @@
 #include <QUuid>
 #include <QVariant>
 
+#include <algorithm>
+
 namespace {
 
 // Schema v1 exactly per CPP-PORT-CONTRACT.md §5. A DB stamped higher than
@@ -28,6 +30,96 @@ QString generatedUuid() {
 
 qint64 jsonInt(const QJsonObject &obj, const QString &key) {
     return static_cast<qint64>(obj.value(key).toDouble());
+}
+
+bool setStaticError(QString *error, const QString &message) {
+    if (error)
+        *error = message;
+    return false;
+}
+
+void clearStaticError(QString *error) {
+    if (error)
+        error->clear();
+}
+
+bool isMachineLocalCoverValue(const QString &value) {
+    const QString trimmed = value.trimmed();
+    if (trimmed.isEmpty())
+        return false;
+
+    const QString lower = trimmed.toLower();
+    if (lower.startsWith(QStringLiteral("file:/"))
+        || lower.startsWith(QStringLiteral("qrc:/"))
+        || trimmed.startsWith(QStringLiteral(":/"))) {
+        return true;
+    }
+
+    if (trimmed.startsWith(QStringLiteral("\\\\"))
+        || trimmed.startsWith(QStringLiteral("../"))
+        || trimmed.startsWith(QStringLiteral("./"))
+        || trimmed.startsWith(QStringLiteral("..\\"))
+        || trimmed.startsWith(QStringLiteral(".\\"))
+        || trimmed.startsWith(QLatin1Char('/'))) {
+        return true;
+    }
+
+    return trimmed.size() >= 3
+        && trimmed.at(0).isLetter()
+        && trimmed.at(1) == QLatin1Char(':')
+        && (trimmed.at(2) == QLatin1Char('\\') || trimmed.at(2) == QLatin1Char('/'));
+}
+
+QJsonObject portableEventProjection(const QJsonObject &event) {
+    ActivityProjector::validateEvent(event);
+
+    QJsonObject portable;
+    const auto copy = [&](const QString &key) {
+        if (event.contains(key))
+            portable.insert(key, event.value(key));
+    };
+
+    static const QStringList commonFields{
+        QStringLiteral("v"),
+        QStringLiteral("type"),
+        QStringLiteral("eventId"),
+        QStringLiteral("sessionId"),
+        QStringLiteral("world"),
+        QStringLiteral("kind"),
+        QStringLiteral("titleKey"),
+        QStringLiteral("itemKey"),
+        QStringLiteral("title"),
+        QStringLiteral("itemLabel"),
+        QStringLiteral("utcOffsetMinutes"),
+        QStringLiteral("syncable"),
+        QStringLiteral("source")
+    };
+    for (const QString &field : commonFields)
+        copy(field);
+
+    if (event.contains(QStringLiteral("cover"))) {
+        const QString cover = event.value(QStringLiteral("cover")).toString();
+        portable.insert(QStringLiteral("cover"),
+                        isMachineLocalCoverValue(cover) ? QString() : cover);
+    }
+
+    const QString type = event.value(QStringLiteral("type")).toString();
+    if (type == QLatin1String("playback_delta")) {
+        copy(QStringLiteral("startAtMs"));
+        copy(QStringLiteral("endAtMs"));
+        copy(QStringLiteral("activeMs"));
+        copy(QStringLiteral("rateMilli"));
+    } else if (type == QLatin1String("reading_delta")) {
+        copy(QStringLiteral("atMs"));
+        copy(QStringLiteral("readingForm"));
+        copy(QStringLiteral("pageKeys"));
+        copy(QStringLiteral("progressMicros"));
+    } else {
+        copy(QStringLiteral("atMs"));
+        copy(QStringLiteral("reason"));
+    }
+
+    return portable;
 }
 
 } // namespace
@@ -301,6 +393,117 @@ QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
             < right.value(QStringLiteral("eventId")).toString();
     });
     return facts;
+}
+
+QList<QVariantMap> ActivityStore::portableSyncFacts(QString *error) const {
+    clearStaticError(error);
+    QList<QVariantMap> facts;
+    if (!healthy()) {
+        if (error)
+            *error = QStringLiteral("db_unhealthy");
+        return facts;
+    }
+
+    QSqlQuery query(m_db);
+    if (!query.exec(QStringLiteral(
+            "SELECT canonical_json FROM events WHERE syncable = 1"))) {
+        if (error)
+            *error = QStringLiteral("db_error");
+        return facts;
+    }
+
+    while (query.next()) {
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(
+            query.value(0).toString().toUtf8(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+            query.finish();
+            if (error)
+                *error = QStringLiteral("invalid_event");
+            return {};
+        }
+
+        try {
+            const QJsonObject portable = portableEventProjection(document.object());
+            if (!portable.value(QStringLiteral("syncable")).toBool()) {
+                query.finish();
+                if (error)
+                    *error = QStringLiteral("invalid_event");
+                return {};
+            }
+            facts.append(portable.toVariantMap());
+        } catch (const ActivityProjector::ValidationError &) {
+            query.finish();
+            if (error)
+                *error = QStringLiteral("invalid_event");
+            return {};
+        }
+    }
+    query.finish();
+
+    std::sort(facts.begin(), facts.end(), [](const QVariantMap &left, const QVariantMap &right) {
+        const QString leftId = left.value(QStringLiteral("eventId")).toString();
+        const QString rightId = right.value(QStringLiteral("eventId")).toString();
+        const QString leftLower = leftId.toLower();
+        const QString rightLower = rightId.toLower();
+        if (leftLower != rightLower)
+            return leftLower < rightLower;
+        return leftId < rightId;
+    });
+    return facts;
+}
+
+bool ActivityStore::applySyncedPortableFact(const QVariantMap &fact, QString *error) {
+    clearStaticError(error);
+    if (!healthy())
+        return setStaticError(error, QStringLiteral("db_unhealthy"));
+
+    const QJsonObject incoming = QJsonObject::fromVariantMap(fact);
+    QJsonObject portable;
+    try {
+        ActivityProjector::validateEvent(incoming);
+        if (!incoming.value(QStringLiteral("syncable")).toBool())
+            return setStaticError(error, QStringLiteral("invalid_event"));
+        portable = portableEventProjection(incoming);
+    } catch (const ActivityProjector::ValidationError &) {
+        return setStaticError(error, QStringLiteral("invalid_event"));
+    }
+
+    const QString eventId = portable.value(QStringLiteral("eventId")).toString();
+    const QString incomingCanonical = ActivityProjector::canonicalEventJson(portable);
+
+    QSqlQuery existing(m_db);
+    existing.prepare(QStringLiteral("SELECT canonical_json FROM events WHERE event_id = ?"));
+    existing.addBindValue(eventId);
+    if (!existing.exec())
+        return setStaticError(error, QStringLiteral("db_error"));
+
+    if (existing.next()) {
+        const QString localCanonicalJson = existing.value(0).toString();
+        existing.finish();
+
+        QJsonParseError parseError;
+        const QJsonDocument localDocument = QJsonDocument::fromJson(
+            localCanonicalJson.toUtf8(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !localDocument.isObject())
+            return setStaticError(error, QStringLiteral("invalid_event"));
+
+        try {
+            const QJsonObject localPortable = portableEventProjection(localDocument.object());
+            if (ActivityProjector::canonicalEventJson(localPortable) == incomingCanonical)
+                return true;
+        } catch (const ActivityProjector::ValidationError &) {
+            return setStaticError(error, QStringLiteral("invalid_event"));
+        }
+
+        return setStaticError(error, QStringLiteral("activity_event_conflict"));
+    }
+    existing.finish();
+
+    const QString type = portable.value(QStringLiteral("type")).toString();
+    if (!insertFact(type, portable.toVariantMap()))
+        return setStaticError(error, QStringLiteral("activity_event_import_failed"));
+    return true;
 }
 
 bool ActivityStore::insertEventRow(const QJsonObject &event, const QString &canonicalJson,

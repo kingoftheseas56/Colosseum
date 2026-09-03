@@ -4,6 +4,7 @@
 #include "AccountClient.h"
 #include "AccountController.h"
 #include "ProgressSyncAdapter.h"
+#include "ActivitySyncAdapter.h"
 #include "HistorySyncAdapter.h"
 #include "ProfilePreferencesSyncAdapter.h"
 #include "CollectionSyncAdapter.h"
@@ -72,6 +73,8 @@ private:
         m_progressSyncAdapter;
     std::unique_ptr<HistorySyncAdapter>
         m_historySyncAdapter;
+    std::unique_ptr<ActivitySyncAdapter>
+        m_activitySyncAdapter;
     std::unique_ptr<ProfilePreferencesSyncAdapter>
         m_preferencesSyncAdapter;
     DownloadIntentStore m_downloadIntentStore;
