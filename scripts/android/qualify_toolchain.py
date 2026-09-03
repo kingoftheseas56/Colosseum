@@ -162,6 +162,8 @@ def connected_arm64(adb: str, requested_serial: str | None) -> Check:
     serial = requested_serial or (serials[0] if serials else None)
     if not serial:
         return Check("Physical ARM64 device", False, "no adb device in device state")
+    if serial.lower().startswith("emulator-"):
+        return Check("Physical ARM64 device", False, f"serial={serial} is an Android emulator")
     rc, abis = run_text([adb, "-s", serial, "shell", "getprop", "ro.product.cpu.abilist"])
     ok = rc == 0 and TARGET_ABI in abis.split(",")
     return Check("Physical ARM64 device", ok, f"serial={serial}, abilist={abis or 'unknown'}")

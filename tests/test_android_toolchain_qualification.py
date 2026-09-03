@@ -1,6 +1,7 @@
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,6 +40,19 @@ class AndroidToolchainQualificationTests(unittest.TestCase):
             (root / "platform-tools" / "adb").touch()
             checks = gate.check_sdk(root)
             self.assertTrue(all(check.ok for check in checks))
+
+    def test_require_device_rejects_emulator(self):
+        def fake_run(command):
+            if command[-1] == "devices":
+                return 0, "List of devices attached\nemulator-5554\tdevice"
+            if command[-1] == "ro.product.cpu.abilist":
+                return 0, "arm64-v8a,x86_64"
+            raise AssertionError(command)
+
+        with mock.patch.object(gate, "run_text", side_effect=fake_run):
+            check = gate.connected_arm64("adb", None)
+        self.assertFalse(check.ok)
+        self.assertIn("emulator", check.detail.lower())
 
     def test_qt_target_and_host_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
