@@ -9,6 +9,21 @@
 //!
 //! No published objc2 crate generates AVFoundation, so the handful of classes
 //! used here are declared with objc2's extern machinery.
+//!
+//! ## `http(s)://` transport boundary (TODO torrent-slice2)
+//!
+//! `load()` accepts `http(s)://` URLs — the transport the loopback torrent
+//! sidecar / direct-debrid URLs feed — but AVAssetReader cannot pull frames
+//! from a remote asset. Probed headless 2026-09-03: `AVURLAsset` loads tracks
+//! and duration synchronously over `http://127.0.0.1` (no runloop needed), but
+//! `AVAssetReader(asset:)` fails with `AVErrorOperationNotSupportedForAsset`
+//! (`AVFoundationErrorDomain -11838`). That is an asset-type rejection, not a
+//! runloop/headless artifact, so it would fail in an app context too. The
+//! app-context path (later slice) must either spool the URL to a local temp
+//! file and read `file://`, or front the remote bytes with an
+//! `AVAssetResourceLoaderDelegate` over a custom scheme so AVAssetReader sees a
+//! "local" asset. Do not switch this backend to AVPlayer: it streams http but
+//! does not advance without an app runloop (the original headless lesson).
 
 use std::sync::Mutex;
 
@@ -125,12 +140,28 @@ impl AvFoundationPlayer {
     }
 
     fn open(&self, url: &str) -> Result<(), PlayerError> {
+        // Transport boundary: the player speaks `file://` and `http(s)://` only.
+        // The old app fed the player loopback-torrent-sidecar / direct-debrid
+        // URLs — never torrent/magnet links themselves — so anything else is
+        // rejected here.
+        if !(url.starts_with("file://")
+            || url.starts_with("http://")
+            || url.starts_with("https://"))
+        {
+            return Err(PlayerError::UnsupportedSource(url.into()));
+        }
+        let is_remote = url.starts_with("http://") || url.starts_with("https://");
+
         let Some(nsurl) = NSURL::URLWithString(&NSString::from_str(url)) else {
             return Err(PlayerError::UnsupportedSource(url.into()));
         };
         // SAFETY: class-message sends on newly created retained objects.
         unsafe {
             let asset = AVURLAsset::URLAssetWithURL_options(&nsurl, None);
+            // Both `duration` and `tracksWithMediaType` are synchronous
+            // property loads on the calling thread — no runloop needed, which
+            // is exactly what makes metadata load headless over http (the
+            // AVAssetReader construction below is the wall, not this).
             let duration = cm_seconds(asset.duration());
             let media_type = NSString::from_str("vide"); // AVMediaTypeVideo
             let tracks = asset.tracksWithMediaType(&media_type);
@@ -159,8 +190,26 @@ impl AvFoundationPlayer {
                 &track,
                 Some(&dict),
             );
-            let Some(rdr) = AVAssetReader::assetReaderWithAsset_error(&asset, None) else {
-                return Err(PlayerError::Backend("asset reader init failed".into()));
+            let mut err: Option<Retained<NSError>> = None;
+            let Some(rdr) = AVAssetReader::assetReaderWithAsset_error(&asset, Some(&mut err))
+            else {
+                let detail = err
+                    .map(|e| format!("{} ({} {})", e.localizedDescription(), e.domain(), e.code()))
+                    .unwrap_or_else(|| "unknown".into());
+                if is_remote {
+                    // Documented seam (see module docs): AVAssetReader refuses
+                    // remote assets outright — AVErrorOperationNotSupportedForAsset
+                    // (-11838) — so http(s) needs the app-context adapter, not a
+                    // backend tweak. Do not fake success by spooling here.
+                    return Err(PlayerError::Backend(format!(
+                        "http(s) source not readable by AVAssetReader ({detail}); \
+                         app-context path must spool the URL to a local file or use \
+                         an AVAssetResourceLoaderDelegate (TODO torrent-slice2)"
+                    )));
+                }
+                return Err(PlayerError::Backend(format!(
+                    "asset reader init failed: {detail}"
+                )));
             };
             rdr.addOutput(&out);
             *self.reader.lock().unwrap() = Some(Reader {
