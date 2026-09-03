@@ -857,7 +857,7 @@ mergeExistingAccount(
             accepted = targetActivity.recordPlaybackDelta(fact);
         else if (type == QStringLiteral("reading_delta"))
             accepted = targetActivity.recordReadingDelta(fact);
-        else if (type == QStringLiteral("completion"))
+        else if (type == QStringLiteral("media_completed"))
             accepted = targetActivity.recordCompletion(fact);
         if (!accepted) {
             sourceStorage.restorePersonalState(*source, nullptr);
@@ -1178,13 +1178,55 @@ resumeAdoption(
     }
 
     case ProfileAdoption::State::Committed:
-        return activate(paths, error);
+        if (!activate(paths, error))
+            return false;
+        return mergeResidualLocalOnlyState(paths, error);
     }
 
     return setError(
         error,
         QStringLiteral(
             "The profile adoption state is unsupported."));
+}
+
+bool FirstAccountProfileCoordinator::
+mergeResidualLocalOnlyState(
+    const ProfilePaths &paths,
+    QString *error) {
+    const ProfilePaths localPaths =
+        ProfilePaths::localOnly(m_appDataRoot);
+    QString localError;
+    const auto localStorage =
+        LegacyPersonalStateStorage::forProfile(
+            localPaths,
+            &localError);
+    if (!localStorage.has_value()) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not inspect local personal state after account migration."),
+                localError));
+    }
+
+    const auto local =
+        localStorage->capture(&localError);
+    if (!local.has_value()) {
+        return setError(
+            error,
+            adoptionFailure(
+                QStringLiteral(
+                    "Could not read local personal state after account migration."),
+                localError));
+    }
+
+    if (local->isEmpty())
+        return true;
+
+    return mergeExistingAccount(
+        paths,
+        *localStorage,
+        error);
 }
 
 bool FirstAccountProfileCoordinator::

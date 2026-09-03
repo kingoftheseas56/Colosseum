@@ -206,6 +206,25 @@ QVariantMap fixtureMovieFact() {
     return fact;
 }
 
+QVariantMap fixtureMovieCompletionFact() {
+    QVariantMap fact;
+    fact.insert(QStringLiteral("eventId"), QStringLiteral("cccccccc-cccc-4ccc-8ccc-cccccccccccc"));
+    fact.insert(QStringLiteral("sessionId"), QStringLiteral("adoption-completion-session"));
+    fact.insert(QStringLiteral("world"), QStringLiteral("theatre"));
+    fact.insert(QStringLiteral("kind"), QStringLiteral("movie"));
+    fact.insert(QStringLiteral("titleKey"), QStringLiteral("theatre:adoption-completion-movie"));
+    fact.insert(QStringLiteral("itemKey"), QStringLiteral("adoption-completion-movie"));
+    fact.insert(QStringLiteral("title"), QStringLiteral("Adoption Completion Movie"));
+    fact.insert(QStringLiteral("itemLabel"), QString());
+    fact.insert(QStringLiteral("cover"), QString());
+    fact.insert(QStringLiteral("utcOffsetMinutes"), qint64(330));
+    fact.insert(QStringLiteral("syncable"), true);
+    fact.insert(QStringLiteral("source"), QStringLiteral("test"));
+    fact.insert(QStringLiteral("atMs"), qint64(1720000030000));
+    fact.insert(QStringLiteral("reason"), QStringLiteral("eof"));
+    return fact;
+}
+
 void verifyMachineSentinels(
     const LegacyPersonalStateStorage &legacy) {
     QSettings progress(
@@ -234,6 +253,7 @@ class tst_account_adoption : public QObject {
 private slots:
     void populatedFirstAccountQuarantinesOnlyAfterSemanticVerification();
     void cleanRestartCommitsQuarantinedAdoption();
+    void committedAccountSessionMergesResidualLocalOnlyState();
     void ordinarySignInAdoptsLegacyLocalState();
     void ordinarySignInMergesExistingAccountWithLocalOnlyState();
     void activeAccountSessionMergesLaterLocalOnlyState();
@@ -245,6 +265,7 @@ private slots:
     void legacySnapshotV1RemainsReadableWithoutHistory();
     void directAccountSwitchRequiresSealing();
 
+    void existingAccountMergeAcceptsCompletedActivity();
     void firstAccountAdoptionMigratesActivityLedger();
     void interruptedAdoptionRestoresLegacyActivityLedger();
 };
@@ -459,6 +480,113 @@ cleanRestartCommitsQuarantinedAdoption() {
         QCOMPARE(
             runtime.activeProfile().profileId(),
             paths.profileId());
+    }
+}
+
+void tst_account_adoption::
+committedAccountSessionMergesResidualLocalOnlyState() {
+    AdoptionFixture fixture;
+    const PersonalStateSnapshot source =
+        populatedSnapshot();
+    QVERIFY(
+        fixture.legacy.restorePersonalState(
+            source));
+
+    const ProfilePaths paths =
+        fixture.accountPaths();
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+
+        QString error;
+        QVERIFY2(
+            coordinator.prepareCreatedAccount(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+    }
+    {
+        ProfileStoreRuntime runtime(
+            fixture.legacy,
+            fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(
+            &runtime,
+            fixture.appDataRoot);
+
+        QString error;
+        QVERIFY2(
+            coordinator.prepareAccountSession(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+
+        const auto adoption =
+            ProfileAdoption::open(
+                paths,
+                &error);
+        QVERIFY2(
+            adoption.has_value(),
+            qPrintable(error));
+        QCOMPARE(
+            adoption->state(),
+            ProfileAdoption::State::Committed);
+
+        PersonalStateSnapshot residual;
+        residual.progressEntries.insert(
+            QStringLiteral("movie\x1fresidual-local-movie"),
+            QJsonObject{
+                {QStringLiteral("id"), QStringLiteral("residual-local-movie")},
+                {QStringLiteral("kind"), QStringLiteral("movie")},
+                {QStringLiteral("progress"), 0.6},
+                {QStringLiteral("updatedAt"), 1720000006000.0}});
+
+        const ProfilePaths localPaths =
+            ProfilePaths::localOnly(fixture.appDataRoot);
+        const auto localStorage =
+            LegacyPersonalStateStorage::forProfile(
+                localPaths,
+                &error);
+        QVERIFY2(
+            localStorage.has_value(),
+            qPrintable(error));
+        QVERIFY2(
+            localStorage->restorePersonalState(
+                residual,
+                &error),
+            qPrintable(error));
+
+        QVERIFY2(
+            coordinator.prepareAccountSession(
+                QString::fromLatin1(kAccountA),
+                &error),
+            qPrintable(error));
+
+        const auto accountStorage =
+            LegacyPersonalStateStorage::forProfile(
+                paths,
+                &error);
+        QVERIFY2(
+            accountStorage.has_value(),
+            qPrintable(error));
+        const auto merged =
+            accountStorage->capture(&error);
+        QVERIFY2(
+            merged.has_value(),
+            qPrintable(error));
+        QVERIFY(
+            merged->progressEntries.contains(
+                QStringLiteral("movie\x1fresidual-local-movie")));
+
+        const auto localAfter =
+            localStorage->capture(&error);
+        QVERIFY2(
+            localAfter.has_value(),
+            qPrintable(error));
+        QVERIFY(localAfter->isEmpty());
     }
 }
 
@@ -1006,6 +1134,40 @@ directAccountSwitchRequiresSealing() {
     QCOMPARE(
         runtime.activeProfile().profileId(),
         fixture.accountPaths().profileId());
+}
+
+void tst_account_adoption::
+existingAccountMergeAcceptsCompletedActivity() {
+    AdoptionFixture fixture;
+    QVERIFY(fixture.legacy.restorePersonalState(populatedSnapshot()));
+
+    const ProfilePaths paths = fixture.accountPaths();
+    const auto accountStorage =
+        LegacyPersonalStateStorage::forProfile(paths);
+    QVERIFY(accountStorage.has_value());
+    QVERIFY(QDir().mkpath(paths.profileRoot()));
+    QVERIFY(accountStorage->restorePersonalState(PersonalStateSnapshot{}));
+
+    {
+        ActivityStore legacyActivity(fixture.legacy.activityDbPath());
+        QVERIFY(legacyActivity.healthy());
+        QVERIFY(legacyActivity.recordCompletion(fixtureMovieCompletionFact()));
+    }
+
+    ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+    FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+
+    QString error;
+    QVERIFY2(
+        coordinator.prepareAccountSession(QString::fromLatin1(kAccountA), &error),
+        qPrintable(error));
+
+    ActivityStore mergedActivity(paths.activityDbPath());
+    QVERIFY(mergedActivity.healthy());
+    const QList<QVariantMap> facts = mergedActivity.historyProjectionFacts();
+    QCOMPARE(facts.size(), 1);
+    QCOMPARE(facts.first().value(QStringLiteral("type")).toString(),
+             QStringLiteral("media_completed"));
 }
 
 void tst_account_adoption::
