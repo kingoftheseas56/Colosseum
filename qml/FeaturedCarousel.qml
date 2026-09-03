@@ -15,8 +15,9 @@ Item {
     signal secondaryClicked(int index)
 
     property alias index: view.currentIndex
-    implicitHeight: 330
     width: parent ? parent.width : 800
+    AdaptiveLayout { id: adaptive; viewportWidth: car.width }
+    implicitHeight: adaptive.heroHeight
     Theme { id: theme }
 
     SwipeView {
@@ -41,7 +42,8 @@ Item {
     // color-agnostic dots: GOLD active on a dark backing strip → reads over any cover
     Rectangle {
         visible: car.slides.length > 1
-        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 26
+        anchors.right: parent.right; anchors.bottom: parent.bottom
+        anchors.margins: adaptive.phone ? 16 : 26
         radius: 999; height: 22; width: dotsRow.implicitWidth + 22
         color: Qt.rgba(0, 0, 0, 0.42)
         Row {

@@ -17,11 +17,12 @@ Glass {
 
     property string heading: "Theatre"
     property var stills: []            // { title, art, lane, c1, c2 } — interleaved M/S/A
+    readonly property bool compactLayout: width < 600
 
     signal clicked()                   // title or a still → open the Theatre world (v1, like Bookshelf)
 
     radius: 18
-    height: 400
+    height: strip.compactLayout ? 340 : 400
 
     Theme { id: theme }
 
@@ -55,10 +56,10 @@ Glass {
     // ---- main title (centered) + the one gold touch: a short marquee rule under it ----
     Text {
         id: title
-        anchors.top: parent.top; anchors.topMargin: 28
+        anchors.top: parent.top; anchors.topMargin: strip.compactLayout ? 20 : 28
         anchors.horizontalCenter: parent.horizontalCenter
         text: strip.heading; color: theme.ink
-        font.family: theme.display; font.pixelSize: 33
+        font.family: theme.display; font.pixelSize: strip.compactLayout ? 30 : 33
         MouseArea {
             anchors.fill: parent; anchors.margins: -12
             cursorShape: Qt.PointingHandCursor; onClicked: strip.clicked()
@@ -75,6 +76,7 @@ Glass {
     Text {
         anchors.left: parent.left; anchors.leftMargin: 46
         anchors.top: parent.top; anchors.topMargin: 36
+        visible: !strip.compactLayout
         text: "Trending"; color: theme.inkDim
         font.family: theme.display; font.italic: true; font.pixelSize: 22
     }
@@ -83,8 +85,8 @@ Glass {
     Rectangle {
         id: band
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 66
-        height: 208
+        anchors.bottom: parent.bottom; anchors.bottomMargin: strip.compactLayout ? 36 : 66
+        height: strip.compactLayout ? 180 : 208
         color: Qt.rgba(0, 0, 0, 0.5)
         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
         clip: true
@@ -103,7 +105,8 @@ Glass {
                 delegate: Item {
                     id: frame
                     required property var modelData
-                    width: 300; height: 158
+                    width: strip.compactLayout ? 240 : 300
+                    height: strip.compactLayout ? 132 : 158
 
                     Rectangle {
                         anchors.fill: parent

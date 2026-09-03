@@ -13,7 +13,7 @@ Item {
     signal tabRequested(string tab)
 
     width: parent ? parent.width : 900
-    height: 58
+    height: tabs.compactLayout ? 54 : 58
 
     Theme { id: theme }
 
@@ -27,6 +27,8 @@ Item {
 
     property int keyboardIndex: 0
     focusPolicy: Qt.TabFocus
+    readonly property bool compactLayout: width < 600
+    readonly property int pillSpacing: compactLayout ? 3 : 6
 
     function syncKeyboardIndex() {
         for (var i = 0; i < tabs.tabModel.length; ++i) {
@@ -71,7 +73,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(parent.width, 760)
-        height: 54
+        height: tabs.compactLayout ? 50 : 54
         backdrop: tabs.backdrop
         radius: 18
         tint: 0.08
@@ -79,8 +81,8 @@ Item {
 
         Row {
             anchors.fill: parent
-            anchors.margins: 6
-            spacing: 6
+            anchors.margins: tabs.compactLayout ? 4 : 6
+            spacing: tabs.pillSpacing
 
             Repeater {
                 model: tabs.tabModel
@@ -90,7 +92,7 @@ Item {
                     required property int index
                     readonly property bool keyboardFocused: tabs.activeFocus && index === tabs.keyboardIndex
 
-                    width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                    width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                     height: parent.height
                     radius: 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
@@ -102,7 +104,7 @@ Item {
                         text: pill.modelData.label
                         color: pill.modelData.key === tabs.currentTab ? "#17120a" : theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: tabs.compactLayout ? 12 : 14
                         font.weight: Font.DemiBold
                     }
 
@@ -127,41 +129,41 @@ Item {
         Row {
             id: automationPills
             anchors.fill: parent
-            anchors.margins: 6
-            spacing: 6
+            anchors.margins: tabs.compactLayout ? 4 : 6
+            spacing: tabs.pillSpacing
             z: 100
 
             Item {
                 objectName: "theatreTab_discover"
-                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "discover"
                 MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(0, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_movies"
-                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "movies"
                 MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(1, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_shows"
-                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "shows"
                 MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(2, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_anime"
-                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "anime"
                 MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(3, Qt.MouseFocusReason) }
             }
             Item {
                 objectName: "theatreTab_library"
-                width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
+                width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                 height: parent.height
                 readonly property bool activeState: tabs.currentTab === "library"
                 MouseArea { anchors.fill: parent; onClicked: tabs.requestIndex(4, Qt.MouseFocusReason) }

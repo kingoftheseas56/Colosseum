@@ -14,7 +14,8 @@ Item {
     signal secondaryClicked()
 
     readonly property bool isPoster: slide.artKind !== undefined && slide.artKind === "poster"
-    readonly property bool compactCopy: slideRoot.height < 360
+    readonly property bool narrowLayout: slideRoot.width < 600
+    readonly property bool compactCopy: slideRoot.height < 360 || slideRoot.narrowLayout
     Theme { id: theme }
 
     Rectangle {
@@ -46,8 +47,8 @@ Item {
             anchors.fill: parent
             source: artRaw
             maskEnabled: true; maskSource: artMask
-            visible: !slideRoot.isPoster
-            opacity: (!slideRoot.isPoster && artRaw.status === Image.Ready) ? 1 : 0
+            visible: !slideRoot.isPoster || slideRoot.narrowLayout
+            opacity: ((!slideRoot.isPoster || slideRoot.narrowLayout) && artRaw.status === Image.Ready) ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
         // comic poster: native rounded gradient vignette (NO blur → clean corners)…
@@ -63,7 +64,7 @@ Item {
         }
         // …with the crisp poster stood on the right
         Image {
-            visible: slideRoot.isPoster
+            visible: slideRoot.isPoster && !slideRoot.narrowLayout
             source: slideRoot.isPoster && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true
             anchors.right: parent.right; anchors.rightMargin: 56
@@ -88,6 +89,7 @@ Item {
         }
         // ghost medium marker
         Text {
+            visible: !slideRoot.narrowLayout
             text: slideRoot.slide.ghost !== undefined ? slideRoot.slide.ghost : ""
             color: Qt.rgba(1, 1, 1, 0.06)
             font.family: theme.display; font.bold: true; font.pixelSize: 150
@@ -98,15 +100,15 @@ Item {
         Column {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            anchors.leftMargin: 42
-            anchors.bottomMargin: 42
-            width: Math.min(560, parent.width - 84)
+            anchors.leftMargin: slideRoot.narrowLayout ? 20 : 42
+            anchors.bottomMargin: slideRoot.narrowLayout ? 22 : 42
+            width: Math.min(560, parent.width - (slideRoot.narrowLayout ? 40 : 84))
             spacing: slideRoot.compactCopy ? 8 : 10
             Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
                 font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
             Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
-                color: theme.ink; font.family: theme.display; font.pixelSize: slideRoot.compactCopy ? 42 : 50
+                color: theme.ink; font.family: theme.display; font.pixelSize: slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50)
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
             Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
@@ -117,7 +119,7 @@ Item {
             Row {
                 spacing: 10; topPadding: 6
                 Rectangle {
-                    radius: 11; height: 42; width: pl.implicitWidth + 36; color: theme.gold
+                    radius: 11; height: 42; width: pl.implicitWidth + (slideRoot.narrowLayout ? 26 : 36); color: theme.gold
                     Text { id: pl; anchors.centerIn: parent; text: slideRoot.primaryLabel; color: "#1a1408"
                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -125,7 +127,7 @@ Item {
                 }
                 Rectangle {
                     visible: slideRoot.secondaryLabel.length > 0
-                    radius: 11; height: 42; width: sl.implicitWidth + 36
+                    radius: 11; height: 42; width: sl.implicitWidth + (slideRoot.narrowLayout ? 26 : 36)
                     color: Qt.rgba(1, 1, 1, 0.10); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
                     Text { id: sl; anchors.centerIn: parent; text: slideRoot.secondaryLabel; color: theme.ink
                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium }

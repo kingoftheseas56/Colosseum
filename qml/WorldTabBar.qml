@@ -22,6 +22,8 @@ Item {
 
     property int keyboardIndex: 0
     focusPolicy: Qt.TabFocus
+    readonly property bool compactLayout: width < 600
+    readonly property int pillSpacing: compactLayout ? 3 : 6
 
     function syncKeyboardIndex() {
         for (var i = 0; i < tabs.tabModel.length; ++i) {
@@ -63,15 +65,15 @@ Item {
     }
 
     width: parent ? parent.width : 900
-    height: 58
+    height: tabs.compactLayout ? 54 : 58
 
     Theme { id: theme }
 
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width, 160 * Math.max(1, tabs.tabModel.length))
-        height: 54
+        width: Math.min(parent.width, (tabs.compactLayout ? 120 : 160) * Math.max(1, tabs.tabModel.length))
+        height: tabs.compactLayout ? 50 : 54
         backdrop: tabs.backdrop
         radius: 18
         tint: 0.08
@@ -79,8 +81,8 @@ Item {
 
         Row {
             anchors.fill: parent
-            anchors.margins: 6
-            spacing: 6
+            anchors.margins: tabs.compactLayout ? 4 : 6
+            spacing: tabs.pillSpacing
 
             Repeater {
                 model: tabs.tabModel
@@ -97,7 +99,7 @@ Item {
                     objectName: tabs.tabPrefix + "_" + pill.modelData.key
                     readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
-                    width: (parent.width - 6 * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
+                    width: (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
                     height: parent.height
                     radius: 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
@@ -109,7 +111,7 @@ Item {
                         text: pill.modelData.label
                         color: pill.modelData.key === tabs.currentTab ? "#17120a" : theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: tabs.compactLayout ? 12 : 14
                         font.weight: Font.DemiBold
                     }
 

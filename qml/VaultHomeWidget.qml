@@ -12,10 +12,11 @@ Glass {
     objectName: "vaultHomeWidget"
 
     property string heading: "Vault"
+    readonly property bool compactLayout: width < 600
     signal clicked()
 
     radius: 18
-    height: 520
+    height: vault.compactLayout ? 440 : 520
     tint: 0.035
     scrim: 0.24
 
@@ -32,7 +33,7 @@ Glass {
         text: vault.heading
         color: theme.ink
         font.family: theme.display
-        font.pixelSize: 33
+        font.pixelSize: vault.compactLayout ? 30 : 33
     }
 
     Rectangle {
@@ -58,8 +59,8 @@ Glass {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 2
-            width: Math.min(parent.width - 96, 620)
-            height: 54
+            width: Math.min(parent.width - (vault.compactLayout ? 32 : 96), 620)
+            height: vault.compactLayout ? 42 : 54
             radius: 27
             color: Qt.rgba(0, 0, 0, 0.42)
         }
@@ -67,8 +68,8 @@ Glass {
         Rectangle {
             id: cabinet
             anchors.centerIn: parent
-            width: Math.min(parent.width - 56, 760)
-            height: Math.min(parent.height - 8, 366)
+            width: Math.min(parent.width - (vault.compactLayout ? 20 : 56), 760)
+            height: Math.min(parent.height - 8, vault.compactLayout ? 300 : 366)
             radius: 12
             clip: true
             gradient: Gradient {
@@ -92,7 +93,7 @@ Glass {
             Rectangle {
                 id: plate
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: vault.compactLayout ? 12 : 20
                 radius: 7
                 clip: true
                 gradient: Gradient {
@@ -194,7 +195,9 @@ Glass {
                 Item {
                     id: door
                     anchors.centerIn: parent
-                    property real doorSize: Math.min(306, Math.max(188, Math.min(plate.height - 48, plate.width - 112)))
+                    property real doorSize: vault.compactLayout
+                        ? Math.min(238, Math.max(132, Math.min(plate.height - 34, plate.width - 64)))
+                        : Math.min(306, Math.max(188, Math.min(plate.height - 48, plate.width - 112)))
                     width: doorSize
                     height: doorSize
                     z: 3
@@ -367,6 +370,7 @@ Glass {
         anchors.leftMargin: 46
         anchors.top: parent.top
         anchors.topMargin: 36
+        visible: !vault.compactLayout
         text: "On this machine"
         color: theme.inkDim
         font.family: theme.display

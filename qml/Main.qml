@@ -42,6 +42,10 @@ Window {
     property var pendingIdentityRoute: null
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+    // Shared Android presentation seam. Writable so desktop viewport harnesses can force the
+    // phone/tablet geometry without pretending the whole desktop canvas was scaled down.
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: adaptive; viewportWidth: win.width }
     function setGuiStallContext(operation, surface) {
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext(operation, surface)
@@ -2426,8 +2430,9 @@ Window {
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         backdrop: wall
         activeMedium: ""
-        x: theme.margin; y: 30
-        width: win.width - theme.margin * 2
+        androidHost: win.androidHost
+        x: adaptive.pageMargin; y: adaptive.topInset
+        width: win.width - adaptive.pageMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onFullscreenClicked: win.toggleFullscreenShell()
@@ -2444,9 +2449,10 @@ Window {
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
     // as the drag surface (no titlebar added) and self-disables in fullscreen. See WindowBehavior.qml.
     WindowBehavior {
+        visible: !win.androidHost
         shell: win
         dragSurface: topbar
-        controller: WindowMode
+        controller: win.androidHost ? null : WindowMode
     }
 
     // Kept as a Component so Progress.recent() and the ContinueTile delegates are not evaluated
@@ -2510,8 +2516,8 @@ Window {
         z: 0
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         anchors.left: parent.left; anchors.right: parent.right
-        y: 96
-        height: win.height - 96
+        y: adaptive.contentTop
+        height: win.height - y
         contentWidth: width
         contentHeight: contentCol.implicitHeight + 40
         clip: true
@@ -2524,10 +2530,10 @@ Window {
 
         Column {
             id: contentCol
-            x: theme.margin
-            width: win.width - theme.margin * 2
+            x: adaptive.pageMargin
+            width: win.width - adaptive.pageMargin * 2
             topPadding: 10
-            spacing: 30
+            spacing: adaptive.homeSectionSpacing
 
             // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
             //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
@@ -2539,7 +2545,7 @@ Window {
                 id: hero
                 backdrop: wall
                 track: page.contentY
-                width: parent.width; height: 340; radius: 20
+                width: parent.width; height: adaptive.heroHeight; radius: adaptive.phone ? 16 : 20
                 tint: 0.06
 
                 SwipeView {
@@ -2580,10 +2586,17 @@ Window {
 
                             // content over the scrim (chips row retired — ratified 2026-07-12)
                             Column {
-                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
-                                spacing: 12
+                                anchors.left: parent.left; anchors.bottom: parent.bottom
+                                anchors.margins: adaptive.phone ? 20 : 44
+                                width: Math.min(adaptive.phone ? parent.width - 40 : 620, parent.width - anchors.leftMargin * 2)
+                                spacing: adaptive.phone ? 8 : 12
                                 Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                Text {
+                                    width: parent.width
+                                    text: slide.modelData.name; color: theme.ink; font.family: theme.display
+                                    font.pixelSize: adaptive.phone ? 34 : 48
+                                    maximumLineCount: 2; elide: Text.ElideRight; wrapMode: Text.WordWrap
+                                }
                                 // (the blurb line went with the baked list — the roster carries
                                 // identity and art, no prose, and a faked one would be a lie)
                                 Row {
@@ -2633,6 +2646,7 @@ Window {
                 // the door to the Hall of Worlds — quiet, top-right, gold on hover
                 Item {
                     z: 5
+                    visible: !adaptive.phone
                     anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
                     width: hallRow.implicitWidth + 8; height: 28
                     Row {
@@ -2683,7 +2697,7 @@ Window {
             Loader {
                 id: homeBookshelfLoader
                 width: parent.width
-                height: 400
+                height: adaptive.phone ? 690 : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -2702,7 +2716,7 @@ Window {
             Loader {
                 id: homeTheatreStripLoader
                 width: parent.width
-                height: 400
+                height: adaptive.phone ? 340 : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -2716,7 +2730,7 @@ Window {
             Loader {
                 id: homeReadingDeskLoader
                 width: parent.width
-                height: 400
+                height: adaptive.phone ? 560 : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -2733,7 +2747,7 @@ Window {
             Loader {
                 id: homeVaultWidgetLoader
                 width: parent.width
-                height: 520
+                height: adaptive.phone ? 440 : 520
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -3753,7 +3767,7 @@ Window {
     Taskbar {
         id: taskbar
         z: 900
-        visible: !win.immersiveSurfaceOpen
+        visible: !win.immersiveSurfaceOpen && !win.androidHost
         enabled: visible
         onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => Sessions.switchTo(id)

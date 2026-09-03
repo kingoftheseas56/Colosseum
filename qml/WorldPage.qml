@@ -26,6 +26,11 @@ Item {
     // Main binds this to the current world. Bare page harnesses keep the default true, while
     // retained hidden worlds can stop timers, paging and refresh work without being destroyed.
     property bool lifecycleActive: true
+    // Host/layout seam shared by Tankoban, Biblio and Theatre. Writable for desktop viewport tests.
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: adaptive; viewportWidth: world.width }
+    readonly property real pageMargin: adaptive.pageMargin
+    readonly property string layoutClass: adaptive.layoutClass
     // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
     // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
     // Task 9) read this to drive the sexually-explicit-only gate. Default false so a bare
@@ -61,8 +66,9 @@ Item {
         backdrop: world.backdrop
         activeMedium: world.medium
         lifecycleActive: world.lifecycleActive
-        x: theme.margin; y: 30
-        width: world.width - theme.margin * 2
+        androidHost: world.androidHost
+        x: adaptive.pageMargin; y: adaptive.topInset
+        width: world.width - adaptive.pageMargin * 2
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
@@ -89,8 +95,8 @@ Item {
         // addressable without introducing a second scroller or a presentation shell.
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
-        y: 96
-        height: world.height - 96
+        y: adaptive.contentTop
+        height: world.height - y
         contentWidth: width
         contentHeight: board.implicitHeight + 50
         clip: true
@@ -101,10 +107,10 @@ Item {
 
         Column {
             id: board
-            x: theme.margin
-            width: world.width - theme.margin * 2
+            x: adaptive.pageMargin
+            width: world.width - adaptive.pageMargin * 2
             topPadding: 12; bottomPadding: 24
-            spacing: 36
+            spacing: adaptive.sectionSpacing
         }
     }
 

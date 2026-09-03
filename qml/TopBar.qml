@@ -15,6 +15,13 @@ Item {
     // Retained world pages stay instantiated for state preservation, but hidden bars must not
     // keep their live clock timer waking the GUI every second.
     property bool lifecycleActive: true
+    // Android keeps the shared shell, but desktop window chrome has no meaning there.
+    // This is writable so the viewport harness can exercise Android geometry on desktop CI.
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: adaptive; viewportWidth: bar.width }
+    readonly property bool compactLayout: adaptive.compactChrome
+    readonly property string layoutClass: adaptive.layoutClass
+    readonly property bool desktopWindowControlsVisible: !bar.androidHost
     property string clock: "8:29"
     property string ampm: "PM"
     property string date: "Wednesday, June 24"
@@ -51,7 +58,7 @@ Item {
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
-    implicitHeight: 56
+    implicitHeight: adaptive.topBarHeight
 
     Theme { id: theme }
 
@@ -110,8 +117,8 @@ Item {
         property bool comingSoon: false
         readonly property bool active: bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + 34
-        implicitHeight: 34
+        implicitWidth: pillContent.implicitWidth + (bar.compactLayout ? 18 : 34)
+        implicitHeight: bar.compactLayout ? 32 : 34
 
         Rectangle {
             anchors.fill: parent; radius: 999
@@ -127,12 +134,12 @@ Item {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: bar.compactLayout ? 12 : 14
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
             Rectangle {   // "SOON" marker — placeholder mode, no world yet
-                visible: pill.comingSoon
+                visible: pill.comingSoon && !bar.compactLayout
                 anchors.verticalCenter: parent.verticalCenter
                 radius: 4; height: 15; width: soonText.implicitWidth + 10
                 color: Qt.rgba(1,1,1,0.10)
@@ -154,8 +161,10 @@ Item {
 
     // ---- left: "‹ Home" (world only) + clock/date ----
     Row {
-        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-        spacing: 18
+        id: leftCluster
+        x: 0
+        y: bar.compactLayout ? 7 : Math.round((bar.height - height) / 2)
+        spacing: bar.compactLayout ? 10 : 18
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
@@ -171,24 +180,26 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4 }
+                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: bar.compactLayout ? 19 : 32 }
+                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.compactLayout ? 10 : 16
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: bar.compactLayout ? 2 : 4 }
             }
-            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { visible: !bar.compactLayout; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
         }
     }
 
     // ---- center: library pills in a glass capsule ----
     Glass {
         backdrop: bar.backdrop
-        anchors.centerIn: parent
+        x: Math.round((bar.width - width) / 2)
+        y: bar.compactLayout ? bar.height - height : Math.round((bar.height - height) / 2)
         radius: 999
-        width: pillsRow.implicitWidth + 14; height: 46
+        width: Math.min(bar.width, pillsRow.implicitWidth + (bar.compactLayout ? 8 : 14))
+        height: bar.compactLayout ? 42 : 46
         Row {
             id: pillsRow
             anchors.centerIn: parent
-            spacing: 4
+            spacing: bar.compactLayout ? 2 : 4
             // The four modes (Hemanth-locked 2026-06-24). Tankoban = comics+manga · Biblio = books ·
             // Theatre = movies/video · Vinyl = music (placeholder, no world yet).
             Pill { label: "Tankoban" }
@@ -205,8 +216,10 @@ Item {
     // are gated on activeMedium, the same home/world discriminator BackAction
     // uses above, so only one is ever present in the slot.
     Row {
-        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: 20
+        id: rightCluster
+        x: bar.width - width
+        y: bar.compactLayout ? 7 : Math.round((bar.height - height) / 2)
+        spacing: bar.compactLayout ? 12 : 20
         // Search — worlds only.
         SysIcon {
             objectName: "topBarSearch"
@@ -336,16 +349,17 @@ Item {
             accessibleName: "Wallpaper"
             onClicked: bar.wallpaperClicked()
         }
-        SysIcon { source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
+        SysIcon { visible: bar.desktopWindowControlsVisible; source: "../assets/icons/minimize.svg"; accessibleName: "Minimize"; onClicked: bar.minimizeClicked() }
         // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
         // rule): glyph shows the ACTION — expand while windowed, contract while
         // fullscreen. Drives the same shell flip as the F11 developer door.
         SysIcon {
+            visible: bar.desktopWindowControlsVisible
             source: bar.shellWindowed ? "../assets/icons/fullscreen.svg"
                                       : "../assets/icons/fullscreen-exit.svg"
             accessibleName: bar.shellWindowed ? "Enter fullscreen" : "Exit fullscreen"
             onClicked: bar.fullscreenClicked()
         }
-        SysIcon { source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
+        SysIcon { visible: bar.desktopWindowControlsVisible; source: "../assets/icons/power.svg"; accessibleName: "Quit Colosseum"; onClicked: bar.powerClicked() }
     }
 }

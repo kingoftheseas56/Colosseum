@@ -21,12 +21,13 @@ Glass {
     property int coverW: Metrics.gallery.posterWidth
     property int coverH: Math.round(Metrics.gallery.posterWidth * Metrics.gallery.posterRatio)
     readonly property real _coverRadius: Metrics.gallery.posterRadius
+    readonly property bool compactLayout: width < 600
 
     signal clicked()                                  // title → open the world
     signal bookClicked(string medium, int index)      // a single cover → open that title
 
     radius: 18
-    height: 400
+    height: shelf.compactLayout ? 690 : 400
 
     Theme { id: theme }
 
@@ -37,11 +38,18 @@ Glass {
         readonly property int count: Math.min(5, books.length)
         signal activated(int index)
 
-        width: 560; height: shelf.coverH + 72
+        width: shelf.compactLayout ? Math.max(260, shelf.width - 24) : 560
+        height: shelf.coverH + (shelf.compactLayout ? 48 : 72)
 
-        // the fan opens a little wider on hover (a spread hand)
+        // the fan opens a little wider on hover (a spread hand). On a phone it stays
+        // inside its own viewport instead of retaining the 560 px desktop canvas.
         HoverHandler { id: fh }
-        property real spread: fh.hovered ? 98 : 72
+        property real spread: {
+            if (!shelf.compactLayout) return fh.hovered ? 98 : 72
+            if (f.count <= 1) return 0
+            var room = Math.max(24, (f.width - shelf.coverW) / (f.count - 1))
+            return Math.min(fh.hovered ? 42 : 36, room)
+        }
         Behavior on spread { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
         Repeater {
@@ -143,12 +151,14 @@ Glass {
     Text {
         anchors.left: parent.left; anchors.leftMargin: 46
         anchors.top: parent.top; anchors.topMargin: 36
+        visible: !shelf.compactLayout
         text: "Manga"; color: theme.inkDim
         font.family: theme.display; font.italic: true; font.pixelSize: 22
     }
     Text {
         anchors.right: parent.right; anchors.rightMargin: 46
         anchors.top: parent.top; anchors.topMargin: 36
+        visible: !shelf.compactLayout
         text: "Comics"; color: theme.inkDim
         font.family: theme.display; font.italic: true; font.pixelSize: 22
     }
@@ -156,18 +166,14 @@ Glass {
     // ---- the two fans, back to back under the title ----
     Fan {
         books: shelf.mangaBooks
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.horizontalCenterOffset: -shelf.width * 0.21
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: 30
+        x: Math.round((shelf.width - width) / 2 + (shelf.compactLayout ? 0 : -shelf.width * 0.21))
+        y: shelf.compactLayout ? 82 : Math.round((shelf.height - height) / 2 + 30)
         onActivated: (i) => shelf.bookClicked("manga", i)
     }
     Fan {
         books: shelf.comicsBooks
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.horizontalCenterOffset: shelf.width * 0.21
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: 30
+        x: Math.round((shelf.width - width) / 2 + (shelf.compactLayout ? 0 : shelf.width * 0.21))
+        y: shelf.compactLayout ? 386 : Math.round((shelf.height - height) / 2 + 30)
         onActivated: (i) => shelf.bookClicked("comics", i)
     }
 }
