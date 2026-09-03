@@ -1,6 +1,7 @@
 #include "AccountRuntime.h"
 
 #include "AccountServiceEndpoint.h"
+#include "AccountCredentialStoreFactory.h"
 #include "ProfilePreferencesStore.h"
 #include "DownloadIntentSyncAdapter.h"
 #include "../engine/LocalDownloads.h"
@@ -64,9 +65,18 @@ private:
 } // namespace
 
 AccountRuntime::AccountRuntime(QObject *parent)
+    : AccountRuntime(createAccountCredentialStore(), parent) {
+}
+
+AccountRuntime::AccountRuntime(
+    std::unique_ptr<AccountCredentialStore> credentialStore,
+    QObject *parent)
     : QObject(parent),
       m_transport(AccountServiceEndpoint::configuredUrl()),
       m_client(&m_transport),
+      m_credentialStore(credentialStore
+          ? std::move(credentialStore)
+          : createAccountCredentialStore(Colosseum::Platform::Kind::Other)),
       m_recoveryKeyPresenter(&m_sensitiveClipboard),
       m_profileCoordinator(&m_profileStores),
       m_syncRegistry(),
@@ -75,7 +85,7 @@ AccountRuntime::AccountRuntime(QObject *parent)
           &m_syncRegistry),
       m_controller(
           &m_client,
-          &m_credentialStore,
+          m_credentialStore.get(),
           &m_deviceIdentity,
           &m_bootstrapStore,
           &m_recoveryKeyPresenter) {
