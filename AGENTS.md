@@ -37,7 +37,7 @@ Colosseum uses Qt 6 Quick/QML with substantial native C++ state and services. QM
 
 ## Git discipline
 
-The normal branch is `master`. Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task. Do not commit or push unless the current task explicitly authorizes it.
+The normal branch is `master`. Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task. Commit and push once the work is done — no separate confirmation step. Commit with an explicit pathspec so unrelated staged work is never swept in.
 
 ## Verification
 
