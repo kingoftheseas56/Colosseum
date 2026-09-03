@@ -78,6 +78,10 @@ add_library(colosseum_server_native STATIC
     integration/TorrentPieceSource.h
     integration/TorrentHttpRouteAdapter.cpp
     integration/TorrentHttpRouteAdapter.h
+    integration/AsyncMediaExecutor.cpp
+    integration/AsyncMediaExecutor.h
+    integration/FeatureRouteComposition.cpp
+    integration/FeatureRouteComposition.h
     integration/SchedulerTransportBridge.cpp
     integration/SchedulerTransportBridge.h
     scheduler/FileStream.cpp

@@ -38,3 +38,9 @@ add_executable(torrent_http_wire_integration_test
 target_link_libraries(torrent_http_wire_integration_test PRIVATE colosseum_server_native)
 add_test(NAME torrent_http_wire_integration_test
          COMMAND torrent_http_wire_integration_test)
+
+add_executable(feature_route_composition_test
+    feature_route_composition_test.cpp)
+target_link_libraries(feature_route_composition_test PRIVATE colosseum_server_native)
+add_test(NAME feature_route_composition_test
+         COMMAND feature_route_composition_test)
