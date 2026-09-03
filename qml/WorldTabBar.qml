@@ -2,6 +2,7 @@
 // tabModel). Used by the Tankoban world (Manga|Comics); Theatre keeps TheatreTabBar for now
 // and can migrate to this later. Same glass look/feel: gold active pill, ghost inactive, hover tint.
 import QtQuick
+import QtQuick.Window
 
 pragma ComponentBehavior: Bound
 
@@ -21,6 +22,10 @@ Item {
     signal tabRequested(string tab)
 
     property int keyboardIndex: 0
+    readonly property bool televisionMode: {
+        const w = tabs.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
     focusPolicy: Qt.TabFocus
 
     function syncKeyboardIndex() {
@@ -49,7 +54,7 @@ Item {
         else if (event.key === Qt.Key_Right) next++
         else if (event.key === Qt.Key_Home) next = 0
         else if (event.key === Qt.Key_End) next = tabs.tabModel.length - 1
-        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
             tabs.requestIndex(tabs.keyboardIndex, Qt.ShortcutFocusReason)
             event.accepted = true
             return
@@ -63,15 +68,15 @@ Item {
     }
 
     width: parent ? parent.width : 900
-    height: 58
+    height: tabs.televisionMode ? 68 : 58
 
     Theme { id: theme }
 
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width, 160 * Math.max(1, tabs.tabModel.length))
-        height: 54
+        width: Math.min(parent.width, (tabs.televisionMode ? 176 : 160) * Math.max(1, tabs.tabModel.length))
+        height: tabs.televisionMode ? 64 : 54
         backdrop: tabs.backdrop
         radius: 18
         tint: 0.08
@@ -101,7 +106,8 @@ Item {
                     height: parent.height
                     radius: 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-                    border.width: pill.modelData.key === tabs.currentTab ? 0 : (pill.keyboardFocused ? 2 : 1)
+                    border.width: pill.modelData.key === tabs.currentTab ? 0
+                                  : (pill.keyboardFocused ? (tabs.televisionMode ? 4 : 2) : 1)
                     border.color: pill.keyboardFocused ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
 
                     Text {
@@ -109,7 +115,7 @@ Item {
                         text: pill.modelData.label
                         color: pill.modelData.key === tabs.currentTab ? "#17120a" : theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: tabs.televisionMode ? 16 : 14
                         font.weight: Font.DemiBold
                     }
 

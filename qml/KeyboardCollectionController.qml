@@ -124,7 +124,7 @@ Item {
     }
 
     function activateKey(event) {
-        return event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+        return event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Select
             || (nav.spaceActivates && event.key === Qt.Key_Space)
     }
     function handle(event) {

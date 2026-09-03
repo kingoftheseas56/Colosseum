@@ -29,6 +29,10 @@ Item {
     property var entry: ({})              // Progress record: id/kind/title|caption/sub/cover/c1/c2/progress/watched
     property Item backdrop: null          // home only (Glass requires a backdrop)
     property real track: 0                // home only — scroll offset for the live blur
+    // Composite media rails keep focus on the owning view and paint the selected tile here.
+    // Defaults preserve standalone pointer/keyboard behavior outside those rails.
+    property bool focusManagedByCollection: false
+    property bool keyboardFocused: false
 
     signal resumeRequested()
     signal detailRequested()
@@ -229,14 +233,17 @@ Item {
         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
     }
 
-    // ── shared: whole-tile hover (film + gold edge) ──
+    // ── shared: whole-tile hover / remote focus (film + gold edge) ──
     Rectangle {
         anchors.fill: parent
+        anchors.margins: tile.keyboardFocused ? -4 : 0
         radius: tile.isHome ? 14 : 12
         color: rootMa.containsMouse ? Qt.rgba(1, 1, 1, tile.isHome ? 0.05 : 0.10) : "transparent"
-        border.width: tile.isHome ? 1 : 2
-        border.color: rootMa.containsMouse ? (tile.isHome ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.gold)
-                                           : "transparent"
+        border.width: tile.keyboardFocused ? 4 : (tile.isHome ? 1 : 2)
+        border.color: tile.keyboardFocused ? theme.gold
+                     : (rootMa.containsMouse ? (tile.isHome ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.gold)
+                                             : "transparent")
+        z: tile.keyboardFocused ? 10000 : 0
         Behavior on color { ColorAnimation { duration: 120 } }
     }
     MouseArea {   // anywhere on the tile → detail (resume/remove sit on top)

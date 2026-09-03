@@ -4,10 +4,15 @@
 // and read over ANY cover thanks to a dark backing strip — gold-on-gold art was invisible before.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 
 Item {
     id: car
-    property var slides: []                        // [{ title, blurb, ghost, c1, c2, art?, artKind? }]
+    property var slides: []
+    readonly property bool televisionMode: {
+        const w = car.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }                        // [{ title, blurb, ghost, c1, c2, art?, artKind? }]
     property string kicker: "Featured"
     property string primaryLabel: "Read"
     property string secondaryLabel: "Details"
@@ -15,9 +20,39 @@ Item {
     signal secondaryClicked(int index)
 
     property alias index: view.currentIndex
-    implicitHeight: 330
+    implicitHeight: car.televisionMode ? 380 : 330
     width: parent ? parent.width : 800
+    activeFocusOnTab: car.televisionMode && car.slides.length > 0
+    Accessible.role: Accessible.List
+    Accessible.name: car.kicker
     Theme { id: theme }
+
+    Keys.onPressed: (event) => {
+        if (!car.televisionMode || car.slides.length === 0)
+            return
+        if (event.key === Qt.Key_Left) {
+            view.currentIndex = Math.max(0, view.currentIndex - 1)
+            event.accepted = true
+        } else if (event.key === Qt.Key_Right) {
+            view.currentIndex = Math.min(car.slides.length - 1, view.currentIndex + 1)
+            event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                   || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
+            car.primaryClicked(view.currentIndex)
+            event.accepted = true
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -5
+        radius: 24
+        visible: car.televisionMode && car.activeFocus
+        color: "transparent"
+        border.width: 4
+        border.color: theme.gold
+        z: 10000
+    }
 
     SwipeView {
         id: view

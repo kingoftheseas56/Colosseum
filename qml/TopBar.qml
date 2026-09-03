@@ -6,6 +6,7 @@
 // Emits intent signals; the host (home / world) decides what navigation happens.
 
 import QtQuick
+import QtQuick.Window
 
 Item {
     id: bar
@@ -25,6 +26,58 @@ Item {
             || accountController.mode === "offline")
     readonly property bool localDevice: accountController
         && accountController.mode === "localOnly"
+    readonly property bool televisionMode: {
+        const w = bar.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
+
+    function isInside(item) {
+        var p = item
+        while (p) {
+            if (p === bar) return true
+            p = p.parent
+        }
+        return false
+    }
+    function focusFromActive(forward, stayInside) {
+        const w = bar.Window.window
+        const from = w ? w.activeFocusItem : null
+        if (!from || !bar.isInside(from)) return false
+        var target = from.nextItemInFocusChain(forward)
+        var guard = 0
+        while (target && target !== from && guard++ < 48) {
+            if (target.visible && target.enabled && target.activeFocusOnTab) {
+                if (stayInside && !bar.isInside(target)) return false
+                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                return true
+            }
+            target = target.nextItemInFocusChain(forward)
+        }
+        return false
+    }
+    function moveHorizontalFocus(forward) { return bar.focusFromActive(forward, true) }
+    function moveVerticalFocus(forward) { return bar.focusFromActive(forward, false) }
+    function focusFirst() {
+        var target = bar.nextItemInFocusChain(true)
+        var guard = 0
+        while (target && target !== bar && guard++ < 32) {
+            if (bar.isInside(target) && target.visible && target.enabled && target.activeFocusOnTab) {
+                target.forceActiveFocus(Qt.TabFocusReason)
+                return true
+            }
+            target = target.nextItemInFocusChain(true)
+        }
+        return false
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => {
+        if (!bar.televisionMode) return
+        if (event.key === Qt.Key_Left) event.accepted = bar.moveHorizontalFocus(false)
+        else if (event.key === Qt.Key_Right) event.accepted = bar.moveHorizontalFocus(true)
+        else if (event.key === Qt.Key_Up) event.accepted = bar.moveVerticalFocus(false)
+        else if (event.key === Qt.Key_Down) event.accepted = bar.moveVerticalFocus(true)
+    }
 
     signal mediumSelected(string medium)
     signal homeRequested()
@@ -51,7 +104,7 @@ Item {
     readonly property bool shellWindowed:
         typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
-    implicitHeight: 56
+    implicitHeight: bar.televisionMode ? 68 : 56
 
     Theme { id: theme }
 
@@ -79,11 +132,11 @@ Item {
         property url source
         property string accessibleName: ""
         signal clicked()
-        width: 22; height: 22
+        width: bar.televisionMode ? 30 : 22; height: width
         Image {
             anchors.fill: parent
             source: sysRoot.source
-            sourceSize.width: 22; sourceSize.height: 22
+            sourceSize.width: bar.televisionMode ? 30 : 22; sourceSize.height: sourceSize.width
             fillMode: Image.PreserveAspectFit
             opacity: input.interactionActive ? 1.0 : 0.72
         }
@@ -91,7 +144,7 @@ Item {
             id: input
             anchors.fill: parent
             accessibleName: sysRoot.accessibleName
-            focusRadius: 6
+            focusRadius: bar.televisionMode ? 9 : 6
             onTriggered: sysRoot.clicked()
         }
     }
@@ -110,8 +163,8 @@ Item {
         property bool comingSoon: false
         readonly property bool active: bar.activeMedium === pill.label
         readonly property bool hot: pillInput.interactionActive && !pill.comingSoon
-        implicitWidth: pillContent.implicitWidth + 34
-        implicitHeight: 34
+        implicitWidth: pillContent.implicitWidth + (bar.televisionMode ? 44 : 34)
+        implicitHeight: bar.televisionMode ? 42 : 34
 
         Rectangle {
             anchors.fill: parent; radius: 999
@@ -127,7 +180,7 @@ Item {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: bar.televisionMode ? 16 : 14
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -171,11 +224,11 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: bar.televisionMode ? 36 : 32 }
+                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 18 : 16
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 4 }
             }
-            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 15 : 13 }
         }
     }
 
@@ -184,7 +237,7 @@ Item {
         backdrop: bar.backdrop
         anchors.centerIn: parent
         radius: 999
-        width: pillsRow.implicitWidth + 14; height: 46
+        width: pillsRow.implicitWidth + (bar.televisionMode ? 18 : 14); height: bar.televisionMode ? 56 : 46
         Row {
             id: pillsRow
             anchors.centerIn: parent
@@ -206,7 +259,7 @@ Item {
     // uses above, so only one is ever present in the slot.
     Row {
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: 20
+        spacing: bar.televisionMode ? 24 : 20
         // Search — worlds only.
         SysIcon {
             objectName: "topBarSearch"
