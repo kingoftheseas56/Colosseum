@@ -4,8 +4,8 @@
 //!
 //! Everything here is offline and deterministic. The seeded fakes serve
 //! in-repo fixture JSON embedded at compile time (`fixtures/*.json`); the live
-//! HTTP-backed Torrentio client slots in later behind an `ADDONS_LIVE` flag
-//! (see the crate-level docs) and is deliberately not built here.
+//! HTTP-backed Torrentio/Cinemeta clients live in [`crate::providers`] and are
+//! installed by [`Registry::live`] behind the daemon's `ADDONS_LIVE` flag.
 
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
@@ -103,13 +103,17 @@ impl Registry {
     }
 
     /// The live registry: the seeded fakes plus the live Cinemeta catalog
-    /// add-on at install priority 2. Cinemeta advertises no `stream`
-    /// resource yet, so [`Registry::sources`] is unchanged; its `catalog`
-    /// resource is consumed through
-    /// [`crate::providers::cinemeta::Cinemeta::search`] on the daemon's
-    /// `ADDONS_LIVE=1` path.
+    /// add-on (priority 2) and the live Torrentio stream add-on (priority 3).
+    /// Both live clients advertise only identity on the sync [`Addon`] surface
+    /// (Cinemeta has no `stream` resource; Torrentio's `streams()` is empty),
+    /// so the offline [`Registry::sources`] aggregation is unchanged. Their
+    /// live resources are consumed through the async
+    /// [`crate::providers::CatalogSearch`] / [`crate::providers::StreamSearch`]
+    /// traits on the daemon's `ADDONS_LIVE=1` path.
     pub fn live() -> Self {
-        Self::seeded().install(crate::providers::cinemeta::Cinemeta::new())
+        Self::seeded()
+            .install(crate::providers::cinemeta::Cinemeta::new())
+            .install(crate::providers::torrentio::Torrentio::new())
     }
 
     /// Install one add-on at the next priority (install order).
@@ -142,58 +146,100 @@ impl Registry {
     /// install order, dedup by row key (first = higher priority), then sort per
     /// [`rank::compare`]. The result is the `/sources` wire body.
     pub fn sources(&self, media_type: &str, id: &str) -> Sources {
-        let mut seen: HashSet<String> = HashSet::new();
-        let mut rows: Vec<RankedStream> = Vec::new();
-        let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-
+        let mut per_addon: Vec<(String, String, usize, Vec<Stream>)> = Vec::new();
         for entry in &self.entries {
             if !entry.addon.manifest().accepts("stream", media_type, id) {
                 continue;
             }
-            let streams = entry.addon.streams(media_type, id);
-            let mut added = 0usize;
-            for stream in &streams {
-                let Some(row) = rank::parse(stream, &entry.id, &entry.name, entry.priority) else {
-                    continue;
-                };
-                let key = rank::row_key(&row);
-                if !seen.insert(key) {
-                    continue; // first (higher-priority) answer keeps the row
-                }
-                added += 1;
-                rows.push(row);
-            }
-            if added > 0 {
-                counts.insert(entry.name.clone(), added);
-            }
+            per_addon.push((
+                entry.id.clone(),
+                entry.name.clone(),
+                entry.priority,
+                entry.addon.streams(media_type, id),
+            ));
         }
+        build_sources(per_addon, self.installed())
+    }
+}
 
-        rank::sort_rows(&mut rows);
+/// The shared parse/dedup/rank/candidate-mapping pipeline. `per_addon` is one
+/// entry per installed add-on (add-on id, name, priority, its raw stream
+/// rows); add-ons are consulted in priority order and the first answer keeps a
+/// row on a duplicate key.
+fn build_sources(
+    per_addon: impl IntoIterator<Item = (String, String, usize, Vec<Stream>)>,
+    installed_addons: Vec<InstalledAddon>,
+) -> Sources {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut rows: Vec<RankedStream> = Vec::new();
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
 
-        let candidates = rows
-            .into_iter()
-            .map(|row| Candidate {
-                id: rank::row_key(&row),
-                addon: row.addon_name,
-                kind: row.kind,
-                label: row.release,
-                quality: Some(row.quality.as_str().to_string()),
-                url: row.url,
-                info_hash: row.info_hash,
-                file_idx: match row.kind {
-                    Kind::Torrent => Some(row.file_idx),
-                    Kind::Direct => None,
-                },
-                size_bytes: row.size_bytes,
-            })
-            .collect();
-
-        Sources {
-            candidates,
-            counts_by_addon: counts,
-            installed_addons: self.installed(),
+    for (id, name, priority, streams) in per_addon {
+        let mut added = 0usize;
+        for stream in &streams {
+            let Some(row) = rank::parse(stream, &id, &name, priority) else {
+                continue;
+            };
+            let key = rank::row_key(&row);
+            if !seen.insert(key) {
+                continue; // first (higher-priority) answer keeps the row
+            }
+            added += 1;
+            rows.push(row);
+        }
+        if added > 0 {
+            counts.insert(name, added);
         }
     }
+
+    rank::sort_rows(&mut rows);
+
+    let candidates = rows
+        .into_iter()
+        .map(|row| Candidate {
+            id: rank::row_key(&row),
+            addon: row.addon_name,
+            kind: row.kind,
+            label: row.release,
+            quality: Some(row.quality.as_str().to_string()),
+            url: row.url,
+            info_hash: row.info_hash,
+            file_idx: match row.kind {
+                Kind::Torrent => Some(row.file_idx),
+                Kind::Direct => None,
+            },
+            size_bytes: row.size_bytes,
+        })
+        .collect();
+
+    Sources {
+        candidates,
+        counts_by_addon: counts,
+        installed_addons,
+    }
+}
+
+/// Build the `/sources` wire body from already-fetched stream rows for a
+/// single add-on. This is the daemon's live-Torrentio seam: the daemon fetches
+/// the real `{ "streams": [...] }` body asynchronously (see
+/// [`crate::providers::StreamSearch`]) and hands the rows here so the
+/// parse/dedup/rank/candidate mapping stays in exactly one place.
+pub fn sources_for_addon(
+    streams: Vec<Stream>,
+    addon_id: &str,
+    addon_name: &str,
+    addon_priority: usize,
+    installed_addons: Vec<InstalledAddon>,
+) -> Sources {
+    build_sources(
+        [(
+            addon_id.to_string(),
+            addon_name.to_string(),
+            addon_priority,
+            streams,
+        )],
+        installed_addons,
+    )
 }
 
 /// A fixture-backed fake add-on. `fixture` is the `{ "streams": [...] }` body,
@@ -429,18 +475,23 @@ mod tests {
     }
 
     #[test]
-    fn live_registry_installs_cinemeta_after_the_fakes() {
+    fn live_registry_installs_cinemeta_then_torrentio_after_the_fakes() {
         let registry = Registry::live();
         let installed = registry.installed();
-        assert_eq!(installed.len(), 3);
+        assert_eq!(installed.len(), 4);
         assert_eq!(installed[2].id, "com.linvo.cinemeta");
         assert_eq!(installed[2].name, "Cinemeta");
         assert_eq!(installed[2].priority, 2);
+        assert_eq!(installed[3].id, "com.stremio.torrentio.addon");
+        assert_eq!(installed[3].name, "Torrentio");
+        assert_eq!(installed[3].priority, 3);
 
-        // Cinemeta advertises no stream resource, so the stream aggregation is
-        // unchanged from the seeded registry (and counts stay Torrentio-only).
+        // Neither live client contributes rows to the sync aggregation
+        // (Cinemeta: no stream resource; Torrentio: empty sync streams()), so
+        // the seeded candidates/counts are unchanged.
         let sources = registry.sources("series", "2");
         assert_eq!(sources.candidates.len(), 9);
         assert!(!sources.counts_by_addon.contains_key("Cinemeta"));
+        assert_eq!(sources.counts_by_addon["Torrentio"], 6);
     }
 }

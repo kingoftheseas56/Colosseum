@@ -6,8 +6,21 @@
 //! untouched (see [`crate::registry::Registry::seeded`]).
 
 pub mod cinemeta;
+pub mod torrentio;
 
-pub use cinemeta::{Cinemeta, LiveError, MetaPreview};
+pub use cinemeta::{Cinemeta, MetaPreview};
+pub use torrentio::Torrentio;
+
+/// Errors from a live provider. The daemon treats any of these as "provider
+/// down" and degrades to its fallback behavior (`ADDONS_LIVE=1` never
+/// hard-fails a route on a down provider).
+#[derive(Debug, thiserror::Error)]
+pub enum LiveError {
+    #[error("addon request failed: {0}")]
+    Request(#[from] reqwest::Error),
+    #[error("addon returned malformed JSON: {0}")]
+    Malformed(#[from] serde_json::Error),
+}
 
 /// The async seam for the Stremio `catalog` resource.
 ///
@@ -20,4 +33,16 @@ pub trait CatalogSearch: Send + Sync {
         &'a self,
         query: &str,
     ) -> impl std::future::Future<Output = Result<Vec<MetaPreview>, LiveError>> + Send + 'a;
+}
+
+/// The async seam for the Stremio `stream` resource — the live counterpart to
+/// the sync [`crate::Addon::streams`]. Torrentio implements this to fetch the
+/// real `{ "streams": [...] }` body over HTTP; the rows are then handed to the
+/// same [`crate::rank`] parse/sort pipeline as the seeded fakes.
+pub trait StreamSearch: Send + Sync {
+    fn streams<'a>(
+        &'a self,
+        media_type: &str,
+        id: &str,
+    ) -> impl std::future::Future<Output = Result<Vec<crate::stream::Stream>, LiveError>> + Send + 'a;
 }

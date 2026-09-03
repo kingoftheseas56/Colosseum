@@ -1,0 +1,82 @@
+{
+  "streams": [
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Dune.2021.2160p.HMAX.WEB-DL.DDP5.1.Atmos.HDR.HEVC-EVO[TGx]\n👤 265 💾 20.32 GB ⚙️ ThePirateBay",
+      "infoHash": "799dbc6af33a8f32bf1406dc2ec68bbb6864affb",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|WEB-DL|hevc|HDR",
+        "filename": "Dune.2021.2160p.HMAX.WEB-DL.DDP5.1.Atmos.HDR.HEVC-EVO.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR",
+      "title": "Dune.2021.REPACK.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM\n👤 113 💾 73.08 GB ⚙️ ilCorSaRoNeRo\n🇬🇧 / 🇮🇹",
+      "infoHash": "78930639b1a4d37c907966d7b5a6a1c23242fec2",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay REMUX|x265|DV|HDR",
+        "filename": "Dune.2021.REPACK.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k DV | HDR10+",
+      "title": "Dune: Part One (2021) 2160p H265 BluRay Rip 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom\n👤 72 💾 3.15 GB ⚙️ TorrentGalaxy\n🇬🇧 / 🇮🇹",
+      "infoHash": "a40b1603d26868698148fc38a870efc1a6d0291a",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BRRip|h265|10bit|DV|HDR10+",
+        "filename": "Dune - Part One (2021) 2160p H265 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n4k HDR",
+      "title": "Dune.2021.2160p.UHD.BluRay.x265.10bit.HDR.TrueHD.7.1.Atmos-CEBRAY\n👤 58 💾 40.94 GB ⚙️ RARBG",
+      "infoHash": "e20fd1395a28d21236e659ab9a7692afed225bfb",
+      "fileIdx": 2,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|4k|BluRay|x265|10bit|HDR",
+        "filename": "cebray-dune.part.one.2021.2160p.bluray.x265.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Dune.2021.1080p.BluRay.REMUX.AVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT\n👤 222 💾 37.22 GB ⚙️ RARBG",
+      "infoHash": "d0edbfa5f48275bcc841e6979b7601e6f7eea6bc",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|BluRay REMUX|avc",
+        "filename": "Dune.2021.1080p.BluRay.REMUX.AVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT.mkv"
+      }
+    },
+    {
+      "name": "Torrentio\n1080p",
+      "title": "Dune.2021.MULTi.VF2.1080p.WEB.x264-FW (Dune : Première partie)\n👤 53 💾 5.39 GB ⚙️ EXT\nMulti Audio",
+      "infoHash": "9bf114d8ff03f4037483a5d55f4869ade267b388",
+      "behaviorHints": {
+        "bingeGroup": "torrentio|1080p|x264"
+      }
+    },
+    {
+      "name": "Torrentio\n720p",
+      "title": "Dune (2021) [720p] [BluRay]\n👤 100 💾 1.39 GB ⚙️ ThePirateBay",
+      "infoHash": "8eeaba9d42ec3c0e54f2d1f7e4af1c464e84e20d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|720p|BluRay|x264",
+        "filename": "Dune.2021.720p.BluRay.x264.AAC-[YTS.MX].mp4"
+      }
+    },
+    {
+      "name": "Torrentio\nBDRip",
+      "title": "Dune.2021.FRENCH.BDRip.XviD-EXTREME\n👤 54 💾 1.37 GB ⚙️ Torrent9\n🇫🇷",
+      "infoHash": "b4ccd9fc48109de596cae807a9dbd3438ccbff8d",
+      "fileIdx": 0,
+      "behaviorHints": {
+        "bingeGroup": "torrentio|BDRip|xvid",
+        "filename": "[ Torrent911.com ] Dune.2021.FRENCH.BDRip.XviD-EXTREME.avi"
+      }
+    }
+  ]
+}

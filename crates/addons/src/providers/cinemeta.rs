@@ -19,7 +19,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::manifest::Manifest;
-use crate::providers::CatalogSearch;
+use crate::providers::{CatalogSearch, LiveError};
 use crate::stream::Stream;
 use crate::Addon;
 
@@ -66,16 +66,6 @@ pub struct MetaPreview {
 pub struct CatalogResponse {
     #[serde(default)]
     pub metas: Vec<MetaPreview>,
-}
-
-/// Errors from the live provider. The daemon treats any of these as "provider
-/// down" and falls back to the local seed when `ADDONS_LIVE=1`.
-#[derive(Debug, thiserror::Error)]
-pub enum LiveError {
-    #[error("cinemeta request failed: {0}")]
-    Request(#[from] reqwest::Error),
-    #[error("cinemeta returned malformed JSON: {0}")]
-    Malformed(#[from] serde_json::Error),
 }
 
 /// The live Cinemeta client. Cheap to clone (`reqwest::Client` is an `Arc`);
@@ -172,8 +162,8 @@ impl Addon for Cinemeta {
         &self.manifest
     }
 
-    /// Cinemeta has no `stream` resource (that's Torrentio, a later slice), so
-    /// it contributes no source rows.
+    /// Cinemeta has no `stream` resource (that's Torrentio's resource), so it
+    /// contributes no source rows.
     fn streams(&self, _media_type: &str, _id: &str) -> Vec<Stream> {
         Vec::new()
     }

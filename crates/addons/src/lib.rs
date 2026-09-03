@@ -72,13 +72,14 @@
 //! [`Registry::seeded`] wires the two fixture-backed fakes (the offline
 //! default). When the daemon runs with `ADDONS_LIVE=1`, it additionally
 //! constructs a live [`providers::cinemeta::Cinemeta`] — Stremio's official
-//! catalog add-on — and consults it for `/catalog/search`, returning real
-//! IMDb `tt` ids and names through the async [`providers::CatalogSearch`]
-//! trait. The sync [`Addon`] trait is unchanged: Cinemeta implements it for
-//! install identity only (`streams()` empty — the Torrentio stream client is
-//! still a later slice, which will `GET {base}/stream/{type}/{id}.json` and
-//! hand the `{ "streams": [...] }` body to the same [`rank::parse`] /
-//! [`rank::sort_rows`] pipeline).
+//! catalog add-on — and a live [`providers::torrentio::Torrentio`] — the real
+//! torrent stream add-on. Cinemeta is consulted for `/catalog/search`,
+//! returning real IMDb `tt` ids and names through the async
+//! [`providers::CatalogSearch`] trait; Torrentio answers a `tt` id with real
+//! torrent candidates through [`providers::StreamSearch`], and the daemon
+//! hands the fetched `{ "streams": [...] }` body to [`sources_for_addon`] so
+//! it flows through the same [`rank::parse`] / [`rank::sort_rows`] pipeline as
+//! the seeded fakes.
 
 pub mod manifest;
 pub mod providers;
@@ -87,7 +88,7 @@ pub mod registry;
 pub mod stream;
 
 pub use manifest::Manifest;
-pub use providers::{CatalogSearch, Cinemeta, LiveError, MetaPreview};
+pub use providers::{CatalogSearch, Cinemeta, LiveError, MetaPreview, StreamSearch, Torrentio};
 pub use rank::{compare, sort_rows, Kind, Quality, RankedStream};
-pub use registry::{Addon, Candidate, InstalledAddon, Registry, Sources};
+pub use registry::{sources_for_addon, Addon, Candidate, InstalledAddon, Registry, Sources};
 pub use stream::{BehaviorHints, Stream, StreamResponse};

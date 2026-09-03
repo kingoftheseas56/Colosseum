@@ -59,9 +59,28 @@
 //!
 //! If Cinemeta is unreachable, times out, or errors, the route logs the error
 //! and falls back to the local seed (the offline shape) so search never
-//! hard-fails on a down provider. The flag only affects this route for now;
-//! `/catalog/series/{id}/sources` stays on the seeded fake registry until the
-//! Torrentio stream slice lands.
+//! hard-fails on a down provider.
+//!
+//! ## GET /sources/imdb/{tt_id} (live provider flag `ADDONS_LIVE`)
+//!
+//! Live torrent sources for one IMDb id — the Torrentio half of the
+//! real-torrent bridge. This route is live-only: without `ADDONS_LIVE=1` it
+//! returns 404 with the Go error envelope
+//! `{"error":{"code":"not_found","message":"Live sources are disabled; run with ADDONS_LIVE=1."}}`.
+//! The offline `/catalog/series/{id}/sources` seeded route is unchanged and
+//! never consults this path.
+//!
+//! With the flag set, `{tt_id}` maps to a media type and is fetched raw:
+//! a bare `tt1160419` is a movie (`GET /stream/movie/tt1160419.json`); a
+//! series episode `tt10466872:1:2` is a series
+//! (`GET /stream/series/tt10466872:1:2.json`) — the id goes into the URL path
+//! raw, colons preserved, matching the QML `Torrentio.js` oracle. The response
+//! is the same [`addons::Sources`] wire shape as
+//! `/catalog/series/{id}/sources` (candidates ranked quality → seeders →
+//! release → language, `counts_by_addon`, `installed_addons`), with
+//! `installed_addons` taken from the live registry. If Torrentio is
+//! unreachable, times out, or errors, the route returns 502 with the envelope
+//! `{"error":{"code":"provider_unavailable","message":"Torrentio stream lookup failed."}}`.
 
 mod paths;
 
@@ -78,7 +97,7 @@ use serde::{Deserialize, Serialize};
 use tracing_subscriber::EnvFilter;
 
 use account::{CreateAccountRequest, RefreshRequest, Service as AccountService, SignInRequest};
-use addons::{CatalogSearch, Cinemeta, Registry};
+use addons::{sources_for_addon, CatalogSearch, Cinemeta, Registry, StreamSearch, Torrentio};
 use catalog::Catalog;
 
 struct AppState {
@@ -87,6 +106,12 @@ struct AppState {
     addons: Arc<Registry>,
     /// The live Cinemeta catalog client, present only when `ADDONS_LIVE=1`.
     live: Option<Arc<Cinemeta>>,
+    /// The live Torrentio stream client, present only when `ADDONS_LIVE=1`.
+    live_torrentio: Option<Arc<Torrentio>>,
+    /// The live registry (seeded fakes + Cinemeta + Torrentio), present only
+    /// when `ADDONS_LIVE=1`. Supplies `installed_addons` for the live sources
+    /// route without constructing the registry per request.
+    live_addons: Option<Arc<Registry>>,
     ready: AtomicBool,
 }
 
@@ -167,6 +192,8 @@ async fn main() {
         accounts: Arc::new(AccountService::in_memory()),
         addons: Arc::new(Registry::seeded()),
         live: live_cinemeta().map(Arc::new),
+        live_torrentio: live_torrentio().map(Arc::new),
+        live_addons: live_addons().map(Arc::new),
         ready: AtomicBool::new(false),
     });
     state.catalog.seed_demo();
@@ -180,6 +207,7 @@ async fn main() {
         .route("/catalog/home", get(catalog_home))
         .route("/catalog/series/{id}", get(catalog_series))
         .route("/catalog/series/{id}/sources", get(catalog_sources))
+        .route("/sources/imdb/{tt_id}", get(sources_imdb))
         .route("/v1/accounts", post(create_account))
         .route("/v1/sessions", post(sign_in))
         .route("/v1/sessions/refresh", post(refresh_session))
@@ -225,6 +253,27 @@ fn live_cinemeta() -> Option<Cinemeta> {
     if live_enabled(std::env::var("ADDONS_LIVE").ok().as_deref()) {
         tracing::info!("ADDONS_LIVE=1: live Cinemeta catalog search enabled");
         Some(Cinemeta::new())
+    } else {
+        None
+    }
+}
+
+/// The live Torrentio client for the `tt`-keyed sources route, present only
+/// when `ADDONS_LIVE=1` is set.
+fn live_torrentio() -> Option<Torrentio> {
+    if live_enabled(std::env::var("ADDONS_LIVE").ok().as_deref()) {
+        Some(Torrentio::new())
+    } else {
+        None
+    }
+}
+
+/// The live registry (seeded fakes + Cinemeta + Torrentio), present only when
+/// `ADDONS_LIVE=1` is set. Its `installed()` is the `installed_addons` list
+/// for the live sources route.
+fn live_addons() -> Option<Registry> {
+    if live_enabled(std::env::var("ADDONS_LIVE").ok().as_deref()) {
+        Some(Registry::live())
     } else {
         None
     }
@@ -288,6 +337,68 @@ async fn catalog_sources(
     (StatusCode::OK, Json(sources)).into_response()
 }
 
+#[derive(Deserialize)]
+struct ImdbPath {
+    tt_id: String,
+}
+
+/// Map a `tt` id to the Torrentio media type: a bare `tt1160419` is a movie,
+/// a series episode `tt10466872:1:2` is a series (the id's colon convention,
+/// matching the QML `Torrentio.js` oracle).
+fn media_type_for_tt_id(tt_id: &str) -> &str {
+    if tt_id.contains(':') {
+        "series"
+    } else {
+        "movie"
+    }
+}
+
+/// `GET /sources/imdb/{tt_id}` — live torrent candidates for one IMDb id,
+/// answering the Cinemeta catalog bridge with real Torrentio streams. Live-only
+/// (`ADDONS_LIVE=1`); offline it 404s with the Go envelope. The response is the
+/// same [`addons::Sources`] wire shape as `/catalog/series/{id}/sources`.
+async fn sources_imdb(State(state): State<Arc<AppState>>, Path(path): Path<ImdbPath>) -> Response {
+    let (Some(torrentio), Some(live_addons)) = (&state.live_torrentio, &state.live_addons) else {
+        return write_api_error(
+            StatusCode::NOT_FOUND,
+            "not_found",
+            "Live sources are disabled; run with ADDONS_LIVE=1.",
+        );
+    };
+
+    let media_type = media_type_for_tt_id(&path.tt_id);
+    let installed = live_addons.installed();
+    // The live Torrentio's install priority in the live registry (the seeded
+    // fake also claims the Torrentio id at priority 0, so take the last one).
+    let priority = installed
+        .iter()
+        .filter(|a| a.id == "com.stremio.torrentio.addon")
+        .map(|a| a.priority)
+        .max()
+        .unwrap_or(0);
+
+    match torrentio.streams(media_type, &path.tt_id).await {
+        Ok(streams) => {
+            let sources = sources_for_addon(
+                streams,
+                "com.stremio.torrentio.addon",
+                "Torrentio",
+                priority,
+                installed,
+            );
+            (StatusCode::OK, Json(sources)).into_response()
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, tt_id = %path.tt_id, media_type, "live Torrentio sources failed");
+            write_api_error(
+                StatusCode::BAD_GATEWAY,
+                "provider_unavailable",
+                "Torrentio stream lookup failed.",
+            )
+        }
+    }
+}
+
 async fn create_account(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateAccountRequest>,
@@ -321,6 +432,8 @@ mod tests {
             accounts: Arc::new(AccountService::in_memory()),
             addons: Arc::new(Registry::seeded()),
             live: None,
+            live_torrentio: None,
+            live_addons: None,
             ready: AtomicBool::new(true),
         })
     }
@@ -417,5 +530,60 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0]["title"], "Demo Series Alpha");
         assert_eq!(rows[0]["id"], 1);
+    }
+
+    #[test]
+    fn media_type_for_tt_id_maps_bare_to_movie_and_colon_to_series() {
+        assert_eq!(media_type_for_tt_id("tt1160419"), "movie");
+        assert_eq!(media_type_for_tt_id("tt10466872:1:2"), "series");
+    }
+
+    #[tokio::test]
+    async fn sources_imdb_404s_offline() {
+        let state = test_state(); // live_torrentio / live_addons are None
+        let response = sources_imdb(
+            State(state),
+            Path(ImdbPath {
+                tt_id: "tt1160419".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        let json = json_body(response).await;
+        assert_eq!(json["error"]["code"], "not_found");
+        assert_eq!(
+            json["error"]["message"],
+            "Live sources are disabled; run with ADDONS_LIVE=1."
+        );
+    }
+
+    #[tokio::test]
+    async fn sources_imdb_returns_502_when_torrentio_is_down() {
+        let mut state = test_state();
+        // Point the live client at a dead local port: the request fails
+        // immediately, so the route must surface the Go envelope instead of
+        // hanging or returning candidates.
+        Arc::get_mut(&mut state)
+            .expect("fresh state has a single owner")
+            .live_torrentio = Some(Arc::new(Torrentio::with_base(
+            "http://127.0.0.1:1".to_string(),
+        )));
+        Arc::get_mut(&mut state)
+            .expect("fresh state has a single owner")
+            .live_addons = Some(Arc::new(Registry::live()));
+
+        let response = sources_imdb(
+            State(state),
+            Path(ImdbPath {
+                tt_id: "tt1160419".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+
+        let json = json_body(response).await;
+        assert_eq!(json["error"]["code"], "provider_unavailable");
+        assert_eq!(json["error"]["message"], "Torrentio stream lookup failed.");
     }
 }
