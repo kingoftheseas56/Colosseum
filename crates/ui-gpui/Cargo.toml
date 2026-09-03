@@ -13,3 +13,10 @@ env_logger = "0.11"
 image = { version = "0.25", default-features = false }
 smallvec = "1"
 player = { path = "../player" }
+
+# macOS .app bundle metadata for cargo-bundle (see scripts/bundle-macos.sh).
+# The executable is the package's single [[bin]] target: `ui-gpui` (src/main.rs);
+# cargo-bundle emits CFBundleName/CFBundleExecutable/NSHighResolutionCapable itself.
+[package.metadata.bundle]
+name = "Colosseum"
+identifier = "io.Brotherhood.Colosseum"

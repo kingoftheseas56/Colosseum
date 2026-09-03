@@ -43,3 +43,7 @@ run = "cargo build --release --workspace"
 [tasks.app]
 description = "run the app: daemon + GPUI shell, one command"
 run = "scripts/dev-ui.sh"
+
+[tasks.bundle]
+description = "assemble the macOS .app bundle for the GPUI shell"
+run = "scripts/bundle-macos.sh"
