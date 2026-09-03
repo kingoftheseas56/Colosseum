@@ -13,6 +13,7 @@ Item {
     property bool featuresOpen: true
     property bool readingOpen: false
     property bool shortcutsOpen: false
+    property QtObject keyboardRegistry: null
 
     readonly property string iconRoot: "assets/keyboard-guide/"
 
@@ -56,15 +57,38 @@ Item {
         { tokens: ["Esc"], action: "Close menu / back" }
     ]
 
-    readonly property var shortcutRows: [
-        { icon: "file.svg", tokens: ["Ctrl", "+", "O"], chord: "Ctrl+O", action: "Open media" },
-        { icon: "vault.svg", tokens: ["Ctrl", "+", "Shift", "+", "V"], chord: "Ctrl+Shift+V", action: "Open Vault" },
-        { icon: "download.svg", tokens: ["Ctrl", "+", "Shift", "+", "D"], chord: "Ctrl+Shift+D", action: "Open Downloads" },
-        { icon: "extensions.svg", tokens: ["Ctrl", "+", "Shift", "+", "E"], chord: "Ctrl+Shift+E", action: "Open Extensions" },
-        { icon: "settings.svg", tokens: ["Ctrl", "+", "Shift", "+", "S"], chord: "Ctrl+Shift+S", action: "Open Settings" },
-        { icon: "fullscreen.svg", tokens: ["F11"], chord: "F11", action: "Fullscreen" },
-        { icon: "power.svg", tokens: ["Ctrl", "+", "Q"], chord: "Ctrl+Q", action: "Quit Colosseum" }
-    ]
+    function guideTokens(sequence) {
+        var parts = String(sequence || "").split("+")
+        var result = []
+        for (var i = 0; i < parts.length; i++) {
+            if (i > 0)
+                result.push("+")
+            result.push(parts[i])
+        }
+        return result
+    }
+
+    readonly property var shortcutRows: {
+        var revision = root.keyboardRegistry ? root.keyboardRegistry.revision : 0
+        if (!root.keyboardRegistry || revision < 0)
+            return []
+
+        var entries = root.keyboardRegistry.entriesFor("application", "Shortcuts")
+        var rows = []
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i]
+            var chord = entry.sequences && entry.sequences.length
+                    ? String(entry.sequences[0]) : ""
+            rows.push({
+                semanticId: entry.semanticId,
+                icon: entry.icon,
+                tokens: root.guideTokens(chord),
+                chord: chord,
+                action: entry.label
+            })
+        }
+        return rows
+    }
 
     Theme { id: theme }
 

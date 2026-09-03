@@ -12,6 +12,7 @@ QtObject {
     property var _commands: []
     property var _byId: ({})
     property var _triggerHandlers: ({})
+    property int revision: 0
 
     signal commandRegistered(string semanticId)
     signal commandUnregistered(string semanticId)
@@ -52,6 +53,7 @@ QtObject {
         registry._byId[id] = command
         registry._triggerHandlers[id] = handler
         registry._commands.push(command)
+        registry.revision += 1
         registry.commandRegistered(id)
         return true
     }
@@ -73,6 +75,7 @@ QtObject {
                 remaining.push(registry._commands[i])
         }
         registry._commands = remaining
+        registry.revision += 1
         registry.commandUnregistered(id)
         return true
     }

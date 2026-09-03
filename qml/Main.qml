@@ -42,6 +42,94 @@ Window {
     property var pendingIdentityRoute: null
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+
+    // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
+    // Shortcut objects below only deliver the physical chord into this registry-backed action.
+    KeyboardRegistry {
+        id: keyboardRegistry
+        objectName: "keyboardRegistry"
+    }
+    KeyboardCommand {
+        id: openMediaCommand
+        semanticId: "global.openMedia"
+        label: "Open media"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+O"]
+        icon: "file.svg"
+        onTriggered: openMediaDialog.open()
+    }
+    KeyboardCommand {
+        id: openVaultCommand
+        semanticId: "global.openVault"
+        label: "Open Vault"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+V"]
+        icon: "vault.svg"
+        onTriggered: win.openVaultPage()
+    }
+    KeyboardCommand {
+        id: openDownloadsCommand
+        semanticId: "global.openDownloads"
+        label: "Open Downloads"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+D"]
+        icon: "download.svg"
+        onTriggered: win.openDownloadsPage()
+    }
+    KeyboardCommand {
+        id: openExtensionsCommand
+        semanticId: "global.openExtensions"
+        label: "Open Extensions"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+E"]
+        icon: "extensions.svg"
+        onTriggered: win.openExtensionsPage()
+    }
+    KeyboardCommand {
+        id: openSettingsCommand
+        semanticId: "global.openSettings"
+        label: "Open Settings"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+S"]
+        icon: "settings.svg"
+        onTriggered: win.openSettingsPage()
+    }
+    KeyboardCommand {
+        id: fullscreenCommand
+        semanticId: "global.fullscreen"
+        label: "Fullscreen"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["F11"]
+        icon: "fullscreen.svg"
+        onTriggered: win.toggleFullscreenShell()
+    }
+    KeyboardCommand {
+        id: quitCommand
+        semanticId: "global.quit"
+        label: "Quit Colosseum"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Q"]
+        icon: "power.svg"
+        onTriggered: Qt.quit()
+    }
+    KeyboardCommand {
+        id: escapeCommand
+        semanticId: "global.escape"
+        label: "Back / close"
+        category: "Features"
+        scope: "application"
+        sequences: ["Escape"]
+        icon: "back.svg"
+        onTriggered: win.handleEscape()
+    }
+
     function setGuiStallContext(operation, surface) {
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext(operation, surface)
@@ -337,6 +425,15 @@ Window {
     }
 
     Component.onCompleted: {
+        keyboardRegistry.registerCommand(openMediaCommand)
+        keyboardRegistry.registerCommand(openVaultCommand)
+        keyboardRegistry.registerCommand(openDownloadsCommand)
+        keyboardRegistry.registerCommand(openExtensionsCommand)
+        keyboardRegistry.registerCommand(openSettingsCommand)
+        keyboardRegistry.registerCommand(fullscreenCommand)
+        keyboardRegistry.registerCommand(quitCommand)
+        keyboardRegistry.registerCommand(escapeCommand)
+
         // C++ owns the payload read (Qt blocks file:// XHR by default, and house doctrine keeps
         // transport off the GUI thread's JS). Installed once, here, because a .pragma library
         // holds one shared instance per QML engine. FIRST in this handler on purpose: the dev
@@ -629,8 +726,8 @@ Window {
         default: Qt.quit(); return
         }
     }
-    Shortcut { sequences: ["Escape"]; onActivated: win.handleEscape() }
-    Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
+    Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
+    Shortcut { sequences: quitCommand.sequences; onActivated: quitCommand.invoke("shortcut") }
 
     // ── Keyboard ignition (Arc 41 repair) ──────────────────────────────────────────
     // Qt Quick starts a Tab traversal only from an item that BOTH holds focus and has
@@ -718,9 +815,9 @@ Window {
     // home, world pages, readers, overlays, and active playback alike. The native store is the
     // single authority — it exits PiP first if needed, then toggles the base mode.
     Shortcut {
-        sequences: ["F11"]
+        sequences: fullscreenCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.toggleFullscreenShell()
+        onActivated: fullscreenCommand.invoke("shortcut")
     }
 
     // Minimize the OS surface to the taskbar — "get it off my screen" WITHOUT quitting (the shell
@@ -3694,6 +3791,7 @@ Window {
         visible: active
         source: "KeyboardGuidePage.qml"
         onLoaded: {
+            item.keyboardRegistry = keyboardRegistry
             item.backRequested.connect(win.closeKeyboardGuide)
             item.takeKeyboardFocus()
         }
@@ -3919,35 +4017,35 @@ Window {
     }
 
     Shortcut {
-        sequences: ["Ctrl+O"]
+        sequences: openMediaCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: openMediaDialog.open()
+        onActivated: openMediaCommand.invoke("shortcut")
     }
 
     // Vault ux uplift S15: a global shortcut opens the Vault from anywhere, via the same
     // door function the taskbar folder door uses (the layer-priority chain is respected —
     // openVaultPage already deactivates the other taskbar layers; Escape's law closes it).
     Shortcut {
-        sequences: ["Ctrl+Shift+V"]
+        sequences: openVaultCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openVaultPage()
+        onActivated: openVaultCommand.invoke("shortcut")
     }
 
     // Arc 41 essentials: direct doors for utility pages.
     Shortcut {
-        sequences: ["Ctrl+Shift+D"]
+        sequences: openDownloadsCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openDownloadsPage()
+        onActivated: openDownloadsCommand.invoke("shortcut")
     }
     Shortcut {
-        sequences: ["Ctrl+Shift+E"]
+        sequences: openExtensionsCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openExtensionsPage()
+        onActivated: openExtensionsCommand.invoke("shortcut")
     }
     Shortcut {
-        sequences: ["Ctrl+Shift+S"]
+        sequences: openSettingsCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openSettingsPage()
+        onActivated: openSettingsCommand.invoke("shortcut")
     }
 
     // ── Open Recent panel (Slice 9): the Open Media control remembers ──
