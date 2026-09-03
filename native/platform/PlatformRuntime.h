@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "PlatformKind.h"
 
@@ -16,6 +16,7 @@ class Runtime final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString kind READ kind CONSTANT)
     Q_PROPERTY(bool android READ android CONSTANT)
+    Q_PROPERTY(bool androidTelevision READ androidTelevision CONSTANT)
     Q_PROPERTY(QString applicationState READ applicationState NOTIFY applicationStateChanged)
     Q_PROPERTY(bool foreground READ foreground NOTIFY applicationStateChanged)
     Q_PROPERTY(bool keyboardVisible READ keyboardVisible NOTIFY keyboardVisibleChanged)
@@ -32,6 +33,7 @@ public:
 
     QString kind() const;
     bool android() const;
+    bool androidTelevision() const;
     QString applicationState() const;
     bool foreground() const;
     bool keyboardVisible() const;
@@ -69,6 +71,7 @@ private:
     QPointer<QWindow> m_window;
     QMargins m_safeAreaMargins;
     bool m_surfaceAvailable = false;
+    bool m_androidTelevision = false;
 };
 
 } // namespace Colosseum::Platform

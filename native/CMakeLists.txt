@@ -180,6 +180,9 @@ qt_add_executable(colosseum
     account/AccountClient.cpp
     account/AccountController.cpp
     account/AccountDeviceIdentity.cpp
+    account/AccountCredentialStoreFactory.cpp
+    account/AndroidAccountCredentialStore.cpp
+    account/AndroidJniSecureStorageBackend.cpp
     account/AccountHttpTransport.cpp
     account/AccountRecoveryKeyPresenter.cpp
     account/AccountRuntime.cpp
@@ -221,6 +224,10 @@ qt_add_executable(colosseum
     account/AccountController.h
     account/AccountCredentialStore.h
     account/AccountDeviceIdentity.h
+    account/AccountCredentialStoreFactory.h
+    account/AndroidAccountCredentialStore.h
+    account/AndroidJniSecureStorageBackend.h
+    account/AndroidSecureStorageBackend.h
     account/AccountHttpTransport.h
     account/AccountOneTimeSecretSink.h
     account/AccountProfileCoordinator.h
@@ -276,6 +283,15 @@ qt_add_executable(colosseum
     work/ForegroundPriorityGovernor.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
+    platform/PlatformKind.cpp
+    platform/PlatformKind.h
+    platform/PlatformRuntime.cpp
+    platform/PlatformRuntime.h
+    platform/AndroidWindowModeAdapter.cpp
+    platform/AndroidWindowModeAdapter.h
+    platform/BackgroundDownloadBridge.cpp
+    platform/BackgroundDownloadBridge.h
+    platform/BackgroundDownloadPolicy.h
     bootstrap/AppDataMigration.cpp
     bootstrap/AppDataMigration.h
     bootstrap/StartupLayout.cpp
@@ -657,6 +673,9 @@ if(ANDROID)
         file(WRITE "${_android_reader_qmldir}" "${_android_reader_qmldir_text}")
     endif()
     set_property(TARGET colosseum PROPERTY QT_QML_ROOT_PATH "${COLOSSEUM_ANDROID_QML_ROOT}")
+    # Overlay Colosseum Android Java/Kotlin/resources on Qt's default package template.
+    set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/android")
 endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")
@@ -728,6 +747,33 @@ endif()
 
 if(NOT ANDROID)
 # Desktop-only harness and Player 2 estate: none of this is configured for Android.
+add_executable(platform_services_harness
+    ../tests/platform_services_harness.cpp
+    account/AccountCredentialStoreFactory.cpp
+    account/AccountCredentialStoreFactory.h
+    account/AndroidAccountCredentialStore.cpp
+    account/AndroidAccountCredentialStore.h
+    account/AndroidJniSecureStorageBackend.cpp
+    account/AndroidJniSecureStorageBackend.h
+    account/AndroidSecureStorageBackend.h
+    account/AccountDeviceIdentity.cpp
+    account/AccountDeviceIdentity.h
+    platform/AndroidWindowModeAdapter.cpp
+    platform/AndroidWindowModeAdapter.h
+    platform/PlatformKind.cpp
+    platform/PlatformKind.h
+    platform/PlatformRuntime.cpp
+    platform/PlatformRuntime.h
+    platform/BackgroundDownloadPolicy.h)
+target_include_directories(platform_services_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(platform_services_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
+if(WIN32)
+    target_sources(platform_services_harness PRIVATE
+        account/WindowsAccountCredentialStore.cpp
+        account/WindowsAccountCredentialStore.h)
+    target_link_libraries(platform_services_harness PRIVATE advapi32)
+endif()
+
 add_executable(tankoyomi_provider_registry_harness
     ../tests/tankoyomi_provider_registry_harness.cpp
     engine/TankoyomiProviderRegistry.cpp

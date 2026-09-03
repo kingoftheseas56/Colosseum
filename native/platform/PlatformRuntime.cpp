@@ -1,4 +1,4 @@
-﻿#include "PlatformRuntime.h"
+#include "PlatformRuntime.h"
 
 #include <QEvent>
 #include <QGuiApplication>
@@ -7,8 +7,41 @@
 #include <QPlatformSurfaceEvent>
 #include <QWindow>
 
+#if defined(Q_OS_ANDROID)
+#include <QCoreApplication>
+#include <QJniObject>
+#endif
+
 namespace Colosseum::Platform {
 namespace {
+
+bool detectAndroidTelevision() {
+#if defined(Q_OS_ANDROID)
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid())
+        return false;
+
+    const QJniObject serviceName = QJniObject::fromString(QStringLiteral("uimode"));
+    const QJniObject uiModeManager = context.callObjectMethod(
+        "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;",
+        serviceName.object<jstring>());
+    if (uiModeManager.isValid()
+        && uiModeManager.callMethod<jint>("getCurrentModeType", "()I") == 4) {
+        return true;
+    }
+
+    const QJniObject packageManager = context.callObjectMethod(
+        "getPackageManager", "()Landroid/content/pm/PackageManager;");
+    if (!packageManager.isValid())
+        return false;
+    const QJniObject leanback = QJniObject::fromString(
+        QStringLiteral("android.software.leanback"));
+    return packageManager.callMethod<jboolean>(
+        "hasSystemFeature", "(Ljava/lang/String;)Z", leanback.object<jstring>());
+#else
+    return false;
+#endif
+}
 
 QString stateName(Qt::ApplicationState state) {
     switch (state) {
@@ -29,7 +62,8 @@ QString stateName(Qt::ApplicationState state) {
 Runtime::Runtime(QObject *parent, Kind kind)
     : QObject(parent),
       m_kind(kind),
-      m_capabilities(capabilitiesFor(kind)) {
+      m_capabilities(capabilitiesFor(kind)),
+      m_androidTelevision(kind == Kind::Android && detectAndroidTelevision()) {
     if (qGuiApp) {
         connect(qGuiApp, &QGuiApplication::applicationStateChanged,
                 this, [this](Qt::ApplicationState) {
@@ -52,6 +86,10 @@ QString Runtime::kind() const {
 
 bool Runtime::android() const {
     return m_kind == Kind::Android;
+}
+
+bool Runtime::androidTelevision() const {
+    return m_androidTelevision;
 }
 
 QString Runtime::applicationState() const {
