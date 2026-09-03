@@ -632,6 +632,87 @@ Window {
     Shortcut { sequences: ["Escape"]; onActivated: win.handleEscape() }
     Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
 
+    // ── Keyboard ignition (Arc 41 repair) ──────────────────────────────────────────
+    // Qt Quick starts a Tab traversal only from an item that BOTH holds focus and has
+    // activeFocusOnTab. On a cold launch nothing in the shell claims focus, so the
+    // window's contentItem holds it — and contentItem.activeFocusOnTab is false. Every
+    // focus-dependent key (Tab, Backtab, the arrows) therefore died on arrival, while the
+    // ApplicationShortcut chords kept working because Qt's shortcut map never consults
+    // focus. That asymmetry was the whole bug: Arc 41's chain, controllers and focus rings
+    // were all correct, with no origin to start from.
+    //
+    // This item is the missing origin. It holds focus at rest and paints nothing, so a
+    // mouse user is never greeted by a focus ring; the first navigation key hands focus to
+    // the first real control, and from there Arc 41's own machinery carries it.
+    Item {
+        id: keyboardIgnition
+        objectName: "keyboardIgnition"
+        width: 0
+        height: 0
+        focus: true
+        // Deliberately NOT activeFocusOnTab: the origin must never become a stop in the
+        // chain, or Tab would eventually cycle back into an invisible item.
+
+        readonly property var navigationKeys: [
+            Qt.Key_Tab, Qt.Key_Backtab, Qt.Key_Up, Qt.Key_Down,
+            Qt.Key_Left, Qt.Key_Right, Qt.Key_Home, Qt.Key_End
+        ]
+
+        // Hand focus to the chain's first (or last, going backwards) reachable control.
+        // contentItem is the chain's anchor, so this stays surface-agnostic — whatever the
+        // shell is showing, the first control of the current tree is what lights up.
+        function ignite(forward) {
+            if (!win.contentItem)
+                return false
+            var first = win.contentItem.nextItemInFocusChain(forward)
+            if (!first || first === keyboardIgnition || first === win.contentItem)
+                return false
+            first.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+            return true
+        }
+
+        Keys.onPressed: (event) => {
+            if (keyboardIgnition.navigationKeys.indexOf(event.key) < 0)
+                return
+            var backward = event.key === Qt.Key_Backtab
+                || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier) !== 0)
+            if (keyboardIgnition.ignite(!backward))
+                event.accepted = true
+        }
+    }
+
+    // Keyboard focus is dead when no live control owns it. Three ways that happens here:
+    // nothing has claimed it yet (a cold launch), it fell back to the window's contentItem,
+    // or — the one that actually strands the running shell — it is still held by an item
+    // that has since been hidden or disabled. Onboarding leaves focus on a hidden control
+    // when it dismisses, and the layer closers (closeVaultPage, closeKeyboardGuide and
+    // friends) deactivate a Loader the same way. A hidden owner is worse than no owner:
+    // Qt keeps delivering keys to it, and it traverses nothing, so every navigation key
+    // disappears into an item the user cannot see.
+    // This has to be a BINDING, not a function called from onActiveFocusItemChanged. The
+    // stranding case never changes activeFocusItem at all — the same item keeps focus and
+    // simply goes invisible — so no focus signal is emitted and a change handler would
+    // never re-run. Reading visible/enabled here makes them binding dependencies, so the
+    // shell notices the moment its focus owner stops being real.
+    readonly property bool keyboardFocusDead: {
+        var item = win.activeFocusItem
+        if (!item || item === win.contentItem)
+            return true
+        return item.visible !== true || item.enabled !== true
+    }
+
+    // Returning focus to the ignition item keeps the next keypress live without showing a
+    // ring in the meantime. callLater lets a surface that seeds its own focus win the race
+    // rather than fighting it for the same frame.
+    onKeyboardFocusDeadChanged: {
+        if (!win.keyboardFocusDead)
+            return
+        Qt.callLater(function() {
+            if (win.keyboardFocusDead)
+                keyboardIgnition.forceActiveFocus()
+        })
+    }
+
     // The secret developer door: F11 flips the whole shell between fullscreen (Colosseum's
     // public identity) and the frameless developer window. Application-scoped so it works on
     // home, world pages, readers, overlays, and active playback alike. The native store is the
