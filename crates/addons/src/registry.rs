@@ -102,6 +102,16 @@ impl Registry {
             .install(FakeAddon::notorrent())
     }
 
+    /// The live registry: the seeded fakes plus the live Cinemeta catalog
+    /// add-on at install priority 2. Cinemeta advertises no `stream`
+    /// resource yet, so [`Registry::sources`] is unchanged; its `catalog`
+    /// resource is consumed through
+    /// [`crate::providers::cinemeta::Cinemeta::search`] on the daemon's
+    /// `ADDONS_LIVE=1` path.
+    pub fn live() -> Self {
+        Self::seeded().install(crate::providers::cinemeta::Cinemeta::new())
+    }
+
     /// Install one add-on at the next priority (install order).
     pub fn install(mut self, addon: impl Addon + 'static) -> Self {
         let priority = self.entries.len();
@@ -416,5 +426,21 @@ mod tests {
             let response: crate::stream::StreamResponse = serde_json::from_str(&text).unwrap();
             assert!(!response.streams.is_empty());
         }
+    }
+
+    #[test]
+    fn live_registry_installs_cinemeta_after_the_fakes() {
+        let registry = Registry::live();
+        let installed = registry.installed();
+        assert_eq!(installed.len(), 3);
+        assert_eq!(installed[2].id, "com.linvo.cinemeta");
+        assert_eq!(installed[2].name, "Cinemeta");
+        assert_eq!(installed[2].priority, 2);
+
+        // Cinemeta advertises no stream resource, so the stream aggregation is
+        // unchanged from the seeded registry (and counts stay Torrentio-only).
+        let sources = registry.sources("series", "2");
+        assert_eq!(sources.candidates.len(), 9);
+        assert!(!sources.counts_by_addon.contains_key("Cinemeta"));
     }
 }

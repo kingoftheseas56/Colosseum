@@ -9,7 +9,8 @@ or the dependency set should update this file.
 ## Module boundaries
 
 Workspace members are `catalog`, `account`, `daemon` (the domain trio
-below), plus `player` and `ui-gpui` (see Player architecture / UI decision).
+below), plus `addons`, `player` and `ui-gpui` (see Player architecture / UI
+decision).
 
 - **Domain crates (`catalog`, `account`) expose a typed contract only**: one
   entry type (`Catalog`, `Service`), the serde DTOs, and a `thiserror` `Error`
@@ -23,11 +24,19 @@ below), plus `player` and `ui-gpui` (see Player architecture / UI decision).
   and returns `Session`/`Error`, mirroring `server/account-service` wire shapes
   and error codes. Storage is in-memory for the core slice; persistence is a
   separate roadmap item, not this crate's concern yet.
+- **`addons` is the Stremio add-on client layer** (sources + catalog). It owns
+  the `Addon` trait, the seeded fixture-backed fakes (the offline default), and
+  the live Cinemeta catalog provider behind the daemon's `ADDONS_LIVE=1` flag.
+  Live providers are async-only — the sync `Addon` trait can't express network
+  I/O — so Cinemeta implements the async `CatalogSearch` trait for
+  `/catalog/search` and the sync `Addon` trait for install identity only
+  (`streams()` empty until the Torrentio slice). Its transport is `reqwest`
+  (rustls, no API key; plain HTTPS-JSON).
 - **`daemon` is the composition root.** It owns HTTP routing (axum), data-dir
   discovery (`paths.rs` via `directories`), builds `AppState`, and maps domain
   contracts onto routes and status codes. It is the only crate that knows where
   data lives on disk; domains receive paths, never discover them.
-- **Dependencies flow one direction: `daemon` → {`catalog`, `account`} and
+- **Dependencies flow one direction: `daemon` → {`catalog`, `account`, `addons`} and
   `ui-gpui` → `player`.** Domain crates never depend on each other and never
   see axum/tokio/directories. An
   inter-domain or domain→daemon dep is a boundary violation; revise this file
@@ -48,6 +57,7 @@ with a line here.
 | `rand` | CSPRNG for opaque tokens and salts |
 | `uuid` | v4 ids for accounts, devices, challenges |
 | `directories` | cross-platform data-dir discovery — daemon only (see `paths.rs`) |
+| `reqwest` (rustls, `json`) | async HTTP client for live add-on providers (`crates/addons`); no native TLS, no API key — Cinemeta and the later Torrentio slice |
 | `rquickjs` (planned) | embedded JS engine when the daemon must execute addon/provider/extension code (stremio-style addons, qml-era JS glue) — NEVER hand-rolled interpreters or silent re-ports; `boa_engine` as pure-Rust fallback, `deno_core` only if V8 isolation is required |
 | `tracing` + `tracing-subscriber` (`env-filter`) | structured logs with runtime filter control via env, defaulting to `daemon=info` |
 | `thiserror` | typed domain errors with `Display`; `Error::code()` carries the Go wire vocabulary |

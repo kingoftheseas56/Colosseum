@@ -67,23 +67,27 @@
 //! (ascending). The QML oracle (`AddonClient._sortRows`) instead leads with
 //! install priority; that is the documented burial bug this slice fixes.
 //!
-//! # Live client slot (`ADDONS_LIVE`)
+//! # Live client (`ADDONS_LIVE`)
 //!
-//! [`Registry::seeded`] wires the two fixture-backed fakes. A later slice
-//! swaps them for a live Torrentio client behind an `ADDONS_LIVE` flag: the
-//! `Addon` trait's `streams(type, id)` would then perform `GET
-//! {base}/stream/{type}/{id}.json` over HTTP (the id goes into the path raw —
-//! Stremio ids keep their colons), parse the `{ "streams": [...] }` body with
-//! the same [`stream::Stream`] type, and hand rows to the same
-//! [`rank::parse`] / [`rank::sort_rows`] pipeline. That work is deliberately
-//! not built here.
+//! [`Registry::seeded`] wires the two fixture-backed fakes (the offline
+//! default). When the daemon runs with `ADDONS_LIVE=1`, it additionally
+//! constructs a live [`providers::cinemeta::Cinemeta`] — Stremio's official
+//! catalog add-on — and consults it for `/catalog/search`, returning real
+//! IMDb `tt` ids and names through the async [`providers::CatalogSearch`]
+//! trait. The sync [`Addon`] trait is unchanged: Cinemeta implements it for
+//! install identity only (`streams()` empty — the Torrentio stream client is
+//! still a later slice, which will `GET {base}/stream/{type}/{id}.json` and
+//! hand the `{ "streams": [...] }` body to the same [`rank::parse`] /
+//! [`rank::sort_rows`] pipeline).
 
 pub mod manifest;
+pub mod providers;
 pub mod rank;
 pub mod registry;
 pub mod stream;
 
 pub use manifest::Manifest;
+pub use providers::{CatalogSearch, Cinemeta, LiveError, MetaPreview};
 pub use rank::{compare, sort_rows, Kind, Quality, RankedStream};
 pub use registry::{Addon, Candidate, InstalledAddon, Registry, Sources};
 pub use stream::{BehaviorHints, Stream, StreamResponse};

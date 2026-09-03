@@ -1,0 +1,68 @@
+{
+  "query": "dune",
+  "rank": 7.5,
+  "cacheMaxAge": 86400,
+  "metas": [
+    {
+      "id": "tt1160419",
+      "imdb_id": "tt1160419",
+      "type": "movie",
+      "name": "Dune: Part One",
+      "poster": "https://m.media-amazon.com/images/M/MV5BNWIyNmU5MGYtZDZmNi00ZjAwLWJlYjgtZTc0ZGIxMDE4ZGYwXkEyXkFqcGc@._V1_SX250.jpg",
+      "background": "https://images.metahub.space/background/medium/tt1160419/img",
+      "releaseInfo": "2021",
+      "links": [],
+      "behaviorHints": { "defaultVideoId": "tt1160419", "hasScheduledVideos": false }
+    },
+    {
+      "id": "tt0087182",
+      "imdb_id": "tt0087182",
+      "type": "movie",
+      "name": "Dune",
+      "poster": "https://m.media-amazon.com/images/M/MV5BMGJlMGM3NDAtOWNhMy00MWExLWI2MzEtMDQ0ZDIzZDY5ZmQ2XkEyXkFqcGc@._V1_SX250.jpg",
+      "background": "https://images.metahub.space/background/medium/tt0087182/img",
+      "releaseInfo": "1984",
+      "links": [],
+      "behaviorHints": { "defaultVideoId": "tt0087182", "hasScheduledVideos": false }
+    },
+    {
+      "id": "tt2251648",
+      "imdb_id": "tt2251648",
+      "type": "movie",
+      "name": "The Dune",
+      "poster": "https://images.metahub.space/poster/small/tt2251648/img",
+      "background": "https://images.metahub.space/background/medium/tt2251648/img",
+      "description": "An israeli man, who recently broke up with his girlfriend, gets to Paris and starts to follow a soon-to-be retired detective for a mysterious reason.",
+      "year": "2013",
+      "releaseInfo": "2013",
+      "runtime": "86 min",
+      "imdbRating": "6.8",
+      "genre": ["Drama"],
+      "genres": ["Drama"]
+    },
+    {
+      "id": "tt10466872",
+      "imdb_id": "tt10466872",
+      "type": "series",
+      "name": "Dune: Prophecy",
+      "poster": "https://m.media-amazon.com/images/M/MV5BOTc2YTFiOTItZmRiNi00OWE5LThhOTEtMmZhMTkzYmRiNjIxXkEyXkFqcGc@._V1_SX250.jpg",
+      "background": "https://images.metahub.space/background/medium/tt10466872/img",
+      "releaseInfo": "2024-",
+      "links": [],
+      "behaviorHints": { "defaultVideoId": null, "hasScheduledVideos": true }
+    },
+    {
+      "id": "tt0089059",
+      "imdb_id": "tt0089059",
+      "type": "series",
+      "name": "The Dunera Boys",
+      "poster": "https://images.metahub.space/poster/small/tt0089059/img",
+      "background": "https://images.metahub.space/background/medium/tt0089059/img",
+      "description": "At WWII's start, a group is sent to an Australian POW camp aboard the Dunera.",
+      "year": "1985",
+      "releaseInfo": "1985",
+      "genre": ["Drama", "War"],
+      "genres": ["Drama", "War"]
+    }
+  ]
+}

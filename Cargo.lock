@@ -19,8 +19,10 @@ dependencies = [
 name = "addons"
 version = "0.1.0"
 dependencies = [
+ "reqwest",
  "serde",
  "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -6657,6 +6659,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "tokio",
+ "ui-widgets",
 ]
 
 [[package]]

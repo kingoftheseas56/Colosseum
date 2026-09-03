@@ -40,6 +40,28 @@
 //!
 //! Unknown ids return 404 with the Go error envelope
 //! `{"error":{"code":"not_found","message":"No series with that id."}}`.
+//!
+//! ## GET /catalog/search (live provider flag `ADDONS_LIVE`)
+//!
+//! Without the flag this route is byte-for-byte the offline seed search: a
+//! JSON array of `catalog::Series` rows. With `ADDONS_LIVE=1`, the route
+//! consults the live Cinemeta catalog add-on (`https://v3-cinemeta.strem.io`)
+//! instead: it searches both the `movie` and `series` catalogs and returns
+//! real rows tagged with IMDb `tt` ids and names. The response is still a
+//! JSON array, but each row is the addons crate's `MetaPreview` shape
+//! (`type`, `id`, `imdb_id`, `name`, `poster`, `releaseInfo`, …), e.g.
+//!
+//! ```json
+//! [ { "type": "movie", "id": "tt1160419", "imdb_id": "tt1160419",
+//!     "name": "Dune: Part One", "poster": "https://…",
+//!     "releaseInfo": "2021" } ]
+//! ```
+//!
+//! If Cinemeta is unreachable, times out, or errors, the route logs the error
+//! and falls back to the local seed (the offline shape) so search never
+//! hard-fails on a down provider. The flag only affects this route for now;
+//! `/catalog/series/{id}/sources` stays on the seeded fake registry until the
+//! Torrentio stream slice lands.
 
 mod paths;
 
@@ -56,13 +78,15 @@ use serde::{Deserialize, Serialize};
 use tracing_subscriber::EnvFilter;
 
 use account::{CreateAccountRequest, RefreshRequest, Service as AccountService, SignInRequest};
-use addons::Registry;
+use addons::{CatalogSearch, Cinemeta, Registry};
 use catalog::Catalog;
 
 struct AppState {
     catalog: Arc<Catalog>,
     accounts: Arc<AccountService>,
     addons: Arc<Registry>,
+    /// The live Cinemeta catalog client, present only when `ADDONS_LIVE=1`.
+    live: Option<Arc<Cinemeta>>,
     ready: AtomicBool,
 }
 
@@ -142,6 +166,7 @@ async fn main() {
         catalog: Arc::new(Catalog::open(&data_dir.join("catalog.db")).expect("open catalog")),
         accounts: Arc::new(AccountService::in_memory()),
         addons: Arc::new(Registry::seeded()),
+        live: live_cinemeta().map(Arc::new),
         ready: AtomicBool::new(false),
     });
     state.catalog.seed_demo();
@@ -187,11 +212,38 @@ async fn readyz(State(state): State<Arc<AppState>>) -> Response {
     }
 }
 
+/// `ADDONS_LIVE=1` enables the live Cinemeta path; anything else (unset,
+/// `0`, `true`, …) is off. Kept as a pure function so the flag decision is
+/// testable without touching the process environment.
+fn live_enabled(value: Option<&str>) -> bool {
+    matches!(value, Some("1"))
+}
+
+/// The live Cinemeta client for catalog search, present only when
+/// `ADDONS_LIVE=1` is set.
+fn live_cinemeta() -> Option<Cinemeta> {
+    if live_enabled(std::env::var("ADDONS_LIVE").ok().as_deref()) {
+        tracing::info!("ADDONS_LIVE=1: live Cinemeta catalog search enabled");
+        Some(Cinemeta::new())
+    } else {
+        None
+    }
+}
+
 async fn search_catalog(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchQuery>,
-) -> Json<Vec<catalog::Series>> {
-    Json(state.catalog.search(&query.q))
+) -> Response {
+    match &state.live {
+        Some(live) => match live.search(&query.q).await {
+            Ok(metas) => (StatusCode::OK, Json(metas)).into_response(),
+            Err(err) => {
+                tracing::warn!(error = %err, "live Cinemeta search failed; falling back to local seed");
+                Json(state.catalog.search(&query.q)).into_response()
+            }
+        },
+        None => Json(state.catalog.search(&query.q)).into_response(),
+    }
 }
 
 async fn catalog_home(State(state): State<Arc<AppState>>) -> Json<catalog::Home> {
@@ -268,6 +320,7 @@ mod tests {
             catalog: Arc::new(catalog),
             accounts: Arc::new(AccountService::in_memory()),
             addons: Arc::new(Registry::seeded()),
+            live: None,
             ready: AtomicBool::new(true),
         })
     }
@@ -328,5 +381,41 @@ mod tests {
         let json = json_body(response).await;
         assert_eq!(json["error"]["code"], "not_found");
         assert_eq!(json["error"]["message"], "No series with that id.");
+    }
+
+    #[test]
+    fn live_flag_is_exactly_the_string_one() {
+        assert!(live_enabled(Some("1")));
+        assert!(!live_enabled(None));
+        assert!(!live_enabled(Some("0")));
+        assert!(!live_enabled(Some("true")));
+        assert!(!live_enabled(Some("")));
+    }
+
+    #[tokio::test]
+    async fn live_search_falls_back_to_seed_when_provider_is_down() {
+        let mut state = test_state();
+        // Point the live client at a dead local port: the request fails
+        // immediately, so the route must degrade to the local seed.
+        Arc::get_mut(&mut state)
+            .expect("fresh state has a single owner")
+            .live = Some(Arc::new(Cinemeta::with_base(
+            "http://127.0.0.1:1".to_string(),
+        )));
+
+        let response = search_catalog(
+            State(state),
+            Query(SearchQuery {
+                q: "alpha".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let json = json_body(response).await;
+        let rows = json.as_array().expect("seed fallback is an array");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["title"], "Demo Series Alpha");
+        assert_eq!(rows[0]["id"], 1);
     }
 }
