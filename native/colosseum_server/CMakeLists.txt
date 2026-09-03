@@ -76,6 +76,8 @@ add_library(colosseum_server_native STATIC
     integration/LibtorrentBlockTransport.h
     integration/TorrentPieceSource.cpp
     integration/TorrentPieceSource.h
+    integration/TorrentHttpRouteAdapter.cpp
+    integration/TorrentHttpRouteAdapter.h
     integration/SchedulerTransportBridge.cpp
     integration/SchedulerTransportBridge.h
     scheduler/FileStream.cpp

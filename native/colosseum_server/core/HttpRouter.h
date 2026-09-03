@@ -12,6 +12,8 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <vector>
 
 namespace colosseum::server {
 
@@ -20,9 +22,25 @@ class HttpConnection;
 class CancellationToken final
 {
 public:
+    using Callback = std::function<void()>;
+
     bool isCancelled() const noexcept
     {
         return m_cancelled.load(std::memory_order_acquire);
+    }
+
+    void addCancelCallback(Callback callback)
+    {
+        if (!callback)
+            return;
+        {
+            std::lock_guard lock(m_mutex);
+            if (!m_cancelled.load(std::memory_order_relaxed)) {
+                m_callbacks.push_back(std::move(callback));
+                return;
+            }
+        }
+        callback();
     }
 
 private:
@@ -30,9 +48,19 @@ private:
     void cancel() noexcept
     {
         m_cancelled.store(true, std::memory_order_release);
+        std::vector<Callback> callbacks;
+        {
+            std::lock_guard lock(m_mutex);
+            callbacks.swap(m_callbacks);
+        }
+        for (auto &callback : callbacks)
+            if (callback)
+                callback();
     }
 
     std::atomic_bool m_cancelled{false};
+    std::mutex m_mutex;
+    std::vector<Callback> m_callbacks;
 };
 
 struct HttpRequest

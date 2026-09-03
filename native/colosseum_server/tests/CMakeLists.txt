@@ -32,3 +32,9 @@ add_executable(torrent_piece_source_test
     torrent_piece_source_test.cpp)
 target_link_libraries(torrent_piece_source_test PRIVATE colosseum_server_native)
 add_test(NAME torrent_piece_source_test COMMAND torrent_piece_source_test)
+
+add_executable(torrent_http_wire_integration_test
+    torrent_http_wire_integration_test.cpp)
+target_link_libraries(torrent_http_wire_integration_test PRIVATE colosseum_server_native)
+add_test(NAME torrent_http_wire_integration_test
+         COMMAND torrent_http_wire_integration_test)
