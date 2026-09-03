@@ -844,7 +844,9 @@ void SchedulerSpine::failRequest(const std::uint64_t requestId)
                     owner.reset();
                 }
             }
-            pieces_[piece]->cancel(request.blockIndex);
+            if (!request.stolen) {
+                pieces_[piece]->cancel(request.blockIndex);
+            }
             return;
         }
     }
