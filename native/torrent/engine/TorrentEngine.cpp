@@ -834,6 +834,50 @@ QString TorrentEngine::addMagnet(const QString& magnetUri, const QString& savePa
     return hash;
 }
 
+QString TorrentEngine::addTorrentBytes(const QByteArray& torrentBytes,
+                                       const QString& savePath, bool paused)
+{
+    if (torrentBytes.isEmpty() || savePath.isEmpty())
+        return {};
+
+    lt::error_code ec;
+    auto info = std::make_shared<lt::torrent_info>(torrentBytes.constData(),
+                                                    torrentBytes.size(), ec);
+    if (ec || !info || !info->is_valid()) {
+        qWarning() << "Invalid torrent metadata:" << ec.message().c_str();
+        return {};
+    }
+
+    lt::add_torrent_params atp;
+    atp.ti = std::move(info);
+    atp.save_path = savePath.toStdString();
+    if (paused) {
+        atp.flags &= ~lt::torrent_flags::paused;
+        atp.flags |= lt::torrent_flags::auto_managed;
+        atp.flags |= lt::torrent_flags::upload_mode;
+    }
+
+    auto handle = m_session.add_torrent(std::move(atp), ec);
+    if (ec || !handle.is_valid()) {
+        qWarning() << "Failed to add torrent metadata:" << ec.message().c_str();
+        return {};
+    }
+
+    const QString hash = hashToHex(handle);
+    TorrentRecord record;
+    record.infoHash = hash;
+    record.name = QString::fromStdString(handle.status().name);
+    record.savePath = savePath;
+    record.metadataReady = true;
+    record.handle = handle;
+    {
+        QMutexLocker lock(&m_mutex);
+        m_records.insert(hash, record);
+        m_handleKeyById.insert(handle.id(), hash);
+    }
+    return hash;
+}
+
 QString TorrentEngine::addFromResume(const QString& resumePath,
                                       const QString& savePath, bool paused)
 {
@@ -1210,6 +1254,15 @@ bool TorrentEngine::hasTorrent(const QString& infoHash) const
     QMutexLocker lock(&m_mutex);
     return m_records.find(infoHash.toLower()) != m_records.end();
 }
+
+#ifdef HAS_LIBTORRENT
+lt::torrent_handle TorrentEngine::torrentHandle(const QString& infoHash) const
+{
+    QMutexLocker lock(&m_mutex);
+    const auto it = m_records.constFind(infoHash.toLower());
+    return it == m_records.cend() ? lt::torrent_handle{} : it->handle;
+}
+#endif
 
 // TANKORENT_CINEMETA_PACK_MAPPING 2026-05-18 — metadata presence check.
 // Reads TorrentRecord::metadataReady which is set to true by the AlertWorker
@@ -1951,6 +2004,7 @@ TorrentEngine::~TorrentEngine() {}
 void TorrentEngine::start() { qWarning("TorrentEngine: built without libtorrent"); }
 void TorrentEngine::stop() {}
 QString TorrentEngine::addMagnet(const QString&, const QString&, bool) { return {}; }
+QString TorrentEngine::addTorrentBytes(const QByteArray&, const QString&, bool) { return {}; }
 QString TorrentEngine::addFromResume(const QString&, const QString&, bool) { return {}; }
 TorrentEngine::ResumeDiskState TorrentEngine::resumeDataDiskState(const QString&, const QString&) const { return {}; }
 void TorrentEngine::startTorrent(const QString&, const QString&) {}

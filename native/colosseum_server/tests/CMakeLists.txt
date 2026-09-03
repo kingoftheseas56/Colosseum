@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Network Test)
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/.." colosseum_server_production)
 
@@ -44,3 +44,37 @@ add_executable(feature_route_composition_test
 target_link_libraries(feature_route_composition_test PRIVATE colosseum_server_native)
 add_test(NAME feature_route_composition_test
          COMMAND feature_route_composition_test)
+
+add_executable(runtime_composition_test
+    runtime_composition_test.cpp
+    ../../torrent/engine/DebugLogBuffer.cpp
+    ../../torrent/engine/DebugLogBuffer.h)
+target_link_libraries(runtime_composition_test PRIVATE colosseum_server_native)
+add_test(NAME runtime_composition_test
+         COMMAND runtime_composition_test)
+
+add_executable(streamserver_native_cutover_test
+    streamserver_native_cutover_test.cpp
+    ../../player/streamserver.cpp
+    ../../player/streamserver.h
+    ../../torrent/engine/DebugLogBuffer.cpp
+    ../../torrent/engine/DebugLogBuffer.h)
+target_include_directories(streamserver_native_cutover_test PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../..")
+target_link_libraries(streamserver_native_cutover_test PRIVATE
+    colosseum_server_native Qt6::Test)
+add_test(NAME streamserver_native_cutover_test
+         COMMAND streamserver_native_cutover_test)
+
+add_executable(runtime_torrent_http_e2e_test
+    runtime_torrent_http_e2e_test.cpp
+    ../../player/streamserver.cpp
+    ../../player/streamserver.h
+    ../../torrent/engine/DebugLogBuffer.cpp
+    ../../torrent/engine/DebugLogBuffer.h)
+target_include_directories(runtime_torrent_http_e2e_test PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../..")
+target_link_libraries(runtime_torrent_http_e2e_test PRIVATE
+    colosseum_server_native Qt6::Network Qt6::Test)
+add_test(NAME runtime_torrent_http_e2e_test
+         COMMAND runtime_torrent_http_e2e_test)

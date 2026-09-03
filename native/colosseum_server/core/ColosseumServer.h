@@ -4,6 +4,7 @@
 
 #include <QThread>
 #include <QUrl>
+#include <QSslConfiguration>
 
 #include <memory>
 
@@ -14,13 +15,14 @@ class ServerWorker;
 class ColosseumServer final
 {
 public:
-    ColosseumServer();
+    explicit ColosseumServer(std::shared_ptr<HttpRouter> router = {});
     ~ColosseumServer();
 
     ColosseumServer(const ColosseumServer &) = delete;
     ColosseumServer &operator=(const ColosseumServer &) = delete;
 
     bool start(quint16 port = 0);
+    bool startTls(quint16 port, const QSslConfiguration &configuration);
     void stop();
 
     bool isRunning() const noexcept { return m_running; }
@@ -32,6 +34,8 @@ public:
     qsizetype activeConnectionCount() const;
 
 private:
+    bool startInternal(quint16 port, bool tls, const QSslConfiguration &configuration);
+
     std::shared_ptr<HttpRouter> m_router;
     QThread *m_thread = nullptr;
     ServerWorker *m_worker = nullptr;

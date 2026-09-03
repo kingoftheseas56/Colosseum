@@ -123,6 +123,10 @@ struct Request {
     QUrlQuery query;
     QHash<QByteArray, QByteArray> headers;
     QByteArray body;
+    // The HTTP connection owns this lifetime. Archive work may run on a
+    // worker thread, so the cancellation signal is carried explicitly rather
+    // than reaching back into the server/router types.
+    std::shared_ptr<CancellationToken> cancellation;
 
     [[nodiscard]] QByteArray header(const QByteArray &name) const;
 };
@@ -174,7 +178,8 @@ private:
     std::shared_ptr<RemoteRangeSource> sourceFor(const SourceSpec &spec, RemoteError *error);
     std::shared_ptr<RemoteRangeSource> mergedSource(const StoredArchive &stored, RemoteError *error);
     SelectedEntry selectEntry(ArchiveKind kind, const StoredArchive &stored,
-                              const ArchiveOptions &options, RemoteError *error);
+                              const ArchiveOptions &options, RemoteError *error,
+                              CancellationToken *cancel);
 
     SourceFactory m_factory;
     std::unique_ptr<QNetworkAccessManager> m_ownedNetwork;

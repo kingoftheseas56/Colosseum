@@ -82,8 +82,12 @@ add_library(colosseum_server_native STATIC
     integration/AsyncMediaExecutor.h
     integration/FeatureRouteComposition.cpp
     integration/FeatureRouteComposition.h
+    integration/ProductionTorrentBackend.cpp
+    integration/ProductionTorrentBackend.h
     integration/SchedulerTransportBridge.cpp
     integration/SchedulerTransportBridge.h
+    runtime/ColosseumServerRuntime.cpp
+    runtime/ColosseumServerRuntime.h
     scheduler/FileStream.cpp
     scheduler/SchedulerSpine.cpp
     settings/ServerSettings.cpp
@@ -94,6 +98,8 @@ add_library(colosseum_server_native STATIC
     torrent/model/VirtualPieceMap.cpp
     torrent_http/StreamProgressTracker.cpp
     torrent_http/TorrentHttpSurface.cpp
+    ../torrent/engine/TorrentEngine.cpp
+    ../torrent/engine/TorrentEngine.h
     ../third_party/miniz/miniz.c
 )
 

@@ -1,62 +1,45 @@
 #include "streamserver.h"
 
-#include <QCoreApplication>
+#include "../colosseum_server/runtime/ColosseumServerRuntime.h"
+
 #include <QDebug>
 #include <QDir>
-#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QProcess>
-#include <QProcessEnvironment>
-#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
 
-namespace {
+#include <utility>
 
-QString runtimeExecutableName()
-{
-#if defined(Q_OS_WIN)
-    return QStringLiteral("stremio-runtime.exe");
-#else
-    return QStringLiteral("stremio-runtime");
-#endif
-}
+namespace {
 
 QString engineUnavailableMessage()
 {
-#if defined(Q_OS_LINUX)
-    return QStringLiteral("Streaming engine unavailable. Install or start Stremio Service.");
-#else
-    return QStringLiteral("Streaming engine unavailable. Repair or reinstall Colosseum.");
-#endif
+    return QStringLiteral("Native streaming runtime unavailable. Repair or reinstall Colosseum.");
 }
 
 } // namespace
 
 StreamServer::StreamServer(QObject *parent)
+    : StreamServer(nullptr, parent)
+{
+}
+
+StreamServer::StreamServer(TorrentEngine *torrentEngine, QObject *parent)
     : QObject(parent)
+    , m_torrentEngine(torrentEngine)
 {
     m_nam = new QNetworkAccessManager(this);
 }
 
 StreamServer::~StreamServer()
 {
-    if (m_proc) {
-        // Teardown is not a startup failure. Disconnect lifecycle callbacks before
-        // stopping the owned runtime so an intentional exit cannot emit the
-        // fail-before-ready warning path while this object is being destroyed.
-        disconnect(m_proc, nullptr, this, nullptr);
-        m_proc->terminate();
-        if (!m_proc->waitForFinished(2000)) {
-            m_proc->kill();
-            m_proc->waitForFinished(2000);
-        }
-    }
+    if (m_runtime)
+        m_runtime->stop();
 }
 
 void StreamServer::setEngineUnavailable(bool unavailable)
@@ -76,181 +59,50 @@ void StreamServer::markEngineUnavailable(const QString &message)
     Q_EMIT streamError(message);
 }
 
-QString StreamServer::findRuntimeDir() const
-{
-    const QString exe = runtimeExecutableName();
-    const QString appDir = QCoreApplication::applicationDirPath();
-
-    QStringList candidates;
-    // 1) explicit override
-    const QString env = qEnvironmentVariable("COLOSSEUM_STREAM_SERVER");
-    if (!env.isEmpty())
-        candidates << env;
-    // 2) shipped next to the Colosseum exe (self-contained copy, gitignored)
-    candidates << appDir + QStringLiteral("/stream_server");
-    candidates << appDir + QStringLiteral("/../stream_server");
-#if defined(Q_OS_WIN)
-    // 3a) official Windows Stremio Service install.
-    const QString genericData = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-    if (!genericData.isEmpty())
-        candidates << QDir(genericData).filePath(QStringLiteral("Programs/StremioService"));
-#elif defined(Q_OS_LINUX)
-    // 3b) official Stremio Service deb/rpm payload. A Flatpak service remains adopt-first:
-    // when it is already answering on :11470 we never need to enter its sandbox.
-    candidates << QStringLiteral("/usr/share/stremio-service");
-#endif
-
-    for (const QString &dir : candidates) {
-        const QDir runtimeDir(dir);
-        const QFileInfo runtime(runtimeDir.filePath(exe));
-        if (runtime.exists() && runtime.isFile() && runtime.isExecutable()
-            && QFileInfo::exists(runtimeDir.filePath(QStringLiteral("server.js"))))
-            return runtimeDir.absolutePath();
-    }
-    return {};
-}
-
 void StreamServer::warmUp()
 {
-    // Deliberately nothing but ensureStarted(): no new state and no second code path. Warming and
-    // playing must go through the SAME adopt-first probe, or a warm-up could spawn a child that then
-    // clashes with the official service on :11470 -- the silent failure diagnosed 2026-07-05.
     ensureStarted();
 }
 
 void StreamServer::ensureStarted()
 {
-    if (m_proc || m_starting || m_port > 0)
+    if (m_starting || m_port > 0)
         return;
 
-    // A previous failed attempt may have happened before the user repaired the
-    // installation or started the official service. A new attempt gets a clean
-    // state; a successful adoption/launch clears it again below.
     setEngineUnavailable(false);
     m_starting = true;
     Q_EMIT startingChanged();
-
-    // Adopt-first: when the OFFICIAL Stremio Service is running it already owns
-    // :11470 — a child launch just dies on the port clash (the exact silent
-    // failure that stalled season downloads, diagnosed 2026-07-05). Probe, and
-    // only spawn our own runtime when nobody answers.
-    QNetworkRequest probe(QUrl(QStringLiteral("http://127.0.0.1:11470/settings")));
-    probe.setTransferTimeout(1500);
-    QNetworkReply *r = m_nam->get(probe);
-    connect(r, &QNetworkReply::finished, this, [this, r]() {
-        r->deleteLater();
-        if (r->error() == QNetworkReply::NoError) {
-            m_port = 11470;
-            setEngineUnavailable(false);
-            m_starting = false;
-            qInfo("[stream] adopted the running Stremio server on port %d", m_port);
-            Q_EMIT readyChanged();
-            Q_EMIT startingChanged();
-            pushTunedSettings();   // flushes pending once the caps have landed
-            return;
-        }
-        launchChild();
-    });
-}
-
-void StreamServer::launchChild()
-{
-    const QString dir = findRuntimeDir();
-    if (dir.isEmpty()) {
-        m_starting = false;
-        Q_EMIT startingChanged();
-        markEngineUnavailable(engineUnavailableMessage());
-        return;
-    }
 
     const QString cacheDir =
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/colosseum-stream");
     QDir().mkpath(cacheDir);
 
-    QProcessEnvironment penv = QProcessEnvironment::systemEnvironment();
-    // Some desktop shells inject Node flags that this bundled runtime rejects at boot.
-    penv.remove(QStringLiteral("NODE_OPTIONS"));
-    penv.insert(QStringLiteral("NO_HTTPS_SERVER"), QStringLiteral("1"));
-    penv.insert(QStringLiteral("APP_PATH"), QDir::toNativeSeparators(cacheDir));
-
-    m_proc = new QProcess(this);
-    m_proc->setProcessEnvironment(penv);
-    m_proc->setWorkingDirectory(dir);
-    m_proc->setProgram(QDir(dir).filePath(runtimeExecutableName()));
-    m_proc->setArguments({QStringLiteral("server.js")});
-    m_proc->setProcessChannelMode(QProcess::MergedChannels);
-
-    connect(m_proc, &QProcess::readyReadStandardOutput, this, &StreamServer::onStdout);
-    QProcess *process = m_proc;
-    const auto failBeforeReady = [this](QProcess *failedProcess) {
-        if (m_proc != failedProcess || !failedProcess || m_port > 0)
-            return;
-        m_port = -1;
+    colosseum::server::runtime::ColosseumServerRuntimeOptions options;
+    options.appPath = QDir::toNativeSeparators(cacheDir);
+    options.settingsDirectory = options.appPath;
+    // The native player consumes the advertised URL, so an ephemeral loopback
+    // port avoids colliding with any independently installed service.
+    options.httpPort = 0;
+    options.enableTls = false;
+    options.torrentEngine = m_torrentEngine;
+    m_runtime = std::make_unique<colosseum::server::runtime::ColosseumServerRuntime>(
+        std::move(options));
+    if (!m_runtime->start()) {
+        const QString error = m_runtime->lastError();
+        m_runtime.reset();
         m_starting = false;
-        m_proc->deleteLater();
-        m_proc = nullptr;
-        Q_EMIT readyChanged();
         Q_EMIT startingChanged();
-        if (!m_engineUnavailable)
-            markEngineUnavailable(engineUnavailableMessage());
-    };
-
-    connect(process, &QProcess::errorOccurred, this,
-            [this, process, failBeforeReady](QProcess::ProcessError error) {
-        // FailedToStart can report only errorOccurred(), without a finished()
-        // signal. Clean up the terminal process here so a later play() can retry.
-        if (m_proc == process && process->state() == QProcess::NotRunning) {
-            qWarning("[stream] engine failed before ready: %s", qUtf8Printable(process->errorString()));
-            failBeforeReady(process);
-        } else if (error == QProcess::FailedToStart) {
-            qWarning("[stream] engine reported FailedToStart while still active");
-        }
-    });
-    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-            [this, process, failBeforeReady](int, QProcess::ExitStatus) {
-                if (m_proc != process)
-                    return;
-                const bool failedBeforeReady = m_port <= 0;
-                if (failedBeforeReady) {
-                    failBeforeReady(process);
-                    return;
-                }
-                m_port = -1;
-                m_starting = false;
-                // Reset the handle so a later play() can relaunch the engine. Without this,
-                // m_proc stays non-null after the runtime exits (e.g. a port-11470 clash) and
-                // ensureStarted()'s `if (m_proc) return` wedges streaming dead until app restart.
-                if (m_proc) { m_proc->deleteLater(); m_proc = nullptr; }
-                Q_EMIT readyChanged();
-                Q_EMIT startingChanged();
-            });
-
-    qInfo("[stream] launching %s", qUtf8Printable(dir));
-    m_proc->start();
-}
-
-void StreamServer::onStdout()
-{
-    m_stdoutBuf += QString::fromUtf8(m_proc->readAllStandardOutput());
-
-    if (m_port <= 0) {
-        // "EngineFS server started at http://127.0.0.1:11470"
-        static const QRegularExpression re(
-            QStringLiteral("EngineFS server started at http://127\\.0\\.0\\.1:(\\d+)"));
-        const auto m = re.match(m_stdoutBuf);
-        if (m.hasMatch()) {
-            m_port = m.captured(1).toInt();
-            setEngineUnavailable(false);
-            m_starting = false;
-            qInfo("[stream] ready on port %d", m_port);
-            Q_EMIT readyChanged();
-            Q_EMIT startingChanged();
-            pushTunedSettings();   // flushes pending once the caps have landed
-        }
+        markEngineUnavailable(error.isEmpty() ? engineUnavailableMessage() : error);
+        return;
     }
-    // keep the buffer from growing unbounded once we're up
-    if (m_stdoutBuf.size() > 8192)
-        m_stdoutBuf = m_stdoutBuf.right(2048);
+
+    m_port = m_runtime->httpUrl().port();
+    setEngineUnavailable(false);
+    m_starting = false;
+    qInfo("[stream] native engine ready on port %d", m_port);
+    Q_EMIT readyChanged();
+    Q_EMIT startingChanged();
+    pushTunedSettings();
 }
 
 QString StreamServer::streamUrl(const QString &infoHash, int fileIdx) const
@@ -313,14 +165,13 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
     connect(reply, &QNetworkReply::finished, this, [this, reply, hash, fileIdx, fetch]() {
         const auto err = reply->error();
         reply->deleteLater();
-        // DEAD-ADOPT SELF-HEAL (2026-07-18): when the engine was ADOPTED (no child of ours,
-        // m_proc null) and the port now refuses connections, the external server died out
-        // from under us. The child path resets via its finished() handler, but adoption had
-        // NO reset — m_port stayed set forever and every later create/manifest hit a dead
-        // port (audiobook 'retry' failed deterministically). Reset, re-queue THIS request,
-        // and run the ensureStarted probe again — which now spawns our own runtime.
-        if (err == QNetworkReply::ConnectionRefusedError && !m_proc && m_port > 0) {
-            qWarning("[stream] adopted server on :%d is gone — resetting and relaunching", m_port);
+        // The native listener can still disappear because of an external shutdown.
+        // Reset the in-process owner and retry this request once through the same
+        // startup path, preserving the existing player recovery behavior.
+        if (err == QNetworkReply::ConnectionRefusedError && m_runtime && m_port > 0) {
+            qWarning("[stream] native server on :%d is gone — resetting and relaunching", m_port);
+            m_runtime->stop();
+            m_runtime.reset();
             m_port = -1;
             Q_EMIT readyChanged();
             m_pending.append({hash, fileIdx, fetch});
@@ -341,15 +192,10 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
 
 void StreamServer::pushTunedSettings()
 {
-    // Swarm tuning (2026-08-02, Hemanth's "maximise the peers"): the runtime's stock caps are
-    // sized for a background service — 35 peer connections and a 1.6 / 2.5 MB/s soft/hard
-    // download throttle (server.js getDefaults: btMaxConnections, btDownloadSpeed*Limit).
-    // Fine for 1080p, but they turn cold-open buffering into a trickle and starve 4K remuxes.
-    // POST /settings extends+persists the runtime's settings; engines read the caps at stream
-    // CREATE time (getDefaults runs per engine), which is why flushPending() waits for this
-    // POST to settle — the first stream of the session must not race the old caps. Values:
-    // 200 connections (the same desktop-scale jump our libtorrent side ratified) and
-    // 20 / 40 MB/s caps — above any line speed here, so the line itself is the only limit.
+    // Persist the player's desktop-scale swarm policy through the same settings route exposed
+    // by the native server. The native TorrentEngine applies its own libtorrent session policy
+    // at start; this request keeps the server-settings surface and future engine creation in
+    // sync. Pending registrations wait for the write so their settings are not reordered.
     QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/settings").arg(m_port)));
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     req.setTransferTimeout(3000);
@@ -363,7 +209,7 @@ void StreamServer::pushTunedSettings()
         if (r->error() == QNetworkReply::NoError)
             qInfo("[stream] swarm tuning pushed (200 conns, 20/40 MB/s caps)");
         else
-            qWarning("[stream] swarm tuning push failed (streams keep stock caps): %s",
+            qWarning("[stream] swarm tuning push failed (native defaults remain active): %s",
                      qUtf8Printable(r->errorString()));
         flushPending();   // tuning is best-effort; playback must never be blocked by it
     });

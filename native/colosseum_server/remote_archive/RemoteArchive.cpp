@@ -197,10 +197,10 @@ ParsedRange parseHttpRange(const QByteArray &raw, qint64 size)
     return out;
 }
 
-QByteArray readAll(RemoteRangeSource &source, RemoteError *error)
+QByteArray readAll(RemoteRangeSource &source, RemoteError *error, CancellationToken *cancel = nullptr)
 {
     RemoteError lengthError;
-    const qint64 size = source.length(&lengthError);
+    const qint64 size = source.length(&lengthError, cancel);
     if (!lengthError.ok() || size < 0) {
         if (error) *error = lengthError.ok()
             ? RemoteError{RemoteErrorCode::Transport, QStringLiteral("remote length unavailable"), 0}
@@ -211,9 +211,55 @@ QByteArray readAll(RemoteRangeSource &source, RemoteError *error)
         if (error) *error = {};
         return {};
     }
-    RemoteRead read = source.read(0, size - 1, nullptr);
+    RemoteRead read = source.read(0, size - 1, cancel);
     if (error) *error = read.error;
     return read.bytes;
+}
+
+bool materializeSource(RemoteRangeSource &source, QFile &file,
+                       RemoteError *error, CancellationToken *cancel)
+{
+    RemoteError lengthError;
+    const qint64 size = source.length(&lengthError, cancel);
+    if (!lengthError.ok() || size < 0) {
+        if (error) *error = lengthError.ok()
+            ? RemoteError{RemoteErrorCode::Transport, QStringLiteral("remote length unavailable"), 0}
+            : lengthError;
+        return false;
+    }
+
+    constexpr qint64 chunkSize = 1024 * 1024;
+    for (qint64 offset = 0; offset < size; offset += chunkSize) {
+        if (cancel && cancel->isCancelled()) {
+            if (error) *error = {RemoteErrorCode::Cancelled, QStringLiteral("cancelled"), 0};
+            return false;
+        }
+        const qint64 end = std::min(size - 1, offset + chunkSize - 1);
+        const RemoteRead read = source.read(offset, end, cancel);
+        if (!read.error.ok()) {
+            if (error) *error = read.error;
+            return false;
+        }
+        const qint64 expected = end - offset + 1;
+        if (read.bytes.size() != expected) {
+            if (error) *error = {RemoteErrorCode::Protocol,
+                                  QStringLiteral("remote source returned a short archive volume range"), 0};
+            return false;
+        }
+        qint64 written = 0;
+        while (written < read.bytes.size()) {
+            const qint64 count = file.write(read.bytes.constData() + written,
+                                            read.bytes.size() - written);
+            if (count <= 0) {
+                if (error) *error = {RemoteErrorCode::Transport,
+                                      QStringLiteral("cannot materialize archive volume"), 0};
+                return false;
+            }
+            written += count;
+        }
+    }
+    if (error) *error = {};
+    return true;
 }
 
 QByteArray inflateRaw(const QByteArray &compressed, qint64 expectedSize, RemoteError *error)
@@ -292,19 +338,43 @@ QString archiveToolPath()
     return path;
 }
 
-QByteArray processOutput(const QString &program, const QStringList &arguments, RemoteError *error)
+QByteArray processOutput(const QString &program, const QStringList &arguments,
+                         RemoteError *error, CancellationToken *cancel = nullptr)
 {
     QProcess process;
     process.setProcessChannelMode(QProcess::SeparateChannels);
     process.start(program, arguments, QIODevice::ReadOnly);
-    if (!process.waitForStarted(5000)) {
-        if (error) *error = {RemoteErrorCode::Unsupported, QStringLiteral("archive extractor could not start"), 0};
+    for (int waited = 0; !process.waitForStarted(100); waited += 100) {
+        if (cancel && cancel->isCancelled()) {
+            process.kill();
+            process.waitForFinished(2000);
+            if (error) *error = {RemoteErrorCode::Cancelled, QStringLiteral("cancelled"), 0};
+            return {};
+        }
+        if (waited >= 5000) {
+            if (error) *error = {RemoteErrorCode::Unsupported, QStringLiteral("archive extractor could not start"), 0};
+            return {};
+        }
+    }
+    if (cancel && cancel->isCancelled()) {
+        process.kill();
+        process.waitForFinished(2000);
+        if (error) *error = {RemoteErrorCode::Cancelled, QStringLiteral("cancelled"), 0};
         return {};
     }
-    if (!process.waitForFinished(60000)) {
-        process.kill(); process.waitForFinished(2000);
-        if (error) *error = {RemoteErrorCode::Parser, QStringLiteral("archive extractor timed out"), 0};
-        return {};
+    for (int waited = 0; !process.waitForFinished(100); waited += 100) {
+        if (cancel && cancel->isCancelled()) {
+            process.kill();
+            process.waitForFinished(2000);
+            if (error) *error = {RemoteErrorCode::Cancelled, QStringLiteral("cancelled"), 0};
+            return {};
+        }
+        if (waited >= 60000) {
+            process.kill();
+            process.waitForFinished(2000);
+            if (error) *error = {RemoteErrorCode::Parser, QStringLiteral("archive extractor timed out"), 0};
+            return {};
+        }
     }
     if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
         if (error) *error = {RemoteErrorCode::Parser,
@@ -785,9 +855,14 @@ Response ArchiveService::handleCreate(ArchiveKind kind, const Request &request)
 }
 
 ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, const StoredArchive &stored,
-                                                          const ArchiveOptions &options, RemoteError *error)
+                                                          const ArchiveOptions &options, RemoteError *error,
+                                                          CancellationToken *cancel)
 {
     SelectedEntry result;
+    if (cancel && cancel->isCancelled()) {
+        if (error) *error = {RemoteErrorCode::Cancelled, QStringLiteral("cancelled"), 0};
+        return result;
+    }
     if (kind == ArchiveKind::Rar || kind == ArchiveKind::SevenZip) {
         const QString tool = archiveToolPath();
         if (tool.isEmpty()) {
@@ -805,14 +880,16 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
             RemoteError sourceError;
             auto source = sourceFor(spec, &sourceError);
             if (!source || !sourceError.ok()) { if (error) *error = sourceError; return result; }
-            QByteArray bytes = readAll(*source, &sourceError);
-            if (!sourceError.ok()) { if (error) *error = sourceError; return result; }
             QString fileName = fallbackName(spec.url, kind);
             if (fileName.isEmpty()) fileName = QStringLiteral("part-%1").arg(partIndex);
             const QString path = dir.filePath(fileName);
             QFile file(path);
-            if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()) {
+            if (!file.open(QIODevice::WriteOnly)) {
                 if (error) *error = {RemoteErrorCode::Transport, QStringLiteral("cannot materialize archive volume"), 0};
+                return result;
+            }
+            if (!materializeSource(*source, file, &sourceError, cancel)) {
+                if (error) *error = sourceError;
                 return result;
             }
             file.close();
@@ -820,7 +897,7 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
             ++partIndex;
         }
         RemoteError listError;
-        const QByteArray listing = processOutput(tool, {QStringLiteral("-tf"), firstPath}, &listError);
+        const QByteArray listing = processOutput(tool, {QStringLiteral("-tf"), firstPath}, &listError, cancel);
         if (!listError.ok()) { if (error) *error = listError; return result; }
         const QList<QByteArray> lines = listing.split('\n');
         int fileIndex = -1;
@@ -836,7 +913,7 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
             return result;
         }
         RemoteError extractError;
-        const QByteArray extracted = processOutput(tool, {QStringLiteral("-xOf"), firstPath, selected}, &extractError);
+        const QByteArray extracted = processOutput(tool, {QStringLiteral("-xOf"), firstPath, selected}, &extractError, cancel);
         if (!extractError.ok()) { if (error) *error = extractError; return result; }
         result.name = selected; result.size = extracted.size(); result.materialized = extracted;
         result.valid = true; result.directRange = false;
@@ -849,10 +926,10 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
     if (!source || !sourceError.ok()) { if (error) *error = sourceError; return result; }
 
     if (kind == ArchiveKind::Zip) {
-        const qint64 total = source->length(&sourceError);
+        const qint64 total = source->length(&sourceError, cancel);
         if (!sourceError.ok() || total < 22) { if (error) *error = {RemoteErrorCode::Parser, QStringLiteral("zip too small"), 0}; return result; }
         const qint64 tailStart = std::max<qint64>(0, total - 65557);
-        RemoteRead tailRead = source->read(tailStart, total - 1, nullptr);
+        RemoteRead tailRead = source->read(tailStart, total - 1, cancel);
         if (!tailRead.error.ok()) { if (error) *error = tailRead.error; return result; }
         const QByteArray eocdSig = QByteArray::fromHex("504b0506");
         const qsizetype eocd = tailRead.bytes.lastIndexOf(eocdSig);
@@ -861,7 +938,7 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
         const quint32 centralSize = readLe32(tailRead.bytes, eocd + 12);
         const quint32 centralOffset = readLe32(tailRead.bytes, eocd + 16);
         if (qint64(centralOffset) + centralSize > total) { if (error) *error = {RemoteErrorCode::Parser, QStringLiteral("zip central directory outside source"), 0}; return result; }
-        RemoteRead centralRead = source->read(centralOffset, qint64(centralOffset) + centralSize - 1, nullptr);
+        RemoteRead centralRead = source->read(centralOffset, qint64(centralOffset) + centralSize - 1, cancel);
         if (!centralRead.error.ok()) { if (error) *error = centralRead.error; return result; }
         qsizetype pos = 0; int fileIndex = -1;
         for (quint16 i = 0; i < count && pos + 46 <= centralRead.bytes.size(); ++i) {
@@ -881,7 +958,7 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
             ++fileIndex;
             if (!matchesOptions(entryName, fileIndex, options)) continue;
             if (flags & 0x1) { if (error) *error = {RemoteErrorCode::Unsupported, QStringLiteral("encrypted zip entry unsupported"), 0}; return result; }
-            RemoteRead local = source->read(localOffset, qint64(localOffset) + 29, nullptr);
+            RemoteRead local = source->read(localOffset, qint64(localOffset) + 29, cancel);
             if (!local.error.ok() || local.bytes.size() < 30 || readLe32(local.bytes, 0) != 0x04034b50) {
                 if (error) *error = {RemoteErrorCode::Parser, QStringLiteral("zip local header invalid"), 0}; return result;
             }
@@ -894,7 +971,7 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
             } else if (method == 8) {
                 if (compressedSize == 0 && uncompressedSize == 0) result.materialized.clear();
                 else {
-                    RemoteRead compressed = source->read(dataOffset, dataOffset + compressedSize - 1, nullptr);
+                    RemoteRead compressed = source->read(dataOffset, dataOffset + compressedSize - 1, cancel);
                     if (!compressed.error.ok()) { if (error) *error = compressed.error; return {}; }
                     RemoteError inflateError;
                     result.materialized = inflateRaw(compressed.bytes, uncompressedSize, &inflateError);
@@ -915,11 +992,11 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
     auto selectTar = [&](std::shared_ptr<RemoteRangeSource> tarSource) -> SelectedEntry {
         SelectedEntry selected;
         RemoteError localError;
-        const qint64 total = tarSource->length(&localError);
+        const qint64 total = tarSource->length(&localError, cancel);
         if (!localError.ok()) { if (error) *error = localError; return selected; }
         qint64 offset = 0; int fileIndex = -1;
         while (offset + 512 <= total) {
-            RemoteRead headerRead = tarSource->read(offset, offset + 511, nullptr);
+            RemoteRead headerRead = tarSource->read(offset, offset + 511, cancel);
             if (!headerRead.error.ok()) { if (error) *error = headerRead.error; return {}; }
             const QByteArray &h = headerRead.bytes;
             bool allZero = true; for (char c : h) if (c != '\0') { allZero = false; break; }
@@ -947,7 +1024,7 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
     if (kind == ArchiveKind::Tar) return selectTar(source);
 
     if (kind == ArchiveKind::Tgz) {
-        QByteArray compressed = readAll(*source, &sourceError);
+        QByteArray compressed = readAll(*source, &sourceError, cancel);
         if (!sourceError.ok()) { if (error) *error = sourceError; return result; }
         QByteArray plain = gunzip(compressed, &sourceError);
         if (!sourceError.ok()) { if (error) *error = sourceError; return result; }
@@ -957,7 +1034,7 @@ ArchiveService::SelectedEntry ArchiveService::selectEntry(ArchiveKind kind, cons
             SelectedEntry selected = selectTar(tarMemory);
             if (selected.valid) {
                 RemoteRead bytes = selected.source->read(selected.sourceOffset,
-                    selected.size ? std::optional<qint64>(selected.sourceOffset + selected.size - 1) : std::nullopt, nullptr);
+                    selected.size ? std::optional<qint64>(selected.sourceOffset + selected.size - 1) : std::nullopt, cancel);
                 if (selected.size == 0) bytes.bytes.clear();
                 if (!bytes.error.ok() && selected.size > 0) { if (error) *error = bytes.error; return {}; }
                 selected.materialized = bytes.bytes; selected.source.reset(); selected.sourceOffset = 0; selected.directRange = false;
@@ -982,7 +1059,8 @@ Response ArchiveService::handleStream(ArchiveKind kind, const Request &request)
     const ArchiveOptions options = parseArchiveOptions(request.query.queryItemValue(QStringLiteral("o")), &optionError);
     if (!optionError.ok()) { response.status = 500; return response; }
     RemoteError selectionError;
-    SelectedEntry entry = selectEntry(kind, *it, options, &selectionError);
+    CancellationToken *cancel = request.cancellation.get();
+    SelectedEntry entry = selectEntry(kind, *it, options, &selectionError, cancel);
     if (!entry.valid || !selectionError.ok()) {
         response.status = 500;
         if (selectionError.code == RemoteErrorCode::Parser) {
@@ -1030,7 +1108,7 @@ Response ArchiveService::handleStream(ArchiveKind kind, const Request &request)
     if (request.method == "HEAD") return response;
     if (entry.size == 0) return response;
     if (entry.directRange && entry.source) {
-        RemoteRead bytes = entry.source->read(entry.sourceOffset + start, entry.sourceOffset + end, nullptr);
+        RemoteRead bytes = entry.source->read(entry.sourceOffset + start, entry.sourceOffset + end, cancel);
         if (!bytes.error.ok()) { response.status = 500; response.body.clear(); return response; }
         response.body = bytes.bytes;
     } else {

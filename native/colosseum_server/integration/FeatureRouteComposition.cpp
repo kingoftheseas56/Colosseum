@@ -90,6 +90,13 @@ Remote::Request toRemoteRequest(const server::HttpRequest &request,
     }
     converted.headers = request.headers;
     converted.body = request.body;
+    if (request.cancellation) {
+        converted.cancellation = std::make_shared<Remote::CancellationToken>();
+        const auto cancellation = converted.cancellation;
+        request.cancellation->addCancelCallback([cancellation] {
+            cancellation->cancel();
+        });
+    }
     return converted;
 }
 

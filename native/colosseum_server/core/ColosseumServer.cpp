@@ -5,6 +5,10 @@
 #include <QHostAddress>
 #include <QMetaObject>
 #include <QSet>
+#include <QSslCertificate>
+#include <QSslKey>
+#include <QSslServer>
+#include <QSslSocket>
 #include <QTcpServer>
 
 #include <utility>
@@ -19,7 +23,8 @@ public:
     {
     }
 
-    bool start(quint16 port, QUrl &boundUrl, QString &error)
+    bool start(quint16 port, QUrl &boundUrl, QString &error,
+               bool tls, const QSslConfiguration &configuration)
     {
         // Module 564 owns listener lifecycle; Arc 44 W03 narrows production binding to loopback.
         if (m_server && m_server->isListening()) {
@@ -27,8 +32,32 @@ public:
             return true;
         }
 
-        m_server = new QTcpServer(this);
-        connect(m_server, &QTcpServer::newConnection, this, [this] { acceptPendingConnections(); });
+        if (tls && (configuration.localCertificate().isNull()
+                    || configuration.privateKey().isNull())) {
+            error = QStringLiteral("TLS certificate or private key is invalid");
+            return false;
+        }
+
+        if (tls) {
+            auto *sslServer = new QSslServer(this);
+            sslServer->setSslConfiguration(configuration);
+            // This server presents a certificate; it does not authenticate
+            // clients. QSslServer emits sslErrors for peer-side issues, but
+            // no client verification is requested by this configuration.
+            connect(sslServer, &QSslServer::sslErrors, this,
+                    [](QSslSocket *, const QList<QSslError> &) {});
+            m_server = sslServer;
+        } else {
+            m_server = new QTcpServer(this);
+        }
+        m_tls = tls;
+        if (m_tls) {
+            connect(m_server, &QTcpServer::pendingConnectionAvailable,
+                    this, [this] { acceptPendingConnections(); });
+        } else {
+            connect(m_server, &QTcpServer::newConnection,
+                    this, [this] { acceptPendingConnections(); });
+        }
         if (!m_server->listen(QHostAddress::LocalHost, port)) {
             error = m_server->errorString();
             delete m_server;
@@ -67,7 +96,9 @@ private:
     {
         if (!m_server || !m_server->isListening())
             return {};
-        return QUrl(QStringLiteral("http://127.0.0.1:%1").arg(m_server->serverPort()));
+        return QUrl(QStringLiteral("%1://127.0.0.1:%2")
+                        .arg(m_tls ? QStringLiteral("https") : QStringLiteral("http"))
+                        .arg(m_server->serverPort()));
     }
 
     void acceptPendingConnections()
@@ -76,6 +107,11 @@ private:
             QTcpSocket *socket = m_server->nextPendingConnection();
             if (!socket)
                 continue;
+            if (m_tls && !qobject_cast<QSslSocket *>(socket)) {
+                socket->abort();
+                socket->deleteLater();
+                continue;
+            }
             auto *connection = new HttpConnection(socket, m_router, this);
             m_connections.insert(connection);
             connect(connection, &QObject::destroyed, this, [this, connection] {
@@ -86,11 +122,12 @@ private:
 
     std::shared_ptr<HttpRouter> m_router;
     QTcpServer *m_server = nullptr;
+    bool m_tls = false;
     QSet<HttpConnection *> m_connections;
 };
 
-ColosseumServer::ColosseumServer()
-    : m_router(std::make_shared<HttpRouter>())
+ColosseumServer::ColosseumServer(std::shared_ptr<HttpRouter> router)
+    : m_router(router ? std::move(router) : std::make_shared<HttpRouter>())
 {
 }
 
@@ -100,6 +137,17 @@ ColosseumServer::~ColosseumServer()
 }
 
 bool ColosseumServer::start(quint16 port)
+{
+    return startInternal(port, false, {});
+}
+
+bool ColosseumServer::startTls(quint16 port, const QSslConfiguration &configuration)
+{
+    return startInternal(port, true, configuration);
+}
+
+bool ColosseumServer::startInternal(quint16 port, bool tls,
+                                    const QSslConfiguration &configuration)
 {
     if (m_running)
         return true;
@@ -113,8 +161,8 @@ bool ColosseumServer::start(quint16 port)
     m_thread->start();
 
     bool started = false;
-    QMetaObject::invokeMethod(m_worker, [this, port, &started] {
-        started = m_worker->start(port, m_boundUrl, m_lastError);
+    QMetaObject::invokeMethod(m_worker, [this, port, tls, configuration, &started] {
+        started = m_worker->start(port, m_boundUrl, m_lastError, tls, configuration);
     }, Qt::BlockingQueuedConnection);
 
     if (!started) {

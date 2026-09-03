@@ -109,6 +109,8 @@ public:
 
     // Torrent operations (all thread-safe)
     QString addMagnet(const QString& magnetUri, const QString& savePath, bool paused = true);
+    QString addTorrentBytes(const QByteArray& torrentBytes, const QString& savePath,
+                            bool paused = true);
     QString addFromResume(const QString& resumePath, const QString& savePath, bool paused);
     // EXTERNAL_DELETE_RECONCILE (2026-06-12) — pre-add disk probe for the
     // startup restore loop. Parses a .fastresume WITHOUT touching the session
@@ -236,6 +238,12 @@ public:
     // detect "magnet was never added" cases before writing a zombie record.
     // Distinct from hasMetadata which gates on metadata_received_alert.
     bool hasTorrent(const QString& infoHash) const;
+    // Return a copy of the live handle for adapters that need to bind
+    // libtorrent's verified-piece surface. The handle itself is a cheap,
+    // thread-safe value object; the engine remains the owner of session state.
+#ifdef HAS_LIBTORRENT
+    lt::torrent_handle torrentHandle(const QString& infoHash) const;
+#endif
     // TANKORENT_CINEMETA_PACK_MAPPING 2026-05-18 — returns true when libtorrent
     // has already received the metadata_received_alert for this infoHash (i.e.
     // TorrentRecord::metadataReady is set). Used by TorrentClient::startDownload

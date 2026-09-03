@@ -1,5 +1,8 @@
 #include "TorrentHttpRouteAdapter.h"
 
+#include <QCoreApplication>
+#include <QMetaObject>
+
 #include <atomic>
 #include <mutex>
 #include <utility>
@@ -17,6 +20,31 @@ struct StreamState final : std::enable_shared_from_this<StreamState>
     std::atomic_bool headSent{false};
     std::mutex mutex;
 
+    void releaseSession()
+    {
+        std::lock_guard lock(mutex);
+        session.reset();
+    }
+
+    void releaseSessionLater()
+    {
+        const auto self = shared_from_this();
+        QObject *context = nullptr;
+        {
+            std::lock_guard lock(mutex);
+            context = dynamic_cast<QObject *>(session.get());
+        }
+        if (!context)
+            context = QCoreApplication::instance();
+        if (!context) {
+            releaseSession();
+            return;
+        }
+        QMetaObject::invokeMethod(context, [self] {
+            self->releaseSession();
+        }, Qt::QueuedConnection);
+    }
+
     void destroy()
     {
         if (terminal.exchange(true, std::memory_order_acq_rel))
@@ -25,13 +53,14 @@ struct StreamState final : std::enable_shared_from_this<StreamState>
         std::shared_ptr<torrent_http::StreamLease> currentLease;
         {
             std::lock_guard lock(mutex);
-            current = std::move(session);
+            current = session;
             currentLease = std::move(lease);
         }
         if (current)
             current->destroy();
         if (currentLease)
             currentLease->close();
+        releaseSessionLater();
     }
 
     void fail(std::error_code error)
@@ -42,13 +71,14 @@ struct StreamState final : std::enable_shared_from_this<StreamState>
         std::shared_ptr<torrent_http::StreamLease> currentLease;
         {
             std::lock_guard lock(mutex);
-            current = std::move(session);
+            current = session;
             currentLease = std::move(lease);
         }
         if (current)
             current->destroy();
         if (currentLease)
             currentLease->close();
+        releaseSessionLater();
         if (!response.isFinished() && !headSent.load(std::memory_order_acquire)) {
             response.writeHead(502);
             response.end(QByteArray::fromStdString(error.message()));
@@ -66,13 +96,13 @@ struct StreamState final : std::enable_shared_from_this<StreamState>
         std::shared_ptr<torrent_http::StreamLease> currentLease;
         {
             std::lock_guard lock(mutex);
-            session.reset();
             currentLease = std::move(lease);
         }
         if (!response.isFinished())
             response.end();
         if (currentLease)
             currentLease->close();
+        releaseSessionLater();
     }
 
     ~StreamState()

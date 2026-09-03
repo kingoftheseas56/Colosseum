@@ -222,6 +222,45 @@ public:
     }
 };
 
+class CancellingRangeSource final : public RemoteRangeSource {
+public:
+    explicit CancellingRangeSource(QByteArray bytes) : bytes_(std::move(bytes)) {}
+
+    qint64 length(RemoteError *error, CancellationToken *cancel) override
+    {
+        if (cancel && cancel->isCancelled()) {
+            if (error) *error = {RemoteErrorCode::Cancelled, QStringLiteral("cancelled"), 0};
+            return -1;
+        }
+        if (error) *error = {};
+        return bytes_.size();
+    }
+
+    RemoteRead read(qint64 start, std::optional<qint64> end,
+                    CancellationToken *cancel) override
+    {
+        RemoteRead result;
+        result.totalLength = bytes_.size();
+        result.start = start;
+        result.end = end.value_or(bytes_.size() - 1);
+        ranges.push_back({start, result.end});
+        if (cancel && cancel->isCancelled()) {
+            result.error = {RemoteErrorCode::Cancelled, QStringLiteral("cancelled"), 0};
+            return result;
+        }
+        result.bytes = bytes_.mid(start, result.end - start + 1);
+        if (ranges.size() == 1 && cancel)
+            cancel->cancel();
+        return result;
+    }
+
+    QString name() const override { return QStringLiteral("large.rar"); }
+    QList<QPair<qint64, qint64>> ranges;
+
+private:
+    QByteArray bytes_;
+};
+
 } // namespace
 
 class RemoteArchiveTests : public QObject {
@@ -235,6 +274,7 @@ private slots:
     void archiveCreatePreservesMultipartSortAndFileIndex();
     void sevenZipUsesRealArchiveFixtureWhenAvailable();
     void rarInvalidFixtureMapsParserError();
+    void archiveVolumeMaterializationIsChunkedAndCancellable();
     void lzBootstrapRoutesMatchUpstream();
     void ftpBackendLocalhostProtocol();
     void ftpCreateRedirectAndRangeContract();
@@ -440,6 +480,28 @@ void RemoteArchiveTests::rarInvalidFixtureMapsParserError()
     Response failed = service.handle(ArchiveKind::Rar, stream);
     QCOMPARE(failed.status, 500);
     QCOMPARE(failed.body, QByteArray("There was an error with the rar parser."));
+}
+
+void RemoteArchiveTests::archiveVolumeMaterializationIsChunkedAndCancellable()
+{
+    auto source = std::make_shared<CancellingRangeSource>(QByteArray(2 * 1024 * 1024 + 17, 'r'));
+    ArchiveService service([source](const SourceSpec &, RemoteError *error) {
+        if (error) *error = {};
+        return source;
+    });
+
+    Request create = makeRequest("POST", QStringLiteral("/create/chunked-rar"));
+    create.body = "[\"http://fixture/large.rar\"]";
+    QCOMPARE(service.handle(ArchiveKind::Rar, create).status, 200);
+
+    Request stream = makeRequest("GET", QStringLiteral("/stream"));
+    stream.query.addQueryItem(QStringLiteral("key"), QStringLiteral("chunked-rar"));
+    stream.cancellation = std::make_shared<CancellationToken>();
+    const Response cancelled = service.handle(ArchiveKind::Rar, stream);
+    QCOMPARE(cancelled.status, 500);
+    QCOMPARE(source->ranges.size(), 1);
+    QCOMPARE(source->ranges.first().first, qint64(0));
+    QCOMPARE(source->ranges.first().second, qint64(1024 * 1024 - 1));
 }
 
 void RemoteArchiveTests::lzBootstrapRoutesMatchUpstream()

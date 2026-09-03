@@ -1,12 +1,9 @@
 // StreamServer — turns a torrent (infoHash + fileIdx) into a localhost HTTP URL mpv can play.
 //
-// It does NOT reimplement torrent streaming: it runs Stremio's proven stream-server
-// runtime (`stremio-runtime[.exe] server.js`) as a child process when no official
-// Stremio Service is already answering on :11470. The runtime binds
-// http://127.0.0.1:<port>/<infoHash>/<fileIdx> and we surface that URL to QML.
-//
-// Lifecycle: lazy — the 88 MB runtime is only spawned on the FIRST play() call, so a
-// session that never watches anything never pays for it. Killed on app exit.
+// The native runtime owns the same route graph and torrent-backed byte stream as
+// server.js. It binds a loopback HTTP listener and we surface its URL to QML.
+// Lifecycle remains lazy from the player's point of view: warmUp() or the first
+// play/prefetch starts the in-process runtime, and it is stopped with the player.
 //
 // QML contract (exposed as the context property `Stream`):
 //   Stream.play(infoHash, fileIdx)      -> eventually emits streamReady(url, infoHash, fileIdx)
@@ -21,9 +18,15 @@
 #include <QString>
 #include <QVariantMap>
 
-class QProcess;
+#include <memory>
+
 class QNetworkAccessManager;
 class QTimer;
+class TorrentEngine;
+
+namespace colosseum::server::runtime {
+class ColosseumServerRuntime;
+}
 
 class StreamServer : public QObject
 {
@@ -33,13 +36,14 @@ class StreamServer : public QObject
     Q_PROPERTY(bool engineUnavailable READ engineUnavailable NOTIFY engineUnavailableChanged)
 public:
     explicit StreamServer(QObject *parent = nullptr);
+    StreamServer(TorrentEngine *torrentEngine, QObject *parent = nullptr);
     ~StreamServer() override;
 
     bool ready() const { return m_port > 0; }
     bool starting() const { return m_starting; }
     bool engineUnavailable() const { return m_engineUnavailable; }
 
-    // Start the stream (spawning the runtime if needed) and emit streamReady when the
+    // Start the stream (starting the native runtime if needed) and emit streamReady when the
     // torrent is registered and a playable URL exists.
     Q_INVOKABLE void play(const QString &infoHash, int fileIdx);
 
@@ -55,9 +59,8 @@ public:
     // That is why the SAME years-old torrent with a constant ~100 seeders loaded in a split second
     // sometimes and took minutes other times: with 100 full seeders piece availability is never the
     // constraint -- being CONNECTED is. (The seed count is a tracker scrape: it says those peers
-    // exist, not that we have reached them.) Idempotent; adopt-first still wins when the official
-    // Stremio Service already owns :11470. This is what the Stremio app does -- we ship its identical
-    // runtime and were simply starting it later. (2026-07-30, Theatre lane)
+    // exist, not that we have reached them.) Idempotent: the player owns this in-process runtime
+    // and uses an ephemeral loopback port. (2026-07-30, Theatre lane)
     Q_INVOKABLE void warmUp();
 
     // The URL for an already-registered stream, or "" if the runtime isn't up yet.
@@ -88,23 +91,20 @@ private:
         bool fetch = false;   // true -> answer with fetchReady (download), not streamReady
     };
 
-    void ensureStarted();                 // adopt a running official server, else launch our own
-    void launchChild();                   // spawn the platform Stremio runtime + server.js ourselves
+    void ensureStarted();                 // start the in-process native server graph
     void setEngineUnavailable(bool unavailable);
     void markEngineUnavailable(const QString &message);
-    QString findRuntimeDir() const;       // first dir containing this platform's runtime + server.js
-    void onStdout();                      // scrape the "EngineFS server started at …:<port>" line
     void flushPending();
     void registerThenReady(const QString &infoHash, int fileIdx, bool fetch);  // POST /create, then emit URL
     void pollStats();                     // one stats.json GET; single-flight behind m_statsInflight
     void pushTunedSettings();             // raise the runtime's swarm caps, THEN flush pending streams
 
-    QProcess *m_proc = nullptr;
+    TorrentEngine *m_torrentEngine = nullptr;
+    std::unique_ptr<colosseum::server::runtime::ColosseumServerRuntime> m_runtime;
     QNetworkAccessManager *m_nam = nullptr;
     int m_port = -1;
     bool m_starting = false;
     bool m_engineUnavailable = false;
-    QString m_stdoutBuf;
     QList<Pending> m_pending;
     QTimer *m_statsTimer = nullptr;
     QString m_statsHash;

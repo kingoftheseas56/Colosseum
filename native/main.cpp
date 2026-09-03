@@ -1239,18 +1239,21 @@ int main(int argc, char *argv[]) {
     // without re-adding the folder (a fresh index published this run enriches via the signal).
     runVaultCoverEnrichment();
 
-    // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
-    // runtime only spawns on the first Stream.play() call.
-    auto *stream = new StreamServer(&app);
+    // One libtorrent engine serves both the native Stremio-compatible stream
+    // surface and the app's keep-download surfaces. The stream runtime is lazy,
+    // but when it starts it binds to this already-owned engine rather than
+    // launching a second process or session.
+    const QString torrentEngineDir =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/torrent-engine");
+    QDir().mkpath(torrentEngineDir);
+    auto *torrentEngine = new TorrentEngine(torrentEngineDir, &app);
+    torrentEngine->setGlobalSeedingRules(0.f, 1);
+
+    auto *stream = new StreamServer(torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
-    // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
-    // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
-    // bootstrap + tracker announce + handshake + unchoke) at the exact moment Play was pressed, which
-    // is why one torrent play was instant and the next -- same file, same ~100 seeders -- took
-    // minutes. The 3s delay keeps it off the cold-launch critical path; adopt-first means an
-    // already-running official Stremio Service is adopted rather than clashed with. Cost accepted
-    // knowingly: a comics- or books-only session spawns a runtime it never uses, but any video
-    // session would have spawned it seconds later anyway. (2026-07-30, Theatre lane)
+    // Warm the native graph shortly after the window is up. This keeps startup
+    // responsive while paying the libtorrent bootstrap cost before Play.
     QTimer::singleShot(3000, stream, [stream]() { stream->warmUp(); });
 
     // Audiobook download backbone exposed to QML as `Audiobooks`. BookDownloader
@@ -1259,20 +1262,6 @@ int main(int argc, char *argv[]) {
     // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
-
-    // ── Tankorent engine (Phase 2 — books consume it) ───────────────────────
-    // One engine per job (spec 2026-07-13): Stremio keeps watch-now; this
-    // embedded libtorrent engine owns download-to-keep. BookTorrents is its
-    // first consumer — it lazy-start()s the engine on the first book download,
-    // so an idle app still touches no network (born-asleep, 4fbb1c2). Manga
-    // volumes join in Phase 3. Session/resume state under Colosseum's OWN
-    // appdata; download-and-stop seeding posture (pause 1 s after seeding).
-    const QString torrentEngineDir =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-        + QStringLiteral("/torrent-engine");
-    QDir().mkpath(torrentEngineDir);
-    auto *torrentEngine = new TorrentEngine(torrentEngineDir, &app);
-    torrentEngine->setGlobalSeedingRules(0.f, 1);
 
     // Book torrents shelf (Biblio): federated indexer search + engine-fed single-file pull.
     // searchNam = pinned + UA-stamped + UNCACHED CachingNam (live seeder counts, no stale
