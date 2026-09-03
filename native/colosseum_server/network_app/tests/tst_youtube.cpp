@@ -58,7 +58,7 @@ static void testErrors(TestState &t)
     AppRequest jsonReq;
     jsonReq.path = "/yt/dead.json";
     AppResponse json = service.handle(jsonReq);
-    t.equal(json.status, 403, "resolver error is 403 on JSON route");
+    t.equal(json.status, 404, "module 564 quirk: JSON resolver error status is overwritten to 404");
     t.equal(QJsonDocument::fromJson(json.body).object().value("err").toString(),
             QString("Video unavailable"), "resolver error text is preserved");
 

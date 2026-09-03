@@ -66,6 +66,23 @@ static void testForwardingAndRedirects(TestState &t)
     t.equal(transport.seen[1].url.path(), QString("/final"), "relative redirect is resolved");
 }
 
+static void testRelativeRedirectUsesOriginRoot(TestState &t)
+{
+    FakeProxyTransport transport;
+    transport.queued = {
+        {.status = 302, .headers = {{"Location", "next.bin"}}},
+        {.status = 200, .body = "OK"},
+    };
+    ProxyService service(transport);
+    AppRequest req;
+    req.path = "/proxy/d=http%3A%2F%2Forigin.test/dir/blob.bin";
+    const AppResponse response = service.handle(req);
+    t.equal(response.status, 200, "relative redirect completes");
+    t.equal(transport.seen.size(), 2, "relative redirect performs second fetch");
+    t.equal(transport.seen[1].url.path(), QString("/next.bin"),
+            "module 805 resolves relative redirects from destination origin root");
+}
+
 static void testPlaylistRewrite(TestState &t)
 {
     FakeProxyTransport transport;
@@ -122,6 +139,7 @@ int main(int argc, char **argv)
     QCoreApplication app(argc, argv);
     TestState t;
     testForwardingAndRedirects(t);
+    testRelativeRedirectUsesOriginRoot(t);
     testPlaylistRewrite(t);
     testErrorContract(t);
     return finishTests(t, "proxy");

@@ -249,15 +249,23 @@ QString localVideoId(const LocalAddonFile &file)
 
 QJsonObject genericMetaForEntry(const LocalAddonEntry &entry)
 {
-    const LocalAddonFile first = entry.files.value(0);
+    const LocalAddonFile *imdbFile = nullptr;
+    const LocalAddonFile *biggestNamedFile = nullptr;
+    for (const LocalAddonFile &file : entry.files) {
+        if (!imdbFile && !file.imdbId.isEmpty())
+            imdbFile = &file;
+        if (!file.parsedName.isEmpty() &&
+            (!biggestNamedFile || file.length > biggestNamedFile->length))
+            biggestNamedFile = &file;
+    }
     QJsonObject meta{{"id", entry.itemId}, {"type", "other"},
-                     {"name", first.parsedName.isEmpty() ? entry.name : first.parsedName},
+                     {"name", biggestNamedFile ? biggestNamedFile->parsedName : entry.name},
                      {"showAsVideos", true}};
-    if (!first.imdbId.isEmpty()) {
+    if (imdbFile) {
         const QString base = QStringLiteral("https://images.metahub.space");
-        meta["poster"] = base + QStringLiteral("/poster/medium/") + first.imdbId + QStringLiteral("/img");
-        meta["background"] = base + QStringLiteral("/background/medium/") + first.imdbId + QStringLiteral("/img");
-        meta["logo"] = base + QStringLiteral("/logo/medium/") + first.imdbId + QStringLiteral("/img");
+        meta["poster"] = base + QStringLiteral("/poster/medium/") + imdbFile->imdbId + QStringLiteral("/img");
+        meta["background"] = base + QStringLiteral("/background/medium/") + imdbFile->imdbId + QStringLiteral("/img");
+        meta["logo"] = base + QStringLiteral("/logo/medium/") + imdbFile->imdbId + QStringLiteral("/img");
     }
     return meta;
 }
@@ -386,7 +394,11 @@ AppResponse ProxyService::handle(const AppRequest &request,
         if (fetched.status >= 300 && fetched.status < 400 && !location.isEmpty()) {
             if (++redirectCount >= 5)
                 return expressInternalError();
-            destination = destination.resolved(QUrl(QString::fromUtf8(location)));
+            QUrl redirectBase = destination;
+            redirectBase.setPath(QStringLiteral("/"));
+            redirectBase.setQuery(QString());
+            redirectBase.setFragment(QString());
+            destination = redirectBase.resolved(QUrl(QString::fromUtf8(location)));
             headers = filterHeaders(headers, requestHeaders);
             setHeader(headers, "host", destination.authority(QUrl::FullyDecoded).toUtf8());
             for (const QString &raw : options.destinationHeaders) {
@@ -484,7 +496,7 @@ AppResponse YouTubeService::handle(const AppRequest &request)
     const YouTubeResolution resolution = resolver_.resolveAudioVideo(id);
     if (!resolution.error.isEmpty()) {
         if (wantsJson)
-            return jsonResponse(QJsonObject{{"err", resolution.error}}, 403);
+            return jsonResponse(QJsonObject{{"err", resolution.error}}, 404);
         AppResponse response;
         response.status = 403;
         return response;
@@ -855,8 +867,9 @@ QJsonObject LocalAddonService::metaResponse(const QString &id) const
         QJsonObject video{{"id", videoId}, {"title", file.name}, {"stream", stream},
                           {"released", QDateTime::fromMSecsSinceEpoch(now - 60000 * i,
                                                                      Qt::UTC).toString(Qt::ISODate)}};
-        if (aggregate.dateModified.isValid())
-            video["publishedAt"] = aggregate.dateModified.toString(Qt::ISODate);
+        video["publishedAt"] = aggregate.dateModified.isValid()
+            ? aggregate.dateModified.toString(Qt::ISODate)
+            : QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
         if (file.season) video["season"] = file.season;
         if (file.episode) video["episode"] = file.episode;
         if (!file.imdbId.isEmpty()) {
@@ -896,7 +909,7 @@ QJsonObject LocalAddonService::streamResponse(const QString &type, const QString
             for (qsizetype i = 0; i < entry.files.size(); ++i) {
                 const LocalAddonFile &file = entry.files[i];
                 if (file.type == type && localVideoId(file) == id) {
-                    const int index = file.index ? file.index : static_cast<int>(i);
+                    const int index = static_cast<int>(i);
                     QJsonObject stream{{"title", QFileInfo(file.path).fileName()},
                                        {"infoHash", entry.infoHash}, {"fileIdx", index},
                                        {"id", entry.infoHash + QStringLiteral("/") + QString::number(index)}};
