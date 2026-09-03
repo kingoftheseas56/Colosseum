@@ -4164,6 +4164,10 @@ Window {
     // Every entry point (F11, global chrome, player, book, comic) reaches this same gate.
     FullscreenTransitionShield {
         id: fullscreenTransition
+        // Named so automation can wait out the shell-mode flip instead of racing it: the
+        // shield animates and holds a 250ms settle timer, so a get-state fired straight
+        // after F11 reads the OLD window state and reports a phantom failure.
+        objectName: "fullscreenTransition"
         anchors.fill: parent
         onApplyRequested: WindowMode.toggleShellMode(win)
     }
