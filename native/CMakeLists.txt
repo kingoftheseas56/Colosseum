@@ -112,7 +112,11 @@ if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
         # defines are Windows-only; Linux's apt libtorrent-rasterbar-dev/libboost-all-dev/
         # libssl-dev need neither (arc-17 Linux port).
         target_compile_definitions(colosseum_libtorrent INTERFACE
-            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL BOOST_ALL_NO_LIB _WIN32_WINNT=0x0A00)
+            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL
+            TORRENT_USE_LIBCRYPTO TORRENT_SSL_PEERS OPENSSL_NO_SSL2
+            BOOST_ASIO_ENABLE_CANCELIO BOOST_ASIO_NO_DEPRECATED
+            WIN32_LEAN_AND_MEAN BOOST_ALL_NO_LIB _SCL_SECURE_NO_DEPRECATE
+            _CRT_SECURE_NO_DEPRECATE _WIN32_WINNT=0x0A00)
         target_link_libraries(colosseum_libtorrent INTERFACE
             ws2_32 mswsock crypt32 iphlpapi bcrypt)
     else()
@@ -121,7 +125,7 @@ if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
     endif()
 elseif(WIN32)
     set(LIBTORRENT_ROOT "C:/tools/libtorrent-2.0-msvc" CACHE PATH "libtorrent MSVC install")
-    set(BOOST_ROOT "C:/tools/boost-1.84.0" CACHE PATH "Boost headers")
+    set(BOOST_ROOT "C:/tools/boost-1.90.0" CACHE PATH "Boost headers")
     set(OPENSSL_MSVC_ROOT "C:/tools/openssl-msvc" CACHE PATH "OpenSSL MSVC install")
     find_path(LIBTORRENT_INCLUDE_DIR libtorrent/session.hpp HINTS "${LIBTORRENT_ROOT}/include")
     find_library(LIBTORRENT_LIBRARY torrent-rasterbar HINTS "${LIBTORRENT_ROOT}/lib")
@@ -131,7 +135,11 @@ elseif(WIN32)
         target_include_directories(colosseum_libtorrent INTERFACE
             "${LIBTORRENT_INCLUDE_DIR}" "${BOOST_INCLUDE_DIR}" "${OPENSSL_MSVC_ROOT}/include")
         target_compile_definitions(colosseum_libtorrent INTERFACE
-            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL BOOST_ALL_NO_LIB _WIN32_WINNT=0x0A00)
+            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL TORRENT_USE_LIBCRYPTO
+            TORRENT_SSL_PEERS OPENSSL_NO_SSL2 BOOST_ASIO_ENABLE_CANCELIO
+            BOOST_ASIO_NO_DEPRECATED WIN32_LEAN_AND_MEAN BOOST_ALL_NO_LIB
+            _SCL_SECURE_NO_DEPRECATE _CRT_SECURE_NO_DEPRECATE
+            _WIN32_WINNT=0x0A00)
         target_link_libraries(colosseum_libtorrent INTERFACE
             "${LIBTORRENT_LIBRARY}"
             "${OPENSSL_MSVC_ROOT}/lib/libssl.lib"

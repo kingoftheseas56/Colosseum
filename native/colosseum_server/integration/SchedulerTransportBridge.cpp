@@ -50,11 +50,13 @@ void SchedulerTransportBridge::retirePeer(const std::string &peerId)
 
 void SchedulerTransportBridge::pump()
 {
+    transport_.pumpResults();
     for (const auto &peerId : peerIds_) {
         const auto created = scheduler_.updatePeerRequests(peerId);
         for (const auto &request : created)
             dispatch(peerId, request);
     }
+    transport_.pumpResults();
 }
 
 void SchedulerTransportBridge::dispatch(

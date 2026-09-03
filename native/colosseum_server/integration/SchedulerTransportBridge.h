@@ -23,6 +23,7 @@ public:
                               Completion completion) = 0;
     virtual void cancelBlock(const std::string &peerHint,
                              const scheduler::WireBlock &block) = 0;
+    virtual void pumpResults() {}
 };
 
 class SchedulerTransportBridge final

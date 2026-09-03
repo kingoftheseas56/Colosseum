@@ -20,7 +20,7 @@ if(NOT TARGET colosseum_libtorrent)
         endif()
     elseif(WIN32)
         set(LIBTORRENT_ROOT "C:/tools/libtorrent-2.0-msvc")
-        set(BOOST_ROOT "C:/tools/boost-1.84.0")
+        set(BOOST_ROOT "C:/tools/boost-1.90.0")
         set(OPENSSL_MSVC_ROOT "C:/tools/openssl-msvc")
         find_path(LIBTORRENT_INCLUDE_DIR libtorrent/session.hpp
             HINTS "${LIBTORRENT_ROOT}/include")
@@ -43,7 +43,11 @@ if(NOT TARGET colosseum_libtorrent)
     endif()
     if(WIN32)
         target_compile_definitions(colosseum_libtorrent INTERFACE
-            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL BOOST_ALL_NO_LIB _WIN32_WINNT=0x0A00)
+            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL TORRENT_USE_LIBCRYPTO
+            TORRENT_SSL_PEERS OPENSSL_NO_SSL2 BOOST_ASIO_ENABLE_CANCELIO
+            BOOST_ASIO_NO_DEPRECATED WIN32_LEAN_AND_MEAN BOOST_ALL_NO_LIB
+            _SCL_SECURE_NO_DEPRECATE _CRT_SECURE_NO_DEPRECATE
+            _WIN32_WINNT=0x0A00)
     else()
         target_compile_definitions(colosseum_libtorrent INTERFACE HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL)
     endif()
@@ -66,6 +70,12 @@ add_library(colosseum_server_native STATIC
     remote_archive/LzString.cpp
     remote_archive/RemoteArchive.cpp
     remote_archive/RemoteServices.cpp
+    integration/PieceSourceBlockTransport.cpp
+    integration/PieceSourceBlockTransport.h
+    integration/LibtorrentBlockTransport.cpp
+    integration/LibtorrentBlockTransport.h
+    integration/SchedulerTransportBridge.cpp
+    integration/SchedulerTransportBridge.h
     scheduler/FileStream.cpp
     scheduler/SchedulerSpine.cpp
     settings/ServerSettings.cpp
