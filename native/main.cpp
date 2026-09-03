@@ -70,6 +70,7 @@
 #include "engine/LocalDownloads.h"
 #include "engine/AppLog.h"
 #include "bootstrap/AppDataMigration.h"
+#include "bootstrap/InstanceLock.h"
 #include "bootstrap/StartupLayout.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
@@ -537,6 +538,22 @@ int main(int argc, char *argv[]) {
     // inside their disposable AppData sibling. Real launches reconcile the legacy root
     // afterwards, which makes any migration warning durable instead of stderr-only.
     AppLog::install();
+
+    // Only one normal Colosseum process may use the shared AppDataLocation. This prevents
+    // duplicate launches from racing the account refresh-token rotation and local sync stores.
+    // Tagged test sessions have a different application name/AppDataLocation and therefore a
+    // separate lock by design.
+    const QString instanceAppData =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    ColosseumInstanceLock instanceLock(instanceAppData);
+    if (!instanceLock.tryAcquire()) {
+        if (instanceLock.wasBlockedByExistingInstance()) {
+            qInfo("[boot] another Colosseum instance is already running; leaving it alone");
+        } else {
+            qWarning("[boot] could not establish the Colosseum instance lock");
+        }
+        return 0;
+    }
 
     AppDataMigrationResult appDataMigration;
     if (!isolatedAppData)
