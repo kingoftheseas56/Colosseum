@@ -53,6 +53,10 @@ private:
         bool *explicitProfile,
         QString *error) const;
 
+    bool mergeResidualLocalOnlyState(
+        const ProfilePaths &paths,
+        QString *error);
+
     bool clearMigrationSource(
         const LegacyPersonalStateStorage &sourceStorage,
         bool explicitProfile,
