@@ -35,5 +35,10 @@ require("qml/WorldPage.qml", "televisionMode", "Keys.priority: Keys.AfterItem",
 # Shell chrome remains the same product surface, but a D-pad can traverse it.
 require("qml/TopBar.qml", "televisionMode", "moveHorizontalFocus", "Keys.priority: Keys.AfterItem")
 require("qml/Taskbar.qml", "televisionMode", "moveHorizontalFocus", "Keys.priority: Keys.AfterItem")
+taskbar = text("qml/Taskbar.qml")
+for select_action in ("bar.open = !bar.open", "bar.downloadsClicked()", "bar.extensionsClicked()",
+                      "bar.settingsClicked()", "bar.keyboardGuideClicked()", "fanRow.activateSession()"):
+    assert f"event.key === Qt.Key_Select) {{ {select_action}" in taskbar, (
+        f"Taskbar direct-focus action lacks Android TV Select parity: {select_action}")
 
 print("android tv navigation contract: PASS")

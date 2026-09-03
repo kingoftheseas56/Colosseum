@@ -205,6 +205,7 @@ Item {
                 Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
                 Keys.onEnterPressed: { bar.open = !bar.open; bar.autoRevealed = false }
                 Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
+                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.open = !bar.open; bar.autoRevealed = false; event.accepted = true } }
             }
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
@@ -384,6 +385,7 @@ Item {
                 Keys.onReturnPressed: bar.downloadsClicked()
                 Keys.onEnterPressed: bar.downloadsClicked()
                 Keys.onSpacePressed: bar.downloadsClicked()
+                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.downloadsClicked(); event.accepted = true } }
             }
 
             // ---- Extensions: the store, beside Downloads (ratified 2026-07-05) ----
@@ -428,6 +430,7 @@ Item {
                 Keys.onReturnPressed: bar.extensionsClicked()
                 Keys.onEnterPressed: bar.extensionsClicked()
                 Keys.onSpacePressed: bar.extensionsClicked()
+                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.extensionsClicked(); event.accepted = true } }
             }
 
             // ---- Settings: the global preferences sliders, beside Extensions (Task 2).
@@ -474,6 +477,7 @@ Item {
                 Keys.onReturnPressed: bar.settingsClicked()
                 Keys.onEnterPressed: bar.settingsClicked()
                 Keys.onSpacePressed: bar.settingsClicked()
+                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.settingsClicked(); event.accepted = true } }
             }
 
             // ---- Keyboard Guide: the essentials sheet, directly beside Settings. ----
@@ -519,6 +523,7 @@ Item {
                 Keys.onReturnPressed: bar.keyboardGuideClicked()
                 Keys.onEnterPressed: bar.keyboardGuideClicked()
                 Keys.onSpacePressed: bar.keyboardGuideClicked()
+                Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { bar.keyboardGuideClicked(); event.accepted = true } }
             }
 
             // Session tiles — the dock's fill-width content.
@@ -714,6 +719,7 @@ Item {
                     Keys.onReturnPressed: fanRow.activateSession()
                     Keys.onEnterPressed: fanRow.activateSession()
                     Keys.onSpacePressed: fanRow.activateSession()
+                    Keys.onPressed: (event) => { if (event.key === Qt.Key_Select) { fanRow.activateSession(); event.accepted = true } }
                     Keys.onDeletePressed: {
                         bar.closeRequested(fanRow.modelData.id)
                         fan.closeAndRestore()
