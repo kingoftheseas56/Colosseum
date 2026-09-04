@@ -103,6 +103,10 @@ Item {
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: chip.picked()
         }
+        KeyboardAction {
+            id: chipKeyboard; anchors.fill: parent; pointerEnabled: false
+            accessibleName: chip.label; focusRadius: chip.radius; onTriggered: chip.picked()
+        }
     }
 
     Flickable {
@@ -138,6 +142,10 @@ Item {
                             anchors.fill: parent; anchors.margins: -10
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: root.backRequested()
+                        }
+                        KeyboardAction {
+                            id: continueBackKeyboard; anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
+                            accessibleName: "Back"; onTriggered: root.backRequested()
                         }
                     }
                     Text { text: root.kicker; color: theme.inkDimmer
@@ -209,19 +217,40 @@ Item {
             Grid {
                 id: grid
                 width: parent.width
-                // 148px world tiles + 20px gap (harmonized to the catalogue gallery poster)
                 columns: Math.max(4, Math.floor(width / 168))
                 columnSpacing: 20; rowSpacing: 22
+                property int currentIndex: root.shownItems.length > 0 ? 0 : -1
+                focusPolicy: root.shownItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: (event) => continueKeys.handle(event)
+                KeyboardCollectionController {
+                    id: continueKeys; view: grid; orientation: "grid"; columns: grid.columns
+                    count: root.shownItems.length; contextEnabled: true
+                    positionIndexFn: function(index) {
+                        var item=continueRepeater.itemAt(index); if (!item) return
+                        var p=item.mapToItem(page.contentItem,0,0)
+                        if (p.y < page.contentY + 12) page.contentY=Math.max(0,p.y-12)
+                        else if (p.y+item.height > page.contentY+page.height-12)
+                            page.contentY=Math.min(Math.max(0,page.contentHeight-page.height),p.y+item.height-page.height+12)
+                    }
+                    onActivated: (index) => { var item=continueRepeater.itemAt(index); if(item) item.detailRequested() }
+                    onContextRequested: (index) => { var item=continueRepeater.itemAt(index); if(item) item.openKeyboardContext(grid) }
+                }
                 Repeater {
+                    id: continueRepeater
                     model: root.shownItems
                     delegate: ContinueTile {
                         required property var modelData
+                        required property int index
+                        collectionManaged: true
+                        collectionSelected: grid.activeFocus && grid.currentIndex === index
                         variant: "world"
                         entry: modelData
-                        onResumeRequested: root.resumeRequested(modelData)
-                        onDetailRequested: root.detailRequested(modelData)
-                        onRemoveRequested: if (typeof Progress !== "undefined")
-                                               Progress.forget(modelData.kind, modelData.id)
+                        onResumeRequested: { grid.currentIndex=index; root.resumeRequested(modelData) }
+                        onDetailRequested: { grid.currentIndex=index; root.detailRequested(modelData) }
+                        onRemoveRequested: {
+                            grid.currentIndex=index
+                            if (typeof Progress !== "undefined") Progress.forget(modelData.kind, modelData.id)
+                        }
                     }
                 }
             }
@@ -264,6 +293,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.minimizeRequested()
             }
+            KeyboardAction { id: continueMinKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Minimize"; focusRadius: 6; onTriggered: root.minimizeRequested() }
         }
         Item {
             width: 22
@@ -285,6 +316,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.fullscreenRequested()
             }
+            KeyboardAction { id: continueFsKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Toggle fullscreen"; focusRadius: 6; onTriggered: root.fullscreenRequested() }
         }
         Item {
             width: 22
@@ -304,6 +337,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.closeRequested()
             }
+            KeyboardAction { id: continueCloseKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Close"; focusRadius: 6; onTriggered: root.closeRequested() }
         }
     }
 }

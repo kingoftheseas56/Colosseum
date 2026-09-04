@@ -10,6 +10,7 @@ import QtQuick.Controls
 
 Item {
     id: root
+    objectName: "settingsPage"
     property Item backdrop: null
     property var preferences: null
     signal backRequested()
@@ -18,6 +19,10 @@ Item {
     signal closeRequested()
 
     Theme { id: theme }
+
+    function takeKeyboardFocus() {
+        page.forceActiveFocus(Qt.TabFocusReason)
+    }
 
     // swallow clicks so nothing behind this page receives them
     MouseArea { anchors.fill: parent }
@@ -41,6 +46,7 @@ Item {
 
     Flickable {
         id: page
+        objectName: "settingsPageScroll"
         anchors.fill: parent
         activeFocusOnTab: true
         Keys.onPressed: (event) => pageKeyboard.handle(event)

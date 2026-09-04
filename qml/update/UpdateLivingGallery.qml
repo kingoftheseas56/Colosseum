@@ -86,8 +86,23 @@ Item {
         chapterRequested(currentIndex)
     }
     function moveChapter(delta) {
-        if (chapterCount < 2) return
-        selectChapter((currentIndex + delta + chapterCount) % chapterCount)
+        if (chapterCount < 2)
+            return false
+        var next = currentIndex + delta
+        if (next < 0 || next >= chapterCount)
+            return false
+        selectChapter(next)
+        return true
+    }
+
+    function moveChapterTo(index) {
+        if (chapterCount < 1)
+            return false
+        var next = Math.max(0, Math.min(Number(index), chapterCount - 1))
+        if (next === currentIndex)
+            return false
+        selectChapter(next)
+        return true
     }
 
     onChapterCountChanged: {
@@ -318,11 +333,26 @@ Item {
                     width: 44
                     height: 44
                     visible: root.chapterCount > 1
-                    focus: true
-                    activeFocusOnTab: true
+                    focus: false
+                    activeFocusOnTab: root.chapterCount > 1
                     Accessible.role: Accessible.Button
                     Accessible.name: "Chapter %1: %2".arg(index + 1).arg(String(modelData.title || "Chapter"))
                     Accessible.description: index === root.currentIndex ? "Selected" : ""
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                                || event.key === Qt.Key_Space) {
+                            root.selectChapter(index)
+                            event.accepted = true
+                        }
+                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 22
+                        visible: root.activeFocus && index === root.currentIndex
+                        color: "transparent"
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.82)
+                    }
                     Text {
                         anchors.centerIn: parent
                         text: String(index + 1).padStart(2, "0")
@@ -347,8 +377,6 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.selectChapter(index)
                     }
-                    Keys.onReturnPressed: root.selectChapter(index)
-                    Keys.onSpacePressed: root.selectChapter(index)
                 }
             }
             Rectangle {
@@ -362,10 +390,17 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(1, 1, 1, enabled ? 0.62 : 0.22)
                 enabled: root.chapterCount >= 2
-                focus: true
-                activeFocusOnTab: true
+                focus: false
+                activeFocusOnTab: root.chapterCount >= 2
                 Accessible.role: Accessible.Button
                 Accessible.name: "Next chapter"
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                            || event.key === Qt.Key_Space) {
+                        root.nextChapter()
+                        event.accepted = true
+                    }
+                }
                 Text {
                     id: nextText
                     anchors.centerIn: parent
@@ -381,14 +416,32 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.nextChapter()
                 }
-                Keys.onReturnPressed: root.nextChapter()
-                Keys.onSpacePressed: root.nextChapter()
             }
         }
     }
 
     focus: true
-    activeFocusOnTab: true
-    Keys.onLeftPressed: root.moveChapter(-1)
-    Keys.onRightPressed: root.moveChapter(1)
+    activeFocusOnTab: root.chapterCount > 1
+    Accessible.role: Accessible.List
+    Accessible.name: "Update chapters"
+    Accessible.description: "Left and Right select a chapter. Enter or Space advances to the next chapter."
+
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Left)
+            event.accepted = root.moveChapter(-1)
+        else if (event.key === Qt.Key_Right)
+            event.accepted = root.moveChapter(1)
+        else if (event.key === Qt.Key_Home)
+            event.accepted = root.moveChapterTo(0)
+        else if (event.key === Qt.Key_End)
+            event.accepted = root.moveChapterTo(root.chapterCount - 1)
+        else if (event.key === Qt.Key_Return
+                 || event.key === Qt.Key_Enter
+                 || event.key === Qt.Key_Space) {
+            if (root.chapterCount > 1) {
+                root.nextChapter()
+                event.accepted = true
+            }
+        }
+    }
 }

@@ -1,0 +1,1436 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "qml",
+  "filesScanned": 278,
+  "surfaceTypes": [
+    "Flickable",
+    "ListView",
+    "GridView",
+    "ScrollView",
+    "SwipeView",
+    "PathView"
+  ],
+  "stats": {
+    "COVERED": 91,
+    "DELEGATED": 9,
+    "EXCEPTION": 31
+  },
+  "rows": [
+    {
+      "file": "qml/AudioMenu.qml",
+      "line": 223,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BiblioBook.qml",
+      "line": 715,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BiblioBookRail.qml",
+      "line": 91,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/BiblioExplorePage.qml",
+      "line": 487,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BiblioGenreIndex.qml",
+      "line": 72,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BiblioGenrePage.qml",
+      "line": 72,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BiblioLibraryPage.qml",
+      "line": 178,
+      "surface_type": "GridView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BiblioSearch.qml",
+      "line": 240,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BrowserDrawer.qml",
+      "line": 306,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/BrowserDrawer.qml",
+      "line": 394,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/CalendarPage.qml",
+      "line": 112,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/CalendarPage.qml",
+      "line": 188,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/CataloguePosterGrid.qml",
+      "line": 9,
+      "surface_type": "GridView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/ComicArchiveBoard.qml",
+      "line": 106,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/ComicArchiveIndex.qml",
+      "line": 125,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/ComicSeries.qml",
+      "line": 524,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController"
+      ]
+    },
+    {
+      "file": "qml/ComicSeriesPage.qml",
+      "line": 252,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/ComicTorrentArchivePicker.qml",
+      "line": 70,
+      "surface_type": "ListView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/ComicTorrentSourcesPage.qml",
+      "line": 419,
+      "surface_type": "ListView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/ContinueRow.qml",
+      "line": 46,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/ContinueSeeAllPage.qml",
+      "line": 112,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/DCAUUniversePage.qml",
+      "line": 94,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/DCAUUniversePage.qml",
+      "line": 131,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/DCAUWorldPage.qml",
+      "line": 51,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/DCAUWorldPage.qml",
+      "line": 73,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/DCAUWorldPage.qml",
+      "line": 105,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/DiscoverBrowser.qml",
+      "line": 645,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/DiscoverBrowser.qml",
+      "line": 794,
+      "surface_type": "GridView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/DiscoverPicker.qml",
+      "line": 176,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/DownloadsPage.qml",
+      "line": 438,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/DownloadsPage.qml",
+      "line": 1201,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/EraUniversePage.qml",
+      "line": 89,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/EraUniversePage.qml",
+      "line": 190,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/EraUniversePage.qml",
+      "line": 413,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/EraUniversePage.qml",
+      "line": 520,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/ExtensionsPage.qml",
+      "line": 269,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/ExtensionsPage.qml",
+      "line": 690,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/FeaturedCarousel.qml",
+      "line": 22,
+      "surface_type": "SwipeView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/GalaxyUniversePage.qml",
+      "line": 184,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/GenreIndex.qml",
+      "line": 78,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/GenrePage.qml",
+      "line": 75,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/KeyboardGuidePage.qml",
+      "line": 379,
+      "surface_type": "ScrollView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/LibraryPage.qml",
+      "line": 271,
+      "surface_type": "GridView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/LocgPublisherPage.qml",
+      "line": 147,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/Main.qml",
+      "line": 2587,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/Main.qml",
+      "line": 2616,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/Main.qml",
+      "line": 2654,
+      "surface_type": "SwipeView",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/MangaCatalogPage.qml",
+      "line": 285,
+      "surface_type": "GridView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/MangaChapterSeriesView.qml",
+      "line": 111,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/MangaChapterSeriesView.qml",
+      "line": 358,
+      "surface_type": "ListView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/MangaSeriesThumbnailMock.qml",
+      "line": 557,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/MangaTankobanLibrary.qml",
+      "line": 672,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/MangaTankobanLibraryThumbnailMock.qml",
+      "line": 583,
+      "surface_type": "GridView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/MangaTankobanSourcesPage.qml",
+      "line": 733,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/MoreLikeThisRow.qml",
+      "line": 25,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/OnePieceArcCatalogue.qml",
+      "line": 130,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/OnePieceArcCatalogue.qml",
+      "line": 186,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/OnePieceArcCatalogue.qml",
+      "line": 223,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/OnePieceArcCatalogue.qml",
+      "line": 257,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/OnePieceArcCatalogue.qml",
+      "line": 292,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/OnePieceArcCatalogue.qml",
+      "line": 328,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/OnePieceUniversePage.qml",
+      "line": 186,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/OnePieceUniversePage.qml",
+      "line": 251,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/PersonalizePage.qml",
+      "line": 234,
+      "surface_type": "GridView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/PlayerPage.qml",
+      "line": 4433,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/PlayerPage.qml",
+      "line": 4566,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/PlayerPage.qml",
+      "line": 6085,
+      "surface_type": "ListView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/PosterRail.qml",
+      "line": 99,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/SagaUniversePage.qml",
+      "line": 92,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/SagaUniversePage.qml",
+      "line": 514,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/SearchSurface.qml",
+      "line": 285,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/SettingsPage.qml",
+      "line": 47,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/ShortcutsSheet.qml",
+      "line": 95,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/SourcesSheet.qml",
+      "line": 559,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/StarWarsMediaShelf.qml",
+      "line": 31,
+      "surface_type": "ListView",
+      "owner": "nearby Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:Keys.",
+        "nearby:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/StudioUniversePage.qml",
+      "line": 66,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/SubtitleMenu.qml",
+      "line": 385,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/SubtitleMenu.qml",
+      "line": 518,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/SubtitleMenu.qml",
+      "line": 639,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/TankobanLibraryTab.qml",
+      "line": 192,
+      "surface_type": "GridView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/TheatreCatalogRow.qml",
+      "line": 34,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/TheatreCinemaHero.qml",
+      "line": 25,
+      "surface_type": "SwipeView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/TheatreGenreIndex.qml",
+      "line": 75,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/TheatreGenrePage.qml",
+      "line": 75,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/TheatreSeries.qml",
+      "line": 1018,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/TheatreSeries.qml",
+      "line": 1892,
+      "surface_type": "ListView",
+      "owner": "nearby Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:Keys."
+      ]
+    },
+    {
+      "file": "qml/TheatreSeries.qml",
+      "line": 1934,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/TrendingTop10.qml",
+      "line": 132,
+      "surface_type": "Flickable",
+      "owner": "nearby KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:KeyboardCollectionController",
+        "nearby:Keys."
+      ]
+    },
+    {
+      "file": "qml/UniverseExtensionPage.qml",
+      "line": 100,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/UniverseExtensionPage.qml",
+      "line": 247,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/UniverseHallPage.qml",
+      "line": 108,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/UniversePage.qml",
+      "line": 82,
+      "surface_type": "Flickable",
+      "owner": "nearby Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:Keys."
+      ]
+    },
+    {
+      "file": "qml/UniversePage.qml",
+      "line": 323,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/VaultConfirmCard.qml",
+      "line": 98,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/VaultDetailSheet.qml",
+      "line": 129,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/VaultIdentifyDialog.qml",
+      "line": 151,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/VaultPage.qml",
+      "line": 943,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/VaultPage.qml",
+      "line": 1188,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/VaultPage.qml",
+      "line": 1497,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/VaultPage.qml",
+      "line": 1559,
+      "surface_type": "GridView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WallpaperSearch.qml",
+      "line": 318,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WallpaperSearch.qml",
+      "line": 395,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WallpaperSearch.qml",
+      "line": 433,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WallpaperSearch.qml",
+      "line": 475,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WallpaperSearch.qml",
+      "line": 565,
+      "surface_type": "GridView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WatchPartyPanel.qml",
+      "line": 545,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WatchPartyPanel.qml",
+      "line": 963,
+      "surface_type": "Flickable",
+      "owner": "nearby KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:KeyboardScrollController",
+        "nearby:Keys.",
+        "nearby:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/WorldPage.qml",
+      "line": 85,
+      "surface_type": "Flickable",
+      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
+      "classification": "DELEGATED",
+      "evidence": [
+        "ScrollGlide"
+      ]
+    },
+    {
+      "file": "qml/account/AccountDataPrivacyPage.qml",
+      "line": 149,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/account/AccountDevicesPage.qml",
+      "line": 349,
+      "surface_type": "Flickable",
+      "owner": "local KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardScrollController",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/account/AccountPageFrame.qml",
+      "line": 65,
+      "surface_type": "Flickable",
+      "owner": "nearby KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:KeyboardScrollController",
+        "nearby:Keys."
+      ]
+    },
+    {
+      "file": "qml/account/AccountProfilePage.qml",
+      "line": 254,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/account/AccountRecoveryPage.qml",
+      "line": 177,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/account/AccountSecurityPage.qml",
+      "line": 296,
+      "surface_type": "Flickable",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/account/AccountYourColosseumPage.qml",
+      "line": 80,
+      "surface_type": "Flickable",
+      "owner": "local activeFocusOnTab owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/comicreader/ComicReaderPagesOverlay.qml",
+      "line": 267,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:ReaderKeyboardArea",
+        "block:ComicReaderKeyboardArea",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/comicreader/ComicReaderStripSurface.qml",
+      "line": 344,
+      "surface_type": "ListView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/player2/controls/EpisodeBrowser.qml",
+      "line": 93,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/player2/controls/SourceDrawer.qml",
+      "line": 233,
+      "surface_type": "ListView",
+      "owner": "local KeyboardCollectionController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:KeyboardCollectionController",
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/player2/controls/TrackMenu.qml",
+      "line": 129,
+      "surface_type": "ListView",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/reader2/AppearancePanel.qml",
+      "line": 176,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/reader2/AppearancePanel.qml",
+      "line": 559,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    },
+    {
+      "file": "qml/reader2/DictCard.qml",
+      "line": 101,
+      "surface_type": "Flickable",
+      "owner": "nearby ReaderKeyboardArea owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:ReaderKeyboardArea"
+      ]
+    },
+    {
+      "file": "qml/reader2/FootnoteCard.qml",
+      "line": 80,
+      "surface_type": "Flickable",
+      "owner": "nearby KeyboardScrollController owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "nearby:KeyboardScrollController",
+        "nearby:ReaderKeyboardArea"
+      ]
+    },
+    {
+      "file": "qml/reader2/HarnessShelf.qml",
+      "line": 43,
+      "surface_type": "ListView",
+      "owner": "pointer scroll surface has no independent semantic action",
+      "classification": "EXCEPTION",
+      "evidence": [
+        "pointer scroll surface; keyboard ownership is at the parent route"
+      ]
+    },
+    {
+      "file": "qml/reader2/LeftPanel.qml",
+      "line": 266,
+      "surface_type": "ListView",
+      "owner": "local ReaderKeyboardArea owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:ReaderKeyboardArea",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/reader2/LeftPanel.qml",
+      "line": 349,
+      "surface_type": "ListView",
+      "owner": "local ReaderKeyboardArea owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:ReaderKeyboardArea",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/reader2/LeftPanel.qml",
+      "line": 463,
+      "surface_type": "ListView",
+      "owner": "local ReaderKeyboardArea owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:ReaderKeyboardArea",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/reader2/LeftPanel.qml",
+      "line": 596,
+      "surface_type": "Flickable",
+      "owner": "local ReaderKeyboardArea owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:ReaderKeyboardArea",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/reader2/SearchSheet.qml",
+      "line": 184,
+      "surface_type": "ListView",
+      "owner": "local ReaderKeyboardArea owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:ReaderKeyboardArea",
+        "block:Keys.",
+        "block:activeFocusOnTab"
+      ]
+    },
+    {
+      "file": "qml/reader2/SelectionMenu.qml",
+      "line": 231,
+      "surface_type": "Flickable",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
+      "evidence": [
+        "block:Keys."
+      ]
+    }
+  ]
+}

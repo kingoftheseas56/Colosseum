@@ -5,12 +5,14 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../SystemFocusContainment.js" as SystemFocusContainment
 
 Item {
     id: root
 
     property var controller: null
     property string initial: "?"
+    property Item focusReturnItem: null
     readonly property bool accountPresent: controller
         && (controller.mode === "signedIn" || controller.mode === "offline")
     readonly property bool onlineAccount: controller
@@ -47,18 +49,90 @@ Item {
         onClicked: root.close()
     }
 
-    function open() { root.visible = true }
-    function close() { root.visible = false }
-    function toggle() { root.visible = !root.visible }
+    function rememberInvoker() {
+        const active = root.Window.window ? root.Window.window.activeFocusItem : null
+        if (active && !SystemFocusContainment.isWithin(active, root))
+            focusReturnItem = active
+    }
+
+    function focusInitial() {
+        Qt.callLater(function() {
+            if (!root.visible)
+                return
+            if (root.accountPresent && navRepeater.count > 0) {
+                const first = navRepeater.itemAt(0)
+                if (first && first.visible && first.enabled) {
+                    first.forceActiveFocus()
+                    return
+                }
+            }
+            sessionAction.forceActiveFocus()
+        })
+    }
+
+    function restoreInvoker() {
+        const target = focusReturnItem
+        focusReturnItem = null
+        Qt.callLater(function() {
+            if (target && target.visible && target.enabled)
+                target.forceActiveFocus()
+        })
+    }
+
+    function open() {
+        if (!root.visible)
+            rememberInvoker()
+        root.visible = true
+        focusInitial()
+    }
+    function close(restoreFocus) {
+        if (!root.visible)
+            return
+        root.visible = false
+        if (restoreFocus !== false)
+            restoreInvoker()
+    }
+    function toggle() { root.visible ? root.close() : root.open() }
     function openAt(right, bottom) {
         root.anchorRight = right
         root.anchorBottom = bottom
-        root.visible = true
+        root.open()
     }
     function toggleAt(right, bottom) {
         root.anchorRight = right
         root.anchorBottom = bottom
-        root.visible = !root.visible
+        root.toggle()
+    }
+
+    function openCentre(section) {
+        const invoker = focusReturnItem
+        focusReturnItem = null
+        root.close(false)
+        if (typeof accountCenter !== "undefined" && accountCenter)
+            accountCenter.open(section, invoker)
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+            root.close()
+            event.accepted = true
+        } else if (event.key === Qt.Key_Tab) {
+            const forward = !(event.modifiers & Qt.ShiftModifier)
+            if (SystemFocusContainment.move(root.Window.window, root, forward))
+                event.accepted = true
+        }
+    }
+
+    Shortcut {
+        sequence: "Tab"
+        enabled: root.visible
+        onActivated: SystemFocusContainment.move(root.Window.window, root, true)
+    }
+    Shortcut {
+        sequence: "Shift+Tab"
+        enabled: root.visible
+        onActivated: SystemFocusContainment.move(root.Window.window, root, false)
     }
 
     Rectangle {
@@ -164,22 +238,56 @@ Item {
             }
 
             Column {
+                id: navColumn
                 width: parent.width
                 spacing: 2
                 visible: root.accountPresent
                 Repeater {
+                    id: navRepeater
                     model: [
                         { label: qsTr("Account ›"), section: "colosseum" },
                         { label: qsTr("Devices ›"), section: "devices" }
                     ]
                     Item {
+                        id: navItem
                         width: parent ? parent.width : 0
                         height: 32
+                        activeFocusOnTab: root.visible && navColumn.visible
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.label
+                        Keys.onReturnPressed: root.openCentre(modelData.section)
+                        Keys.onEnterPressed: root.openCentre(modelData.section)
+                        Keys.onSpacePressed: root.openCentre(modelData.section)
+                        Keys.onPressed: function(event) {
+                            if (event.key !== Qt.Key_Up && event.key !== Qt.Key_Down)
+                                return
+                            const next = index + (event.key === Qt.Key_Down ? 1 : -1)
+                            if (next >= 0 && next < navRepeater.count) {
+                                const candidate = navRepeater.itemAt(next)
+                                if (candidate) {
+                                    candidate.forceActiveFocus()
+                                    event.accepted = true
+                                }
+                            } else if (event.key === Qt.Key_Down) {
+                                sessionAction.forceActiveFocus()
+                                event.accepted = true
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 8
+                            visible: navItem.activeFocus
+                            color: Qt.rgba(0.94, 0.77, 0.29, 0.08)
+                            border.width: 1
+                            border.color: Qt.rgba(0.94, 0.77, 0.29, 0.72)
+                        }
+
                         Text {
                             x: 2
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData.label
-                            color: navMa.containsMouse ? "#f2f2ef" : "#b7b3a6"
+                            color: navItem.activeFocus || navMa.containsMouse ? "#f2f2ef" : "#b7b3a6"
                             font.family: "Inter"
                             font.pixelSize: 12
                         }
@@ -188,26 +296,32 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.close();
-                                if (typeof accountCenter !== "undefined"
-                                    && accountCenter)
-                                    accountCenter.open(modelData.section);
-                            }
+                            onClicked: root.openCentre(modelData.section)
                         }
                     }
                 }
             }
 
             Button {
+                id: sessionAction
                 objectName: "accountFlyoutSessionAction"
                 width: parent.width
                 height: 38
+                focusPolicy: Qt.StrongFocus
+                Keys.onUpPressed: {
+                    if (root.accountPresent && navRepeater.count > 0) {
+                        const last = navRepeater.itemAt(navRepeater.count - 1)
+                        if (last)
+                            last.forceActiveFocus()
+                    }
+                }
                 background: Rectangle {
                     radius: 10
                     color: parent.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
-                    border.width: 1
-                    border.color: parent.hovered ? "#3a362c" : "#2a2720"
+                    border.width: sessionAction.activeFocus ? 2 : 1
+                    border.color: sessionAction.activeFocus
+                        ? "#f0df9a"
+                        : (parent.hovered ? "#3a362c" : "#2a2720")
                 }
                 contentItem: Text {
                     text: root.accountPresent ? qsTr("Sign out") : qsTr("Sign in")

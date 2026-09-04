@@ -44,9 +44,14 @@ Column {
     }
 
     Flickable {
+        id: continueFlick
+        property int currentIndex: cont.ordered.length > 0 ? 0 : -1
         width: parent.width; height: cont.tileHeight
         contentWidth: row.width; contentHeight: height
         clip: true
+        focusPolicy: cont.ordered.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        onCurrentIndexChanged: if (currentIndex >= cont.ordered.length) currentIndex = Math.max(-1, cont.ordered.length - 1)
+        Keys.onPressed: (event) => continueKeys.handle(event)
         flickableDirection: Flickable.HorizontalFlick
         boundsBehavior: Flickable.StopAtBounds
 
@@ -54,10 +59,14 @@ Column {
             id: row
             spacing: Metrics.gallery.cardGap
             Repeater {
+                id: tileRepeater
                 model: cont.ordered
                 delegate: ContinueTile {
                     required property var modelData
+                    required property int index
                     variant: "world"
+                    collectionManaged: true
+                    collectionSelected: continueFlick.activeFocus && continueFlick.currentIndex === index
                     entry: modelData
                     onResumeRequested: cont.resumeRequested(modelData)
                     onDetailRequested: cont.detailRequested(modelData)
@@ -65,6 +74,31 @@ Column {
                         ? cont.forgetHandler(modelData)
                         : Progress.forget(modelData.kind, modelData.id)
                 }
+            }
+        }
+
+        KeyboardCollectionController {
+            id: continueKeys
+            view: continueFlick
+            orientation: "horizontal"
+            count: cont.ordered.length
+            contextEnabled: true
+            positionIndexFn: function(index) {
+                const tileItem = tileRepeater.itemAt(index)
+                if (!tileItem) return
+                const left = tileItem.x
+                const right = tileItem.x + tileItem.width
+                if (left < continueFlick.contentX) continueFlick.contentX = left
+                else if (right > continueFlick.contentX + continueFlick.width)
+                    continueFlick.contentX = Math.min(Math.max(0, continueFlick.contentWidth - continueFlick.width), right - continueFlick.width)
+            }
+            onActivated: (index) => {
+                const tileItem = tileRepeater.itemAt(index)
+                if (tileItem) tileItem.detailRequested()
+            }
+            onContextRequested: (index) => {
+                const tileItem = tileRepeater.itemAt(index)
+                if (tileItem) tileItem.openKeyboardContext(continueFlick)
             }
         }
     }

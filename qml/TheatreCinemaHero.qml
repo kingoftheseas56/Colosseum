@@ -154,6 +154,12 @@ Item {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: hero.primaryClicked(slide.modelData)
                                 }
+                                KeyboardAction {
+                                    id: primaryKeyboard; anchors.fill: parent; pointerEnabled: false
+                                    focusEnabled: slide.SwipeView.isCurrentItem
+                                    accessibleName: hero.primaryLabel; focusRadius: parent.radius
+                                    onTriggered: hero.primaryClicked(slide.modelData)
+                                }
                             }
                             Rectangle {
                                 radius: 10
@@ -176,6 +182,12 @@ Item {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: hero.secondaryClicked(slide.modelData)
                                 }
+                                KeyboardAction {
+                                    id: secondaryKeyboard; anchors.fill: parent; pointerEnabled: false
+                                    focusEnabled: slide.SwipeView.isCurrentItem
+                                    accessibleName: hero.secondaryLabel; focusRadius: parent.radius
+                                    onTriggered: hero.secondaryClicked(slide.modelData)
+                                }
                             }
                         }
                     }
@@ -185,7 +197,16 @@ Item {
     }
 
     Row {
+        id: dotRow
         visible: hero.slides.length > 1
+        property int currentIndex: view.currentIndex
+        onCurrentIndexChanged: if (view.currentIndex !== currentIndex) view.currentIndex = currentIndex
+        focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => dotKeys.handle(event)
+        KeyboardCollectionController {
+            id: dotKeys; view: dotRow; orientation: "horizontal"; count: hero.slides.length
+            onActivated: (index) => view.currentIndex = index
+        }
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 22
@@ -199,6 +220,8 @@ Item {
                 height: 7
                 radius: 4
                 color: dot.index === view.currentIndex ? theme.ink : Qt.rgba(1, 1, 1, 0.48)
+                border.width: dotRow.activeFocus && dot.index === dotRow.currentIndex ? 2 : 0
+                border.color: theme.gold
                 Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                 MouseArea {
                     anchors.fill: parent

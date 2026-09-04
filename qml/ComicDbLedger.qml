@@ -370,6 +370,15 @@ Item {
                             cursorShape: (ed.canAcquire || ed.dlState === "done") ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: ed.primary()
                         }
+                        KeyboardAction {
+                            id: editionKeyboard
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: ed.canAcquire
+                            accessibleName: (ed.dlState === "done" ? "Read " : "Download ")
+                                + ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
+                            onTriggered: ed.primary()
+                        }
 
                         // ── Find alternate sources: a smaller circular action with its OWN
                         //    MouseArea, declared AFTER edMa so it stacks above it — clicking
@@ -395,6 +404,14 @@ Item {
                                 onClicked: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
                                 ToolTip.visible: containsMouse
                                 ToolTip.text: "Find alternate sources"
+                            }
+                            KeyboardAction {
+                                id: alternateSourcesKeyboard
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                focusEnabled: ed.canAlternate
+                                accessibleName: "Find alternate sources"
+                                onTriggered: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
                             }
                             Accessible.role: Accessible.Button
                             Accessible.name: "Find alternate sources"

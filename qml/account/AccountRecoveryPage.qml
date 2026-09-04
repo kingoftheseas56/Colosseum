@@ -25,6 +25,21 @@ Item {
 
     Theme { id: theme }
 
+    KeyboardScrollController {
+        id: keyboardScroll
+        flick: scroller
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape && root.replaceExpanded) {
+            root.cancelReplacement()
+            event.accepted = true
+            return
+        }
+        keyboardScroll.handle(event)
+    }
+
     function clearPassword() {
         currentPasswordField.clear()
     }

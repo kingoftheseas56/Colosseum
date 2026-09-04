@@ -24,6 +24,10 @@ Glass {
     height: 400
 
     Theme { id: theme }
+    KeyboardAction {
+        id: deskKeyboard; anchors.fill: parent; pointerEnabled: false
+        accessibleName: "Open Biblio"; focusRadius: desk.radius; onTriggered: desk.clicked()
+    }
 
     Component.onCompleted: BiblioApi.loadBiblio(function(r) { desk.chart = (r && r.top) ? r.top : [] })
 
@@ -155,15 +159,27 @@ Glass {
             }
             Item { width: 1; height: 8 }
             Flow {
+                id: genreFlow
                 width: 270; spacing: 8
+                property int currentIndex: Math.min(3, Catalog.biblioGenres.length - 1) >= 0 ? 0 : -1
+                focusPolicy: Catalog.biblioGenres.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                Keys.onPressed: (event) => genreKeys.handle(event)
+                KeyboardCollectionController {
+                    id: genreKeys; view: genreFlow; orientation: "horizontal"
+                    count: Math.min(4, Catalog.biblioGenres.length)
+                    onActivated: (index) => desk.genrePicked(Catalog.biblioGenres[index].name)
+                }
                 Repeater {
+                    id: genreRepeater
                     model: Catalog.biblioGenres.slice(0, 4)
                     delegate: Rectangle {
                         required property var modelData
+                        required property int index
                         width: chipText.implicitWidth + 24; height: 26; radius: 13
                         color: Qt.rgba(1, 1, 1, 0.06)
-                        border.width: 1
-                        border.color: chipMa.containsMouse ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.5) : theme.edge
+                        border.width: genreFlow.activeFocus && genreFlow.currentIndex === index ? 2 : 1
+                        border.color: genreFlow.activeFocus && genreFlow.currentIndex === index ? theme.gold
+                            : (chipMa.containsMouse ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.5) : theme.edge)
                         Text {
                             id: chipText
                             anchors.centerIn: parent
@@ -174,7 +190,11 @@ Glass {
                         MouseArea {
                             id: chipMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: desk.genrePicked(parent.modelData.name)
+                            onClicked: {
+                                genreFlow.currentIndex = parent.index
+                                genreFlow.forceActiveFocus(Qt.MouseFocusReason)
+                                desk.genrePicked(parent.modelData.name)
+                            }
                         }
                     }
                 }

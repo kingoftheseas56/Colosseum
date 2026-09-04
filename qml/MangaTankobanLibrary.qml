@@ -632,6 +632,10 @@ Item {
                     hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: root.requestNextMissing()
                 }
+                KeyboardAction {
+                    anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                    accessibleName: "Download next 10"; onTriggered: root.requestNextMissing()
+                }
             }
             Text {
                 objectName: "volumeSelectToggle"
@@ -646,6 +650,11 @@ Item {
                         if (root.selecting) root.clearSelection()
                         else root.selecting = true
                     }
+                }
+                KeyboardAction {
+                    id: selectToggleKeyboard; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                    accessibleName: root.selecting ? "Done selecting volumes" : "Select volumes"
+                    onTriggered: { if (root.selecting) root.clearSelection(); else root.selecting = true }
                 }
             }
         }
@@ -672,13 +681,13 @@ Item {
             highlightFollowsCurrentItem: false
             clip: true
             currentIndex: -1
-            Keys.onLeftPressed: root.focusAtIndex(root.focusIndex - 1)
-            Keys.onRightPressed: root.focusAtIndex(root.focusIndex + 1)
-            Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_PageDown) { root.jumpBy(10); event.accepted = true }
-                else if (event.key === Qt.Key_PageUp) { root.jumpBy(-10); event.accepted = true }
-                else if (event.key === Qt.Key_Home) { root.focusAtIndex(0); event.accepted = true }
-                else if (event.key === Qt.Key_End) { root.focusAtIndex(root.volumeRows.length - 1); event.accepted = true }
+            focusPolicy: root.volumeRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: (event) => volumeKeys.handle(event)
+            KeyboardCollectionController {
+                id: volumeKeys; view: volumeFlow; orientation: "horizontal"
+                count: root.volumeRows.length; pageStep: 10
+                positionIndexFn: function(index) { root.focusAtIndex(index) }
+                onActivated: (index) => root.pressVolume(index)
             }
             onWidthChanged: Qt.callLater(root.centreFlow)
 
@@ -733,11 +742,8 @@ Item {
                 readonly property string nameText: root.volumeNameFor(card.modelData)
                 readonly property string stateText: root.stateLineFor(card.modelData)
 
-                activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Volume " + Vol.volumeToken(card.modelData)
-                Keys.onReturnPressed: root.pressVolume(card.index)
-                Keys.onEnterPressed: root.pressVolume(card.index)
 
                 Rectangle {
                     id: coverBox
@@ -858,7 +864,11 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onPressed: card.forceActiveFocus()
+                    onPressed: {
+                        volumeFlow.currentIndex = card.index
+                        root.focusAtIndex(card.index)
+                        volumeFlow.forceActiveFocus(Qt.MouseFocusReason)
+                    }
                     onClicked: root.pressVolume(card.index)
                 }
 
@@ -955,6 +965,11 @@ Item {
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.downloadAction(root.currentRow)
                 }
+                KeyboardAction {
+                    id: actionDownloadKeyboard; anchors.fill: parent; pointerEnabled: false
+                    focusEnabled: root.currentDownloadEnabled; accessibleName: "Download current volume"
+                    focusRadius: parent.radius; onTriggered: root.downloadAction(root.currentRow)
+                }
             }
 
             Rectangle {
@@ -974,6 +989,11 @@ Item {
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.activateCurrent()
                 }
+                KeyboardAction {
+                    id: actionReadKeyboard; anchors.fill: parent; pointerEnabled: false
+                    focusEnabled: root.currentRow !== null; accessibleName: root.currentActionLabel
+                    focusRadius: parent.radius; onTriggered: root.activateCurrent()
+                }
             }
         }
     }
@@ -989,6 +1009,10 @@ Item {
         Rectangle { anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter; width: downloadSelectedText.implicitWidth + 20; height: 30; radius: 7; color: theme.gold
             Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#171205"; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.downloadSelected() }
+            KeyboardAction {
+                anchors.fill: parent; pointerEnabled: false; accessibleName: "Download selected volumes"
+                focusRadius: parent.radius; onTriggered: root.downloadSelected()
+            }
         }
     }
 }

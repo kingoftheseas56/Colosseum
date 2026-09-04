@@ -122,6 +122,13 @@ Item {
                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.primaryClicked() }
+                    KeyboardAction {
+                        id: primaryKeyboard
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: slideRoot.primaryLabel
+                        onTriggered: slideRoot.primaryClicked()
+                    }
                 }
                 Rectangle {
                     visible: slideRoot.secondaryLabel.length > 0
@@ -131,6 +138,14 @@ Item {
                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.secondaryClicked() }
+                    KeyboardAction {
+                        id: secondaryKeyboard
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        focusEnabled: slideRoot.secondaryLabel.length > 0
+                        accessibleName: slideRoot.secondaryLabel
+                        onTriggered: slideRoot.secondaryClicked()
+                    }
                 }
             }
         }

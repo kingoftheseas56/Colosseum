@@ -14,6 +14,8 @@ import "ComicsApi.js" as Api
 
 Item {
     id: page
+    focus: true
+    activeFocusOnTab: true
     property Item backdrop
     property string boxTitle: ""
     property string tagSlug: ""
@@ -25,6 +27,7 @@ Item {
     signal closeRequested()
     signal westernPicked(var data)         // a series card → host opens its ComicSeries shelf
     signal allReleasesRequested(var data)  // "All N releases ›" → host opens the box's raw shelf
+    Keys.onPressed: archiveIndexKeys.handle(event)
 
     // --- resolved series: [{title, tag, tagId, count, freq, cover}] ---
     property var series: []
@@ -170,6 +173,15 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: page.allReleasesRequested({ western: true, tag: page.tagSlug,
                                                                    tagId: page.tagId, title: page.boxTitle }) }
+                        KeyboardAction {
+                            id: allReleasesKeyboard
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            pointerEnabled: false
+                            accessibleName: "Open all releases"
+                            onTriggered: page.allReleasesRequested({ western: true, tag: page.tagSlug,
+                                                                      tagId: page.tagId, title: page.boxTitle })
+                        }
                     }
                 }
             }
@@ -225,6 +237,14 @@ Item {
                                 onClicked: page.westernPicked({ western: true, tag: tile.modelData.tag,
                                                                 tagId: tile.modelData.tagId, title: tile.modelData.title })
                             }
+                            KeyboardAction {
+                                id: archiveKeyboard
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                accessibleName: "Open " + String(tile.modelData.title || "series archive")
+                                onTriggered: page.westernPicked({ western: true, tag: tile.modelData.tag,
+                                                                  tagId: tile.modelData.tagId, title: tile.modelData.title })
+                            }
                         }
                         Column {
                             width: parent.width
@@ -260,7 +280,12 @@ Item {
         }
     }
 
-    ScrollGlide { flick: flick }
+    ScrollGlide { id: archiveIndexGlide; flick: flick }
+    KeyboardScrollController {
+        id: archiveIndexKeys
+        flick: flick
+        glide: archiveIndexGlide
+    }
 
     // ---- loading state ----
     Column {

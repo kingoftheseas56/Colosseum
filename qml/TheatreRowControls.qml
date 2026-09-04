@@ -21,24 +21,37 @@ Item {
     signal resetNameRequested()
 
     property bool editing: false
+    property Item editFocusReturn: null
 
     implicitHeight: 34
     implicitWidth: bar.width
 
     Theme { id: theme }
 
-    function beginEdit() {
+    function restoreEditFocus() {
+        const target = controls.editFocusReturn
+        controls.editFocusReturn = null
+        if (target && target.visible && target.enabled)
+            Qt.callLater(function() { target.forceActiveFocus(Qt.OtherFocusReason) })
+    }
+    function beginEdit(invoker) {
+        controls.editFocusReturn = invoker || null
         nameField.text = controls.label
         controls.editing = true
-        nameField.forceActiveFocus()
+        nameField.forceActiveFocus(Qt.OtherFocusReason)
         nameField.selectAll()
     }
     function commitEdit() {
         if (!controls.editing) return
         controls.editing = false
         controls.renameRequested(nameField.text)
+        controls.restoreEditFocus()
     }
-    function cancelEdit() { controls.editing = false }
+    function cancelEdit() {
+        if (!controls.editing) return
+        controls.editing = false
+        controls.restoreEditFocus()
+    }
 
     // ── a small square glyph button ──
     component GlyphButton: Rectangle {
@@ -48,7 +61,7 @@ Item {
         property bool enabledLook: true
         signal clicked()
         width: 28; height: 28; radius: 6
-        color: ma.containsMouse && btn.enabledLook ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+        color: action.interactionActive && btn.enabledLook ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
         border.width: 1
         border.color: btn.enabledLook ? theme.edge : Qt.rgba(1, 1, 1, 0.06)
         opacity: btn.enabledLook ? 1 : 0.4
@@ -58,10 +71,14 @@ Item {
             color: theme.ink
             font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
         }
-        MouseArea {
-            id: ma; anchors.fill: parent; hoverEnabled: true
+        KeyboardAction {
+            id: action
+            anchors.fill: parent
+            focusEnabled: btn.enabledLook
+            accessibleName: btn.tip.length > 0 ? btn.tip : btn.glyph
             cursorShape: btn.enabledLook ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: if (btn.enabledLook) btn.clicked()
+            focusRadius: btn.radius
+            onTriggered: btn.clicked()
         }
     }
 
@@ -90,15 +107,20 @@ Item {
         Rectangle {
             width: 88; height: 28; radius: 6
             visible: !controls.editing
-            color: renMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+            color: renameAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
             border.width: 1; border.color: theme.edge
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 anchors.centerIn: parent; text: "Rename"
                 color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
             }
-            MouseArea { id: renMa; anchors.fill: parent; hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor; onClicked: controls.beginEdit() }
+            KeyboardAction {
+                id: renameAction
+                anchors.fill: parent
+                accessibleName: "Rename row"
+                focusRadius: 6
+                onTriggered: controls.beginEdit(renameAction)
+            }
         }
         Rectangle {
             width: 160; height: 28; radius: 6

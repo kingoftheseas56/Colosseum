@@ -1,0 +1,495 @@
+{
+  "name": "keyboard-universe-utilities-completion",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "session",
+      "expect": [
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "dismiss onboarding with Enter",
+      "payload": {
+        "key": "Enter"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "onboarding closes",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Star Wars universe opens",
+      "payload": {
+        "object": "galaxyUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Skywalker is the galaxy entry focus",
+      "payload": {
+        "object": "starWarsGalaxySkywalker",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Right moves to first era gate",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "High Republic gate owns focus",
+      "payload": {
+        "object": "starWarsGalaxyGate_high",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Down advances to next era",
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Fall of the Jedi gate owns focus",
+      "payload": {
+        "object": "starWarsGalaxyGate_fall",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Up returns to High Republic",
+      "payload": {
+        "key": "Up"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Space opens focused destination",
+      "payload": {
+        "key": "Space"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "High Republic destination opens",
+      "payload": {
+        "object": "galaxyUniversePage",
+        "prop": "selectedDestinationId",
+        "value": "high",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape returns to galaxy",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "galaxy destination closes",
+      "payload": {
+        "object": "galaxyUniversePage",
+        "prop": "selectedDestinationId",
+        "value": "",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "galaxy entry focus is restored",
+      "payload": {
+        "object": "starWarsGalaxySkywalker",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape closes Universe",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Universe loader closes",
+      "payload": {
+        "object": "universeLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell focus recovers",
+      "payload": {
+        "object": "keyboardIgnition",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "open Settings from restored shell",
+      "payload": {
+        "key": "Ctrl+Shift+S"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Settings opens",
+      "payload": {
+        "object": "settingsLayer",
+        "prop": "active",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Settings owns page focus",
+      "payload": {
+        "object": "settingsPageScroll",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape closes Settings",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Settings closes",
+      "payload": {
+        "object": "settingsLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell focus restores after Settings",
+      "payload": {
+        "object": "keyboardIgnition",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "open Extensions from restored shell",
+      "payload": {
+        "key": "Ctrl+Shift+E"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Extensions opens",
+      "payload": {
+        "object": "extensionsLayer",
+        "prop": "active",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Extensions owns page focus",
+      "payload": {
+        "object": "extensionsPageScroll",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Tab enters Extensions tabs",
+      "payload": {
+        "key": "Tab"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Right selects Browse",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Browse pane selected",
+      "payload": {
+        "object": "extensionsPage",
+        "props": [
+          "pane"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.pane",
+          "op": "==",
+          "value": "browse"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "End selects Installed",
+      "payload": {
+        "key": "End"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Installed pane selected",
+      "payload": {
+        "object": "extensionsPage",
+        "props": [
+          "pane"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.pane",
+          "op": "==",
+          "value": "installed"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Home restores Sources",
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Sources pane restored",
+      "payload": {
+        "object": "extensionsPage",
+        "props": [
+          "pane"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.pane",
+          "op": "==",
+          "value": "sources"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape closes Extensions",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Extensions closes",
+      "payload": {
+        "object": "extensionsLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell focus restores after Extensions",
+      "payload": {
+        "object": "keyboardIgnition",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

@@ -25,6 +25,8 @@ Item {
     property real progress: -1        // < 0 → no progress bar
     property real posterWidth: Metrics.gallery.posterWidth // opt-in larger universe shelves; default unchanged
     property url cover: ""            // remote cover art; the c1→c2 tint shows through until it loads (or if it fails)
+    property bool keyboardEnabled: true
+    property bool keyboardFocused: false
     signal clicked()
 
     // gallery geometry — read from the frozen tokens; never a local copy of these numbers.
@@ -135,5 +137,23 @@ Item {
     MouseArea {
         id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onClicked: tile.clicked()
+    }
+    KeyboardAction {
+        id: keyboardAction
+        anchors.fill: parent
+        pointerEnabled: false
+        focusEnabled: tile.keyboardEnabled
+        accessibleName: tile.caption.length ? tile.caption : qsTr("Open item")
+        focusRadius: tile._r
+        onTriggered: tile.clicked()
+    }
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: tile._r + 2
+        color: "transparent"
+        border.width: 2
+        border.color: theme.gold
+        visible: tile.keyboardFocused
     }
 }

@@ -27,6 +27,10 @@ Item {
     readonly property real shownPos: seeking ? previewSeconds : livePos
     readonly property real frac: dur > 0 ? Math.max(0, Math.min(1, shownPos / dur)) : 0
     readonly property bool active: hover.containsMouse || seeking || root.activeFocus
+    readonly property real value: root.shownPos
+    readonly property real minimumValue: 0
+    readonly property real maximumValue: root.dur
+    readonly property real stepSize: 10
 
     focusPolicy: root.dur > 0 ? Qt.TabFocus : Qt.NoFocus
     Keys.onPressed: function(event) {
@@ -39,7 +43,6 @@ Item {
     }
     Accessible.role: Accessible.Slider
     Accessible.name: "Seek"
-    Accessible.value: Math.round(root.shownPos)
 
     function previewAt(x) {
         return dur * Math.max(0, Math.min(1, x / Math.max(1, barVisual.width)))

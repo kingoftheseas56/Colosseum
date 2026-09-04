@@ -14,6 +14,13 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
 
+    function takeKeyboardFocus() {
+        if (primaryAction.visible && primaryAction.enabled)
+            primaryAction.forceActiveFocus(Qt.TabFocusReason)
+        else
+            minimizeAction.forceActiveFocus(Qt.TabFocusReason)
+    }
+
     // The native enum is deliberately mapped here to stable human language. QML never sees
     // error codes or transport logs, and the test seam can use the same numeric values.
     readonly property string automationState: stateName(updates ? updates.state : 0)
@@ -238,14 +245,21 @@ Item {
         }
         // Primary action button — right-aligned in the strip.
         Rectangle {
+            id: primaryAction
             objectName: "colosseumUpdatePrimaryAction"
             visible: root.primaryVisible
             enabled: root.primaryVisible
+            activeFocusOnTab: visible && enabled
             anchors.right: parent.right
             anchors.verticalCenter: statusColumn.verticalCenter
             width: actionRow.implicitWidth + 36; height: 44; radius: 22
-            color: primaryActionMa.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07)
-            border.width: 1; border.color: Qt.rgba(1, 1, 1, primaryActionMa.containsMouse ? 0.38 : 0.24)
+            color: primaryAction.activeFocus
+                ? Qt.rgba(1, 1, 1, 0.16)
+                : (primaryActionMa.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07))
+            border.width: primaryAction.activeFocus ? 2 : 1
+            border.color: primaryAction.activeFocus
+                ? theme.gold
+                : Qt.rgba(1, 1, 1, primaryActionMa.containsMouse ? 0.38 : 0.24)
             Row {
                 id: actionRow
                 anchors.centerIn: parent
@@ -289,15 +303,75 @@ Item {
         Row {
             id: chromeRow
             spacing: 22
-            Text { text: "—"; color: minMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                               onClicked: root.minimizeRequested() } }
-            Text { text: "⛶"; color: fullMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: fullMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                               onClicked: root.fullscreenRequested() } }
-            Text { text: "⏻"; color: powerMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: powerMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                               onClicked: root.closeRequested() } }
+
+            Text {
+                id: minimizeAction
+                objectName: "colosseumUpdateMinimize"
+                text: "\u2014"
+                color: activeFocus ? theme.gold : (minMa.containsMouse ? theme.ink : theme.inkDim)
+                font.pixelSize: 17
+                font.underline: activeFocus
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "Minimize Colosseum"
+                Keys.onReturnPressed: root.minimizeRequested()
+                Keys.onEnterPressed: root.minimizeRequested()
+                Keys.onSpacePressed: root.minimizeRequested()
+                MouseArea {
+                    id: minMa
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.minimizeRequested()
+                }
+            }
+
+            Text {
+                id: fullscreenAction
+                objectName: "colosseumUpdateFullscreen"
+                text: "\u26F6"
+                color: activeFocus ? theme.gold : (fullMa.containsMouse ? theme.ink : theme.inkDim)
+                font.pixelSize: 17
+                font.underline: activeFocus
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "Toggle Colosseum fullscreen"
+                Keys.onReturnPressed: root.fullscreenRequested()
+                Keys.onEnterPressed: root.fullscreenRequested()
+                Keys.onSpacePressed: root.fullscreenRequested()
+                MouseArea {
+                    id: fullMa
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.fullscreenRequested()
+                }
+            }
+
+            Text {
+                id: closeAction
+                objectName: "colosseumUpdateClose"
+                text: "\u23FB"
+                color: activeFocus ? theme.gold : (powerMa.containsMouse ? theme.ink : theme.inkDim)
+                font.pixelSize: 17
+                font.underline: activeFocus
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "Close Colosseum"
+                Keys.onReturnPressed: root.closeRequested()
+                Keys.onEnterPressed: root.closeRequested()
+                Keys.onSpacePressed: root.closeRequested()
+                MouseArea {
+                    id: powerMa
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.closeRequested()
+                }
+            }
         }
     }
 

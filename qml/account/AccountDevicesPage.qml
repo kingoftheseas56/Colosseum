@@ -19,6 +19,7 @@ Item {
     property string revokeTargetId: ""
     property bool revokeRequestPending: false
     property string operationErrorMessage: ""
+    property string keyboardFocusedDeviceId: ""
 
     readonly property bool signedIn: controller && controller.mode === "signedIn"
     readonly property bool compact: scroller.width < 820
@@ -230,7 +231,27 @@ Item {
             revokeTargetId = ""
             revokeRequestPending = false
             operationErrorMessage = ""
+            Qt.callLater(root.restoreTrackedDeviceFocus)
         }
+    }
+
+    function restoreTrackedDeviceFocus() {
+        const wanted = keyboardFocusedDeviceId
+        for (let i = 0; i < deviceRepeater.count; ++i) {
+            const delegate = deviceRepeater.itemAt(i)
+            if (!delegate || delegate.serverId !== wanted)
+                continue
+            const target = delegate.keyboardTarget
+            if (target && target.visible && target.enabled) {
+                target.forceActiveFocus(Qt.OtherFocusReason)
+                return true
+            }
+        }
+        if (refreshButton.visible && refreshButton.enabled) {
+            refreshButton.forceActiveFocus(Qt.OtherFocusReason)
+            return true
+        }
+        return false
     }
 
     function clearEphemeralState() {
@@ -327,12 +348,30 @@ Item {
 
     Flickable {
         id: scroller
+        objectName: "devicesScrollRegion"
         anchors.fill: parent
         clip: true
         contentWidth: width
         contentHeight: pageColumn.height + 58
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
+        activeFocusOnTab: root.signedIn || root.visibleDeviceCount > 0
+
+        KeyboardScrollController {
+            id: devicesScrollKeys
+            flick: scroller
+        }
+
+        Keys.priority: Keys.AfterItem
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape && root.revokeTargetId.length > 0) {
+                root.cancelRevoke()
+                Qt.callLater(root.restoreTrackedDeviceFocus)
+                event.accepted = true
+                return
+            }
+            devicesScrollKeys.handle(event)
+        }
 
         ScrollBar.vertical: ScrollBar {
             policy: scroller.contentHeight > scroller.height
@@ -491,6 +530,7 @@ Item {
             }
 
             Repeater {
+                id: deviceRepeater
                 model: root.visibleDeviceCount
 
                 Column {
@@ -501,6 +541,7 @@ Item {
                     property var entry: root.deviceAt(index)
                     property string serverId: root.deviceServerId(entry)
                     property bool currentDevice: root.isCurrentDevice(entry)
+                    property Item keyboardTarget: revokeButton
                     property bool confirmationOpen:
                         !currentDevice
                         && serverId.length > 0
@@ -600,7 +641,10 @@ Item {
                             enabled: root.signedIn
                                 && !root.revokeRequestPending
                             Accessible.name: qsTr("Revoke %1").arg(root.deviceLabel(deviceDelegate.entry))
+                            onActiveFocusChanged: if (activeFocus)
+                                root.keyboardFocusedDeviceId = deviceDelegate.serverId
                             onClicked: {
+                                root.keyboardFocusedDeviceId = deviceDelegate.serverId
                                 root.openRevoke(deviceDelegate.serverId)
                                 Qt.callLater(function() {
                                     if (deviceDelegate.confirmationOpen)
@@ -656,7 +700,10 @@ Item {
                                     text: qsTr("Cancel")
                                     enabled: !root.revokeRequestPending
                                     Accessible.name: qsTr("Cancel revoking %1").arg(root.deviceLabel(deviceDelegate.entry))
-                                    onClicked: root.cancelRevoke()
+                                    onClicked: {
+                                        root.cancelRevoke()
+                                        Qt.callLater(root.restoreTrackedDeviceFocus)
+                                    }
                                 }
 
                                 AccountButton {

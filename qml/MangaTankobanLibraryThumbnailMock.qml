@@ -583,6 +583,8 @@ Item {
     GridView {
         id: volumeGrid
         objectName: "volumeShelfGrid"
+        focus: true
+        activeFocusOnTab: root.volumeRows.length > 0
         anchors.fill: parent
         clip: true
         boundsBehavior: Flickable.StopAtBounds
@@ -590,6 +592,18 @@ Item {
         model: root.volumeRows
         currentIndex: root.focusIndex
         highlightFollowsCurrentItem: false
+        Keys.onPressed: legacyMangaKeys.handle(event)
+
+        KeyboardCollectionController {
+            id: legacyMangaKeys
+            view: volumeGrid
+            orientation: "grid"
+            columns: volumeGrid.columns
+            count: root.volumeRows.length
+            pageStep: Math.max(1, volumeGrid.columns * 2)
+            positionIndexFn: function(index) { root.focusAtIndex(index) }
+            onActivated: function(index) { root.pressVolume(index) }
+        }
 
         readonly property int columnGap: 14
         readonly property int rowGap: 18
@@ -638,6 +652,9 @@ Item {
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: root.requestNextMissing()
                         }
+                        KeyboardAction { id: nextVolumeKeyboard; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                            focusEnabled: parent.visible; accessibleName: "Download next 10 volumes"
+                            onTriggered: root.requestNextMissing() }
                     }
                     Text {
                         objectName: "volumeSelectToggle"
@@ -653,6 +670,9 @@ Item {
                                 else root.selecting = true
                             }
                         }
+                        KeyboardAction { id: selectVolumesKeyboard; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                            accessibleName: root.selecting ? "Finish volume selection" : "Select volumes"
+                            onTriggered: { if (root.selecting) root.clearSelection(); else root.selecting = true } }
                     }
                 }
             }
@@ -671,12 +691,6 @@ Item {
             property string spanText: root.shelfRangeFor(card.modelData)
             property string liveCaption: root.liveCaptionFor(card.modelData)
             readonly property bool live: root._inFlight(card.cardState)
-
-            activeFocusOnTab: true
-            Accessible.role: Accessible.Button
-            Accessible.name: "Volume " + Vol.volumeToken(card.modelData)
-            Keys.onReturnPressed: root.primaryAction(card.modelData)
-            Keys.onEnterPressed: root.primaryAction(card.modelData)
 
             Rectangle {
                 id: coverBox
@@ -824,6 +838,16 @@ Item {
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onPressed: card.forceActiveFocus()
                 onClicked: root.primaryAction(card.modelData)
+            }
+            KeyboardAction {
+                id: volumeKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Open volume " + Vol.volumeToken(card.modelData)
+                onTriggered: {
+                    if (root.selecting) root.selectNumber(card.modelData.number)
+                    else root.primaryAction(card.modelData)
+                }
             }
 
             Component.onCompleted: root.liveVolumeTiles += 1
@@ -1130,6 +1154,23 @@ Item {
                                                     chapterRow.primary()
                                             }
                                         }
+                                        KeyboardAction {
+                                            id: chapterUtilityKeyboard
+                                            anchors.fill: parent
+                                            pointerEnabled: false
+                                            accessibleName: chapterRow.inFlight
+                                                ? "Cancel " + chapterRow.chapterLabel
+                                                : chapterRow.chapterState === "done"
+                                                    ? "Remove " + chapterRow.chapterLabel
+                                                    : "Download " + chapterRow.chapterLabel
+                                            onTriggered: {
+                                                var d = root.downloaderObject
+                                                if (chapterRow.inFlight && d && d.cancelDownload)
+                                                    d.cancelDownload(chapterRow.chapterId)
+                                                else
+                                                    chapterRow.primary()
+                                            }
+                                        }
                                     }
                                 }
 
@@ -1173,6 +1214,16 @@ Item {
                                         if (String(cid) === chapterRow.chapterId && String(url || "").length)
                                             chapterRow.liveThumb = String(url)
                                     }
+                                }
+                                KeyboardAction {
+                                    id: chapterKeyboard
+                                    anchors.fill: parent
+                                    anchors.rightMargin: 66
+                                    pointerEnabled: false
+                                    accessibleName: chapterRow.chapterState === "done"
+                                        ? "Read " + chapterRow.chapterLabel
+                                        : "Download " + chapterRow.chapterLabel
+                                    onTriggered: chapterRow.primary()
                                 }
                             }
                         }

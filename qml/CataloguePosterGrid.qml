@@ -57,7 +57,7 @@ GridView {
             || event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
             wall.keyboardMode = true
             event.accepted = false            // let GridView move currentIndex
-        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             wall.keyboardMode = true
             if (wall.currentIndex >= 0 && wall.currentIndex < wall.items.length)
                 wall.itemRequested(wall.items[wall.currentIndex])

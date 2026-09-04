@@ -198,6 +198,15 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: root.cancelRequested()
         }
+        KeyboardAction {
+            id: cancelKeyboard
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: root.active
+            accessibleName: qsTr("Cancel loading")
+            focusRadius: width / 2
+            onTriggered: root.cancelRequested()
+        }
     }
 
     // Full-bleed click-swallow so taps on the loader never fall through to the video surface.

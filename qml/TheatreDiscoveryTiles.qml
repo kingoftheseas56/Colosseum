@@ -8,6 +8,20 @@ Column {
     id: block
 
     property string title: ""
+    property int currentIndex: tiles.length > 0 ? 0 : -1
+    focusPolicy: tiles.length > 0 ? Qt.TabFocus : Qt.NoFocus
+    onTilesChanged: currentIndex = tiles.length > 0 ? Math.min(Math.max(0, currentIndex), tiles.length - 1) : -1
+    Keys.onPressed: (event) => tileKeys.handle(event)
+
+    KeyboardCollectionController {
+        id: tileKeys
+        view: block
+        orientation: "grid"
+        columns: Math.max(1, block.columns)
+        count: block.tiles.length
+        pageStep: Math.max(1, block.columns * 2)
+        onActivated: (index) => block.tileClicked(block.tiles[index])
+    }
     property var tiles: []
     property int columns: 4
     signal tileClicked(var tile)
@@ -38,6 +52,7 @@ Column {
             delegate: Rectangle {
                 id: tile
                 required property var modelData
+                required property int index
 
                 width: grid.cellW
                 height: 116
@@ -48,8 +63,9 @@ Column {
                     GradientStop { position: 0.0; color: tile.modelData.c1 || "#263241" }
                     GradientStop { position: 1.0; color: tile.modelData.c2 || "#0c1118" }
                 }
-                border.width: 1
-                border.color: ma.containsMouse ? theme.gold : Qt.rgba(1, 1, 1, 0.12)
+                border.width: block.activeFocus && block.currentIndex === tile.index ? 2 : 1
+                border.color: ma.containsMouse || (block.activeFocus && block.currentIndex === tile.index)
+                              ? theme.gold : Qt.rgba(1, 1, 1, 0.12)
 
                 Text {
                     text: tile.modelData.ghost || ""

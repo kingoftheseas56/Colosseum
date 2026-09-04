@@ -1,0 +1,259 @@
+{
+  "name": "probe-k02-theatre-keyboard",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "session"
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue local",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open Theatre",
+      "payload": {
+        "target": "modePill_Theatre"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Theatre tabs materialize",
+      "payload": {
+        "object": "theatreTab_discover",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let Theatre settle",
+      "presentation_wait_ms": 3000,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "focus Discover tab",
+      "payload": {
+        "target": "theatreTab_discover"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Theatre tab bar owns focus",
+      "payload": {
+        "object": "theatreTabBar",
+        "props": [
+          "activeFocus",
+          "currentTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "discover"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Right selects Movies",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Movies selected",
+      "payload": {
+        "object": "theatreTabBar",
+        "props": [
+          "currentTab",
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "movies"
+        },
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "End selects Library",
+      "payload": {
+        "key": "End"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Library selected",
+      "payload": {
+        "object": "theatreTabBar",
+        "props": [
+          "currentTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "library"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Home restores Discover",
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Discover restored",
+      "payload": {
+        "object": "theatreTabBar",
+        "props": [
+          "currentTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "discover"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open Theatre search",
+      "payload": {
+        "target": "topBarSearch"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Theatre search opens",
+      "payload": {
+        "object": "theatreSearchSurface",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "search field owns entry focus",
+      "payload": {
+        "object": "searchSurfaceInput",
+        "props": [
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape exits Theatre search",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Theatre world remains live",
+      "payload": {
+        "object": "theatreWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

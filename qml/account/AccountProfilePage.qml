@@ -32,6 +32,16 @@ Item {
 
     Theme { id: theme }
 
+    KeyboardScrollController {
+        id: keyboardScroll
+        flick: scroller
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        keyboardScroll.handle(event)
+    }
+
     function normalizedAvatarId(value) {
         switch (value) {
         case "initial":
@@ -60,6 +70,52 @@ Item {
         case "panels": return qsTr("Panels")
         default: return qsTr("Initial")
         }
+    }
+
+    function focusAvatarAt(index, step) {
+        let candidate = index
+        while (candidate >= 0 && candidate < avatarRepeater.count) {
+            const item = avatarRepeater.itemAt(candidate)
+            if (item && item.visible && item.enabled) {
+                item.forceActiveFocus()
+                return true
+            }
+            candidate += step
+        }
+        return false
+    }
+
+    function handleAvatarKey(event, index) {
+        let target = index
+        let step = 0
+        if (event.key === Qt.Key_Left) {
+            target -= 1
+            step = -1
+        } else if (event.key === Qt.Key_Right) {
+            target += 1
+            step = 1
+        } else if (event.key === Qt.Key_Up) {
+            target -= avatarGrid.columns
+            step = -avatarGrid.columns
+        } else if (event.key === Qt.Key_Down) {
+            target += avatarGrid.columns
+            step = avatarGrid.columns
+        } else if (event.key === Qt.Key_Home) {
+            target = 0
+            step = 1
+        } else if (event.key === Qt.Key_End) {
+            target = avatarRepeater.count - 1
+            step = -1
+        } else {
+            return false
+        }
+
+        if (focusAvatarAt(target, step)) {
+            event.accepted = true
+            return true
+        }
+        event.accepted = false
+        return false
     }
 
     function syncDraftFromController() {
@@ -406,6 +462,7 @@ Item {
                     height: childrenRect.height
 
                     Repeater {
+                        id: avatarRepeater
                         model: [
                             { id: "initial", label: qsTr("Initial"), deferred: false },
                             { id: "laurel", label: qsTr("Laurel"), deferred: false },
@@ -430,6 +487,9 @@ Item {
                             Accessible.name: modelData.deferred
                                 ? qsTr("Custom avatar coming later")
                                 : qsTr("Use %1 avatar").arg(modelData.label)
+                            Keys.onPressed: function(event) {
+                                root.handleAvatarKey(event, index)
+                            }
 
                             readonly property bool selected:
                                 !modelData.deferred

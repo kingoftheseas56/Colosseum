@@ -23,6 +23,8 @@ Item {
         id: view
         anchors.fill: parent
         clip: true
+        focusPolicy: car.slides.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => featuredKeys.handle(event)
         Repeater {
             model: car.slides
             CarouselSlide {
@@ -36,6 +38,14 @@ Item {
                 onSecondaryClicked: car.secondaryClicked(index)
             }
         }
+    }
+
+    KeyboardCollectionController {
+        id: featuredKeys
+        view: view
+        orientation: "horizontal"
+        count: car.slides.length
+        onActivated: (index) => car.primaryClicked(index)
     }
 
     // color-agnostic dots: GOLD active on a dark backing strip → reads over any cover

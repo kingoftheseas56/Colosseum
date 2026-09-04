@@ -7,6 +7,9 @@ import QtQuick.Controls
 
 Item {
     id: picker
+    focus: true
+    activeFocusOnTab: true
+    Keys.onPressed: archivePickerKeys.handle(event)
 
     // Renders TWO candidate shapes: the legacy single-archive manifest
     // {index, name, extension, sizeBytes, sizeText, exactTitle, tokenCoverage}
@@ -129,7 +132,19 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: picker.archiveChosen(fileRow.modelData.index)
             }
+            KeyboardAction {
+                id: fileKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Choose " + picker.nameOf(fileRow.modelData)
+                onTriggered: picker.archiveChosen(fileRow.modelData.index)
+            }
         }
     }
-    ScrollGlide { flick: fileList }
+    ScrollGlide { id: archivePickerGlide; flick: fileList }
+    KeyboardScrollController {
+        id: archivePickerKeys
+        flick: fileList
+        glide: archivePickerGlide
+    }
 }

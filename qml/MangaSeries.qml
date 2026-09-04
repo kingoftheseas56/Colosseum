@@ -858,6 +858,8 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
+            KeyboardAction { id: mangaSeriesMinKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Minimize"; focusRadius: 6; onTriggered: page.minimizeRequested() }
         }
         Item {
             width: 22
@@ -879,6 +881,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
             }
+            KeyboardAction { id: mangaSeriesFsKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Toggle fullscreen"; focusRadius: 6; onTriggered: page.fullscreenRequested() }
         }
         Item {
             width: 22; height: 22
@@ -887,6 +891,8 @@ Item {
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
+            KeyboardAction { id: mangaSeriesCloseKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: "Close"; focusRadius: 6; onTriggered: page.closeRequested() }
         }
     }
 
