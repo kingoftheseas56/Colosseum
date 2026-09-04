@@ -23,12 +23,27 @@ Column {
         font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.5
     }
     ListView {
+        id: moreLikeList
         width: parent.width
         height: 216
         orientation: ListView.Horizontal
         spacing: 18
         clip: true
         model: mlt.cards
+        focusPolicy: mlt.cards.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => moreLikeKeys.handle(event)
+        KeyboardCollectionController {
+            id: moreLikeKeys
+            parent: mlt
+            view: moreLikeList
+            orientation: "horizontal"
+            count: mlt.cards.length
+            onActivated: (index) => {
+                var item = mlt.cards[index]
+                mlt.openRequested({ "id": item.id, "type": item.type,
+                                    "title": item.title, "cover": item.cover })
+            }
+        }
         delegate: Column {
             id: card
             required property var modelData
@@ -37,7 +52,9 @@ Column {
             Rectangle {
                 width: 120; height: 172; radius: 8
                 color: Qt.rgba(1, 1, 1, 0.05)
-                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
+                border.width: 1
+                border.color: moreLikeList.activeFocus && moreLikeList.currentIndex === index
+                    ? theme.gold : Qt.rgba(1, 1, 1, 0.08)
                 clip: true
                 Image {
                     anchors.fill: parent

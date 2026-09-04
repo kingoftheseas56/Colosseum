@@ -1,0 +1,313 @@
+{
+  "name": "probe-k02-tankoban-keyboard",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "session"
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue local",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "shell",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open Tankoban",
+      "payload": {
+        "target": "modePill_Tankoban"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Tankoban world",
+      "payload": {
+        "object": "tankobanWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "tab bar materializes",
+      "payload": {
+        "object": "tankobanTab_discover",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "__runner_local_presentation__",
+      "label": "let async Tankoban world settle",
+      "presentation_wait_ms": 2500,
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "focus Discover tab",
+      "payload": {
+        "target": "tankobanTab_discover"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "tab bar owns focus",
+      "payload": {
+        "object": "tankobanTabBar",
+        "props": [
+          "activeFocus",
+          "currentTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "discover"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Right selects Manga",
+      "payload": {
+        "key": "Right"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Manga selected",
+      "payload": {
+        "object": "tankobanTabBar",
+        "props": [
+          "activeFocus",
+          "currentTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "manga"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "End selects Library",
+      "payload": {
+        "key": "End"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Library selected",
+      "payload": {
+        "object": "tankobanTabBar",
+        "props": [
+          "currentTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "library"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Home selects Discover",
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Discover restored",
+      "payload": {
+        "object": "tankobanTabBar",
+        "props": [
+          "currentTab"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.currentTab",
+          "op": "==",
+          "value": "discover"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open world search",
+      "payload": {
+        "target": "topBarSearch"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Tankoban search opens",
+      "payload": {
+        "object": "tankobanSearchSurface",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "search field owns entry focus",
+      "payload": {
+        "object": "searchSurfaceInput",
+        "props": [
+          "activeFocus",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "type query",
+      "payload": {
+        "target": "searchSurfaceInput",
+        "text": "One Piece"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "field keeps text and focus",
+      "payload": {
+        "object": "searchSurfaceInput",
+        "props": [
+          "activeFocus",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "One Piece"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape exits search",
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "world remains live",
+      "payload": {
+        "object": "tankobanWorld",
+        "props": [
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

@@ -85,6 +85,14 @@ Column {
                        font.family: theme.ui; font.pixelSize: 22 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: castRow.expanded = true }
+                KeyboardAction {
+                    id: expandKeyboard
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    accessibleName: "Show all cast"
+                    focusRadius: 39
+                    onTriggered: castRow.expanded = true
+                }
             }
             Text {
                 width: parent.width; horizontalAlignment: Text.AlignHCenter

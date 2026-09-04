@@ -6,6 +6,8 @@ import "UniverseExtApi.js" as UniverseApi
 Item {
     id: root
     anchors.fill: parent
+    focus: true
+    activeFocusOnTab: true
 
     property string extensionId: ""
     property string universeName: ""
@@ -28,6 +30,7 @@ Item {
     signal paradiseRequested()
     signal continueResumeRequested(var entry)
     signal continueDetailRequested(var entry)
+    Keys.onPressed: onePieceKeys.handle(event)
 
     Theme { id: theme }
 
@@ -188,7 +191,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         ScrollBar.vertical: HouseScrollBar { flick: page }
-        ScrollGlide { flick: page }
+        ScrollGlide { id: onePieceGlide; flick: page }
 
         Column {
             id: contentCol
@@ -370,6 +373,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.minimizeRequested()
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize window"
+                onTriggered: root.minimizeRequested() }
         }
         Item {
             width: 22; height: 22
@@ -389,6 +394,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.fullscreenRequested()
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"
+                onTriggered: root.fullscreenRequested() }
         }
         Item {
             width: 22; height: 22
@@ -406,6 +413,14 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.closeRequested()
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close universe"
+                onTriggered: root.closeRequested() }
         }
+    }
+
+    KeyboardScrollController {
+        id: onePieceKeys
+        flick: page
+        glide: onePieceGlide
     }
 }

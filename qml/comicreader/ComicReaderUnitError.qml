@@ -35,6 +35,7 @@
 // dead end this task exists to close. One card, one error language, three mounts.
 
 import QtQuick
+import ".."
 
 Item {
     id: root
@@ -85,6 +86,12 @@ Item {
         }
         HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
         TapHandler { onTapped: btn.activated() }
+        KeyboardAction {
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: btn.label
+            onTriggered: btn.activated()
+        }
     }
 
     // ---- readbacks for the surfaces gate. They read the ITEMS, never re-derive the rule, so a

@@ -23,6 +23,8 @@ import "ComicsDb.js" as ComicsDb
 
 Item {
     id: page
+    focus: true
+    activeFocusOnTab: true
     property Item backdrop
     property string seriesTitle: ""
     property string cover: ""
@@ -38,6 +40,7 @@ Item {
     // underneath); it now raises upward like the other three verbs, so Main.qml can route it
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
+    Keys.onPressed: comicSeriesPageKeys.handle(event)
 
     // --- resolved state ---
     property bool loading: true
@@ -207,6 +210,8 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize window"
+                onTriggered: page.minimizeRequested() }
         }
         Item {
             width: 22
@@ -228,6 +233,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"
+                onTriggered: page.fullscreenRequested() }
         }
         Item {
             width: 22; height: 22
@@ -236,6 +243,8 @@ Item {
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close series"
+                onTriggered: page.closeRequested() }
         }
     }
 
@@ -248,7 +257,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: flick }   // gold sliver, same as every page
-        ScrollGlide { flick: flick }
+        ScrollGlide { id: comicSeriesPageGlide; flick: flick }
         opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 200 } }
 
@@ -344,6 +353,16 @@ Item {
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
+                                var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
+                                if (r && r.chapterId) { page.openChapterId = r.chapterId; page.openChapterLabel = r.chapterLabel || "" }
+                            }
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: visible
+                            accessibleName: "Continue reading " + page.seriesTitle
+                            onTriggered: {
                                 var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
                                 if (r && r.chapterId) { page.openChapterId = r.chapterId; page.openChapterLabel = r.chapterLabel || "" }
                             }
@@ -536,6 +555,14 @@ Item {
                                 cursorShape: (row.gcUnmatched || row.dlState === "dead") ? Qt.ArrowCursor : Qt.PointingHandCursor
                                 onClicked: row.primary()
                             }
+                            KeyboardAction {
+                                id: issueKeyboard
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                focusEnabled: !row.gcUnmatched && row.dlState !== "dead"
+                                accessibleName: "Open " + String(row.modelData.label || "issue")
+                                onTriggered: row.primary()
+                            }
                         }
                     }
                 }
@@ -659,11 +686,25 @@ Item {
                                 cursorShape: crow.dlState === "dead" ? Qt.ArrowCursor : Qt.PointingHandCursor
                                 onClicked: crow.primary()
                             }
+                            KeyboardAction {
+                                id: collectionKeyboard
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                focusEnabled: crow.dlState !== "dead"
+                                accessibleName: "Open " + String(crow.modelData.name || "collected edition")
+                                onTriggered: crow.primary()
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    KeyboardScrollController {
+        id: comicSeriesPageKeys
+        flick: flick
+        glide: comicSeriesPageGlide
     }
 
     // loading spinner

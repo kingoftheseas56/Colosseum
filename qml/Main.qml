@@ -657,6 +657,13 @@ Window {
         if (rec && rec.contentKind === "book") { win.closeBookReaderSession(); return }
         if (bookReaderLayer.active) win.closeBookReader()
     }
+    function requestUniverseEscape() {
+        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape) {
+            universeLayer.item.requestEscape()
+            return
+        }
+        win.closeUniverse()
+    }
     function requestComicReaderEscape() {
         if (vaultComicLayer.active && vaultComicLayer.item && vaultComicLayer.item.requestEscape) {
             vaultComicLayer.item.requestEscape(); return
@@ -707,7 +714,7 @@ Window {
         case "theatreSeries": win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
         case "series": win.closeSeries(); return
-        case "universe": win.closeUniverse(); return
+        case "universe": win.requestUniverseEscape(); return
         case "universeHall": win.closeUniverseHall(); return
         case "search": win.closeSearch(); return
         case "worldSearch": win.closeWorldSearch(); return
@@ -1013,7 +1020,8 @@ Window {
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
-            seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
+            if (seriesLayer.item.requestedVolumeNumber !== undefined)
+                seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
     }
@@ -1659,6 +1667,8 @@ Window {
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
         taskbar.open = false
+        if (extensionsLayer.item && extensionsLayer.item.takeKeyboardFocus)
+            Qt.callLater(extensionsLayer.item.takeKeyboardFocus)
     }
     function closeExtensionsPage() { extensionsLayer.active = false }
 
@@ -1671,6 +1681,8 @@ Window {
         vaultLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
+        if (settingsLayer.item && settingsLayer.item.takeKeyboardFocus)
+            Qt.callLater(settingsLayer.item.takeKeyboardFocus)
     }
     function closeSettingsPage() { settingsLayer.active = false }
 
@@ -3151,7 +3163,8 @@ Window {
             item.sourceSearchTitle = seriesLayer.sourceSearchTitle
             item.sourceSearchAliases = seriesLayer.sourceSearchAliases
             item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
-            item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
+            if (item.requestedVolumeNumber !== undefined)
+                item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
@@ -3660,6 +3673,7 @@ Window {
     // ---- Universes: extension-backed bespoke pages + generic fallback ----
     Loader {
         id: universeLayer
+        objectName: "universeLayer"
         anchors.fill: parent
         z: 52
         active: false
@@ -3689,6 +3703,13 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            // If a dev/startup route loads a universe behind account onboarding, remember
+            // that universe as the surface onboarding must return focus to when it closes.
+            // Normal user navigation never opens a universe through the onboarding cover.
+            if (accountHost.visible)
+                accountHost.focusReturnItem = item
+            else if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
             // Works open ABOVE this overlay — series/theatre/western are z:53 (> this layer's 52),
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
@@ -3759,6 +3780,8 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
+            if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
         }
     }
 
@@ -3778,6 +3801,8 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
         }
     }
 
@@ -3800,6 +3825,7 @@ Window {
     // ---- Update page: the release chronicle, entered from the permanent taskbar item ----
     Loader {
         id: updateLayer
+        objectName: "updateLayer"
         anchors.fill: parent
         z: 56
         active: false
@@ -3813,6 +3839,8 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
         }
     }
 
@@ -4215,7 +4243,17 @@ Window {
     Connections {
         target: boot
         function onVisibleChanged() {
-            if (!boot.visible) win.armStartupIdleWork()
+            if (boot.visible)
+                return
+            win.armStartupIdleWork()
+            // The splash can make the shell's dead-focus recovery park focus on the
+            // invisible keyboard ignition item after onboarding has already seeded its
+            // first action. Hand focus back to the topmost startup surface once it is
+            // actually revealed so Enter/Space work immediately on cold launch.
+            if (accountHost.visible)
+                accountHost.focusFirstInside()
+            else if (win.keyboardFocusDead)
+                keyboardIgnition.forceActiveFocus()
         }
     }
 

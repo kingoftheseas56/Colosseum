@@ -5437,6 +5437,10 @@ Item {
                         anchors.fill: parent
                         enabled: mpv.duration > 0
                         focusPolicy: enabled ? Qt.TabFocus : Qt.NoFocus
+                        readonly property real value: root.displayPosition()
+                        readonly property real minimumValue: 0
+                        readonly property real maximumValue: Math.max(0, mpv.duration)
+                        readonly property real stepSize: root.seekForwardSeconds
                         Keys.onPressed: function(event) {
                             if (event.key === Qt.Key_Left) {
                                 root.requestUserSeekStep(-root.seekBackSeconds); event.accepted = true
@@ -5463,7 +5467,6 @@ Item {
                         }
                         Accessible.role: Accessible.Slider
                         Accessible.name: "Playback position"
-                        Accessible.value: root.fmtTime(root.displayPosition()) + " of " + root.fmtTime(mpv.duration)
                     }
                 }
 
@@ -5948,6 +5951,10 @@ Item {
                 id: volumeKeyboard
                 anchors.fill: parent
                 focusPolicy: Qt.TabFocus
+                readonly property real value: Math.round(mpv.volume)
+                readonly property real minimumValue: 0
+                readonly property real maximumValue: 100
+                readonly property real stepSize: 5
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Left || event.key === Qt.Key_Down) {
                         root.adjustVolume(event.modifiers & Qt.ShiftModifier ? -1 : -5)
@@ -5972,7 +5979,6 @@ Item {
                 }
                 Accessible.role: Accessible.Slider
                 Accessible.name: "Volume"
-                Accessible.value: Math.round(mpv.volume) + "%"
             }
         }
     }

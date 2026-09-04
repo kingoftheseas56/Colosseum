@@ -389,6 +389,9 @@ Item {
         for (var i = 0; i < page.displayRows.length; i++) out.push(page.displayRows[i].key);
         return out;
     }
+    // Stable scalar projection for runtime verification and diagnostics. The order itself
+    // remains owned by BiblioExplorePreferences; this only exposes the live effective sequence.
+    readonly property string rowOrderSignature: page.customizableRowKeys.join(",")
     function canMoveUp(key) {
         var i = page.customizableRowKeys.indexOf(key);
         return i > 0;
@@ -412,13 +415,25 @@ Item {
         }
         page._prefs.move(key, toIndex);
     }
-    function moveRowBy(key, delta) {
+    function restoreReorderFocus(key) {
+        for (var i = 0; i < rowRepeater.count; ++i) {
+            var row = rowRepeater.itemAt(i);
+            if (row && row.rowKey === key) {
+                row.focusReorderHandle();
+                return true;
+            }
+        }
+        return false;
+    }
+    function moveRowBy(key, delta, restoreKeyboardFocus) {
         var keys = page.customizableRowKeys;
         var idx = keys.indexOf(key);
         if (idx < 0) return;
         var to = Math.max(0, Math.min(keys.length - 1, idx + delta));
         if (to === idx) return;
         page._commitMove(key, to);
+        if (restoreKeyboardFocus === true)
+            Qt.callLater(function() { page.restoreReorderFocus(key); });
     }
 
     property var dragKeys: null
@@ -508,6 +523,7 @@ Item {
                     }
                     KeyboardAction {
                         id: customizeAction
+                        objectName: "biblioExploreCustomizeAction"
                         anchors.fill: parent; anchors.margins: -8
                         pointerEnabled: false
                         accessibleName: page.editMode ? "Finish shelf customization" : "Customize shelves"
@@ -527,6 +543,9 @@ Item {
                     required property int index
                     readonly property string rowKey: rowBlock.modelData.key
                     readonly property bool editControlsVisible: editControls.visible
+                    function focusReorderHandle() {
+                        dragHandle.forceActiveFocus(Qt.TabFocusReason)
+                    }
 
                     width: content.width
                     spacing: 8
@@ -541,6 +560,7 @@ Item {
 
                         Rectangle {
                             id: dragHandle
+                            objectName: "biblioExploreDrag_" + rowBlock.rowKey
                             width: 28; height: 28; radius: 6
                             color: (dragHandleMa.containsMouse || dragHandle.activeFocus || page.draggingKey === rowBlock.rowKey)
                                    ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
@@ -554,9 +574,9 @@ Item {
                                 const reorder = (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)
                                 if (!reorder) return
                                 if (event.key === Qt.Key_Up && page.canMoveUp(rowBlock.rowKey)) {
-                                    page.moveRowBy(rowBlock.rowKey, -1); event.accepted = true
+                                    page.moveRowBy(rowBlock.rowKey, -1, true); event.accepted = true
                                 } else if (event.key === Qt.Key_Down && page.canMoveDown(rowBlock.rowKey)) {
-                                    page.moveRowBy(rowBlock.rowKey, 1); event.accepted = true
+                                    page.moveRowBy(rowBlock.rowKey, 1, true); event.accepted = true
                                 }
                             }
                             Text { anchors.centerIn: parent; text: "⠿"; color: theme.ink; font.pixelSize: 14 }
@@ -595,7 +615,7 @@ Item {
                                 focusEnabled: editControls.visible && page.canMoveUp(rowBlock.rowKey)
                                 accessibleName: "Move " + rowBlock.modelData.title + " up"
                                 focusRadius: 6
-                                onTriggered: page.moveRowBy(rowBlock.rowKey, -1)
+                                onTriggered: page.moveRowBy(rowBlock.rowKey, -1, true)
                             }
                         }
                         Rectangle {
@@ -615,7 +635,7 @@ Item {
                                 focusEnabled: editControls.visible && page.canMoveDown(rowBlock.rowKey)
                                 accessibleName: "Move " + rowBlock.modelData.title + " down"
                                 focusRadius: 6
-                                onTriggered: page.moveRowBy(rowBlock.rowKey, 1)
+                                onTriggered: page.moveRowBy(rowBlock.rowKey, 1, true)
                             }
                         }
                         Rectangle {

@@ -14,6 +14,13 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
 
+    function takeKeyboardFocus() {
+        if (primaryAction.visible && primaryAction.enabled)
+            primaryAction.forceActiveFocus(Qt.TabFocusReason)
+        else
+            minimizeAction.forceActiveFocus(Qt.TabFocusReason)
+    }
+
     // The native enum is deliberately mapped here to stable human language. QML never sees
     // error codes or transport logs, and the test seam can use the same numeric values.
     readonly property string automationState: stateName(updates ? updates.state : 0)

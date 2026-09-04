@@ -37,8 +37,12 @@ Item {
         const target = focusReturnItem
         focusReturnItem = null
         Qt.callLater(function() {
-            if (target && target.visible && target.enabled)
-                target.forceActiveFocus()
+            if (target && target.visible && target.enabled) {
+                if (target.takeKeyboardFocus)
+                    target.takeKeyboardFocus()
+                else
+                    target.forceActiveFocus()
+            }
         })
     }
 

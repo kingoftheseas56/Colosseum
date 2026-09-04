@@ -3,6 +3,7 @@ import QtQuick
 
 FocusScope {
     id: root
+    objectName: "starWarsGalaxySystem"
     property var destinations: []
     property bool reducedMotion: false
     property real cameraYaw: -0.42
@@ -37,6 +38,9 @@ FocusScope {
     }
     function bodyRadius(d, p) {
         return d.node ? Math.max(11, 17 * p.scale) : Math.max(5, d.size * p.scale)
+    }
+    function takeKeyboardFocus() {
+        sun.forceActiveFocus(Qt.TabFocusReason)
     }
 
     // Keep the approved opening composition stable. Camera drag/zoom supplies
@@ -104,6 +108,7 @@ FocusScope {
     }
     FocusScope {
         id: sun
+        objectName: "starWarsGalaxySkywalker"
         property var p: root.projectPoint(0,0,0)
         property real r: Math.max(23, 66 * p.scale)
         property bool hot: activeFocus || sunMa.containsMouse
@@ -173,6 +178,7 @@ FocusScope {
         model: root.destinations
         delegate: FocusScope {
             id: gate
+            objectName: "starWarsGalaxyGate_" + gate.modelData.id
             required property var modelData
             required property int index
             property var p: root.projected(modelData)

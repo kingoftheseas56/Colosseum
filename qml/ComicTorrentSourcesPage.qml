@@ -17,6 +17,8 @@ import QtQuick.Controls
 Item {
     id: sheet
     anchors.fill: parent
+    focus: true
+    activeFocusOnTab: true
 
     property var comicsApi: typeof Comics !== "undefined" ? Comics : null
     property Item backdrop: null
@@ -44,6 +46,7 @@ Item {
     readonly property string identityLine: buildIdentityLine()
 
     signal closed()
+    Keys.onPressed: torrentSourcesKeys.handle(event)
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -352,6 +355,13 @@ Item {
                 id: sbMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: sheet.submitManualQuery()
             }
+            KeyboardAction {
+                id: searchKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Search alternate sources"
+                onTriggered: sheet.submitManualQuery()
+            }
         }
     }
 
@@ -533,9 +543,16 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: sheet.selectRow(row.modelData)
                     }
+                    KeyboardAction {
+                        id: sourceKeyboard
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: "Choose " + String(row.modelData.title || row.modelData.sourceName || "source")
+                        onTriggered: sheet.selectRow(row.modelData)
+                    }
                 }
             }
-            ScrollGlide { flick: list }
+            ScrollGlide { id: torrentSourcesGlide; flick: list }
         }
 
         // ---- inspecting: the automatic pack path is resolving metadata ----
@@ -597,6 +614,8 @@ Item {
                             font.family: theme.ui; font.pixelSize: 14 }
                         MouseArea { id: anotherMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(false) }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Try another source"
+                            onTriggered: sheet.rejectIncomplete(false) }
                     }
                     Rectangle {
                         width: 190; height: 44; radius: 12
@@ -606,6 +625,8 @@ Item {
                             font.family: theme.ui; font.pixelSize: 14 }
                         MouseArea { id: manualMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(true) }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search manually"
+                            onTriggered: sheet.rejectIncomplete(true) }
                     }
                 }
             }
@@ -635,6 +656,8 @@ Item {
                             font.family: theme.ui; font.pixelSize: 15 }
                         MouseArea { id: combBackMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectCombined() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Go back"
+                            onTriggered: sheet.rejectCombined() }
                     }
                     Rectangle {
                         width: 260; height: 44; radius: 12
@@ -644,6 +667,8 @@ Item {
                             font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
                         MouseArea { id: combGoMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.confirmCombined() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Download whole archive anyway"
+                            onTriggered: sheet.confirmCombined() }
                     }
                 }
             }
@@ -691,6 +716,8 @@ Item {
                             font.family: theme.ui; font.pixelSize: 15 }
                         MouseArea { id: backMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.cancelWeakSelection() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Go back"
+                            onTriggered: sheet.cancelWeakSelection() }
                     }
                     Rectangle {
                         width: 150; height: 44; radius: 12; color: caMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
@@ -699,9 +726,17 @@ Item {
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                         MouseArea { id: caMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.confirmWeakSelection() }
+                        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Choose source anyway"
+                            onTriggered: sheet.confirmWeakSelection() }
                     }
                 }
             }
         }
+    }
+
+    KeyboardScrollController {
+        id: torrentSourcesKeys
+        flick: list
+        glide: torrentSourcesGlide
     }
 }

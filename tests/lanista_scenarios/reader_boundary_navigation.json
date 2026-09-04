@@ -1,6 +1,6 @@
 {
   "name": "reader-boundary-navigation",
-  "comment": "UNCOMPILED / UNTESTED / UNEXECUTED / UNADOPTED / UNVERIFIED. Commission 2026-08-15, pinned source 57b69ea9b35fc2e04c51cbe1f888771541b87a0b. New TNK-15-adjacent reader navigation coverage on open-manga-v1. Home and End are real ComicReaderInput navigation commands and the fixture has exactly three pages, so comicReaderShell.readerPageIndex has deterministic boundary truth: 0 and 2. This is deliberately NOT labelled as filmstrip/grid/scrub coverage: the page thumbnail delegates are unnamed and Lanista cannot click arbitrary scrub coordinates. The replay leg returns Home then End again. AGENT-0 REVIEW FIX 2026-08-15: the End assertions originally demanded readerPageIndex==2 exactly. Ground-truthed against qml/comicreader/ComicReaderShell.qml: this fixture opens in paired_pages (Double Page), and goToPageIndex() snaps to the START of the containing unit in double_page mode (line 627, p=_unitBoundsForIndex(p-1)[0]+1), so End on a 3-page RTL chapter can legitimately report index 1 (the last two-page unit's start) rather than 2. The precedent journey_open_manga.json uses '<=' on this same property for exactly this reason. Relaxed to '>=1' — still proves End moved off the first page and re-settled, without going red on a healthy app. The runner does support >=/>/</!= (native/tools/lanista.cpp lines 183-196); the commission guide's 5-op list was under-inclusive.",
+  "comment": "UNCOMPILED / UNTESTED / UNEXECUTED / UNADOPTED / UNVERIFIED. Commission 2026-08-15, pinned source 57b69ea9b35fc2e04c51cbe1f888771541b87a0b. New TNK-15-adjacent reader navigation coverage on open-manga-v1. Home and End are real ComicReaderInput navigation commands and the fixture has exactly three pages, so comicReaderShell.readerPageIndex has deterministic boundary truth: 0 and 2. This is deliberately NOT labelled as filmstrip/grid/scrub coverage: the page thumbnail delegates are unnamed and Lanista cannot click arbitrary scrub coordinates. The replay leg returns Home then End again. AGENT-0 REVIEW FIX 2026-08-15: the End assertions originally demanded readerPageIndex==2 exactly. Ground-truthed against qml/comicreader/ComicReaderShell.qml: this fixture opens in paired_pages (Double Page), and goToPageIndex() snaps to the START of the containing unit in double_page mode (line 627, p=_unitBoundsForIndex(p-1)[0]+1), so End on a 3-page RTL chapter can legitimately report index 1 (the last two-page unit's start) rather than 2. The precedent journey_open_manga.json uses '<=' on this same property for exactly this reason. Relaxed to '>=1' \u00e2\u20ac\u201d still proves End moved off the first page and re-settled, without going red on a healthy app. The runner does support >=/>/</!= (native/tools/lanista.cpp lines 183-196); the commission guide's 5-op list was under-inclusive.",
   "steps": [
     {
       "cmd": "ping",
@@ -48,6 +48,30 @@
           "path": "matched",
           "op": "==",
           "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "dismiss onboarding with the focused local action",
+      "payload": {
+        "key": "Enter"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "onboarding releases the shell",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
         }
       ]
     },

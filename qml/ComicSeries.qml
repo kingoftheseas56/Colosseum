@@ -16,6 +16,8 @@ import "ComicResolve.js" as Resolve
 
 Item {
     id: page
+    focus: true
+    activeFocusOnTab: true
     property Item backdrop
     property string seriesTitle: ""
     property string tagSlug: ""            // GetComics tag slug — the series identity
@@ -51,6 +53,8 @@ Item {
     // underneath); it now raises upward like the other three verbs, so Main.qml can route it
     // through the same teardown authority Close already uses and land on the Tankoban library.
     signal readerBackRequested()
+
+    Keys.onPressed: comicSeriesKeys.handle(event)
 
     // --- resolved state ---
     property var releases: []              // [{id,url,name,cover,year,sizeMB,synopsis,collection}]
@@ -463,6 +467,13 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { page._invalidateReadIntent(); page.minimizeRequested() } }
+            KeyboardAction {
+                id: minimizeKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Minimize window"
+                onTriggered: { page._invalidateReadIntent(); page.minimizeRequested() }
+            }
         }
         Item {
             width: 22
@@ -484,6 +495,13 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
             }
+            KeyboardAction {
+                id: fullscreenKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Toggle fullscreen"
+                onTriggered: page.fullscreenRequested()
+            }
         }
         Item {
             width: 22; height: 22
@@ -492,6 +510,13 @@ Item {
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { page._invalidateReadIntent(); page.closeRequested() } }
+            KeyboardAction {
+                id: closeKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Close series"
+                onTriggered: { page._invalidateReadIntent(); page.closeRequested() }
+            }
         }
     }
 
@@ -632,6 +657,14 @@ Item {
                             color: clearMa.containsMouse ? theme.gold : theme.inkDim; font.pixelSize: 13 }
                         MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: filterInput.text = "" }
+                        KeyboardAction {
+                            id: clearKeyboard
+                            anchors.fill: parent
+                            pointerEnabled: false
+                            focusEnabled: clearBtn.visible
+                            accessibleName: "Clear release search"
+                            onTriggered: filterInput.text = ""
+                        }
                     }
                     Rectangle {
                         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
@@ -669,6 +702,14 @@ Item {
                             MouseArea { id: soptMa; anchors.fill: parent; anchors.margins: -4
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: page.sortMode = sopt.modelData.k }
+                            KeyboardAction {
+                                id: sortKeyboard
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                pointerEnabled: false
+                                accessibleName: "Sort releases " + sopt.modelData.l
+                                onTriggered: page.sortMode = sopt.modelData.k
+                            }
                         }
                     }
                 }
@@ -761,6 +802,13 @@ Item {
                                             if (page.downloadRelease(row.modelData, row.dlState))
                                                 Qt.callLater(row.refreshDl)
                                         }
+                                        function activateTrailing() {
+                                            var service = page.comicsRef
+                                            if (!service) return
+                                            if (row.dlState === "done" && service.deleteIssue) service.deleteIssue(row.relId)
+                                            else if (row.inFlight && service.cancelDownload) service.cancelDownload(row.relId)
+                                            else row.downloadOnly()
+                                        }
                                         function refreshDl() {
                                             var service = page.comicsRef
                                             if (!service || !service.statusOf) return
@@ -790,6 +838,15 @@ Item {
                                         }
 
                                         Rectangle { anchors.fill: parent; color: rowMa.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent" }
+
+                                        KeyboardAction {
+                                            id: rowKeyboard
+                                            anchors.fill: parent
+                                            pointerEnabled: false
+                                            focusEnabled: row.dlState !== "dead"
+                                            accessibleName: "Read " + String(row.modelData.name || "release")
+                                            onTriggered: row.primary()
+                                        }
 
                                         // release cover (GetComics og_image — exact per release)
                                         Item {
@@ -885,13 +942,16 @@ Item {
                                                 id: trMa; anchors.fill: parent; hoverEnabled: true; z: 5
                                                 enabled: row.dlState !== "dead"   // no usable source — no verb
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    var service = page.comicsRef
-                                                    if (!service) return
-                                                    if (row.dlState === "done" && service.deleteIssue) service.deleteIssue(row.relId)
-                                                    else if (row.inFlight && service.cancelDownload) service.cancelDownload(row.relId)
-                                                    else row.downloadOnly()
-                                                }
+                                                onClicked: trailing.activateTrailing()
+                                            }
+                                            KeyboardAction {
+                                                id: trailingKeyboard
+                                                anchors.fill: parent
+                                                pointerEnabled: false
+                                                focusEnabled: row.dlState !== "dead"
+                                                accessibleName: row.dlState === "done" ? "Remove downloaded release"
+                                                    : row.inFlight ? "Cancel release download" : "Download release"
+                                                onTriggered: trailing.activateTrailing()
                                             }
                                         }
 
@@ -930,7 +990,12 @@ Item {
         }
     }
 
-    ScrollGlide { flick: flick }
+    ScrollGlide { id: comicSeriesGlide; flick: flick }
+    KeyboardScrollController {
+        id: comicSeriesKeys
+        flick: flick
+        glide: comicSeriesGlide
+    }
 
     // ---- scroll bar: always visible when the page overflows, draggable, click-to-jump ----
     Item {
