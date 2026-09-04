@@ -169,25 +169,46 @@ int main(int argc, char **argv)
 
     require(state.noteUserPlay(g1), "explicit user play intent must be generation guarded");
     require(state.snapshot().userWantsPlay, "user play intent must be observable");
-    require(state.setHostPlaybackSuppressed(g1, true) == HostPlaybackAction::Pause,
-            "host suppression must own a pause for active user play intent");
-    require(state.snapshot().hostPlaybackSuppressed && state.snapshot().hostPauseOwned,
-            "host pause ownership must be explicit state");
-    require(state.setHostPlaybackSuppressed(g1, false) == HostPlaybackAction::Resume,
-            "host release may resume only its own current-generation pause");
+    require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::Stop,
+            "background lifecycle must request transport stop, not semantic user pause");
+    const quint64 lifecycle1 = state.snapshot().lifecycleEpoch;
+    require(lifecycle1 > 0 && state.snapshot().hostStopped,
+            "host stop must own a non-zero lifecycle epoch");
+    require(state.snapshot().userWantsPlay,
+            "host stop must preserve playing user intent independently");
+    require(state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("network"))
+                && state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("http"))
+                && state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("source")),
+            "matching teardown transport errors must be suppressible while the epoch is armed");
+    require(!state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("decoder")),
+            "decoder failures must never be hidden by lifecycle transport suppression");
+    require(state.noteLifecyclePrepareSubmitted(g1, lifecycle1),
+            "foreground prepare submission must retire teardown error suppression");
+    require(!state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("network")),
+            "suppression must end once restore prepare is submitted");
+    require(state.noteLifecycleReady(g1, lifecycle1) == HostPlaybackAction::Resume,
+            "READY after restore may resume only preserved playing intent");
 
-    require(state.setHostPlaybackSuppressed(g1, true) == HostPlaybackAction::Pause,
-            "host may suppress the same active user intent again");
-    require(state.noteUserPause(g1), "user pause while suppressed must be recorded");
-    require(state.setHostPlaybackSuppressed(g1, false) == HostPlaybackAction::None,
-            "host must never resume after a later user pause");
+    require(state.noteUserPause(g1), "user pause must remain authoritative");
+    require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::Stop,
+            "user-paused prepared media must still stop transport on background");
+    const quint64 lifecycle2 = state.snapshot().lifecycleEpoch;
+    require(lifecycle2 > lifecycle1, "lifecycle epochs must increase monotonically");
+    require(!state.snapshot().userWantsPlay, "host stop must not rewrite a user pause into play intent");
+    require(!state.noteLifecyclePrepareSubmitted(g1, lifecycle1),
+            "old lifecycle epochs must be rejected after a newer host stop");
+    require(state.noteLifecyclePrepareSubmitted(g1, lifecycle2), "current restore prepare must be accepted");
+    require(state.noteLifecycleReady(g1, lifecycle2) == HostPlaybackAction::None,
+            "user-paused content must remain paused after lifecycle restore");
 
     require(state.noteUserPlay(g1), "user may establish fresh play intent");
-    require(state.setHostPlaybackSuppressed(g1, true) == HostPlaybackAction::Pause,
-            "fresh play intent may again be host-suppressed");
-    require(state.noteTerminalAudioFocusLoss(g1), "terminal focus loss must invalidate host resume ownership");
-    require(state.setHostPlaybackSuppressed(g1, false) == HostPlaybackAction::None,
-            "terminal focus loss must prevent host auto-resume");
+    require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::Stop,
+            "fresh playing intent may enter another host-stop epoch");
+    const quint64 lifecycle3 = state.snapshot().lifecycleEpoch;
+    require(state.noteTerminalAudioFocusLoss(g1), "terminal focus loss must invalidate lifecycle resume");
+    require(state.noteLifecyclePrepareSubmitted(g1, lifecycle3), "restore prepare may still clear suppression");
+    require(state.noteLifecycleReady(g1, lifecycle3) == HostPlaybackAction::None,
+            "terminal focus loss must prevent lifecycle auto-resume");
 
     QVariantMap staleHeaders;
     staleHeaders.insert(QStringLiteral("Authorization"), QStringLiteral("stale"));
@@ -202,8 +223,12 @@ int main(int argc, char **argv)
             "same-URL reload must clear all source-scoped normalized rows");
     require(!state.snapshot().seeking && state.snapshot().decodedWidth == 0,
             "same-URL reload must clear seek and decoded-frame state");
-    require(!state.snapshot().userWantsPlay && !state.snapshot().hostPauseOwned,
-            "source replacement must invalidate prior source play intent");
+    require(!state.snapshot().userWantsPlay && !state.snapshot().hostStopped
+                && !state.snapshot().lifecycleErrorSuppressionArmed,
+            "source replacement must invalidate prior lifecycle restoration and play intent");
+    require(!state.noteLifecyclePrepareSubmitted(g1, lifecycle3)
+                && state.noteLifecycleReady(g1, lifecycle3) == HostPlaybackAction::None,
+            "old generation/lifecycle callbacks must be ignored after source replacement");
 
     require(!state.updateTimeline(g1, 99'000, 100'000, 100'000, 100.0, false, 1, true, 3.0),
             "stale timeline callbacks must be rejected");
@@ -223,6 +248,16 @@ int main(int argc, char **argv)
 
     const quint64 g3 = state.beginLoad(QStringLiteral("https://example.invalid/b.mp4"), staleHeaders);
     require(g3 > g2, "every replacement must keep generation monotonic");
+    require(state.noteUserPlay(g3), "terminal-stop fixture must begin with playing intent");
+    require(state.beginLifecycleHostStop(g3) == HostPlaybackAction::Stop,
+            "terminal-stop fixture must enter lifecycle host-stop state");
+    const quint64 lifecycle4 = state.snapshot().lifecycleEpoch;
+    require(state.noteStopped(g3), "explicit stop/back must cancel lifecycle restoration");
+    require(!state.snapshot().hostStopped && !state.snapshot().userWantsPlay,
+            "terminal stop must clear lifecycle state and play intent");
+    require(!state.noteLifecyclePrepareSubmitted(g3, lifecycle4)
+                && state.noteLifecycleReady(g3, lifecycle4) == HostPlaybackAction::None,
+            "foreground return must not resurrect an explicitly stopped source");
     require(state.markEnded(g3), "first EOF must transition once");
     require(!state.markEnded(g3), "duplicate EOF must be one-shot");
     require(!state.markError(g3, QStringLiteral("unknown"), QStringLiteral("late")),
