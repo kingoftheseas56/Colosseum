@@ -15,6 +15,7 @@ QStringList approvedInventoryIds() {
         QStringLiteral("collection"),
         QStringLiteral("continue_progress"),
         QStringLiteral("full_history"),
+        QStringLiteral("activity_fact"),
         QStringLiteral("per_world_customization"),
         QStringLiteral("wallpaper_personalization"),
         QStringLiteral("explicit_content_preference"),

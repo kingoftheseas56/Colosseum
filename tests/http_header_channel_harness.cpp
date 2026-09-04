@@ -75,6 +75,11 @@ private Q_SLOTS:
             QTcpSocket *sock = m_server.nextPendingConnection();
             connect(sock, &QTcpSocket::readyRead, this, [this, sock]() { onReadyRead(sock); });
             connect(sock, &QTcpSocket::disconnected, sock, &QObject::deleteLater);
+            connect(sock, &QObject::destroyed, this, [this, sock]() {
+                // Drop pointer-keyed state before Qt can recycle this address for another socket.
+                m_buffers.remove(sock);
+                m_handled.remove(sock);
+            });
         }
     }
 

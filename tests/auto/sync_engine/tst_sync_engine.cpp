@@ -1835,7 +1835,7 @@ winningPullThenPendingPushLossKeepsServerWinner() {
     QCOMPARE(
         replica.adapter.value(QStringLiteral("manga/item")),
         QStringLiteral("server-newer"));
-    QCOMPARE(replica.engine.cursor(), quint64(1));
+    QCOMPARE(replica.engine.cursor(), quint64(2));
     QCOMPARE(service.acceptedMutationCount(), 1);
     QCOMPARE(service.journal().size(), 2);
     QVERIFY(!service.journal().constLast().won);

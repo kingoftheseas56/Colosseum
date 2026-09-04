@@ -1105,6 +1105,13 @@ set_tests_properties(colosseum.qttest.journey_play_video PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+if(UNIX AND NOT APPLE)
+    # MpvQt's QQuickFramebufferObject needs a real X/OpenGL scene graph before
+    # decoded dimensions become observable. Keep the neutral Linux suite
+    # offscreen, but route this one render-dependent test through X11/Xvfb.
+    set_property(TEST colosseum.qttest.journey_play_video
+        APPEND PROPERTY LABELS "requires-x11")
+endif()
 
 # ── Window-set-state bridge command (Agent Visibility Phase 2, Slice J1-Tray-Bridge,
 #    2026-08-14) ─────────────────────────────────────────────────────────────────────
