@@ -16,10 +16,11 @@ Assert-Contains $qml 'id:\s*episodeLedgerHeader' 'Episode ledger must expose its
 Assert-Contains $qml 'id:\s*episodeNumberRail' 'Episode numbers must live in a dedicated ledger rail.'
 Assert-Contains $qml 'id:\s*nextUpRail' 'The in-place next-up row must have a gold rail.'
 Assert-Contains $qml 'id:\s*rowActions' 'Episode actions must occupy a stable right column.'
-Assert-Contains $qml 'property\s+int\s+compactRowHeight:\s*104' 'Normal ledger rows must be 104px.'
-Assert-Contains $qml 'property\s+int\s+nextRowHeight:\s*148' 'The next-up ledger row must expand to 148px.'
-Assert-Contains $qml 'height:\s*ep\.nextUp\s*\?\s*episodeList\.nextRowHeight\s*:\s*episodeList\.compactRowHeight' 'Next-up must expand in place without model reordering.'
-Assert-Contains $qml 'orientation:\s*ListView\.Vertical' 'Episode ledger must stay vertical.'
+Assert-Contains $qml 'property\s+int\s+compactEpisodeRowHeight:\s*104' 'Normal ledger rows must be 104px.'
+Assert-Contains $qml 'property\s+int\s+nextUpEpisodeRowHeight:\s*148' 'The next-up ledger row must expand to 148px.'
+Assert-Contains $qml 'height:\s*ep\.nextUp\s*\?\s*page\.nextUpEpisodeRowHeight\s*:\s*page\.compactEpisodeRowHeight' 'Next-up must expand in place without model reordering.'
+Assert-Contains $qml 'id:\s*episodeVirtualSpace' 'Episode ledger must expose the virtualized episode surface.'
+Assert-Contains $qml 'orientation:\s*"vertical"' 'Episode ledger must stay vertical.'
 Assert-Contains $qml 'spacing:\s*0' 'Ledger rows must meet on hairline separators.'
 
 # Semantic colors and real Lucide controls.
@@ -29,8 +30,10 @@ Assert-Contains $qml 'PlayerIcon\s*\{[\s\S]{0,260}kind:\s*epDl\.onDisk\s*\?\s*"c
 Assert-Contains $qml 'id:\s*seasonDownloadAction[\s\S]{0,500}border\.color:\s*theme\.edge' 'Season download must be a neutral secondary action.'
 
 # Existing behavior remains wired to the same source/download paths.
-Assert-Contains $qml 'page\.sheetEpisode\s*=\s*ep\.modelData[\s\S]{0,500}sources\.show\("series"' 'Row/play action must retain the source-sheet play flow.'
-Assert-Contains $qml 'page\.pendingDownloadEpisode\s*=\s*ep\.modelData[\s\S]{0,650}"download"' 'Row download must retain the source-picker download flow.'
+Assert-Contains $qml 'page\.sheetEpisode\s*=\s*v' 'Episode play must retain the source-sheet episode state.'
+Assert-Contains $qml 'sources\.show\("series"' 'Episode play must retain the source-sheet play flow.'
+Assert-Contains $qml 'page\.pendingDownloadEpisode\s*=\s*v' 'Episode download must retain its pending episode state.'
+Assert-Contains $qml 'sources\.show\("series"[\s\S]{0,700}"download"' 'Episode download must retain the source-picker download flow.'
 Assert-Contains $qml 'onClicked:\s*page\.openSeasonPicker\(\)' 'Season download must retain the pack picker.'
 
 # The rejected control languages may not survive in the production surface.

@@ -10,12 +10,15 @@ import "ComicsApi.js" as ComicsApi
 
 Item {
     id: page
+    focus: true
+    activeFocusOnTab: true
     property Item backdrop
     signal boxRequested(var box)     // → win.openComicArchive (existing route)
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
+    Keys.onPressed: archiveBoardKeys.handle(event)
 
     property var boxes: []
     property bool loading: true
@@ -62,6 +65,8 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize window"
+                onTriggered: page.minimizeRequested() }
         }
         Item {
             width: 22
@@ -83,6 +88,8 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
             }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"
+                onTriggered: page.fullscreenRequested() }
         }
         Item {
             width: 22; height: 22
@@ -91,6 +98,8 @@ Item {
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close archives"
+                onTriggered: page.closeRequested() }
         }
     }
 
@@ -145,7 +154,12 @@ Item {
         }
     }
 
-    ScrollGlide { flick: flick }
+    ScrollGlide { id: archiveBoardGlide; flick: flick }
+    KeyboardScrollController {
+        id: archiveBoardKeys
+        flick: flick
+        glide: archiveBoardGlide
+    }
 
     Text {
         anchors.centerIn: parent

@@ -39,6 +39,28 @@ Item {
 
     Theme { id: theme }
 
+    KeyboardScrollController {
+        id: keyboardScroll
+        flick: scroller
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+            if (root.logoutConfirmationOpen) {
+                root.closeLogoutConfirmation()
+                event.accepted = true
+                return
+            }
+            if (root.passwordExpanded) {
+                root.closePasswordEditor()
+                event.accepted = true
+                return
+            }
+        }
+        keyboardScroll.handle(event)
+    }
+
     function modelLength(model) {
         if (!model)
             return 0
@@ -113,14 +135,47 @@ Item {
         passwordRequestPending = false
     }
 
-    function closePasswordEditor() {
+    function openPasswordEditor() {
+        validationMessage = ""
+        passwordExpanded = true
+        Qt.callLater(function() {
+            if (root.active && root.passwordExpanded)
+                currentPasswordField.forceInputFocus()
+        })
+    }
+
+    function closePasswordEditor(restoreFocus) {
         clearPasswordSecrets()
         passwordExpanded = false
+        if (restoreFocus !== false) {
+            Qt.callLater(function() {
+                if (root.active && passwordAction.visible && passwordAction.enabled)
+                    passwordAction.forceActiveFocus()
+            })
+        }
+    }
+
+    function openLogoutConfirmation() {
+        logoutConfirmationOpen = true
+        Qt.callLater(function() {
+            if (root.active && root.logoutConfirmationOpen)
+                logoutCancel.forceActiveFocus()
+        })
+    }
+
+    function closeLogoutConfirmation(restoreFocus) {
+        logoutConfirmationOpen = false
+        if (restoreFocus !== false) {
+            Qt.callLater(function() {
+                if (root.active && logoutAction.visible && logoutAction.enabled)
+                    logoutAction.forceActiveFocus()
+            })
+        }
     }
 
     function clearEphemeralState() {
-        closePasswordEditor()
-        logoutConfirmationOpen = false
+        closePasswordEditor(false)
+        closeLogoutConfirmation(false)
         logoutRequestPending = false
         protectionRequestPending = false
         approvalDecisionKey = ""
@@ -233,7 +288,7 @@ Item {
         function onSignOutSyncWarningPendingChanged() {
             if (root.controller && root.controller.signOutSyncWarningPending) {
                 root.logoutRequestPending = false
-                root.logoutConfirmationOpen = false
+                root.closeLogoutConfirmation(false)
             }
         }
     }
@@ -764,11 +819,7 @@ Item {
                             height: 34
                             text: qsTr("Change")
                             enabled: root.signedIn && !root.passwordRequestPending
-                            onClicked: {
-                                root.validationMessage = ""
-                                root.passwordExpanded = true
-                                currentPasswordField.forceInputFocus()
-                            }
+                            onClicked: root.openPasswordEditor()
                         }
                     }
                 }
@@ -971,7 +1022,7 @@ Item {
                             height: 34
                             text: qsTr("Sign out everywhere")
                             enabled: root.signedIn && !root.logoutRequestPending
-                            onClicked: root.logoutConfirmationOpen = true
+                            onClicked: root.openLogoutConfirmation()
                         }
                     }
                 }
@@ -1015,12 +1066,13 @@ Item {
                             spacing: 9
 
                             AccountButton {
+                                id: logoutCancel
                                 objectName: "securityLogoutCancel"
                                 width: 88
                                 height: 34
                                 text: qsTr("Cancel")
                                 enabled: !root.logoutRequestPending
-                                onClicked: root.logoutConfirmationOpen = false
+                                onClicked: root.closeLogoutConfirmation()
                             }
 
                             AccountButton {

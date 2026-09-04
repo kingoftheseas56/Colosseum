@@ -205,6 +205,13 @@ Column {
                 onClicked: page.editMode = !page.editMode
             }
         }
+        KeyboardAction {
+            id: customizeKeyboard
+            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            width: 130; height: 28; pointerEnabled: false
+            accessibleName: page.editMode ? "Done customizing rows" : "Customize rows"
+            onTriggered: page.editMode = !page.editMode
+        }
     }
 
     // ── loading skeleton (only before the first rows land) — gallery poster width/gap ──

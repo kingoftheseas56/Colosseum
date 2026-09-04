@@ -69,6 +69,17 @@ Column {
                                ? root.registry.requestResume(modelData.id)
                                : root.registry.requestPause(modelData.id)
                 }
+                KeyboardAction {
+                    id: pauseKeyboard
+                    anchors.fill: parent
+                    anchors.margins: -8
+                    pointerEnabled: false
+                    focusEnabled: controlT.visible
+                    accessibleName: controlT.text
+                    onTriggered: modelData.paused
+                        ? root.registry.requestResume(modelData.id)
+                        : root.registry.requestPause(modelData.id)
+                }
             }
         }
     }

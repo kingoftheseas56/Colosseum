@@ -79,6 +79,13 @@ Item {
     property var sheetEpisode: null   // episode the PLAY-mode sheet is open for (per-row download)
     property bool pendingSeasonPick: false   // season checkout's picker is open in the sheet
     property bool seasonMenuOpen: false
+    property int seasonMenuKeyboardIndex: 0
+    property Item seasonMenuReturnItem: null
+    property int episodeKeyboardIndex: 0
+    property bool episodeContextOpen: false
+    property int episodeContextChoice: 0
+    property Item episodeContextReturnItem: null
+    property Item episodeJumpReturnItem: null
     property string episodeJumpDraft: ""
     property bool loading: true
     property string errorMsg: ""
@@ -233,6 +240,40 @@ Item {
 
     function seasonLabel() {
         return activeSeason === 0 ? "Specials" : "Season " + activeSeason;
+    }
+    function selectEpisodeOrder(mode) {
+        page.episodeOrderMode=mode
+        Qt.callLater(page.scrollToEpisodesTop)
+    }
+    function selectSeason(season) {
+        page.activeSeason=season
+        Qt.callLater(page.scrollToEpisodesTop)
+    }
+    function openSeasonMenu(invoker) {
+        if (page.seasonMenuOpen) { page.closeSeasonMenu(true); return }
+        page.seasonMenuReturnItem=invoker||null
+        var idx=Math.max(0,page.seasons.indexOf(page.activeSeason))
+        page.seasonMenuKeyboardIndex=idx; page.seasonMenuOpen=true
+        Qt.callLater(function(){ seasonMenuFocus.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeSeasonMenu(restore) {
+        page.seasonMenuOpen=false
+        var target=page.seasonMenuReturnItem; page.seasonMenuReturnItem=null
+        if(restore!==false && target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function activateSeasonMenu(index) {
+        if(index<0||index>=page.seasons.length) return
+        page.selectSeason(page.seasons[index]); page.closeSeasonMenu(true)
+    }
+    function toggleEpisodeJump(invoker) {
+        if(page.episodeJumpOpen) { page.closeEpisodeJump(true); return }
+        page.episodeJumpReturnItem=invoker||null; page.episodeJumpOpen=true
+        Qt.callLater(function(){ jumpInput.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeEpisodeJump(restore) {
+        page.episodeJumpOpen=false; page.episodeJumpDraft=""
+        var target=page.episodeJumpReturnItem; page.episodeJumpReturnItem=null
+        if(restore!==false && target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
     // Season checkout (torrent-pick rework 2026-07-19): `pick` (optional) is the
@@ -396,6 +437,60 @@ Item {
     // season (the Continue row owns resume; this is the front door). Null-safe.
     function heroEpisode() {
         return (mediaType === "series" && episodes && episodes.length) ? episodes[0] : null
+    }
+    function openHeroForPlay() {
+        if (page.mediaType === "series") {
+            var ep=page.heroEpisode(); if(!ep) return
+            var label=page.title+" - S"+page.episodeSeason(ep)+"E"+page.episodeNumber(ep)
+            if (page.tryPlayLocal(page.episodeStreamId(ep),label,"episode") || page.tryPlayArriving(page.episodeStreamId(ep))) return
+            page.sheetEpisode=ep
+            sources.show("series",page.episodeStreamId(ep),label,Object.assign({"title":page.title,"metaLine":page.episodeSourceLine(ep),"backdrop":page.sourceBackdrop(),"tmdbId":page.tmdbId,"imdbId":page.currentId(),"season":page.episodeSeason(ep),"episode":page.episodeNumber(ep)},page.adjacentEpisodeContext(ep)))
+        } else {
+            if (page.tryPlayLocal(page.currentId(),page.title,"movie") || page.tryPlayArriving(page.currentId())) return
+            page.sheetEpisode=null
+            sources.show("movie",page.currentId(),page.title,{"title":page.title,"year":page.year,"metaLine":page.sourceMetaLine(),"backdrop":page.sourceBackdrop(),"tmdbId":page.tmdbId,"imdbId":page.currentId()})
+        }
+    }
+
+    function openEpisodeForPlay(v) {
+        if (!v) return
+        var label=page.title+" - S"+page.episodeSeason(v)+"E"+page.episodeNumber(v)
+        if (page.tryPlayLocal(page.episodeStreamId(v),label,"episode") || page.tryPlayArriving(page.episodeStreamId(v))) return
+        page.sheetEpisode=v
+        sources.show("series",page.episodeStreamId(v),label,Object.assign({"title":page.title,"metaLine":page.episodeSourceLine(v),"backdrop":page.sourceBackdrop(),"tmdbId":page.tmdbId,"imdbId":page.currentId(),"season":page.episodeSeason(v),"episode":page.episodeNumber(v)},page.adjacentEpisodeContext(v)))
+    }
+    function openEpisodeDownload(v) {
+        if (!v || typeof Download === "undefined") return
+        var sid=page.episodeStreamId(v)
+        if (Download.hasVideo(sid) || page.queuedDownloadIds[sid] === true) return
+        page.pendingDownloadEpisode=v
+        var label=page.title+" - S"+page.episodeSeason(v)+"E"+page.episodeNumber(v)
+        var context=Object.assign({"title":page.title,"metaLine":page.episodeSourceLine(v),"backdrop":page.sourceBackdrop()},page.adjacentEpisodeContext(v))
+        sources.show("series",sid,label,context,"download")
+    }
+    function episodeContextOptions(index) {
+        var out=["Play"]
+        var v=(index>=0&&index<page.episodes.length)?page.episodes[index]:null
+        if (v && typeof Download !== "undefined") {
+            var sid=page.episodeStreamId(v)
+            if (!Download.hasVideo(sid) && page.queuedDownloadIds[sid] !== true) out.push("Download")
+        }
+        return out
+    }
+    function openEpisodeContext(index) {
+        page.episodeKeyboardIndex=index; page.episodeContextChoice=0; page.episodeContextReturnItem=episodeVirtualSpace
+        page.episodeContextOpen=true
+        Qt.callLater(function(){ episodeContextFocus.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeEpisodeContext(restore) {
+        page.episodeContextOpen=false
+        if (restore!==false && page.episodeContextReturnItem) Qt.callLater(function(){ episodeVirtualSpace.forceActiveFocus(Qt.PopupFocusReason) })
+        page.episodeContextReturnItem=null
+    }
+    function activateEpisodeContext(choice) {
+        var v=page.episodes[page.episodeKeyboardIndex]
+        if(choice===0) page.openEpisodeForPlay(v); else if(choice===1) page.openEpisodeDownload(v)
+        page.closeEpisodeContext(true)
     }
 
     function sourceBackdrop() {
@@ -577,8 +672,7 @@ Item {
         if (index < 0)
             return false;
         Qt.callLater(function() { page.scrollToEpisodeIndex(index) })
-        episodeJumpOpen = false;
-        episodeJumpDraft = "";
+        page.closeEpisodeJump(true)
         return true;
     }
 
@@ -689,8 +783,13 @@ Item {
     }
 
     Theme { id: theme }
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => { if (!event.accepted) theatreSeriesScrollKeys.handle(event) }
 
     onItemDataChanged: resolve()
+    onEpisodesChanged: {
+        page.episodeKeyboardIndex = page.episodes.length ? Math.max(0, Math.min(page.episodes.length - 1, page.episodeKeyboardIndex)) : 0
+    }
     onActiveSeasonChanged: {
         // >= 0 so a Specials (season 0) pick is remembered too; resets during
         // resolve() are already guarded by `loading`.
@@ -861,6 +960,10 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested()
             }
+            KeyboardAction {
+                anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"
+                focusRadius: 6; onTriggered: page.minimizeRequested()
+            }
         }
         Item {
             width: 22
@@ -882,6 +985,10 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.fullscreenRequested()
             }
+            KeyboardAction {
+                anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"
+                focusRadius: 6; onTriggered: page.fullscreenRequested()
+            }
         }
         Item {
             width: 22
@@ -900,6 +1007,10 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested()
+            }
+            KeyboardAction {
+                anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"
+                focusRadius: 6; onTriggered: page.closeRequested()
             }
         }
     }
@@ -1092,45 +1203,12 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onEntered: parent.opacity = 0.92
                                 onExited: parent.opacity = 1.0
-                                onClicked: {
-                                    if (page.mediaType === "series") {
-                                        var ep = page.heroEpisode()
-                                        if (!ep) return
-                                        var epLabel = page.title + " - S" + page.episodeSeason(ep) + "E" + page.episodeNumber(ep)
-                                        if (page.tryPlayLocal(page.episodeStreamId(ep), epLabel, "episode"))
-                                            return   // downloaded copy plays directly; sources only for what isn't on disk
-                                        if (page.tryPlayArriving(page.episodeStreamId(ep)))
-                                            return   // mid-download: play the arriving bytes, don't re-source
-                                        page.sheetEpisode = ep
-                                        sources.show("series", page.episodeStreamId(ep),
-                                                     epLabel,
-                                                     Object.assign({
-                                                         "title": page.title,
-                                                         "metaLine": page.episodeSourceLine(ep),
-                                                         "backdrop": page.sourceBackdrop(),
-                                                         // title identity for source extensions
-                                                         "tmdbId": page.tmdbId,
-                                                         "imdbId": page.currentId(),
-                                                         "season": page.episodeSeason(ep),
-                                                         "episode": page.episodeNumber(ep)
-                                                     }, page.adjacentEpisodeContext(ep)))
-                                    } else {
-                                        if (page.tryPlayLocal(page.currentId(), page.title, "movie"))
-                                            return
-                                        if (page.tryPlayArriving(page.currentId()))
-                                            return
-                                        page.sheetEpisode = null
-                                        sources.show("movie", page.currentId(), page.title, {
-                                            "title": page.title,
-                                            "year": page.year,
-                                            "metaLine": page.sourceMetaLine(),
-                                            "backdrop": page.sourceBackdrop(),
-                                            // title identity for source extensions — movie, no season/episode
-                                            "tmdbId": page.tmdbId,
-                                            "imdbId": page.currentId()
-                                        })
-                                    }
-                                }
+                                onClicked: page.openHeroForPlay()
+                            }
+                            KeyboardAction {
+                                id: heroWatchKeyboard; anchors.fill: parent; pointerEnabled: false
+                                accessibleName: "Watch " + page.title; focusRadius: parent.radius
+                                onTriggered: page.openHeroForPlay()
                             }
                         }
                         LibraryButton {
@@ -1163,6 +1241,11 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: page.toggleLibNotif()
+                            }
+                            KeyboardAction {
+                                id: notificationKeyboard; anchors.fill: parent; pointerEnabled: false
+                                accessibleName: notifPill.on ? "Turn notifications off" : "Turn notifications on"
+                                focusRadius: parent.radius; onTriggered: page.toggleLibNotif()
                             }
                         }
                     }
@@ -1230,6 +1313,18 @@ Item {
                         objectName: "theatreEpisodeVirtualSpace"
                         width: parent.width
                         height: page.episodeContentHeight
+                        property int currentIndex: page.episodeKeyboardIndex
+                        onCurrentIndexChanged: page.episodeKeyboardIndex = currentIndex
+                        focusPolicy: page.episodes.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: (event) => episodeKeys.handle(event)
+                        KeyboardCollectionController {
+                            id: episodeKeys; view: episodeVirtualSpace; orientation: "vertical"
+                            count: page.episodes.length; contextEnabled: true
+                            pageStep: Math.max(1, Math.floor(flick.height / page.compactEpisodeRowHeight))
+                            positionIndexFn: function(index) { page.scrollToEpisodeIndex(index) }
+                            onActivated: (index) => page.openEpisodeForPlay(page.episodes[index])
+                            onContextRequested: (index) => page.openEpisodeContext(index)
+                        }
 
                         // The page remains the only vertical scroll surface. This repeater
                         // receives only the visible episode slice plus a small overscan window.
@@ -1251,31 +1346,15 @@ Item {
                                 y: page.episodeOffsetForIndex(ep.absoluteIndex)
                                 width: episodeVirtualSpace.width
                                 height: ep.nextUp ? page.nextUpEpisodeRowHeight : page.compactEpisodeRowHeight
-                            function openForPlay() {
-                                var epLabel = page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData)
-                                if (page.tryPlayLocal(page.episodeStreamId(ep.modelData), epLabel, "episode"))
-                                    return   // downloaded copy plays directly; sources only for what isn't on disk
-                                if (page.tryPlayArriving(page.episodeStreamId(ep.modelData)))
-                                    return   // mid-download: play the arriving bytes, don't re-source
-                                page.sheetEpisode = ep.modelData
-                                sources.show("series", page.episodeStreamId(ep.modelData),
-                                             epLabel, Object.assign({
-                                                 "title": page.title,
-                                                 "metaLine": page.episodeSourceLine(ep.modelData),
-                                                 "backdrop": page.sourceBackdrop(),
-                                                 // title identity for source extensions
-                                                 "tmdbId": page.tmdbId,
-                                                 "imdbId": page.currentId(),
-                                                 "season": page.episodeSeason(ep.modelData),
-                                                 "episode": page.episodeNumber(ep.modelData)
-                                             }, page.adjacentEpisodeContext(ep.modelData)))
-                            }
+                            function openForPlay() { page.openEpisodeForPlay(ep.modelData) }
                             Rectangle {
                                 anchors.fill: parent
                                 anchors.leftMargin: theme.margin
                                 anchors.rightMargin: theme.margin
-                                color: ep.nextUp ? Qt.rgba(0.94, 0.77, 0.29, 0.035)
-                                      : (epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.035) : "transparent")
+                                color: episodeVirtualSpace.activeFocus && page.episodeKeyboardIndex === ep.absoluteIndex
+                                      ? Qt.rgba(0.94, 0.77, 0.29, 0.09)
+                                      : (ep.nextUp ? Qt.rgba(0.94, 0.77, 0.29, 0.035)
+                                      : (epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.035) : "transparent"))
                                 radius: 0
                             }
                             Rectangle {
@@ -1472,7 +1551,11 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: ep.openForPlay()
+                                onClicked: {
+                                    page.episodeKeyboardIndex = ep.absoluteIndex
+                                    episodeVirtualSpace.forceActiveFocus(Qt.MouseFocusReason)
+                                    ep.openForPlay()
+                                }
                             }
                             Rectangle {
                                 // Automation identity (Lanista): keyed by the episode's own stream id.
@@ -1498,7 +1581,11 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: ep.openForPlay()
+                                    onClicked: {
+                                        page.episodeKeyboardIndex = ep.absoluteIndex
+                                        episodeVirtualSpace.forceActiveFocus(Qt.MouseFocusReason)
+                                        ep.openForPlay()
+                                    }
                                 }
                             }
                             // Per-episode download (parity spec F4). Declared AFTER epMa so it
@@ -1538,13 +1625,9 @@ Item {
                                     // picker in download mode; the chosen row lands back in
                                     // onDownloadRequested below and pins the request.
                                     onClicked: {
-                                        if (epDl.onDisk || epDl.inQueue)
-                                            return
-                                        page.pendingDownloadEpisode = ep.modelData
-                                        var sid = page.episodeStreamId(ep.modelData)
-                                        var label = page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData)
-                                        var context = Object.assign({ "title": page.title, "metaLine": page.episodeSourceLine(ep.modelData), "backdrop": page.sourceBackdrop() }, page.adjacentEpisodeContext(ep.modelData))
-                                        sources.show("series", sid, label, context, "download")
+                                        page.episodeKeyboardIndex = ep.absoluteIndex
+                                        episodeVirtualSpace.forceActiveFocus(Qt.MouseFocusReason)
+                                        page.openEpisodeDownload(ep.modelData)
                                     }
                                 }
                             }
@@ -1588,6 +1671,42 @@ Item {
             Item { width: 1; height: 70 }
         }
     }
+    Rectangle {
+        id: episodeContextMenu
+        visible: page.episodeContextOpen
+        z: 80; anchors.centerIn: parent
+        width: 210; height: episodeContextCol.implicitHeight + 12; radius: 12
+        color: Qt.rgba(0.045,0.05,0.075,0.98); border.width: 1; border.color: theme.edge
+        FocusScope {
+            id: episodeContextFocus; anchors.fill: parent
+            Keys.onPressed: (event) => {
+                var n=page.episodeContextOptions(page.episodeKeyboardIndex).length
+                if(event.key===Qt.Key_Escape){page.closeEpisodeContext(true);event.accepted=true;return}
+                if(event.key===Qt.Key_Tab||event.key===Qt.Key_Backtab){event.accepted=true;return}
+                if(event.key===Qt.Key_Up) page.episodeContextChoice=(page.episodeContextChoice+n-1)%n
+                else if(event.key===Qt.Key_Down) page.episodeContextChoice=(page.episodeContextChoice+1)%n
+                else if(event.key===Qt.Key_Home) page.episodeContextChoice=0
+                else if(event.key===Qt.Key_End) page.episodeContextChoice=n-1
+                else if(event.key===Qt.Key_Return||event.key===Qt.Key_Enter||event.key===Qt.Key_Space){page.activateEpisodeContext(page.episodeContextChoice);event.accepted=true;return}
+                else return
+                event.accepted=true
+            }
+        }
+        Column {
+            id: episodeContextCol; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 6
+            Repeater {
+                model: page.episodeContextOptions(page.episodeKeyboardIndex)
+                delegate: Rectangle {
+                    required property string modelData; required property int index
+                    width: episodeContextCol.width; height: 36; radius: 8
+                    color: episodeContextFocus.activeFocus && page.episodeContextChoice===index ? Qt.rgba(1,1,1,0.11) : "transparent"
+                    Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.activateEpisodeContext(index) }
+                }
+            }
+        }
+    }
+
     // Sticky season chrome (scroll-UX rework 2026-08-24). Lives at page level (a sibling
     // of `flick`, not inside pageCol) so it can pin above the scrolled content instead of
     // scrolling away with it. `seasonChromePlaceholder` (inside episodesCol) reserves the
@@ -1638,7 +1757,13 @@ Item {
                 // complete. Absolute plays one continuous run across provider seasons;
                 // Seasons keeps the provider grouping and stream ids untouched.
                 Row {
+                    id: orderRow
                     visible: page.animeOrder && page.animeOrder.absoluteComplete === true
+                    property int currentIndex: page.effectiveEpisodeOrder === "absolute" ? 0 : 1
+                    onCurrentIndexChanged: if (activeFocus) page.selectEpisodeOrder(currentIndex === 0 ? "absolute" : "seasons")
+                    focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => orderKeys.handle(event)
+                    KeyboardCollectionController { id: orderKeys; view: orderRow; orientation: "horizontal"; count: 2 }
                     x: theme.margin
                     topPadding: 18
                     spacing: 22
@@ -1647,6 +1772,7 @@ Item {
                         delegate: Item {
                             id: orderBtn
                             required property string modelData
+                            required property int index
                             width: orderCol.width
                             height: orderCol.height
                             property bool on: page.effectiveEpisodeOrder === orderBtn.modelData
@@ -1674,8 +1800,9 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    page.episodeOrderMode = orderBtn.modelData
-                                    Qt.callLater(page.scrollToEpisodesTop)
+                                    orderRow.currentIndex = orderBtn.index
+                                    orderRow.forceActiveFocus(Qt.MouseFocusReason)
+                                    page.selectEpisodeOrder(orderBtn.modelData)
                                 }
                             }
                         }
@@ -1723,7 +1850,12 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: page.seasonMenuOpen = !page.seasonMenuOpen
+                            onClicked: page.openSeasonMenu(seasonTriggerKeyboard)
+                        }
+                        KeyboardAction {
+                            id: seasonTriggerKeyboard; anchors.fill: parent; pointerEnabled: false
+                            accessibleName: "Choose season"; focusRadius: parent.radius
+                            onTriggered: page.openSeasonMenu(seasonTriggerKeyboard)
                         }
                     }
                     Item {
@@ -1741,6 +1873,22 @@ Item {
                             color: Qt.rgba(0.045, 0.05, 0.075, 0.97)
                             border.width: 1
                             border.color: theme.edge
+                            FocusScope {
+                                id: seasonMenuFocus; anchors.fill: parent; z: 4
+                                Keys.onPressed: (event) => {
+                                    var n=page.seasons.length
+                                    if(event.key===Qt.Key_Escape){page.closeSeasonMenu(true);event.accepted=true;return}
+                                    if(event.key===Qt.Key_Tab||event.key===Qt.Key_Backtab){event.accepted=true;return}
+                                    if(!n)return
+                                    if(event.key===Qt.Key_Up)page.seasonMenuKeyboardIndex=(page.seasonMenuKeyboardIndex+n-1)%n
+                                    else if(event.key===Qt.Key_Down)page.seasonMenuKeyboardIndex=(page.seasonMenuKeyboardIndex+1)%n
+                                    else if(event.key===Qt.Key_Home)page.seasonMenuKeyboardIndex=0
+                                    else if(event.key===Qt.Key_End)page.seasonMenuKeyboardIndex=n-1
+                                    else if(event.key===Qt.Key_Return||event.key===Qt.Key_Enter||event.key===Qt.Key_Space){page.activateSeasonMenu(page.seasonMenuKeyboardIndex);event.accepted=true;return}
+                                    else return
+                                    seasonMenuList.positionViewAtIndex(page.seasonMenuKeyboardIndex,ListView.Contain);event.accepted=true
+                                }
+                            }
                             ListView {
                                 id: seasonMenuList
                                 anchors.fill: parent
@@ -1751,10 +1899,13 @@ Item {
                                 delegate: Rectangle {
                                     id: smRow
                                     required property var modelData
+                                    required property int index
                                     width: seasonMenuList.width
                                     height: 36
                                     radius: 9
-                                    color: smMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                                    color: seasonMenuFocus.activeFocus && page.seasonMenuKeyboardIndex === smRow.index
+                                        ? Qt.rgba(0.94,0.77,0.29,0.10)
+                                        : (smMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
                                     Text {
                                         x: 12
                                         anchors.verticalCenter: parent.verticalCenter
@@ -1770,9 +1921,8 @@ Item {
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            page.activeSeason = smRow.modelData
-                                            page.seasonMenuOpen = false
-                                            Qt.callLater(page.scrollToEpisodesTop)
+                                            page.seasonMenuKeyboardIndex = smRow.index
+                                            page.activateSeasonMenu(smRow.index)
                                         }
                                     }
                                 }
@@ -1782,7 +1932,20 @@ Item {
                 }
 
                 Flickable {
+                    id: seasonStrip
                     visible: page.seasons.length <= 10 && page.effectiveEpisodeOrder !== "absolute"
+                    property int currentIndex: Math.max(0, page.seasons.indexOf(page.activeSeason))
+                    onCurrentIndexChanged: if (activeFocus && currentIndex < page.seasons.length) page.selectSeason(page.seasons[currentIndex])
+                    focusPolicy: visible && page.seasons.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => seasonKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: seasonKeys; view: seasonStrip; orientation: "horizontal"; count: page.seasons.length
+                        positionIndexFn: function(index) {
+                            var it=seasonRepeater.itemAt(index); if(!it)return
+                            if(it.x < seasonStrip.contentX) seasonStrip.contentX=it.x
+                            else if(it.x+it.width > seasonStrip.contentX+seasonStrip.width) seasonStrip.contentX=it.x+it.width-seasonStrip.width
+                        }
+                    }
                     width: parent.width
                     height: (page.seasons.length <= 10 && page.effectiveEpisodeOrder !== "absolute") ? 44 : 0
                     contentWidth: seasonRow.width
@@ -1796,6 +1959,7 @@ Item {
                         spacing: 22
                         topPadding: 18
                         Repeater {
+                            id: seasonRepeater
                             model: page.seasons
                             // Delegate root is an Item, NOT the Column itself: a MouseArea
                             // with anchors.fill inside a positioner is ignored (0x0, dead
@@ -1803,6 +1967,7 @@ Item {
                             delegate: Item {
                                 id: seasonBtn
                                 required property var modelData
+                                required property int index
                                 width: seasonCol.width
                                 height: seasonCol.height
                                 property bool on: page.activeSeason === seasonBtn.modelData
@@ -1830,8 +1995,9 @@ Item {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        page.activeSeason = seasonBtn.modelData
-                                        Qt.callLater(page.scrollToEpisodesTop)
+                                        seasonStrip.currentIndex = seasonBtn.index
+                                        seasonStrip.forceActiveFocus(Qt.MouseFocusReason)
+                                        page.selectSeason(seasonBtn.modelData)
                                     }
                                 }
                             }
@@ -1927,6 +2093,12 @@ Item {
                             enabled: !page.seasonQueued[page.activeSeason]
                             onClicked: page.openSeasonPicker()
                         }
+                        KeyboardAction {
+                            id: seasonDownloadKeyboard; anchors.fill: parent; pointerEnabled: false
+                            focusEnabled: seasonDownloadAction.visible && !page.seasonQueued[page.activeSeason]
+                            accessibleName: "Download season"; focusRadius: parent.radius
+                            onTriggered: page.openSeasonPicker()
+                        }
                     }
 
                     Item {
@@ -1954,11 +2126,12 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    page.episodeJumpOpen = !page.episodeJumpOpen
-                                    if (page.episodeJumpOpen)
-                                        jumpInput.forceActiveFocus()
-                                }
+                                onClicked: page.toggleEpisodeJump(jumpToggleKeyboard)
+                            }
+                            KeyboardAction {
+                                id: jumpToggleKeyboard; anchors.fill: parent; pointerEnabled: false
+                                accessibleName: "Go to episode"; focusRadius: parent.radius
+                                onTriggered: page.toggleEpisodeJump(jumpToggleKeyboard)
                             }
                         }
                     }
@@ -1966,6 +2139,7 @@ Item {
 
                 Item { width: parent.width; height: 0; z: 30   // overlay host: the panel floats
                 Rectangle {
+                    id: episodeJumpPanel
                     x: Math.max(theme.margin, parent.width - theme.margin - 292)
                     y: 6
                     width: 292
@@ -2005,7 +2179,9 @@ Item {
                                 onTextChanged: page.episodeJumpDraft = text
                                 Keys.onReturnPressed: page.submitEpisodeJump()
                                 Keys.onEnterPressed: page.submitEpisodeJump()
-                                Keys.onEscapePressed: page.episodeJumpOpen = false
+                                Keys.onEscapePressed: page.closeEpisodeJump(true)
+                                Keys.onTabPressed: { jumpSubmitKeyboard.forceActiveFocus(Qt.TabFocusReason); event.accepted = true }
+                                Keys.onBacktabPressed: { jumpRanges.forceActiveFocus(Qt.BacktabFocusReason); event.accepted = true }
                             }
                             Text {
                                 anchors.left: parent.left
@@ -2037,6 +2213,12 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: page.submitEpisodeJump()
                             }
+                            KeyboardAction {
+                                id: jumpSubmitKeyboard; anchors.fill: parent; pointerEnabled: false
+                                focusEnabled: page.episodeJumpOpen && page.episodeJumpDraft.length > 0
+                                accessibleName: "Jump to episode"; focusRadius: parent.radius
+                                onTriggered: page.submitEpisodeJump()
+                            }
                         }
                     }
 
@@ -2046,7 +2228,20 @@ Item {
                         y: 56
                         width: parent.width - 24
                         spacing: 6
+                        property int currentIndex: 0
+                        focusPolicy: page.episodeJumpOpen && rangeRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Tab) { jumpInput.forceActiveFocus(Qt.TabFocusReason); event.accepted=true; return }
+                            if (event.key === Qt.Key_Backtab) { jumpSubmitKeyboard.forceActiveFocus(Qt.BacktabFocusReason); event.accepted=true; return }
+                            jumpRangeKeyboard.handle(event)
+                        }
+                        KeyboardCollectionController {
+                            id: jumpRangeKeyboard; view: jumpRanges; orientation: "grid"; columns: 3
+                            count: rangeRepeater.count
+                            onActivated: (index) => page.jumpToEpisodeNumber(index * 50 + 1)
+                        }
                         Repeater {
+                            id: rangeRepeater
                             model: Math.ceil(page.episodes.length / 50)
                             delegate: Rectangle {
                                 id: rangeBtn
@@ -2056,9 +2251,10 @@ Item {
                                 width: label.implicitWidth + 18
                                 height: 25
                                 radius: 6
-                                color: Qt.rgba(1, 1, 1, 0.06)
-                                border.width: 1
-                                border.color: theme.edge
+                                color: jumpRanges.activeFocus && jumpRanges.currentIndex === rangeBtn.index
+                                    ? Qt.rgba(0.94,0.77,0.29,0.10) : Qt.rgba(1, 1, 1, 0.06)
+                                border.width: jumpRanges.activeFocus && jumpRanges.currentIndex === rangeBtn.index ? 2 : 1
+                                border.color: jumpRanges.activeFocus && jumpRanges.currentIndex === rangeBtn.index ? theme.gold : theme.edge
                                 Text {
                                     id: label
                                     anchors.centerIn: parent
@@ -2071,7 +2267,11 @@ Item {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: page.jumpToEpisodeNumber(rangeBtn.start)
+                                    onClicked: {
+                                        jumpRanges.currentIndex = rangeBtn.index
+                                        jumpRanges.forceActiveFocus(Qt.MouseFocusReason)
+                                        page.jumpToEpisodeNumber(rangeBtn.start)
+                                    }
                                 }
                             }
                         }
@@ -2123,7 +2323,8 @@ Item {
         }
     }
 
-    ScrollGlide { flick: flick }
+    ScrollGlide { id: theatreSeriesGlide; flick: flick }
+    KeyboardScrollController { id: theatreSeriesScrollKeys; flick: flick; glide: theatreSeriesGlide }
 
     SourcesSheet {
         id: sources

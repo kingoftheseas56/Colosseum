@@ -42,6 +42,94 @@ Window {
     property var pendingIdentityRoute: null
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+
+    // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
+    // Shortcut objects below only deliver the physical chord into this registry-backed action.
+    KeyboardRegistry {
+        id: keyboardRegistry
+        objectName: "keyboardRegistry"
+    }
+    KeyboardCommand {
+        id: openMediaCommand
+        semanticId: "global.openMedia"
+        label: "Open media"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+O"]
+        icon: "file.svg"
+        onTriggered: openMediaDialog.open()
+    }
+    KeyboardCommand {
+        id: openVaultCommand
+        semanticId: "global.openVault"
+        label: "Open Vault"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+V"]
+        icon: "vault.svg"
+        onTriggered: win.openVaultPage()
+    }
+    KeyboardCommand {
+        id: openDownloadsCommand
+        semanticId: "global.openDownloads"
+        label: "Open Downloads"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+D"]
+        icon: "download.svg"
+        onTriggered: win.openDownloadsPage()
+    }
+    KeyboardCommand {
+        id: openExtensionsCommand
+        semanticId: "global.openExtensions"
+        label: "Open Extensions"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+E"]
+        icon: "extensions.svg"
+        onTriggered: win.openExtensionsPage()
+    }
+    KeyboardCommand {
+        id: openSettingsCommand
+        semanticId: "global.openSettings"
+        label: "Open Settings"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Shift+S"]
+        icon: "settings.svg"
+        onTriggered: win.openSettingsPage()
+    }
+    KeyboardCommand {
+        id: fullscreenCommand
+        semanticId: "global.fullscreen"
+        label: "Fullscreen"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["F11"]
+        icon: "fullscreen.svg"
+        onTriggered: win.toggleFullscreenShell()
+    }
+    KeyboardCommand {
+        id: quitCommand
+        semanticId: "global.quit"
+        label: "Quit Colosseum"
+        category: "Shortcuts"
+        scope: "application"
+        sequences: ["Ctrl+Q"]
+        icon: "power.svg"
+        onTriggered: Qt.quit()
+    }
+    KeyboardCommand {
+        id: escapeCommand
+        semanticId: "global.escape"
+        label: "Back / close"
+        category: "Features"
+        scope: "application"
+        sequences: ["Escape"]
+        icon: "back.svg"
+        onTriggered: win.handleEscape()
+    }
+
     function setGuiStallContext(operation, surface) {
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext(operation, surface)
@@ -337,6 +425,15 @@ Window {
     }
 
     Component.onCompleted: {
+        keyboardRegistry.registerCommand(openMediaCommand)
+        keyboardRegistry.registerCommand(openVaultCommand)
+        keyboardRegistry.registerCommand(openDownloadsCommand)
+        keyboardRegistry.registerCommand(openExtensionsCommand)
+        keyboardRegistry.registerCommand(openSettingsCommand)
+        keyboardRegistry.registerCommand(fullscreenCommand)
+        keyboardRegistry.registerCommand(quitCommand)
+        keyboardRegistry.registerCommand(escapeCommand)
+
         // C++ owns the payload read (Qt blocks file:// XHR by default, and house doctrine keeps
         // transport off the GUI thread's JS). Installed once, here, because a .pragma library
         // holds one shared instance per QML engine. FIRST in this handler on purpose: the dev
@@ -560,6 +657,13 @@ Window {
         if (rec && rec.contentKind === "book") { win.closeBookReaderSession(); return }
         if (bookReaderLayer.active) win.closeBookReader()
     }
+    function requestUniverseEscape() {
+        if (universeLayer.active && universeLayer.item && universeLayer.item.requestEscape) {
+            universeLayer.item.requestEscape()
+            return
+        }
+        win.closeUniverse()
+    }
     function requestComicReaderEscape() {
         if (vaultComicLayer.active && vaultComicLayer.item && vaultComicLayer.item.requestEscape) {
             vaultComicLayer.item.requestEscape(); return
@@ -610,7 +714,7 @@ Window {
         case "theatreSeries": win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
         case "series": win.closeSeries(); return
-        case "universe": win.closeUniverse(); return
+        case "universe": win.requestUniverseEscape(); return
         case "universeHall": win.closeUniverseHall(); return
         case "search": win.closeSearch(); return
         case "worldSearch": win.closeWorldSearch(); return
@@ -629,8 +733,8 @@ Window {
         default: Qt.quit(); return
         }
     }
-    Shortcut { sequences: ["Escape"]; onActivated: win.handleEscape() }
-    Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
+    Shortcut { sequences: escapeCommand.sequences; onActivated: escapeCommand.invoke("shortcut") }
+    Shortcut { sequences: quitCommand.sequences; onActivated: quitCommand.invoke("shortcut") }
 
     // ── Keyboard ignition (Arc 41 repair) ──────────────────────────────────────────
     // Qt Quick starts a Tab traversal only from an item that BOTH holds focus and has
@@ -718,9 +822,9 @@ Window {
     // home, world pages, readers, overlays, and active playback alike. The native store is the
     // single authority — it exits PiP first if needed, then toggles the base mode.
     Shortcut {
-        sequences: ["F11"]
+        sequences: fullscreenCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.toggleFullscreenShell()
+        onActivated: fullscreenCommand.invoke("shortcut")
     }
 
     // Minimize the OS surface to the taskbar — "get it off my screen" WITHOUT quitting (the shell
@@ -916,7 +1020,8 @@ Window {
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
-            seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
+            if (seriesLayer.item.requestedVolumeNumber !== undefined)
+                seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
     }
@@ -1562,6 +1667,8 @@ Window {
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
         taskbar.open = false
+        if (extensionsLayer.item && extensionsLayer.item.takeKeyboardFocus)
+            Qt.callLater(extensionsLayer.item.takeKeyboardFocus)
     }
     function closeExtensionsPage() { extensionsLayer.active = false }
 
@@ -1574,6 +1681,8 @@ Window {
         vaultLayer.active = false
         settingsLayer.active = true
         taskbar.open = false
+        if (settingsLayer.item && settingsLayer.item.takeKeyboardFocus)
+            Qt.callLater(settingsLayer.item.takeKeyboardFocus)
     }
     function closeSettingsPage() { settingsLayer.active = false }
 
@@ -3054,7 +3163,8 @@ Window {
             item.sourceSearchTitle = seriesLayer.sourceSearchTitle
             item.sourceSearchAliases = seriesLayer.sourceSearchAliases
             item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
-            item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
+            if (item.requestedVolumeNumber !== undefined)
+                item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
@@ -3563,6 +3673,7 @@ Window {
     // ---- Universes: extension-backed bespoke pages + generic fallback ----
     Loader {
         id: universeLayer
+        objectName: "universeLayer"
         anchors.fill: parent
         z: 52
         active: false
@@ -3592,6 +3703,13 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            // If a dev/startup route loads a universe behind account onboarding, remember
+            // that universe as the surface onboarding must return focus to when it closes.
+            // Normal user navigation never opens a universe through the onboarding cover.
+            if (accountHost.visible)
+                accountHost.focusReturnItem = item
+            else if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
             // Works open ABOVE this overlay — series/theatre/western are z:53 (> this layer's 52),
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
@@ -3662,6 +3780,8 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
+            if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
         }
     }
 
@@ -3681,6 +3801,8 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
         }
     }
 
@@ -3694,6 +3816,7 @@ Window {
         visible: active
         source: "KeyboardGuidePage.qml"
         onLoaded: {
+            item.keyboardRegistry = keyboardRegistry
             item.backRequested.connect(win.closeKeyboardGuide)
             item.takeKeyboardFocus()
         }
@@ -3702,6 +3825,7 @@ Window {
     // ---- Update page: the release chronicle, entered from the permanent taskbar item ----
     Loader {
         id: updateLayer
+        objectName: "updateLayer"
         anchors.fill: parent
         z: 56
         active: false
@@ -3715,6 +3839,8 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            if (item.takeKeyboardFocus)
+                Qt.callLater(item.takeKeyboardFocus)
         }
     }
 
@@ -3919,35 +4045,35 @@ Window {
     }
 
     Shortcut {
-        sequences: ["Ctrl+O"]
+        sequences: openMediaCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: openMediaDialog.open()
+        onActivated: openMediaCommand.invoke("shortcut")
     }
 
     // Vault ux uplift S15: a global shortcut opens the Vault from anywhere, via the same
     // door function the taskbar folder door uses (the layer-priority chain is respected —
     // openVaultPage already deactivates the other taskbar layers; Escape's law closes it).
     Shortcut {
-        sequences: ["Ctrl+Shift+V"]
+        sequences: openVaultCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openVaultPage()
+        onActivated: openVaultCommand.invoke("shortcut")
     }
 
     // Arc 41 essentials: direct doors for utility pages.
     Shortcut {
-        sequences: ["Ctrl+Shift+D"]
+        sequences: openDownloadsCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openDownloadsPage()
+        onActivated: openDownloadsCommand.invoke("shortcut")
     }
     Shortcut {
-        sequences: ["Ctrl+Shift+E"]
+        sequences: openExtensionsCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openExtensionsPage()
+        onActivated: openExtensionsCommand.invoke("shortcut")
     }
     Shortcut {
-        sequences: ["Ctrl+Shift+S"]
+        sequences: openSettingsCommand.sequences
         context: Qt.ApplicationShortcut
-        onActivated: win.openSettingsPage()
+        onActivated: openSettingsCommand.invoke("shortcut")
     }
 
     // ── Open Recent panel (Slice 9): the Open Media control remembers ──
@@ -4117,7 +4243,17 @@ Window {
     Connections {
         target: boot
         function onVisibleChanged() {
-            if (!boot.visible) win.armStartupIdleWork()
+            if (boot.visible)
+                return
+            win.armStartupIdleWork()
+            // The splash can make the shell's dead-focus recovery park focus on the
+            // invisible keyboard ignition item after onboarding has already seeded its
+            // first action. Hand focus back to the topmost startup surface once it is
+            // actually revealed so Enter/Space work immediately on cold launch.
+            if (accountHost.visible)
+                accountHost.focusFirstInside()
+            else if (win.keyboardFocusDead)
+                keyboardIgnition.forceActiveFocus()
         }
     }
 

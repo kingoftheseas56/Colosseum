@@ -47,6 +47,33 @@ Item {
 
     Theme { id: theme }
 
+    KeyboardScrollController {
+        id: keyboardScroll
+        flick: scroller
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+            if (root.deleteConfirmationOpen) {
+                root.closeDeleteConfirmation()
+                event.accepted = true
+                return
+            }
+            if (root.activityClearConfirmationOpen) {
+                root.closeActivityClearConfirmation()
+                event.accepted = true
+                return
+            }
+            if (root.searchClearConfirmationOpen) {
+                root.closeSearchClearConfirmation()
+                event.accepted = true
+                return
+            }
+        }
+        keyboardScroll.handle(event)
+    }
+
     readonly property color edgeSoft: Qt.rgba(1, 1, 1, 0.09)
     readonly property color danger: "#d86b66"
 

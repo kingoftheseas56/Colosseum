@@ -184,6 +184,10 @@ Item {
             anchors.leftMargin: 6
             height: 20
             readonly property real frac: root.session ? Math.max(0, Math.min(1, root.session.volume)) : 0
+            readonly property real value: root.session ? root.session.volume * 100 : 0
+            readonly property real minimumValue: 0
+            readonly property real maximumValue: 100
+            readonly property real stepSize: 5
             Rectangle {
                 id: volTrack
                 anchors.left: parent.left
@@ -232,7 +236,6 @@ Item {
             }
             Accessible.role: Accessible.Slider
             Accessible.name: "Volume"
-            Accessible.value: root.session ? Math.round(root.session.volume * 100) : 0
         }
     }
 

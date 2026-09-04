@@ -7,6 +7,7 @@ import "../../qml/reader2" as Reader2
 TestCase {
     id: testCase
     name: "K01ReaderKeyboard"
+    when: windowShown
 
     Window { id: testWindow; width: 900; height: 640; visible: true }
 
@@ -40,12 +41,13 @@ TestCase {
     }
 
     function init() {
+        testWindow.requestActivate()
         input = inputComp.createObject(testWindow.contentItem, { "width": 900, "height": 640 })
         search = searchComp.createObject(testWindow.contentItem, { "width": 900, "height": 640, "open": false })
         selection = selectionComp.createObject(testWindow.contentItem, { "width": 900, "height": 640, "shown": false })
         dict = dictComp.createObject(testWindow.contentItem, { "width": 900, "height": 640, "shown": false, "dictState": "empty" })
         foot = footComp.createObject(testWindow.contentItem, { "width": 900, "height": 640, "shown": false, "text": "A sufficiently long footnote for keyboard focus." })
-        wait(0)
+        wait(20)
     }
 
     function cleanup() {
@@ -80,15 +82,18 @@ TestCase {
         compare(testWindow.activeFocusItem, field)
         verify(results.enabled && results.visible && results.activeFocusOnTab, "results region focus eligibility")
         results.forceActiveFocus(Qt.OtherFocusReason)
-        compare(testWindow.activeFocusItem, results, "results direct focus")
+        verify(results.activeFocus, "results direct focus")
+        verify(isDescendant(testWindow.activeFocusItem, results), "results direct focus is within the list")
         field.forceActiveFocus(Qt.OtherFocusReason)
         compare(testWindow.activeFocusItem, field)
         keyClick(Qt.Key_Tab)
-        compare(testWindow.activeFocusItem, results)
+        verify(results.activeFocus)
+        verify(isDescendant(testWindow.activeFocusItem, results))
         keyClick(Qt.Key_Tab)
         compare(testWindow.activeFocusItem, field)
         keyClick(Qt.Key_Tab, Qt.ShiftModifier)
-        compare(testWindow.activeFocusItem, results)
+        verify(results.activeFocus)
+        verify(isDescendant(testWindow.activeFocusItem, results))
         search.open = false
     }
 

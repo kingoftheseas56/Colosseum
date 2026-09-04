@@ -5,6 +5,7 @@ import "UniverseExtApi.js" as UniverseExtApi
 
 Item {
     id: root
+    objectName: "galaxyUniversePage"
     anchors.fill: parent
     focus: true
 
@@ -88,14 +89,27 @@ Item {
         if (!extensionId.length) { payload = null; return }
         UniverseExtApi.load(extensionId, function(p) { root.payload = p })
     }
+    function takeKeyboardFocus() {
+        if (selectedDestinationId.length)
+            root.forceActiveFocus(Qt.TabFocusReason)
+        else
+            galaxyView.takeKeyboardFocus()
+    }
     function openDestination(id) {
         if (!destinationById(id)) return
         selectedDestinationId = id
         destinationPage.contentY = 0
+        Qt.callLater(function() { root.forceActiveFocus(Qt.TabFocusReason) })
     }
     function closeDestination() {
         selectedDestinationId = ""
-        root.forceActiveFocus()
+        Qt.callLater(root.takeKeyboardFocus)
+    }
+    function requestEscape() {
+        if (selectedDestinationId.length)
+            closeDestination()
+        else
+            backRequested()
     }
     function openEntry(kind, entry) {
         if (!entry) return
@@ -109,13 +123,8 @@ Item {
             root.comicsArchiveRequested({ title: entry.title, posts: entry.posts, year: entry.year })
     }
 
-    Component.onCompleted: { reload(); root.forceActiveFocus(Qt.TabFocusReason) }
+    Component.onCompleted: { reload(); Qt.callLater(root.takeKeyboardFocus) }
     onExtensionIdChanged: reload()
-    Keys.onEscapePressed: function(event) {
-        if (selectedDestinationId.length) closeDestination()
-        else backRequested()
-        event.accepted = true
-    }
 
     Rectangle { anchors.fill: parent; color: "#03050a" }
     StarWarsGalaxySystem {

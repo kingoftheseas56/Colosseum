@@ -18,6 +18,17 @@ Item {
     property int activeIndex: 0
 
     Theme { id: theme }
+    Item {
+        id: peekFocus; anchors.fill: parent
+        property int currentIndex: hero.activeIndex
+        onCurrentIndexChanged: if (hero.activeIndex !== currentIndex) hero.activeIndex = currentIndex
+        focusPolicy: hero.slides.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => peekKeys.handle(event)
+        KeyboardCollectionController {
+            id: peekKeys; view: peekFocus; orientation: "horizontal"; count: hero.slides.length
+            onActivated: (index) => hero.itemRequested(hero.slides[index])
+        }
+    }
 
     Timer {
         interval: 9500
@@ -50,8 +61,9 @@ Item {
             opacity: wrapped === 0 ? 1.0 : 0.46
             z: wrapped === 0 ? 4 : 1
             color: card.modelData.c2 !== undefined ? card.modelData.c2 : "#101218"
-            border.width: 1
-            border.color: wrapped === 0 ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.08)
+            border.width: peekFocus.activeFocus && wrapped === 0 ? 2 : 1
+            border.color: peekFocus.activeFocus && wrapped === 0 ? theme.gold
+                : (wrapped === 0 ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.08))
 
             Behavior on x { NumberAnimation { duration: 620; easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: 620; easing.type: Easing.OutCubic } }

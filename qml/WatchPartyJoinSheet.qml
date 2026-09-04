@@ -1,12 +1,14 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
+import "SystemFocusContainment.js" as SystemFocusContainment
 
 Popup {
     id: sheet
     objectName: "watchPartyJoinSheet"
 
     property var controller: null
+    property Item focusReturnItem: null
     readonly property bool signedIn: controller ? !!controller.signedIn : false
     readonly property bool inRoom: controller ? !!controller.inRoom : false
     readonly property string phase: controller ? String(controller.phase || "idle") : "idle"
@@ -35,7 +37,36 @@ Popup {
     bottomPadding: atlasBottomPadding
     height: implicitHeight
 
+    function rememberInvoker() {
+        const windowObject = parent ? parent.Window.window : null
+        const active = windowObject ? windowObject.activeFocusItem : null
+        if (active && !SystemFocusContainment.isWithin(active, contentColumn))
+            focusReturnItem = active
+    }
+
+    function restoreInvoker() {
+        const target = focusReturnItem
+        focusReturnItem = null
+        Qt.callLater(function() {
+            if (target && target.visible && target.enabled)
+                target.forceActiveFocus()
+        })
+    }
+
+    function focusInitial() {
+        Qt.callLater(function() {
+            if (!sheet.opened)
+                return
+            if (!sheet.inRoom) {
+                roomInput.forceActiveFocus()
+                return
+            }
+            closeButton.forceActiveFocus()
+        })
+    }
+
     function openSheet() {
+        rememberInvoker()
         if (controller && controller.refreshIdentity)
             controller.refreshIdentity()
         roomInput.text = ""
@@ -43,8 +74,10 @@ Popup {
         if (controller && controller.clearFeedback)
             controller.clearFeedback()
         open()
-        roomInput.forceActiveFocus()
     }
+
+    onOpened: focusInitial()
+    onClosed: restoreInvoker()
 
     function canSubmitJoin() {
         if (!controller || controller.busy || !controller.serviceConfigured || inRoom)
@@ -67,6 +100,23 @@ Popup {
         if (!signedIn && guestName.length === 0)
             return
         controller.joinRoom(roomId, guestName)
+    }
+
+    Shortcut {
+        sequence: "Tab"
+        enabled: sheet.opened
+        onActivated: {
+            const windowObject = sheet.parent ? sheet.parent.Window.window : null
+            SystemFocusContainment.move(windowObject, contentColumn, true)
+        }
+    }
+    Shortcut {
+        sequence: "Shift+Tab"
+        enabled: sheet.opened
+        onActivated: {
+            const windowObject = sheet.parent ? sheet.parent.Window.window : null
+            SystemFocusContainment.move(windowObject, contentColumn, false)
+        }
     }
 
     Overlay.modal: Rectangle {
@@ -108,6 +158,16 @@ Popup {
         // content rect; children bind to parent.width (== availableWidth). No manual
         // x/y/width — those would be ignored and reintroduce the padding-at-bottom bug.
         spacing: 0
+
+        Keys.priority: Keys.AfterItem
+        Keys.onPressed: function(event) {
+            if (event.key !== Qt.Key_Tab)
+                return
+            const forward = !(event.modifiers & Qt.ShiftModifier)
+            const windowObject = sheet.parent ? sheet.parent.Window.window : null
+            if (SystemFocusContainment.move(windowObject, contentColumn, forward))
+                event.accepted = true
+        }
 
         Row {
             id: headerRow
@@ -167,9 +227,13 @@ Popup {
                 Rectangle {
                     anchors.fill: parent
                     radius: 21
-                    color: closeMouse.containsMouse ? theme.glassTint : Qt.rgba(1, 1, 1, 0.035)
-                    border.width: 1
-                    border.color: closeMouse.containsMouse ? theme.edge : Qt.rgba(1, 1, 1, 0.12)
+                    color: closeButton.activeFocus
+                        ? Qt.rgba(theme.gold.r, theme.gold.g, theme.gold.b, 0.12)
+                        : (closeMouse.containsMouse ? theme.glassTint : Qt.rgba(1, 1, 1, 0.035))
+                    border.width: closeButton.activeFocus ? 2 : 1
+                    border.color: closeButton.activeFocus
+                        ? theme.gold
+                        : (closeMouse.containsMouse ? theme.edge : Qt.rgba(1, 1, 1, 0.12))
                 }
 
                 WatchPartyGlyph {

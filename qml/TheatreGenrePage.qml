@@ -32,6 +32,8 @@ Item {
     signal exploreRequested()                     // the "Explore" pill → host opens the full genre index
 
     Theme { id: theme }
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => { if (!event.accepted) pageScrollKeys.handle(event) }
 
     property var genreData: ({ count: 0, desc: "", cards: [], montage: [] })
     property bool loading: true
@@ -209,6 +211,12 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: if (!parent.selected) root.genreName = modelData
                             }
+                            KeyboardAction {
+                                anchors.fill: parent; pointerEnabled: false
+                                accessibleName: "Open " + modelData + " genre"
+                                focusRadius: 17
+                                onTriggered: if (!parent.selected) root.genreName = modelData
+                            }
                         }
                     }
                     Rectangle {
@@ -229,6 +237,10 @@ Item {
                             id: exploreMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.exploreRequested()
+                        }
+                        KeyboardAction {
+                            anchors.fill: parent; pointerEnabled: false; accessibleName: "Explore genres"
+                            focusRadius: 17; onTriggered: root.exploreRequested()
                         }
                     }
                 }
@@ -266,6 +278,10 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.sortMode = (root.sortMode === "score") ? "readers" : "score"
                             }
+                            KeyboardAction {
+                                anchors.fill: parent; pointerEnabled: false; accessibleName: "Change sort order"
+                                focusRadius: 10; onTriggered: root.sortMode = (root.sortMode === "score") ? "readers" : "score"
+                            }
                         }
                         // view: detailed ⇄ covers
                         Row {
@@ -281,6 +297,11 @@ Item {
                                            font.pixelSize: 15 }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.compact = modelData.c }
+                                    KeyboardAction {
+                                        anchors.fill: parent; pointerEnabled: false
+                                        accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
+                                        focusRadius: 4; onTriggered: root.compact = modelData.c
+                                    }
                                 }
                             }
                         }
@@ -292,13 +313,35 @@ Item {
                 // ---- the card grid ----
                 Grid {
                     id: grid
+                    property int currentIndex: root.genreData.cards.length > 0 ? 0 : -1
                     width: parent.width
                     columns: root.compact ? Math.max(2, Math.floor(width / 150))
                                           : Math.max(1, Math.floor(width / 470))
+                    focusPolicy: root.genreData.cards.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                    Keys.onPressed: (event) => cardKeys.handle(event)
+                    KeyboardCollectionController {
+                        id: cardKeys
+                        view: grid
+                        orientation: "grid"
+                        columns: Math.max(1, grid.columns)
+                        count: root.genreData.cards.length
+                        contextEnabled: !root.compact
+                        positionIndexFn: function(index) {
+                            const host = cardRepeater.itemAt(index)
+                            if (!host) return
+                            const p = host.mapToItem(page.contentItem, 0, 0)
+                            if (p.y < page.contentY + 56) page.contentY = Math.max(0, p.y - 56)
+                            else if (p.y + host.height > page.contentY + page.height - 24)
+                                page.contentY = Math.min(Math.max(0, page.contentHeight - page.height), p.y + host.height - page.height + 24)
+                        }
+                        onActivated: (index) => { const host = cardRepeater.itemAt(index); if (host && host.item) host.item.open(host.item.card.item) }
+                        onContextRequested: (index) => { const host = cardRepeater.itemAt(index); if (host && host.item && host.item.toggleLibrary) host.item.toggleLibrary() }
+                    }
                     columnSpacing: 18; rowSpacing: 18
                     readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
 
                     Repeater {
+                        id: cardRepeater
                         model: root.genreData.cards
                         delegate: Loader {
                             required property var modelData
@@ -328,7 +371,13 @@ Item {
         }
     }
 
-    ScrollGlide { flick: page }
+    ScrollGlide { id: pageGlide; flick: page }
+    KeyboardScrollController {
+        id: pageScrollKeys
+        flick: page
+        glide: pageGlide
+        arrowScrolling: false
+    }
 
     // ---- fixed back / system controls over the page (mirrors UniversePage) ----
     Item {
@@ -343,13 +392,17 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; onTriggered: root.searchClicked() } }
             Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
             Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
             Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; onTriggered: root.closeRequested() } }
         }
     }
 
@@ -360,11 +413,13 @@ Item {
             id: dc
             property var card: ({})
             property int rank: 0
+            readonly property bool keyboardSelected: grid.activeFocus && grid.currentIndex === dc.rank - 1
+            function toggleLibrary() { libraryButton.added = !libraryButton.added }
             signal open(var item)
             height: 210; radius: 16
-            color: dcMa.containsMouse ? theme.glassHi : theme.glassTint
-            border.width: 1
-            border.color: dcMa.containsMouse ? Qt.rgba(1,1,1,0.28) : theme.edge
+            color: dcMa.containsMouse || dc.keyboardSelected ? theme.glassHi : theme.glassTint
+            border.width: dc.keyboardSelected ? 2 : 1
+            border.color: dc.keyboardSelected ? theme.gold : (dcMa.containsMouse ? Qt.rgba(1,1,1,0.28) : theme.edge)
 
             Text {
                 anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
@@ -450,6 +505,7 @@ Item {
                                elide: Text.ElideRight }
                         // + Library (self-contained added state until the library store lands)
                         Rectangle {
+                            id: libraryButton
                             property bool added: false
                             height: 28; radius: 9; width: addl.implicitWidth + 22
                             color: added ? Qt.rgba(0.94,0.77,0.29,0.16)
@@ -462,7 +518,14 @@ Item {
                                    font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
                             MouseArea { id: addMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: parent.added = !parent.added }
+                                        onClicked: dc.toggleLibrary() }
+                            KeyboardAction {
+                                id: libraryKeyboard
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                accessibleName: "Toggle library for " + String(dc.card.item && dc.card.item.title || "title")
+                                onTriggered: dc.toggleLibrary()
+                            }
                         }
                     }
                 }

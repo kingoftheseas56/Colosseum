@@ -107,9 +107,22 @@ Item {
     property var menuRow: null
     property real menuX: 0
     property real menuY: 0
+    property Item menuFocusReturn: null
     readonly property string menuRowId: menuRow ? String(menuRow.entry && menuRow.entry.id || "") : ""
-    function openMenu(row, x, y) { menuRow = row; menuX = x; menuY = y }
-    function closeMenu() { menuRow = null; menuX = 0; menuY = 0 }
+    function openMenu(row, x, y, invoker) {
+        menuRow = row; menuX = x; menuY = y; menuFocusReturn = invoker || wall
+        Qt.callLater(function() { menuPanel.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeMenu(restoreFocus) {
+        const target = menuFocusReturn
+        menuFocusReturn = null; menuRow = null; menuX = 0; menuY = 0
+        if (restoreFocus !== false && target)
+            Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function triggerMenuIndex(index) {
+        if (index !== 0 || !menuRow) return
+        removeRequested(menuRow.entry); closeMenu(true)
+    }
     function toggleFilter(key) { filter = (key === "" || filter === key) ? "" : key }
 
     // ── toolbar: search field + 3 filter pills + 3 sort pills ──
@@ -190,15 +203,32 @@ Item {
         cacheBuffer: cellHeight * 2
         ScrollBar.vertical: HouseScrollBar { flick: wall }
         // closing the menu on scroll stops a stale-positioned popup following a flick
-        onContentYChanged: root.closeMenu()
+        onContentYChanged: if (root.menuRow) root.closeMenu(false)
+        focusPolicy: root.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => wallKeys.handle(event)
+        KeyboardCollectionController {
+            id: wallKeys; view: wall; orientation: "grid"; columns: Math.max(1, wall.columnCount)
+            count: root.visibleRows.length; contextEnabled: true
+            onActivated: (index) => root.handleCardTap(root.visibleRows[index])
+            onContextRequested: (index) => {
+                const host = wall.currentItem
+                if (!host) return
+                const pt = host.mapToItem(root, host.width, 0)
+                root.openMenu(host.modelData, pt.x, pt.y, wall)
+            }
+        }
 
         delegate: Item {
+            id: host
+            required property var modelData
+            required property int index
             width: wall.cellWidth - 16; height: wall.cellHeight - 18
             CataloguePosterCard {
                 id: card
                 anchors.fill: parent
-                item: ({ "title": modelData.entry.title || "", "cover": modelData.entry.cover || "" })
-                onActivated: root.handleCardTap(modelData)
+                item: ({ "title": host.modelData.entry.title || "", "cover": host.modelData.entry.cover || "" })
+                keyboardFocused: wall.activeFocus && wall.currentIndex === host.index
+                onActivated: root.handleCardTap(host.modelData)
             }
             // ⋮ hover button — top-right of the card. Mirrors LibraryPage.qml's dots
             // button; the menu panel lives at root level (wall.clip would clip it here).
@@ -213,8 +243,10 @@ Item {
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: {
+                        wall.currentIndex = host.index
+                        wall.forceActiveFocus(Qt.MouseFocusReason)
                         var pt = dots.mapToItem(root, dots.width, dots.height)
-                        root.openMenu(modelData, pt.x, pt.y)
+                        root.openMenu(host.modelData, pt.x, pt.y, wall)
                     }
                 }
             }
@@ -253,7 +285,7 @@ Item {
         visible: root.menuRow !== null
         MouseArea {
             anchors.fill: parent
-            onClicked: root.closeMenu()      // outside click swallows + closes
+            onClicked: root.closeMenu(true)      // outside click swallows + closes
         }
         Rectangle {
             id: menuPanel
@@ -264,14 +296,19 @@ Item {
             color: Qt.rgba(0.06, 0.07, 0.10, 0.97)
             border.width: 1; border.color: theme.edge
             visible: root.menuRow !== null
+            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.triggerMenuIndex(0); event.accepted = true; return
+                }
+                if (event.key === Qt.Key_Escape) { root.closeMenu(true); event.accepted = true; return }
+                if (event.key === Qt.Key_Tab) { event.accepted = true }
+            }
             Column {
                 anchors.fill: parent; anchors.margins: 6; spacing: 2
                 MenuRow {
                     label: "Remove from Library"; warn: true
-                    onClicked: {
-                        if (root.menuRow) root.removeRequested(root.menuRow.entry)
-                        root.closeMenu()
-                    }
+                    onClicked: root.triggerMenuIndex(0)
                 }
             }
         }
@@ -294,6 +331,8 @@ Item {
         }
         HoverHandler { id: pillHover }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.picked() }
+        KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: parent.label; focusRadius: parent.radius
+            onTriggered: parent.picked() }
     }
 
     // MenuRow mirrors LibraryPage.qml's MenuItem inline component shape.

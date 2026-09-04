@@ -80,6 +80,13 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: tray.openRequested(index, modelData)
                 }
+                KeyboardAction {
+                    id: rowKeyboard
+                    anchors.fill: parent
+                    pointerEnabled: false
+                    accessibleName: qsTr("Open %1").arg(modelData.title || modelData.path || qsTr("item"))
+                    onTriggered: tray.openRequested(index, modelData)
+                }
                 Rectangle {
                     id: removeButton
                     objectName: "nextToOpenRemove_" + index
@@ -95,6 +102,14 @@ Rectangle {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: tray.removeRequested(index, modelData)
+                    }
+                    KeyboardAction {
+                        id: removeKeyboard
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        accessibleName: qsTr("Remove %1").arg(modelData.title || modelData.path || qsTr("item"))
+                        focusRadius: 8
+                        onTriggered: tray.removeRequested(index, modelData)
                     }
                 }
             }

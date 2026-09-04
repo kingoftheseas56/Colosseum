@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 import "../AccountActivityFormat.js" as AccountActivityFormat
+import "../SystemFocusContainment.js" as SystemFocusContainment
 
 Rectangle {
     id: root
@@ -20,6 +21,22 @@ Rectangle {
         && controller.mode === "signedIn"
     property string initial: "?"
     property string activeSection: "colosseum"
+    property Item focusReturnItem: null
+    readonly property var railSections: [
+        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
+        { id: "colosseum", label: qsTr("Your Colosseum"), glyph: "▥" },
+        { id: "security", label: qsTr("Security"), glyph: "◇" },
+        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
+        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
+        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
+    ]
+    readonly property int activeRailIndex: {
+        for (let i = 0; i < railSections.length; ++i) {
+            if (railSections[i].id === activeSection)
+                return i
+        }
+        return 0
+    }
 
     // Your Colosseum: bound to the native ProfileActivity projection (CPP-PORT-CONTRACT.md
     // arcs/02-profile-account-centre/activity-engine/reference, section 14 "QML model
@@ -178,10 +195,47 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 160 } }
     onVisibleChanged: opacity = visible ? 1 : 0
 
-    function open(section) {
+    function rememberInvoker(invoker) {
+        if (invoker) {
+            focusReturnItem = invoker
+            return
+        }
+        const active = root.Window.window ? root.Window.window.activeFocusItem : null
+        if (active && !SystemFocusContainment.isWithin(active, root))
+            focusReturnItem = active
+    }
+
+    function focusRail() {
+        Qt.callLater(function() {
+            if (root.visible)
+                railColumn.forceActiveFocus()
+        })
+    }
+
+    function restoreInvoker() {
+        const target = focusReturnItem
+        focusReturnItem = null
+        Qt.callLater(function() {
+            if (target && target.visible && target.enabled)
+                target.forceActiveFocus()
+        })
+    }
+
+    function runSessionAction() {
+        if (root.controller) {
+            if (root.accountPresent)
+                root.controller.logoutCurrent()
+            else
+                root.controller.returnToSignIn()
+        }
+        root.close()
+    }
+
+    function open(section, invoker) {
         // Section 12/14: selected month resets to "current system-local month" once per
         // closed->open transition, not on every internal rail-tab switch while already open.
         if (!root.visible) {
+            rememberInvoker(invoker)
             colosseumMonthKey = AccountActivityFormat.currentMonthKey()
             colosseumCurrentMonthKey = colosseumMonthKey
         }
@@ -192,13 +246,38 @@ Rectangle {
         else if (section)
             activeSection = section
         root.visible = true
+        focusRail()
     }
 
     function close() {
+        if (!root.visible)
+            return
         root.visible = false
+        restoreInvoker()
     }
 
-    Keys.onEscapePressed: root.close()
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+            root.close()
+            event.accepted = true
+        } else if (event.key === Qt.Key_Tab) {
+            const forward = !(event.modifiers & Qt.ShiftModifier)
+            if (SystemFocusContainment.move(root.Window.window, root, forward))
+                event.accepted = true
+        }
+    }
+
+    Shortcut {
+        sequence: "Tab"
+        enabled: root.visible
+        onActivated: SystemFocusContainment.move(root.Window.window, root, true)
+    }
+    Shortcut {
+        sequence: "Shift+Tab"
+        enabled: root.visible
+        onActivated: SystemFocusContainment.move(root.Window.window, root, false)
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -220,10 +299,42 @@ Rectangle {
             color: "#121009"
 
             Column {
+                id: railColumn
+                objectName: "accountCenterRailRegion"
                 x: 20
                 y: 74
                 width: parent.width - 40
                 spacing: 4
+                activeFocusOnTab: root.visible
+                Accessible.role: Accessible.List
+                Accessible.name: qsTr("Account Centre sections")
+
+                Keys.onPressed: function(event) {
+                    let next = root.activeRailIndex
+                    if (event.key === Qt.Key_Up)
+                        next -= 1
+                    else if (event.key === Qt.Key_Down)
+                        next += 1
+                    else if (event.key === Qt.Key_Home)
+                        next = 0
+                    else if (event.key === Qt.Key_End)
+                        next = root.railSections.length - 1
+                    else if (event.key === Qt.Key_Return
+                             || event.key === Qt.Key_Enter
+                             || event.key === Qt.Key_Space) {
+                        event.accepted = true
+                        return
+                    } else {
+                        return
+                    }
+
+                    if (next >= 0 && next < root.railSections.length) {
+                        root.activeSection = root.railSections[next].id
+                        event.accepted = true
+                    } else {
+                        event.accepted = false
+                    }
+                }
 
                 Row {
                     spacing: 12
@@ -272,14 +383,7 @@ Rectangle {
                 }
 
                 Repeater {
-                    model: [
-                        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
-                        { id: "colosseum", label: qsTr("Your Colosseum"), glyph: "▥" },
-                        { id: "security", label: qsTr("Security"), glyph: "◇" },
-                        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
-                        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
-                        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
-                    ]
+                    model: root.railSections
 
                     Rectangle {
                         objectName: "accountCenterRail_" + modelData.id
@@ -291,6 +395,9 @@ Rectangle {
                             : (railMa.containsMouse
                                 ? Qt.rgba(1, 1, 1, 0.05)
                                 : "transparent")
+                        border.width: railColumn.activeFocus
+                            && root.activeSection === modelData.id ? 2 : 0
+                        border.color: "#f0df9a"
 
                         Row {
                             x: 12
@@ -331,10 +438,28 @@ Rectangle {
                 Item { width: 1; height: 14 }
 
                 Text {
+                    id: railSessionAction
                     text: root.accountPresent ? qsTr("Sign out") : qsTr("Sign in")
-                    color: railOutMa.containsMouse ? "#d8d4c8" : "#8f8b80"
+                    color: railSessionAction.activeFocus || railOutMa.containsMouse
+                        ? "#d8d4c8" : "#8f8b80"
                     font.family: "Inter"
                     font.pixelSize: 12
+                    activeFocusOnTab: root.visible
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    Keys.onReturnPressed: root.runSessionAction()
+                    Keys.onEnterPressed: root.runSessionAction()
+                    Keys.onSpacePressed: root.runSessionAction()
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: -5
+                        height: 1
+                        visible: railSessionAction.activeFocus
+                        color: "#f0df9a"
+                    }
 
                     MouseArea {
                         id: railOutMa
@@ -342,15 +467,7 @@ Rectangle {
                         anchors.margins: -8
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (root.controller) {
-                                if (root.accountPresent)
-                                    root.controller.logoutCurrent()
-                                else
-                                    root.controller.returnToSignIn()
-                            }
-                            root.close()
-                        }
+                        onClicked: root.runSessionAction()
                     }
                 }
             }
@@ -368,12 +485,30 @@ Rectangle {
             height: parent.height
 
             Text {
+                id: backAction
                 x: 34
                 y: 30
                 text: qsTr("‹ Back")
-                color: backMa.containsMouse ? "#b7b3a6" : "#8f8b80"
+                color: backAction.activeFocus || backMa.containsMouse
+                    ? "#b7b3a6" : "#8f8b80"
                 font.family: "Inter"
                 font.pixelSize: 12
+                activeFocusOnTab: root.visible
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Back from Account Centre")
+                Keys.onReturnPressed: root.close()
+                Keys.onEnterPressed: root.close()
+                Keys.onSpacePressed: root.close()
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: -5
+                    height: 1
+                    visible: backAction.activeFocus
+                    color: "#f0df9a"
+                }
 
                 MouseArea {
                     id: backMa

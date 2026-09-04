@@ -22,6 +22,10 @@ Item {
 
     Theme { id: theme }
 
+    function takeKeyboardFocus() {
+        page.forceActiveFocus(Qt.TabFocusReason)
+    }
+
     // ---- registry bindings ----
     property var installedList: []
 

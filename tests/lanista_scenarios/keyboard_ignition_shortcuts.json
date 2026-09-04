@@ -30,6 +30,9 @@
       "payload": { "object": "vaultState", "prop": "pageOpen", "value": false, "timeout_ms": 15000 },
       "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
     { "cmd": "ui-keypress", "label": "F11 enters windowed shell mode", "payload": { "key": "F11" } },
+    { "cmd": "ui-wait-for", "label": "shell-mode transition settles before state read",
+      "payload": { "object": "fullscreenTransition", "prop": "transitioning", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": "true" } ] },
     { "cmd": "get-state", "label": "windowed state is observable",
       "expect": [ { "path": "windows.0.state", "op": "==", "value": "normal" } ] }
   ]

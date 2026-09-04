@@ -29,6 +29,11 @@ Item {
     property var entry: ({})              // Progress record: id/kind/title|caption/sub/cover/c1/c2/progress/watched
     property Item backdrop: null          // home only (Glass requires a backdrop)
     property real track: 0                // home only — scroll offset for the live blur
+    property bool collectionManaged: false
+    property bool collectionSelected: false
+    property bool keyboardContextOpen: false
+    property int keyboardContextIndex: 0
+    property Item keyboardContextReturn: null
 
     signal resumeRequested()
     signal detailRequested()
@@ -63,6 +68,28 @@ Item {
     function badgeFor(k) {
         return ({ video: "VIDEO", manga: "MANGA", comic: "COMIC", book: "BOOK" })[k]
                || (k ? k.toUpperCase() : "")
+    }
+    function openKeyboardContext(invoker) {
+        tile.keyboardContextReturn = invoker || null
+        tile.keyboardContextIndex = 0
+        tile.keyboardContextOpen = true
+        Qt.callLater(function() { contextFocus.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function closeKeyboardContext(restoreFocus) {
+        tile.keyboardContextOpen = false
+        const target = tile.keyboardContextReturn
+        tile.keyboardContextReturn = null
+        if (restoreFocus !== false && target)
+            Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    function activateKeyboardContext(index) {
+        const target = tile.keyboardContextReturn
+        tile.keyboardContextOpen = false
+        tile.keyboardContextReturn = null
+        if (index === 0) tile.detailRequested()
+        else if (index === 1) tile.resumeRequested()
+        else if (index === 2) tile.removeRequested()
+        if (target) Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
     // ── the reliable cover: gradient instantly, cover fades over it, one retry, never blank ──
@@ -246,6 +273,23 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onClicked: tile.detailRequested()
     }
+    KeyboardAction {
+        id: detailKeyboardAction
+        anchors.fill: parent
+        pointerEnabled: false
+        focusEnabled: !tile.collectionManaged
+        contextEnabled: true
+        accessibleName: "Open details for " + tile.label
+        focusRadius: tile.isHome ? 14 : 12
+        onTriggered: tile.detailRequested()
+        onContextRequested: tile.openKeyboardContext(detailKeyboardAction)
+    }
+    Rectangle {
+        anchors.fill: parent
+        radius: tile.isHome ? 14 : 12
+        visible: tile.collectionManaged && tile.collectionSelected && !tile.keyboardContextOpen
+        color: "transparent"; border.width: 2; border.color: theme.gold; z: 9000
+    }
 
     // ── shared: ✓ watched face ──
     Rectangle {
@@ -265,6 +309,7 @@ Item {
 
     // ── shared: 46px resume circle — centered on the art ──
     Rectangle {
+        id: resumeButton
         width: 46; height: 46; radius: 23
         x: tile.isHome ? 56 - width / 2 : (parent.width - width) / 2
         anchors.verticalCenter: parent.verticalCenter
@@ -282,6 +327,15 @@ Item {
         }
         HoverHandler { id: rbHov }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.resumeRequested() }
+        KeyboardAction {
+            id: resumeKeyboardAction
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: !tile.collectionManaged
+            accessibleName: "Resume " + tile.label
+            focusRadius: resumeButton.radius
+            onTriggered: tile.resumeRequested()
+        }
     }
 
     // ── shared: hover-revealed ✕ remove ──
@@ -291,12 +345,21 @@ Item {
         anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 8
         color: rmMa.containsMouse ? Qt.rgba(0, 0, 0, 0.85) : Qt.rgba(0, 0, 0, 0.62)
         border.width: 1; border.color: theme.edge
-        opacity: rootMa.containsMouse || rmMa.containsMouse ? 1 : 0
+        opacity: rootMa.containsMouse || rmMa.containsMouse || removeKeyboardAction.activeFocus ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 150 } }
         Text { anchors.centerIn: parent; text: "✕"
                color: rmMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 11 }
         MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: tile.removeRequested() }
+        KeyboardAction {
+            id: removeKeyboardAction
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: !tile.collectionManaged
+            accessibleName: "Remove " + tile.label + " from Continue"
+            focusRadius: removeBtn.radius
+            onTriggered: tile.removeRequested()
+        }
         // tooltip (hand-rolled, same grammar as BackAction)
         Rectangle {
             visible: rmMa.containsMouse && rmTipDelay.done
@@ -310,6 +373,42 @@ Item {
         Timer { id: rmTipDelay; property bool done: false; interval: 550
                 running: rmMa.containsMouse; onTriggered: done = true }
         Connections { target: rmMa; function onContainsMouseChanged() { if (!rmMa.containsMouse) rmTipDelay.done = false } }
+    }
+
+    Rectangle {
+        id: keyboardContextMenu
+        visible: tile.keyboardContextOpen
+        width: Math.min(190, tile.width - 12); height: 112; radius: 10
+        anchors.centerIn: parent; color: Qt.rgba(0.04, 0.04, 0.055, 0.98)
+        border.width: 1; border.color: theme.edge; z: 10050
+        FocusScope {
+            id: contextFocus
+            anchors.fill: parent
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Escape) { tile.closeKeyboardContext(true); event.accepted = true; return }
+                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted = true; return }
+                if (event.key === Qt.Key_Up) tile.keyboardContextIndex = (tile.keyboardContextIndex + 2) % 3
+                else if (event.key === Qt.Key_Down) tile.keyboardContextIndex = (tile.keyboardContextIndex + 1) % 3
+                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    tile.activateKeyboardContext(tile.keyboardContextIndex); event.accepted = true; return
+                } else return
+                event.accepted = true
+            }
+            Column {
+                anchors.fill: parent; anchors.margins: 6; spacing: 2
+                Repeater {
+                    model: ["Open details", "Resume", "Remove"]
+                    delegate: Rectangle {
+                        required property string modelData
+                        required property int index
+                        width: parent.width; height: 31; radius: 6
+                        color: contextFocus.activeFocus && tile.keyboardContextIndex === index ? Qt.rgba(1,1,1,0.12) : "transparent"
+                        Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.activateKeyboardContext(index) }
+                    }
+                }
+            }
+        }
     }
 
     Accessible.role: Accessible.Button

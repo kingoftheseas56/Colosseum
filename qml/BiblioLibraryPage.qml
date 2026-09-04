@@ -42,6 +42,7 @@ Item {
     property string menuRowId: ""
     property real menuX: 0
     property real menuY: 0
+    property Item menuFocusReturn: null
 
     // card menu → owning surface. resumeRequested carries the matched progress record;
     // detailRequested + removeRequested carry the original Collection entry.
@@ -61,11 +62,19 @@ Item {
     function toggleStateFilter(key) {
         stateFilter = (key === "" || stateFilter === key) ? "" : key
     }
-    function openMenu(row, x, y) {
-        if (menuRowId === row.entry.id) { closeMenu(); return }
+    function openMenu(row, x, y, invoker) {
+        if (menuRowId === row.entry.id) { closeMenu(true); return }
         menuRow = row; menuRowId = row.entry.id; menuX = x; menuY = y
+        menuFocusReturn = invoker || wall
+        menuPanel.currentIndex = 0
+        Qt.callLater(function() { menuPanel.forceActiveFocus(Qt.PopupFocusReason) })
     }
-    function closeMenu() { menuRow = null; menuRowId = "" }
+    function closeMenu(restoreFocus) {
+        const target = menuFocusReturn
+        menuFocusReturn = null; menuRow = null; menuRowId = ""
+        if (restoreFocus !== false && target)
+            Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
 
     // Test seam (mirrors TankobanLibraryTab.handleCardTap): the menu items AND a direct card
     // primary-click both route through here, so the offscreen harness can exercise the action
@@ -75,6 +84,17 @@ Item {
         if (action === "resume" && row.canResume) { resumeRequested(row.progressRecord); return }
         if (action === "remove") { removeRequested(row.entry); return }
         detailRequested(row.entry)
+    }
+    function menuActions() { return menuRow && menuRow.canResume ? ["resume", "detail", "remove"] : ["detail", "remove"] }
+    function menuActionIndex(action) { return menuActions().indexOf(action) }
+    function triggerMenuAction(action) {
+        if (!menuRow) return
+        handleCardAction(menuRow, action)
+        closeMenu(true)
+    }
+    function triggerMenuIndex(index) {
+        const actions = menuActions()
+        if (index >= 0 && index < actions.length) triggerMenuAction(actions[index])
     }
 
     // ── header: search + the small filter/sort bar ──
@@ -123,6 +143,8 @@ Item {
             }
             HoverHandler { id: pillHover }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.picked() }
+            KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: parent.label; focusRadius: parent.radius
+                onTriggered: parent.picked() }
         }
 
         Row {
@@ -171,7 +193,20 @@ Item {
         cellHeight: posterH + 72     // +72: title + author lines
         cacheBuffer: cellHeight * 2
         ScrollBar.vertical: HouseScrollBar { flick: wall }
-        onContentYChanged: root.closeMenu()
+        onContentYChanged: if (root.menuRow) root.closeMenu(false)
+        focusPolicy: root.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => wallKeys.handle(event)
+        KeyboardCollectionController {
+            id: wallKeys; view: wall; orientation: "grid"; columns: Math.max(1, wall.columnCount)
+            count: root.visibleRows.length; contextEnabled: true
+            onActivated: (index) => root.handleCardAction(root.visibleRows[index], root.visibleRows[index].canResume ? "resume" : "detail")
+            onContextRequested: (index) => {
+                const card = wall.currentItem
+                if (!card) return
+                const pt = card.mapToItem(root, card.width, 0)
+                root.openMenu(card.modelData, pt.x, pt.y, wall)
+            }
+        }
 
         delegate: Item {
             id: card
@@ -182,6 +217,7 @@ Item {
             x: (wall.cellWidth - width) / 2
             readonly property real coverH: wall.posterH
             readonly property bool hovered: cardHover.hovered || root.menuRowId === card.modelData.entry.id
+            readonly property bool keyboardSelected: wall.activeFocus && wall.currentIndex === card.index
 
             // ── two offset depth plates behind the poster (ContinueTile world grammar) ──
             Rectangle {
@@ -255,8 +291,8 @@ Item {
             Rectangle {
                 anchors.fill: worldContent
                 radius: 12; color: "transparent"
-                border.width: 2
-                border.color: card.hovered ? theme.gold : "transparent"
+                border.width: card.keyboardSelected ? 3 : 2
+                border.color: card.keyboardSelected ? Qt.rgba(240/255,196/255,74/255,0.78) : (card.hovered ? theme.gold : "transparent")
                 Behavior on border.color { ColorAnimation { duration: 120 } }
             }
             Rectangle {
@@ -282,8 +318,10 @@ Item {
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: {
+                        wall.currentIndex = card.index
+                        wall.forceActiveFocus(Qt.MouseFocusReason)
                         var pt = dots.mapToItem(root, dots.width, dots.height)
-                        root.openMenu(card.modelData, pt.x, pt.y)
+                        root.openMenu(card.modelData, pt.x, pt.y, wall)
                     }
                 }
             }
@@ -344,7 +382,7 @@ Item {
     // ── the floating ⋮ menu (root level — the wall clips) ──
     MouseArea {
         anchors.fill: parent; z: 55; visible: root.menuRow !== null
-        onClicked: root.closeMenu()
+        onClicked: root.closeMenu(true)
     }
     Rectangle {
         id: menuPanel
@@ -354,6 +392,20 @@ Item {
         color: Qt.rgba(0.043, 0.047, 0.075, 0.98); border.width: 1; border.color: theme.edge
         implicitHeight: menuCol.implicitHeight + 12
         height: implicitHeight
+        property int currentIndex: 0
+        focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => {
+            const n = root.menuActions().length
+            if (n <= 0) return
+            var delta = 0
+            if (event.key === Qt.Key_Down || (event.key === Qt.Key_Tab && !(event.modifiers & Qt.ShiftModifier))) delta = 1
+            else if (event.key === Qt.Key_Up || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) delta = -1
+            if (delta !== 0) { currentIndex = (currentIndex + delta + n) % n; event.accepted = true; return }
+            if (event.key === Qt.Key_Home) { currentIndex = 0; event.accepted = true; return }
+            if (event.key === Qt.Key_End) { currentIndex = n - 1; event.accepted = true; return }
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { root.triggerMenuIndex(currentIndex); event.accepted = true; return }
+            if (event.key === Qt.Key_Escape) { root.closeMenu(true); event.accepted = true }
+        }
         x: Math.max(8, Math.min(root.menuX - width, root.width - width - 8))
         y: Math.max(8, Math.min(root.menuY, root.height - height - 8))
         MouseArea { anchors.fill: parent }   // click-swallower body
@@ -361,12 +413,15 @@ Item {
         component BiblioMenuItem: Item {
             property string label: ""
             property string objectBase: ""     // the menu item's objectName stem
+            property string actionId: ""
             property bool warn: false
+            readonly property bool keyboardSelected: menuPanel.activeFocus && root.menuActionIndex(actionId) === menuPanel.currentIndex
             signal picked()
             width: parent ? parent.width : 0; height: 38
             Rectangle {
                 anchors.fill: parent; anchors.margins: 2; radius: 9
-                color: miHover.hovered ? Qt.rgba(1, 1, 1, 0.09) : "transparent"
+                color: miHover.hovered || parent.keyboardSelected ? Qt.rgba(1, 1, 1, 0.09) : "transparent"
+                border.width: parent.keyboardSelected ? 2 : 0; border.color: theme.gold
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 14
@@ -384,21 +439,21 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right
             BiblioMenuItem {
                 objectName: "biblioLibraryMenuItem_resume"
-                label: "Resume"
+                actionId: "resume"; label: "Resume"
                 visible: root.menuRow && root.menuRow.canResume
                 height: visible ? 38 : 0
-                onPicked: { if (root.menuRow) root.handleCardAction(root.menuRow, "resume"); root.closeMenu() }
+                onPicked: root.triggerMenuAction("resume")
             }
             BiblioMenuItem {
                 objectName: "biblioLibraryMenuItem_details"
-                label: "Details"
-                onPicked: { if (root.menuRow) root.handleCardAction(root.menuRow, "detail"); root.closeMenu() }
+                actionId: "detail"; label: "Details"
+                onPicked: root.triggerMenuAction("detail")
             }
             Rectangle { width: parent.width - 16; x: 8; height: 1; color: theme.edge }
             BiblioMenuItem {
                 objectName: "biblioLibraryMenuItem_remove"
-                label: "Remove from Library"; warn: true
-                onPicked: { if (root.menuRow) root.handleCardAction(root.menuRow, "remove"); root.closeMenu() }
+                actionId: "remove"; label: "Remove from Library"; warn: true
+                onPicked: root.triggerMenuAction("remove")
             }
         }
     }

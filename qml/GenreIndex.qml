@@ -29,6 +29,9 @@ Item {
 
     Theme { id: theme }
 
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => { if (!event.accepted) pageScrollKeys.handle(event) }
+
     property var groups: []
     property bool loading: true
     property int totalGenres: {
@@ -135,24 +138,47 @@ Item {
                     // the cover mosaic for this group
                     Grid {
                         id: mosaic
+                        property int currentIndex: section.modelData.genres.length > 0 ? 0 : -1
                         width: parent.width
                         columns: Math.max(3, Math.floor(width / 248))
+                        focusPolicy: section.modelData.genres.length > 0 ? Qt.TabFocus : Qt.NoFocus
+                        Keys.onPressed: (event) => mosaicKeys.handle(event)
+                        KeyboardCollectionController {
+                            id: mosaicKeys
+                            view: mosaic
+                            orientation: "grid"
+                            columns: Math.max(1, mosaic.columns)
+                            count: section.modelData.genres.length
+                            pageStep: Math.max(1, mosaic.columns * 3)
+                            positionIndexFn: function(index) {
+                                const cell = tileRepeater.itemAt(index)
+                                if (!cell) return
+                                const p = cell.mapToItem(page.contentItem, 0, 0)
+                                if (p.y < page.contentY + 56) page.contentY = Math.max(0, p.y - 56)
+                                else if (p.y + cell.height > page.contentY + page.height - 24)
+                                    page.contentY = Math.min(Math.max(0, page.contentHeight - page.height), p.y + cell.height - page.height + 24)
+                            }
+                            onActivated: (index) => root.genrePicked(section.modelData.genres[index].name)
+                        }
                         columnSpacing: 14; rowSpacing: 14
                         readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
 
                         Repeater {
+                            id: tileRepeater
                             model: section.modelData.genres
                             delegate: Rectangle {
                                 id: tile
                                 required property var modelData
+                                required property int index
                                 width: mosaic.cellW; height: 104; radius: 13; clip: true
                                 gradient: Gradient {
                                     orientation: Gradient.Horizontal
                                     GradientStop { position: 0; color: tile.modelData.c1 || "#33445d" }
                                     GradientStop { position: 1; color: tile.modelData.c2 || "#0c1118" }
                                 }
-                                border.width: 1
-                                border.color: tHov.hovered ? theme.gold : theme.edge
+                                readonly property bool keyboardSelected: mosaic.activeFocus && mosaic.currentIndex === tile.index
+                                border.width: keyboardSelected ? 2 : 1
+                                border.color: tHov.hovered || keyboardSelected ? theme.gold : theme.edge
                                 scale: tHov.hovered ? 1.025 : 1.0
                                 Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
 
@@ -203,7 +229,10 @@ Item {
         }
     }
 
-    ScrollGlide { flick: page }
+    ScrollGlide { id: pageGlide; flick: page }
+    KeyboardScrollController {
+        id: pageScrollKeys; flick: page; glide: pageGlide; arrowScrolling: false
+    }
 
     // ---- fixed back / system controls (mirrors GenrePage) ----
     Item {
@@ -218,13 +247,17 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; focusRadius: 4; onTriggered: root.searchClicked() } }
             Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4; onTriggered: root.minimizeRequested() } }
             Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4; onTriggered: root.fullscreenRequested() } }
             Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; focusRadius: 4; onTriggered: root.closeRequested() } }
         }
     }
 }

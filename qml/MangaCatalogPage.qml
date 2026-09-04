@@ -52,6 +52,7 @@ Item {
     signal seriesRequested(string title)
 
     Theme { id: theme }
+    Shortcut { sequence: StandardKey.Find; onActivated: searchField.forceActiveFocus(Qt.ShortcutFocusReason) }
 
     // The page owns its own query from the active tabs (Main's onLoaded may also
     // seed rows; reload() is authoritative and re-runs on every filter change).
@@ -240,6 +241,10 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: parent.picked()
             }
+            KeyboardAction {
+                id: filterKeyboard; anchors.fill: parent; pointerEnabled: false
+                accessibleName: parent.label; focusRadius: parent.radius; onTriggered: parent.picked()
+            }
         }
 
         Row {
@@ -294,6 +299,13 @@ Item {
         cellWidth: Math.floor(width / columnCount)
         cellHeight: Math.floor(cellWidth * 1.72)
         cacheBuffer: cellHeight * 2
+        focusPolicy: root.visibleRows.length > 0 ? Qt.TabFocus : Qt.NoFocus
+        Keys.onPressed: (event) => catalogKeys.handle(event)
+        KeyboardCollectionController {
+            id: catalogKeys; view: catalogGrid; orientation: "grid"; columns: catalogGrid.columnCount
+            count: root.visibleRows.length
+            onActivated: (index) => root.seriesRequested(root.visibleRows[index].title || "")
+        }
         ScrollBar.vertical: HouseScrollBar { flick: catalogGrid }
 
         delegate: Item {
@@ -315,8 +327,9 @@ Item {
                 radius: 5
                 clip: true
                 color: "#1b1d22"
-                border.width: 1
-                border.color: cardHover.hovered ? theme.gold : theme.edge
+                border.width: (catalogGrid.activeFocus && card.index === catalogGrid.currentIndex) ? 2 : 1
+                border.color: (catalogGrid.activeFocus && card.index === catalogGrid.currentIndex)
+                    ? theme.gold : (cardHover.hovered ? theme.gold : theme.edge)
                 scale: cardHover.hovered ? 1.018 : 1
                 transformOrigin: Item.Bottom
                 Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -411,7 +424,11 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.seriesRequested(card.modelData.title || "")
+                onClicked: {
+                    catalogGrid.currentIndex = card.index
+                    catalogGrid.forceActiveFocus(Qt.MouseFocusReason)
+                    root.seriesRequested(card.modelData.title || "")
+                }
             }
         }
     }
@@ -485,6 +502,8 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.minimizeRequested()
                 }
+                KeyboardAction { id: mangaCatalogMinKeyboard; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                    accessibleName: "Minimize"; focusRadius: 6; onTriggered: root.minimizeRequested() }
             }
             Item {
                 width: 17
@@ -501,6 +520,8 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.closeRequested()
                 }
+                KeyboardAction { id: mangaCatalogCloseKeyboard; anchors.fill: parent; anchors.margins: -6; pointerEnabled: false
+                    accessibleName: "Close"; focusRadius: 6; onTriggered: root.closeRequested() }
             }
         }
     }

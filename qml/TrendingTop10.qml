@@ -64,6 +64,14 @@ Column {
             cursorShape: Qt.PointingHandCursor
             onClicked: chev.tapped()
         }
+        KeyboardAction {
+            id: chevronKeyboard
+            anchors.fill: parent
+            pointerEnabled: false
+            focusEnabled: chev.shown
+            accessibleName: chev.atRight ? qsTr("Show later items") : qsTr("Show earlier items")
+            onTriggered: chev.tapped()
+        }
     }
 
     WidgetHeader {
@@ -78,6 +86,30 @@ Column {
         id: strip
         width: parent.width
         height: 212
+        property int currentIndex: 0
+        activeFocusOnTab: top10.items.length > 0
+
+        Keys.onPressed: (event) => top10Keys.handle(event)
+
+        KeyboardCollectionController {
+            id: top10Keys
+            view: strip
+            orientation: "horizontal"
+            count: top10.items.length
+            positionIndexFn: function(index) {
+                var item = rankRepeater.itemAt(index)
+                if (!item)
+                    return
+                var left = item.x
+                var right = item.x + item.width
+                if (left < flick.contentX)
+                    flick.contentX = left
+                else if (right > flick.contentX + flick.width)
+                    flick.contentX = right - flick.width
+                strip.refreshArrows()
+            }
+            onActivated: top10.itemClicked(index)
+        }
 
         // scroll-affordance state. Set IMPERATIVELY from the Flickable's signal handlers (below),
         // NOT as a declarative binding — binding a visibility to Flickable position trips QML's
@@ -113,6 +145,7 @@ Column {
                 id: row
                 spacing: 30; leftPadding: 6
                 Repeater {
+                    id: rankRepeater
                     model: top10.items
                     delegate: Item {
                         id: rank
@@ -137,7 +170,13 @@ Column {
                             cover: rank.modelData.cover !== undefined ? rank.modelData.cover : ""
                             c1: rank.modelData.c1 !== undefined ? rank.modelData.c1 : "#444"
                             c2: rank.modelData.c2 !== undefined ? rank.modelData.c2 : "#111"
-                            onClicked: top10.itemClicked(rank.index)
+                            keyboardEnabled: false
+                            keyboardFocused: strip.activeFocus && strip.currentIndex === rank.index
+                            onClicked: {
+                                strip.currentIndex = rank.index
+                                strip.forceActiveFocus(Qt.MouseFocusReason)
+                                top10.itemClicked(rank.index)
+                            }
                         }
                     }
                 }
