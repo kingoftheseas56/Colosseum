@@ -171,6 +171,7 @@ add_executable(colosseum
     account/AccountHttpTransport.cpp
     account/AccountRecoveryKeyPresenter.cpp
     account/AccountRuntime.cpp
+    account/AccountRuntimeDownloads.cpp
     account/AccountServiceEndpoint.cpp
     # Slice D1: native ActivityProjector (JS-oracle golden parity port).
     account/ActivityProjector.cpp

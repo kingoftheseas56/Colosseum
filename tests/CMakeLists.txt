@@ -1552,6 +1552,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
