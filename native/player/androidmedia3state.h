@@ -11,7 +11,7 @@ namespace Colosseum::Player {
 
 enum class HostPlaybackAction {
     None,
-    Pause,
+    Stop,
     Resume,
 };
 
@@ -31,8 +31,10 @@ struct AndroidMedia3Snapshot {
     bool ended = false;
     bool errored = false;
     bool userWantsPlay = false;
-    bool hostPlaybackSuppressed = false;
-    bool hostPauseOwned = false;
+    quint64 lifecycleEpoch = 0;
+    bool hostStopped = false;
+    bool lifecycleErrorSuppressionArmed = false;
+    bool lifecyclePrepareSubmitted = false;
     int volume = 100;
     double speed = 1.0;
     QString errorCode;
@@ -107,14 +109,21 @@ public:
     bool noteUserPause(quint64 generation);
     bool noteStopped(quint64 generation);
     bool noteTerminalAudioFocusLoss(quint64 generation);
-    HostPlaybackAction setHostPlaybackSuppressed(quint64 generation, bool suppressed);
+    HostPlaybackAction beginLifecycleHostStop(quint64 generation);
+    bool acceptsLifecycle(quint64 generation, quint64 lifecycleEpoch) const;
+    bool shouldSuppressLifecycleError(quint64 generation, quint64 lifecycleEpoch,
+                                      const QString &code) const;
+    bool noteLifecyclePrepareSubmitted(quint64 generation, quint64 lifecycleEpoch);
+    HostPlaybackAction noteLifecycleReady(quint64 generation, quint64 lifecycleEpoch);
 
 private:
     void resetSourceScopedState(const QString &url, const QVariantMap &headers);
+    void clearLifecycleState();
     bool clearSeekIfSettled(qint64 currentPositionMs);
     void clearSeek();
 
     quint64 m_generation = 0;
+    quint64 m_lifecycleEpochCounter = 0;
     AndroidMedia3Snapshot m_snapshot;
     int m_pendingVideoWidth = 0;
     int m_pendingVideoHeight = 0;

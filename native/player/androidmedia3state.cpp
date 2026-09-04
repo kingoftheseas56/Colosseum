@@ -152,7 +152,7 @@ bool AndroidMedia3State::markEnded(quint64 generation)
     m_snapshot.ended = true;
     m_snapshot.paused = true;
     m_snapshot.userWantsPlay = false;
-    m_snapshot.hostPauseOwned = false;
+    clearLifecycleState();
     clearSeek();
     return true;
 }
@@ -166,7 +166,7 @@ bool AndroidMedia3State::markError(quint64 generation, const QString &code, cons
     m_snapshot.errorMessage = message;
     m_snapshot.paused = true;
     m_snapshot.userWantsPlay = false;
-    m_snapshot.hostPauseOwned = false;
+    clearLifecycleState();
     clearSeek();
     return true;
 }
@@ -344,12 +344,7 @@ bool AndroidMedia3State::noteUserPlay(quint64 generation)
         return false;
     m_snapshot.userWantsPlay = true;
     m_terminalResumeBlocked = false;
-    if (m_snapshot.hostPlaybackSuppressed) {
-        m_snapshot.hostPauseOwned = true;
-        m_snapshot.paused = true;
-    } else {
-        m_snapshot.paused = false;
-    }
+    m_snapshot.paused = m_snapshot.hostStopped;
     return true;
 }
 
@@ -358,7 +353,6 @@ bool AndroidMedia3State::noteUserPause(quint64 generation)
     if (!accepts(generation) || isTerminal(m_snapshot))
         return false;
     m_snapshot.userWantsPlay = false;
-    m_snapshot.hostPauseOwned = false;
     m_snapshot.paused = true;
     return true;
 }
@@ -368,10 +362,9 @@ bool AndroidMedia3State::noteStopped(quint64 generation)
     if (!accepts(generation))
         return false;
     m_snapshot.userWantsPlay = false;
-    m_snapshot.hostPauseOwned = false;
-    m_snapshot.hostPlaybackSuppressed = false;
     m_snapshot.paused = true;
     m_terminalResumeBlocked = true;
+    clearLifecycleState();
     clearSeek();
     return true;
 }
@@ -380,37 +373,72 @@ bool AndroidMedia3State::noteTerminalAudioFocusLoss(quint64 generation)
 {
     if (!accepts(generation) || isTerminal(m_snapshot))
         return false;
-    m_snapshot.hostPauseOwned = false;
     m_snapshot.paused = true;
     m_terminalResumeBlocked = true;
     return true;
 }
 
-HostPlaybackAction AndroidMedia3State::setHostPlaybackSuppressed(quint64 generation, bool suppressed)
+HostPlaybackAction AndroidMedia3State::beginLifecycleHostStop(quint64 generation)
 {
-    if (!accepts(generation) || isTerminal(m_snapshot))
+    if (!accepts(generation) || isTerminal(m_snapshot) || m_snapshot.hostStopped)
         return HostPlaybackAction::None;
-    if (m_snapshot.hostPlaybackSuppressed == suppressed)
-        return HostPlaybackAction::None;
+    if (m_lifecycleEpochCounter == std::numeric_limits<quint64>::max())
+        qFatal("AndroidMedia3State lifecycle epoch exhausted");
+    ++m_lifecycleEpochCounter;
+    m_snapshot.lifecycleEpoch = m_lifecycleEpochCounter;
+    m_snapshot.hostStopped = true;
+    m_snapshot.lifecycleErrorSuppressionArmed = true;
+    m_snapshot.lifecyclePrepareSubmitted = false;
+    m_snapshot.paused = true;
+    return HostPlaybackAction::Stop;
+}
 
-    m_snapshot.hostPlaybackSuppressed = suppressed;
-    if (suppressed) {
-        if (m_snapshot.userWantsPlay && !m_snapshot.paused) {
-            m_snapshot.hostPauseOwned = true;
-            m_snapshot.paused = true;
-            return HostPlaybackAction::Pause;
-        }
+bool AndroidMedia3State::acceptsLifecycle(quint64 generation, quint64 lifecycleEpoch) const
+{
+    return accepts(generation) && lifecycleEpoch != 0 && m_snapshot.hostStopped
+            && m_snapshot.lifecycleEpoch == lifecycleEpoch;
+}
+
+bool AndroidMedia3State::shouldSuppressLifecycleError(quint64 generation, quint64 lifecycleEpoch,
+                                                       const QString &code) const
+{
+    if (!acceptsLifecycle(generation, lifecycleEpoch) || !m_snapshot.lifecycleErrorSuppressionArmed)
+        return false;
+    const QString normalized = code.trimmed().toLower();
+    return normalized == QStringLiteral("network")
+            || normalized == QStringLiteral("http")
+            || normalized == QStringLiteral("source");
+}
+
+bool AndroidMedia3State::noteLifecyclePrepareSubmitted(quint64 generation, quint64 lifecycleEpoch)
+{
+    if (!acceptsLifecycle(generation, lifecycleEpoch))
+        return false;
+    m_snapshot.lifecyclePrepareSubmitted = true;
+    m_snapshot.lifecycleErrorSuppressionArmed = false;
+    return true;
+}
+
+HostPlaybackAction AndroidMedia3State::noteLifecycleReady(quint64 generation, quint64 lifecycleEpoch)
+{
+    if (!acceptsLifecycle(generation, lifecycleEpoch) || !m_snapshot.lifecyclePrepareSubmitted)
+        return HostPlaybackAction::None;
+    const bool mayResume = m_snapshot.userWantsPlay && !m_terminalResumeBlocked;
+    clearLifecycleState();
+    if (!mayResume) {
+        m_snapshot.paused = true;
         return HostPlaybackAction::None;
     }
-
-    const bool mayResume = m_snapshot.hostPauseOwned
-            && m_snapshot.userWantsPlay
-            && !m_terminalResumeBlocked;
-    m_snapshot.hostPauseOwned = false;
-    if (!mayResume)
-        return HostPlaybackAction::None;
     m_snapshot.paused = false;
     return HostPlaybackAction::Resume;
+}
+
+void AndroidMedia3State::clearLifecycleState()
+{
+    m_snapshot.lifecycleEpoch = 0;
+    m_snapshot.hostStopped = false;
+    m_snapshot.lifecycleErrorSuppressionArmed = false;
+    m_snapshot.lifecyclePrepareSubmitted = false;
 }
 
 } // namespace Colosseum::Player
