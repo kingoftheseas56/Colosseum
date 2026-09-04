@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QObject>
-#include <QThread>
+#include <QTimer>
 #include <QJsonArray>
 #include <QMutex>
 #include <QHash>
@@ -11,6 +11,7 @@
 #include <QVector>
 #include <QDateTime>
 #include <QStringList>
+
 
 #ifdef HAS_LIBTORRENT
 #include <libtorrent/session.hpp>
@@ -105,6 +106,7 @@ public:
 
     void start();
     void stop();
+    quint16 listenPort() const;
     bool isRunning() const { return m_running; }
 
     // Torrent operations (all thread-safe)
@@ -154,6 +156,7 @@ public:
     // Tracker management (Phase 6.3)
     QList<TrackerInfo> trackersFor(const QString& infoHash) const;
     void    addTracker(const QString& infoHash, const QString& url, int tier);
+    void    replaceTrackers(const QString& infoHash, const QStringList& urls);
     void    removeTracker(const QString& infoHash, const QString& url);
     void    editTrackerUrl(const QString& infoHash, const QString& oldUrl, const QString& newUrl);
 
@@ -344,15 +347,10 @@ public:
 
     // STREAM_ENGINE_FIX Phase 3.1 — default tracker pool for magnet
     // augmentation below the <5 add-on-tracker threshold (Axis 7). Compile-
-    // time-constant list of 25 publicly-known reliable UDP trackers; no
-    // network fetch, no runtime mutation, zero surface for external
-    // pollution. Agent 4B (Sources) curates the roster; Agent 4 Phase 3.2
-    // consumes from StreamEngine magnet construction. Library-path-
-    // independent — no libtorrent call, same list in stub build path.
-    // Note: pre-existing kFallbackTrackers in StreamAggregator.cpp:32 (12-
-    // tracker zero-trackers-only fallback) is a subset of this pool;
-    // Agent 4 Phase 3.2 can migrate that consumer to this canonical pool
-    // during threshold-change work if desired.
+    // time-constant list of the exact 20 tracker URLs shipped by Stremio
+    // server.js 4.20.17; no network fetch, no runtime mutation, zero surface
+    // for external pollution. Library-path-independent — no libtorrent call,
+    // same list in stub build path. Ordering is part of the parity contract.
     static const QStringList& defaultTrackerPool();
 
 signals:
@@ -367,20 +365,18 @@ signals:
     void resumeDataAvailable(const QString& infoHash, const QByteArray& blob);
 
     // Emitted when libtorrent finishes relocating a torrent's storage. Fired
-    // from the AlertWorker thread on storage_moved_alert / storage_moved_failed_alert
-    // — receivers must connect with QueuedConnection (Qt::AutoConnection from a
-    // main-thread receiver resolves to that). Pure observation; no state change
-    // happens inside the emit.
+    // from the engine's owning thread on storage_moved_alert /
+    // storage_moved_failed_alert. Pure observation; no state change happens
+    // inside the emit.
     void storageMoved(const QString& infoHash, const QString& newPath);
     void storageMoveFailed(const QString& infoHash, const QString& message);
     void fileRenamed(const QString& infoHash, int fileIndex, const QString& newPath);
     void fileRenameFailed(const QString& infoHash, int fileIndex, const QString& message);
 
     // STREAM_ENGINE_REBUILD P2 — emitted once per libtorrent
-    // piece_finished_alert from the AlertWorker thread. Consumers must
-    // connect with Qt::QueuedConnection (AutoConnection default from
-    // main-thread QObject receivers resolves to this) so StreamPieceWaiter
-    // map mutation stays on the consumer thread, not the alert worker.
+    // piece_finished_alert from the engine's owning thread. Consumers that
+    // live on another thread must connect with Qt::QueuedConnection so their
+    // state mutation stays on the consumer thread.
     // Replaces the 15 s poll floor in StreamHttpServer — consumer binds a
     // QWaitCondition to this signal for sub-second wake on piece arrival.
     // No existing code paths produce or bind this signal; purely additive.
@@ -388,12 +384,13 @@ signals:
 
 private:
 #ifdef HAS_LIBTORRENT
-    // Alert worker runs on a dedicated QThread
+    // Main-loop alert pump. Keeping this on the engine's owning thread makes
+    // shutdown deterministic and keeps Qt signal delivery single-threaded.
     class AlertWorker;
     friend class AlertWorker;
 
     lt::session        m_session;
-    QThread            m_alertThread;
+    QTimer             m_alertTimer;
     AlertWorker*       m_alertWorker = nullptr;
 
     void applySettings();

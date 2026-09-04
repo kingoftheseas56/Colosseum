@@ -42,6 +42,7 @@ private:
     bool m_dispatched = false;
     bool m_headWritten = false;
     bool m_finished = false;
+    bool m_aborting = false;
     std::shared_ptr<CancellationToken> m_cancellation;
 };
 

@@ -76,6 +76,7 @@ struct HttpRequest
     QJsonDocument jsonBody;
     bool hasJsonBody = false;
     QHash<QString, QStringList> formBody;
+    bool encrypted = false;
     std::shared_ptr<CancellationToken> cancellation;
 
     QByteArray header(const QByteArray &name) const;

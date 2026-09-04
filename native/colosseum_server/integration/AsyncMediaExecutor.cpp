@@ -14,6 +14,7 @@ namespace {
 QMutex g_jobsMutex;
 QWaitCondition g_jobsIdle;
 int g_activeJobs = 0;
+std::vector<std::shared_ptr<void>> g_retiredLifetimes;
 
 void jobStarted()
 {
@@ -23,11 +24,16 @@ void jobStarted()
 
 void jobFinished()
 {
-    QMutexLocker lock(&g_jobsMutex);
-    Q_ASSERT(g_activeJobs > 0);
-    --g_activeJobs;
-    if (g_activeJobs == 0)
-        g_jobsIdle.wakeAll();
+    std::vector<std::shared_ptr<void>> released;
+    {
+        QMutexLocker lock(&g_jobsMutex);
+        Q_ASSERT(g_activeJobs > 0);
+        --g_activeJobs;
+        if (g_activeJobs == 0) {
+            g_jobsIdle.wakeAll();
+            released.swap(g_retiredLifetimes);
+        }
+    }
 }
 
 class JobCompletion final
@@ -91,14 +97,19 @@ void AsyncMediaExecutor::runCancellable(
         });
 }
 
+void AsyncMediaExecutor::retainUntilIdle(std::shared_ptr<void> lifetime)
+{
+    if (!lifetime)
+        return;
+    QMutexLocker lock(&g_jobsMutex);
+    if (g_activeJobs != 0)
+        g_retiredLifetimes.push_back(std::move(lifetime));
+}
+
 bool AsyncMediaExecutor::waitForIdle(int timeoutMs)
 {
-    if (timeoutMs < 0) {
-        QMutexLocker lock(&g_jobsMutex);
-        while (g_activeJobs != 0)
-            g_jobsIdle.wait(&g_jobsMutex);
-        return true;
-    }
+    if (timeoutMs < 0)
+        return false;
     QElapsedTimer elapsed;
     elapsed.start();
     QMutexLocker lock(&g_jobsMutex);

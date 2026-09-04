@@ -447,6 +447,7 @@ HttpRangeSource::ReplyData HttpRangeSource::perform(const QByteArray &method, co
             return final;
         }
         QNetworkRequest request(m_url);
+        request.setTransferTimeout(30000);
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
         if (!range.isEmpty()) request.setRawHeader("Range", range);
         QNetworkReply *reply = method == "HEAD" ? m_network->head(request) : m_network->get(request);

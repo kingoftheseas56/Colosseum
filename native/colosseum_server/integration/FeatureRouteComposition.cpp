@@ -71,7 +71,10 @@ app::AppRequest toAppRequest(const server::HttpRequest &request,
             converted.query.addQueryItem(it.key(), value);
     }
     converted.body = request.body;
-    converted.encrypted = dependencies.encrypted;
+    // The same router serves HTTP and HTTPS. The connection is the authority
+    // for the scheme of this request; the dependency value remains a useful
+    // compatibility default for direct composition harnesses.
+    converted.encrypted = request.encrypted || dependencies.encrypted;
     converted.localPort = dependencies.localPort;
     return converted;
 }
@@ -123,12 +126,14 @@ app::AppResponse remoteAsAppResponse(const Remote::Response &result)
 template <typename Service>
 bool dispatchService(const server::HttpRequest &request, server::HttpResponse response,
                      Service *service, app::AppResponse (Service::*handler)(const app::AppRequest &),
-                     app::AppRequest converted, const std::shared_ptr<std::mutex> &serial)
+                     app::AppRequest converted, const std::shared_ptr<std::mutex> &serial,
+                     std::shared_ptr<void> lifetime = {})
 {
     if (!service)
         return false;
     AsyncMediaExecutor::run(request.cancellation,
-        [service, handler, converted = std::move(converted), serial]() mutable {
+        [service, handler, converted = std::move(converted), serial,
+         lifetime = std::move(lifetime)]() mutable {
             std::lock_guard lock(*serial);
             return (service->*handler)(converted);
         },
@@ -787,14 +792,24 @@ bool handleSettings(const server::HttpRequest &request, server::HttpResponse res
 void mountFeatureRoutes(server::HttpRouter &router,
                         const FeatureRouteDependencies &dependencies)
 {
-    const FeatureRouteDependencies captured = dependencies;
+    mountFeatureRoutes(router,
+                       std::make_shared<FeatureRouteDependencies>(dependencies));
+}
+
+void mountFeatureRoutes(
+    server::HttpRouter &router,
+    const std::shared_ptr<FeatureRouteDependencies> &dependencies)
+{
+    if (!dependencies)
+        return;
     const auto mediaSerial = std::make_shared<std::mutex>();
     const auto appSerial = std::make_shared<std::mutex>();
     const auto remoteSerial = std::make_shared<std::mutex>();
 
     router.all(QStringLiteral("/*"),
-        [captured, mediaSerial, appSerial, remoteSerial](server::HttpRequest &request,
-                                                          server::HttpResponse response) mutable {
+        [dependencies, mediaSerial, appSerial, remoteSerial](
+            server::HttpRequest &request, server::HttpResponse response) mutable {
+            const FeatureRouteDependencies &captured = *dependencies;
             if (handleSample(request, response))
                 return true;
             if (handleHlsV2(request, response, captured.media, mediaSerial))
@@ -819,7 +834,8 @@ void mountFeatureRoutes(server::HttpRouter &router,
                     return false;
                 return dispatchService(request, response, captured.networkApp.network,
                                        &app::NetworkRouteService::handle,
-                                       appRequest, appSerial);
+                                       appRequest, appSerial,
+                                       captured.networkApp.networkLifetime);
             }
             if (path == QStringLiteral("/proxy") || ownsPrefix(path, QStringLiteral("/proxy"))) {
                 if (!captured.networkApp.proxy)

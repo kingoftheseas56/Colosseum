@@ -136,6 +136,24 @@ void testHotswapRetiresTransportWithoutCancellationCallback()
     assert(transport.pending[1].cancelled);
 }
 
+void testSelectionNotificationMayCreateAnotherSelection()
+{
+    SchedulerSpine scheduler({PieceBuffer::BlockSize, PieceBuffer::BlockSize});
+    bool notified = false;
+    bool added = false;
+    scheduler.select(0, 1, 10, [&] {
+        notified = true;
+        if (!added) {
+            added = true;
+            scheduler.select(1, 1, 9);
+        }
+    });
+
+    scheduler.markPieceAvailable(0);
+    assert(notified);
+    assert(added);
+}
+
 } // namespace
 
 int main()
@@ -143,6 +161,7 @@ int main()
     testDispatchAndComplete();
     testFailureReleasesReservation();
     testHotswapRetiresTransportWithoutCancellationCallback();
+    testSelectionNotificationMayCreateAnotherSelection();
     std::puts("SCHEDULER_TRANSPORT_BRIDGE_OK");
     return 0;
 }

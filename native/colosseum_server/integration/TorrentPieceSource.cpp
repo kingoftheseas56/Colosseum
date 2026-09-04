@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QString>
 
+#include <chrono>
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -11,10 +12,12 @@
 #include <mutex>
 #include <optional>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
 #include <libtorrent/file_storage.hpp>
+#include <libtorrent/hasher.hpp>
 #include <libtorrent/torrent_info.hpp>
 #include <libtorrent/torrent_status.hpp>
 
@@ -91,6 +94,7 @@ struct TorrentPieceSource::State final
     ReadToken nextRead = 1;
     std::map<Subscription, Waiter> waiters;
     std::map<ReadToken, std::shared_ptr<ReadState>> reads;
+    std::map<std::size_t, std::vector<std::byte>> providedPieces;
 };
 
 TorrentPieceSource::TorrentPieceSource(lt::torrent_handle torrent)
@@ -126,11 +130,11 @@ bool TorrentPieceSource::hasPiece(const std::size_t piece) const
 
 void TorrentPieceSource::makeUrgent(const std::size_t piece)
 {
-    const auto shape = geometry(state_->torrent);
-    if (!shape || !pieceSize(*shape, piece))
-        return;
-    state_->torrent.set_piece_deadline(
-        lt::piece_index_t{static_cast<std::int32_t>(piece)}, 0);
+    // W06's SchedulerTransportBridge is the sole owner of missing-piece
+    // requests. Keeping this legacy hook side-effect free prevents a
+    // FileStream read from silently handing selection back to libtorrent's
+    // deadline picker.
+    (void)piece;
 }
 
 TorrentPieceSource::Subscription TorrentPieceSource::waitForPiece(
@@ -223,9 +227,25 @@ std::vector<std::byte> TorrentPieceSource::readBlock(
         error = sourceError(std::errc::invalid_argument);
         return {};
     }
+
     if (!hasPiece(state, block.piece)) {
         error = sourceError(std::errc::operation_would_block);
         return {};
+    }
+
+    {
+        std::lock_guard lock(state->mutex);
+        const auto provided = state->providedPieces.find(block.piece);
+        if (provided != state->providedPieces.end()) {
+            const auto &bytes = provided->second;
+            if (bytes.size() != static_cast<std::size_t>(*bytesInPiece)) {
+                error = sourceError(std::errc::io_error);
+                return {};
+            }
+            return std::vector<std::byte>(
+                bytes.begin() + static_cast<std::ptrdiff_t>(block.offset),
+                bytes.begin() + static_cast<std::ptrdiff_t>(block.offset + block.length));
+        }
     }
     if (block.length == 0)
         return {};
@@ -288,10 +308,88 @@ std::vector<std::byte> TorrentPieceSource::readBlock(
     return result;
 }
 
+void TorrentPieceSource::consumeProvidedPiece(
+    const std::shared_ptr<State> &state, const std::size_t piece)
+{
+    std::lock_guard lock(state->mutex);
+    state->providedPieces.erase(piece);
+}
+
+std::vector<std::byte> TorrentPieceSource::readVerifiedPiece(
+    const std::shared_ptr<State> &state, const std::size_t piece,
+    std::error_code &error)
+{
+    constexpr int MaxVisibilityRetries = 50;
+    constexpr auto VisibilityRetry = std::chrono::milliseconds(2);
+    for (int attempt = 0; attempt < MaxVisibilityRetries; ++attempt) {
+        const auto shape = geometry(state->torrent);
+        const auto bytesInPiece = shape ? pieceSize(*shape, piece) : std::nullopt;
+        if (!bytesInPiece) {
+            error = sourceError(std::errc::invalid_argument);
+            return {};
+        }
+
+        auto bytes = readBlock(state,
+                               scheduler::WireBlock{
+                                   piece, 0, static_cast<std::size_t>(*bytesInPiece)},
+                               error);
+        if (error) {
+            if (error != sourceError(std::errc::io_error)
+                || attempt + 1 >= MaxVisibilityRetries)
+                return {};
+            std::this_thread::sleep_for(VisibilityRetry);
+            continue;
+        }
+
+        // A libtorrent have_piece() transition and its disk write can be
+        // observed a few milliseconds apart. Hash the complete piece before
+        // handing QFile bytes to W07 so a preallocated/partially flushed file
+        // can never become a successful media response.
+        // For v2-only metadata there is no v1 SHA-1 piece hash. libtorrent's
+        // have_piece() state is the verification authority in that case.
+        if (shape && shape->info && !shape->info->v1())
+            return bytes;
+        if (shape && shape->info
+            && bytes.size() <= static_cast<std::size_t>((std::numeric_limits<int>::max)())) {
+            const auto actual = lt::hasher(
+                reinterpret_cast<const char *>(bytes.data()),
+                static_cast<int>(bytes.size())).final();
+            const auto wanted = shape->info->hash_for_piece(
+                lt::piece_index_t{static_cast<std::int32_t>(piece)});
+            if (actual == wanted)
+                return bytes;
+        }
+
+        if (attempt + 1 < MaxVisibilityRetries)
+            std::this_thread::sleep_for(VisibilityRetry);
+    }
+    error = sourceError(std::errc::io_error);
+    return {};
+}
+
 std::vector<std::byte> TorrentPieceSource::readBlock(
     const scheduler::WireBlock &block, std::error_code &error) const
 {
-    return readBlock(state_, block, error);
+    error.clear();
+    const auto shape = geometry(state_->torrent);
+    const auto bytesInPiece = shape ? pieceSize(*shape, block.piece) : std::nullopt;
+    if (!bytesInPiece || block.offset > static_cast<std::size_t>(*bytesInPiece)
+        || block.length > static_cast<std::size_t>(*bytesInPiece) - block.offset) {
+        error = sourceError(std::errc::invalid_argument);
+        return {};
+    }
+    if (!hasPiece(state_, block.piece)) {
+        error = sourceError(std::errc::operation_would_block);
+        return {};
+    }
+
+    auto bytes = readVerifiedPiece(state_, block.piece, error);
+    consumeProvidedPiece(state_, block.piece);
+    if (error)
+        return {};
+    return std::vector<std::byte>(
+        bytes.begin() + static_cast<std::ptrdiff_t>(block.offset),
+        bytes.begin() + static_cast<std::ptrdiff_t>(block.offset + block.length));
 }
 
 void TorrentPieceSource::onReadReady(const std::shared_ptr<State> &state,
@@ -322,11 +420,8 @@ void TorrentPieceSource::onReadReady(const std::shared_ptr<State> &state,
         return;
     }
     std::error_code readError;
-    auto bytes = readBlock(state,
-                           scheduler::WireBlock{read->piece, 0,
-                                                static_cast<std::size_t>(
-                                                    *bytesInPiece)},
-                           readError);
+    auto bytes = readVerifiedPiece(state, read->piece, readError);
+    consumeProvidedPiece(state, read->piece);
     if (readError)
         callback(readError, {});
     else
@@ -346,8 +441,8 @@ TorrentPieceSource::ReadToken TorrentPieceSource::readPiece(
     }
     if (hasPiece(state_, piece)) {
         std::error_code error;
-        auto bytes = readBlock(state_, scheduler::WireBlock{
-            piece, 0, static_cast<std::size_t>(*bytesInPiece)}, error);
+        auto bytes = readVerifiedPiece(state_, piece, error);
+        consumeProvidedPiece(state_, piece);
         callback(error, std::move(bytes));
         return 0;
     }
@@ -404,6 +499,19 @@ void TorrentPieceSource::cancelRead(const ReadToken token)
         state_->reads.erase(found);
     }
     cancelWait(subscription);
+}
+
+void TorrentPieceSource::provideVerifiedPiece(
+    const std::size_t piece, std::vector<std::byte> bytes)
+{
+    const auto shape = geometry(state_->torrent);
+    const auto bytesInPiece = shape ? pieceSize(*shape, piece) : std::nullopt;
+    if (!bytesInPiece || bytes.size() != static_cast<std::size_t>(*bytesInPiece))
+        return;
+
+    std::lock_guard lock(state_->mutex);
+    if (!state_->shuttingDown)
+        state_->providedPieces[piece] = std::move(bytes);
 }
 
 } // namespace colosseum::server::integration

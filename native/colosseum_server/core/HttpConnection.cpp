@@ -4,6 +4,7 @@
 #include <QMetaObject>
 #include <QThread>
 #include <QUrl>
+#include <QSslSocket>
 
 namespace colosseum::server {
 
@@ -29,6 +30,7 @@ HttpConnection::~HttpConnection()
 
 void HttpConnection::abort()
 {
+    m_aborting = true;
     if (m_cancellation)
         m_cancellation->cancel();
     if (m_socket && m_socket->state() != QAbstractSocket::UnconnectedState)
@@ -47,7 +49,8 @@ void HttpConnection::onDisconnected()
 {
     if (m_cancellation)
         m_cancellation->cancel();
-    deleteLater();
+    if (!m_aborting)
+        deleteLater();
 }
 
 QString HttpConnection::decodeComponent(QByteArray value)
@@ -97,6 +100,7 @@ bool HttpConnection::tryParseAndDispatch()
     }
 
     HttpRequest request;
+    request.encrypted = qobject_cast<QSslSocket *>(m_socket) != nullptr;
     request.method = QString::fromLatin1(requestLine.at(0).trimmed().toUpper());
     request.rawTarget = requestLine.at(1).trimmed();
     if (request.method.isEmpty() || request.rawTarget.isEmpty() || !request.rawTarget.startsWith('/')) {

@@ -475,15 +475,20 @@ bool SchedulerSpine::isPieceLocked(const std::size_t piece) const noexcept
 
 void SchedulerSpine::collectGarbage()
 {
+    // Selection notifications are user callbacks.  They may call back into
+    // the scheduler (for example, to create a recovery selection), so do not
+    // invoke them while a callback-visible reference into selections_ is live
+    // or while the vector is being mutated.
+    std::vector<std::function<void()>> notifications;
     for (std::size_t i = 0; i < selections_.size();) {
-        const auto &selection = selections_[i];
+        const auto selection = selections_[i];
         const auto oldOffset = selection->offset;
         while (selection->from + selection->offset < selection->to
                && available_[selection->from + selection->offset]) {
             ++selection->offset;
         }
         if (oldOffset != selection->offset && selection->notify) {
-            selection->notify();
+            notifications.push_back(selection->notify);
         }
         const auto current = selection->from + selection->offset;
         if (current == selection->to && available_[current]) {
@@ -491,12 +496,20 @@ void SchedulerSpine::collectGarbage()
             selections_.erase(selections_.begin()
                               + static_cast<std::ptrdiff_t>(i));
             if (notify) {
-                notify();
+                notifications.push_back(notify);
             }
-            updateInterest();
             continue;
         }
         ++i;
+    }
+
+    // Publish the final interest state before callbacks are allowed to
+    // re-enter.  No selection-vector mutation remains in this pass.
+    updateInterest();
+    for (const auto &notify : notifications) {
+        if (notify) {
+            notify();
+        }
     }
     if (selections_.empty() && idleObserver_) {
         idleObserver_();
@@ -747,14 +760,15 @@ bool SchedulerSpine::trySelect(PeerState &target,
 }
 
 std::vector<OutstandingRequest> SchedulerSpine::updatePeerRequests(
-    const std::string &peerId)
+    const std::string &peerId,
+    const bool allowChoked)
 {
     auto *target = peer(peerId);
     if (!target) {
         throw std::invalid_argument("unknown scheduler peer");
     }
     std::vector<OutstandingRequest> created;
-    if (target->peerChoking) {
+    if (target->peerChoking && !allowChoked) {
         return created;
     }
 

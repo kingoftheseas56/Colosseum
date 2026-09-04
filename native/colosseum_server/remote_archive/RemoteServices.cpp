@@ -611,6 +611,7 @@ HttpNzbDocumentFetcher::HttpNzbDocumentFetcher(QNetworkAccessManager *network) :
 QByteArray HttpNzbDocumentFetcher::fetch(const QUrl &url, RemoteError *error)
 {
     QNetworkRequest request(url);
+    request.setTransferTimeout(30000);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     QNetworkReply *reply = m_network->get(request);
     QObject::connect(reply, &QNetworkReply::sslErrors, reply, [reply](const QList<QSslError> &) { reply->ignoreSslErrors(); });

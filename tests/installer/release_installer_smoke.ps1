@@ -40,7 +40,9 @@ $required = @(
     "native\build-msvc\imageformats\qwebp.dll",
     "native\build-msvc\QtWebEngineProcess.exe",
     "native\build-msvc\MpvQt.dll",
-    "native\build-msvc\libmpv-2.dll"
+    "native\build-msvc\libmpv-2.dll",
+    "native\build-msvc\tools\ffmpeg.exe",
+    "native\build-msvc\tools\ffprobe.exe"
 )
 foreach ($relative in $required) {
     Require (Test-Path -LiteralPath (Join-Path $installRoot $relative)) "missing runtime file: $relative"

@@ -1,4 +1,7 @@
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +45,26 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
             self.assertIn(token, script)
         self.assertNotIn('STREMIO_SRC', workflow)
         self.assertNotIn('server.js', workflow)
+
+    def test_native_package_requires_both_media_cli_tools(self):
+        package = (ROOT / 'scripts/installer/package_release.sh').read_text(encoding='utf-8')
+        self.assertIn('ffmpeg.exe', package)
+        self.assertIn('ffprobe.exe', package)
+        self.assertIn('MEDIA_TOOLS_DIR', package)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            stage = Path(temporary)
+            tools = stage / 'native/build-msvc/tools'
+            tools.mkdir(parents=True)
+            (tools / 'ffmpeg.exe').write_bytes(b'fixture')
+            result = subprocess.run(
+                [sys.executable, str(ROOT / 'scripts/installer/assert_native_package.py'), str(stage)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('ffprobe.exe', result.stderr)
 
 
 if __name__ == '__main__':

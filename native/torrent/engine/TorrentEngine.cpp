@@ -27,21 +27,16 @@
 #include <QStringList>
 #include <QHostAddress>
 
-#include <atomic>
 #include <chrono>
 #include <fstream>
 
-// ── AlertWorker: runs on a dedicated QThread, drains libtorrent alerts ──────
+// ── AlertWorker: main-loop alert pump ───────────────────────────────────────
 class TorrentEngine::AlertWorker : public QObject
 {
     Q_OBJECT
 public:
-    AlertWorker(TorrentEngine* engine) : m_engine(engine) {}
-
-public slots:
-    void run()
+    AlertWorker(TorrentEngine* engine) : m_engine(engine)
     {
-        m_running = true;
         m_traceActive = qEnvironmentVariableIsSet("TANKOBAN_ALERT_TRACE");
         if (m_traceActive) {
             m_traceFile.open("alert_trace.log", std::ios::binary | std::ios::trunc);
@@ -50,6 +45,10 @@ public slots:
                 m_traceFile.flush();
             }
         }
+    }
+
+    void pump()
+    {
         // STREAM_ENGINE_REBUILD M2 (integration-memo §5) — alert-pump latency
         // tightened from 250 ms → 25 ms. Stremio's libtorrent pump runs at
         // 5 ms (backend/libtorrent/mod.rs:204); 25 ms is a conservative
@@ -62,31 +61,22 @@ public slots:
         // would fire torrentProgress at 10 Hz, flooding downstream
         // StreamEngine / StreamPage consumers. Converted to wall-clock so
         // the 1 s emit contract is preserved independent of pump cadence.
-        constexpr int kAlertWaitMs = 25;
         constexpr qint64 kProgressEmitIntervalMs = 1000;
-        qint64 lastProgressMs = QDateTime::currentMSecsSinceEpoch();
+        drainAlerts();
+        triggerPeriodicResumeSaves();
 
-        while (m_running) {
-            auto* alert = m_engine->m_session.wait_for_alert(
-                std::chrono::milliseconds(kAlertWaitMs));
-            if (alert) drainAlerts();
-            triggerPeriodicResumeSaves();
-
-            const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-            if (nowMs - lastProgressMs >= kProgressEmitIntervalMs) {
-                lastProgressMs = nowMs;
-                emitProgressEvents();
-                m_engine->checkSeedingRules();
-            }
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        if (nowMs - lastProgressMs >= kProgressEmitIntervalMs) {
+            lastProgressMs = nowMs;
+            emitProgressEvents();
+            m_engine->checkSeedingRules();
         }
     }
 
-    void requestStop() { m_running = false; }
-
 private:
     TorrentEngine* m_engine;
-    std::atomic<bool> m_running{false};
     std::chrono::steady_clock::time_point m_lastResumeSave{std::chrono::steady_clock::now()};
+    qint64 lastProgressMs = QDateTime::currentMSecsSinceEpoch();
     static constexpr int RESUME_SAVE_INTERVAL_S = 30;
 
     // STREAM diagnostic (Agent 4B — Mode A alert trace; see alert_mask setup
@@ -315,6 +305,10 @@ static lt::session_params dormantSessionParams()
 TorrentEngine::TorrentEngine(const QString& cacheDir, QObject* parent)
     : QObject(parent), m_session(dormantSessionParams()), m_cacheDir(cacheDir)
 {
+    connect(&m_alertTimer, &QTimer::timeout, this, [this] {
+        if (m_alertWorker)
+            m_alertWorker->pump();
+    });
 }
 
 TorrentEngine::~TorrentEngine()
@@ -337,8 +331,12 @@ void TorrentEngine::applySettings()
     // DHT bootstrap ping dead IPv6 nodes → 0 DHT nodes → torrent metadata never resolved
     // and volume downloads sat at "Finding source…" forever. IPv4 is the only working
     // route here (every HTTP host is IPv4-pinned for the same reason), so drop [::].
+    // Production keeps the historical BitTorrent port. Integration fixtures
+    // can opt into an isolated loopback port so another local BitTorrent
+    // client cannot make a real peer handshake nondeterministic.
+    const QByteArray listenOverride = qgetenv("COLOSSEUM_TORRENT_LISTEN_INTERFACES");
     sp.set_str(lt::settings_pack::listen_interfaces,
-               "0.0.0.0:6881");
+               listenOverride.isEmpty() ? "0.0.0.0:6881" : listenOverride.toStdString());
 
     sp.set_str(lt::settings_pack::dht_bootstrap_nodes,
                "router.bittorrent.com:6881,"
@@ -346,10 +344,12 @@ void TorrentEngine::applySettings()
                "dht.transmissionbt.com:6881,"
                "dht.libtorrent.org:25401");
 
-    sp.set_bool(lt::settings_pack::enable_dht, true);
-    sp.set_bool(lt::settings_pack::enable_lsd, true);
-    sp.set_bool(lt::settings_pack::enable_natpmp, true);
-    sp.set_bool(lt::settings_pack::enable_upnp, true);
+    const bool disableDiscovery = qEnvironmentVariableIsSet(
+        "COLOSSEUM_TORRENT_DISABLE_DISCOVERY");
+    sp.set_bool(lt::settings_pack::enable_dht, !disableDiscovery);
+    sp.set_bool(lt::settings_pack::enable_lsd, !disableDiscovery);
+    sp.set_bool(lt::settings_pack::enable_natpmp, !disableDiscovery);
+    sp.set_bool(lt::settings_pack::enable_upnp, !disableDiscovery);
 
     // STREAM_ENGINE_REBUILD P2 — piece_progress is unconditional now:
     // pieceFinished signal (drainAlerts branch above) is a hard P2
@@ -695,12 +695,9 @@ void TorrentEngine::start()
     }
 
     m_alertWorker = new AlertWorker(this);
-    m_alertWorker->moveToThread(&m_alertThread);
-    connect(&m_alertThread, &QThread::started, m_alertWorker, &AlertWorker::run);
-    connect(&m_alertThread, &QThread::finished, m_alertWorker, &QObject::deleteLater);
-    m_alertThread.start();
-
     m_running = true;
+    m_alertTimer.setInterval(25);
+    m_alertTimer.start();
     qDebug() << "TorrentEngine started, cache:" << m_cacheDir;
 }
 
@@ -709,20 +706,21 @@ void TorrentEngine::stop()
     if (!m_running) return;
     m_running = false;
 
-    if (m_alertWorker)
-        m_alertWorker->requestStop();
-    m_alertThread.quit();
-    if (!m_alertThread.wait(5000)) {
-        DebugLogBuffer::instance().warning("torrent-engine",
-            QStringLiteral("stop(): alert worker did not finish within 5s — proceeding with teardown"));
-        qWarning() << "TorrentEngine::stop() alert worker wait timed out";
-    }
+    m_alertTimer.stop();
+    delete m_alertWorker;
+    m_alertWorker = nullptr;
+
+    m_session.pause();
 
     saveAllResumeData();
     saveDhtState();
-    m_session.pause();
 
     qDebug() << "TorrentEngine stopped";
+}
+
+quint16 TorrentEngine::listenPort() const
+{
+    return m_session.listen_port();
 }
 
 // ── Torrent operations ──────────────────────────────────────────────────────
@@ -1406,6 +1404,30 @@ void TorrentEngine::addTracker(const QString& infoHash, const QString& url, int 
     it->handle.add_tracker(ae);
 }
 
+void TorrentEngine::replaceTrackers(const QString& infoHash, const QStringList& urls)
+{
+    QMutexLocker lock(&m_mutex);
+    auto it = m_records.find(infoHash);
+    if (it == m_records.end() || !it->handle.is_valid()) return;
+
+    std::vector<lt::announce_entry> trackers;
+    trackers.reserve(urls.size());
+    std::set<std::string> seen;
+    int tier = 0;
+    for (const QString& value : urls) {
+        const QString url = value.trimmed();
+        if (url.isEmpty())
+            continue;
+        const std::string encoded = url.toStdString();
+        if (!seen.insert(encoded).second)
+            continue;
+        lt::announce_entry entry(encoded);
+        entry.tier = tier++;
+        trackers.push_back(std::move(entry));
+    }
+    it->handle.replace_trackers(trackers);
+}
+
 void TorrentEngine::removeTracker(const QString& infoHash, const QString& url)
 {
     QMutexLocker lock(&m_mutex);
@@ -2013,6 +2035,7 @@ void TorrentEngine::setFilePriorities(const QString&, const QVector<int>&) {}
 void TorrentEngine::renameFile(const QString&, int, const QString&) {}
 QList<TrackerInfo> TorrentEngine::trackersFor(const QString&) const { return {}; }
 void TorrentEngine::addTracker(const QString&, const QString&, int) {}
+void TorrentEngine::replaceTrackers(const QString&, const QStringList&) {}
 void TorrentEngine::removeTracker(const QString&, const QString&) {}
 void TorrentEngine::editTrackerUrl(const QString&, const QString&, const QString&) {}
 QList<PeerInfo> TorrentEngine::peersFor(const QString&) const { return {}; }
@@ -2059,41 +2082,32 @@ QList<QPair<qint64, qint64>> TorrentEngine::fileByteRangesOfHavePieces(const QSt
 // ── STREAM_ENGINE_FIX Phase 3.1 — default tracker pool (Agent 4B) ──────────
 //
 // Library-path-independent (no libtorrent call) so the accessor is defined
-// once outside the HAS_LIBTORRENT branches. 25 publicly-known reliable UDP
-// trackers curated as of 2026-04-18 — superset of the existing
-// kFallbackTrackers list in StreamAggregator.cpp:32 so consumer migration
-// preserves back-compat. Zero runtime mutation; static local + const
-// reference return. Callers must not assume ordering beyond "most
-// broadly-shared first" — Agent 4 Phase 3.2 append-injection can slice
-// arbitrarily.
+// once outside the HAS_LIBTORRENT branches. This is the exact 20-entry tracker
+// list shipped by Stremio server.js 4.20.17. Zero runtime mutation; static
+// local + const reference return. Ordering is part of the parity contract.
 const QStringList& TorrentEngine::defaultTrackerPool()
 {
     static const QStringList pool = {
         QStringLiteral("udp://tracker.opentrackr.org:1337/announce"),
-        QStringLiteral("udp://tracker.openbittorrent.com:6969/announce"),
-        QStringLiteral("udp://open.stealth.si:80/announce"),
-        QStringLiteral("udp://tracker.torrent.eu.org:451/announce"),
         QStringLiteral("udp://open.demonii.com:1337/announce"),
-        QStringLiteral("udp://exodus.desync.com:6969/announce"),
-        QStringLiteral("udp://explodie.org:6969/announce"),
-        QStringLiteral("udp://tracker.dler.org:6969/announce"),
-        QStringLiteral("udp://open.tracker.cl:1337/announce"),
-        QStringLiteral("udp://tracker.cyberia.is:6969/announce"),
-        QStringLiteral("udp://tracker.moeking.me:6969/announce"),
-        QStringLiteral("udp://tracker.tiny-vps.com:6969/announce"),
+        QStringLiteral("udp://open.stealth.si:80/announce"),
+        QStringLiteral("https://torrent.tracker.durukanbal.com:443/announce"),
+        QStringLiteral("udp://wepzone.net:6969/announce"),
+        QStringLiteral("udp://tracker.wepzone.net:6969/announce"),
+        QStringLiteral("udp://tracker.torrent.eu.org:451/announce"),
         QStringLiteral("udp://tracker.theoks.net:6969/announce"),
-        QStringLiteral("udp://tracker.birkenwald.de:6969/announce"),
-        QStringLiteral("udp://tracker.altrosky.nl:6969/announce"),
-        QStringLiteral("udp://tracker.auctor.tv:6969/announce"),
-        QStringLiteral("udp://tracker.internetwarriors.net:1337/announce"),
+        QStringLiteral("udp://tracker.t-1.org:6969/announce"),
+        QStringLiteral("udp://tracker.darkness.services:6969/announce"),
         QStringLiteral("udp://tracker-udp.gbitt.info:80/announce"),
-        QStringLiteral("udp://tracker.uw0.xyz:6969/announce"),
-        QStringLiteral("udp://tracker.bittor.pw:1337/announce"),
-        QStringLiteral("udp://ipv4.tracker.harry.lu:80/announce"),
-        QStringLiteral("udp://retracker.lanta-net.ru:2710/announce"),
-        QStringLiteral("udp://bt1.archive.org:6969/announce"),
-        QStringLiteral("udp://bt2.archive.org:6969/announce"),
-        QStringLiteral("udp://p4p.arenabg.com:1337/announce"),
+        QStringLiteral("udp://t.overflow.biz:6969/announce"),
+        QStringLiteral("udp://open.dstud.io:6969/announce"),
+        QStringLiteral("udp://explodie.org:6969/announce"),
+        QStringLiteral("udp://exodus.desync.com:6969/announce"),
+        QStringLiteral("udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce"),
+        QStringLiteral("https://tracker.zhuqiy.com:443/announce"),
+        QStringLiteral("https://tracker.pmman.tech:443/announce"),
+        QStringLiteral("https://tracker.moeblog.cn:443/announce"),
+        QStringLiteral("https://tracker.bt4g.com:443/announce"),
     };
     return pool;
 }

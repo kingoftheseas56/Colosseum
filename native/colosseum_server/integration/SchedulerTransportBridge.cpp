@@ -19,6 +19,7 @@ SchedulerTransportBridge::SchedulerTransportBridge(
 
 SchedulerTransportBridge::~SchedulerTransportBridge()
 {
+    lifetime_.reset();
     scheduler_.setHotswapObserver({});
     for (const auto &[id, request] : active_) {
         if (!request.cancelled)
@@ -52,7 +53,8 @@ void SchedulerTransportBridge::pump()
 {
     transport_.pumpResults();
     for (const auto &peerId : peerIds_) {
-        const auto created = scheduler_.updatePeerRequests(peerId);
+        const auto created = scheduler_.updatePeerRequests(peerId,
+                                                           allowChokedBootstrap_);
         for (const auto &request : created)
             dispatch(peerId, request);
     }
@@ -65,9 +67,12 @@ void SchedulerTransportBridge::dispatch(
 {
     active_[request.id] = ActiveRequest{peerId, request.streamPiece,
                                         request.wire, false};
+    const std::weak_ptr<int> lifetime = lifetime_;
     transport_.requestBlock(peerId, request.wire,
-        [this, requestId = request.id](std::error_code error,
-                                       std::vector<std::byte> bytes) mutable {
+        [this, lifetime, requestId = request.id](std::error_code error,
+                                                  std::vector<std::byte> bytes) mutable {
+            if (lifetime.expired())
+                return;
             auto it = active_.find(requestId);
             if (it == active_.end())
                 return;

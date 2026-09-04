@@ -85,7 +85,7 @@ New-Item -ItemType Directory -Force native\build-msvc\imageformats | Out-Null
 Copy-Item "$QtRoot\plugins\imageformats\qwebp.dll" native\build-msvc\imageformats\qwebp.dll
 ```
 
-The release installer additionally bundles the Stremio stream-server runtime and passes stricter clean-tree, exact-tag, signing, and packaging gates. Those maintainer release steps are intentionally separate from a contributor source build.
+The release installer additionally bundles the native media command-line tools (`ffmpeg.exe` and `ffprobe.exe`) under `native/build-msvc/tools/` and passes stricter clean-tree, exact-tag, signing, and packaging gates. For a local release-style package, set `MEDIA_TOOLS_DIR` to the directory containing those two executables (and any sibling DLLs) before running `scripts/installer/package_release.sh`. The maintainer release steps are intentionally separate from a contributor source build.
 
 ## Verification
 

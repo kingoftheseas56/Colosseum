@@ -74,18 +74,20 @@ struct LibtorrentBlockTransport::State
 
 struct LibtorrentBlockTransport::TorrentPlugin final : lt::torrent_plugin
 {
-    explicit TorrentPlugin(std::shared_ptr<State> state, lt::torrent *torrent)
-        : state_(std::move(state)), torrent_(torrent)
+    explicit TorrentPlugin(std::shared_ptr<State> state,
+                           lt::torrent_handle torrent)
+        : state_(std::move(state)), torrent_(std::move(torrent))
     {
     }
 
     std::shared_ptr<lt::peer_plugin> new_connection(
         lt::peer_connection_handle const &peer) override;
+    void attachToExistingPeers();
 
     void tick() override
     {
-        if (torrent_)
-            processNextCommand(state_, *torrent_);
+        if (const auto torrent = torrent_.native_handle())
+            processNextCommand(state_, *torrent);
     }
 
     static void processNextCommand(const std::shared_ptr<State> &state,
@@ -95,7 +97,7 @@ struct LibtorrentBlockTransport::TorrentPlugin final : lt::torrent_plugin
                             std::error_code error);
 
     std::shared_ptr<State> state_;
-    lt::torrent *torrent_ = nullptr;
+    lt::torrent_handle torrent_;
 };
 
 struct LibtorrentBlockTransport::PeerPlugin final : lt::peer_plugin
@@ -104,6 +106,11 @@ struct LibtorrentBlockTransport::PeerPlugin final : lt::peer_plugin
                lt::peer_connection_handle peer)
         : state_(std::move(state)), peer_(std::move(peer))
     {
+    }
+
+    lt::string_view type() const override
+    {
+        return "colosseum.block-transport";
     }
 
     bool on_piece(lt::peer_request const &request,
@@ -169,6 +176,22 @@ struct LibtorrentBlockTransport::PeerPlugin final : lt::peer_plugin
     std::shared_ptr<State> state_;
     lt::peer_connection_handle peer_;
 };
+
+void LibtorrentBlockTransport::TorrentPlugin::attachToExistingPeers()
+{
+    const auto torrent = torrent_.native_handle();
+    if (!torrent)
+        return;
+    for (auto *peer : *torrent) {
+        if (!peer || peer->is_disconnecting()) {
+            continue;
+        }
+        if (peer->find_plugin("colosseum.block-transport"))
+            continue;
+        peer->add_extension(std::make_shared<PeerPlugin>(
+            state_, lt::peer_connection_handle(peer->self())));
+    }
+}
 
 std::shared_ptr<lt::peer_plugin> LibtorrentBlockTransport::TorrentPlugin::new_connection(
     lt::peer_connection_handle const &peer)
@@ -312,11 +335,11 @@ LibtorrentBlockTransport::LibtorrentBlockTransport(lt::torrent_handle torrent)
         torrent_.add_extension(
             [state](lt::torrent_handle const &handle, lt::client_data_t)
                 -> std::shared_ptr<lt::torrent_plugin> {
-                const auto native = handle.native_handle();
-                if (!native)
+                if (!handle.native_handle())
                     return std::shared_ptr<lt::torrent_plugin>{};
-                return std::shared_ptr<lt::torrent_plugin>(
-                    std::make_shared<TorrentPlugin>(state, native.get()));
+                auto plugin = std::make_shared<TorrentPlugin>(state, handle);
+                plugin->attachToExistingPeers();
+                return std::shared_ptr<lt::torrent_plugin>(std::move(plugin));
             });
     }
 }

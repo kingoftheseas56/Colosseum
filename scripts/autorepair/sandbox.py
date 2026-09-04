@@ -137,6 +137,7 @@ DEFAULT_SANDBOX_ROOT = Path("C:/arsbx")
 MPV_DLLS = ("MpvQt.dll", "libmpv-2.dll")
 FFMPEG_TOOLS_FILES = (
     "ffmpeg.exe",
+    "ffprobe.exe",
     "avcodec-62.dll",
     "avdevice-62.dll",
     "avfilter-11.dll",

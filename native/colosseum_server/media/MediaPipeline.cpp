@@ -77,18 +77,18 @@ ProcessResult MediaProcess::run(const QString &program,
                       QStringLiteral("/T"), QStringLiteral("/F")});
         killer.waitForFinished(5000);
 #endif
-    if (process.state() != QProcess::NotRunning) {
-        process.kill();
-        process.waitForFinished(5000);
+        if (process.state() != QProcess::NotRunning) {
+            process.kill();
+            process.waitForFinished(5000);
+        }
+        result.stdOut = process.readAllStandardOutput();
+        result.stdErr = process.readAllStandardError();
+        result.exitCode = process.exitCode();
+        result.crashed = process.exitStatus() == QProcess::CrashExit;
+        if (!cancelledByCaller)
+            result.error = QStringLiteral("process timed out after %1 ms").arg(timeoutMs);
+        return result;
     }
-    result.stdOut = process.readAllStandardOutput();
-    result.stdErr = process.readAllStandardError();
-    result.exitCode = process.exitCode();
-    result.crashed = process.exitStatus() == QProcess::CrashExit;
-    if (!cancelledByCaller)
-        result.error = QStringLiteral("process timed out after %1 ms").arg(timeoutMs);
-    return result;
-}
 
 result.stdOut = process.readAllStandardOutput();
 result.stdErr = process.readAllStandardError();
@@ -124,13 +124,16 @@ QString ExecutableLocator::locate(const QString &name, const QStringList &search
 #endif
     const auto env = QProcessEnvironment::systemEnvironment();
     const QStringList ffmpegSearch{ffmpegOverride, env.value(QStringLiteral("FFMPEG_BIN")),
-        QDir(dir).filePath(ffmpegName), QDir(dir).filePath(QStringLiteral("bin/") + ffmpegName),
+        QDir(dir).filePath(ffmpegName), QDir(dir).filePath(QStringLiteral("tools/") + ffmpegName),
+        QDir(dir).filePath(QStringLiteral("bin/") + ffmpegName),
         QStringLiteral("/usr/lib/jellyfin-ffmpeg/ffmpeg"), QStringLiteral("/usr/bin/ffmpeg"),
         QStringLiteral("/usr/local/bin/ffmpeg")};
     const QStringList ffprobeSearch{ffprobeOverride, env.value(QStringLiteral("FFPROBE_BIN")),
-        QDir(dir).filePath(ffprobeName), QDir(dir).filePath(QStringLiteral("bin/") + ffprobeName),
+        QDir(dir).filePath(ffprobeName), QDir(dir).filePath(QStringLiteral("tools/") + ffprobeName),
+        QDir(dir).filePath(QStringLiteral("bin/") + ffprobeName),
         QStringLiteral("/usr/lib/jellyfin-ffmpeg/ffprobe"), QStringLiteral("/usr/bin/ffprobe"),
-        QStringLiteral("/usr/local/bin/ffprobe")};    const QStringList ffsplitSearch{ffsplitOverride,
+        QStringLiteral("/usr/local/bin/ffprobe")};
+    const QStringList ffsplitSearch{ffsplitOverride,
         QDir(dir).filePath(QStringLiteral("bin/") + ffsplitName)};
     Executables result;
     result.ffmpeg = locate(ffmpegName, ffmpegSearch);

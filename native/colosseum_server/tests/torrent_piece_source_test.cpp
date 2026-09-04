@@ -49,7 +49,8 @@ std::vector<char> makePayload()
 
 std::shared_ptr<lt::torrent_info> makeTorrent(
     const std::vector<char> &payload,
-    const std::filesystem::path &root)
+    const std::filesystem::path &root,
+    const lt::create_flags_t flags = lt::create_torrent::v1_only)
 {
     std::filesystem::create_directories(root / "seed");
     std::ofstream file(root / "seed" / "payload.bin",
@@ -62,7 +63,7 @@ std::shared_ptr<lt::torrent_info> makeTorrent(
     lt::file_storage files;
     files.add_file("payload.bin", static_cast<std::int64_t>(payload.size()));
     lt::create_torrent creator(files, static_cast<int>(BlockSize),
-                                lt::create_torrent::v1_only);
+                                flags);
     lt::set_piece_hashes(creator, (root / "seed").string());
     const auto encoded = creator.generate_buf();
     lt::error_code error;
@@ -87,16 +88,19 @@ lt::session_params sessionParams()
 class Fixture final
 {
 public:
-    Fixture()
+    explicit Fixture(const lt::create_flags_t flags = lt::create_torrent::v1_only)
         : payload_(makePayload()),
           root_(std::filesystem::temp_directory_path()
                 / ("colosseum-arc44-piece-source-"
                    + std::to_string(std::chrono::steady_clock::now()
                                        .time_since_epoch().count()))),
-          info_(makeTorrent(payload_, root_)),
+          info_(makeTorrent(payload_, root_, flags)),
           seed_(sessionParams()),
           client_(sessionParams())
     {
+        if (flags == lt::create_torrent::v2_only)
+            require(info_->v2() && !info_->v1(),
+                    "v2-only fixture metadata must be v2-only");
         std::filesystem::create_directories(root_ / "client");
         lt::error_code error;
         lt::add_torrent_params seedParams;
@@ -238,12 +242,51 @@ void testFileStreamDestroyCancelsTorrentWait()
             "destroy must release the real source piece lock");
 }
 
+void testV2OnlyPieceRead()
+{
+    Fixture fixture(lt::create_torrent::v2_only);
+    const auto peer = std::string("127.0.0.1:")
+        + std::to_string(fixture.seedSession().listen_port());
+    LibtorrentBlockTransport transport(fixture.clientHandle());
+    TorrentPieceSource source(fixture.clientHandle());
+    fixture.onlyClientPiece(0);
+
+    bool received = false;
+    transport.requestBlock(peer, WireBlock{0, 0, BlockSize},
+        [&](std::error_code error, std::vector<std::byte> bytes) {
+            require(!error && bytes.size() == BlockSize,
+                    "v2-only piece request failed");
+            received = true;
+        });
+    require(waitFor([&] {
+        transport.pumpResults();
+        return received && fixture.clientHandle().have_piece(lt::piece_index_t{0});
+    }, 10000), "v2-only piece did not become verified");
+
+    std::error_code error;
+    std::vector<std::byte> bytes;
+    bool read = false;
+    source.readPiece(0, [&](std::error_code readError,
+                            std::vector<std::byte> readBytes) {
+        error = readError;
+        bytes = std::move(readBytes);
+        read = true;
+    });
+    require(read && !error && bytes.size() == BlockSize,
+            "v2-only source must read an exact verified piece");
+    for (std::size_t i = 0; i < bytes.size(); ++i)
+        require(bytes[i] == std::byte{
+                     static_cast<unsigned char>(fixture.payload()[i])},
+                "v2-only source block bytes mismatch");
+}
+
 } // namespace
 
 int main()
 {
     testRealPieceReadAndFinalShortPiece();
     testFileStreamDestroyCancelsTorrentWait();
+    testV2OnlyPieceRead();
     std::puts("TORRENT_PIECE_SOURCE_OK");
     return 0;
 }

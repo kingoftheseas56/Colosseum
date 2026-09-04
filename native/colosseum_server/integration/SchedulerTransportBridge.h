@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <system_error>
@@ -38,6 +39,14 @@ public:
     void retirePeer(const std::string &peerId);
     void pump();
 
+    // Manual libtorrent transports need an initial request to provoke the
+    // remote unchoke after sending interest. Other transports retain the
+    // scheduler's normal unchoked-only behavior by default.
+    void setAllowChokedBootstrap(bool enabled) noexcept
+    {
+        allowChokedBootstrap_ = enabled;
+    }
+
     void setCompletedObserver(CompletedObserver observer)
     {
         completedObserver_ = std::move(observer);
@@ -62,6 +71,8 @@ private:
     std::set<std::string> peerIds_;
     std::map<std::uint64_t, ActiveRequest> active_;
     CompletedObserver completedObserver_;
+    bool allowChokedBootstrap_ = false;
+    std::shared_ptr<int> lifetime_ = std::make_shared<int>(0);
 };
 
 } // namespace colosseum::server::integration

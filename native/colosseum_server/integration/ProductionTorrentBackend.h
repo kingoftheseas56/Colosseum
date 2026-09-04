@@ -8,6 +8,7 @@
 #include "torrent_http/TorrentHttpSurface.h"
 
 #include <QByteArray>
+#include <QHash>
 #include <QJsonObject>
 #include <QObject>
 
@@ -21,6 +22,10 @@ class TorrentEngine;
 namespace colosseum::server::integration {
 
 namespace EngineFs = ::Colosseum::Server::EngineFs;
+
+struct PiecePriorityLease;
+struct PiecePriorityState;
+class LibtorrentBlockTransport;
 
 // Production adapter for the already-owned libtorrent engine. W07 sees only
 // the narrow HTTP backend; W02/W03 and W06 share the same engine records and
@@ -89,13 +94,21 @@ private:
     struct EngineBackend;
 
     QString savePathFor(const QString &lowerInfoHash) const;
-    bool ensureRecord(const QString &lowerInfoHash, QString *error);
+    bool ensureRecord(const QString &lowerInfoHash,
+                      const QJsonObject &effectiveOptions,
+                      QString *error);
+    void applyPeerSearchSources(const QString &lowerInfoHash,
+                                const QJsonObject &effectiveOptions);
     QVector<torrent_http::TorrentFileView> fileViews(const QString &lowerInfoHash) const;
     EngineFs::EngineFsBackendSnapshot snapshot(const QString &lowerInfoHash) const;
     void notifyReady(const QString &lowerInfoHash);
     void notifyError(const QString &lowerInfoHash, const QString &error);
     std::shared_ptr<EngineBackend> backendFor(const QString &lowerInfoHash) const;
     void removeBackend(const QString &lowerInfoHash, const EngineBackend *backend);
+    std::shared_ptr<LibtorrentBlockTransport> blockTransportFor(
+        const QString &lowerInfoHash);
+    std::shared_ptr<PiecePriorityLease> acquirePiecePriorityLease(
+        const QString &lowerInfoHash);
 
     QString cacheDirectory_;
     server::ServerSettings &settings_;
@@ -104,6 +117,8 @@ private:
     EngineFs::EngineFsControlPlane *controlPlane_ = nullptr;
     mutable std::mutex mutex_;
     QHash<QString, std::shared_ptr<EngineBackend>> backends_;
+    QHash<QString, std::shared_ptr<LibtorrentBlockTransport>> blockTransports_;
+    QHash<QString, std::shared_ptr<PiecePriorityState>> priorityLeases_;
     QHash<QString, QVector<ReadyCallback>> readyCallbacks_;
     bool started_ = false;
 };

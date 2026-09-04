@@ -21,6 +21,9 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # so the shipped exe is reproducible from the release tag. Defaults to the daily dir for
 # local smoke-packaging only.
 BUILD_DIR="${BUILD_DIR:-$REPO/native/build-msvc}"
+# The native server's media routes invoke these tools directly. The release must
+# name the exact directory being shipped so a developer PATH cannot mask a gap.
+MEDIA_TOOLS_DIR="${MEDIA_TOOLS_DIR:-$BUILD_DIR/tools}"
 MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
 DIST="$REPO/dist"
 STAGE="$DIST/stage"
@@ -39,6 +42,8 @@ fi
 
 [ -x "$MAKENSIS" ] || { echo "makensis not found at $MAKENSIS"; exit 1; }
 [ -f "$BUILD_DIR/colosseum.exe" ] || { echo "build missing: $BUILD_DIR/colosseum.exe"; exit 1; }
+[ -f "$MEDIA_TOOLS_DIR/ffmpeg.exe" ] || { echo "media tool missing: $MEDIA_TOOLS_DIR/ffmpeg.exe"; exit 1; }
+[ -f "$MEDIA_TOOLS_DIR/ffprobe.exe" ] || { echo "media tool missing: $MEDIA_TOOLS_DIR/ffprobe.exe"; exit 1; }
 [ -f "$BUILD_DIR/CMakeCache.txt" ] || { echo "clean CMake build cache missing: $BUILD_DIR/CMakeCache.txt"; exit 1; }
 grep -Eq '^CMAKE_BUILD_TYPE:STRING=Release$' "$BUILD_DIR/CMakeCache.txt" \
   || { echo "BUILD_DIR is not a Release build: $BUILD_DIR"; exit 1; }
@@ -66,6 +71,11 @@ git -C "$REPO" archive --format=tar HEAD | tar -x -C "$STAGE"
 echo "[3/6] overlay windeployqt runtime from $BUILD_DIR"
 mkdir -p "$STAGE/native/build-msvc"
 cp -r "$BUILD_DIR/." "$STAGE/native/build-msvc/"
+# Overlay the explicitly selected media tool directory after the build copy. This
+# permits a clean build tree to remain compiler-only while the package still carries
+# ffmpeg/ffprobe and any sibling DLLs required by that exact media build.
+mkdir -p "$STAGE/native/build-msvc/tools"
+cp -r "$MEDIA_TOOLS_DIR/." "$STAGE/native/build-msvc/tools/"
 # Felt-speed runtime sentinels: an installer without these files is not shippable.
 for sentinel in \
   "$STAGE/native/build-msvc/colosseum.exe" \

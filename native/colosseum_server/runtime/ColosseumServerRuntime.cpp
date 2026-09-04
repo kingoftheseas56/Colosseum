@@ -15,6 +15,7 @@
 #include "torrent_http/TorrentHttpSurface.h"
 
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonObject>
@@ -155,10 +156,12 @@ struct ColosseumServerRuntime::Impl final
         , router(router)
     {
         torrent.setControlPlane(&engineFs);
+        routeDependencies = std::shared_ptr<integration::FeatureRouteDependencies>(
+            &torrentDependencies, [](integration::FeatureRouteDependencies *) {});
     }
 
     bool mount(const ColosseumServerRuntimeOptions &options,
-               const QUrl &httpUrl, QString *error)
+               const QUrl &httpUrl, const QUrl &httpsUrl, QString *error)
     {
         if (!QDir().mkpath(QFileInfo(settings.settingsFilePath()).absolutePath())) {
             if (error)
@@ -175,15 +178,18 @@ struct ColosseumServerRuntime::Impl final
             return false;
 
         const quint16 httpPort = static_cast<quint16>(httpUrl.port(options.httpPort));
+        const int boundHttpsPort = httpsUrl.isValid()
+            ? httpsUrl.port(options.httpsPort)
+            : static_cast<int>(options.httpsPort);
         torrentDependencies.media.loopbackBaseUrl = httpUrl;
         torrentDependencies.networkApp.encrypted = false;
         torrentDependencies.networkApp.localPort = httpPort;
         torrentDependencies.networkApp.engineUrl = httpUrl.toString();
         localAddon.setEngineUrl(httpUrl.toString());
 
-        network = std::make_unique<app::NetworkRouteService>(
+        network = std::make_shared<app::NetworkRouteService>(
             certificates, interfaces, profiler,
-            static_cast<int>(httpPort), static_cast<int>(options.httpsPort),
+            static_cast<int>(httpPort), boundHttpsPort,
             options.webUiLocation);
 
         torrentDependencies.media.executables = executables;
@@ -221,6 +227,7 @@ struct ColosseumServerRuntime::Impl final
         torrentDependencies.networkApp.casting = &casting;
         torrentDependencies.networkApp.localAddon = &localAddon;
         torrentDependencies.networkApp.network = network.get();
+        torrentDependencies.networkApp.networkLifetime = network;
         torrentDependencies.remoteArchive.archives = &archives;
         torrentDependencies.remoteArchive.ftp = &ftp;
         torrentDependencies.remoteArchive.nzb = &nzb;
@@ -231,7 +238,7 @@ struct ColosseumServerRuntime::Impl final
                 return applyCorsHeaders(request, response);
             });
             integration::mountTorrentRoutes(*router, torrentSurface, torrent);
-            integration::mountFeatureRoutes(*router, torrentDependencies);
+            integration::mountFeatureRoutes(*router, routeDependencies);
             routesMounted = true;
         }
         return true;
@@ -265,8 +272,9 @@ struct ColosseumServerRuntime::Impl final
     Remote::ArchiveService archives;
     Remote::FtpService ftp;
     Remote::NzbService nzb;
-    std::unique_ptr<app::NetworkRouteService> network;
+    std::shared_ptr<app::NetworkRouteService> network;
     integration::FeatureRouteDependencies torrentDependencies;
+    std::shared_ptr<integration::FeatureRouteDependencies> routeDependencies;
     std::shared_ptr<HttpRouter> router;
     bool routesMounted = false;
 };
@@ -274,7 +282,7 @@ struct ColosseumServerRuntime::Impl final
 ColosseumServerRuntime::ColosseumServerRuntime(ColosseumServerRuntimeOptions options)
     : options_(std::move(options))
     , router_(std::make_shared<HttpRouter>())
-    , impl_(std::make_unique<Impl>(options_, router_))
+    , impl_(std::make_shared<Impl>(options_, router_))
     , http_(router_)
     , https_(router_)
 {
@@ -283,6 +291,9 @@ ColosseumServerRuntime::ColosseumServerRuntime(ColosseumServerRuntimeOptions opt
 ColosseumServerRuntime::~ColosseumServerRuntime()
 {
     stop();
+    if (impl_)
+        integration::AsyncMediaExecutor::retainUntilIdle(
+            std::static_pointer_cast<void>(std::move(impl_)));
 }
 
 bool ColosseumServerRuntime::start()
@@ -320,7 +331,7 @@ bool ColosseumServerRuntime::start()
         }
     }
 
-    if (!impl_->mount(options_, http_.boundUrl(), &lastError_)) {
+    if (!impl_->mount(options_, http_.boundUrl(), https_.boundUrl(), &lastError_)) {
         https_.stop();
         http_.stop();
         impl_->torrent.stop();
@@ -341,7 +352,8 @@ void ColosseumServerRuntime::stop()
     // still be unwinding on the global pool. Keep the service graph alive
     // until every native job has returned.
     if (!integration::AsyncMediaExecutor::waitForIdle(30000))
-        integration::AsyncMediaExecutor::waitForIdle(-1);
+        qWarning("ColosseumServerRuntime stopped with native route work still unwinding; "
+                 "the service graph will be retired after the executor drains");
     running_ = false;
 }
 

@@ -140,3 +140,8 @@ add_executable(async_media_executor_lifecycle_test
 target_link_libraries(async_media_executor_lifecycle_test PRIVATE
     colosseum_server_native Qt6::Test)
 add_test(NAME async_media_executor_lifecycle_test COMMAND async_media_executor_lifecycle_test)
+
+add_executable(media_executable_locator_test
+    media_executable_locator_test.cpp)
+target_link_libraries(media_executable_locator_test PRIVATE colosseum_server_native)
+add_test(NAME media_executable_locator_test COMMAND media_executable_locator_test)

@@ -37,6 +37,12 @@ public:
     // consumer) calls this after libtorrent has marked the piece verified.
     void notifyPieceFinished(std::size_t piece);
 
+    // W06 hands over the assembled bytes after libtorrent reports the same
+    // piece as verified. This closes the disk-writer visibility window where
+    // have_piece() can become true before a synchronous QFile read observes
+    // the newly flushed bytes.
+    void provideVerifiedPiece(std::size_t piece, std::vector<std::byte> bytes);
+
 private:
     struct State;
     struct ReadState;
@@ -47,6 +53,12 @@ private:
         const std::shared_ptr<State> &state,
         const scheduler::WireBlock &block,
         std::error_code &error);
+    static std::vector<std::byte> readVerifiedPiece(
+        const std::shared_ptr<State> &state,
+        std::size_t piece,
+        std::error_code &error);
+    static void consumeProvidedPiece(const std::shared_ptr<State> &state,
+                                     std::size_t piece);
     static void onReadReady(const std::shared_ptr<State> &state,
                             const std::shared_ptr<ReadState> &read,
                             std::error_code error);

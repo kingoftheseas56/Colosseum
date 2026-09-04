@@ -325,6 +325,7 @@ ProxyFetchResponse QtProxyTransport::fetch(const ProxyFetchRequest &request,
 
     QNetworkAccessManager manager;
     QNetworkRequest networkRequest(request.url);
+    networkRequest.setTransferTimeout(30000);
     networkRequest.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                                 QNetworkRequest::ManualRedirectPolicy);
     for (const auto &header : request.headers)
@@ -968,6 +969,7 @@ QJsonObject QtCertificateTransport::request(const QUrl &endpoint, const QJsonObj
 {
     QNetworkAccessManager manager;
     QNetworkRequest request(endpoint);
+    request.setTransferTimeout(15000);
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     QNetworkReply *reply = manager.post(request,
         QJsonDocument(payload).toJson(QJsonDocument::Compact));

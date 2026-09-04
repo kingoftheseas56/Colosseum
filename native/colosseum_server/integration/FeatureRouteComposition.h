@@ -10,6 +10,7 @@
 #include <QUrl>
 
 #include <functional>
+#include <memory>
 
 namespace colosseum::server::integration {
 
@@ -38,6 +39,7 @@ struct NetworkAppRouteDependencies final
     app::CastingService *casting = nullptr;
     app::LocalAddonService *localAddon = nullptr;
     app::NetworkRouteService *network = nullptr;
+    std::shared_ptr<app::NetworkRouteService> networkLifetime;
     bool encrypted = false;
     quint16 localPort = 0;
     QString engineUrl{QStringLiteral("http://127.0.0.1:11470")};
@@ -60,5 +62,7 @@ struct FeatureRouteDependencies final
 
 void mountFeatureRoutes(server::HttpRouter &router,
                         const FeatureRouteDependencies &dependencies);
+void mountFeatureRoutes(server::HttpRouter &router,
+                        const std::shared_ptr<FeatureRouteDependencies> &dependencies);
 
 } // namespace colosseum::server::integration

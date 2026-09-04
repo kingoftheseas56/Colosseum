@@ -53,7 +53,7 @@ private:
 
     ColosseumServerRuntimeOptions options_;
     std::shared_ptr<HttpRouter> router_;
-    std::unique_ptr<Impl> impl_;
+    std::shared_ptr<Impl> impl_;
     ColosseumServer http_;
     ColosseumServer https_;
     bool running_ = false;

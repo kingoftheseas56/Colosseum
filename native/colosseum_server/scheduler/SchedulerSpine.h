@@ -196,7 +196,11 @@ public:
     void upsertPeer(PeerState peer);
     [[nodiscard]] PeerState *peer(const std::string &id) noexcept;
     [[nodiscard]] const PeerState *peer(const std::string &id) const noexcept;
-    std::vector<OutstandingRequest> updatePeerRequests(const std::string &peerId);
+    // A transport may opt into one bootstrap request while a peer is still
+    // choking us. This lets the transport send the interested handshake; the
+    // default preserves the normal unchoked-only scheduler policy.
+    std::vector<OutstandingRequest> updatePeerRequests(
+        const std::string &peerId, bool allowChoked = false);
     std::optional<CompletedPiece> completeRequest(
         std::uint64_t requestId,
         const std::vector<std::byte> &data);
