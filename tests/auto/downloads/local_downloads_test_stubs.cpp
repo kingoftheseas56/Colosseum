@@ -1,3 +1,4 @@
+#include "account/DownloadIntentStore.h"
 #include "engine/BookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/MangaDownloader.h"
@@ -63,6 +64,8 @@ QVariantMap ComicDownloader::deleteIssue(const QString&) { return {}; }
 QVariantMap ComicDownloader::packVolumes(const QString&) const { return {}; }
 void ComicDownloader::selfTest(const QString&) {}
 void ComicDownloader::runPackSelfTest(const QString&) {}
+
+QVariantList DownloadIntentStore::records() const { return {}; }
 
 DownloadStore::DownloadStore(QObject* parent) : QObject(parent) {}
 DownloadStore::~DownloadStore() = default;

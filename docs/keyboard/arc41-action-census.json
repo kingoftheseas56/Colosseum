@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedFrom": "qml",
-  "filesScanned": 278,
+  "filesScanned": 281,
   "pointerTypes": [
     "ComicReaderKeyboardArea",
     "DragHandler",
@@ -12,7 +12,7 @@
     "WheelHandler"
   ],
   "stats": {
-    "COVERED": 549,
+    "COVERED": 551,
     "DELEGATED": 128,
     "EXCEPTION": 93
   },
@@ -824,7 +824,7 @@
     },
     {
       "file": "qml/Bookshelf.qml",
-      "line": 52,
+      "line": 55,
       "pointer_type": "HoverHandler",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -836,7 +836,7 @@
     },
     {
       "file": "qml/Bookshelf.qml",
-      "line": 134,
+      "line": 142,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "f.activated(card.index)",
@@ -848,7 +848,7 @@
     },
     {
       "file": "qml/Bookshelf.qml",
-      "line": 148,
+      "line": 156,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "shelf.clicked()",
@@ -1088,7 +1088,7 @@
     },
     {
       "file": "qml/CarouselSlide.qml",
-      "line": 123,
+      "line": 135,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "slideRoot.primaryClicked() }",
@@ -1100,7 +1100,7 @@
     },
     {
       "file": "qml/CarouselSlide.qml",
-      "line": 139,
+      "line": 153,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "slideRoot.secondaryClicked() }",
@@ -1124,7 +1124,7 @@
     },
     {
       "file": "qml/CataloguePosterCard.qml",
-      "line": 274,
+      "line": 283,
       "pointer_type": "HoverHandler",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -1136,7 +1136,7 @@
     },
     {
       "file": "qml/CataloguePosterCard.qml",
-      "line": 275,
+      "line": 284,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "card.activated(card.item) // skeletons are disabled -> never activate",
@@ -1688,7 +1688,7 @@
     },
     {
       "file": "qml/ContinueTile.qml",
-      "line": 269,
+      "line": 278,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tile.detailRequested()",
@@ -1700,7 +1700,7 @@
     },
     {
       "file": "qml/ContinueTile.qml",
-      "line": 328,
+      "line": 337,
       "pointer_type": "HoverHandler",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -1712,7 +1712,7 @@
     },
     {
       "file": "qml/ContinueTile.qml",
-      "line": 329,
+      "line": 338,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tile.resumeRequested() }",
@@ -1724,7 +1724,7 @@
     },
     {
       "file": "qml/ContinueTile.qml",
-      "line": 352,
+      "line": 361,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tile.removeRequested() }",
@@ -1736,7 +1736,7 @@
     },
     {
       "file": "qml/ContinueTile.qml",
-      "line": 407,
+      "line": 416,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tile.activateKeyboardContext(index) }",
@@ -2324,7 +2324,7 @@
     },
     {
       "file": "qml/FeaturedCarousel.qml",
-      "line": 68,
+      "line": 105,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "view.currentIndex = index",
@@ -2564,7 +2564,7 @@
     },
     {
       "file": "qml/KeyboardAction.qml",
-      "line": 70,
+      "line": 77,
       "pointer_type": "HoverHandler",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -2576,7 +2576,7 @@
     },
     {
       "file": "qml/KeyboardAction.qml",
-      "line": 76,
+      "line": 83,
       "pointer_type": "TapHandler",
       "gesture": "onTapped",
       "description": "action.activate(Qt.MouseFocusReason)",
@@ -2588,7 +2588,7 @@
     },
     {
       "file": "qml/KeyboardAction.qml",
-      "line": 83,
+      "line": 90,
       "pointer_type": "TapHandler",
       "gesture": "onTapped",
       "description": "action.requestContext(Qt.MouseFocusReason)",
@@ -2768,31 +2768,31 @@
     },
     {
       "file": "qml/Main.qml",
-      "line": 2718,
+      "line": 2812,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "win.openUniverse(slide.modelData.extensionId,",
-      "owner": "file-level Keys. owner",
-      "classification": "DELEGATED",
+      "owner": "nearby KeyboardAction owner",
+      "classification": "COVERED",
       "evidence": [
-        "file:Keys."
+        "nearby:KeyboardAction"
       ]
     },
     {
       "file": "qml/Main.qml",
-      "line": 2760,
+      "line": 2864,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "win.openUniverseHall()",
-      "owner": "file-level Keys. owner",
-      "classification": "DELEGATED",
+      "owner": "nearby KeyboardAction owner",
+      "classification": "COVERED",
       "evidence": [
-        "file:Keys."
+        "nearby:KeyboardAction"
       ]
     },
     {
       "file": "qml/Main.qml",
-      "line": 4084,
+      "line": 4196,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "openRecentPanel.open = false",
@@ -2804,14 +2804,14 @@
     },
     {
       "file": "qml/Main.qml",
-      "line": 4190,
+      "line": 4302,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ localLaunchToast.opacity = 0; openMediaDialog.open() }",
-      "owner": "file-level Keys. owner",
+      "owner": "file-level KeyboardAction owner",
       "classification": "DELEGATED",
       "evidence": [
-        "file:Keys."
+        "file:KeyboardAction"
       ]
     },
     {
@@ -3788,7 +3788,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 3809,
+      "line": 3838,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "function(mouse) { // Right-click = More controls at the cursor (native-player convention, // Hemanth 2026-07-18) \u2014 the \u22ef button it replaces is gone from the bar. if (mouse.button === Qt.RightButton) { root.openContextMenu(mapToItem(chrome, mouse.x, mouse.y)) return } // A click that only dismisses an open menu must NOT also toggle play/pause. if (root.anyMen",
@@ -3800,7 +3800,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 3809,
+      "line": 3838,
       "pointer_type": "MouseArea",
       "gesture": "onEntered",
       "description": "function(drag) { root.wakeChrome() }",
@@ -3812,7 +3812,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 3809,
+      "line": 3838,
       "pointer_type": "MouseArea",
       "gesture": "onPositionChanged",
       "description": "root.wakeChrome()",
@@ -3824,7 +3824,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 3809,
+      "line": 3838,
       "pointer_type": "MouseArea",
       "gesture": "onPressed",
       "description": "function(event) { root.handlePlayerHotkey(event) }",
@@ -3836,7 +3836,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 3809,
+      "line": 3838,
       "pointer_type": "MouseArea",
       "gesture": "onReleased",
       "description": "function(event) { if (event.key !== Qt.Key_Space) return event.accepted = true if (event.isAutoRepeat) return if (spaceHoldTimer.running) spaceHoldTimer.stop() if (root.spaceHoldFired) mpv.speed = root.spaceBaseSpeed else root.togglePlayPause() }",
@@ -3848,7 +3848,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 3809,
+      "line": 3838,
       "pointer_type": "MouseArea",
       "gesture": "onWheel",
       "description": "function(event) { root.adjustVolume(event.angleDelta.y > 0 ? 5 : -5) }",
@@ -3860,7 +3860,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 3837,
+      "line": 3866,
       "pointer_type": "WheelHandler",
       "gesture": "onWheel",
       "description": "function(event) { root.adjustVolume(event.angleDelta.y > 0 ? 5 : -5) }",
@@ -3872,7 +3872,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4047,
+      "line": 4076,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{}",
@@ -3884,7 +3884,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4107,
+      "line": 4136,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -3896,7 +3896,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4148,
+      "line": 4177,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.closeConfirmOpen = false",
@@ -3908,7 +3908,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4179,
+      "line": 4208,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ root.closeConfirmOpen = false root.closeRequested() }",
@@ -3920,7 +3920,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4246,
+      "line": 4275,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -3932,7 +3932,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4324,
+      "line": 4353,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.activateOverflowKind(modelData.kind)",
@@ -3944,7 +3944,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4362,
+      "line": 4391,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -3956,7 +3956,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4478,
+      "line": 4507,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.switchLiveChannel(modelData)",
@@ -3968,7 +3968,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4513,
+      "line": 4542,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -3980,7 +3980,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4701,
+      "line": 4730,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -3992,7 +3992,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4785,
+      "line": 4814,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "mpv.revealCaptureFolder(root.frameGrabPath)",
@@ -4004,7 +4004,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4855,
+      "line": 4884,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.stopGifRecording()",
@@ -4016,7 +4016,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4870,
+      "line": 4899,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.abortGifRecording()",
@@ -4028,7 +4028,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4950,
+      "line": 4979,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.performSegmentSkip(skipPill.activeSkip)",
@@ -4040,7 +4040,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4977,
+      "line": 5006,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -4052,7 +4052,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5050,
+      "line": 5079,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.cancelUpNext()",
@@ -4064,7 +4064,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5074,
+      "line": 5103,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.confirmUpNext()",
@@ -4076,7 +4076,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5408,
+      "line": 5437,
       "pointer_type": "MouseArea",
       "gesture": "onEntered",
       "description": "{ seekBar.hovered = true; root.wakeChrome(); root.requestSeekThumb() }",
@@ -4088,7 +4088,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5408,
+      "line": 5437,
       "pointer_type": "MouseArea",
       "gesture": "onExited",
       "description": "{ seekBar.hovered = false if (!root.seeking) root.seekPreview = mpv.position }",
@@ -4100,7 +4100,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5408,
+      "line": 5437,
       "pointer_type": "MouseArea",
       "gesture": "onPositionChanged",
       "description": "{ root.seekPreview = root.previewAt(mouseX, width) root.wakeChrome() root.requestSeekThumb() }",
@@ -4112,7 +4112,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5408,
+      "line": 5437,
       "pointer_type": "MouseArea",
       "gesture": "onPressed",
       "description": "{ root.seeking = true root.seekPreview = root.previewAt(mouseX, width) root.wakeChrome() }",
@@ -4124,7 +4124,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5408,
+      "line": 5437,
       "pointer_type": "MouseArea",
       "gesture": "onReleased",
       "description": "{ root.requestUserSeekTo(root.seekPreview) root.seeking = false }",
@@ -4136,7 +4136,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5488,
+      "line": 5517,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.showRemaining = !root.showRemaining",
@@ -4148,7 +4148,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5775,
+      "line": 5804,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "rcb.clicked()",
@@ -4160,7 +4160,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5817,
+      "line": 5846,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "rab.clicked()",
@@ -4172,7 +4172,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5874,
+      "line": 5903,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "rb.clicked()",
@@ -4184,7 +4184,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5874,
+      "line": 5903,
       "pointer_type": "MouseArea",
       "gesture": "onEntered",
       "description": "root.wakeChrome()",
@@ -4196,7 +4196,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5939,
+      "line": 5968,
       "pointer_type": "MouseArea",
       "gesture": "onEntered",
       "description": "root.wakeChrome()",
@@ -4208,7 +4208,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5939,
+      "line": 5968,
       "pointer_type": "MouseArea",
       "gesture": "onPositionChanged",
       "description": "if (pressed) apply()",
@@ -4220,7 +4220,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 5939,
+      "line": 5968,
       "pointer_type": "MouseArea",
       "gesture": "onPressed",
       "description": "apply()",
@@ -4232,7 +4232,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6073,
+      "line": 6102,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ menu.offPicked() menu.panelOpen = false }",
@@ -4244,7 +4244,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6134,
+      "line": 6163,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ menu.trackPicked(\"\" + modelData.id) menu.panelOpen = false }",
@@ -4256,7 +4256,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6284,
+      "line": 6313,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -4268,7 +4268,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6375,
+      "line": 6404,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "parent.choose()",
@@ -4280,7 +4280,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6433,
+      "line": 6462,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "parent.choose()",
@@ -4292,7 +4292,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6463,
+      "line": 6492,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ root.cancelSleepTimer() sm.panelOpen = false }",
@@ -4304,7 +4304,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6526,
+      "line": 6555,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "playerSettings.seekStepSeconds = modelData",
@@ -4316,7 +4316,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6588,
+      "line": 6617,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.wakeChrome() }",
@@ -4328,7 +4328,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6640,
+      "line": 6669,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.applyFill(index)",
@@ -4340,7 +4340,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6671,
+      "line": 6700,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "db.clicked()",
@@ -4364,7 +4364,7 @@
     },
     {
       "file": "qml/ReadingDesk.qml",
-      "line": 56,
+      "line": 57,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "desk.clicked()",
@@ -4376,7 +4376,7 @@
     },
     {
       "file": "qml/ReadingDesk.qml",
-      "line": 82,
+      "line": 85,
       "pointer_type": "HoverHandler",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -4388,7 +4388,7 @@
     },
     {
       "file": "qml/ReadingDesk.qml",
-      "line": 139,
+      "line": 142,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "desk.clicked()",
@@ -4400,7 +4400,7 @@
     },
     {
       "file": "qml/ReadingDesk.qml",
-      "line": 190,
+      "line": 193,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ genreFlow.currentIndex = parent.index genreFlow.forceActiveFocus(Qt.MouseFocusReason) desk.genrePicked(parent.modelData.name) }",
@@ -4412,10 +4412,34 @@
     },
     {
       "file": "qml/ReadingDesk.qml",
-      "line": 239,
+      "line": 242,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "desk.clicked()",
+      "owner": "file-level KeyboardAction owner",
+      "classification": "DELEGATED",
+      "evidence": [
+        "file:KeyboardAction"
+      ]
+    },
+    {
+      "file": "qml/ReadingDesk.qml",
+      "line": 293,
+      "pointer_type": "MouseArea",
+      "gesture": "onClicked",
+      "description": "desk.clicked()",
+      "owner": "file-level KeyboardAction owner",
+      "classification": "DELEGATED",
+      "evidence": [
+        "file:KeyboardAction"
+      ]
+    },
+    {
+      "file": "qml/ReadingDesk.qml",
+      "line": 328,
+      "pointer_type": "MouseArea",
+      "gesture": "onClicked",
+      "description": "desk.genrePicked(parent.modelData.name)",
       "owner": "file-level KeyboardAction owner",
       "classification": "DELEGATED",
       "evidence": [
@@ -5180,7 +5204,7 @@
     },
     {
       "file": "qml/Taskbar.qml",
-      "line": 71,
+      "line": 112,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "fan.visible = false",
@@ -5192,7 +5216,7 @@
     },
     {
       "file": "qml/Taskbar.qml",
-      "line": 115,
+      "line": 156,
       "pointer_type": "HoverHandler",
       "gesture": "onHoveredChanged",
       "description": "if (hovered && bar.autoRevealed) idleTimer.restart()",
@@ -5204,7 +5228,7 @@
     },
     {
       "file": "qml/Taskbar.qml",
-      "line": 471,
+      "line": 516,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "bar.keyboardGuideClicked()",
@@ -5216,7 +5240,7 @@
     },
     {
       "file": "qml/Taskbar.qml",
-      "line": 598,
+      "line": 644,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "bar.closeRequested(tile.modelData.sessions[0].id)",
@@ -5228,7 +5252,7 @@
     },
     {
       "file": "qml/Taskbar.qml",
-      "line": 626,
+      "line": 672,
       "pointer_type": "HoverHandler",
       "gesture": "onHoveredChanged",
       "description": "if (hovered && bar.autoRevealed) idleTimer.restart()",
@@ -5240,7 +5264,7 @@
     },
     {
       "file": "qml/Taskbar.qml",
-      "line": 720,
+      "line": 767,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ bar.closeRequested(modelData.id) fan.closeAndRestore() }",
@@ -5252,7 +5276,7 @@
     },
     {
       "file": "qml/Taskbar.qml",
-      "line": 731,
+      "line": 778,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ fanRow.activateSession() }",
@@ -5852,7 +5876,7 @@
     },
     {
       "file": "qml/TheatreStrip.qml",
-      "line": 66,
+      "line": 67,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "strip.clicked()",
@@ -5864,7 +5888,7 @@
     },
     {
       "file": "qml/TheatreStrip.qml",
-      "line": 96,
+      "line": 98,
       "pointer_type": "HoverHandler",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -5876,7 +5900,7 @@
     },
     {
       "file": "qml/TheatreStrip.qml",
-      "line": 158,
+      "line": 161,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "strip.clicked()",
@@ -5888,7 +5912,7 @@
     },
     {
       "file": "qml/TheatreTabBar.qml",
-      "line": 109,
+      "line": 117,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tabs.requestIndex(pill.index, Qt.MouseFocusReason)",
@@ -5900,7 +5924,7 @@
     },
     {
       "file": "qml/TheatreTabBar.qml",
-      "line": 139,
+      "line": 147,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tabs.requestIndex(0, Qt.MouseFocusReason) }",
@@ -5912,7 +5936,7 @@
     },
     {
       "file": "qml/TheatreTabBar.qml",
-      "line": 146,
+      "line": 154,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tabs.requestIndex(1, Qt.MouseFocusReason) }",
@@ -5924,7 +5948,7 @@
     },
     {
       "file": "qml/TheatreTabBar.qml",
-      "line": 153,
+      "line": 161,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tabs.requestIndex(2, Qt.MouseFocusReason) }",
@@ -5936,7 +5960,7 @@
     },
     {
       "file": "qml/TheatreTabBar.qml",
-      "line": 160,
+      "line": 168,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tabs.requestIndex(3, Qt.MouseFocusReason) }",
@@ -5948,7 +5972,7 @@
     },
     {
       "file": "qml/TheatreTabBar.qml",
-      "line": 167,
+      "line": 175,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tabs.requestIndex(4, Qt.MouseFocusReason) }",
@@ -6572,7 +6596,7 @@
     },
     {
       "file": "qml/VaultHomeWidget.qml",
-      "line": 377,
+      "line": 381,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "vault.clicked()",
@@ -6656,7 +6680,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 896,
+      "line": 902,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "if (modelData.path) root.openMediaRequested(modelData.path)",
@@ -6668,7 +6692,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 924,
+      "line": 930,
       "pointer_type": "MouseArea",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -6680,7 +6704,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1056,
+      "line": 1062,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.addFolderRequested()",
@@ -6692,7 +6716,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1341,
+      "line": 1349,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "searchInput.forceActiveFocus() }",
@@ -6704,7 +6728,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1372,
+      "line": 1380,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.openSearch()",
@@ -6716,7 +6740,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1417,
+      "line": 1426,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.toggleFilterMenu(false)",
@@ -6728,7 +6752,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1461,
+      "line": 1471,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.toggleSortMenu(false)",
@@ -6740,7 +6764,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1532,
+      "line": 1543,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "(mouse) => { if (mouse.button === Qt.RightButton) root.openCardContextMenu(parent.row) }",
@@ -6752,7 +6776,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1546,
+      "line": 1558,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "(mouse) => { if (mouse.button === Qt.RightButton) root.openCardContextMenu(parent.row) }",
@@ -6764,7 +6788,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1728,
+      "line": 1740,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.sortMenuOpen = false }",
@@ -6776,7 +6800,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1770,
+      "line": 1782,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "{ root.browseSettings_setSort(sortMenuItem.modelData.mode) root.sortMenuOpen = false }",
@@ -6788,7 +6812,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1809,
+      "line": 1821,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.filterMenuOpen = false }",
@@ -6800,7 +6824,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1849,
+      "line": 1861,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "chip.picked()",
@@ -6812,7 +6836,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1955,
+      "line": 1967,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.resetFilters()",
@@ -6824,7 +6848,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 2051,
+      "line": 2063,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "if (typeof VaultLibrary !== \"undefined\") VaultLibrary.cancelScan()",
@@ -6836,7 +6860,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 2087,
+      "line": 2100,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.minimizeRequested() }",
@@ -6848,7 +6872,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 2092,
+      "line": 2105,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.fullscreenRequested() }",
@@ -6860,7 +6884,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 2097,
+      "line": 2110,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "root.closeRequested() }",
@@ -7232,7 +7256,7 @@
     },
     {
       "file": "qml/WorldPage.qml",
-      "line": 56,
+      "line": 109,
       "pointer_type": "MouseArea",
       "gesture": "capture-only",
       "description": "capture-only pointer surface",
@@ -7244,7 +7268,7 @@
     },
     {
       "file": "qml/WorldTabBar.qml",
-      "line": 116,
+      "line": 124,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "tabs.requestIndex(pill.index, Qt.MouseFocusReason)",
@@ -8475,7 +8499,7 @@
     },
     {
       "file": "qml/player2/controls/TransportBar.qml",
-      "line": 714,
+      "line": 712,
       "pointer_type": "MouseArea",
       "gesture": "onClicked",
       "description": "parent.choose()",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedFrom": "qml",
-  "filesScanned": 278,
+  "filesScanned": 281,
   "surfaceTypes": [
     "Flickable",
     "ListView",
@@ -11,9 +11,9 @@
     "PathView"
   ],
   "stats": {
-    "COVERED": 91,
-    "DELEGATED": 9,
-    "EXCEPTION": 31
+    "COVERED": 94,
+    "DELEGATED": 7,
+    "EXCEPTION": 30
   },
   "rows": [
     {
@@ -220,13 +220,14 @@
     },
     {
       "file": "qml/ContinueRow.qml",
-      "line": 46,
+      "line": 81,
       "surface_type": "Flickable",
       "owner": "local KeyboardCollectionController owns the scroll surface",
       "classification": "COVERED",
       "evidence": [
         "block:KeyboardCollectionController",
-        "block:Keys."
+        "block:Keys.",
+        "block:activeFocusOnTab"
       ]
     },
     {
@@ -410,7 +411,7 @@
     },
     {
       "file": "qml/FeaturedCarousel.qml",
-      "line": 22,
+      "line": 58,
       "surface_type": "SwipeView",
       "owner": "local Keys. owns the scroll surface",
       "classification": "COVERED",
@@ -485,32 +486,35 @@
     },
     {
       "file": "qml/Main.qml",
-      "line": 2587,
+      "line": 2617,
       "surface_type": "Flickable",
-      "owner": "pointer scroll surface has no independent semantic action",
-      "classification": "EXCEPTION",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
       "evidence": [
-        "pointer scroll surface; keyboard ownership is at the parent route"
+        "block:Keys.",
+        "block:activeFocusOnTab"
       ]
     },
     {
       "file": "qml/Main.qml",
-      "line": 2616,
+      "line": 2664,
       "surface_type": "Flickable",
-      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
-      "classification": "DELEGATED",
+      "owner": "local Keys. owns the scroll surface",
+      "classification": "COVERED",
       "evidence": [
-        "ScrollGlide"
+        "block:Keys.",
+        "block:activeFocusOnTab"
       ]
     },
     {
       "file": "qml/Main.qml",
-      "line": 2654,
+      "line": 2741,
       "surface_type": "SwipeView",
-      "owner": "ScrollGlide pointer mechanics delegated to the owning page",
-      "classification": "DELEGATED",
+      "owner": "nearby Keys. owns the scroll surface",
+      "classification": "COVERED",
       "evidence": [
-        "ScrollGlide"
+        "nearby:Keys.",
+        "nearby:activeFocusOnTab"
       ]
     },
     {
@@ -694,7 +698,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4433,
+      "line": 4462,
       "surface_type": "ListView",
       "owner": "local KeyboardCollectionController owns the scroll surface",
       "classification": "COVERED",
@@ -705,7 +709,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 4566,
+      "line": 4595,
       "surface_type": "ListView",
       "owner": "local KeyboardCollectionController owns the scroll surface",
       "classification": "COVERED",
@@ -716,7 +720,7 @@
     },
     {
       "file": "qml/PlayerPage.qml",
-      "line": 6085,
+      "line": 6114,
       "surface_type": "ListView",
       "owner": "pointer scroll surface has no independent semantic action",
       "classification": "EXCEPTION",
@@ -1042,7 +1046,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 943,
+      "line": 949,
       "surface_type": "Flickable",
       "owner": "local KeyboardScrollController owns the scroll surface",
       "classification": "COVERED",
@@ -1054,7 +1058,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1188,
+      "line": 1194,
       "surface_type": "ListView",
       "owner": "local KeyboardCollectionController owns the scroll surface",
       "classification": "COVERED",
@@ -1066,7 +1070,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1497,
+      "line": 1507,
       "surface_type": "ListView",
       "owner": "local KeyboardCollectionController owns the scroll surface",
       "classification": "COVERED",
@@ -1078,7 +1082,7 @@
     },
     {
       "file": "qml/VaultPage.qml",
-      "line": 1559,
+      "line": 1571,
       "surface_type": "GridView",
       "owner": "local Keys. owns the scroll surface",
       "classification": "COVERED",
@@ -1174,7 +1178,7 @@
     },
     {
       "file": "qml/WorldPage.qml",
-      "line": 85,
+      "line": 144,
       "surface_type": "Flickable",
       "owner": "ScrollGlide pointer mechanics delegated to the owning page",
       "classification": "DELEGATED",
