@@ -339,7 +339,8 @@ jobs:
           ccache --max-size=1G
 
       - name: Restore Linux compiler cache
-        uses: actions/cache@v4
+        id: restore-linux-ccache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ccache
           key: linux-ccache-v1-${{ runner.os }}-${{ github.sha }}
@@ -420,6 +421,13 @@ jobs:
 
       - name: Build Linux desktop and tests
         run: cmake --build "$COLOSSEUM_LINUX_BUILD" --parallel 2
+
+      - name: Save Linux compiler cache
+        if: always() && steps.restore-linux-ccache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: ${{ steps.restore-linux-ccache.outputs.cache-primary-key }}
 
       - name: Audit Linux CTest inventory
         run: |
