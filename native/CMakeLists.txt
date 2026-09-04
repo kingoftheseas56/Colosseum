@@ -656,6 +656,15 @@ if(NOT ANDROID)
 endif()
 
 if(ANDROID)
+    target_sources(colosseum PRIVATE
+        player/androidmedia3state.cpp
+        player/androidmedia3state.h
+        player/androidmedia3item.cpp
+        player/androidmedia3item.h
+        player/androidmedia3videonode.cpp
+        player/androidmedia3videonode.h
+        player/androidseekthumbnailer.h
+    )
     # Android deploys/scans a filtered QML tree. Keep desktop-only QML in source,
     # but never expose it to androiddeployqt/qmlimportscanner.
     set(COLOSSEUM_QML_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../qml")

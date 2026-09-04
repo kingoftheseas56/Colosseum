@@ -3679,6 +3679,41 @@ Item {
         }
     }
 
+    Column {
+        id: media3SubtitleOverlay
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.controlsShown ? 118 : 52
+        width: Math.min(parent.width * 0.86, 1180)
+        z: 24
+        spacing: 4
+        visible: root.supportsPlayerCapability("subtitleCueOverlay")
+                 && mpv.subtitleCues && mpv.subtitleCues.length > 0
+
+        Repeater {
+            model: root.supportsPlayerCapability("subtitleCueOverlay") ? mpv.subtitleCues : []
+            delegate: Item {
+                id: media3CueDelegate
+                required property var modelData
+                width: media3SubtitleOverlay.width
+                height: cueText.implicitHeight + 8
+                Text {
+                    id: cueText
+                    anchors.centerIn: parent
+                    width: parent.width
+                    text: String(media3CueDelegate.modelData && media3CueDelegate.modelData.text || "")
+                    color: "white"
+                    font.pixelSize: Math.max(18, Math.min(28, root.height * 0.032))
+                    font.weight: Font.DemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    style: Text.Outline
+                    styleColor: "#E0000000"
+                }
+            }
+        }
+    }
+
     Connections {
         target: typeof WatchPartySync !== "undefined" ? WatchPartySync : null
 

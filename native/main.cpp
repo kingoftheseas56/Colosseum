@@ -17,7 +17,9 @@
 #include <QNetworkRequest>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
+#if !defined(Q_OS_ANDROID)
 #include <QtWebEngineQuick/QtWebEngineQuick>
+#endif
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -89,7 +91,9 @@
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "engine/VaultForensics.h"
+#if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
+#endif
 #include "net/LoopbackPinProxy.h"
 #include "net/Ipv4PinStore.h"
 #include "net/PinProxyFactory.h"
@@ -110,8 +114,13 @@
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
+#if defined(Q_OS_ANDROID)
+#include "player/androidmedia3item.h"
+#include "player/androidseekthumbnailer.h"
+#else
 #include "player/mpvitem.h"
 #include "player/seekthumbnailer.h"
+#endif
 #include "player/powerstore.h"
 #include "player/roomstore.h"
 #include "watchparty/WatchPartyPlayerSync.h"
@@ -504,7 +513,9 @@ int main(int argc, char *argv[]) {
     // Not compiled in: there is nothing to boot, and the old player is the only engine present.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif
+#if !defined(Q_OS_ANDROID)
     QtWebEngineQuick::initialize();
+#endif
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
     // customize a control's contentItem/background — so HouseScrollBar's overrides were IGNORED
@@ -576,11 +587,15 @@ int main(int argc, char *argv[]) {
               qUtf8Printable(appDataMigration.logPath));
     }
 
-    // Shared QML binds to PlayerItem; desktop keeps MpvItem as the implementation.
-    // Android can register its native backend under the same neutral type name.
+    // Shared QML binds to PlayerItem; each host supplies its native playback engine.
+#if defined(Q_OS_ANDROID)
+    qmlRegisterType<AndroidMedia3Item>("Colosseum.Player", 1, 0, "PlayerItem");
+    qmlRegisterType<AndroidSeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+#else
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "PlayerItem");
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+#endif
 #ifdef COLOSSEUM_PLAYER2
     // The Player 2 backend, opt-in (build flag COLOSSEUM_PLAYER2_IN_APP). Registering the types costs
     // nothing at runtime — the engine is only constructed if QML instantiates Player2Page.
@@ -1112,6 +1127,7 @@ int main(int argc, char *argv[]) {
         }
         vaultVideoEnrichRerun = false;
         QList<VaultIndex::FileRow> todo;
+#if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
@@ -1179,12 +1195,14 @@ int main(int argc, char *argv[]) {
                 && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
         }
+#if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
+#endif
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
@@ -1225,6 +1243,7 @@ int main(int argc, char *argv[]) {
                         r.errorState = QStringLiteral("corrupt");
                         r.errorDetail = cf.errorDetail;
                     }
+#if !defined(Q_OS_ANDROID)
                 } else if (r.kind == QLatin1String("video")) {
                     const MediaAdmissionProbe::Result admission =
                         MediaAdmissionProbe::probe(r.path);
@@ -1250,7 +1269,9 @@ int main(int argc, char *argv[]) {
                         r.errorState = QStringLiteral("rejected");
                         r.errorDetail = admission.detail;
                     }
-                } else if (r.kind == QLatin1String("book")) {
+                }
+#endif
+                else if (r.kind == QLatin1String("book")) {
                     r.format = QFileInfo(r.path).suffix().toLower();
                     const VaultEnricher::BookFacts book = VaultEnricher::readBookFacts(r.path);
                     if (book.ok) {

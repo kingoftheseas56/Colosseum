@@ -11,12 +11,18 @@ import androidx.media3.common.C;
 import androidx.media3.common.CueGroup;
 import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.Metadata;
+import androidx.media3.common.Label;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.Timeline;
 import androidx.media3.common.Tracks;
+import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.VideoSize;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.extractor.metadata.Chapter;
 import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
@@ -33,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -40,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * AndroidX Media3 owner used by the native Android PlayerItem facade.
  * Every ExoPlayer mutation and listener callback is bound to Android's main looper.
  */
+@UnstableApi
 public final class Media3PlayerHost {
     private final Context appContext;
     private final long nativeHandle;
@@ -48,10 +56,24 @@ public final class Media3PlayerHost {
     private final Player.Listener listener;
 
     // Main-looper state only.
+    private static final long TELEMETRY_INTERVAL_MS = 350L;
+
     private long activeGeneration;
     private float requestedVolume = 1.0f;
     private boolean muted;
+    private boolean userWantsPlay;
     private boolean released;
+    private final TreeMap<Long, String> chaptersByStartMs = new TreeMap<>();
+
+    private final Runnable telemetryRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isTelemetryUseful())
+                return;
+            emitPlaybackSnapshot();
+            mainHandler.postDelayed(this, TELEMETRY_INTERVAL_MS);
+        }
+    };
 
     public Media3PlayerHost(Context context, long nativeHandle) {
         if (context == null)
@@ -91,7 +113,9 @@ public final class Media3PlayerHost {
         runOnMain(() -> {
             if (released)
                 return;
+            stopTelemetry();
             activeGeneration = generation;
+            chaptersByStartMs.clear();
             if (!sourceAllowed) {
                 player.stop();
                 player.clearMediaItems();
@@ -110,20 +134,28 @@ public final class Media3PlayerHost {
             MediaSource mediaSource = mediaSourceFactory.createMediaSource(mediaItem);
             player.setMediaSource(mediaSource);
             player.prepare();
+            startTelemetry();
         });
     }
 
     public void play() {
         runOnMain(() -> {
-            if (!released)
-                player.play();
+            if (released)
+                return;
+            userWantsPlay = true;
+            player.play();
+            startTelemetry();
         });
     }
 
     public void pause() {
         runOnMain(() -> {
-            if (!released)
-                player.pause();
+            if (released)
+                return;
+            userWantsPlay = false;
+            player.pause();
+            stopTelemetry();
+            emitPlaybackSnapshot();
         });
     }
 
@@ -131,8 +163,22 @@ public final class Media3PlayerHost {
         runOnMain(() -> {
             if (released)
                 return;
+            userWantsPlay = false;
+            stopTelemetry();
             player.stop();
             player.clearMediaItems();
+            chaptersByStartMs.clear();
+            activeGeneration = 0;
+        });
+    }
+
+    public void stopForLifecycle() {
+        runOnMain(() -> {
+            if (released)
+                return;
+            stopTelemetry();
+            player.setPlayWhenReady(false);
+            player.stop();
         });
     }
 
@@ -172,6 +218,57 @@ public final class Media3PlayerHost {
         });
     }
 
+    public void selectAudioTrack(String encodedId) {
+        runOnMain(() -> applyTrackSelection(C.TRACK_TYPE_AUDIO, encodedId));
+    }
+
+    public void selectSubtitleTrack(String encodedId) {
+        runOnMain(() -> {
+            if (released)
+                return;
+            if (encodedId == null || encodedId.isEmpty()) {
+                TrackSelectionParameters.Builder builder =
+                    player.getTrackSelectionParameters().buildUpon();
+                builder.clearOverridesOfType(C.TRACK_TYPE_TEXT);
+                builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
+                player.setTrackSelectionParameters(builder.build());
+                return;
+            }
+            applyTrackSelection(C.TRACK_TYPE_TEXT, encodedId);
+        });
+    }
+
+    private void applyTrackSelection(int trackType, String encodedId) {
+        if (released || encodedId == null)
+            return;
+        String[] parts = encodedId.split(":", -1);
+        if (parts.length != 3)
+            return;
+        String expectedPrefix = trackType == C.TRACK_TYPE_AUDIO ? "a" : "s";
+        if (!expectedPrefix.equals(parts[0]))
+            return;
+        final int groupIndex;
+        final int trackIndex;
+        try {
+            groupIndex = Integer.parseInt(parts[1]);
+            trackIndex = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException error) {
+            return;
+        }
+        List<Tracks.Group> groups = player.getCurrentTracks().getGroups();
+        if (groupIndex < 0 || groupIndex >= groups.size())
+            return;
+        Tracks.Group group = groups.get(groupIndex);
+        if (group.getType() != trackType || trackIndex < 0 || trackIndex >= group.length)
+            return;
+        TrackSelectionParameters.Builder builder =
+            player.getTrackSelectionParameters().buildUpon();
+        builder.clearOverridesOfType(trackType);
+        builder.setTrackTypeDisabled(trackType, false);
+        builder.addOverride(new TrackSelectionOverride(group.getMediaTrackGroup(), trackIndex));
+        player.setTrackSelectionParameters(builder.build());
+    }
+
     public void setVideoSurface(Surface surface) {
         runOnMain(() -> {
             if (!released)
@@ -197,13 +294,49 @@ public final class Media3PlayerHost {
         runOnMainSync(() -> {
             if (released)
                 return;
+            stopTelemetry();
             released = true;
+            userWantsPlay = false;
+            activeGeneration = 0;
+            chaptersByStartMs.clear();
             player.removeListener(listener);
             player.clearVideoSurface();
             player.stop();
             player.clearMediaItems();
             player.release();
         });
+    }
+
+    private boolean isTelemetryUseful() {
+        if (released || activeGeneration == 0 || player.getCurrentMediaItem() == null)
+            return false;
+        int state = player.getPlaybackState();
+        return userWantsPlay || player.isLoading() || state == Player.STATE_BUFFERING;
+    }
+
+    private void startTelemetry() {
+        mainHandler.removeCallbacks(telemetryRunnable);
+        if (!isTelemetryUseful())
+            return;
+        emitPlaybackSnapshot();
+        mainHandler.postDelayed(telemetryRunnable, TELEMETRY_INTERVAL_MS);
+    }
+
+    private void stopTelemetry() {
+        mainHandler.removeCallbacks(telemetryRunnable);
+    }
+
+    private void emitPlaybackSnapshot() {
+        if (released || activeGeneration == 0)
+            return;
+        long durationMs = player.getDuration();
+        if (durationMs == C.TIME_UNSET || durationMs < 0)
+            durationMs = 0;
+        long positionMs = Math.max(0L, player.getCurrentPosition());
+        long bufferedPositionMs = Math.max(positionMs, player.getBufferedPosition());
+        nativeOnPlaybackSnapshot(nativeHandle, activeGeneration, positionMs, durationMs,
+            bufferedPositionMs, player.getBufferedPercentage(), !userWantsPlay,
+            requestedVolume, muted, player.getPlaybackParameters().speed);
     }
 
     private static float clamp(float value, float minimum, float maximum) {
@@ -455,8 +588,13 @@ public final class Media3PlayerHost {
                 if (playbackState == Player.STATE_READY) {
                     nativeOnReady(nativeHandle, activeGeneration,
                         player.getDuration(), player.getCurrentPosition(), player.getPlayWhenReady());
+                    startTelemetry();
                 } else if (playbackState == Player.STATE_ENDED) {
+                    emitPlaybackSnapshot();
+                    stopTelemetry();
                     nativeOnEnded(nativeHandle, activeGeneration);
+                } else if (playbackState == Player.STATE_BUFFERING) {
+                    startTelemetry();
                 }
             }
 
@@ -464,6 +602,7 @@ public final class Media3PlayerHost {
             public void onPlayerError(PlaybackException error) {
                 if (released)
                     return;
+                stopTelemetry();
                 String family = classifyErrorFamily(error.errorCode);
                 emitError(activeGeneration, family, family + "_error", "Playback failed");
             }
@@ -504,8 +643,18 @@ public final class Media3PlayerHost {
 
             @Override
             public void onTracksChanged(Tracks tracks) {
-                if (!released)
-                    nativeOnTracks(nativeHandle, activeGeneration, tracksToJson(tracks));
+                if (released)
+                    return;
+                nativeOnTracks(nativeHandle, activeGeneration, tracksToJson(tracks));
+                accumulateChaptersFromTracks(tracks);
+            }
+
+            @Override
+            public void onMetadata(Metadata metadata) {
+                if (released)
+                    return;
+                if (accumulateChapters(metadata))
+                    emitChapters();
             }
 
             @Override
@@ -543,6 +692,66 @@ public final class Media3PlayerHost {
         if (errorCode >= 6000 && errorCode < 7000)
             return "drm";
         return "unexpected";
+    }
+
+    private void accumulateChaptersFromTracks(Tracks tracks) {
+        boolean changed = false;
+        for (Tracks.Group group : tracks.getGroups()) {
+            for (int trackIndex = 0; trackIndex < group.length; ++trackIndex) {
+                Metadata metadata = group.getTrackFormat(trackIndex).metadata;
+                changed |= accumulateChapters(metadata);
+            }
+        }
+        if (changed)
+            emitChapters();
+    }
+
+    private boolean accumulateChapters(Metadata metadata) {
+        if (metadata == null)
+            return false;
+        boolean changed = false;
+        long windowOffsetMs = currentWindowOffsetMs();
+        for (Chapter chapter : metadata.getEntriesOfType(Chapter.class)) {
+            if (chapter.isHidden())
+                continue;
+            long rawStartMs = chapter.getStartTimeMs();
+            if (rawStartMs == C.TIME_UNSET || rawStartMs < 0)
+                continue;
+            long startMs = Math.max(0L, rawStartMs - windowOffsetMs);
+            Label label = chapter.getTitle();
+            String title = label == null ? "" : label.value;
+            String prior = chaptersByStartMs.put(startMs, title == null ? "" : title);
+            if (prior == null || !prior.equals(title))
+                changed = true;
+        }
+        return changed;
+    }
+
+    private long currentWindowOffsetMs() {
+        Timeline timeline = player.getCurrentTimeline();
+        int index = player.getCurrentMediaItemIndex();
+        if (timeline.isEmpty() || index < 0 || index >= timeline.getWindowCount())
+            return 0L;
+        Timeline.Window window = timeline.getWindow(index, new Timeline.Window());
+        return window.positionInFirstPeriodUs / 1000L;
+    }
+
+    private void emitChapters() {
+        nativeOnChapters(nativeHandle, activeGeneration, chaptersToJson());
+    }
+
+    private String chaptersToJson() {
+        StringBuilder out = new StringBuilder("{\"chapters\":[");
+        boolean first = true;
+        for (Map.Entry<Long, String> entry : chaptersByStartMs.entrySet()) {
+            if (!first)
+                out.append(',');
+            first = false;
+            out.append("{\"title\":");
+            appendJsonValue(out, entry.getValue());
+            out.append(",\"startMs\":").append(entry.getKey()).append('}');
+        }
+        return out.append("]}").toString();
     }
 
     private static String tracksToJson(Tracks tracks) {
@@ -631,6 +840,10 @@ public final class Media3PlayerHost {
         out.append('"');
     }
 
+    private static native void nativeOnPlaybackSnapshot(
+        long nativeHandle, long generation, long positionMs, long durationMs,
+        long bufferedPositionMs, double bufferedPercentage, boolean paused,
+        float requestedVolume, boolean muted, double speed);
     private static native void nativeOnReady(
         long nativeHandle, long generation, long durationMs, long positionMs, boolean playWhenReady);
     private static native void nativeOnEnded(long nativeHandle, long generation);
@@ -647,6 +860,8 @@ public final class Media3PlayerHost {
         long nativeHandle, long generation, String tracksJson);
     private static native void nativeOnMetadata(
         long nativeHandle, long generation, String metadataJson);
+    private static native void nativeOnChapters(
+        long nativeHandle, long generation, String chaptersJson);
     private static native void nativeOnCues(
         long nativeHandle, long generation, String cuesJson);
 }
