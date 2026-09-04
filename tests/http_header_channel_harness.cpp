@@ -24,7 +24,6 @@
 #include <QHostAddress>
 #include <QList>
 #include <QMap>
-#include <QSet>
 #include <QString>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -75,24 +74,20 @@ private Q_SLOTS:
             QTcpSocket *sock = m_server.nextPendingConnection();
             connect(sock, &QTcpSocket::readyRead, this, [this, sock]() { onReadyRead(sock); });
             connect(sock, &QTcpSocket::disconnected, sock, &QObject::deleteLater);
-            connect(sock, &QObject::destroyed, this, [this, sock]() {
-                // Drop pointer-keyed state before Qt can recycle this address for another socket.
-                m_buffers.remove(sock);
-                m_handled.remove(sock);
-            });
         }
     }
 
     void onReadyRead(QTcpSocket *sock)
     {
-        m_buffers[sock] += sock->readAll();
-        const QByteArray &buf = m_buffers[sock];
+        QByteArray buf = sock->property("colosseumRequestBuffer").toByteArray();
+        buf += sock->readAll();
+        sock->setProperty("colosseumRequestBuffer", buf);
         const int hdrEnd = buf.indexOf("\r\n\r\n");
         if (hdrEnd < 0)
             return; // headers not complete yet
-        if (m_handled.contains(sock))
+        if (sock->property("colosseumRequestHandled").toBool())
             return;
-        m_handled.insert(sock);
+        sock->setProperty("colosseumRequestHandled", true);
 
         CapturedRequest req;
         const QList<QByteArray> lines = buf.left(hdrEnd).split('\n');
@@ -122,8 +117,6 @@ private Q_SLOTS:
 
 private:
     QTcpServer m_server;
-    QMap<QTcpSocket *, QByteArray> m_buffers;
-    QSet<QTcpSocket *> m_handled;
 };
 
 // Event-driven wait: return once at least one captured request matches `path`, or timeout.
