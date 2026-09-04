@@ -182,6 +182,21 @@ public final class Media3PlayerHost {
         });
     }
 
+    public void prepareForLifecycleRestore() {
+        runOnMain(() -> {
+            if (released || activeGeneration == 0)
+                return;
+            player.prepare();
+            player.setPlayWhenReady(userWantsPlay);
+            if (userWantsPlay) {
+                startTelemetry();
+            } else {
+                stopTelemetry();
+                emitPlaybackSnapshot();
+            }
+        });
+    }
+
     public void seekTo(long positionMs) {
         final long clamped = Math.max(0L, positionMs);
         runOnMain(() -> {

@@ -388,18 +388,13 @@ void AndroidMedia3Item::setHostLifecycleState(const QString &state)
         return;
 
     const quint64 lifecycleEpoch = m_state.snapshot().lifecycleEpoch;
-    const QString url = m_state.snapshot().currentUrl;
-    const QVariantMap headers = m_state.snapshot().headers;
     const qint64 resumeMs = msFromSeconds(m_state.snapshot().positionSec);
-    if (url.isEmpty() || !m_host.isValid())
+    if (m_state.snapshot().currentUrl.isEmpty() || !m_host.isValid())
         return;
     if (!m_state.noteLifecyclePrepareSubmitted(generation, lifecycleEpoch))
         return;
     m_restoreLifecycleEpoch = lifecycleEpoch;
-    const QJniObject javaUrl = QJniObject::fromString(url);
-    const QJniObject headerMap = javaHeaders(headers);
-    m_host.callMethod<void>("load", "(JLjava/lang/String;Ljava/util/Map;)V",
-                            jlong(generation), javaUrl.object<jstring>(), headerMap.object<jobject>());
+    callHost("prepareForLifecycleRestore");
     if (resumeMs > 0)
         callHostSeek(resumeMs);
 }

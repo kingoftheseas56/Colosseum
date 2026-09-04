@@ -3532,6 +3532,19 @@ Item {
         objectName: "playerMpv"
         anchors.fill: parent
         z: 0
+        Connections {
+            target: PlatformRuntime
+            enabled: PlatformRuntime.android
+            function onApplicationStateChanged() {
+                mpv.setHostLifecycleState(PlatformRuntime.applicationState)
+            }
+            function onSurfaceAvailableChanged() {
+                if (PlatformRuntime.surfaceAvailable)
+                    mpv.restoreVideoSurface()
+                else
+                    mpv.releaseVideoSurface()
+            }
+        }
         Component.onCompleted: {
             // mpv's own --profile=fast, applied option-by-option (the named profile isn't
             // guaranteed across libmpv versions). Rationale: on this machine one integrated GPU
