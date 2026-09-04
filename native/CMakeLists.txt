@@ -664,6 +664,12 @@ if(ANDROID)
         player/androidmedia3videonode.cpp
         player/androidmedia3videonode.h
         player/androidseekthumbnailer.h
+        player/streamserver_android.cpp
+        player/streamserver.h
+        player/livestore_android.cpp
+        player/livestore.h
+        player/powerstore.cpp
+        player/powerstore.h
     )
     # Android deploys/scans a filtered QML tree. Keep desktop-only QML in source,
     # but never expose it to androiddeployqt/qmlimportscanner.
