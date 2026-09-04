@@ -8,7 +8,7 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
     def test_release_metadata_targets_1_1_5(self):
         cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
         workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
-        self.assertIn('project(colosseum VERSION 1.1.6 ', cmake)
+        self.assertIn('project(colosseum VERSION 1.1.5 ', cmake)
         self.assertIn("default: \"1.1.6\"", workflow)
 
     def test_installer_branding_is_product_named_and_iconed(self):
@@ -36,9 +36,12 @@ class ReleaseInstallerSmokeContract(unittest.TestCase):
         self.assertIn('actions/download-artifact', workflow)
         self.assertIn('release_installer_smoke.ps1', workflow)
         for token in ('DisplayVersion', 'Qt6Core.dll', 'qwindows.dll', 'qwebp.dll',
-                      'QtWebEngineProcess.exe', 'stremio-runtime.exe', 'COLOSSEUM_APPDATA_TAG',
+                      'QtWebEngineProcess.exe', 'MpvQt.dll', 'libmpv-2.dll',
+                      'stremio-runtime\\.exe', 'stream_server', 'COLOSSEUM_APPDATA_TAG',
                       'uninstall.exe', 'SHA256'):
             self.assertIn(token, script)
+        self.assertNotIn('STREMIO_SRC', workflow)
+        self.assertNotIn('server.js', workflow)
 
 
 if __name__ == '__main__':

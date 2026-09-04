@@ -10,12 +10,14 @@
 
 #include <libtorrent/add_torrent_params.hpp>
 #include <libtorrent/create_torrent.hpp>
+#include <libtorrent/hasher.hpp>
 #include <libtorrent/session.hpp>
 #include <libtorrent/settings_pack.hpp>
 #include <libtorrent/torrent_flags.hpp>
 #include <libtorrent/torrent_info.hpp>
 
 #include <chrono>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -73,7 +75,12 @@ QByteArray makeTorrent(const std::vector<char> &bytes, const QString &root)
     files.add_file("movie.mp4", static_cast<std::int64_t>(bytes.size()));
     lt::create_torrent creator(files, static_cast<int>(BlockSize),
                                lt::create_torrent::v1_only);
-    lt::set_piece_hashes(creator, seedPath.toStdString());
+    for (int piece = 0; piece < creator.num_pieces(); ++piece) {
+        const auto offset = static_cast<std::size_t>(piece) * BlockSize;
+        const auto length = std::min(BlockSize, bytes.size() - offset);
+        lt::hasher hasher(bytes.data() + offset, static_cast<int>(length));
+        creator.set_hash(lt::piece_index_t{piece}, hasher.final());
+    }
     const auto encoded = creator.generate_buf();
     return QByteArray(encoded.data(), static_cast<qsizetype>(encoded.size()));
 }

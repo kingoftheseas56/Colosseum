@@ -39,23 +39,18 @@ $required = @(
     "native\build-msvc\platforms\qwindows.dll",
     "native\build-msvc\imageformats\qwebp.dll",
     "native\build-msvc\QtWebEngineProcess.exe",
-    "native\build-msvc\stream_server\stremio-runtime.exe",
-    "native\build-msvc\stream_server\server.js",
-    "native\build-msvc\stream_server\ffmpeg.exe",
-    "native\build-msvc\stream_server\ffprobe.exe",
-    "native\build-msvc\stream_server\avcodec-58.dll",
-    "native\build-msvc\stream_server\avdevice-58.dll",
-    "native\build-msvc\stream_server\avfilter-7.dll",
-    "native\build-msvc\stream_server\avformat-58.dll",
-    "native\build-msvc\stream_server\avutil-56.dll",
-    "native\build-msvc\stream_server\postproc-55.dll",
-    "native\build-msvc\stream_server\swresample-3.dll",
-    "native\build-msvc\stream_server\swscale-5.dll",
-    "native\build-msvc\stream_server\LICENSE.md"
+    "native\build-msvc\MpvQt.dll",
+    "native\build-msvc\libmpv-2.dll"
 )
 foreach ($relative in $required) {
     Require (Test-Path -LiteralPath (Join-Path $installRoot $relative)) "missing runtime file: $relative"
 }
+
+$forbidden = Get-ChildItem -LiteralPath $installRoot -Recurse -File | Where-Object {
+    $_.Name -match '^(?i:server\.js|stremio-runtime\.exe)$' -or
+    $_.FullName -match '(?i)[\\/]stream_server([\\/]|$)'
+}
+Require ($forbidden.Count -eq 0) "retired external stream runtime found in installed package: $($forbidden.FullName -join ', ')"
 
 $appExe = Join-Path $installRoot "native\build-msvc\colosseum.exe"
 $env:COLOSSEUM_APPDATA_TAG = "github-release-smoke-$env:GITHUB_RUN_ID"

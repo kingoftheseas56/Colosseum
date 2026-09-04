@@ -17,8 +17,7 @@ This file is a practical inventory, not legal advice and not yet a complete bina
 | Vendored Foliate renderer | Derived from the MIT-licensed foliate-js project. The vendored package metadata currently also declares ISC; preserve all upstream notices and verify the provenance of local modifications before distribution. |
 | PDF.js | Apache-2.0. |
 | Lucide icons | ISC; portions inherited from Feather remain under MIT. The vendored Lucide license file must remain with distributions. |
-| Official Stremio Service | GPL-2.0. It runs as a separate process and communicates with Colosseum over localhost, so its license does not by itself relicense Colosseum's original MIT code. If it is bundled, preserve the GPL license and notices and provide the corresponding source in the manner required by GPL-2.0. |
-| Legacy `stremio-runtime.exe` + `server.js` pair | A separate external runtime and not covered by Colosseum's MIT License. Trace the exact files to their upstream release and license before redistributing them; do not assume that the Addon SDK's MIT license applies to the streaming runtime. |
+| Colosseum native streaming runtime | Colosseum-owned C++ code. It is linked into the application and serves torrent-backed bytes in-process; no external stream service is bundled or required. |
 | External APIs, addons, indexers, scrapers, catalogs, and media | Independent services and content. They are not part of the MIT-licensed Colosseum source and are not relicensed by this repository. |
 
 ## VidKing hosted playback (Theatre extension)
@@ -111,7 +110,7 @@ Before publishing an installer or portable package:
 1. Confirm whether the included `libmpv` build is LGPL-enabled or GPL. A normal GPL mpv build can impose GPL distribution terms on the combined application; using an LGPL-only mpv build preserves the option to distribute Colosseum's original source under MIT.
 2. Keep Qt dynamically linked and include the required Qt and third-party license notices, source offer or corresponding-source delivery, and replacement/relinking instructions for the exact libraries shipped.
 3. Include the license texts and copyright notices for every bundled DLL, executable, JavaScript library, font, icon set, and dataset.
-4. Colosseum may use a separately installed Official Stremio Service without changing its MIT license. If the installer bundles the GPL-2.0 service, include its GPL materials and corresponding source. Do not bundle the legacy `stremio-runtime.exe` + `server.js` pair until its exact provenance and redistribution terms are verified.
+4. The Colosseum installer must contain the native streaming runtime and its declared Qt/mpv dependencies only. It must not contain a separately bundled stream service or its legacy script/runtime payload.
 5. Generate a release-specific software bill of materials so the installer describes what it actually contains rather than what the development machine happens to contain.
 
 Adding or removing a dependency can change these obligations. Review this inventory whenever the packaged runtime changes.

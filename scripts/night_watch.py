@@ -151,11 +151,8 @@ def scenario_argv(scenario: str, *, tag: str) -> list[str]:
 
 def _kill_stray_app() -> None:
     """Hygiene between runs (Rule 17 spirit): a leaked colosseum.exe holds GPU
-    textures and file handles into the next run, and every colosseum boot spawns a
-    stremio-runtime that OUTLIVES the app (live-proven 2026-08-15/16: one such
-    orphan froze the Guardian's triage and later the watch itself by holding the
-    child's stdout pipe). Best-effort, never fatal."""
-    for image in ("colosseum.exe", "stremio-runtime.exe"):
+    textures and file handles into the next run. Best-effort, never fatal."""
+    for image in ("colosseum.exe",):
         subprocess.run(
             ["taskkill", "/F", "/IM", image],
             capture_output=True, timeout=30,
@@ -191,9 +188,7 @@ def run_one_scenario(
     before = _snapshot_session_dirs()
     started = time.monotonic()
     try:
-        # run_captured (not bare subprocess.run): the app under test spawns
-        # stremio-runtime which inherits the stdout pipe and outlives lanista -
-        # a pipe capture here froze the whole watch once (2026-08-16, 20:24 UTC).
+        # run_captured keeps app output isolated from the watch process.
         proc = live_runners.run_captured(
             argv, cwd=REPO_ROOT, timeout=READY_MS + 300,
         )

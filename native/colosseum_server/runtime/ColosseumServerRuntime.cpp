@@ -1,6 +1,7 @@
 #include "ColosseumServerRuntime.h"
 
 #include "integration/FeatureRouteComposition.h"
+#include "integration/AsyncMediaExecutor.h"
 #include "integration/ProductionTorrentBackend.h"
 #include "integration/TorrentHttpRouteAdapter.h"
 #include "network_app/NetworkAppServices.h"
@@ -336,6 +337,11 @@ void ColosseumServerRuntime::stop()
     https_.stop();
     http_.stop();
     impl_->torrent.stop();
+    // HTTP stop cancels each connection, but the route work it launched can
+    // still be unwinding on the global pool. Keep the service graph alive
+    // until every native job has returned.
+    if (!integration::AsyncMediaExecutor::waitForIdle(30000))
+        integration::AsyncMediaExecutor::waitForIdle(-1);
     running_ = false;
 }
 

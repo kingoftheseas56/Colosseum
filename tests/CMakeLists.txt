@@ -2854,33 +2854,6 @@ foreach(_qt_target Qt6::Core Qt6::Network Qt6::Gui)
                 "${CMAKE_CURRENT_BINARY_DIR}/..")
 endforeach()
 
-# Stream runtime fail-fast contract: missing packaged runtime is an installation
-# failure, not a candidate-stream failure. The static contract is offline; the
-# Qt test uses only a local probe socket and an invalid test runtime.
-add_executable(tst_stream_server_failfast
-    auto/player/tst_stream_server_failfast.cpp
-    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h")
-target_include_directories(tst_stream_server_failfast PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_stream_server_failfast PRIVATE Qt6::Core Qt6::Network Qt6::Test)
-set_target_properties(tst_stream_server_failfast PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
-if(WIN32)
-    add_custom_command(TARGET tst_stream_server_failfast POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$<TARGET_FILE:Qt6::Core>"
-                "$<TARGET_FILE:Qt6::Network>"
-                "$<TARGET_FILE:Qt6::Test>"
-                "$<TARGET_FILE_DIR:tst_stream_server_failfast>"
-        VERBATIM)
-endif()
-add_test(NAME colosseum.qttest.stream_server_failfast
-         COMMAND tst_stream_server_failfast)
-set_tests_properties(colosseum.qttest.stream_server_failfast PROPERTIES
-    LABELS "unit;player;qttest;contract"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
-    TIMEOUT 30)
-
 add_test(NAME colosseum.stream_engine_failfast
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_stream_engine_failfast.ps1")

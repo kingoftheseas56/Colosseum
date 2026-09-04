@@ -14,7 +14,7 @@ Use Windows 10 or 11 with:
 - a libmpv development package containing `include/mpv/client.h` and `lib/mpv.lib`;
 - libtorrent-rasterbar, Boost, and OpenSSL built for the same architecture/toolchain.
 
-Python 3 is useful for repository verification and catalogue tooling, but it is not required merely to compile the desktop executable. Release/runtime media features also use ffmpeg/ffprobe and the Stremio stream-server payload; the public release packager bundles those separately from compilation.
+Python 3 is useful for repository verification and catalogue tooling, but it is not required merely to compile the desktop executable. Release/runtime media features use the native Colosseum streaming runtime together with the declared Qt, MpvQt, and libmpv dependencies; the public release packager stages those runtime dependencies separately from compilation.
 
 Catalogue databases are deployment artifacts rather than ordinary Git source. A source checkout can use local data database files; when a supported catalogue is absent, the catalogue-vault path can fetch the published database into per-user AppData and wake the corresponding surface when it becomes ready.
 

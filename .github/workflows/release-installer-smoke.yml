@@ -37,7 +37,6 @@ jobs:
       MPV_SHA256: "0af22b28e920620036d3ae08fd9283156dc9af0420bf4df84b0e02282094599c"
       MPVQT_VERSION: "1.2.0"
       MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
-      V113_SHA256: "140cefc39a47b932558cabb15adfacd7e991fda7e1762c2681c48a0be9272ee7"
     outputs:
       sha256: ${{ steps.fingerprint.outputs.sha256 }}
       bytes: ${{ steps.fingerprint.outputs.bytes }}
@@ -164,28 +163,6 @@ jobs:
           Copy-Item $mpvqt.FullName $build -Force
           Copy-Item "$env:LIBMPV_ROOT\libmpv-2.dll" $build -Force
           Get-ChildItem "$env:VCPKG_ROOT\installed\x64-windows\bin" -Filter "*.dll" | Copy-Item -Destination $build -Force
-      - name: Recover authenticated Stremio runtime from 1.1.3
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $root = Join-Path $env:RUNNER_TEMP "colosseum-113"
-          $extract = Join-Path $root "extract"
-          New-Item -ItemType Directory -Force -Path $root, $extract | Out-Null
-          gh release download v1.1.3 --repo $env:GITHUB_REPOSITORY --pattern "Colosseum-1.1.3-setup.exe" --dir $root
-          $installer = Join-Path $root "Colosseum-1.1.3-setup.exe"
-          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne $env:V113_SHA256) { throw "1.1.3 provenance checksum mismatch: $hash" }
-          7z x $installer "-o$extract" -y | Out-Null
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $runtime = Get-ChildItem $extract -Recurse -Filter "stremio-runtime.exe" | Select-Object -First 1
-          if (-not $runtime) { throw "stremio-runtime.exe missing from authenticated 1.1.3 installer" }
-          $runtimeDir = $runtime.Directory.FullName
-          $required = @("stremio-runtime.exe","server.js","ffmpeg.exe","ffprobe.exe","avcodec-58.dll","avdevice-58.dll","avfilter-7.dll","avformat-58.dll","avutil-56.dll","postproc-55.dll","swresample-3.dll","swscale-5.dll","LICENSE.md")
-          foreach ($name in $required) {
-            if (!(Test-Path (Join-Path $runtimeDir $name))) { throw "authenticated Stremio file missing: $name" }
-          }
-          "STREMIO_SRC_WIN=$runtimeDir" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Ensure NSIS is available
         shell: pwsh
         run: |
@@ -199,7 +176,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export STREMIO_SRC="$(cygpath -u "$STREMIO_SRC_WIN")"
           export BUILD_DIR="$(cygpath -u "$GITHUB_WORKSPACE")/native/build-msvc"
           bash scripts/installer/package_release.sh "$VERSION"
       - name: Fingerprint canonical installer

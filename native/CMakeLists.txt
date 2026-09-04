@@ -167,7 +167,7 @@ else()
     message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
 endif()
 
-# Native server.js-compatible runtime. It is linked into the application so
+# Native server-compatible runtime. It is linked into the application so
 # StreamServer can own the route graph in-process; the standalone server tests
 # continue to use the same target through colosseum_server/tests.
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/colosseum_server" colosseum_server_production)
@@ -832,7 +832,7 @@ target_include_directories(reader2_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE
 target_link_libraries(reader2_bridge_harness PRIVATE Qt6::Core Qt6::Network)
 
 # Task 12: audiobook auto-attach on download completion. Offline/deterministic —
-# StreamServer is passed nullptr (its .cpp is only Qt Core/Network: QProcess + NAM,
+# StreamServer is passed nullptr (its .cpp is only Qt Core/Network: NAM,
 # no libtorrent), so the attach logic is proven without a live download.
 add_executable(reader2_autoattach_harness
     ../tests/reader2_autoattach_harness.cpp
@@ -881,7 +881,7 @@ add_executable(reader2_harness
     reader/BookStores.h
     ClipboardHelper.h          # Q_OBJECT header → listed so AUTOMOC generates its meta-object
     # Task 13 read-along backends — the same types main.cpp registers. AudiobookDownloader
-    # links with just Core/Network (StreamServer passed nullptr; its .cpp is QProcess+NAM,
+    # links with just Core/Network (StreamServer passed nullptr; its .cpp is NAM,
     # no libtorrent). MpvItem gives AudiobookSession.qml its `Colosseum.Player` surface so
     # the harness drives the REAL shared session; libmpv-2.dll/MpvQt.dll already sit beside
     # the exe (deployed for colosseum.exe in the shared build dir).

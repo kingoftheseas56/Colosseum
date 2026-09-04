@@ -1,7 +1,7 @@
 // StreamServer — turns a torrent (infoHash + fileIdx) into a localhost HTTP URL mpv can play.
 //
-// The native runtime owns the same route graph and torrent-backed byte stream as
-// server.js. It binds a loopback HTTP listener and we surface its URL to QML.
+// The native runtime owns the Stremio-compatible route graph and torrent-backed
+// byte stream. It binds a loopback HTTP listener and we surface its URL to QML.
 // Lifecycle remains lazy from the player's point of view: warmUp() or the first
 // play/prefetch starts the in-process runtime, and it is stopped with the player.
 //

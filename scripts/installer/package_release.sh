@@ -2,15 +2,12 @@
 # package_release.sh — assemble a self-contained Colosseum Windows installer from the
 # CURRENT build (today's native\build-msvc), NOT a git-tag rebuild.
 #
-# WHY THIS EXISTS: v0.1 was staged by hand and the Stremio stream-server was left out of
-# the payload. The app looks for that server next to its exe FIRST (see
-# StreamServer::findRuntimeDir), so bundling it here fixes Theatre torrent streaming +
-# downloads for every machine — not just the developer's, where a personal Stremio
-# install happened to sit at a hardcoded path. This script encodes the staging so the
-# server can never silently fall out of a release again.
+# WHY THIS EXISTS: release staging must carry the native in-process server graph and
+# its Qt/mpv runtime exactly as built. The player no longer delegates torrent streaming
+# to a separately installed or bundled service.
 #
 # Usage:  bash scripts/installer/package_release.sh [VERSION]
-#   VERSION defaults to 0.1. STREMIO_SRC=<dir> is required and must name a verified payload.
+#   VERSION defaults to 0.1.
 set -euo pipefail
 
 VERSION="${1:-0.1}"
@@ -24,7 +21,6 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # so the shipped exe is reproducible from the release tag. Defaults to the daily dir for
 # local smoke-packaging only.
 BUILD_DIR="${BUILD_DIR:-$REPO/native/build-msvc}"
-STREMIO_SRC="${STREMIO_SRC:-}"
 MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
 DIST="$REPO/dist"
 STAGE="$DIST/stage"
@@ -41,9 +37,7 @@ if [ "$HEAD_TAG" != "$EXPECTED_TAG" ]; then
   exit 1
 fi
 
-[ -n "$STREMIO_SRC" ] || { echo "STREMIO_SRC must point to a verified Stremio Service payload"; exit 1; }
 [ -x "$MAKENSIS" ] || { echo "makensis not found at $MAKENSIS"; exit 1; }
-[ -f "$STREMIO_SRC/stremio-runtime.exe" ] || { echo "Stremio source missing: $STREMIO_SRC"; exit 1; }
 [ -f "$BUILD_DIR/colosseum.exe" ] || { echo "build missing: $BUILD_DIR/colosseum.exe"; exit 1; }
 [ -f "$BUILD_DIR/CMakeCache.txt" ] || { echo "clean CMake build cache missing: $BUILD_DIR/CMakeCache.txt"; exit 1; }
 grep -Eq '^CMAKE_BUILD_TYPE:STRING=Release$' "$BUILD_DIR/CMakeCache.txt" \
@@ -96,9 +90,12 @@ if ! cmp -s "$STAGE/native/build-msvc/qml-build.manifest" "$STAGE_QML_MANIFEST";
 fi
 rm -f "$STAGE_QML_MANIFEST"
 
-echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, platforms/, imageformats/, tls/, translations/, resources/, qml/, tools/, QtWebEngineProcess.exe, stream_server/)"
+echo "[4/6] strip build intermediates (keeps the native Qt/mpv runtime)"
 ( cd "$STAGE/native/build-msvc"
   rm -rf CMakeFiles Testing artifacts
+  # Development labs and oracle captures are deliberately kept outside the
+  # shipped executable tree. Some contain the frozen upstream payload names.
+  find . -maxdepth 1 -type d -name '_*' -prune -exec rm -rf {} +
   rm -rf ./*_autogen
   rm -f ./*_harness.exe ./*harness*.exe tst_*.exe ./*_test*.exe colosseum-capture.exe colosseum-prev-live.exe
   rm -f ./_a0_* ./_slice* ./_engine_harness* ./*.log
@@ -117,22 +114,8 @@ echo "[4b/6] prune source-tree dirs the installed app never reads at runtime"
 rm -rf "$STAGE/tests" "$STAGE/docs" "$STAGE/agents" \
        "$STAGE/scripts/comics_brain" "$STAGE/release/presentation"
 
-echo "[5/6] bundle the Stremio stream-server next to the exe  <<< THE FIX"
-DEST="$STAGE/native/build-msvc/stream_server"
-mkdir -p "$DEST"
-for f in stremio-runtime.exe server.js ffmpeg.exe ffprobe.exe \
-         avcodec-58.dll avdevice-58.dll avfilter-7.dll avformat-58.dll avutil-56.dll \
-         postproc-55.dll swresample-3.dll swscale-5.dll LICENSE.md; do
-  cp "$STREMIO_SRC/$f" "$DEST/$f"
-done
-cat > "$DEST/NOTICE.txt" <<'EOF'
-This folder contains Stremio Service (stremio-runtime.exe + server.js) and FFmpeg,
-redistributed under GPL-2.0 — see LICENSE.md. Corresponding source:
-  service wrapper : https://github.com/Stremio/stremio-service
-  server runtime  : https://dl.strem.io/server/
-Colosseum (MIT) and this GPL-2.0 component are separate programs communicating over
-localhost HTTP; they are an aggregate, and Colosseum's own license is unaffected.
-EOF
+echo "[5/6] enforce native-only package contents"
+python "$REPO/scripts/installer/assert_native_package.py" "$STAGE"
 
 echo "[5b/6] stage weight (top-level, before makensis) -- watch this for future bloat"
 du -sh "$STAGE"/*/ "$STAGE"/* 2>/dev/null | sort -rh | head -20 || true

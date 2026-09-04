@@ -58,8 +58,30 @@ public:
             connect(m_server, &QTcpServer::newConnection,
                     this, [this] { acceptPendingConnections(); });
         }
-        if (!m_server->listen(QHostAddress::LocalHost, port)) {
+        constexpr int maxPortProbes = 32;
+        const quint32 firstPort = port;
+        const int probeCount = port == 0 ? 1 : maxPortProbes;
+        for (int probe = 0; probe < probeCount; ++probe) {
+            const quint32 candidate = firstPort + static_cast<quint32>(probe);
+            if (candidate > 65535)
+                break;
+            if (m_server->listen(QHostAddress::LocalHost, static_cast<quint16>(candidate)))
+                break;
+
+            const bool canTryNext = m_server->serverError() == QAbstractSocket::AddressInUseError
+                && probe + 1 < probeCount && candidate < 65535;
             error = m_server->errorString();
+            if (canTryNext)
+                continue;
+
+            delete m_server;
+            m_server = nullptr;
+            return false;
+        }
+
+        if (!m_server || !m_server->isListening()) {
+            if (error.isEmpty())
+                error = QStringLiteral("Could not bind loopback listener");
             delete m_server;
             m_server = nullptr;
             return false;
@@ -183,7 +205,6 @@ void ColosseumServer::stop()
 {
     if (!m_thread)
         return;
-
     if (m_worker && m_thread->isRunning()) {
         QMetaObject::invokeMethod(m_worker, [this] {
             m_worker->stop();

@@ -19,6 +19,10 @@ public:
                     Work work, Completion completion);
     static void runCancellable(const std::shared_ptr<server::CancellationToken> &cancellation,
                                CancellableWork work, Completion completion);
+    // Wait until all route work submitted through this executor has returned.
+    // Runtime teardown uses this after cancelling active HTTP connections so
+    // service objects captured by worker lambdas cannot be destroyed early.
+    static bool waitForIdle(int timeoutMs);
 };
 
 } // namespace colosseum::server::integration

@@ -1,11 +1,45 @@
 #include "AsyncMediaExecutor.h"
 
+#include <QElapsedTimer>
+#include <QMutex>
 #include <QThreadPool>
+#include <QWaitCondition>
 
 #include <exception>
 #include <utility>
 
 namespace colosseum::server::integration {
+namespace {
+
+QMutex g_jobsMutex;
+QWaitCondition g_jobsIdle;
+int g_activeJobs = 0;
+
+void jobStarted()
+{
+    QMutexLocker lock(&g_jobsMutex);
+    ++g_activeJobs;
+}
+
+void jobFinished()
+{
+    QMutexLocker lock(&g_jobsMutex);
+    Q_ASSERT(g_activeJobs > 0);
+    --g_activeJobs;
+    if (g_activeJobs == 0)
+        g_jobsIdle.wakeAll();
+}
+
+class JobCompletion final
+{
+public:
+    JobCompletion() = default;
+    ~JobCompletion() { jobFinished(); }
+    JobCompletion(const JobCompletion &) = delete;
+    JobCompletion &operator=(const JobCompletion &) = delete;
+};
+
+} // namespace
 
 void AsyncMediaExecutor::run(
     const std::shared_ptr<server::CancellationToken> &cancellation,
@@ -27,9 +61,11 @@ void AsyncMediaExecutor::runCancellable(
             cancelled->store(true, std::memory_order_release);
         });
     }
+    jobStarted();
     QThreadPool::globalInstance()->start(
         [cancellation, cancelled, work = std::move(work),
          completion = std::move(completion)]() mutable {
+            const JobCompletion lifetime{};
             if (cancelled->load(std::memory_order_acquire)
                 || (cancellation && cancellation->isCancelled()))
                 return;
@@ -53,6 +89,26 @@ void AsyncMediaExecutor::runCancellable(
             if (completion)
                 completion(std::move(result));
         });
+}
+
+bool AsyncMediaExecutor::waitForIdle(int timeoutMs)
+{
+    if (timeoutMs < 0) {
+        QMutexLocker lock(&g_jobsMutex);
+        while (g_activeJobs != 0)
+            g_jobsIdle.wait(&g_jobsMutex);
+        return true;
+    }
+    QElapsedTimer elapsed;
+    elapsed.start();
+    QMutexLocker lock(&g_jobsMutex);
+    while (g_activeJobs != 0) {
+        const qint64 remaining = qint64(timeoutMs) - elapsed.elapsed();
+        if (remaining <= 0 || !g_jobsIdle.wait(&g_jobsMutex,
+                                                static_cast<unsigned long>(remaining)))
+            return g_activeJobs == 0;
+    }
+    return true;
 }
 
 } // namespace colosseum::server::integration
