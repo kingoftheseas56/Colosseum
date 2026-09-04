@@ -23,12 +23,12 @@ struct Capabilities {
     bool desktopWindowChrome = false;
 };
 
-constexpr Kind selectKind(bool android, bool windows, bool linux) {
+constexpr Kind selectKind(bool android, bool windows, bool isLinux) {
     if (android)
         return Kind::Android;
     if (windows)
         return Kind::WindowsDesktop;
-    if (linux)
+    if (isLinux)
         return Kind::LinuxDesktop;
     return Kind::Other;
 }

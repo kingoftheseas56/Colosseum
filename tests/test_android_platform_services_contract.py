@@ -28,6 +28,17 @@ def test_platform_services_harness_is_registered_with_ctest():
     assert "colosseum_register_harness(platform_services_harness" in tests_cmake
 
 
+def test_platform_kind_selector_avoids_legacy_linux_macro_name():
+    header = (NATIVE / "platform" / "PlatformKind.h").read_text(encoding="utf-8-sig")
+    signature = next(
+        line for line in header.splitlines()
+        if "constexpr Kind selectKind(" in line
+    )
+    assert "bool linux" not in signature, (
+        "selectKind uses the GNU/Linux predefined macro name `linux` as a parameter"
+    )
+
+
 def test_platform_runtime_exposes_android_tv_contract():
     header = (NATIVE / "platform" / "PlatformRuntime.h").read_text(encoding="utf-8-sig")
     source = (NATIVE / "platform" / "PlatformRuntime.cpp").read_text(encoding="utf-8-sig")
@@ -42,5 +53,6 @@ def test_platform_runtime_exposes_android_tv_contract():
 if __name__ == "__main__":
     test_platform_services_are_wired_into_build_graph()
     test_platform_services_harness_is_registered_with_ctest()
+    test_platform_kind_selector_avoids_legacy_linux_macro_name()
     test_platform_runtime_exposes_android_tv_contract()
     print("ANDROID_PLATFORM_SERVICES_CONTRACT_OK")
