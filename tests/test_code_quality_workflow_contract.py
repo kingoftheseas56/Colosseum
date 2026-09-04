@@ -64,8 +64,10 @@ class CodeQualityWorkflowContract(unittest.TestCase):
             self.assertIn(check, policy)
         self.assertNotIn("portability-avoid-pragma-once", policy)
         for ownership_false_positive in (
+                "native/engine/BiblioCatalog.cpp|1186|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/ComicDownloader.cpp|1511|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/MangaDownloader.cpp|455|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaDownloader.cpp|512|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/MangaDownloader.cpp|935|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/TankoyomiChapterService.cpp|196|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks"):
