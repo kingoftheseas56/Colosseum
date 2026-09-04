@@ -1838,8 +1838,8 @@ add_custom_command(TARGET tst_consumption_history POST_BUILD
 add_custom_command(TARGET tst_consumption_history POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${Qt6_DIR}/../../../plugins/sqldrivers/qsqlite.dll"
-            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/qsqlite.dll")
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
 add_test(NAME colosseum.qttest.consumption_history COMMAND tst_consumption_history)
 set_tests_properties(colosseum.qttest.consumption_history PROPERTIES
     LABELS "unit;qttest;activity;history;profile"

@@ -71,6 +71,16 @@ class CodeQualityWorkflowContract(unittest.TestCase):
                 "native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks"):
             self.assertIn(ownership_false_positive, allowlist)
 
+    def test_linux_ccache_persists_between_github_runners(self):
+        desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Restore Linux compiler cache", desktop)
+        self.assertIn("uses: actions/cache@v4", desktop)
+        self.assertIn("path: ~/.cache/ccache", desktop)
+        self.assertIn("key: linux-ccache-v1-${{ runner.os }}-${{ github.sha }}", desktop)
+        self.assertIn("linux-ccache-v1-${{ runner.os }}-", desktop)
+        self.assertLess(desktop.index("Restore Linux compiler cache"),
+                        desktop.index("Configure Colosseum on Linux"))
+
     def test_address_sanitizer_gate_builds_and_runs_high_risk_native_probes(self):
         desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Configure AddressSanitizer probes", desktop)
