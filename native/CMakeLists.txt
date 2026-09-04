@@ -700,6 +700,16 @@ if(ANDROID)
     # Overlay Colosseum Android Java/Kotlin/resources on Qt's default package template.
     set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
         "${CMAKE_CURRENT_SOURCE_DIR}/platform/android")
+    # First-APK contract: one supported ABI on Qt 6.11's Android 9/API 28 floor,
+    # compiled and targeted against the installed API 36 platform.
+    set_target_properties(colosseum PROPERTIES
+        QT_ANDROID_ABIS "arm64-v8a"
+        QT_ANDROID_MIN_SDK_VERSION 28
+        QT_ANDROID_COMPILE_SDK_VERSION 36
+        QT_ANDROID_TARGET_SDK_VERSION 36
+        QT_ANDROID_APP_NAME "Colosseum"
+        QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
+    )
 endif()
 file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/*")

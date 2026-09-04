@@ -108,6 +108,26 @@ class AndroidBuildGraphContract(unittest.TestCase):
         self.assertIn('Paper Paper.qml', text)
         self.assertIn('string(REPLACE', text)
 
+    def test_android_target_pins_first_apk_baseline(self):
+        text = cmake_text()
+        android_block = re.search(
+            r"if\(ANDROID\)\s*target_sources\(colosseum PRIVATE(.*?)\nendif\(\)",
+            text,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(android_block, "Android target composition block must exist")
+        block = android_block.group(1)
+        for token in (
+            'QT_ANDROID_ABIS "arm64-v8a"',
+            "QT_ANDROID_MIN_SDK_VERSION 28",
+            "QT_ANDROID_COMPILE_SDK_VERSION 36",
+            "QT_ANDROID_TARGET_SDK_VERSION 36",
+            'QT_ANDROID_APP_NAME "Colosseum"',
+            'QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"',
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, block)
+
     def test_desktop_harness_estate_is_not_configured_on_android(self):
         text = cmake_text()
         self.assertIn("# Desktop-only harness and Player 2 estate", text)
