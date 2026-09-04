@@ -26,8 +26,9 @@
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><strong>Download latest</strong></a> &nbsp;|&nbsp;
   <a href="docs/README.md">Docs</a> &nbsp;|&nbsp;
-  <a href="docs/build/windows.md">Build on Windows</a> &nbsp;|&nbsp;
-  <a href="docs/build/macos.md">Build on macOS</a> &nbsp;|&nbsp;
+  Source builds: <a href="docs/build/windows.md">Windows</a> &middot;
+  <a href="docs/build/macos.md">macOS</a> &middot;
+  <a href="docs/build/linux.md">Linux</a> &nbsp;|&nbsp;
   <a href="https://github.com/kingoftheseas56/Colosseum/issues/new?template=bug_report.yml">Report a bug</a> &nbsp;|&nbsp;
   <a href="SUPPORT.md">Support</a> &nbsp;|&nbsp;
   <a href="CONTRIBUTING.md">Contribute</a> &nbsp;|&nbsp;
@@ -51,19 +52,45 @@ so reading and listening can continue offline.
 > [!IMPORTANT]
 > Colosseum 1.1.5 is the current Windows 10/11 desktop release.
 > Download the installer from [Releases](https://github.com/kingoftheseas56/Colosseum/releases) for
-> a per-user install — no administrator required. Building from source is documented below.
+> a per-user install — no administrator required. The published 1.1.5 binary is Windows-only;
+> Windows, macOS, and Linux source-build paths are documented separately below.
 
 ## What's new in 1.1.5
 
-- **Streaming fails cleanly.** If the bundled Stremio stream engine cannot start, Colosseum now
-  reports an actionable repair message and stops retrying a dead engine instead of leaving the
-  player in an endless retry/switch loop.
-- **Stale stream requests are discarded.** Requests queued during a failed startup cannot replay
-  after the runtime is repaired or replaced.
-- **A properly branded installer.** The installer and uninstaller use the Colosseum product name
-  and branded application icon while keeping the version in the file name and Windows app metadata.
+1.1.5 is the cumulative Windows release after 1.1.3, covering 173 commits across acquisition,
+catalogues, Vault, playback, reading, responsiveness, privacy, security, and release hardening.
+
+- **Read now, download later.** Read opens the exact requested content as soon as it is ready;
+  Download acquires it without unexpectedly launching a reader.
+- **Catalogues moved out of the installer.** Large manga, comics, Tankoban, and IMDb databases now
+  arrive through the Colosseum-Data release into AppData, keeping the desktop package smaller.
+- **Tankoban and Vault grew substantially.** Manga acquisition gained stronger identity, recovery,
+  archive, and indexing behavior, while Vault added progress, Continue, search, filters, richer
+  local metadata, storage controls, and more reliable filesystem reconciliation.
+- **Theatre, Player 1, and Reader2 were hardened.** Streaming failure states, stale source/session
+  routing, direct-stream headers, rapid content switching, progress ownership, and recovery paths
+  received another reliability pass.
+- **Privacy, history, accounts, and recovery were hardened.** Offline remembered identity, recovery
+  acknowledgement, durable privacy policy, activity/history behavior, and sync boundaries were
+  tightened. 1.1.5 still does not ship a public production account service.
+- **Responsiveness work moved more expensive tasks off the UI thread.** Startup, world switching,
+  downloads, archive work, Vault work, catalogue refreshes, and stale background jobs were reduced
+  or staged more carefully.
+- **Security and release verification became stricter.** CodeQL, clang-tidy, AddressSanitizer,
+  fuzzing, dependency checks, installer fingerprinting, fresh-install boot checks, and uninstall
+  smoke coverage are part of the release pipeline.
 
 Full release notes: [docs/release-notes/v1.1.5.md](docs/release-notes/v1.1.5.md).
+
+## Coming in 1.1.6
+
+1.1.6 is in development. These features are **not part of the current 1.1.5 release**:
+
+- **Linux beta**
+- **Multi-language manga reading**
+- **Real account backend**
+- **Keyboard-only operation across the app**
+- **Colosseum Server**
 
 ## What's new in 1.1.3
 
@@ -310,9 +337,17 @@ remains the fallback.
 
 ### Build from source
 
+The current published 1.1.5 installer is Windows-only. Source-build documentation is maintained
+separately for **Windows**, **macOS**, and **Linux**; the Linux binary release track is planned to
+begin with the 1.1.6 beta.
+
 Windows source builds use Visual Studio 2022 C++ Build Tools, CMake/Ninja, Qt 6.11.1 MSVC 2022 64-bit, MpvQt/libmpv, and libtorrent/Boost/OpenSSL. Contributors should pass their own dependency locations explicitly when configuring the build.
 
-See **[Build Colosseum on Windows](docs/build/windows.md)** for the supported dependency shape, neutral-path configure command, development launch, runtime deployment, and verification boundary. Player 2 remains an opt-in experimental build path; mpv/MpvQt is the default player.
+- **[Build Colosseum on Windows](docs/build/windows.md)**
+- **[Build Colosseum on macOS](docs/build/macos.md)**
+- **[Build Colosseum on Linux](docs/build/linux.md)**
+
+Player 2 remains an opt-in experimental build path; mpv/MpvQt is the default player.
 
 ### Development verification
 
