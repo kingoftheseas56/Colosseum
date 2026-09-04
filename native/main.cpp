@@ -1144,6 +1144,7 @@ int main(int argc, char *argv[]) {
         (void)QtConcurrent::run([vaultEnricher, todo, cancel]() {
             vaultEnricher->enrich(todo, cancel);
         });
+#endif
     };
     // An immersive surface opening mid-pass cancels the pass between files (the probe
     // itself admits no cancellation; the enrich loop guard does) and reruns on close.
@@ -1243,8 +1244,9 @@ int main(int argc, char *argv[]) {
                         r.errorState = QStringLiteral("corrupt");
                         r.errorDetail = cf.errorDetail;
                     }
+                }
 #if !defined(Q_OS_ANDROID)
-                } else if (r.kind == QLatin1String("video")) {
+                else if (r.kind == QLatin1String("video")) {
                     const MediaAdmissionProbe::Result admission =
                         MediaAdmissionProbe::probe(r.path);
                     switch (admission.verdict) {

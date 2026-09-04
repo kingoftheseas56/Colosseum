@@ -561,7 +561,8 @@ void VaultEnricher::enrich(const QList<VaultIndex::FileRow>& rows,
                 row.errorDetail = cf.errorDetail;
             }
         } else if (row.kind == QLatin1String("video")) {
-            row.durationSec = durationForVideo(row.path, row.size, row.mtimeMs);
+            if (row.durationSec < 0.0)
+                row.durationSec = durationForVideo(row.path, row.size, row.mtimeMs);
             if (row.admissionVerdict.isEmpty()) {
                 // Blocking by contract; MediaAdmissionProbe exposes no cancel token, so cancellation
                 // is honored only BETWEEN files (the loop guard), never mid-probe.

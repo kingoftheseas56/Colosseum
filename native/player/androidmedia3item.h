@@ -14,7 +14,7 @@
 #include "androidmedia3state.h"
 #include "playerbackendcontract.h"
 
-class AndroidMedia3Item final : public QQuickItem, public PlayerBackendContract
+class AndroidMedia3Item : public QQuickItem, public PlayerBackendContract
 {
     Q_OBJECT
     Q_PROPERTY(QVariantMap capabilities READ capabilities CONSTANT)

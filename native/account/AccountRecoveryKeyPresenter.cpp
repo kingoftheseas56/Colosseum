@@ -2,8 +2,7 @@
 
 #include "AccountRecoveryKeyPresenter.h"
 
-#include "WindowsAccountSensitiveClipboard.h"
-
+#include <QCryptographicHash>
 #include <QtGlobal>
 
 AccountRecoveryKeyPresenter::AccountRecoveryKeyPresenter(
@@ -80,9 +79,9 @@ bool AccountRecoveryKeyPresenter::copyRecoveryKey() {
         return false;
     }
 
-    m_clipboardDigest =
-        WindowsAccountSensitiveClipboard::textDigest(
-            m_recoveryKey);
+    m_clipboardDigest = QCryptographicHash::hash(
+        m_recoveryKey.toUtf8(),
+        QCryptographicHash::Sha256);
     m_clipboardTimer.start(m_clipboardClearDelayMs);
     setCopyState(QStringLiteral("copied"));
     return true;

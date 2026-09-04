@@ -405,7 +405,6 @@ qt_add_executable(colosseum
     # ── Vault browse artwork (browse-artwork execution plan, Slices 1-3, 2026-08-13): the
     # resolver ladder VaultLibrary now composes for browseAt()/items()/series() cover projection ──
     engine/VaultCacheKey.h         # shared (path,size,mtimeMs) cache-key derivation (Slice 1)
-    engine/VaultThumbnailer.cpp    # persistent frame-grab producer, ffmpeg off-thread (Slice 1)
     engine/VaultThumbnailer.h
     engine/VaultPosterFetcher.cpp  # canonical poster fetcher + cache, QNetworkAccessManager (Slice 2)
     engine/VaultPosterFetcher.h
@@ -639,6 +638,7 @@ if(NOT ANDROID)
         update/UpdateInstallBridge.cpp
         update/UpdateInstallBridge.h
         installed_chronicle.qrc
+        engine/VaultThumbnailer.cpp
         player/MediaAdmissionProbe.cpp
         player/MediaAdmissionProbe.h
         player/livestore.cpp
@@ -664,6 +664,9 @@ if(ANDROID)
         player/androidmedia3videonode.cpp
         player/androidmedia3videonode.h
         player/androidseekthumbnailer.h
+        player/MediaAdmissionProbe_android.cpp
+        player/MediaAdmissionProbe.h
+        engine/VaultThumbnailer_android.cpp
         player/streamserver_android.cpp
         player/streamserver.h
         player/livestore_android.cpp

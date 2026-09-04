@@ -8,7 +8,7 @@
 #include <QObject>
 #include <QUrl>
 
-class AndroidSeekThumbnailer final : public QObject
+class AndroidSeekThumbnailer : public QObject
 {
     Q_OBJECT
 public:

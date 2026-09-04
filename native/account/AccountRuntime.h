@@ -18,7 +18,11 @@
 #include "SyncAdapterRegistry.h"
 #include "ProfileStoreRuntime.h"
 #include "AccountCredentialStore.h"
+#if defined(Q_OS_ANDROID)
+#include "AndroidAccountSensitiveClipboard.h"
+#else
 #include "WindowsAccountSensitiveClipboard.h"
+#endif
 
 #include <QObject>
 
@@ -63,7 +67,11 @@ private:
     std::unique_ptr<AccountCredentialStore> m_credentialStore;
     AccountDeviceIdentity m_deviceIdentity;
     AccountBootstrapStore m_bootstrapStore;
+#if defined(Q_OS_ANDROID)
+    AndroidAccountSensitiveClipboard m_sensitiveClipboard;
+#else
     WindowsAccountSensitiveClipboard m_sensitiveClipboard;
+#endif
     AccountRecoveryKeyPresenter m_recoveryKeyPresenter;
     ProfileStoreRuntime m_profileStores;
     SharedPcProfileCoordinator m_profileCoordinator;
