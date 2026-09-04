@@ -32,6 +32,7 @@ colosseum_register_harness(background_work_coordinator_harness unit)
 colosseum_register_harness(foreground_priority_governor_harness unit;responsiveness)
 colosseum_register_harness(background_activity_registry_harness unit)
 colosseum_register_harness(background_work_composition_harness unit;composition)
+colosseum_register_harness(platform_services_harness unit;platform)
 colosseum_register_harness(progress_store_harness        unit)
 colosseum_register_harness(collection_store_harness      unit)
 colosseum_register_harness(cbz_archive_harness           unit)
@@ -422,6 +423,36 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
 # volumes + epub/pdf books). Backbone calls go through QMetaObject::invokeMethod
 # (the same path QML uses), so the test drives the real derivation with QObject
 # fakes. Pure Qt6::Core, GUILESS; QTemporaryDir isolation, no net.
+# Android Vault provider snapshot -> shared index contract. Pure Qt/SQLite; no Android SDK needed.
+add_executable(tst_vault_android_index_adapter
+    auto/vault/tst_vault_android_index_adapter.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLocation.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_vault_android_index_adapter PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_android_index_adapter PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_android_index_adapter PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_android_index_adapter POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE_DIR:tst_vault_android_index_adapter>")
+add_test(NAME colosseum.qttest.vault_android_index_adapter
+         COMMAND tst_vault_android_index_adapter)
+set_tests_properties(colosseum.qttest.vault_android_index_adapter PROPERTIES
+    LABELS "unit;qttest;android;vault"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 add_executable(tst_vault_downloads_root
     auto/vault/tst_vault_downloads_root.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"

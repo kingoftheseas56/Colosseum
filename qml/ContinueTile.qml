@@ -29,8 +29,14 @@ Item {
     property var entry: ({})              // Progress record: id/kind/title|caption/sub/cover/c1/c2/progress/watched
     property Item backdrop: null          // home only (Glass requires a backdrop)
     property real track: 0                // home only — scroll offset for the live blur
+    // Arc 41 collection owners and Android/TV composite rails use different public seams.
+    // Keep both source-compatible and collapse them to one effective focus contract here.
     property bool collectionManaged: false
     property bool collectionSelected: false
+    property bool focusManagedByCollection: false
+    property bool keyboardFocused: false
+    readonly property bool effectiveCollectionManaged: collectionManaged || focusManagedByCollection
+    readonly property bool effectiveKeyboardFocused: collectionSelected || keyboardFocused
     property bool keyboardContextOpen: false
     property int keyboardContextIndex: 0
     property Item keyboardContextReturn: null
@@ -256,14 +262,17 @@ Item {
         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
     }
 
-    // ── shared: whole-tile hover (film + gold edge) ──
+    // ── shared: whole-tile hover / remote focus (film + gold edge) ──
     Rectangle {
         anchors.fill: parent
+        anchors.margins: tile.effectiveKeyboardFocused ? -4 : 0
         radius: tile.isHome ? 14 : 12
         color: rootMa.containsMouse ? Qt.rgba(1, 1, 1, tile.isHome ? 0.05 : 0.10) : "transparent"
-        border.width: tile.isHome ? 1 : 2
-        border.color: rootMa.containsMouse ? (tile.isHome ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.gold)
-                                           : "transparent"
+        border.width: tile.effectiveKeyboardFocused ? 4 : (tile.isHome ? 1 : 2)
+        border.color: tile.effectiveKeyboardFocused ? theme.gold
+                     : (rootMa.containsMouse ? (tile.isHome ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.gold)
+                                             : "transparent")
+        z: tile.effectiveKeyboardFocused ? 10000 : 0
         Behavior on color { ColorAnimation { duration: 120 } }
     }
     MouseArea {   // anywhere on the tile → detail (resume/remove sit on top)
@@ -277,7 +286,7 @@ Item {
         id: detailKeyboardAction
         anchors.fill: parent
         pointerEnabled: false
-        focusEnabled: !tile.collectionManaged
+        focusEnabled: !tile.effectiveCollectionManaged
         contextEnabled: true
         accessibleName: "Open details for " + tile.label
         focusRadius: tile.isHome ? 14 : 12
@@ -287,7 +296,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: tile.isHome ? 14 : 12
-        visible: tile.collectionManaged && tile.collectionSelected && !tile.keyboardContextOpen
+        visible: tile.effectiveCollectionManaged && tile.effectiveKeyboardFocused && !tile.keyboardContextOpen
         color: "transparent"; border.width: 2; border.color: theme.gold; z: 9000
     }
 
@@ -331,7 +340,7 @@ Item {
             id: resumeKeyboardAction
             anchors.fill: parent
             pointerEnabled: false
-            focusEnabled: !tile.collectionManaged
+            focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Resume " + tile.label
             focusRadius: resumeButton.radius
             onTriggered: tile.resumeRequested()
@@ -355,7 +364,7 @@ Item {
             id: removeKeyboardAction
             anchors.fill: parent
             pointerEnabled: false
-            focusEnabled: !tile.collectionManaged
+            focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Remove " + tile.label + " from Continue"
             focusRadius: removeBtn.radius
             onTriggered: tile.removeRequested()

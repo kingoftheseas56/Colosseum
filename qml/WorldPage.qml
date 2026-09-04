@@ -17,6 +17,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 
 Item {
     id: world
@@ -26,12 +27,64 @@ Item {
     // Main binds this to the current world. Bare page harnesses keep the default true, while
     // retained hidden worlds can stop timers, paging and refresh work without being destroyed.
     property bool lifecycleActive: true
+    // Host/layout seam shared by Tankoban, Biblio and Theatre. Writable for desktop viewport tests.
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: adaptive; viewportWidth: world.width }
+    readonly property real pageMargin: adaptive.pageMargin
+    readonly property string layoutClass: adaptive.layoutClass
     // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
     // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
     // Task 9) read this to drive the sexually-explicit-only gate. Default false so a bare
     // construct (the page harness, a cold world) stays conservative.
     property bool showExplicitContent: false
+    readonly property bool televisionMode: {
+        const w = world.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
     default property alias content: board.data
+
+    function isInside(item, ancestor) {
+        var p = item
+        while (p) {
+            if (p === ancestor) return true
+            p = p.parent
+        }
+        return false
+    }
+    function revealFocusedItem(item) {
+        if (!item || !world.isInside(item, page)) return
+        var point = item.mapToItem(page, 0, 0)
+        if (point.y < 18)
+            page.contentY = Math.max(0, page.contentY + point.y - 18)
+        else if (point.y + item.height > page.height - 18)
+            page.contentY = Math.min(Math.max(0, page.contentHeight - page.height),
+                                     page.contentY + point.y + item.height - page.height + 18)
+    }
+    function moveVerticalFocus(forward) {
+        const w = world.Window.window
+        const from = w ? w.activeFocusItem : null
+        if (!from || !world.isInside(from, world)) return false
+        var target = from.nextItemInFocusChain(forward)
+        var guard = 0
+        while (target && target !== from && guard++ < 96) {
+            if (target.visible && target.enabled && target.activeFocusOnTab) {
+                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                world.revealFocusedItem(target)
+                return true
+            }
+            target = target.nextItemInFocusChain(forward)
+        }
+        return false
+    }
+
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: (event) => {
+        if (!world.televisionMode) return
+        if (event.key === Qt.Key_Up)
+            event.accepted = world.moveVerticalFocus(false)
+        else if (event.key === Qt.Key_Down)
+            event.accepted = world.moveVerticalFocus(true)
+    }
 
     signal homeRequested()
     signal mediumSelected(string medium)     // tapped another pill → host switches world
@@ -61,8 +114,9 @@ Item {
         backdrop: world.backdrop
         activeMedium: world.medium
         lifecycleActive: world.lifecycleActive
-        x: theme.margin; y: 30
-        width: world.width - theme.margin * 2
+        androidHost: world.androidHost
+        x: adaptive.pageMargin; y: adaptive.topInset
+        width: world.width - adaptive.pageMargin * 2
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
@@ -74,6 +128,11 @@ Item {
         onMinimizeClicked: world.minimizeClicked()
         onPowerClicked: world.powerClicked()
     }
+
+    Component.onCompleted: if (world.televisionMode && world.visible)
+        Qt.callLater(function() { topbar.focusFirst() })
+    onVisibleChanged: if (world.televisionMode && world.visible)
+        Qt.callLater(function() { topbar.focusFirst() })
 
     // Read-only viewport seam for viewport-aware lazy shelves (LazyPosterShelf). These expose the
     // existing page Flickable's scroll offset and height WITHOUT adding a second vertical scroller or
@@ -89,8 +148,8 @@ Item {
         // addressable without introducing a second scroller or a presentation shell.
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
-        y: 96
-        height: world.height - 96
+        y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
+        height: world.height - y
         contentWidth: width
         contentHeight: board.implicitHeight + 50
         clip: true
@@ -101,10 +160,10 @@ Item {
 
         Column {
             id: board
-            x: theme.margin
-            width: world.width - theme.margin * 2
+            x: adaptive.pageMargin
+            width: world.width - adaptive.pageMargin * 2
             topPadding: 12; bottomPadding: 24
-            spacing: 36
+            spacing: adaptive.sectionSpacing
         }
     }
 

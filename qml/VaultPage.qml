@@ -14,6 +14,10 @@ Item {
     id: root
     objectName: "vaultPage"
     property Item backdrop: null
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: adaptive; viewportWidth: root.width }
+    readonly property real pageMargin: adaptive.pageMargin
+    readonly property string layoutClass: adaptive.layoutClass
     signal backRequested()
     signal addFolderRequested()
     signal minimizeRequested()
@@ -598,10 +602,12 @@ Item {
     }
     readonly property bool browseGridWide: root.browseGridRows.length > 0
         && (root.browseGridRows[0].nodeType === "episode" || root.browseGridRows[0].nodeType === "clip")
-    readonly property int posterCellWidth: 170
-    readonly property int posterCellHeight: 300
-    readonly property int wideCellWidth: 320
-    readonly property int wideCellHeight: 250
+    readonly property int posterCellWidth: adaptive.phone ? 154 : 170
+    readonly property int posterCellHeight: adaptive.phone ? 282 : 300
+    readonly property int wideCellWidth: adaptive.phone
+        ? Math.max(210, Math.floor(root.width - adaptive.pageMargin * 2 - 62 - 12))
+        : 320
+    readonly property int wideCellHeight: adaptive.phone ? 220 : 250
 
     function browseSettings_setLastCrumb() {
         browseSettings.lastCrumbJson = JSON.stringify(root.crumbStack)
@@ -961,8 +967,8 @@ Item {
 
         Column {
             id: col
-            x: theme.margin
-            width: root.width - theme.margin * 2
+            x: adaptive.pageMargin
+            width: root.width - adaptive.pageMargin * 2
             topPadding: 14
             spacing: 0
 
@@ -1119,11 +1125,11 @@ Item {
             objectName: "vaultBrowseCarousel"
             anchors.top: parent.top; anchors.topMargin: 20
             anchors.left: parent.left; anchors.right: parent.right
-            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+            anchors.leftMargin: adaptive.pageMargin; anchors.rightMargin: adaptive.pageMargin
             // S14: the search results view replaces the browse face's level chrome — the
             // carousel and the Continue rail collapse (the rail's own empty-state pattern:
             // height follows visible) so the flat results grid owns the viewport.
-            implicitHeight: root.searchViewActive ? 0 : 330
+            implicitHeight: root.searchViewActive ? 0 : adaptive.heroHeight
             visible: !root.searchViewActive
             // S15 (ux uplift): the carousel is keyboard-reachable — Left/Right move the slide,
             // Return fires the slide's primary (Play), the ring paints only under keyboard.
@@ -1172,8 +1178,8 @@ Item {
             visible: root.continueItems.length > 0 && !root.searchViewActive
             anchors.top: browseCarousel.bottom; anchors.topMargin: 18
             anchors.left: parent.left; anchors.right: parent.right
-            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-            height: visible ? 270 : 0
+            anchors.leftMargin: adaptive.pageMargin; anchors.rightMargin: adaptive.pageMargin
+            height: visible ? (adaptive.phone ? 238 : 270) : 0
 
             Text {
                 objectName: "vaultContinueRailKicker"
@@ -1222,13 +1228,13 @@ Item {
             anchors.top: continueRail.bottom; anchors.topMargin: continueRail.visible ? 20 : 4
             anchors.left: parent.left; anchors.right: parent.right
             anchors.bottom: parent.bottom; anchors.bottomMargin: 24
-            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+            anchors.leftMargin: adaptive.pageMargin; anchors.rightMargin: adaptive.pageMargin
 
             VaultBrowseRail {
                 id: browseRail
                 anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
                 roots: root.browseRootsDetail
-                expanded: browseSettings.railExpanded
+                expanded: !adaptive.phone && browseSettings.railExpanded
                 selectedRootPath: root.crumbStack.length ? root.crumbStack[0].key : ""
                 hiddenActive: root.hiddenViewActive
                 hiddenCount: root.hiddenSeriesRows.length
@@ -1262,7 +1268,9 @@ Item {
                 }
                 onHiddenRequested: root.openHidden()
                 onAddRequested: root.addFolderRequested()
-                onToggleRequested: browseSettings.railExpanded = !browseSettings.railExpanded
+                onToggleRequested: {
+                    if (!adaptive.phone) browseSettings.railExpanded = !browseSettings.railExpanded
+                }
                 // Slice 9 (design §4.9): Tab from the grid reaches the rail; Shift+Tab returns.
                 // `grid` is declared further down in this same file — QML resolves ids
                 // document-wide, so the forward reference is valid.
@@ -1275,7 +1283,7 @@ Item {
 
             Item {
                 id: mainArea
-                anchors.left: browseRail.right; anchors.leftMargin: 24
+                anchors.left: browseRail.right; anchors.leftMargin: adaptive.phone ? 12 : 24
                 anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
 
                 VaultBrowseCrumb {
@@ -1408,6 +1416,7 @@ Item {
                         }
                         Text {
                             objectName: "vaultBrowseFilterLabel"
+                            visible: !adaptive.phone
                             text: root.activeFilterCount > 0
                                   ? ("Filter · " + root.activeFilterCount) : "Filter"
                             color: root.filterMenuOpen || filterFaceMa.containsMouse ? theme.ink : theme.inkDim
@@ -1453,6 +1462,7 @@ Item {
                         }
                         Text {
                             objectName: "vaultBrowseSortLabel"
+                            visible: !adaptive.phone
                             text: root.sortLabelOf(root.sortMode)
                             color: root.sortMenuOpen || sortFaceMa.containsMouse ? theme.ink : theme.inkDim
                             font.family: theme.ui; font.pixelSize: 12
@@ -1526,6 +1536,7 @@ Item {
                     id: posterDelegateComp
                     VaultPosterCard {
                         required property var modelData
+                        cardWidth: adaptive.phone ? Math.max(132, root.posterCellWidth - 8) : 150
                         row: modelData
                         onOpenRequested: (r) => root.handleBrowseCardOpen(r)
                         onIdentifyRequested: (r) => root.identifyBrowseRow(r)
@@ -1540,6 +1551,7 @@ Item {
                     id: wideDelegateComp
                     VaultWideCard {
                         required property var modelData
+                        cardWidth: adaptive.phone ? Math.max(202, root.wideCellWidth - 8) : 300
                         row: modelData
                         onOpenRequested: (r) => root.handleBrowseCardOpen(r)
                         onIdentifyRequested: (r) => root.identifyBrowseRow(r)
@@ -2073,10 +2085,11 @@ Item {
 
     // ---- top chrome: minimize · fullscreen · power (same vocabulary as Settings/Downloads) ----
     Item {
+        visible: !root.androidHost
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 24
-        anchors.rightMargin: theme.margin
+        anchors.rightMargin: adaptive.pageMargin
         z: 60
         width: chromeRow.implicitWidth
         height: 30
@@ -2104,8 +2117,8 @@ Item {
         variant: "capsule"; tip: "Back"
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.topMargin: 21
-        anchors.leftMargin: theme.margin - 10
+        anchors.topMargin: root.androidHost ? adaptive.topInset : 21
+        anchors.leftMargin: Math.max(8, adaptive.pageMargin - 10)
         // The visible Back control and shell Escape share the exact same Vault-local
         // arbitration, including sheets, folder detail and browse ancestry.
         onTriggered: root.handleBack()

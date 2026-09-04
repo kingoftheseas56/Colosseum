@@ -76,6 +76,7 @@ int main(int argc, char** argv)
     // The audiobook playback surface (mpv), reached from AudiobookSession.qml as
     // `import Colosseum.Player` — registered exactly as main.cpp does so the harness can
     // instantiate the SHARED session and drive a real read-along transport.
+    qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "PlayerItem");
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
 
     QQmlApplicationEngine engine;

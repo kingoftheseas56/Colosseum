@@ -17,7 +17,7 @@
 #include "SyncEngine.h"
 #include "SyncAdapterRegistry.h"
 #include "ProfileStoreRuntime.h"
-#include "WindowsAccountCredentialStore.h"
+#include "AccountCredentialStore.h"
 #include "WindowsAccountSensitiveClipboard.h"
 
 #include <QObject>
@@ -36,6 +36,7 @@ class AccountRuntime final : public QObject {
 
 public:
     explicit AccountRuntime(QObject *parent = nullptr);
+    AccountRuntime(std::unique_ptr<AccountCredentialStore> credentialStore, QObject *parent);
 
     AccountController *controller();
     AccountRecoveryKeyPresenter *recoveryKeyPresenter();
@@ -45,7 +46,7 @@ public:
 
     void prepareForQml(QQmlApplicationEngine *engine);
 
-    // Narrow Watch Party identity seam — supplies signed-in username +
+    // Narrow Watch Party identity seam â€” supplies signed-in username +
     // current bearer to the Watch Party WSS boundary only; never exposed to
     // QML; invite delivery fail-closed until the account service exposes a
     // delivery operation.
@@ -59,7 +60,7 @@ private:
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
-    WindowsAccountCredentialStore m_credentialStore;
+    std::unique_ptr<AccountCredentialStore> m_credentialStore;
     AccountDeviceIdentity m_deviceIdentity;
     AccountBootstrapStore m_bootstrapStore;
     WindowsAccountSensitiveClipboard m_sensitiveClipboard;

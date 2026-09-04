@@ -9,6 +9,7 @@
 // In BOTH profiles the IMDb rating is POINTER-HOVER-ONLY; keyboard focus draws the focus halo but
 // never the hover reveal. Gallery has NO centered play ring and NO Unicode poster-control glyph.
 import QtQuick
+import QtQuick.Window
 import "PosterSourcePolicy.js" as PosterPolicy
 import "CatalogueVisualMetrics.js" as Metrics
 
@@ -35,6 +36,10 @@ Item {
 
     readonly property var _m: Metrics.profile(card.visualProfile)
     readonly property bool _gallery: card.visualProfile === "gallery"
+    readonly property bool televisionMode: {
+        const w = card.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
 
     readonly property bool effectiveHovered: hov.hovered || card.testHovered
     // the reveal block opens on pointer hover always, and ALSO on keyboard focus when a
@@ -223,11 +228,15 @@ Item {
         anchors.fill: frame; radius: card._m.posterRadius
         visible: card.keyboardFocused
         color: "transparent"
-        border.width: 2; border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
+        border.width: card.televisionMode ? 4 : 2
+        border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255,
+                              card.televisionMode ? 0.95 : 0.55)
         Rectangle {
-            anchors.fill: parent; anchors.margins: -3
-            radius: card._m.posterRadius + 2; color: "transparent"
-            border.width: 3; border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.18)
+            anchors.fill: parent; anchors.margins: card.televisionMode ? -5 : -3
+            radius: card._m.posterRadius + (card.televisionMode ? 4 : 2); color: "transparent"
+            border.width: card.televisionMode ? 4 : 3
+            border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255,
+                                  card.televisionMode ? 0.28 : 0.18)
         }
     }
 

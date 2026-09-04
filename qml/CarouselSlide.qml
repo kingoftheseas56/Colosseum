@@ -3,6 +3,7 @@
 // a left scrim, copy, and the ghost medium marker. Used as a SwipeView page by FeaturedCarousel.
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Window
 
 Item {
     id: slideRoot
@@ -14,7 +15,12 @@ Item {
     signal secondaryClicked()
 
     readonly property bool isPoster: slide.artKind !== undefined && slide.artKind === "poster"
-    readonly property bool compactCopy: slideRoot.height < 360
+    readonly property bool narrowLayout: slideRoot.width < 600
+    readonly property bool televisionMode: {
+        const w = slideRoot.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
+    readonly property bool compactCopy: slideRoot.height < 360 || slideRoot.narrowLayout
     Theme { id: theme }
 
     Rectangle {
@@ -46,8 +52,8 @@ Item {
             anchors.fill: parent
             source: artRaw
             maskEnabled: true; maskSource: artMask
-            visible: !slideRoot.isPoster
-            opacity: (!slideRoot.isPoster && artRaw.status === Image.Ready) ? 1 : 0
+            visible: !slideRoot.isPoster || slideRoot.narrowLayout
+            opacity: ((!slideRoot.isPoster || slideRoot.narrowLayout) && artRaw.status === Image.Ready) ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
         // comic poster: native rounded gradient vignette (NO blur → clean corners)…
@@ -63,7 +69,7 @@ Item {
         }
         // …with the crisp poster stood on the right
         Image {
-            visible: slideRoot.isPoster
+            visible: slideRoot.isPoster && !slideRoot.narrowLayout
             source: slideRoot.isPoster && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true
             anchors.right: parent.right; anchors.rightMargin: 56
@@ -88,6 +94,7 @@ Item {
         }
         // ghost medium marker
         Text {
+            visible: !slideRoot.narrowLayout
             text: slideRoot.slide.ghost !== undefined ? slideRoot.slide.ghost : ""
             color: Qt.rgba(1, 1, 1, 0.06)
             font.family: theme.display; font.bold: true; font.pixelSize: 150
@@ -98,28 +105,33 @@ Item {
         Column {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            anchors.leftMargin: 42
-            anchors.bottomMargin: 42
-            width: Math.min(560, parent.width - 84)
-            spacing: slideRoot.compactCopy ? 8 : 10
+            anchors.leftMargin: slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42)
+            anchors.bottomMargin: slideRoot.televisionMode ? 48 : (slideRoot.narrowLayout ? 22 : 42)
+            width: Math.min(slideRoot.televisionMode ? 680 : 560,
+                            parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
+            spacing: slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10)
             Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 13 : 11; font.letterSpacing: 3 }
             Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
-                color: theme.ink; font.family: theme.display; font.pixelSize: slideRoot.compactCopy ? 42 : 50
+                color: theme.ink; font.family: theme.display
+                font.pixelSize: slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50))
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
             Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
                 visible: text.length > 0
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: slideRoot.compactCopy ? 13 : 14
+                color: theme.inkDim; font.family: theme.ui
+                font.pixelSize: slideRoot.compactCopy ? 13 : (slideRoot.televisionMode ? 16 : 14)
                 maximumLineCount: slideRoot.compactCopy ? 2 : 3; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25 }
             Row {
                 spacing: 10; topPadding: 6
                 Rectangle {
-                    radius: 11; height: 42; width: pl.implicitWidth + 36; color: theme.gold
+                    radius: slideRoot.televisionMode ? 13 : 11
+                    height: slideRoot.televisionMode ? 50 : 42
+                    width: pl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36)); color: theme.gold
                     Text { id: pl; anchors.centerIn: parent; text: slideRoot.primaryLabel; color: "#1a1408"
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.primaryClicked() }
                     KeyboardAction {
@@ -132,10 +144,12 @@ Item {
                 }
                 Rectangle {
                     visible: slideRoot.secondaryLabel.length > 0
-                    radius: 11; height: 42; width: sl.implicitWidth + 36
+                    radius: slideRoot.televisionMode ? 13 : 11
+                    height: slideRoot.televisionMode ? 50 : 42
+                    width: sl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36))
                     color: Qt.rgba(1, 1, 1, 0.10); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
                     Text { id: sl; anchors.centerIn: parent; text: slideRoot.secondaryLabel; color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium }
+                        font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.Medium }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.secondaryClicked() }
                     KeyboardAction {

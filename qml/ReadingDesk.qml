@@ -16,12 +16,13 @@ Glass {
 
     property string heading: "Biblio"
     property var chart: []             // ranked chart books from BiblioApi ("top" would shadow Item.top)
+    readonly property bool compactLayout: width < 600
 
     signal clicked()                   // title / books → open the Biblio world (v1, like Bookshelf)
     signal genrePicked(string name)    // a chip → that genre inside Biblio
 
     radius: 18
-    height: 400
+    height: desk.compactLayout ? 560 : 400
 
     Theme { id: theme }
     KeyboardAction {
@@ -49,10 +50,10 @@ Glass {
 
     // ---- main title (centered) ----
     Text {
-        anchors.top: parent.top; anchors.topMargin: 28
+        anchors.top: parent.top; anchors.topMargin: desk.compactLayout ? 20 : 28
         anchors.horizontalCenter: parent.horizontalCenter
         text: desk.heading; color: theme.ink
-        font.family: theme.display; font.pixelSize: 33
+        font.family: theme.display; font.pixelSize: desk.compactLayout ? 30 : 33
         MouseArea {
             anchors.fill: parent; anchors.margins: -12
             cursorShape: Qt.PointingHandCursor; onClicked: desk.clicked()
@@ -63,12 +64,14 @@ Glass {
     Text {
         anchors.left: parent.left; anchors.leftMargin: 46
         anchors.top: parent.top; anchors.topMargin: 36
+        visible: !desk.compactLayout
         text: "Top charts"; color: theme.inkDim
         font.family: theme.display; font.italic: true; font.pixelSize: 22
     }
 
     // ---- the desk: pile · chart stat + chips · runner-up face-out ----
     Row {
+        visible: !desk.compactLayout
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom; anchors.bottomMargin: 44
         spacing: 74
@@ -247,6 +250,87 @@ Glass {
                 text: "No. 2"; color: theme.inkDimmer
                 font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.6
                 font.capitalization: Font.AllUppercase
+            }
+        }
+    }
+
+    // Phone composition: preserve the chart/cover identity, but use the vertical canvas instead
+    // of squeezing the three-column desktop desk into a 360-430 dp viewport.
+    Column {
+        id: compactDesk
+        visible: desk.compactLayout
+        anchors.top: parent.top
+        anchors.topMargin: 78
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.max(260, parent.width - 32)
+        spacing: 10
+
+        Item {
+            width: 132; height: 198
+            anchors.horizontalCenter: parent.horizontalCenter
+            Rectangle {
+                anchors.fill: parent; x: 4; y: 8; radius: 9
+                color: Qt.rgba(0, 0, 0, 0.42)
+            }
+            Rectangle {
+                anchors.fill: parent; radius: 9; clip: true
+                gradient: Gradient {
+                    GradientStop { position: 0; color: desk._tint(0, "#5a4a28") }
+                    GradientStop { position: 1; color: "#1d160c" }
+                }
+                border.width: compactCoverHit.containsMouse ? 2 : 1
+                border.color: compactCoverHit.containsMouse ? theme.gold : Qt.rgba(1, 1, 1, 0.12)
+                Image {
+                    anchors.fill: parent
+                    source: desk.chart.length > 0 ? desk.chart[0].cover : ""
+                    asynchronous: true; cache: true
+                    fillMode: Image.PreserveAspectCrop
+                    sourceSize.width: 300; sourceSize.height: 450
+                    opacity: status === Image.Ready ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 220 } }
+                }
+            }
+            MouseArea {
+                id: compactCoverHit; anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor; onClicked: desk.clicked()
+            }
+        }
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "TOP 10 ? APPLE BOOKS"; color: theme.gold
+            font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.8; font.weight: Font.DemiBold
+        }
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            text: "Fresh chart picks, with the same Biblio catalogue one tap away."
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+            wrapMode: Text.WordWrap; lineHeight: 1.3
+        }
+        Item { width: 1; height: 4 }
+        Flow {
+            width: parent.width; spacing: 8
+            Repeater {
+                model: Catalog.biblioGenres.slice(0, 4)
+                delegate: Rectangle {
+                    required property var modelData
+                    width: compactChipText.implicitWidth + 22; height: 28; radius: 14
+                    color: Qt.rgba(1, 1, 1, 0.06)
+                    border.width: 1
+                    border.color: compactChipHit.containsMouse ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.5) : theme.edge
+                    Text {
+                        id: compactChipText; anchors.centerIn: parent
+                        text: parent.modelData.name
+                        color: compactChipHit.containsMouse ? theme.ink : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 11
+                    }
+                    MouseArea {
+                        id: compactChipHit; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: desk.genrePicked(parent.modelData.name)
+                    }
+                }
             }
         }
     }

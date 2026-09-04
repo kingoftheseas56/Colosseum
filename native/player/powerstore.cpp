@@ -4,6 +4,11 @@
 
 #if defined(Q_OS_WIN)
 #include <windows.h>
+#elif defined(Q_OS_ANDROID)
+#include <QCoreApplication>
+#include <QDeadlineTimer>
+#include <QJniObject>
+#include <QVariant>
 #endif
 
 PowerStore::PowerStore(QObject *parent)
@@ -33,6 +38,31 @@ bool PowerStore::applyPlatformInhibit(bool on, const QString &reason) {
     if (on)
         state |= ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED;
     return SetThreadExecutionState(state) != 0;
+#elif defined(Q_OS_ANDROID)
+    Q_UNUSED(reason)
+    if (!QNativeInterface::QAndroidApplication::isActivityContext())
+        return !on;
+
+    auto future = QNativeInterface::QAndroidApplication::runOnAndroidMainThread(
+        [on]() -> QVariant {
+            QJniObject activity = QNativeInterface::QAndroidApplication::context();
+            if (!activity.isValid())
+                return false;
+            QJniObject window = activity.callObjectMethod(
+                "getWindow", "()Landroid/view/Window;");
+            if (!window.isValid())
+                return false;
+
+            constexpr jint keepScreenOn = 0x00000080;
+            if (on)
+                window.callMethod<void>("addFlags", "(I)V", keepScreenOn);
+            else
+                window.callMethod<void>("clearFlags", "(I)V", keepScreenOn);
+            return true;
+        },
+        QDeadlineTimer(1000));
+    future.waitForFinished();
+    return future.isFinished() && future.result().toBool();
 #elif defined(Q_OS_LINUX)
     if (on) {
         if (m_linuxInhibitor && m_linuxInhibitor->state() != QProcess::NotRunning)

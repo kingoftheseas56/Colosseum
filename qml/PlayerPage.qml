@@ -136,9 +136,17 @@ Item {
     property bool autoSkipRecap: playerSettings.autoSkipRecap
     property bool autoSkipCredits: playerSettings.autoSkipCredits
 
-    // Loudness normalization — a live global mpv audio filter, applied on change + at load.
+    function supportsPlayerCapability(name) {
+        var caps = mpv && mpv.capabilities ? mpv.capabilities : ({})
+        return caps[name] === true
+    }
+
+    // Loudness normalization is backend-optional; desktop mpv supports it, Android need not.
     property string loudnessMode: playerSettings.loudnessMode
-    onLoudnessModeChanged: mpv.setAudioNormalization(root.loudnessMode)
+    onLoudnessModeChanged: {
+        if (root.supportsPlayerCapability("loudnessNormalization"))
+            mpv.setAudioNormalization(root.loudnessMode)
+    }
     function loudnessLabel() {
         return root.loudnessMode === "full" ? "Full (EBU R128)"
              : root.loudnessMode === "light" ? "Light"
@@ -408,7 +416,7 @@ Item {
     readonly property string stateLineText: {
         if (root.starting || root.errored) return ""
         // buffering: cache-buffering-state drops below 100 while the stream refills
-        var buf = mpv.mpvProperty("cache-buffering-state")
+        var buf = mpv.playbackStat("bufferingPercent")
         if (!mpv.pause && buf !== undefined && buf !== "" && Number(buf) < 100 && Number(buf) >= 0)
             return "Buffering " + Number(buf).toFixed(0) + "%"
         if (mpv.pause) return "Paused"
@@ -757,9 +765,9 @@ Item {
                                             ? "OFF" : langChip(root.selectedSubtitleRow(), "ON")
 
     function applySavedTrackDelays(pref) {
-        if (pref && typeof pref.audioDelay === "number")
+        if (root.supportsPlayerCapability("audioDelay") && pref && typeof pref.audioDelay === "number")
             mpv.audioDelay = root.round2(pref.audioDelay)
-        if (pref && typeof pref.subDelay === "number")
+        if (root.supportsPlayerCapability("subtitleDelay") && pref && typeof pref.subDelay === "number")
             mpv.subDelay = root.round2(pref.subDelay)
     }
 
@@ -868,16 +876,22 @@ Item {
     }
 
     function adjustAudioDelay(delta) {
+        if (!root.supportsPlayerCapability("audioDelay"))
+            return
         mpv.audioDelay = root.round2(mpv.audioDelay + delta)
         root.saveTrackPreference({ "audioDelay": mpv.audioDelay })
     }
 
     function adjustSubtitleDelay(delta) {
+        if (!root.supportsPlayerCapability("subtitleDelay"))
+            return
         mpv.subDelay = root.round2(mpv.subDelay + delta)
         root.saveTrackPreference({ "subDelay": mpv.subDelay })
     }
 
     function resetSubtitleDelay() {
+        if (!root.supportsPlayerCapability("subtitleDelay"))
+            return
         mpv.subDelay = 0
         root.saveTrackPreference({ "subDelay": 0 })
     }
@@ -1044,9 +1058,9 @@ Item {
                            ? headers : ({})
         root.currentPlaybackUrl = directUrl
         if (Object.keys(requestHeaders).length)
-            mpv.loadFileWithHeaders(directUrl, requestHeaders)
+            mpv.loadSource(directUrl, requestHeaders)
         else
-            mpv.loadFile(directUrl)
+            mpv.loadSource(directUrl)
         return true
     }
 
@@ -1615,7 +1629,7 @@ Item {
         if (directUrl.length)
             root.loadDirectStreamUrl(directUrl, c.headers)
         else
-            mpv.loadFile(root.currentPlaybackUrl)
+            mpv.loadSource(root.currentPlaybackUrl)
     }
 
     function handlePlaybackFailure(reason) {
@@ -1643,7 +1657,7 @@ Item {
                 root.statusMsg = "Reconnecting stream..."
                 root.resetRecoveryWatch()
                 streamWatchdog.restart()
-                mpv.loadFile(root.currentPlaybackUrl)
+                mpv.loadSource(root.currentPlaybackUrl)
                 return
             }
             root.errored = true
@@ -1931,13 +1945,12 @@ Item {
     // same one) forces a fresh device connection. Cheap (~100ms, same track, paused), so run
     // it on every un-minimize rather than trying to detect a dead device mpv won't report.
     function healAudio() {
-        if (!root.fileReady)
+        if (!root.fileReady || !root.supportsPlayerCapability("audioOutputRefresh"))
             return
         var aid = mpv.audioTrack
         if (!aid || aid === "no")
             return
-        mpv.command(["set", "aid", "no"])
-        mpv.command(["set", "aid", aid])
+        mpv.refreshAudioOutput()
     }
 
     function downloadTooltip() {
@@ -2014,6 +2027,8 @@ Item {
     }
 
     function captureFrameGrab() {
+        if (!root.supportsPlayerCapability("frameCapture"))
+            return
         try {
             var path = mpv.captureFrame(root.mediaTitle || mpv.mediaTitle || "Video",
                                         root.mediaSubtitle || root.fmtTime(mpv.position))
@@ -2044,7 +2059,7 @@ Item {
         root.wakeChrome()
     }
     function startGifRecording() {
-        if (root.gifState !== "idle")
+        if (!root.supportsPlayerCapability("gifCapture") || root.gifState !== "idle")
             return
         if (!mpv.startGifRecording()) {
             root.showGifToast(false, "")
@@ -2343,7 +2358,7 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        mpv.loadFile(url)
+        mpv.loadSource(url)
     }
 
     // Downloaded-file playback with STREAM-GRADE identity (spec 2026-07-06 downloaded-video
@@ -2451,7 +2466,7 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        mpv.loadFile(root.mediaLocalPath)
+        mpv.loadSource(root.mediaLocalPath)
         root.maybeHydrateContext()
     }
 
@@ -2610,7 +2625,7 @@ Item {
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
         root.activityEndSession()   // Activity (§9 Lane A): close/lifecycle exit ends the session
         root.closeMenus()
-        mpv.command(["stop"])
+        mpv.stopPlayback()
         root.starting = false
         root.errored = false
         root.statusMsg = ""
@@ -2951,9 +2966,13 @@ Item {
         return false
     }
     function refreshPlaybackStats() {
+        if (!root.supportsPlayerCapability("playbackStats")) {
+            root.playbackStats = ({})
+            return
+        }
         root.playbackStats = {
-            "videoBitrate": mpv.mpvProperty("video-bitrate"),
-            "audioBitrate": mpv.mpvProperty("audio-bitrate"),
+            "videoBitrate": mpv.playbackStat("videoBitrate"),
+            "audioBitrate": mpv.playbackStat("audioBitrate"),
             // "decoder / output" — mpv's property naming is inverted from the plain reading:
             // `frame-drop-count` is the OUTPUT (VO) drop count and `decoder-frame-drop-count` is
             // the decoder's. This pair used to read frame-drop-count into the DECODER slot and
@@ -2962,16 +2981,16 @@ Item {
             // property comes back as an ErrorReturn object, and Number(object) is NaN). Fixed
             // 2026-07-29 to match native/player/mpvitem.cpp statsPayload(), which is the mapping
             // the zero-drop gate measures against.
-            "frameDropDecoder": mpv.mpvProperty("decoder-frame-drop-count"),
-            "frameDropOutput": mpv.mpvProperty("frame-drop-count"),
-            "estimatedFps": mpv.mpvProperty("estimated-vf-fps"),
-            "containerFps": mpv.mpvProperty("container-fps"),
-            "videoCodec": mpv.mpvProperty("video-codec"),
-            "audioCodec": mpv.mpvProperty("audio-codec"),
-            "hwdec": mpv.mpvProperty("hwdec-current"),
-            "cacheBufferingState": mpv.mpvProperty("cache-buffering-state"),
-            "width": mpv.mpvProperty("width"),
-            "height": mpv.mpvProperty("height")
+            "frameDropDecoder": mpv.playbackStat("decoderDroppedFrames"),
+            "frameDropOutput": mpv.playbackStat("outputDroppedFrames"),
+            "estimatedFps": mpv.playbackStat("estimatedFps"),
+            "containerFps": mpv.playbackStat("containerFps"),
+            "videoCodec": mpv.playbackStat("videoCodec"),
+            "audioCodec": mpv.playbackStat("audioCodec"),
+            "hwdec": mpv.playbackStat("hardwareDecoder"),
+            "cacheBufferingState": mpv.playbackStat("bufferingPercent"),
+            "width": mpv.playbackStat("width"),
+            "height": mpv.playbackStat("height")
         }
         root.diagnosticFrameDropDecoder = Number(root.playbackStats.frameDropDecoder || 0)
         root.diagnosticFrameDropOutput = Number(root.playbackStats.frameDropOutput || 0)
@@ -3090,6 +3109,8 @@ Item {
         hideTimer.restart()
     }
     function applyFill(index) {
+        if (!root.supportsPlayerCapability("videoTransform"))
+            return
         root.fillModeIndex = root.clamp(index, 0, root.fillModes.length - 1)
         var mode = root.fillModes[root.fillModeIndex]
         mpv.panscan = mode.panscan
@@ -3143,8 +3164,14 @@ Item {
         case "escape": root.requestEscape(); return
         case "seekBack": root.requestUserSeekStep(-root.seekBackSeconds); return
         case "seekForward": root.requestUserSeekStep(root.seekForwardSeconds); return
-        case "frameBack": if (mpv.pause) mpv.frameBackStep(); else root.requestUserSeekStep(-30); return
-        case "frameForward": if (mpv.pause) mpv.frameStep(); else root.requestUserSeekStep(30); return
+        case "frameBack":
+            if (mpv.pause && root.supportsPlayerCapability("frameStepping")) mpv.frameBackStep()
+            else root.requestUserSeekStep(-30)
+            return
+        case "frameForward":
+            if (mpv.pause && root.supportsPlayerCapability("frameStepping")) mpv.frameStep()
+            else root.requestUserSeekStep(30)
+            return
         case "seekStart": root.requestUserSeekTo(0); return
         case "seekEnd": if (mpv.duration > 0) root.requestUserSeekTo(mpv.duration - 0.5); return
         case "seekPercent":
@@ -3156,16 +3183,24 @@ Item {
         case "volumeDown": root.adjustVolume(event.modifiers & Qt.ShiftModifier ? -1 : -5); return
         case "speedDown": mpv.speed = root.clamp(root.round2(mpv.speed - 0.25), 0.25, 3); return
         case "speedUp": mpv.speed = root.clamp(root.round2(mpv.speed + 0.25), 0.25, 3); return
-        case "subtitleDelayDown": mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return
-        case "subtitleDelayUp": mpv.subDelay = root.round2(mpv.subDelay + (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return
+        case "subtitleDelayDown":
+            if (root.supportsPlayerCapability("subtitleDelay"))
+                mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1))
+            return
+        case "subtitleDelayUp":
+            if (root.supportsPlayerCapability("subtitleDelay"))
+                mpv.subDelay = root.round2(mpv.subDelay + (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1))
+            return
         case "cycleSubtitle": root.cycleSubtitle(); return
         case "abLoopA": root.setAbLoopA(); return
         case "abLoopB": root.setAbLoopB(); return
         case "abLoopClear": root.clearAbLoop(); return
         case "stats":
-            root.statsOverlayOpen = !root.statsOverlayOpen
-            if (root.statsOverlayOpen)
-                root.refreshPlaybackStats()
+            if (root.supportsPlayerCapability("playbackStats")) {
+                root.statsOverlayOpen = !root.statsOverlayOpen
+                if (root.statsOverlayOpen)
+                    root.refreshPlaybackStats()
+            }
             return
         case "browser": {
             var wasOpen = root.browserOpen
@@ -3264,7 +3299,8 @@ Item {
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
-        mpv.setAudioNormalization(root.loudnessMode)   // apply the persisted mode at startup
+        if (root.supportsPlayerCapability("loudnessNormalization"))
+            mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: if (typeof Power !== "undefined") Power.release()
     onVisibleChanged: {
@@ -3375,7 +3411,7 @@ Item {
     // mpvProperty can return an unavailable/error-wrapped QVariant that stringifies to
     // "QVariant(ErrorReturn, ...)" — never let that leak into the UI. Clean to "" instead.
     function mpvClean(key) {
-        var v = mpv.mpvProperty(key)
+        var v = mpv.playbackStat(key)
         if (v === undefined || v === null) return ""
         var s = String(v)
         if (!s.length || s.indexOf("QVariant") >= 0 || s.indexOf("ErrorReturn") >= 0) return ""
@@ -3387,13 +3423,13 @@ Item {
         var out = []
         var h = Number(root.mpvClean("height"))
         if (h > 0) out.push(h + "p")
-        var vc = root.mpvClean("video-codec").split(" ")[0]
+        var vc = root.mpvClean("videoCodec").split(" ")[0]
         if (vc.length) out.push(vc.toUpperCase())
-        var ac = root.mpvClean("audio-codec").split(" ")[0]
+        var ac = root.mpvClean("audioCodec").split(" ")[0]
         if (ac.length) out.push(ac.toUpperCase())
-        var ch = Number(root.mpvClean("audio-params/channel-count"))
+        var ch = Number(root.mpvClean("audioChannelCount"))
         if (ch > 0) out.push(root.channelLabel(ch))
-        var transfer = root.mpvClean("video-params/transfer").toLowerCase()
+        var transfer = root.mpvClean("videoTransfer").toLowerCase()
         if (transfer.indexOf("pq") >= 0 || transfer.indexOf("smpte2084") >= 0) out.push("HDR")
         else if (transfer.indexOf("hlg") >= 0) out.push("HLG")
         return out.join("  ·  ")
@@ -3450,7 +3486,7 @@ Item {
             root.hoverThumbUrl = imageUrl
         }
     }
-    MpvItem {
+    PlayerItem {
         id: mpv
         objectName: "playerMpv"
         anchors.fill: parent
@@ -3463,14 +3499,7 @@ Item {
             // putting the frame on screen. Upstream reports this exact preset curing stutter on
             // low-spec hardware (mpv#9417 family). Costs some scaling finesse — Hemanth's eyes
             // are the gate; revert this one block to restore mpv's quality defaults.
-            mpv.setProperty("scale", "bilinear")
-            mpv.setProperty("cscale", "bilinear")
-            mpv.setProperty("dscale", "bilinear")
-            mpv.setProperty("dither", "no")
-            mpv.setProperty("correct-downscaling", "no")
-            mpv.setProperty("linear-downscaling", "no")
-            mpv.setProperty("sigmoid-upscaling", "no")
-            mpv.setProperty("hdr-compute-peak", "no")
+            mpv.applyPlaybackProfile()
         }
         onCurrentUrlChanged: {
             seekThumbs.reset()          // new file = new frames; stale thumbs must not survive
@@ -3684,7 +3713,7 @@ Item {
             root.streamStatsSpeedBps = 0
             root.streamStatsDownloaded = 0
             Stream.watchStats(infoHash, fileIdx)
-            mpv.loadFile(url)
+            mpv.loadSource(url)
         }
         function onStreamStats(infoHash, fileIdx, stats) {
             if (!root.starting)
@@ -4267,10 +4296,10 @@ Item {
 
                 Repeater {
                     model: [
-                        { "label": "Screenshot", "kind": "screenshot", "when": true },
-                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": true },
-                        { "label": "Playback stats", "kind": "stats", "when": true },
-                        { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": true },
+                        { "label": "Screenshot", "kind": "screenshot", "when": root.supportsPlayerCapability("frameCapture") },
+                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": root.supportsPlayerCapability("gifCapture") },
+                        { "label": "Playback stats", "kind": "stats", "when": root.supportsPlayerCapability("playbackStats") },
+                        { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": root.supportsPlayerCapability("loudnessNormalization") },
                         { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
@@ -4279,12 +4308,12 @@ Item {
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
                         { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
                         { "label": "Speed", "kind": "speed", "when": root.barTiny },
-                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug },
+                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug && root.supportsPlayerCapability("videoTransform") },
                         // The two rows Player 2's menu carried and this one never did. Both features
                         // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
                         // they were simply never offered anywhere in this menu.
                         { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
-                          "kind": "pip", "when": true },
+                          "kind": "pip", "when": root.supportsPlayerCapability("pictureInPicture") },
                         { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
                     ]
                     delegate: Rectangle {

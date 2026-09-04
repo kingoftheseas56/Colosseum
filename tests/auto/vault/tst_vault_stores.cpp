@@ -41,6 +41,7 @@ private slots:
     void config_recovers_from_backup();
     void config_fresh_when_both_corrupt();
     void config_normalizes_paths();
+    void config_preserves_android_content_uri();
 
     // ── VaultConfig Slice 18 (synthetic + hidden downloads root) ──
     void config_synthetic_root_is_preconfirmed_and_idempotent();
@@ -50,6 +51,7 @@ private slots:
     // ── VaultIdentity ──
     void id_is_stable_for_same_triple();
     void id_normalizes_path();
+    void id_preserves_android_content_uri();
     void reconcile_rename_reattaches_progress();
     void reconcile_two_candidate_ambiguity_does_not_migrate();
     void reconcile_two_old_one_new_ambiguity_does_not_migrate();
@@ -142,6 +144,18 @@ void tst_vault_stores::config_normalizes_paths()
     c.setKind(root + QStringLiteral("/./Berserk"), QStringLiteral("comic"));
     QCOMPARE(c.kindFor(cleanRoot + QStringLiteral("/Berserk")), QStringLiteral("comic"));
 #endif
+}
+
+void tst_vault_stores::config_preserves_android_content_uri()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString uri = QStringLiteral(
+        "content://com.android.externalstorage.documents/tree/primary%3AMovies");
+    VaultConfig c(tmp.path());
+    c.addRoot(uri, 42);
+    QVERIFY(c.hasRoot(uri));
+    QCOMPARE(c.roots().first().toMap().value(QStringLiteral("path")).toString(), uri);
 }
 
 // ── Slice 18: synthetic + hidden downloads root ──
@@ -268,6 +282,15 @@ void tst_vault_stores::id_normalizes_path()
     QCOMPARE(VaultIdentity::computeId(QStringLiteral("/vault/A/./x.cbz"), 100, 5),
              VaultIdentity::computeId(QStringLiteral("/vault/A/x.cbz"), 100, 5));
 #endif
+}
+
+void tst_vault_stores::id_preserves_android_content_uri()
+{
+    const QString uri = QStringLiteral(
+        "content://com.android.providers.media.documents/document/video%3A42");
+    QCOMPARE(VaultIdentity::normalizePath(uri), uri);
+    QCOMPARE(VaultIdentity::computeId(uri, 123, 456),
+             VaultIdentity::computeId(uri, 123, 456));
 }
 
 void tst_vault_stores::reconcile_rename_reattaches_progress()

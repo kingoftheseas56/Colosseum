@@ -38,10 +38,19 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
+    // W07 presentation seam. W02 may expose native UiMode/LEANBACK detection as
+    // PlatformRuntime.androidTelevision; until then every existing desktop/phone/tablet path stays false.
+    readonly property bool televisionMode: (typeof PlatformRuntime !== "undefined")
+                                           && PlatformRuntime
+                                           && PlatformRuntime["androidTelevision"] === true
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
     property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+    // Shared Android presentation seam. Writable so desktop viewport harnesses can force the
+    // phone/tablet geometry without pretending the whole desktop canvas was scaled down.
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: adaptive; viewportWidth: win.width }
 
     // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
     // Shortcut objects below only deliver the physical chord into this registry-backed action.
@@ -129,7 +138,6 @@ Window {
         icon: "back.svg"
         onTriggered: win.handleEscape()
     }
-
     function setGuiStallContext(operation, surface) {
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext(operation, surface)
@@ -2535,8 +2543,9 @@ Window {
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         backdrop: wall
         activeMedium: ""
-        x: theme.margin; y: 30
-        width: win.width - theme.margin * 2
+        androidHost: win.androidHost
+        x: adaptive.pageMargin; y: adaptive.topInset
+        width: win.width - adaptive.pageMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onFullscreenClicked: win.toggleFullscreenShell()
@@ -2553,9 +2562,10 @@ Window {
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
     // as the drag surface (no titlebar added) and self-disables in fullscreen. See WindowBehavior.qml.
     WindowBehavior {
+        visible: !win.androidHost
         shell: win
         dragSurface: topbar
-        controller: WindowMode
+        controller: win.androidHost ? null : WindowMode
     }
 
     // Kept as a Component so Progress.recent() and the ContinueTile delegates are not evaluated
@@ -2577,6 +2587,26 @@ Window {
                         .concat(a.filter(function(e) { return e.watched === true }))
             })())
             property bool hasResumeItems: contItems.length > 0
+            property int currentIndex: contItems.length > 0 ? 0 : -1
+            onContItemsChanged: currentIndex = contItems.length > 0
+                                                ? Math.max(0, Math.min(currentIndex, contItems.length - 1)) : -1
+            function ensureCurrentVisible() {
+                var item = contRepeater.itemAt(currentIndex)
+                if (!item) return
+                var maxX = Math.max(0, contFlick.contentWidth - contFlick.width)
+                if (item.x < contFlick.contentX)
+                    contFlick.contentX = Math.max(0, item.x)
+                else if (item.x + item.width > contFlick.contentX + contFlick.width)
+                    contFlick.contentX = Math.min(maxX, item.x + item.width - contFlick.width)
+            }
+            function navigate(delta) {
+                if (contItems.length === 0) return false
+                var next = Math.max(0, Math.min(contItems.length - 1, currentIndex + delta))
+                if (next === currentIndex) return false
+                currentIndex = next
+                ensureCurrentVisible()
+                return true
+            }
             visible: hasResumeItems
             // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
             WidgetHeader {
@@ -2591,17 +2621,35 @@ Window {
                 clip: true
                 flickableDirection: Flickable.HorizontalFlick
                 boundsBehavior: Flickable.StopAtBounds
+                activeFocusOnTab: win.televisionMode && contCol.hasResumeItems
+                Accessible.role: Accessible.List
+                Accessible.name: "Continue"
+                Keys.onPressed: (event) => {
+                    if (!win.televisionMode) return
+                    if (event.key === Qt.Key_Left) event.accepted = contCol.navigate(-1)
+                    else if (event.key === Qt.Key_Right) event.accepted = contCol.navigate(1)
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                             || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
+                        if (contCol.currentIndex >= 0 && contCol.currentIndex < contCol.contItems.length)
+                            win.resumeContinue(contCol.contItems[contCol.currentIndex])
+                        event.accepted = true
+                    }
+                }
                 Row {
                     id: contRow
                     spacing: 18
                     Repeater {
+                        id: contRepeater
                         model: contCol.contItems
                         delegate: ContinueTile {
                             required property var modelData
+                            required property int index
                             variant: "home"
                             entry: modelData
                             backdrop: wall
                             track: page.contentY + contFlick.contentX
+                            focusManagedByCollection: true
+                            keyboardFocused: contFlick.activeFocus && index === contCol.currentIndex
                             onResumeRequested: win.resumeContinue(modelData)
                             onDetailRequested: win.detailContinue(modelData)
                             onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
@@ -2619,8 +2667,8 @@ Window {
         z: 0
         visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         anchors.left: parent.left; anchors.right: parent.right
-        y: 96
-        height: win.height - 96
+        y: topbar.y + topbar.height + (win.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
+        height: win.height - y
         contentWidth: width
         contentHeight: contentCol.implicitHeight + 40
         clip: true
@@ -2631,12 +2679,51 @@ Window {
         // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
         ScrollGlide { flick: page }
 
+        function isInsidePage(item) {
+            var p = item
+            while (p) {
+                if (p === page) return true
+                p = p.parent
+            }
+            return false
+        }
+        function revealFocusedItem(item) {
+            if (!item || !page.isInsidePage(item)) return
+            var point = item.mapToItem(page, 0, 0)
+            if (point.y < 18)
+                page.contentY = Math.max(0, page.contentY + point.y - 18)
+            else if (point.y + item.height > page.height - 18)
+                page.contentY = Math.min(Math.max(0, page.contentHeight - page.height),
+                                         page.contentY + point.y + item.height - page.height + 18)
+        }
+        function moveVerticalFocus(forward) {
+            var from = win.activeFocusItem
+            if (!from || !page.isInsidePage(from)) return false
+            var target = from.nextItemInFocusChain(forward)
+            var guard = 0
+            while (target && target !== from && guard++ < 96) {
+                if (target.visible && target.enabled && target.activeFocusOnTab) {
+                    target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                    page.revealFocusedItem(target)
+                    return true
+                }
+                target = target.nextItemInFocusChain(forward)
+            }
+            return false
+        }
+        Keys.priority: Keys.AfterItem
+        Keys.onPressed: (event) => {
+            if (!win.televisionMode) return
+            if (event.key === Qt.Key_Up) event.accepted = page.moveVerticalFocus(false)
+            else if (event.key === Qt.Key_Down) event.accepted = page.moveVerticalFocus(true)
+        }
+
         Column {
             id: contentCol
-            x: theme.margin
-            width: win.width - theme.margin * 2
+            x: adaptive.pageMargin
+            width: win.width - adaptive.pageMargin * 2
             topPadding: 10
-            spacing: 30
+            spacing: adaptive.homeSectionSpacing
 
             // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
             //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
@@ -2648,7 +2735,7 @@ Window {
                 id: hero
                 backdrop: wall
                 track: page.contentY
-                width: parent.width; height: 340; radius: 20
+                width: parent.width; height: adaptive.heroHeight; radius: adaptive.phone ? 16 : 20
                 tint: 0.06
 
                 SwipeView {
@@ -2689,10 +2776,17 @@ Window {
 
                             // content over the scrim (chips row retired — ratified 2026-07-12)
                             Column {
-                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
-                                spacing: 12
+                                anchors.left: parent.left; anchors.bottom: parent.bottom
+                                anchors.margins: adaptive.phone ? 20 : 44
+                                width: Math.min(adaptive.phone ? parent.width - 40 : 620, parent.width - anchors.leftMargin * 2)
+                                spacing: adaptive.phone ? 8 : 12
                                 Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                Text {
+                                    width: parent.width
+                                    text: slide.modelData.name; color: theme.ink; font.family: theme.display
+                                    font.pixelSize: adaptive.phone ? 34 : 48
+                                    maximumLineCount: 2; elide: Text.ElideRight; wrapMode: Text.WordWrap
+                                }
                                 // (the blurb line went with the baked list — the roster carries
                                 // identity and art, no prose, and a faked one would be a lie)
                                 Row {
@@ -2721,6 +2815,15 @@ Window {
                                             onClicked: win.openUniverse(slide.modelData.extensionId,
                                                                         slide.modelData.name)
                                         }
+                                        KeyboardAction {
+                                            anchors.fill: parent
+                                            pointerEnabled: false
+                                            focusEnabled: win.televisionMode && slide.visible
+                                            accessibleName: "Explore " + slide.modelData.name
+                                            focusRadius: 12
+                                            onTriggered: win.openUniverse(slide.modelData.extensionId,
+                                                                          slide.modelData.name)
+                                        }
                                     }
                                 }
                             }
@@ -2742,6 +2845,7 @@ Window {
                 // the door to the Hall of Worlds — quiet, top-right, gold on hover
                 Item {
                     z: 5
+                    visible: !adaptive.phone
                     anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
                     width: hallRow.implicitWidth + 8; height: 28
                     Row {
@@ -2761,6 +2865,14 @@ Window {
                         id: hallMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: win.openUniverseHall()
+                    }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        focusEnabled: win.televisionMode
+                        accessibleName: "Hall of Worlds"
+                        focusRadius: 8
+                        onTriggered: win.openUniverseHall()
                     }
                 }
             }
@@ -2792,7 +2904,7 @@ Window {
             Loader {
                 id: homeBookshelfLoader
                 width: parent.width
-                height: 400
+                height: adaptive.phone ? 690 : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -2811,7 +2923,7 @@ Window {
             Loader {
                 id: homeTheatreStripLoader
                 width: parent.width
-                height: 400
+                height: adaptive.phone ? 340 : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -2825,7 +2937,7 @@ Window {
             Loader {
                 id: homeReadingDeskLoader
                 width: parent.width
-                height: 400
+                height: adaptive.phone ? 560 : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -2842,7 +2954,7 @@ Window {
             Loader {
                 id: homeVaultWidgetLoader
                 width: parent.width
-                height: 520
+                height: adaptive.phone ? 440 : 520
                 active: false
                 asynchronous: true
                 onLoaded: {
@@ -3879,7 +3991,7 @@ Window {
     Taskbar {
         id: taskbar
         z: 900
-        visible: !win.immersiveSurfaceOpen
+        visible: !win.immersiveSurfaceOpen && !win.androidHost
         enabled: visible
         onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => Sessions.switchTo(id)
@@ -4246,12 +4358,12 @@ Window {
             if (boot.visible)
                 return
             win.armStartupIdleWork()
-            // The splash can make the shell's dead-focus recovery park focus on the
-            // invisible keyboard ignition item after onboarding has already seeded its
-            // first action. Hand focus back to the topmost startup surface once it is
-            // actually revealed so Enter/Space work immediately on cold launch.
+            // Onboarding is the topmost startup surface and must retain first focus. Otherwise
+            // Android TV enters through TopBar; desktop dead-focus recovery keeps Arc 41 ignition.
             if (accountHost.visible)
                 accountHost.focusFirstInside()
+            else if (win.televisionMode)
+                Qt.callLater(function() { topbar.focusFirst() })
             else if (win.keyboardFocusDead)
                 keyboardIgnition.forceActiveFocus()
         }

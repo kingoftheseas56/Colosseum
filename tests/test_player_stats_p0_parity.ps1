@@ -29,16 +29,16 @@ Assert-Contains $player "property var playbackStats" `
     "PlayerPage must store playback stats."
 Assert-Contains $player "function refreshPlaybackStats" `
     "PlayerPage must refresh playback stats from mpv."
-Assert-Contains $player "mpv.mpvProperty" `
-    "PlayerPage must call the native mpv stats bridge."
-Assert-Contains $player "video-codec" `
-    "PlayerPage stats must read video codec."
-Assert-Contains $player "audio-codec" `
-    "PlayerPage stats must read audio codec."
-Assert-Contains $player "estimated-vf-fps" `
-    "PlayerPage stats must read estimated FPS."
-Assert-Contains $player "cache-buffering-state" `
-    "PlayerPage stats must read cache buffering state."
+Assert-Contains $player "mpv.playbackStat" `
+    "PlayerPage must call the neutral playback stats bridge."
+Assert-Contains $player 'playbackStat("videoCodec")' `
+    "PlayerPage stats must read video codec through the neutral bridge."
+Assert-Contains $player 'playbackStat("audioCodec")' `
+    "PlayerPage stats must read audio codec through the neutral bridge."
+Assert-Contains $player 'playbackStat("estimatedFps")' `
+    "PlayerPage stats must read estimated FPS through the neutral bridge."
+Assert-Contains $player 'playbackStat("bufferingPercent")' `
+    "PlayerPage stats must read buffering state through the neutral bridge."
 Assert-Contains $player "Playback stats" `
     "PlayerPage must render a Playback stats overlay."
 Assert-Contains $player "Video codec" `

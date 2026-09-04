@@ -845,7 +845,7 @@ FocusScope {
     function goMinimize() { shell.flushProgressSave(); shell.minimized() }
     Component.onDestruction: shell.flushProgressSave()
 
-    Paper {
+    ReaderPaper {
         id: paper
         anchors.fill: parent
         readerDebug: shell.readerDebug
