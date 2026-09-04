@@ -10,6 +10,7 @@ import Colosseum.Activity
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "AddonClient.js" as AddonClient
+import "DirectSourcePolicy.js" as DirectSourcePolicy
 import "SkipSegments.js" as SkipSegments
 import "TrackLanguage.js" as TrackLanguage
 import "PlayerTrackPrefs.js" as PlayerTrackPrefs
@@ -349,6 +350,7 @@ Item {
         }
     }
     property string currentPlaybackUrl: ""
+    property var activeDirectHeaders: ({})
     property bool liveGuideOpen: false
     property var liveGuideFocusReturnItem: null
     onLiveGuideOpenChanged: {
@@ -1050,17 +1052,27 @@ Item {
         return routed.indexOf("url:") === 0 ? routed.substring(4) : ""
     }
 
+    function clearActiveDirectHeaders() {
+        root.activeDirectHeaders = ({})
+    }
+
+    function reloadActiveDirectSource() {
+        if (!root.currentPlaybackUrl.length)
+            return false
+        mpv.loadSource(root.currentPlaybackUrl, root.activeDirectHeaders)
+        return true
+    }
+
     function loadDirectStreamUrl(url, headers) {
-        var directUrl = String(url || "")
+        var directUrl = DirectSourcePolicy.admitProviderUrl(url)
         if (!directUrl.length)
             return false
-        var requestHeaders = (headers && typeof headers === "object" && !Array.isArray(headers))
-                           ? headers : ({})
+        var requestHeaders = DirectSourcePolicy.copyHeaders(headers)
         root.currentPlaybackUrl = directUrl
-        if (Object.keys(requestHeaders).length)
-            mpv.loadSource(directUrl, requestHeaders)
-        else
-            mpv.loadSource(directUrl)
+        root.activeDirectHeaders = requestHeaders
+        // Always pass the generation's map, including {}. The neutral backend uses an
+        // empty map to clear a previous source's Referer/Cookie/Auth state.
+        mpv.loadSource(directUrl, requestHeaders)
         return true
     }
 
@@ -1069,10 +1081,20 @@ Item {
         var rows = candidates || []
         for (var i = 0; i < rows.length; i++) {
             var c = rows[i] || ({})
-            if (!c.infoHash || !String(c.infoHash).length)
+            var routed = String(c.infoHash || "")
+            if (!routed.length)
                 continue
+            var isDirect = String(c.streamKind || "") === "Direct"
+                        || routed.indexOf("url:") === 0
+                        || (c.url && String(c.url).length)
+            var admittedUrl = ""
+            if (isDirect) {
+                admittedUrl = DirectSourcePolicy.admitProviderUrl(root.directStreamUrl(c))
+                if (!admittedUrl.length)
+                    continue
+            }
             out.push({
-                "infoHash": String(c.infoHash),
+                "infoHash": routed,
                 "fileIdx": c.fileIdx !== undefined ? Number(c.fileIdx) : 0,
                 "title": c.release || c.title || title || "Stream",
                 "quality": c.qualityLine || c.quality || "",
@@ -1082,28 +1104,31 @@ Item {
                 // Watch Party may inspect this provenance locally; transportUrl never enters the row.
                 "addonId": c.addonId || "",
                 "addonName": c.addonName || "",
-                "streamKind": c.streamKind || "",
-                "url": c.url || "",
-                // HTTP hosts that gate on a Referer/Origin ride their required headers this far;
-                // the play path installs them via mpv.loadFileWithHeaders. Must survive this
-                // reshape or the header channel is dead in the app. (House HTTP, slice 1.)
-                "headers": (c.headers && typeof c.headers === "object" && !Array.isArray(c.headers)) ? c.headers : ({})
+                "streamKind": isDirect ? "Direct" : (c.streamKind || ""),
+                "url": isDirect ? admittedUrl : (c.url || ""),
+                "headers": isDirect ? DirectSourcePolicy.copyHeaders(c.headers) : ({})
             })
         }
         if (!out.length && infoHash && String(infoHash).length) {
-            out.push({
-                "infoHash": String(infoHash),
-                "fileIdx": fileIdx || 0,
-                "title": title || "Stream",
-                "quality": "",
-                "seeders": -1,
-                "sourceName": "Torrentio",
-                "addonId": "",
-                "addonName": "",
-                "streamKind": String(infoHash).indexOf("url:") === 0 ? "Direct" : "Torrent",
-                "url": "",
-                "headers": ({})
-            })
+            var fallbackHash = String(infoHash)
+            var fallbackDirect = fallbackHash.indexOf("url:") === 0
+            var fallbackUrl = fallbackDirect
+                            ? DirectSourcePolicy.admitProviderUrl(fallbackHash.substring(4)) : ""
+            if (!fallbackDirect || fallbackUrl.length) {
+                out.push({
+                    "infoHash": fallbackHash,
+                    "fileIdx": fileIdx || 0,
+                    "title": title || "Stream",
+                    "quality": "",
+                    "seeders": -1,
+                    "sourceName": "Torrentio",
+                    "addonId": "",
+                    "addonName": "",
+                    "streamKind": fallbackDirect ? "Direct" : "Torrent",
+                    "url": fallbackUrl,
+                    "headers": ({})
+                })
+            }
         }
         return out
     }
@@ -1405,12 +1430,14 @@ Item {
         }
         root.mediaTransport = "Torrent stream"
         root.updateMediaSubtitle()
+        root.clearActiveDirectHeaders()
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
+        root.clearActiveDirectHeaders()
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -1626,10 +1653,12 @@ Item {
         streamWatchdog.restart()
         var c = root.currentStreamCandidate()
         var directUrl = root.directStreamUrl(c)
-        if (directUrl.length)
-            root.loadDirectStreamUrl(directUrl, c.headers)
-        else
+        if (directUrl.length || (!root.streamCandidates.length && !root.mediaResumeHash.length))
+            root.reloadActiveDirectSource()
+        else {
+            root.clearActiveDirectHeaders()
             mpv.loadSource(root.currentPlaybackUrl)
+        }
     }
 
     function handlePlaybackFailure(reason) {
@@ -1657,7 +1686,7 @@ Item {
                 root.statusMsg = "Reconnecting stream..."
                 root.resetRecoveryWatch()
                 streamWatchdog.restart()
-                mpv.loadSource(root.currentPlaybackUrl)
+                root.reloadActiveDirectSource()
                 return
             }
             root.errored = true
@@ -2358,6 +2387,7 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
+        root.clearActiveDirectHeaders()
         mpv.loadSource(url)
     }
 
@@ -2411,9 +2441,10 @@ Item {
     function playLocalFile(target) {
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
-        root.arrivingStreamUrl = String(t.arrivingUrl || "")
-        root.arrivingStreamHeaders = (t.headers && typeof t.headers === "object" && !Array.isArray(t.headers))
-                                    ? t.headers : ({})
+        var arrivingUrl = DirectSourcePolicy.admitProviderUrl(t.arrivingUrl)
+        root.arrivingStreamUrl = arrivingUrl
+        root.arrivingStreamHeaders = arrivingUrl.length ? DirectSourcePolicy.copyHeaders(t.headers) : ({})
+        root.clearActiveDirectHeaders()
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2477,8 +2508,10 @@ Item {
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
         var t = target || ({})
+        var remoteUrl = String(t.streamUrl || "")
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
+        root.clearActiveDirectHeaders()
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2510,7 +2543,7 @@ Item {
         root.updateMediaSubtitle()
         root.mediaResumeHash = ""
         root.mediaResumeFileIdx = 0
-        root.currentPlaybackUrl = String(t.streamUrl || "")
+        root.currentPlaybackUrl = ""
         root.subStreamType = t.kind === "episode" ? "series" : "movie"
         root.subStreamId = (t.id && String(t.id).length) ? String(t.id) : ""
         root.fetchSubtitles()
@@ -2526,7 +2559,14 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         root.resetRecoveryWatch()
-        root.loadDirectStreamUrl(root.currentPlaybackUrl, t.headers)
+        if (!root.loadDirectStreamUrl(remoteUrl, t.headers)) {
+            root.errored = true
+            root.starting = false
+            root.fileReady = false
+            root.statusMsg = "This provider source is not allowed."
+            root.wakeChrome()
+            return
+        }
         root.maybeHydrateContext()
     }
 
@@ -2625,6 +2665,7 @@ Item {
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
         root.activityEndSession()   // Activity (§9 Lane A): close/lifecycle exit ends the session
         root.closeMenus()
+        root.clearActiveDirectHeaders()
         mpv.stopPlayback()
         root.starting = false
         root.errored = false
@@ -3706,6 +3747,7 @@ Item {
         target: Stream
         function onStreamReady(url, infoHash, fileIdx) {
             root.statusMsg = "Buffering..."
+            root.clearActiveDirectHeaders()
             root.currentPlaybackUrl = url || ""
             streamWatchdog.restart()
             root.streamStatsSeen = false
