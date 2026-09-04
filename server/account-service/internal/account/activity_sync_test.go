@@ -398,7 +398,7 @@ func TestActivityFactSemanticDuplicateKeepsOneFactWithoutSequencing(t *testing.T
 	}
 
 	before := queryInt(t, fixture,
-		"SELECT last_value FROM account_change_seq")
+		"SELECT last_value FROM account_sync_journal_server_seq_seq")
 
 	duplicate := pushOneActivity(t, fixture, auth, activityMutation(
 		"abcdef01-abcd-4abc-8abc-abcdef012345",
@@ -410,9 +410,9 @@ func TestActivityFactSemanticDuplicateKeepsOneFactWithoutSequencing(t *testing.T
 	}
 
 	after := queryInt(t, fixture,
-		"SELECT last_value FROM account_change_seq")
+		"SELECT last_value FROM account_sync_journal_server_seq_seq")
 	if after != before {
-		t.Fatalf("account_change_seq moved %d -> %d on a semantic duplicate",
+		t.Fatalf("account_sync_journal_server_seq_seq moved %d -> %d on a semantic duplicate",
 			before, after)
 	}
 

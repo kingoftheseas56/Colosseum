@@ -2,6 +2,7 @@
 #include "engine/ComicDownloader.h"
 #include "engine/MangaDownloader.h"
 #include "engine/MangaTankobanService.h"
+#include "account/DownloadIntentStore.h"
 #include "player/downloadstore.h"
 
 MangaImageHostResolver::~MangaImageHostResolver() = default;
@@ -9,6 +10,8 @@ MangaDownloader::~MangaDownloader() = default;
 BookDownloader::~BookDownloader() = default;
 ComicDownloader::~ComicDownloader() = default;
 MangaTankobanService::~MangaTankobanService() = default;
+
+QVariantList DownloadIntentStore::records() const { return {}; }
 
 void MangaNyaaSearchAdapter::search(const MangaTankoban::SeriesSnapshot&, const QString&) {}
 void MangaNyaaSearchAdapter::searchSeries(const MangaTankoban::SeriesSnapshot&) {}

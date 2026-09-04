@@ -171,6 +171,7 @@ add_executable(colosseum
     account/AccountHttpTransport.cpp
     account/AccountRecoveryKeyPresenter.cpp
     account/AccountRuntime.cpp
+    account/AccountRuntimeDownloads.cpp
     account/AccountServiceEndpoint.cpp
     # Slice D1: native ActivityProjector (JS-oracle golden parity port).
     account/ActivityProjector.cpp
@@ -1570,9 +1571,17 @@ add_executable(manga_downloader_cancel_harness
     engine/MangaScraper.h
     engine/MangaImageHostResolver.cpp
     engine/MangaImageHostResolver.h
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
 )
 target_include_directories(manga_downloader_cancel_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
+target_link_libraries(manga_downloader_cancel_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent Qt6::Qml)
 
 add_executable(manga_volume_filepicker_harness
     ../tests/manga_volume_filepicker_harness.cpp

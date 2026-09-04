@@ -3,7 +3,6 @@
 #include "AccountServiceEndpoint.h"
 #include "ProfilePreferencesStore.h"
 #include "DownloadIntentSyncAdapter.h"
-#include "../engine/LocalDownloads.h"
 #include "watchparty/WatchPartyIdentity.h"
 
 #include <QQmlApplicationEngine>
@@ -196,35 +195,6 @@ AccountRuntime::AccountRuntime(QObject *parent)
                 true);
         });
 
-}
-
-void AccountRuntime::setDownloadSource(LocalDownloads *downloads) {
-    if (m_downloadSource == downloads)
-        return;
-
-    m_downloadSource = downloads;
-    if (!m_downloadSource)
-        return;
-
-    m_downloadSource->setDownloadIntentStore(&m_downloadIntentStore);
-    m_downloadIntentStore.setLocalRecordProvider(
-        [downloads]() {
-            return downloads ? downloads->portableDownloadIntents()
-                              : QVariantList();
-        });
-    connect(
-        m_downloadSource,
-        &LocalDownloads::changed,
-        this,
-        [this]() {
-            QString ignored;
-            m_downloadIntentStore.refreshFromLocal(&ignored);
-        });
-    connect(
-        &m_downloadIntentStore,
-        &DownloadIntentStore::changed,
-        m_downloadSource,
-        &LocalDownloads::changed);
 }
 
 bool AccountRuntime::installCoreSyncAdapters(
