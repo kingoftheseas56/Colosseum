@@ -104,7 +104,7 @@ class ColosseumServerCoreTest final : public QObject
 private slots:
     void lifecycleRepeatedStartStop();
     void routeQueryJsonAndFormContract();
-    void corsDlnaStreamingAndErrors();
+    void corsDlnaStreamingAndErrors();`r`n    void headSuppressesChunkedTerminator();
     void fixedLengthProgressiveBodyIsRaw();
     void cancellationTracksDisconnectedClient();
 };
@@ -268,6 +268,27 @@ void ColosseumServerCoreTest::corsDlnaStreamingAndErrors()
     server.stop();
 }
 
+void ColosseumServerCoreTest::headSuppressesChunkedTerminator()
+{
+    ColosseumServer server;
+    server.router().get("/stream", [](HttpRequest &, HttpResponse response) {
+        response.setHeader("content-type", "text/plain");
+        response.write("alpha");
+        response.write("beta");
+        response.end();
+        return true;
+    });
+    QVERIFY2(server.start(0), qPrintable(server.lastError()));
+
+    const RawResponse head = parseResponse(exchange(
+        server.boundUrl(),
+        "HEAD /stream HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"));
+    QCOMPARE(head.status, 200);
+    QCOMPARE(head.headers.value("transfer-encoding"), QByteArray("chunked"));
+    QCOMPARE(head.body, QByteArray{});
+
+    server.stop();
+}
 void ColosseumServerCoreTest::cancellationTracksDisconnectedClient()
 {
     ColosseumServer server;
