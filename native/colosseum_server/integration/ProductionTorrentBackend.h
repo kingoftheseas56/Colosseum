@@ -2,6 +2,7 @@
 
 #include "TorrentHttpRouteAdapter.h"
 #include "TorrentPieceSource.h"
+#include "SchedulerTransportBridge.h"
 #include "core/HttpRouter.h"
 #include "enginefs/EngineFsControlPlane.h"
 #include "settings/ServerSettings.h"
@@ -51,6 +52,13 @@ public:
 
     void start();
     void stop();
+    // Test-only negative-control seam; normal production behavior is enabled.
+    void setSchedulerDispatchEnabledForTests(bool enabled) noexcept
+    {
+        schedulerDispatchEnabledForTests_ = enabled;
+    }
+    [[nodiscard]] SchedulerTransportMetricsSnapshot schedulerTransportMetrics(
+        const QString &lowerInfoHash) const;
     void setControlPlane(EngineFs::EngineFsControlPlane *controlPlane) noexcept
     {
         controlPlane_ = controlPlane;
@@ -107,6 +115,8 @@ private:
     void removeBackend(const QString &lowerInfoHash, const EngineBackend *backend);
     std::shared_ptr<LibtorrentBlockTransport> blockTransportFor(
         const QString &lowerInfoHash);
+    std::shared_ptr<TorrentVerifiedPieceCache> verifiedPieceCacheFor(
+        const QString &lowerInfoHash);
     std::shared_ptr<PiecePriorityLease> acquirePiecePriorityLease(
         const QString &lowerInfoHash);
 
@@ -118,8 +128,10 @@ private:
     mutable std::mutex mutex_;
     QHash<QString, std::shared_ptr<EngineBackend>> backends_;
     QHash<QString, std::shared_ptr<LibtorrentBlockTransport>> blockTransports_;
+    QHash<QString, std::shared_ptr<TorrentVerifiedPieceCache>> verifiedPieceCaches_;
     QHash<QString, std::shared_ptr<PiecePriorityState>> priorityLeases_;
     QHash<QString, QVector<ReadyCallback>> readyCallbacks_;
+    bool schedulerDispatchEnabledForTests_ = true;
     bool started_ = false;
 };
 

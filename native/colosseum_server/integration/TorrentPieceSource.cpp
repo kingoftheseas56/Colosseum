@@ -1,6 +1,8 @@
 #include "TorrentPieceSource.h"
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QString>
 
 #include <chrono>
@@ -11,6 +13,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <system_error>
 #include <thread>
 #include <utility>
@@ -82,8 +85,11 @@ struct TorrentPieceSource::State final
         Ready callback;
     };
 
-    explicit State(lt::torrent_handle value)
-        : torrent(std::move(value))
+    explicit State(lt::torrent_handle value,
+                   std::shared_ptr<TorrentVerifiedPieceCache> cache,
+                   const bool requireVisibility)
+        : torrent(std::move(value)), verifiedCache(std::move(cache)),
+          requireExplicitVisibility(requireVisibility)
     {
     }
 
@@ -95,10 +101,19 @@ struct TorrentPieceSource::State final
     std::map<Subscription, Waiter> waiters;
     std::map<ReadToken, std::shared_ptr<ReadState>> reads;
     std::map<std::size_t, std::vector<std::byte>> providedPieces;
+    std::set<std::size_t> visiblePieces;
+    std::shared_ptr<TorrentVerifiedPieceCache> verifiedCache;
+    bool requireExplicitVisibility = false;
 };
 
-TorrentPieceSource::TorrentPieceSource(lt::torrent_handle torrent)
-    : state_(std::make_shared<State>(std::move(torrent)))
+TorrentPieceSource::TorrentPieceSource(
+    lt::torrent_handle torrent,
+    std::shared_ptr<TorrentVerifiedPieceCache> verifiedCache,
+    const bool requireExplicitVisibility)
+    : state_(std::make_shared<State>(
+          std::move(torrent), verifiedCache ? std::move(verifiedCache)
+                                             : std::make_shared<TorrentVerifiedPieceCache>(),
+          requireExplicitVisibility))
 {
 }
 
@@ -126,6 +141,15 @@ bool TorrentPieceSource::hasPiece(const std::shared_ptr<State> &state,
 bool TorrentPieceSource::hasPiece(const std::size_t piece) const
 {
     return hasPiece(state_, piece);
+}
+
+void TorrentPieceSource::markPieceVisible(const std::size_t piece)
+{
+    if (!hasPiece(state_, piece))
+        return;
+    std::lock_guard lock(state_->mutex);
+    if (!state_->shuttingDown)
+        state_->visiblePieces.insert(piece);
 }
 
 void TorrentPieceSource::makeUrgent(const std::size_t piece)
@@ -156,7 +180,9 @@ TorrentPieceSource::Subscription TorrentPieceSource::waitForPiece(
         if (state_->shuttingDown) {
             readyNow = true;
             readyError = sourceError(std::errc::operation_canceled);
-        } else if (hasPiece(state_, piece)) {
+        } else if (state_->visiblePieces.contains(piece)
+                   || (!state_->requireExplicitVisibility
+                       && hasPiece(state_, piece))) {
             readyNow = true;
         } else {
             token = state_->nextSubscription++;
@@ -172,7 +198,13 @@ TorrentPieceSource::Subscription TorrentPieceSource::waitForPiece(
     // Close the check/register race: a piece may have completed between the
     // initial check and waiter insertion. notifyPieceFinished() is idempotent
     // for the per-piece waiter set and runs callbacks outside the mutex.
-    if (hasPiece(state_, piece))
+    {
+        std::lock_guard lock(state_->mutex);
+        if (state_->visiblePieces.contains(piece)
+            || (!state_->requireExplicitVisibility && hasPiece(state_, piece)))
+            readyNow = true;
+    }
+    if (readyNow)
         notifyPieceFinished(piece);
     return token;
 }
@@ -195,6 +227,7 @@ void TorrentPieceSource::notifyPieceFinished(const std::size_t piece)
         std::lock_guard lock(state_->mutex);
         if (state_->shuttingDown)
             return;
+        state_->visiblePieces.insert(piece);
         for (auto it = state_->waiters.begin(); it != state_->waiters.end();) {
             if (it->second.piece != piece) {
                 ++it;
@@ -286,8 +319,11 @@ std::vector<std::byte> TorrentPieceSource::readBlock(
         const QString path = QString::fromUtf8(
             storage.file_path(fileIndex, savePath).c_str());
         QFile file(path);
-        if (!file.open(QIODevice::ReadOnly)
-            || !file.seek(overlapStart - fileStart)) {
+        if (!file.open(QIODevice::ReadOnly)) {
+            error = sourceError(std::errc::io_error);
+            return {};
+        }
+        if (!file.seek(overlapStart - fileStart)) {
             error = sourceError(std::errc::io_error);
             return {};
         }
@@ -315,12 +351,80 @@ void TorrentPieceSource::consumeProvidedPiece(
     state->providedPieces.erase(piece);
 }
 
+std::optional<std::vector<std::byte>> TorrentPieceSource::readSharedPiece(
+    const std::shared_ptr<State> &state, const std::size_t piece)
+{
+    std::lock_guard lock(state->verifiedCache->mutex);
+    const auto found = state->verifiedCache->pieces.find(piece);
+    if (found == state->verifiedCache->pieces.end())
+        return std::nullopt;
+    return found->second;
+}
+
+void TorrentPieceSource::consumeSharedPiece(
+    const std::shared_ptr<State> &state, const std::size_t piece)
+{
+    std::lock_guard lock(state->verifiedCache->mutex);
+    state->verifiedCache->pieces.erase(piece);
+}
+
+bool TorrentPieceSource::persistPiece(
+    const std::shared_ptr<State> &state, const std::size_t piece,
+    const std::vector<std::byte> &bytes)
+{
+    const auto shape = geometry(state->torrent);
+    const auto bytesInPiece = shape ? pieceSize(*shape, piece) : std::nullopt;
+    if (!shape || !bytesInPiece
+        || bytes.size() != static_cast<std::size_t>(*bytesInPiece))
+        return false;
+
+    const auto pieceOffset = static_cast<std::int64_t>(piece)
+        * static_cast<std::int64_t>(shape->pieceLength);
+    const auto wantedEnd = pieceOffset + static_cast<std::int64_t>(*bytesInPiece);
+    const auto storage = shape->info->files();
+    const auto savePath = state->torrent.status().save_path;
+    for (int index = 0; index < storage.num_files(); ++index) {
+        const lt::file_index_t fileIndex{index};
+        const auto fileStart = storage.file_offset(fileIndex);
+        const auto fileEnd = fileStart + storage.file_size(fileIndex);
+        const auto overlapStart = std::max(pieceOffset, fileStart);
+        const auto overlapEnd = std::min(wantedEnd, fileEnd);
+        if (overlapStart >= overlapEnd)
+            continue;
+
+        const auto count = overlapEnd - overlapStart;
+        const auto sourceOffset = static_cast<std::size_t>(
+            overlapStart - pieceOffset);
+        if (storage.pad_file_at(fileIndex))
+            continue;
+
+        const QString path = QString::fromUtf8(
+            storage.file_path(fileIndex, savePath).c_str());
+        if (!QDir().mkpath(QFileInfo(path).absolutePath()))
+            return false;
+        QFile file(path);
+        if (!file.open(QIODevice::ReadWrite)
+            || !file.seek(overlapStart - fileStart))
+            return false;
+        const auto written = file.write(
+            reinterpret_cast<const char *>(bytes.data() + sourceOffset), count);
+        if (written != count)
+            return false;
+    }
+    return true;
+}
+
 std::vector<std::byte> TorrentPieceSource::readVerifiedPiece(
     const std::shared_ptr<State> &state, const std::size_t piece,
     std::error_code &error)
 {
     constexpr int MaxVisibilityRetries = 50;
     constexpr auto VisibilityRetry = std::chrono::milliseconds(2);
+    bool usedProvidedPiece = false;
+    {
+        std::lock_guard lock(state->mutex);
+        usedProvidedPiece = state->providedPieces.contains(piece);
+    }
     for (int attempt = 0; attempt < MaxVisibilityRetries; ++attempt) {
         const auto shape = geometry(state->torrent);
         const auto bytesInPiece = shape ? pieceSize(*shape, piece) : std::nullopt;
@@ -335,8 +439,15 @@ std::vector<std::byte> TorrentPieceSource::readVerifiedPiece(
                                error);
         if (error) {
             if (error != sourceError(std::errc::io_error)
-                || attempt + 1 >= MaxVisibilityRetries)
+                && error != sourceError(std::errc::operation_would_block))
                 return {};
+            if (attempt + 1 >= MaxVisibilityRetries) {
+                if (const auto shared = readSharedPiece(state, piece)) {
+                    error.clear();
+                    return *shared;
+                }
+                return {};
+            }
             std::this_thread::sleep_for(VisibilityRetry);
             continue;
         }
@@ -348,7 +459,11 @@ std::vector<std::byte> TorrentPieceSource::readVerifiedPiece(
         // For v2-only metadata there is no v1 SHA-1 piece hash. libtorrent's
         // have_piece() state is the verification authority in that case.
         if (shape && shape->info && !shape->info->v1())
+        {
+            if (!usedProvidedPiece)
+                consumeSharedPiece(state, piece);
             return bytes;
+        }
         if (shape && shape->info
             && bytes.size() <= static_cast<std::size_t>((std::numeric_limits<int>::max)())) {
             const auto actual = lt::hasher(
@@ -356,12 +471,19 @@ std::vector<std::byte> TorrentPieceSource::readVerifiedPiece(
                 static_cast<int>(bytes.size())).final();
             const auto wanted = shape->info->hash_for_piece(
                 lt::piece_index_t{static_cast<std::int32_t>(piece)});
-            if (actual == wanted)
+            if (actual == wanted) {
+                if (!usedProvidedPiece)
+                    consumeSharedPiece(state, piece);
                 return bytes;
+            }
         }
 
         if (attempt + 1 < MaxVisibilityRetries)
             std::this_thread::sleep_for(VisibilityRetry);
+    }
+    if (const auto shared = readSharedPiece(state, piece)) {
+        error.clear();
+        return *shared;
     }
     error = sourceError(std::errc::io_error);
     return {};
@@ -439,7 +561,13 @@ TorrentPieceSource::ReadToken TorrentPieceSource::readPiece(
         callback(sourceError(std::errc::invalid_argument), {});
         return 0;
     }
-    if (hasPiece(state_, piece)) {
+    bool visible = false;
+    {
+        std::lock_guard lock(state_->mutex);
+        visible = state_->visiblePieces.contains(piece)
+            || (!state_->requireExplicitVisibility && hasPiece(state_, piece));
+    }
+    if (visible) {
         std::error_code error;
         auto bytes = readVerifiedPiece(state_, piece, error);
         consumeProvidedPiece(state_, piece);
@@ -506,12 +634,17 @@ void TorrentPieceSource::provideVerifiedPiece(
 {
     const auto shape = geometry(state_->torrent);
     const auto bytesInPiece = shape ? pieceSize(*shape, piece) : std::nullopt;
-    if (!bytesInPiece || bytes.size() != static_cast<std::size_t>(*bytesInPiece))
+    if (!bytesInPiece || bytes.size() != static_cast<std::size_t>(*bytesInPiece)) {
         return;
+    }
+    persistPiece(state_, piece, bytes);
 
     std::lock_guard lock(state_->mutex);
-    if (!state_->shuttingDown)
+    if (!state_->shuttingDown) {
         state_->providedPieces[piece] = std::move(bytes);
+        std::lock_guard cacheLock(state_->verifiedCache->mutex);
+        state_->verifiedCache->pieces[piece] = state_->providedPieces[piece];
+    }
 }
 
 } // namespace colosseum::server::integration

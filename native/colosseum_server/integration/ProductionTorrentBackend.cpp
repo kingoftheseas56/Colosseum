@@ -55,12 +55,15 @@ struct PiecePriorityState final
         , original(torrent.get_piece_priorities())
         , wasAutoManaged(bool(torrent.status().flags & lt::torrent_flags::auto_managed))
         , wasUploadMode(bool(torrent.status().flags & lt::torrent_flags::upload_mode))
+        , wasShareMode(bool(torrent.status().flags & lt::torrent_flags::share_mode))
     {
         // Libtorrent's queue manager may rewrite piece priorities when an
         // auto-managed torrent changes state. W06 owns selection for active
         // HTTP readers, so suspend that competing policy for the lease life.
         torrent.unset_flags(lt::torrent_flags::auto_managed
-                            | lt::torrent_flags::upload_mode);
+                            | lt::torrent_flags::upload_mode
+                            | lt::torrent_flags::share_mode);
+        torrent.set_flags(lt::torrent_flags::share_mode);
     }
 
     ~PiecePriorityState()
@@ -76,16 +79,25 @@ struct PiecePriorityState final
             torrent.prioritize_pieces(original);
         for (std::size_t piece = 0; piece < original.size(); ++piece)
             torrent.piece_priority(lt::piece_index_t{
-                                       static_cast<std::int32_t>(piece)},
+                                   static_cast<std::int32_t>(piece)},
                                    original[piece]);
+        torrent.unset_flags(lt::torrent_flags::auto_managed
+                            | lt::torrent_flags::upload_mode
+                            | lt::torrent_flags::share_mode);
         if (wasUploadMode)
             torrent.set_flags(lt::torrent_flags::upload_mode);
+        if (wasShareMode)
+            torrent.set_flags(lt::torrent_flags::share_mode);
         if (wasAutoManaged)
             torrent.set_flags(lt::torrent_flags::auto_managed);
     }
 
     void applyLocked()
     {
+        // Keep selected pieces visible so libtorrent maintains an interested
+        // peer connection. W06 remains the sole payload authority:
+        // PeerPlugin::write_request() clears and suppresses every ordinary
+        // picker reservation before it can reach the wire.
         std::vector<lt::download_priority_t> priorities(
             original.size(), lt::dont_download);
         for (const auto &[id, pieces] : scopes) {
@@ -109,6 +121,7 @@ struct PiecePriorityState final
     std::vector<lt::download_priority_t> original;
     bool wasAutoManaged = false;
     bool wasUploadMode = false;
+    bool wasShareMode = false;
     std::uint64_t nextScope = 1;
     std::map<std::uint64_t, std::vector<bool>> scopes;
 };
@@ -189,6 +202,8 @@ public:
                                     std::shared_ptr<PiecePriorityLease> priorityLease,
                                     TorrentStreamCallbacks callbacks,
                                     std::shared_ptr<LibtorrentBlockTransport> transport,
+                                    std::shared_ptr<TorrentVerifiedPieceCache> verifiedCache,
+                                    bool schedulerDispatchEnabled,
                                     QObject *parent = nullptr)
         : QObject(parent)
         , torrent_(std::move(torrent))
@@ -215,10 +230,13 @@ public:
                 std::min<qint64>(info->piece_length(), info->total_size() - offset)));
         }
         scheduler_ = std::make_unique<scheduler::SchedulerSpine>(std::move(lengths));
-        source_ = std::make_shared<TorrentPieceSource>(torrent_);
+        source_ = std::make_shared<TorrentPieceSource>(
+            torrent_, std::move(verifiedCache), true);
         if (!transport_)
             throw std::invalid_argument("torrent block transport is unavailable");
-        bridge_ = std::make_unique<SchedulerTransportBridge>(*scheduler_, *transport_);
+        bridge_ = std::make_unique<SchedulerTransportBridge>(
+            *scheduler_, *transport_, transport_->metrics());
+        bridge_->setDispatchEnabled(schedulerDispatchEnabled);
         bridge_->setAllowChokedBootstrap(true);
         bridge_->setCompletedObserver([this](scheduler::CompletedPiece completed) {
             if (destroyed_)
@@ -234,8 +252,11 @@ public:
         });
 
         for (int piece = 0; piece < info->num_pieces(); ++piece) {
-            if (torrent_.have_piece(lt::piece_index_t{piece}))
+            if (torrent_.have_piece(lt::piece_index_t{piece})) {
+                initiallyAvailablePieces_.insert(static_cast<std::size_t>(piece));
                 scheduler_->markPieceAvailable(static_cast<std::size_t>(piece));
+                source_->markPieceVisible(static_cast<std::size_t>(piece));
+            }
         }
 
         const auto fileLength = storage.file_size(lt::file_index_t{plan_.fileIndex});
@@ -355,20 +376,27 @@ private:
             return;
         bool changed = false;
         for (int piece = 0; piece < info->num_pieces(); ++piece) {
-            if (torrent_.have_piece(lt::piece_index_t{piece})) {
-                const auto provided = completedPieces_.find(
-                    static_cast<std::size_t>(piece));
-                if (provided != completedPieces_.end()) {
-                    source_->provideVerifiedPiece(
-                        static_cast<std::size_t>(piece),
-                        std::move(provided->second));
-                    completedPieces_.erase(provided);
-                }
-                source_->notifyPieceFinished(static_cast<std::size_t>(piece));
-                if (!scheduler_->isPieceAvailable(static_cast<std::size_t>(piece))) {
-                    scheduler_->markPieceAvailable(static_cast<std::size_t>(piece));
-                    changed = true;
-                }
+            const auto pieceNumber = static_cast<std::size_t>(piece);
+            if (!torrent_.have_piece(lt::piece_index_t{piece}))
+                continue;
+            const auto provided = completedPieces_.find(pieceNumber);
+            if (!initiallyAvailablePieces_.contains(pieceNumber)
+                && provided == completedPieces_.end()) {
+                // A W06 transport completion is the authoritative visibility
+                // event for a newly downloaded piece. Do not let libtorrent's
+                // have_piece() transition race ahead and expose a disk read
+                // before the scheduler has assembled the verified bytes.
+                continue;
+            }
+            if (provided != completedPieces_.end()) {
+                source_->provideVerifiedPiece(pieceNumber,
+                                              std::move(provided->second));
+                completedPieces_.erase(provided);
+            }
+            source_->notifyPieceFinished(pieceNumber);
+            if (!scheduler_->isPieceAvailable(pieceNumber)) {
+                scheduler_->markPieceAvailable(pieceNumber);
+                changed = true;
             }
         }
         if (changed)
@@ -440,6 +468,7 @@ private:
     std::shared_ptr<LibtorrentBlockTransport> transport_;
     std::unique_ptr<SchedulerTransportBridge> bridge_;
     std::set<std::string> peerIds_;
+    std::set<std::size_t> initiallyAvailablePieces_;
     std::unique_ptr<scheduler::FileStream> stream_;
     std::map<std::size_t, std::vector<std::byte>> completedPieces_;
     QTimer timer_;
@@ -855,6 +884,7 @@ void ProductionTorrentBackend::remove(const QString &lowerInfoHash,
         {
             std::lock_guard lock(mutex_);
             blockTransports_.remove(hash);
+            verifiedPieceCaches_.remove(hash);
             priorityLeases_.remove(hash);
             readyCallbacks_.remove(hash);
         }
@@ -946,6 +976,23 @@ std::shared_ptr<LibtorrentBlockTransport> ProductionTorrentBackend::blockTranspo
 #endif
 }
 
+std::shared_ptr<TorrentVerifiedPieceCache> ProductionTorrentBackend::verifiedPieceCacheFor(
+    const QString &lowerInfoHash)
+{
+#ifdef HAS_LIBTORRENT
+    const QString hash = canonicalHash(lowerInfoHash);
+    std::lock_guard lock(mutex_);
+    if (const auto existing = verifiedPieceCaches_.value(hash))
+        return existing;
+    auto cache = std::make_shared<TorrentVerifiedPieceCache>();
+    verifiedPieceCaches_.insert(hash, cache);
+    return cache;
+#else
+    Q_UNUSED(lowerInfoHash);
+    return {};
+#endif
+}
+
 std::shared_ptr<TorrentStreamSession> ProductionTorrentBackend::open(
     const torrent_http::TorrentReadPlan &plan,
     const std::shared_ptr<server::CancellationToken> &cancellation,
@@ -959,9 +1006,11 @@ std::shared_ptr<TorrentStreamSession> ProductionTorrentBackend::open(
         const auto transport = blockTransportFor(plan.infoHash);
         if (!transport)
             return {};
+        const auto verifiedCache = verifiedPieceCacheFor(plan.infoHash);
         const auto priorityLease = acquirePiecePriorityLease(plan.infoHash);
         return std::make_shared<ProductionTorrentStreamSession>(
-            handle, plan, cancellation, priorityLease, std::move(callbacks), transport);
+            handle, plan, cancellation, priorityLease, std::move(callbacks), transport,
+            verifiedCache, schedulerDispatchEnabledForTests_);
     } catch (const std::exception &) {
         return {};
     }
@@ -969,6 +1018,24 @@ std::shared_ptr<TorrentStreamSession> ProductionTorrentBackend::open(
     Q_UNUSED(plan);
     Q_UNUSED(cancellation);
     Q_UNUSED(callbacks);
+    return {};
+#endif
+}
+
+SchedulerTransportMetricsSnapshot ProductionTorrentBackend::schedulerTransportMetrics(
+    const QString &lowerInfoHash) const
+{
+#ifdef HAS_LIBTORRENT
+    const QString hash = canonicalHash(lowerInfoHash);
+    std::shared_ptr<LibtorrentBlockTransport> transport;
+    {
+        std::lock_guard lock(mutex_);
+        transport = blockTransports_.value(hash);
+    }
+    return transport ? transport->metricsSnapshot()
+                     : SchedulerTransportMetricsSnapshot{};
+#else
+    Q_UNUSED(lowerInfoHash);
     return {};
 #endif
 }

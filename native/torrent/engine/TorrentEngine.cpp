@@ -424,6 +424,12 @@ void TorrentEngine::applySettings()
     sp.set_int(lt::settings_pack::max_queued_disk_bytes, 32 * 1024 * 1024);
     sp.set_int(lt::settings_pack::request_queue_time, 10);
 
+    // The native W06 transport owns payload selection for active HTTP
+    // readers. It suppresses libtorrent's ordinary picker reservations and
+    // installs peer-specific direct requests, so closing a peer merely
+    // because the picker sees no ordinary work would strand the reader.
+    sp.set_bool(lt::settings_pack::close_redundant_connections, false);
+
     // STREAM_STALL_FIX Phase 3 — session-settings bundle (tactic e-settings).
     // Agent 4B Congress 7 B3 identified `can_request_time_critical` gate-4
     // saturation at peer_connection.cpp:3543-3558 as the residual-stall

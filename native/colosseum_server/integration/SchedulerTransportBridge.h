@@ -3,6 +3,7 @@
 #include "scheduler/SchedulerSpine.h"
 
 #include <cstdint>
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
@@ -12,6 +13,24 @@
 #include <vector>
 
 namespace colosseum::server::integration {
+
+struct SchedulerTransportMetrics final
+{
+    std::atomic<std::uint64_t> schedulerDispatches{0};
+    std::atomic<std::uint64_t> transportRequests{0};
+    std::atomic<std::uint64_t> transportCompletions{0};
+    std::atomic<std::uint64_t> wireRequestsAuthorized{0};
+    std::atomic<std::uint64_t> wireRequestsSuppressed{0};
+};
+
+struct SchedulerTransportMetricsSnapshot final
+{
+    std::uint64_t schedulerDispatches = 0;
+    std::uint64_t transportRequests = 0;
+    std::uint64_t transportCompletions = 0;
+    std::uint64_t wireRequestsAuthorized = 0;
+    std::uint64_t wireRequestsSuppressed = 0;
+};
 
 class IBlockTransport
 {
@@ -33,7 +52,8 @@ public:
     using CompletedObserver = std::function<void(scheduler::CompletedPiece)>;
 
     SchedulerTransportBridge(scheduler::SchedulerSpine &scheduler,
-                             IBlockTransport &transport);
+                             IBlockTransport &transport,
+                             std::shared_ptr<SchedulerTransportMetrics> metrics = {});
     ~SchedulerTransportBridge();
     void upsertPeer(scheduler::PeerState peer);
     void retirePeer(const std::string &peerId);
@@ -45,6 +65,14 @@ public:
     void setAllowChokedBootstrap(bool enabled) noexcept
     {
         allowChokedBootstrap_ = enabled;
+    }
+
+    // Test-only negative-control seam. Production sessions leave dispatch
+    // enabled; disabling it proves that libtorrent's ordinary picker cannot
+    // satisfy a stream behind W06's back.
+    void setDispatchEnabled(bool enabled) noexcept
+    {
+        dispatchEnabled_ = enabled;
     }
 
     void setCompletedObserver(CompletedObserver observer)
@@ -71,7 +99,9 @@ private:
     std::set<std::string> peerIds_;
     std::map<std::uint64_t, ActiveRequest> active_;
     CompletedObserver completedObserver_;
+    std::shared_ptr<SchedulerTransportMetrics> metrics_;
     bool allowChokedBootstrap_ = false;
+    bool dispatchEnabled_ = true;
     std::shared_ptr<int> lifetime_ = std::make_shared<int>(0);
 };
 

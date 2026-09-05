@@ -31,6 +31,9 @@ public:
                      const scheduler::WireBlock &block) override;
     void pumpResults() override;
 
+    [[nodiscard]] std::shared_ptr<SchedulerTransportMetrics> metrics() const noexcept;
+    [[nodiscard]] SchedulerTransportMetricsSnapshot metricsSnapshot() const noexcept;
+
     // The scheduler uses this same stable identity when it projects
     // libtorrent peer snapshots into PeerState.
     [[nodiscard]] static std::string peerIdentity(const lt::tcp::endpoint &endpoint);

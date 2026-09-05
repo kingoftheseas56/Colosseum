@@ -82,6 +82,7 @@ lt::session_params sessionParams()
     settings.set_bool(lt::settings_pack::enable_upnp, false);
     settings.set_bool(lt::settings_pack::enable_natpmp, false);
     settings.set_int(lt::settings_pack::unchoke_slots_limit, -1);
+    settings.set_bool(lt::settings_pack::close_redundant_connections, false);
     return lt::session_params(settings);
 }
 

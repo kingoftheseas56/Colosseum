@@ -65,6 +65,8 @@ struct LibtorrentBlockTransport::State
     };
 
     std::mutex mutex;
+    std::shared_ptr<SchedulerTransportMetrics> metrics =
+        std::make_shared<SchedulerTransportMetrics>();
     bool shuttingDown = false;
     std::uint64_t nextId = 1;
     std::map<std::uint64_t, Pending> pending;
@@ -111,6 +113,96 @@ struct LibtorrentBlockTransport::PeerPlugin final : lt::peer_plugin
     lt::string_view type() const override
     {
         return "colosseum.block-transport";
+    }
+
+    void armManualPicker()
+    {
+        const auto torrent = peer_.associated_torrent();
+        if (!torrent.is_valid())
+            return;
+        auto priorities = torrent.get_piece_priorities();
+        if (priorities.empty())
+            return;
+        std::fill(priorities.begin(), priorities.end(), lt::dont_download);
+        // Keep the torrent out of libtorrent's synthetic "finished" state so
+        // it does not advertise an upload-only lifecycle while W06 owns the
+        // actual piece selection. The wire gate below removes the ordinary
+        // picker reservation for this sentinel when it is not W06-owned.
+        priorities.front() = lt::top_priority;
+        torrent.prioritize_pieces(priorities);
+        for (std::size_t piece = 0; piece < priorities.size(); ++piece)
+            torrent.piece_priority(lt::piece_index_t{
+                                       static_cast<std::int32_t>(piece)},
+                                   priorities[piece]);
+    }
+
+    void sendInterest()
+    {
+        if (state_->shuttingDown)
+            return;
+        if (auto connection = peer_.native_handle())
+            connection->send_interested();
+    }
+
+    bool on_bitfield(lt::bitfield const &) override
+    {
+        // The peer's availability is known now, but the normal picker has
+        // not yet had a chance to allocate payload requests. Filter it at
+        // this boundary and let W06 own every subsequent add_request().
+        armManualPicker();
+        sendInterest();
+        return false;
+    }
+
+    bool on_have_all() override
+    {
+        armManualPicker();
+        sendInterest();
+        return false;
+    }
+
+    void sent_not_interested() override
+    {
+        sendInterest();
+    }
+
+    bool can_disconnect(lt::error_code const &error) override
+    {
+        const bool allow = error != lt::errors::upload_upload_connection
+            && error != lt::errors::uninteresting_upload_peer
+            && error != lt::errors::torrent_finished;
+        return allow;
+    }
+
+    bool write_request(lt::peer_request const &request) override
+    {
+        const auto identity = LibtorrentBlockTransport::peerIdentity(peer_.remote());
+        std::lock_guard lock(state_->mutex);
+        if (state_->shuttingDown)
+            return true;
+        for (const auto &[id, pending] : state_->pending) {
+            (void)id;
+            if ((pending.peerHint != identity
+                 && pending.peerHint != peer_.pid().to_string())
+                || pending.block.piece != static_cast<std::size_t>(request.piece)
+                || pending.block.offset != static_cast<std::size_t>(request.start)) {
+                continue;
+            }
+            // The scheduler owns this piece/offset. Libtorrent may widen the
+            // request length for a short final block; on_piece() retains the
+            // exact scheduler length check before completing the request.
+            ++state_->metrics->wireRequestsAuthorized;
+            return false;
+        }
+        // libtorrent has already moved this picker request into the peer's
+        // download queue before this callback. Clear that reservation here,
+        // then suppress the wire request. W06 can now install its own direct
+        // request without competing with a stale picker queue entry.
+        if (auto connection = peer_.native_handle()) {
+            connection->clear_download_queue();
+        }
+        ++state_->metrics->wireRequestsSuppressed;
+        return true;
     }
 
     bool on_piece(lt::peer_request const &request,
@@ -188,8 +280,13 @@ void LibtorrentBlockTransport::TorrentPlugin::attachToExistingPeers()
         }
         if (peer->find_plugin("colosseum.block-transport"))
             continue;
-        peer->add_extension(std::make_shared<PeerPlugin>(
-            state_, lt::peer_connection_handle(peer->self())));
+        auto plugin = std::make_shared<PeerPlugin>(
+            state_, lt::peer_connection_handle(peer->self()));
+        peer->add_extension(plugin);
+        // This peer completed its handshake before W06 attached. Establish
+        // the picker gate now; new peers do the same at on_bitfield().
+        plugin->armManualPicker();
+        plugin->sendInterest();
     }
 }
 
@@ -301,6 +398,9 @@ void LibtorrentBlockTransport::TorrentPlugin::processNextCommand(
                     transportError(std::errc::operation_would_block));
         return;
     }
+    // A normal picker request may already occupy this block's queue. Remove
+    // that unowned reservation before installing the W06-owned request.
+    connection->cancel_request(block, true);
     if (!connection->add_request(block, lt::peer_connection::time_critical)) {
         if (command.attempts < 10) {
             ++command.attempts;
@@ -369,6 +469,7 @@ void LibtorrentBlockTransport::requestBlock(
     const scheduler::WireBlock &block,
     Completion completion)
 {
+    ++state_->metrics->transportRequests;
     if (!torrent_.is_valid()) {
         std::lock_guard lock(state_->mutex);
         state_->results.push_back(State::Result{
@@ -438,10 +539,27 @@ void LibtorrentBlockTransport::pumpResults()
             && state_->commands.front().retryAfter <= std::chrono::steady_clock::now();
     }
     for (auto &result : results)
-        if (result.completion)
+        if (result.completion) {
+            ++state_->metrics->transportCompletions;
             result.completion(result.error, std::move(result.bytes));
+        }
     if (commandReady && torrent_.is_valid())
         enqueueCommand();
+}
+
+SchedulerTransportMetricsSnapshot LibtorrentBlockTransport::metricsSnapshot() const noexcept
+{
+    return SchedulerTransportMetricsSnapshot{
+        state_->metrics->schedulerDispatches.load(),
+        state_->metrics->transportRequests.load(),
+        state_->metrics->transportCompletions.load(),
+        state_->metrics->wireRequestsAuthorized.load(),
+        state_->metrics->wireRequestsSuppressed.load()};
+}
+
+std::shared_ptr<SchedulerTransportMetrics> LibtorrentBlockTransport::metrics() const noexcept
+{
+    return state_->metrics;
 }
 
 } // namespace colosseum::server::integration

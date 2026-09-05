@@ -6,8 +6,9 @@ namespace colosseum::server::integration {
 
 SchedulerTransportBridge::SchedulerTransportBridge(
     scheduler::SchedulerSpine &scheduler,
-    IBlockTransport &transport)
-    : scheduler_(scheduler), transport_(transport)
+    IBlockTransport &transport,
+    std::shared_ptr<SchedulerTransportMetrics> metrics)
+    : scheduler_(scheduler), transport_(transport), metrics_(std::move(metrics))
 {
     scheduler_.setHotswapObserver(
         [this](const std::string &fromPeer,
@@ -55,8 +56,10 @@ void SchedulerTransportBridge::pump()
     for (const auto &peerId : peerIds_) {
         const auto created = scheduler_.updatePeerRequests(peerId,
                                                            allowChokedBootstrap_);
-        for (const auto &request : created)
-            dispatch(peerId, request);
+        if (dispatchEnabled_) {
+            for (const auto &request : created)
+                dispatch(peerId, request);
+        }
     }
     transport_.pumpResults();
 }
@@ -65,6 +68,8 @@ void SchedulerTransportBridge::dispatch(
     const std::string &peerId,
     const scheduler::OutstandingRequest &request)
 {
+    if (metrics_)
+        ++metrics_->schedulerDispatches;
     active_[request.id] = ActiveRequest{peerId, request.streamPiece,
                                         request.wire, false};
     const std::weak_ptr<int> lifetime = lifetime_;

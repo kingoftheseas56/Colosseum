@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -17,6 +18,7 @@
 #include <libtorrent/add_torrent_params.hpp>
 #include <libtorrent/create_torrent.hpp>
 #include <libtorrent/hasher.hpp>
+#include <libtorrent/peer_info.hpp>
 #include <libtorrent/session.hpp>
 #include <libtorrent/settings_pack.hpp>
 #include <libtorrent/torrent_flags.hpp>
@@ -85,6 +87,10 @@ lt::session_params fixtureSessionParams()
     settings.set_bool(lt::settings_pack::enable_upnp, false);
     settings.set_bool(lt::settings_pack::enable_natpmp, false);
     settings.set_int(lt::settings_pack::unchoke_slots_limit, -1);
+    // The fixture seed is an ordinary libtorrent peer. Keep it alive while
+    // the production client suppresses the ordinary picker and uses W06's
+    // direct requests; the application-side setting is in TorrentEngine.
+    settings.set_bool(lt::settings_pack::close_redundant_connections, false);
     settings.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_enabled);
     settings.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_enabled);
     settings.set_int(lt::settings_pack::allowed_enc_level, lt::settings_pack::pe_both);
@@ -321,12 +327,14 @@ void testProductionStreamUsesSchedulerTransport()
                     && priorities.at(2) == lt::top_priority
                     && priorities.at(3) == lt::top_priority;
             }, 1000);
-    require(unionReady, "concurrent production readers must expose the union of selected pieces");
+    require(unionReady,
+            "concurrent production readers must expose the union of selected pieces");
     firstReader->destroy();
     require(waitFor([&] {
                 const auto priorities = clientHandle.get_piece_priorities();
                 return priorities.size() == originalPriorities.size()
                     && priorities.at(0) == lt::dont_download
+                    && priorities.at(1) == lt::dont_download
                     && priorities.at(2) == lt::top_priority
                     && priorities.at(3) == lt::top_priority;
             }, 1000),
@@ -336,6 +344,46 @@ void testProductionStreamUsesSchedulerTransport()
             "closing the final production reader must restore original priorities");
     firstReader.reset();
     tailReader.reset();
+
+    // Negative control: a production session with W06 dispatch disabled must
+    // not complete through libtorrent's ordinary picker. The active priority
+    // lease leaves pieces visible for peer interest, but the peer plugin
+    // cancels every ordinary picker reservation before it reaches the wire.
+    backend.setSchedulerDispatchEnabledForTests(false);
+    QByteArray disabledReceived;
+    std::error_code disabledStreamError;
+    bool disabledEnded = false;
+    auto disabledSession = backend.open(plan, noCancel,
+        colosseum::server::integration::TorrentStreamCallbacks{
+            [&](QByteArray chunk) { disabledReceived += chunk; },
+            [&](std::error_code errorValue) { disabledStreamError = errorValue; },
+            [&] { disabledEnded = true; }});
+    require(disabledSession != nullptr,
+            "production negative-control session must be created");
+    disabledSession->start();
+    clientHandle.resume();
+    clientHandle.connect_peer({loopback, seed.listen_port()});
+    const auto disabledBefore = backend.schedulerTransportMetrics(hash);
+    const bool ordinaryPickerCompleted = waitFor([&] {
+        return disabledEnded || clientHandle.have_piece(lt::piece_index_t{0});
+    }, 3000);
+    const auto disabledAfter = backend.schedulerTransportMetrics(hash);
+    require(!ordinaryPickerCompleted && !disabledEnded && disabledReceived.isEmpty()
+                && !disabledStreamError,
+            "disabling W06 dispatch must block the production stream and ordinary picker");
+    require(disabledBefore.schedulerDispatches == disabledAfter.schedulerDispatches
+                && disabledBefore.transportRequests == disabledAfter.transportRequests
+                && disabledBefore.transportCompletions == disabledAfter.transportCompletions
+                && disabledAfter.wireRequestsAuthorized == 0,
+            "disabled W06 dispatch must not enter the peer/block transport");
+    disabledSession->destroy();
+    disabledSession.reset();
+    require(waitFor([&] {
+        return clientHandle.get_piece_priorities() == originalPriorities;
+    }, 1000),
+            "negative-control production stream must restore piece priorities after close");
+
+    backend.setSchedulerDispatchEnabledForTests(true);
     const auto cancellation = std::make_shared<colosseum::server::CancellationToken>();
     QByteArray received;
     std::error_code streamError;
@@ -347,7 +395,7 @@ void testProductionStreamUsesSchedulerTransport()
             [&] { ended = true; }});
     require(session != nullptr, "production stream session must be created");
     session->start();
-    engine.forceStart(hash);
+    clientHandle.resume();
     clientHandle.connect_peer({loopback, seed.listen_port()});
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
     int reconnectTicks = 0;
@@ -359,6 +407,38 @@ void testProductionStreamUsesSchedulerTransport()
         QCoreApplication::processEvents();
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
+    const auto failedTransportProof = backend.schedulerTransportMetrics(hash);
+    if (!ended || streamError) {
+        const auto status = clientHandle.status();
+        std::vector<lt::peer_info> diagnosticPeers;
+        clientHandle.get_peer_info(diagnosticPeers);
+        std::fprintf(stderr,
+                     "STREAM_DIAGNOSTIC ended=%d error=%d received=%lld have_piece=%d peers=%d connections=%d paused=%d upload=%d state=%d dispatch=%llu requests=%llu completions=%llu authorized=%llu suppressed=%llu\n",
+                     ended ? 1 : 0, streamError.value(),
+                     static_cast<long long>(received.size()),
+                     clientHandle.have_piece(lt::piece_index_t{0}) ? 1 : 0,
+                     status.num_peers, status.num_connections, status.paused ? 1 : 0,
+                     status.upload_mode ? 1 : 0,
+                     static_cast<int>(status.state),
+                     static_cast<unsigned long long>(failedTransportProof.schedulerDispatches),
+                     static_cast<unsigned long long>(failedTransportProof.transportRequests),
+                     static_cast<unsigned long long>(failedTransportProof.transportCompletions),
+                     static_cast<unsigned long long>(failedTransportProof.wireRequestsAuthorized),
+                     static_cast<unsigned long long>(failedTransportProof.wireRequestsSuppressed));
+        for (const auto &peer : diagnosticPeers) {
+            std::fprintf(stderr,
+                         "PEER_DIAGNOSTIC port=%d remote_choked=%d interesting=%d remote_interested=%d handshake=%d connecting=%d outgoing=%d seed=%d pieces=%d\n",
+                         peer.ip.port(),
+                         (peer.flags & lt::peer_info::remote_choked) ? 1 : 0,
+                         (peer.flags & lt::peer_info::interesting) ? 1 : 0,
+                         (peer.flags & lt::peer_info::remote_interested) ? 1 : 0,
+                         (peer.flags & lt::peer_info::handshake) ? 1 : 0,
+                         (peer.flags & lt::peer_info::connecting) ? 1 : 0,
+                         (peer.flags & lt::peer_info::outgoing_connection) ? 1 : 0,
+                         (peer.flags & lt::peer_info::seed) ? 1 : 0,
+                         peer.pieces.count());
+        }
+    }
     require(ended && !streamError,
             "production stream must complete through scheduler transport");
     const QByteArray expectedStream(bytes.data(), static_cast<qsizetype>(bytes.size()));
@@ -366,6 +446,12 @@ void testProductionStreamUsesSchedulerTransport()
                  "scheduler transport production stream bytes must match the seed");
     require(clientHandle.have_piece(lt::piece_index_t{0}),
             "scheduler transport production stream must verify the first piece");
+    const auto transportProof = backend.schedulerTransportMetrics(hash);
+    require(transportProof.schedulerDispatches > 0
+                && transportProof.transportRequests > 0
+                && transportProof.transportCompletions > 0
+                && transportProof.wireRequestsAuthorized > 0,
+            "W06 must dispatch through LibtorrentBlockTransport and receive completions");
     session->destroy();
     session.reset();
     require(waitFor([&] {
@@ -439,7 +525,7 @@ void testProductionStreamKeepsMultiFileBoundaries()
             [&] { ended = true; }});
     require(session != nullptr, "multifile production stream session must be created");
     session->start();
-    engine.forceStart(hash);
+    clientHandle.resume();
     clientHandle.connect_peer({loopback, seed.listen_port()});
 
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
@@ -656,7 +742,7 @@ int main(int argc, char **argv)
     require(waitForSignal(streamReady, 5000),
             "native stream registration must emit streamReady");
     require(streamReady.count() == 1, "native stream registration must emit one streamReady");
-    engine.forceStart(hash);
+    clientHandle.resume();
     clientHandle.connect_peer({loopback, seed.listen_port()});
     seedHandle.connect_peer({loopback, engine.listenPort()});
     QTimer peerRetry;
@@ -688,6 +774,11 @@ int main(int argc, char **argv)
                  "real torrent HTTP body bytes must match the seeded payload");
     require(waitForPiece(engine, hash, 0, 10000),
             "real torrent HTTP request must verify the first piece through libtorrent");
+    const QFileInfo persistedMedia(
+        QDir(root.path()).filePath(QStringLiteral("client/movie.mp4")));
+    require(persistedMedia.exists()
+                && persistedMedia.size() == static_cast<qint64>(bytes.size()),
+            "real torrent W06 completion must persist the verified media file");
 
     const QByteArray head = issueHttpRequest(
         port, mediaRequest(hash, QByteArrayLiteral("HEAD")));

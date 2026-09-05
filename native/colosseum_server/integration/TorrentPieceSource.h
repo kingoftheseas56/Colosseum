@@ -4,11 +4,20 @@
 #include "scheduler/FileStream.h"
 
 #include <cstddef>
+#include <map>
 #include <memory>
+#include <mutex>
+#include <optional>
+#include <vector>
 
 #include <libtorrent/torrent_handle.hpp>
 
 namespace colosseum::server::integration {
+
+struct TorrentVerifiedPieceCache final {
+    std::mutex mutex;
+    std::map<std::size_t, std::vector<std::byte>> pieces;
+};
 
 // The verified-piece boundary used by W06/W07.  Libtorrent remains the
 // authority for have_piece() and piece deadlines; this adapter only waits for
@@ -17,7 +26,10 @@ class TorrentPieceSource final : public IPieceSource,
                                  public scheduler::IFilePieceStore
 {
 public:
-    explicit TorrentPieceSource(lt::torrent_handle torrent);
+    explicit TorrentPieceSource(
+        lt::torrent_handle torrent,
+        std::shared_ptr<TorrentVerifiedPieceCache> verifiedCache = {},
+        bool requireExplicitVisibility = false);
     ~TorrentPieceSource() override;
 
     TorrentPieceSource(const TorrentPieceSource &) = delete;
@@ -36,6 +48,10 @@ public:
     // TorrentEngine's queued pieceFinished signal (or an equivalent alert
     // consumer) calls this after libtorrent has marked the piece verified.
     void notifyPieceFinished(std::size_t piece);
+    // Existing verified pieces may be exposed before a stream starts. Newly
+    // downloaded pieces become visible only through provideVerifiedPiece()
+    // followed by notifyPieceFinished().
+    void markPieceVisible(std::size_t piece);
 
     // W06 hands over the assembled bytes after libtorrent reports the same
     // piece as verified. This closes the disk-writer visibility window where
@@ -57,6 +73,14 @@ private:
         const std::shared_ptr<State> &state,
         std::size_t piece,
         std::error_code &error);
+    static std::optional<std::vector<std::byte>> readSharedPiece(
+        const std::shared_ptr<State> &state,
+        std::size_t piece);
+    static void consumeSharedPiece(const std::shared_ptr<State> &state,
+                                   std::size_t piece);
+    static bool persistPiece(const std::shared_ptr<State> &state,
+                             std::size_t piece,
+                             const std::vector<std::byte> &bytes);
     static void consumeProvidedPiece(const std::shared_ptr<State> &state,
                                      std::size_t piece);
     static void onReadReady(const std::shared_ptr<State> &state,
