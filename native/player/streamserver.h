@@ -89,15 +89,13 @@ private:
         QString infoHash;
         int fileIdx;
         bool fetch = false;   // true -> answer with fetchReady (download), not streamReady
-        int connectionRefusedRetries = 0;
     };
 
     void ensureStarted();                 // start the in-process native server graph
     void setEngineUnavailable(bool unavailable);
     void markEngineUnavailable(const QString &message);
     void flushPending();
-    void registerThenReady(const QString &infoHash, int fileIdx, bool fetch,
-                           int connectionRefusedRetries = 0);  // POST /create, then emit URL
+    void registerThenReady(const QString &infoHash, int fileIdx, bool fetch);  // POST /create, then emit URL
     void pollStats();                     // one stats.json GET; single-flight behind m_statsInflight
     void pushTunedSettings();             // raise the runtime's swarm caps, THEN flush pending streams
 

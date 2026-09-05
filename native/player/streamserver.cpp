@@ -148,45 +148,49 @@ void StreamServer::flushPending()
     const auto pend = m_pending;
     m_pending.clear();
     for (const Pending &p : pend)
-        registerThenReady(p.infoHash, p.fileIdx, p.fetch, p.connectionRefusedRetries);
+        registerThenReady(p.infoHash, p.fileIdx, p.fetch);
 }
 
-void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool fetch,
-                                     int connectionRefusedRetries)
+void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool fetch)
 {
     const QString hash = infoHash.toLower();
+    const int requestPort = m_port;
     // Register the torrent with the runtime (it constructs the magnet from the hash).
-    // We emit the playable URL regardless of the create result — newer runtimes also
-    // auto-create on the first ranged GET that mpv issues — but doing the POST first
+    // We emit the playable URL regardless of the create result - newer runtimes also
+    // auto-create on the first ranged GET that mpv issues - but doing the POST first
     // matches TB2's proven sequence and warms the engine before playback.
-    QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/%2/create").arg(m_port).arg(hash)));
+    QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/%2/create").arg(requestPort).arg(hash)));
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
 
     QNetworkReply *reply = m_nam->post(req, QByteArray("{}"));
     connect(reply, &QNetworkReply::finished, this,
-            [this, reply, hash, fileIdx, fetch, connectionRefusedRetries]() {
+            [this, reply, hash, fileIdx, fetch, requestPort]() {
         const auto err = reply->error();
         reply->deleteLater();
-        // A vanished native listener gets one fresh runtime generation for this
-        // request. Carry the budget with the pending request so a second refusal
-        // cannot recursively create another generation forever.
-        if (err == QNetworkReply::ConnectionRefusedError && m_runtime && m_port > 0) {
-            const int failedPort = m_port;
-            m_runtime->stop();
-            m_runtime.reset();
-            m_port = -1;
-            Q_EMIT readyChanged();
+        // Stremio keeps request failure and server supervision separate: a
+        // refused request fails, while the shell brings the server back for a
+        // later request. Mirror that split for our embedded runtime rather than
+        // silently replaying the caller's request after a restart.
+        if (err == QNetworkReply::ConnectionRefusedError) {
+            qWarning("[stream] native server on :%d refused the request - recovering runtime",
+                     requestPort);
 
-            if (connectionRefusedRetries < 1) {
-                qWarning("[stream] native server on :%d is gone — resetting and retrying once",
-                         failedPort);
-                m_pending.append({hash, fileIdx, fetch, connectionRefusedRetries + 1});
-                ensureStarted();
-            } else {
-                qWarning("[stream] native server on :%d refused the recovery retry — giving up",
-                         failedPort);
-                markEngineUnavailable(engineUnavailableMessage());
+            // A refusal callback can arrive after another request has already
+            // recovered the runtime. Only retire the generation that owned this
+            // request; never tear down a newer listener from a stale callback.
+            if (m_port == requestPort) {
+                if (m_runtime) {
+                    m_runtime->stop();
+                    m_runtime.reset();
+                }
+                m_port = -1;
+                Q_EMIT readyChanged();
             }
+
+            Q_EMIT streamError(QStringLiteral(
+                "Native streaming runtime connection was lost. Please retry playback."));
+            if (m_port <= 0 && !m_starting)
+                ensureStarted();
             return;
         }
         if (err != QNetworkReply::NoError)
