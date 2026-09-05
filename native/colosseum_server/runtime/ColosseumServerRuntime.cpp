@@ -237,8 +237,11 @@ struct ColosseumServerRuntime::Impl final
             router->use(QStringLiteral("/"), [](HttpRequest &request, HttpResponse response) {
                 return applyCorsHeaders(request, response);
             });
-            integration::mountTorrentRoutes(*router, torrentSurface, torrent);
+            // Both route families use /* fallthrough handlers. Named feature surfaces must
+            // run before the generic torrent media fallback or multi-segment feature URLs
+            // such as /hlsv2/status are claimed as torrent paths.
             integration::mountFeatureRoutes(*router, routeDependencies);
+            integration::mountTorrentRoutes(*router, torrentSurface, torrent);
             routesMounted = true;
         }
         return true;

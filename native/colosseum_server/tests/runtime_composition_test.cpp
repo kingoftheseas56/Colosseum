@@ -179,6 +179,11 @@ int main(int argc, char **argv)
     require(initialSettings.startsWith("HTTP/1.1 200 "),
             "native runtime settings must be served by the mounted generation");
 
+    const QByteArray hlsStatus = exchange(runtime.httpUrl(),
+        "GET /hlsv2/status HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
+    require(hlsStatus.startsWith("HTTP/1.1 200 "),
+            "native runtime feature routes must take precedence over the torrent catch-all");
+
     const QByteArray stats = exchange(runtime.httpUrl(),
         "GET /stats.json?sys=1 HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
     require(stats.startsWith("HTTP/1.1 200 "),
