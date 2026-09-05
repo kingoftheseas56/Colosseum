@@ -19,7 +19,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  retry-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Require a per-request refusal retry budget
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          header = Path("native/player/streamserver.h").read_text(encoding="utf-8")
+          source = Path("native/player/streamserver.cpp").read_text(encoding="utf-8")
+
+          required = {
+              "pending request carries retry state": "connectionRefusedRetries" in header,
+              "register helper receives retry state": "connectionRefusedRetries" in source,
+              "first refusal consumes exactly one retry": "connectionRefusedRetries + 1" in source,
+              "exhausted retry becomes terminal": "markEngineUnavailable" in source
+                  and "ConnectionRefusedError" in source,
+          }
+          missing = [name for name, present in required.items() if not present]
+          if missing:
+              raise SystemExit("UNBOUNDED_RETRY_CONTRACT_FAILED: " + "; ".join(missing))
+          print("BOUNDED_RETRY_CONTRACT_OK")
+          PY
+
   streamserver-recovery:
+    needs: retry-contract
     runs-on: windows-2025
     timeout-minutes: 45
     env:
