@@ -148,10 +148,11 @@ void StreamServer::flushPending()
     const auto pend = m_pending;
     m_pending.clear();
     for (const Pending &p : pend)
-        registerThenReady(p.infoHash, p.fileIdx, p.fetch);
+        registerThenReady(p.infoHash, p.fileIdx, p.fetch, p.connectionRefusedRetries);
 }
 
-void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool fetch)
+void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool fetch,
+                                     int connectionRefusedRetries)
 {
     const QString hash = infoHash.toLower();
     // Register the torrent with the runtime (it constructs the magnet from the hash).
@@ -162,20 +163,30 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
 
     QNetworkReply *reply = m_nam->post(req, QByteArray("{}"));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, hash, fileIdx, fetch]() {
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply, hash, fileIdx, fetch, connectionRefusedRetries]() {
         const auto err = reply->error();
         reply->deleteLater();
-        // The native listener can still disappear because of an external shutdown.
-        // Reset the in-process owner and retry this request once through the same
-        // startup path, preserving the existing player recovery behavior.
+        // A vanished native listener gets one fresh runtime generation for this
+        // request. Carry the budget with the pending request so a second refusal
+        // cannot recursively create another generation forever.
         if (err == QNetworkReply::ConnectionRefusedError && m_runtime && m_port > 0) {
-            qWarning("[stream] native server on :%d is gone — resetting and relaunching", m_port);
+            const int failedPort = m_port;
             m_runtime->stop();
             m_runtime.reset();
             m_port = -1;
             Q_EMIT readyChanged();
-            m_pending.append({hash, fileIdx, fetch});
-            ensureStarted();
+
+            if (connectionRefusedRetries < 1) {
+                qWarning("[stream] native server on :%d is gone — resetting and retrying once",
+                         failedPort);
+                m_pending.append({hash, fileIdx, fetch, connectionRefusedRetries + 1});
+                ensureStarted();
+            } else {
+                qWarning("[stream] native server on :%d refused the recovery retry — giving up",
+                         failedPort);
+                markEngineUnavailable(engineUnavailableMessage());
+            }
             return;
         }
         if (err != QNetworkReply::NoError)
