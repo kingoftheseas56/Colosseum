@@ -64,11 +64,29 @@ class CodeQualityWorkflowContract(unittest.TestCase):
             self.assertIn(check, policy)
         self.assertNotIn("portability-avoid-pragma-once", policy)
         for ownership_false_positive in (
-                "native/engine/ComicDownloader.cpp|1492|clang-analyzer-cplusplus.NewDeleteLeaks",
-                "native/engine/MangaDownloader.cpp|426|clang-analyzer-cplusplus.NewDeleteLeaks",
-                "native/engine/MangaDownloader.cpp|857|clang-analyzer-cplusplus.NewDeleteLeaks",
-                "native/engine/MangaVolumeArchiveIngestor.cpp|256|clang-analyzer-cplusplus.NewDeleteLeaks"):
+                "native/engine/BiblioCatalog.cpp|1186|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/ComicDownloader.cpp|1511|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaDownloader.cpp|455|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaDownloader.cpp|512|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaDownloader.cpp|935|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/TankoyomiChapterService.cpp|196|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks"):
             self.assertIn(ownership_false_positive, allowlist)
+
+    def test_linux_ccache_persists_even_when_the_build_fails(self):
+        desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Restore Linux compiler cache", desktop)
+        self.assertIn("uses: actions/cache/restore@v4", desktop)
+        self.assertIn("path: ~/.cache/ccache", desktop)
+        self.assertIn("key: linux-ccache-v1-${{ runner.os }}-${{ github.sha }}", desktop)
+        self.assertIn("linux-ccache-v1-${{ runner.os }}-", desktop)
+        self.assertIn("Save Linux compiler cache", desktop)
+        self.assertIn("uses: actions/cache/save@v4", desktop)
+        self.assertIn("if: always()", desktop)
+        self.assertLess(desktop.index("Restore Linux compiler cache"),
+                        desktop.index("Build Linux desktop and tests"))
+        self.assertLess(desktop.index("Build Linux desktop and tests"),
+                        desktop.index("Save Linux compiler cache"))
 
     def test_address_sanitizer_gate_builds_and_runs_high_risk_native_probes(self):
         desktop = DESKTOP_WORKFLOW.read_text(encoding="utf-8")

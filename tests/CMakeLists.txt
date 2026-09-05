@@ -89,7 +89,7 @@ add_test(NAME colosseum.catalogue_cancellation_contract
          COMMAND powershell -NoProfile -ExecutionPolicy Bypass
                  -File "${CMAKE_CURRENT_SOURCE_DIR}/test_catalogue_cancellation_contract.ps1")
 set_tests_properties(colosseum.catalogue_cancellation_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -97,7 +97,7 @@ add_test(NAME colosseum.session_model_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_session_model_p0.ps1")
 set_tests_properties(colosseum.session_model_contract PROPERTIES
-    LABELS "unit;session"
+    LABELS "unit;session;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -245,7 +245,7 @@ add_test(NAME colosseum.startup_deferral_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_startup_deferral_contract.ps1")
 set_tests_properties(colosseum.startup_deferral_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -255,7 +255,7 @@ add_test(NAME colosseum.startup_responsiveness_probe
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_startup_responsiveness_probe.ps1")
 set_tests_properties(colosseum.startup_responsiveness_probe PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -281,7 +281,7 @@ add_test(NAME colosseum.world_warmer_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_world_warmer_contract.ps1")
 set_tests_properties(colosseum.world_warmer_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -291,7 +291,7 @@ add_test(NAME colosseum.home_hidden_work_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_home_hidden_work_contract.ps1")
 set_tests_properties(colosseum.home_hidden_work_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -301,7 +301,7 @@ add_test(NAME colosseum.world_lifecycle_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_world_lifecycle_contract.ps1")
 set_tests_properties(colosseum.world_lifecycle_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -311,7 +311,7 @@ add_test(NAME colosseum.search_cancellation_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_search_cancellation_contract.ps1")
 set_tests_properties(colosseum.search_cancellation_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -321,7 +321,7 @@ add_test(NAME colosseum.tankoban_startup_recovery_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_tankoban_startup_recovery_contract.ps1")
 set_tests_properties(colosseum.tankoban_startup_recovery_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -949,7 +949,7 @@ add_test(NAME colosseum.local_launch_async_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_local_launch_async_contract.ps1")
 set_tests_properties(colosseum.local_launch_async_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
@@ -957,7 +957,7 @@ add_test(NAME colosseum.manga_downloader_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_downloader_responsiveness_contract.ps1")
 set_tests_properties(colosseum.manga_downloader_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
@@ -965,7 +965,7 @@ add_test(NAME colosseum.book_torrent_delete_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_book_torrent_delete_responsiveness_contract.ps1")
 set_tests_properties(colosseum.book_torrent_delete_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
@@ -973,7 +973,7 @@ add_test(NAME colosseum.comic_downloader_probe_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_comic_downloader_probe_responsiveness_contract.ps1")
 set_tests_properties(colosseum.comic_downloader_probe_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
@@ -981,7 +981,7 @@ add_test(NAME colosseum.manga_volume_archive_adopt_responsiveness_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_volume_archive_adopt_responsiveness_contract.ps1")
 set_tests_properties(colosseum.manga_volume_archive_adopt_responsiveness_contract PROPERTIES
-    LABELS "unit;responsiveness"
+    LABELS "unit;responsiveness;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
@@ -1136,6 +1136,13 @@ set_tests_properties(colosseum.qttest.journey_play_video PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+if(UNIX AND NOT APPLE)
+    # MpvQt's QQuickFramebufferObject needs a real X/OpenGL scene graph before
+    # decoded dimensions become observable. Keep the neutral Linux suite
+    # offscreen, but route this one render-dependent test through X11/Xvfb.
+    set_property(TEST colosseum.qttest.journey_play_video
+        APPEND PROPERTY LABELS "requires-x11")
+endif()
 
 # ── Window-set-state bridge command (Agent Visibility Phase 2, Slice J1-Tray-Bridge,
 #    2026-08-14) ─────────────────────────────────────────────────────────────────────
@@ -1377,7 +1384,7 @@ add_test(NAME colosseum.comicreader_sync_resume
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_comicreader_sync_resume.ps1")
 set_tests_properties(colosseum.comicreader_sync_resume PROPERTIES
-    LABELS "unit;comicreader"
+    LABELS "unit;comicreader;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -1385,7 +1392,7 @@ add_test(NAME colosseum.comicreader_sync_resume_shell
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_comicreader_sync_resume_shell.ps1")
 set_tests_properties(colosseum.comicreader_sync_resume_shell PROPERTIES
-    LABELS "unit;comicreader"
+    LABELS "unit;comicreader;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -1449,7 +1456,7 @@ add_test(NAME colosseum.manga_reading_room
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_reading_room.ps1")
 set_tests_properties(colosseum.manga_reading_room PROPERTIES
-    LABELS "unit"
+    LABELS "unit;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -1460,7 +1467,7 @@ add_test(NAME colosseum.manga_series_catalogue
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_series_catalogue.ps1")
 set_tests_properties(colosseum.manga_series_catalogue PROPERTIES
-    LABELS "unit"
+    LABELS "unit;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -1472,7 +1479,7 @@ add_test(NAME colosseum.manga_volume_flow
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_manga_volume_flow.ps1")
 set_tests_properties(colosseum.manga_volume_flow PROPERTIES
-    LABELS "unit"
+    LABELS "unit;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -1496,7 +1503,7 @@ foreach(_f3_test IN ITEMS
              COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                      "${CMAKE_CURRENT_SOURCE_DIR}/test_${_f3_test}.ps1")
     set_tests_properties("colosseum.${_f3_test}" PROPERTIES
-        LABELS "unit;shell"
+        LABELS "unit;shell;windows"
         TIMEOUT 60)
 endforeach()
 add_executable(tst_installed_chronicle
@@ -1583,6 +1590,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
@@ -1867,8 +1876,8 @@ add_custom_command(TARGET tst_consumption_history POST_BUILD
 add_custom_command(TARGET tst_consumption_history POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${Qt6_DIR}/../../../plugins/sqldrivers/qsqlite.dll"
-            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/qsqlite.dll")
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
 add_test(NAME colosseum.qttest.consumption_history COMMAND tst_consumption_history)
 set_tests_properties(colosseum.qttest.consumption_history PROPERTIES
     LABELS "unit;qttest;activity;history;profile"
@@ -2908,7 +2917,7 @@ add_test(NAME colosseum.video_source_handoff_p0
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
             "${CMAKE_CURRENT_SOURCE_DIR}/test_video_source_handoff_p0.ps1")
 set_tests_properties(colosseum.video_source_handoff_p0 PROPERTIES
-    LABELS "unit;contract"
+    LABELS "unit;contract;windows"
     TIMEOUT 30)
 
 # Function 0008 wire proof: DownloadStore must send addon-owned HTTP headers.
@@ -2967,7 +2976,7 @@ add_test(NAME colosseum.stream_engine_failfast
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_stream_engine_failfast.ps1")
 set_tests_properties(colosseum.stream_engine_failfast PROPERTIES
-    LABELS "unit;player;contract"
+    LABELS "unit;player;contract;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
 
@@ -2977,7 +2986,7 @@ add_test(NAME colosseum.player1_runtime_recovery
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_player1_runtime_recovery_p0.ps1")
 set_tests_properties(colosseum.player1_runtime_recovery PROPERTIES
-    LABELS "unit;player"
+    LABELS "unit;player;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -2985,7 +2994,7 @@ add_test(NAME colosseum.player1_resume_choice
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_player_resume_choice_p0.ps1")
 set_tests_properties(colosseum.player1_resume_choice PROPERTIES
-    LABELS "unit;player"
+    LABELS "unit;player;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
@@ -2993,6 +3002,6 @@ add_test(NAME colosseum.player1_error_contract
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_player_typed_recovery_p0.ps1")
 set_tests_properties(colosseum.player1_error_contract PROPERTIES
-    LABELS "unit;player"
+    LABELS "unit;player;windows"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
