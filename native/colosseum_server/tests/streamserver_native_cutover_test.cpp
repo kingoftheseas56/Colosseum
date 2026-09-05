@@ -1,10 +1,14 @@
-#include "player/streamserver.h"
+#include "../runtime/ColosseumServerRuntime.h"
 
 #include <QCoreApplication>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTcpSocket>
 #include <QtTest>
+
+#define private public
+#include "player/streamserver.h"
+#undef private
 
 namespace {
 
@@ -36,6 +40,7 @@ class StreamServerNativeCutoverTest final : public QObject
 
 private slots:
     void startsNativeRuntimeWithoutChildProcess();
+    void retriesConnectionRefusalOnlyOnce();
 };
 
 void StreamServerNativeCutoverTest::startsNativeRuntimeWithoutChildProcess()
@@ -61,6 +66,38 @@ void StreamServerNativeCutoverTest::startsNativeRuntimeWithoutChildProcess()
     QVERIFY2(response.startsWith("HTTP/1.1 200 "),
              "StreamServer's native listener must expose the server.js heartbeat");
     QVERIFY(response.endsWith("{\"success\":true}"));
+}
+
+void StreamServerNativeCutoverTest::retriesConnectionRefusalOnlyOnce()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    StreamServer stream;
+    QSignalSpy errors(&stream, &StreamServer::streamError);
+    QSignalSpy streams(&stream, &StreamServer::streamReady);
+
+    stream.warmUp();
+    QVERIFY2(stream.ready(), "initial native runtime must start");
+    QVERIFY(stream.m_runtime);
+
+    stream.m_runtime->stop();
+
+    bool stoppedRetryGeneration = false;
+    connect(&stream, &StreamServer::readyChanged, &stream, [&]() {
+        if (stream.ready() && !stoppedRetryGeneration) {
+            stoppedRetryGeneration = true;
+            if (stream.m_runtime)
+                stream.m_runtime->stop();
+        }
+    });
+
+    stream.play(QStringLiteral("0123456789abcdef0123456789abcdef01234567"), 0);
+
+    QTRY_VERIFY_WITH_TIMEOUT(errors.count() > 0 || streams.count() > 0, 10000);
+    QVERIFY2(stoppedRetryGeneration, "the first refused request must restart the native runtime once");
+    QCOMPARE(streams.count(), 0);
+    QVERIFY2(errors.count() > 0, "the second refusal must terminate recovery with an error");
+    QVERIFY(stream.engineUnavailable());
+    QVERIFY(!stream.ready());
 }
 
 QTEST_GUILESS_MAIN(StreamServerNativeCutoverTest)
