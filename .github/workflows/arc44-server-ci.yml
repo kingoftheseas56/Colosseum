@@ -20,8 +20,10 @@ concurrency:
 
 jobs:
   streamserver-recovery:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      VCPKG_TAG: "2026.07.29"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -31,33 +33,53 @@ jobs:
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
         with:
           version: "6.11.1"
-          host: linux
+          host: windows
           target: desktop
-          arch: linux_gcc_64
+          arch: win64_msvc2022_64
           aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
           cache: true
+      - name: Enable MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        with:
+          arch: x64
       - name: Install native server dependencies
+        shell: pwsh
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential ninja-build pkg-config \
-            libtorrent-rasterbar-dev libboost-all-dev libssl-dev
+          $vcpkg = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone --depth 1 --branch $env:VCPKG_TAG https://github.com/microsoft/vcpkg.git $vcpkg
+          & "$vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$vcpkg/vcpkg.exe" install `
+            libtorrent:x64-windows `
+            openssl:x64-windows `
+            boost-filesystem:x64-windows `
+            boost-system:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "VCPKG_ROOT=$vcpkg" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$vcpkg/installed/x64-windows/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Configure standalone server tests
+        shell: pwsh
         run: |
-          cmake -S native/colosseum_server/tests \
-            -B "$RUNNER_TEMP/arc44-server-tests" \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+          $build = Join-Path $env:RUNNER_TEMP "arc44-server-tests"
+          $prefix = "$env:QT_ROOT_DIR;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake -S native/colosseum_server/tests -B $build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DCMAKE_PREFIX_PATH=$prefix"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "ARC44_SERVER_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build StreamServer recovery test
+        shell: pwsh
         run: |
-          cmake --build "$RUNNER_TEMP/arc44-server-tests" \
-            --target streamserver_native_cutover_test \
+          cmake --build $env:ARC44_SERVER_BUILD `
+            --target streamserver_native_cutover_test `
             --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run StreamServer recovery test
-        env:
-          QT_FORCE_STDERR_LOGGING: "1"
+        shell: pwsh
         run: |
-          ctest --test-dir "$RUNNER_TEMP/arc44-server-tests" \
-            -R '^streamserver_native_cutover_test$' \
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+          ctest --test-dir $env:ARC44_SERVER_BUILD `
+            -R '^streamserver_native_cutover_test$' `
             --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
