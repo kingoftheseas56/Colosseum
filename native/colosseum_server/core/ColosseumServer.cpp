@@ -175,7 +175,7 @@ bool ColosseumServer::startInternal(quint16 port, bool tls,
         return true;
 
     m_lastError.clear();
-    m_boundUrl = {};
+    m_boundUrl = QUrl{};
     m_thread = new QThread;
     m_worker = new ServerWorker(m_router);
     m_worker->moveToThread(m_thread);
@@ -193,7 +193,7 @@ bool ColosseumServer::startInternal(quint16 port, bool tls,
         delete m_thread;
         m_thread = nullptr;
         m_worker = nullptr;
-        m_boundUrl = {};
+        m_boundUrl = QUrl{};
         return false;
     }
 
@@ -216,7 +216,7 @@ void ColosseumServer::stop()
     m_thread = nullptr;
     m_worker = nullptr;
     m_running = false;
-    m_boundUrl = {};
+    m_boundUrl = QUrl{};
 }
 
 qsizetype ColosseumServer::activeConnectionCount() const
