@@ -685,8 +685,6 @@ Item {
                     border.color: speedMenu.activeFocus && speedMenu.keyboardIndex === index ? (root.theme ? root.theme.gold : "#f0c44a") : Qt.rgba(1, 1, 1, 0.10)
                     color: selected ? Qt.rgba(1, 1, 1, 0.10)
                          : (speedRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-                    border.width: selected ? 1 : 0
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
                     // "Normal" for 1×, else "1.25×" — left-aligned (current-player parity).
                     Text {
                         anchors.left: parent.left
