@@ -1,0 +1,63 @@
+name: arc44-server-ci
+
+on:
+  push:
+    branches:
+      - "arc44/**"
+  pull_request:
+    paths:
+      - "native/colosseum_server/**"
+      - "native/player/streamserver.*"
+      - ".github/workflows/arc44-server-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arc44-server-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  streamserver-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Install native server dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config \
+            libtorrent-rasterbar-dev libboost-all-dev libssl-dev
+      - name: Configure standalone server tests
+        run: |
+          cmake -S native/colosseum_server/tests \
+            -B "$RUNNER_TEMP/arc44-server-tests" \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+      - name: Build StreamServer recovery test
+        run: |
+          cmake --build "$RUNNER_TEMP/arc44-server-tests" \
+            --target streamserver_native_cutover_test \
+            --parallel 2
+      - name: Run StreamServer recovery test
+        env:
+          QT_FORCE_STDERR_LOGGING: "1"
+        run: |
+          ctest --test-dir "$RUNNER_TEMP/arc44-server-tests" \
+            -R '^streamserver_native_cutover_test$' \
+            --output-on-failure
