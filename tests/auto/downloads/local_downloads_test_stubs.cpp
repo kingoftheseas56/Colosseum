@@ -68,8 +68,6 @@ QVariantMap ComicDownloader::packVolumes(const QString&) const { return {}; }
 void ComicDownloader::selfTest(const QString&) {}
 void ComicDownloader::runPackSelfTest(const QString&) {}
 
-QVariantList DownloadIntentStore::records() const { return {}; }
-
 DownloadStore::DownloadStore(QObject* parent) : QObject(parent) {}
 DownloadStore::~DownloadStore() = default;
 QVariantMap DownloadStore::status() const { return {}; }
