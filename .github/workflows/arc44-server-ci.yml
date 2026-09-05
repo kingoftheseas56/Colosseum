@@ -95,18 +95,18 @@ jobs:
             "-DCMAKE_PREFIX_PATH=$prefix"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "ARC44_SERVER_BUILD=$build" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-      - name: Build StreamServer recovery test
+      - name: Build StreamServer behavior tests
         shell: pwsh
         run: |
           cmake --build $env:ARC44_SERVER_BUILD `
-            --target streamserver_native_cutover_test `
+            --target streamserver_native_cutover_test streamserver_readiness_test `
             --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Run StreamServer recovery test
+      - name: Run StreamServer behavior tests
         shell: pwsh
         run: |
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
           ctest --test-dir $env:ARC44_SERVER_BUILD `
-            -R '^streamserver_native_cutover_test$' `
+            -R '^(streamserver_native_cutover_test|streamserver_readiness_test)$' `
             --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
