@@ -1,0 +1,66 @@
+{
+  "name": "linux_18_clean_shutdown",
+  "comment": "Linux release qualification: prove the real application-scoped Quit command can close a fresh disposable Colosseum session after normal first-run use. The final Ctrl+Q is production Main.qml global.quit -> Qt.quit(), not a test-only process signal. Suite-level acceptance must additionally read the Lanista session manifest and require exitCode==0, crashed==false, and no surviving Colosseum/Lanista child; the Linux runner should then relaunch the SAME tagged profile and confirm onboarding stays dismissed and persisted state remains readable.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated Linux shutdown session answers",
+      "expect": [
+        { "path": "schema", "op": "matches", "value": "^colosseum\\.dev\\.v1" },
+        { "path": "gates.drive", "op": "==", "value": true }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "one visible disposable Linux window",
+      "expect": [
+        { "path": "windows.0.visible", "op": "==", "value": true },
+        { "path": "appDataRoot", "op": "contains", "value": "Colosseum-dltest" }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash clears before shutdown exercise",
+      "payload": { "object": "bootSplash", "prop": "visible", "value": false, "timeout_ms": 60000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "fresh profile exposes local-mode choice",
+      "payload": { "object": "accountWelcomeContinueLocal", "prop": "visible", "value": true, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue locally through the real first-run surface",
+      "payload": { "target": "accountWelcomeContinueLocal" }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "first-run gate closes",
+      "payload": { "object": "accountHost", "prop": "visible", "value": false, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Home is live before quitting",
+      "payload": { "object": "homePageFlickable", "prop": "visible", "value": true, "timeout_ms": 15000 },
+      "expect": [ { "path": "matched", "op": "==", "value": true } ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "capture final pre-quit window state",
+      "payload": { "grab": { "target": "window", "timeoutMs": 4000 } },
+      "expect": [
+        { "path": "windows.0.visible", "op": "==", "value": true },
+        { "path": "grabPath", "op": "exists" }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "quit through Main.qml global.quit (Ctrl+Q -> Qt.quit)",
+      "payload": { "key": "Ctrl+Q" },
+      "expect": [ { "path": "pressed", "op": "==", "value": "Ctrl+Q" } ]
+    }
+  ]
+}
