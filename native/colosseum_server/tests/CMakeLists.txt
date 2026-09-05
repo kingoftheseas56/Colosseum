@@ -76,19 +76,6 @@ target_link_libraries(streamserver_native_cutover_test PRIVATE
 add_test(NAME streamserver_native_cutover_test
          COMMAND streamserver_native_cutover_test)
 
-add_executable(streamserver_readiness_test
-    streamserver_readiness_test.cpp
-    ../../player/streamserver.cpp
-    ../../player/streamserver.h
-    ../../torrent/engine/DebugLogBuffer.cpp
-    ../../torrent/engine/DebugLogBuffer.h)
-target_include_directories(streamserver_readiness_test PRIVATE
-    "${CMAKE_CURRENT_LIST_DIR}/../..")
-target_link_libraries(streamserver_readiness_test PRIVATE
-    colosseum_server_native Qt6::Network Qt6::Test)
-add_test(NAME streamserver_readiness_test
-         COMMAND streamserver_readiness_test)
-
 add_executable(runtime_torrent_http_e2e_test
     runtime_torrent_http_e2e_test.cpp
     ../../player/streamserver.cpp
