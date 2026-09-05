@@ -1,7 +1,7 @@
 # Exact, reviewed Qt/framework ownership false positives only.
 # Any line movement or message/check change intentionally requires re-review.
-native/main.cpp|891|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
-native/main.cpp|1253|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
+native/main.cpp|927|clang-analyzer-cplusplus.NewDeleteLeaks|Potential memory leak
+native/main.cpp|1297|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 native/engine/BiblioCatalog.cpp|1186|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'canonicalWatcher'
 native/engine/ComicDownloader.cpp|1511|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 native/engine/MangaDownloader.cpp|455|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
