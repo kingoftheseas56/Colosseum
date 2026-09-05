@@ -40,7 +40,7 @@ class StreamServerNativeCutoverTest final : public QObject
 
 private slots:
     void startsNativeRuntimeWithoutChildProcess();
-    void retriesConnectionRefusalOnlyOnce();
+    void connectionRefusalFailsRequestAndRecoversRuntime();
 };
 
 void StreamServerNativeCutoverTest::startsNativeRuntimeWithoutChildProcess()
@@ -68,7 +68,7 @@ void StreamServerNativeCutoverTest::startsNativeRuntimeWithoutChildProcess()
     QVERIFY(response.endsWith("{\"success\":true}"));
 }
 
-void StreamServerNativeCutoverTest::retriesConnectionRefusalOnlyOnce()
+void StreamServerNativeCutoverTest::connectionRefusalFailsRequestAndRecoversRuntime()
 {
     QStandardPaths::setTestModeEnabled(true);
     StreamServer stream;
@@ -81,23 +81,19 @@ void StreamServerNativeCutoverTest::retriesConnectionRefusalOnlyOnce()
 
     stream.m_runtime->stop();
 
-    bool stoppedRetryGeneration = false;
+    bool recoveredRuntime = false;
     connect(&stream, &StreamServer::readyChanged, &stream, [&]() {
-        if (stream.ready() && !stoppedRetryGeneration) {
-            stoppedRetryGeneration = true;
-            if (stream.m_runtime)
-                stream.m_runtime->stop();
-        }
+        if (stream.ready())
+            recoveredRuntime = true;
     });
 
     stream.play(QStringLiteral("0123456789abcdef0123456789abcdef01234567"), 0);
 
-    QTRY_VERIFY_WITH_TIMEOUT(errors.count() > 0 || streams.count() > 0, 10000);
-    QVERIFY2(stoppedRetryGeneration, "the first refused request must restart the native runtime once");
+    QTRY_VERIFY_WITH_TIMEOUT(recoveredRuntime, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(errors.count() > 0, 3000);
     QCOMPARE(streams.count(), 0);
-    QVERIFY2(errors.count() > 0, "the second refusal must terminate recovery with an error");
-    QVERIFY(stream.engineUnavailable());
-    QVERIFY(!stream.ready());
+    QVERIFY2(stream.ready(), "runtime supervision must recover independently for the next request");
+    QVERIFY2(!stream.engineUnavailable(), "a healthy replacement runtime must remain available");
 }
 
 QTEST_GUILESS_MAIN(StreamServerNativeCutoverTest)
