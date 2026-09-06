@@ -1,14 +1,19 @@
 {
-  "schema": "colosseum-server1-native-substrate/v1",
+  "schema": "colosseum-server1-native-substrate/v2",
   "worker_id": "P01A-A",
   "parent_packet": "P01A",
   "branch": "codex/server1-p01a-a",
   "integration_base": "1c08a0734acbe6f46b67630f3a735e24df190db1",
   "selected_application_base": "81e750b65f3788af7be99392f16b86a9212ff2bd",
   "source_authority": {
-    "native_cmake": {"path": "native/CMakeLists.txt", "lines": "86-148", "sha256": "576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14"},
-    "build_script": {"path": "native/build-msvc.bat", "lines": "1-29", "sha256": "232a45b87ba4d58482450dc2a9c91626815cfe5ffe9cbc73af622b1bdd61ebff"},
-    "player2_cmake": {"path": "native/player2/CMakeLists.txt", "lines": "1-20", "sha256": "6e413813e8407a49ac4b65f0a8ab1cf7551d4415164397946780eb5aedd35baf"}
+    "native_cmake": {"path": "native/CMakeLists.txt", "lines": "86-148", "identity": "git_blob", "git_blob_oid": "1fb80a155dcb35763827249f545181993022c660", "canonical_bytes": 109383, "canonical_sha256": "a72c30e58a97e6d626e25178c84190a3c1977156c9babc9d692a8f5148835fd7"},
+    "build_script": {"path": "native/build-msvc.bat", "lines": "1-29", "identity": "git_blob", "git_blob_oid": "7b499f5a96dc1a2992108218b96decb8eb349f3d", "canonical_bytes": 1417, "canonical_sha256": "b65fe689e53c88f6b74dc6f764b4e099bfa49ff56ba8c5d4a96dd6744e30e774"},
+    "player2_cmake": {"path": "native/player2/CMakeLists.txt", "lines": "1-20", "identity": "git_blob", "git_blob_oid": "7dd1b5355ee7264775bb21e82de251b5ab7a8808", "canonical_bytes": 15357, "canonical_sha256": "d32ac1338f527c6d5ac374d1d07078cef6f28036f06795a82d53bf475645c98a"}
+  },
+  "identity_validation": {
+    "tracked_files": "canonical Git blob after repository clean filters; CRLF/LF checkout representation is ignored",
+    "external_files": "raw disk bytes and SHA-256; no Git normalization",
+    "regression_evidence": "artifacts/server1/P01A/TDD-EOL-RED.txt and artifacts/server1/P01A/TDD-GREEN.txt"
   },
   "compiler": {
     "vendor": "Microsoft Visual C++",
@@ -87,6 +92,7 @@
     "consumer_build": "artifacts/server1/P01A/CONSUMER-BUILD.txt",
     "consumer_runtime": "artifacts/server1/P01A/CONSUMER-RUN.txt",
     "linked_runtime_version": "artifacts/server1/P01A/LINKED-RUNTIME-VERSION.txt",
-    "consumer_missing_dependency": "artifacts/server1/P01A/CONSUMER-MISSING-LIBTORRENT.txt"
+    "consumer_missing_dependency": "artifacts/server1/P01A/CONSUMER-MISSING-LIBTORRENT.txt",
+    "eol_identity_model": "artifacts/server1/P01A/EOL-IDENTITY-MODEL.txt"
   }
 }

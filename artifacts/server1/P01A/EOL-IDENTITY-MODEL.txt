@@ -1,0 +1,17 @@
+Integration replay symptom:
+Command: python artifacts/server1/P01A/verify_p01a.py
+Exit: 1
+Observed fresh-checkout file: artifacts/server1/P01A/linked_runtime_version_probe.cpp
+old_lock_expected_bytes=529
+old_lock_expected_sha256=57e604bca7739843185fa5f19d27d24ff4b0f39ca938d244b4cd69a095dc1df8
+fresh_checkout_disk_bytes=546
+fresh_checkout_disk_sha256=f10ba8b5112750a6659d9226907c3232ea37a5a67a82dc9c51a1a90dcfc86dc4
+git_blob_oid=8c8bd230924fe523fe4e2d9a617e36324decc367
+canonical_blob_bytes=529
+canonical_blob_sha256=57e604bca7739843185fa5f19d27d24ff4b0f39ca938d244b4cd69a095dc1df8
+system_core_autocrlf=true
+
+Corrected validation model:
+- Tracked files: verify recorded canonical blob metadata, then run `git hash-object --path=<repo-relative-path> -- <working-file>` so repository clean filters normalize legal checkout EOLs before blob comparison.
+- External installed files: read raw disk bytes and compare exact byte count plus SHA-256.
+- Regression: `test_tracked_identity_accepts_crlf_checkout_but_rejects_content_mutation` materializes CRLF bytes, accepts their canonical blob, then changes non-EOL content and requires a tracked-file mismatch.

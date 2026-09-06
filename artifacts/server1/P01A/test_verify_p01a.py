@@ -1,9 +1,12 @@
+import hashlib
 import json
+import subprocess
+import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
 
-from artifacts.server1.P01A.verify_p01a import ValidationError, validate_libtorrent
+from artifacts.server1.P01A.verify_p01a import ValidationError, validate_hashes, validate_libtorrent
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -19,7 +22,9 @@ class VerifyP01ATests(unittest.TestCase):
 
     def test_native_lock_freezes_libtorrent_2_0_and_shared_target(self):
         lock = self._load(LOCK)
-        self.assertEqual(lock["schema"], "colosseum-server1-dependency-lock/v1")
+        self.assertEqual(lock["schema"], "colosseum-server1-dependency-lock/v2")
+        self.assertTrue(all(record["identity"] == "git_blob" for record in lock["tracked_files"]))
+        self.assertTrue(all(record["identity"] == "raw_disk" for record in lock["external_files"]))
         self.assertEqual(lock["libtorrent"]["header_declared"]["major"], 2)
         self.assertEqual(lock["libtorrent"]["header_declared"]["minor"], 0)
         self.assertNotIn("revision", lock["libtorrent"]["linked_runtime"])
@@ -40,6 +45,7 @@ class VerifyP01ATests(unittest.TestCase):
 
     def test_substrate_records_toolchain_and_linux_lane(self):
         substrate = self._load(SUBSTRATE)
+        self.assertEqual(substrate["schema"], "colosseum-server1-native-substrate/v2")
         self.assertEqual(substrate["compiler"]["language_standard"], "C++17")
         self.assertEqual(substrate["compiler"]["crt"], "/MD")
         self.assertEqual(substrate["linux_qualification"]["state"], "planned")
@@ -67,6 +73,55 @@ class VerifyP01ATests(unittest.TestCase):
         mismatched["libtorrent"]["linked_runtime"]["version"] = "2.0.10.0"
         with self.assertRaisesRegex(ValidationError, "header/library"):
             validate_libtorrent(mismatched)
+
+    def test_tracked_identity_accepts_crlf_checkout_but_rejects_content_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture = root / "fixture.txt"
+            subprocess.run(["git", "init", "--quiet"], cwd=root, check=True)
+            subprocess.run(["git", "config", "core.autocrlf", "true"], cwd=root, check=True)
+            fixture.write_bytes(b"alpha\nbeta\n")
+            subprocess.run(
+                ["git", "add", "fixture.txt"], cwd=root, check=True, capture_output=True
+            )
+            blob_oid = subprocess.run(
+                ["git", "rev-parse", ":fixture.txt"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            record = {
+                "path": "fixture.txt",
+                "identity": "git_blob",
+                "git_blob_oid": blob_oid,
+                "canonical_bytes": 11,
+                "canonical_sha256": hashlib.sha256(b"alpha\nbeta\n").hexdigest(),
+            }
+
+            fixture.write_bytes(b"alpha\r\nbeta\r\n")
+            validate_hashes(root, [record])
+
+            fixture.write_bytes(b"alpha\r\nchanged\r\n")
+            with self.assertRaisesRegex(ValidationError, "tracked file mismatch"):
+                validate_hashes(root, [record])
+
+    def test_external_identity_retains_raw_disk_hashing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture = root / "external.bin"
+            fixture.write_bytes(b"external\r\nbytes\x00")
+            record = {
+                "path": "external.bin",
+                "identity": "raw_disk",
+                "bytes": 16,
+                "sha256": "13e8b709fdfbeaa3bb5674082b6222388cda4970d7e4480059a6e5c426601fd6",
+            }
+            validate_hashes(root, [record])
+
+            fixture.write_bytes(b"external\nbytes\x00")
+            with self.assertRaisesRegex(ValidationError, "external file mismatch"):
+                validate_hashes(root, [record])
 
 
 if __name__ == "__main__":

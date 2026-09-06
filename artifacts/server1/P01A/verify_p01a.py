@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -30,12 +31,48 @@ def validate_hashes(root: Path, records: list[dict]) -> None:
     for record in records:
         path = root / Path(record["path"])
         _require(path.is_file(), f"missing locked file: {record['path']}")
-        data = path.read_bytes()
-        actual = hashlib.sha256(data).hexdigest()
+        identity = record["identity"]
+        if identity == "raw_disk":
+            data = path.read_bytes()
+            actual = hashlib.sha256(data).hexdigest()
+            _require(
+                len(data) == record["bytes"] and actual == record["sha256"],
+                f"external file mismatch: {record['path']} bytes={len(data)}/{record['bytes']} sha={actual}/{record['sha256']}",
+            )
+            continue
+
+        _require(identity == "git_blob", f"unsupported file identity mode: {identity}")
+        expected_oid = record["git_blob_oid"]
+        blob = _git(root, "cat-file", "blob", expected_oid)
+        canonical_sha = hashlib.sha256(blob).hexdigest()
         _require(
-            len(data) == record["bytes"] and actual == record["sha256"],
-            f"locked file mismatch: {record['path']} bytes={len(data)}/{record['bytes']} sha={actual}/{record['sha256']}",
+            len(blob) == record["canonical_bytes"] and canonical_sha == record["canonical_sha256"],
+            f"canonical blob metadata mismatch: {record['path']}",
         )
+        actual_oid = _git(
+            root,
+            "hash-object",
+            f"--path={record['path']}",
+            "--",
+            record["path"],
+        ).decode("ascii").strip()
+        _require(
+            actual_oid == expected_oid,
+            f"tracked file mismatch: {record['path']} blob={actual_oid}/{expected_oid}",
+        )
+
+
+def _git(root: Path, *args: str) -> bytes:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise ValidationError(f"git {' '.join(args)} failed: {detail}")
+    return result.stdout
 
 
 def validate_libtorrent(lock: dict) -> None:
@@ -76,9 +113,10 @@ def validate_consumer(root: Path, lock: dict) -> None:
 def validate(root: Path) -> tuple[dict, dict]:
     lock = _read_json(root / "docs/server1/DEPENDENCY-LOCK.json")
     substrate = _read_json(root / "docs/server1/NATIVE-SUBSTRATE.json")
-    _require(lock["schema"] == "colosseum-server1-dependency-lock/v1", "wrong dependency lock schema")
-    _require(substrate["schema"] == "colosseum-server1-native-substrate/v1", "wrong substrate schema")
-    validate_hashes(root, lock["locked_files"])
+    _require(lock["schema"] == "colosseum-server1-dependency-lock/v2", "wrong dependency lock schema")
+    _require(substrate["schema"] == "colosseum-server1-native-substrate/v2", "wrong substrate schema")
+    validate_hashes(root, lock["tracked_files"])
+    validate_hashes(root, lock["external_files"])
     validate_libtorrent(lock)
     validate_consumer(root, lock)
     compiler = substrate["compiler"]

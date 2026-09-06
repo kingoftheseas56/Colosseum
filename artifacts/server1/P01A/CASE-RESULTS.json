@@ -23,11 +23,11 @@
     },
     {
       "id": "P01A-03",
-      "state": "recorded",
-      "expected": "Qt, compiler, CRT, Boost, OpenSSL, libtorrent flags, player/media dependencies, and concrete Linux lane are recorded",
-      "actual": "Windows MSVC/Qt/native dependencies recorded with hashes; Linux lane recorded as planned and unexecuted",
+      "state": "test-executed",
+      "expected": "Qt, compiler, CRT, Boost, OpenSSL, libtorrent flags, player/media dependencies, concrete Linux lane, and checkout-portable tracked identities are recorded",
+      "actual": "Windows MSVC/Qt/native dependencies use raw disk identities only for external installed files; tracked source uses canonical Git blobs, with CRLF accepted and a true content mutation rejected; Linux lane remains planned and unexecuted",
       "result": "PASS",
-      "evidence": ["SUBSTRATE-SCAN.txt", "NATIVE-SUBSTRATE.json"]
+      "evidence": ["SUBSTRATE-SCAN.txt", "EOL-IDENTITY-MODEL.txt", "TDD-EOL-RED.txt", "TDD-GREEN.txt", "NATIVE-SUBSTRATE.json"]
     }
   ],
   "summary": {"passed": 3, "failed": 0, "linux_claims": 0}

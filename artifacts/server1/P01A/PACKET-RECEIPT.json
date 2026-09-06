@@ -1,5 +1,5 @@
 {
-  "schema": "colosseum-server1-p01a-packet-receipt/v1",
+  "schema": "colosseum-server1-p01a-packet-receipt/v2",
   "worker_id": "P01A-A",
   "parent_packet": "P01A",
   "branch": "codex/server1-p01a-a",
@@ -16,7 +16,10 @@
       "path": "native/CMakeLists.txt",
       "dependency_lines": "86-148",
       "consumer_lines": "1737-1740",
-      "sha256": "576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14"
+      "identity": "git_blob",
+      "git_blob_oid": "1fb80a155dcb35763827249f545181993022c660",
+      "canonical_bytes": 109383,
+      "canonical_sha256": "a72c30e58a97e6d626e25178c84190a3c1977156c9babc9d692a8f5148835fd7"
     }
   },
   "interfaces_consumed": ["EvidenceLock", "RequirementsLedger", "colosseum_libtorrent target contract"],
