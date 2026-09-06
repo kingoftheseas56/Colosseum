@@ -1,17 +1,17 @@
 {
-  "P02-01": {
+  "P02-01-WINDOWS": {
     "command": [
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
     ],
     "environment": {
-      "APP_PATH": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-ofkmeqs3\\app",
+      "APP_PATH": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-n_muf6pu\\app",
       "CASTING_DISABLED": "1",
       "DISABLE_CACHING": "1",
       "HLS_V2_DISABLED": "1",
       "NO_HTTPS_SERVER": "1",
       "NO_NETWORK_INTERFACES": "1",
-      "SETTINGS_PATH": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-ofkmeqs3\\settings"
+      "SETTINGS_PATH": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-n_muf6pu\\settings"
     },
     "failure": {
       "attempted_ports": [
@@ -22,13 +22,13 @@
         11474
       ],
       "kind": "bind-denied",
-      "raw": "hls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-ofkmeqs3\\app\n(node:1672) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:1672) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:1672) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:1672) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\n(node:1672) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\nError: listen EACCES: permission denied 0.0.0.0:11471\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Server.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46859:57)\n    at Server.emit (node:events:520:35)\n    at emitErrorNT (node:net:1984:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11471\n}\n"
+      "raw": "hls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-n_muf6pu\\app\n(node:25880) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:25880) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:25880) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:25880) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\n(node:25880) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\nError: listen EACCES: permission denied 0.0.0.0:11471\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Server.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46859:57)\n    at Server.emit (node:events:520:35)\n    at emitErrorNT (node:net:1984:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11471\n}\n"
     },
     "oracle_after": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "oracle_before": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "paths": {
-      "app": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-ofkmeqs3\\app",
-      "settings": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-ofkmeqs3\\settings"
+      "app": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-n_muf6pu\\app",
+      "settings": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-n_muf6pu\\settings"
     },
     "port": null,
     "ready": false,
@@ -37,6 +37,216 @@
       "alive_after": false,
       "exit": 1
     },
-    "transcript": "hls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-ofkmeqs3\\app\n(node:1672) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:1672) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:1672) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:1672) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\n(node:1672) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\nError: listen EACCES: permission denied 0.0.0.0:11471\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Server.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46859:57)\n    at Server.emit (node:events:520:35)\n    at emitErrorNT (node:net:1984:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11471\n}\n"
+    "transcript": "hls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server1-p02-n_muf6pu\\app\n(node:25880) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:25880) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:25880) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:25880) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\nError: listen EACCES: permission denied 0.0.0.0:11470\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46858:16)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11470\n}\n(node:25880) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\nError: listen EACCES: permission denied 0.0.0.0:11471\n    at Server.setupListenHandle [as _listen2] (node:net:1926:21)\n    at listenInCluster (node:net:2005:12)\n    at Server.listen (node:net:2110:7)\n    at Server.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46859:57)\n    at Server.emit (node:events:520:35)\n    at emitErrorNT (node:net:1984:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EACCES',\n  errno: -4092,\n  syscall: 'listen',\n  address: '0.0.0.0',\n  port: 11471\n}\n"
+  },
+  "P02-01-WSL": {
+    "command": [
+      "/tmp/colosseum-server1-p02-_180vlgy/runtime/node-v22.16.0-linux-x64/bin/node",
+      "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+    ],
+    "environment": {
+      "APP_PATH": "/tmp/colosseum-server1-p02-_180vlgy/endpoints/app",
+      "CASTING_DISABLED": "1",
+      "DISABLE_CACHING": "1",
+      "FFMPEG_BIN": "/usr/bin/ffmpeg",
+      "FFPROBE_BIN": "/usr/bin/ffprobe",
+      "HLS_V2_DISABLED": "1",
+      "NO_HTTPS_SERVER": "1",
+      "NO_NETWORK_INTERFACES": "1",
+      "SETTINGS_PATH": "/tmp/colosseum-server1-p02-_180vlgy/endpoints/settings"
+    },
+    "network_observation": {
+      "method": "process fd socket inode correlation against /proc/<pid>/net",
+      "owned_sockets": [
+        {
+          "inode": "13756",
+          "local": "127.0.0.1:49888",
+          "protocol": "tcp",
+          "remote": "127.0.0.1:11470",
+          "remote_loopback": true,
+          "state": "01"
+        },
+        {
+          "inode": "13750",
+          "local": ":::11470",
+          "protocol": "tcp6",
+          "remote": ":::0",
+          "remote_loopback": false,
+          "state": "0A"
+        }
+      ],
+      "unexpected_outbound": []
+    },
+    "oracle_after": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "oracle_before": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "paths": {
+      "app": "/tmp/colosseum-server1-p02-_180vlgy/endpoints/app",
+      "settings": "/tmp/colosseum-server1-p02-_180vlgy/endpoints/settings"
+    },
+    "paths_removed": true,
+    "port": 11470,
+    "responses": {
+      "/heartbeat": {
+        "body": "{\"success\":true}",
+        "headers": {
+          "Connection": "close",
+          "Date": "Sun, 06 Sep 2026 21:39:14 GMT",
+          "Transfer-Encoding": "chunked",
+          "content-type": "application/json"
+        },
+        "json": {
+          "success": true
+        },
+        "status": 200
+      },
+      "/settings": {
+        "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"/tmp/colosseum-server1-p02-_180vlgy/endpoints/app\",\"cacheRoot\":\"/tmp/colosseum-server1-p02-_180vlgy/endpoints/app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":true,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://10.255.255.254:11470\"}",
+        "headers": {
+          "Cache-Control": "no-store",
+          "Connection": "close",
+          "Date": "Sun, 06 Sep 2026 21:39:14 GMT",
+          "Transfer-Encoding": "chunked",
+          "content-type": "application/json"
+        },
+        "json": {
+          "baseUrl": "http://10.255.255.254:11470",
+          "options": [
+            {
+              "id": "localAddonEnabled",
+              "label": "ENABLE_LOCAL_FILES_ADDON",
+              "type": "checkbox"
+            },
+            {
+              "class": "https",
+              "icon": true,
+              "id": "remoteHttps",
+              "label": "ENABLE_REMOTE_HTTPS_CONN",
+              "selections": [
+                {
+                  "name": "Disabled",
+                  "val": ""
+                }
+              ],
+              "type": "select"
+            },
+            {
+              "class": "caching",
+              "icon": true,
+              "id": "cacheSize",
+              "label": "CACHING",
+              "selections": [
+                {
+                  "name": "no caching",
+                  "val": 0
+                },
+                {
+                  "name": "2GB",
+                  "val": 2147483648
+                },
+                {
+                  "name": "5GB",
+                  "val": 5368709120
+                },
+                {
+                  "name": "10GB",
+                  "val": 10737418240
+                },
+                {
+                  "name": "\u221e",
+                  "val": null
+                }
+              ],
+              "type": "select"
+            }
+          ],
+          "values": {
+            "allTranscodeProfiles": [],
+            "appPath": "/tmp/colosseum-server1-p02-_180vlgy/endpoints/app",
+            "btDownloadSpeedHardLimit": 3670016,
+            "btDownloadSpeedSoftLimit": 2621440,
+            "btHandshakeTimeout": 20000,
+            "btMaxConnections": 55,
+            "btMinPeersForStable": 5,
+            "btRequestTimeout": 4000,
+            "cacheRoot": "/tmp/colosseum-server1-p02-_180vlgy/endpoints/app",
+            "cacheSize": 0,
+            "localAddonEnabled": false,
+            "proxyStreamsEnabled": false,
+            "remoteHttps": "",
+            "serverVersion": "4.21.0",
+            "transcodeConcurrency": 1,
+            "transcodeHardwareAccel": true,
+            "transcodeHorsepower": 0.75,
+            "transcodeMaxBitRate": 0,
+            "transcodeMaxWidth": 1920,
+            "transcodeProfile": null,
+            "transcodeTrackConcurrency": 1
+          }
+        },
+        "status": 200
+      }
+    },
+    "state": "PASS",
+    "teardown": {
+      "alive_after": false,
+      "exit": -15,
+      "method": "SIGTERM-process-group"
+    },
+    "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p02-_180vlgy/endpoints/app\n(node:487) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:487) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:487) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /settings \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n"
+  },
+  "P02-02-WSL": {
+    "command": [
+      "/tmp/colosseum-server1-p02-_180vlgy/runtime/node-v22.16.0-linux-x64/bin/node",
+      "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
+    ],
+    "environment": {
+      "APP_PATH": "/tmp/colosseum-server1-p02-_180vlgy/occupied/app",
+      "CASTING_DISABLED": "1",
+      "DISABLE_CACHING": "1",
+      "FFMPEG_BIN": "/usr/bin/ffmpeg",
+      "FFPROBE_BIN": "/usr/bin/ffprobe",
+      "HLS_V2_DISABLED": "1",
+      "NO_HTTPS_SERVER": "1",
+      "NO_NETWORK_INTERFACES": "1",
+      "SETTINGS_PATH": "/tmp/colosseum-server1-p02-_180vlgy/occupied/settings"
+    },
+    "failure": {
+      "attempted_ports": [
+        11470,
+        11471,
+        11472,
+        11473,
+        11474
+      ],
+      "kind": "port-exhausted"
+    },
+    "network_observation": {
+      "method": "process fd socket inode correlation against /proc/<pid>/net",
+      "owned_sockets": [],
+      "unexpected_outbound": []
+    },
+    "occupied_ports": [
+      11470,
+      11471,
+      11472,
+      11473,
+      11474
+    ],
+    "oracle_after": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "oracle_before": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "paths": {
+      "app": "/tmp/colosseum-server1-p02-_180vlgy/occupied/app",
+      "settings": "/tmp/colosseum-server1-p02-_180vlgy/occupied/settings"
+    },
+    "paths_removed": true,
+    "port": null,
+    "responses": {},
+    "state": "PASS",
+    "teardown": {
+      "alive_after": false,
+      "exit": -15,
+      "method": "SIGTERM-process-group"
+    },
+    "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p02-_180vlgy/occupied/app\n(node:498) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:498) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nError: listen EADDRINUSE: address already in use :::11470\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46858:16)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46978:8)\n    at __webpack_require__ (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11:34)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:45:36\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n    at Object..js (node:internal/modules/cjs/loader:1895:10) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11470\n}\nError: listen EADDRINUSE: address already in use :::11470\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46858:16)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46978:8)\n    at __webpack_require__ (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11:34)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:45:36\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n    at Object..js (node:internal/modules/cjs/loader:1895:10) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11470\n}\n(node:498) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\nError: listen EADDRINUSE: address already in use :::11471\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11471\n}\nError: listen EADDRINUSE: address already in use :::11471\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11471\n}\nError: listen EADDRINUSE: address already in use :::11472\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11472\n}\nError: listen EADDRINUSE: address already in use :::11472\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11472\n}\nError: listen EADDRINUSE: address already in use :::11473\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11473\n}\nError: listen EADDRINUSE: address already in use :::11473\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11473\n}\nError: listen EADDRINUSE: address already in use :::11474\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11474\n}\nError: listen EADDRINUSE: address already in use :::11474\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11474\n}\n"
   }
 }

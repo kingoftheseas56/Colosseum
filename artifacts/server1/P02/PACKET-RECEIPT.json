@@ -14,6 +14,7 @@
   "parent_packet": "P02",
   "production_files_changed": 0,
   "push_status": "not pushed; Sol review required",
+  "qualification_state": "PASS_WITH_PROVENANCE",
   "schema": "colosseum-server1-packet-receipt/v1",
   "wiring_request": "WIRING-REQUEST.json",
   "worker_id": "P02-A"

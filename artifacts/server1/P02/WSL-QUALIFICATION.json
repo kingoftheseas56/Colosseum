@@ -1,6 +1,6 @@
 {
-  "cases": [
-    {
+  "cases": {
+    "P02-01-WSL": {
       "command": [
         "/tmp/colosseum-server1-p02-_180vlgy/runtime/node-v22.16.0-linux-x64/bin/node",
         "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
@@ -16,8 +16,6 @@
         "NO_NETWORK_INTERFACES": "1",
         "SETTINGS_PATH": "/tmp/colosseum-server1-p02-_180vlgy/endpoints/settings"
       },
-      "id": "P02-01",
-      "lane": "WSL2 Ubuntu",
       "network_observation": {
         "method": "process fd socket inode correlation against /proc/<pid>/net",
         "owned_sockets": [
@@ -157,7 +155,7 @@
       },
       "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p02-_180vlgy/endpoints/app\n(node:487) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:487) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-linux,nvenc-linux,vaapi-renderD128\nhls-converter - Testing video hw accel for profile: qsv-linux\n(node:487) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /heartbeat \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-linux&maxWidth=1200 \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n-> GET /settings \n-> GET /hlsv2/11470-qsv-linux-video-hevc.mkv/destroy \nError: Cannot parse path\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18248:20\n    at handleTorrent (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18250:11)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at sendDLNAHeaders (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:18292:17)\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at next (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57396:67)\n    at Route.dispatch (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:57397:11)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11857:19\n    at Layer.handle_request (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:26231:13)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11769:74\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11810:57)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at param (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11817:40)\n    at Router.process_params (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11830:9)\n"
     },
-    {
+    "P02-02-WSL": {
       "command": [
         "/tmp/colosseum-server1-p02-_180vlgy/runtime/node-v22.16.0-linux-x64/bin/node",
         "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js"
@@ -183,8 +181,6 @@
         ],
         "kind": "port-exhausted"
       },
-      "id": "P02-02",
-      "lane": "WSL2 Ubuntu",
       "network_observation": {
         "method": "process fd socket inode correlation against /proc/<pid>/net",
         "owned_sockets": [],
@@ -213,71 +209,58 @@
         "method": "SIGTERM-process-group"
       },
       "transcript": "hls executables located ->  {\n  ffmpeg: '/usr/bin/ffmpeg',\n  ffsplit: null,\n  ffprobe: '/usr/bin/ffprobe'\n}\nUsing app path -> /tmp/colosseum-server1-p02-_180vlgy/occupied/app\n(node:498) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:498) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nError: listen EADDRINUSE: address already in use :::11470\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46858:16)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46978:8)\n    at __webpack_require__ (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11:34)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:45:36\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n    at Object..js (node:internal/modules/cjs/loader:1895:10) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11470\n}\nError: listen EADDRINUSE: address already in use :::11470\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46858:16)\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46978:8)\n    at __webpack_require__ (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:11:34)\n    at /mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:45:36\n    at Object.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1730:14)\n    at Object..js (node:internal/modules/cjs/loader:1895:10) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11470\n}\n(node:498) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\nError: listen EADDRINUSE: address already in use :::11471\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11471\n}\nError: listen EADDRINUSE: address already in use :::11471\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11471\n}\nError: listen EADDRINUSE: address already in use :::11472\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11472\n}\nError: listen EADDRINUSE: address already in use :::11472\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11472\n}\nError: listen EADDRINUSE: address already in use :::11473\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11473\n}\nError: listen EADDRINUSE: address already in use :::11473\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11473\n}\nError: listen EADDRINUSE: address already in use :::11474\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11474\n}\nError: listen EADDRINUSE: address already in use :::11474\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Server.<anonymous> (/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js:46859:57)\n    at Server.emit (node:events:530:35)\n    at emitErrorNT (node:net:1975:8)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'EADDRINUSE',\n  errno: -98,\n  syscall: 'listen',\n  address: '::',\n  port: 11474\n}\n"
-    },
-    {
-      "certificate_fixtures": {
-        "reason": "HTTPS was disabled for the controlled HTTP qualification run; no certificate fixture was supplied",
-        "repair": "none",
-        "status": "not-exercised"
-      },
-      "companions": {
-        "ffmpeg": {
-          "bytes": 453104,
-          "path": "/usr/bin/ffmpeg",
-          "provenance": "WSL Ubuntu environment",
-          "sha256": "bdf6aabffdba7411edff8d36c389d695257fcdf823d196020176e117612862f6",
-          "status": "present",
-          "version": "ffmpeg version 8.0.1-3ubuntu2 Copyright (c) 2000-2025 the FFmpeg developers"
-        },
-        "ffprobe": {
-          "bytes": 216864,
-          "path": "/usr/bin/ffprobe",
-          "provenance": "WSL Ubuntu environment",
-          "sha256": "a6dac1e9e8631e04075d06854cc4069308aec279bb04683b4a0bca5e4f54b2fe",
-          "status": "present",
-          "version": "ffprobe version 8.0.1-3ubuntu2 Copyright (c) 2007-2025 the FFmpeg developers"
-        },
-        "stremio-runtime": {
-          "path": null,
-          "provenance": "WSL Ubuntu environment",
-          "repair": "none",
-          "status": "missing"
-        }
-      },
-      "id": "P02-03",
-      "lane": "WSL2 Ubuntu",
-      "native_companions": {
-        "exercised_path_effect": "none observed for /heartbeat, /settings, port fallback, or teardown",
-        "reason": "portable official Node qualified the exact single-file oracle; this does not establish intended stremio-runtime companion identity",
-        "repair": "none",
-        "status": "stremio-runtime-missing"
-      },
-      "outbound_connections": {
-        "method": "process fd socket inode correlation against /proc/<pid>/net",
-        "owned_sockets": [
-          {
-            "inode": "13756",
-            "local": "127.0.0.1:49888",
-            "protocol": "tcp",
-            "remote": "127.0.0.1:11470",
-            "remote_loopback": true,
-            "state": "01"
-          },
-          {
-            "inode": "13750",
-            "local": ":::11470",
-            "protocol": "tcp6",
-            "remote": ":::0",
-            "remote_loopback": false,
-            "state": "0A"
-          }
-        ],
-        "unexpected_outbound": []
-      },
-      "state": "PASS_WITH_PROVENANCE"
     }
-  ],
-  "schema": "colosseum-server1-p02-case-results/v1",
-  "windows_blocked_lane": "WINDOWS-BLOCKED.json",
-  "worker_id": "P02-A"
+  },
+  "companions": {
+    "ffmpeg": {
+      "bytes": 453104,
+      "path": "/usr/bin/ffmpeg",
+      "provenance": "WSL Ubuntu environment",
+      "sha256": "bdf6aabffdba7411edff8d36c389d695257fcdf823d196020176e117612862f6",
+      "status": "present",
+      "version": "ffmpeg version 8.0.1-3ubuntu2 Copyright (c) 2000-2025 the FFmpeg developers"
+    },
+    "ffprobe": {
+      "bytes": 216864,
+      "path": "/usr/bin/ffprobe",
+      "provenance": "WSL Ubuntu environment",
+      "sha256": "a6dac1e9e8631e04075d06854cc4069308aec279bb04683b4a0bca5e4f54b2fe",
+      "status": "present",
+      "version": "ffprobe version 8.0.1-3ubuntu2 Copyright (c) 2007-2025 the FFmpeg developers"
+    },
+    "stremio-runtime": {
+      "path": null,
+      "provenance": "WSL Ubuntu environment",
+      "repair": "none",
+      "status": "missing"
+    }
+  },
+  "oracle": {
+    "bytes": 6676503,
+    "path": "/mnt/c/b/Colosseum-Server-1.0-Planning-Pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "platform": {
+    "distro": "Ubuntu",
+    "machine": "x86_64",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "system": "Linux"
+  },
+  "runtime": {
+    "archive_sha256": "f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e",
+    "bytes": 121509208,
+    "disposable_root": "/tmp/colosseum-server1-p02-_180vlgy",
+    "disposable_storage_removed": true,
+    "installed": false,
+    "kind": "portable-node",
+    "official_checksum_line": "f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e  node-v22.16.0-linux-x64.tar.xz",
+    "official_checksum_match": true,
+    "path": "/tmp/colosseum-server1-p02-_180vlgy/runtime/node-v22.16.0-linux-x64/bin/node",
+    "sha256": "8142d37c6f2f372ef040419e7a111a6baf17df89f8078d02447d6c639ae20c1d",
+    "shasums_sha256": "e1f5ad5e2a5654721e7b89d84d27f406e582c46ca0b5cde304c5dcdd7bab8b31",
+    "shasums_url": "https://nodejs.org/dist/v22.16.0/SHASUMS256.txt",
+    "source_url": "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz",
+    "version": "v22.16.0"
+  },
+  "schema": "colosseum-server1-p02-wsl-qualification/v1"
 }

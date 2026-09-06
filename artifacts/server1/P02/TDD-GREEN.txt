@@ -7,3 +7,13 @@ COMMAND: python -m py_compile tools/server_lab/adapters/stremio.py tools/server_
 WORKING_DIRECTORY: <worker>
 EXIT: 0
 RESULT: syntax compilation passed
+
+REPAIR COMMAND: $env:STREMIO_SERVER_JS='<source-pack>/oracle/stremio-service-v4.21.1-server-bundle/server.js'; python -m unittest -v tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests
+WORKING_DIRECTORY: <worker>
+EXIT: 0
+RESULT: 4 WSL tests passed; portable Node provenance, endpoints, all-five-port exhaustion, media companions, missing stremio-runtime, teardown, and outbound socket observation were exercised
+
+FINAL COMMAND: $env:STREMIO_SERVER_JS='<source-pack>/oracle/stremio-service-v4.21.1-server-bundle/server.js'; python -m unittest -v tools.server_lab.tests.test_reference_identity
+WORKING_DIRECTORY: <worker>
+EXIT: 0
+RESULT: 8 tests ran; 6 passed and 2 Windows-only tests skipped after explicit BLOCKED_ENV assertions

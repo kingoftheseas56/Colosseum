@@ -1,10 +1,25 @@
 {
-  "schema": "colosseum-server1-p02-commands/v1",
+  "schema": "colosseum-server1-p02-commands/v2",
   "commands": [
+    {
+      "command": "netsh interface ipv4 show excludedportrange protocol=tcp",
+      "exit": 0,
+      "result": "Windows excluded TCP range 11464-11563 contains all required ports"
+    },
+    {
+      "command": "wsl.exe -d Ubuntu -- <socket fixture>",
+      "exit": 0,
+      "result": "bound 127.0.0.1 ports 11470, 11471, 11472, 11473, and 11474"
+    },
+    {
+      "command": "wsl.exe -d Ubuntu -- curl -fsSL https://nodejs.org/dist/v22.16.0/SHASUMS256.txt",
+      "exit": 0,
+      "result": "official archive row f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e"
+    },
     {
       "command": "python -m unittest -v tools.server_lab.tests.test_reference_identity",
       "exit": 0,
-      "result": "2 passed, 2 skipped after environment bind-denied assertions"
+      "result": "8 tests ran: 6 passed and 2 Windows-only tests skipped after explicit BLOCKED_ENV assertions"
     },
     {
       "command": "python -m py_compile tools/server_lab/adapters/stremio.py tools/server_lab/tests/test_reference_identity.py artifacts/server1/P02/qualify_p02.py",
@@ -14,17 +29,12 @@
     {
       "command": "node --check <source-pack>/oracle/stremio-service-v4.21.1-server-bundle/server.js",
       "exit": 0,
-      "result": "oracle syntax accepted by Node v24.14.0"
+      "result": "Windows syntax-only check accepted; not counted as runtime qualification"
     },
     {
       "command": "python artifacts/server1/P02/qualify_p02.py --oracle <source-pack>/oracle/stremio-service-v4.21.1-server-bundle/server.js",
       "exit": 0,
-      "result": "evidence written; P02-01 and P02-02 are BLOCKED_ENV and P02-03 is BOUNDED_MISSING"
-    },
-    {
-      "command": "node <source-pack>/oracle/stremio-service-v4.21.1-server-bundle/server.js",
-      "exit": 1,
-      "result": "runtime launch attempted; host denied 0.0.0.0:11470 with EACCES and oracle teardown completed"
+      "result": "WSL P02-01 and P02-02 passed; P02-03 passed with explicit missing stremio-runtime provenance; Windows retained as BLOCKED_ENV"
     }
   ]
 }

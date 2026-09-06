@@ -2,3 +2,13 @@ COMMAND: python -m unittest -v tools.server_lab.tests.test_reference_identity
 WORKING_DIRECTORY: <worker>
 EXIT: 1
 RESULT: expected RED; all four tests reached ModuleNotFoundError because the owned adapter did not exist yet
+
+REPAIR COMMAND: python -m unittest -v tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests
+WORKING_DIRECTORY: <worker>
+EXIT: 1
+RESULT: expected repair RED; setUpClass raised AttributeError because qualify_wsl did not exist
+
+REPAIR COMMAND: python -m unittest -v tools.server_lab.tests.test_reference_identity.WslReferenceQualificationTests.test_wsl_reference_serves_heartbeat_and_settings
+WORKING_DIRECTORY: <worker>
+EXIT: 1
+RESULT: expected repair RED; network_observation was absent from the WSL result

@@ -4,9 +4,11 @@
     "COMPANIONS.json",
     "CASE-RESULTS.json",
     "LAUNCH-TRANSCRIPT.json",
+    "WINDOWS-BLOCKED.json",
+    "WSL-QUALIFICATION.json",
     "SOURCE-TRACE.json"
   ],
-  "request": "Integrate P02 evidence into the G-REFERENCE ledger after Sol review; do not wire a runtime success from BLOCKED_ENV or BOUNDED_MISSING cases.",
+  "request": "Integrate the WSL2 Ubuntu reference qualification after Sol review while preserving Windows as BLOCKED_ENV and stremio-runtime as an explicitly missing intended companion.",
   "schema": "colosseum-server1-wiring-request/v1",
   "worker_id": "P02-A"
 }

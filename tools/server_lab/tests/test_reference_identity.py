@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import os
+import shutil
 import socket
+import subprocess
 import unittest
 from pathlib import Path
 
 
 ORACLE = os.environ.get("STREMIO_SERVER_JS")
 HAS_ORACLE = bool(ORACLE and Path(ORACLE).is_file())
+HAS_WSL = bool(shutil.which("wsl.exe"))
 
 
 @unittest.skipUnless(HAS_ORACLE, "STREMIO_SERVER_JS must name the supplied oracle")
@@ -89,6 +92,75 @@ class ReferenceIdentityTests(unittest.TestCase):
         self.assertTrue(report["ffmpeg"]["candidates"])
         self.assertTrue(report["ffprobe"]["candidates"])
         self.assertEqual(report["repair"], "none")
+
+
+@unittest.skipUnless(HAS_ORACLE and HAS_WSL, "oracle and WSL Ubuntu are required")
+class WslReferenceQualificationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        from tools.server_lab.adapters.stremio import StremioReference
+
+        available = subprocess.run(
+            ["wsl.exe", "-d", "Ubuntu", "--", "true"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if available.returncode != 0:
+            raise unittest.SkipTest("WSL Ubuntu is unavailable")
+        cls.result = StremioReference(Path(ORACLE)).qualify_wsl("Ubuntu")
+
+    def test_portable_node_is_official_verified_and_disposable(self) -> None:
+        node = self.result["runtime"]
+
+        self.assertEqual(node["version"], "v22.16.0")
+        self.assertEqual(
+            node["source_url"],
+            "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz",
+        )
+        self.assertEqual(
+            node["archive_sha256"],
+            "f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e",
+        )
+        self.assertTrue(node["official_checksum_match"])
+        self.assertTrue(node["disposable_storage_removed"])
+        self.assertEqual(node["kind"], "portable-node")
+
+    def test_wsl_reference_serves_heartbeat_and_settings(self) -> None:
+        case = self.result["cases"]["P02-01-WSL"]
+
+        self.assertEqual(case["state"], "PASS")
+        self.assertEqual(case["port"], 11470)
+        self.assertEqual(case["responses"]["/heartbeat"]["status"], 200)
+        self.assertEqual(case["responses"]["/heartbeat"]["json"], {"success": True})
+        self.assertEqual(case["responses"]["/settings"]["status"], 200)
+        self.assertRegex(
+            case["responses"]["/settings"]["json"]["baseUrl"],
+            r"^http://[^/:]+:11470$",
+        )
+        self.assertEqual(case["oracle_before"], case["oracle_after"])
+        self.assertEqual(case["network_observation"]["unexpected_outbound"], [])
+        self.assertFalse(case["teardown"]["alive_after"])
+
+    def test_wsl_all_five_occupied_ports_are_exhausted_without_11475(self) -> None:
+        case = self.result["cases"]["P02-02-WSL"]
+
+        self.assertEqual(case["state"], "PASS")
+        self.assertEqual(case["occupied_ports"], [11470, 11471, 11472, 11473, 11474])
+        self.assertEqual(case["failure"]["kind"], "port-exhausted")
+        self.assertEqual(case["failure"]["attempted_ports"], [11470, 11471, 11472, 11473, 11474])
+        self.assertNotIn(11475, case["failure"]["attempted_ports"])
+        self.assertFalse(case["teardown"]["alive_after"])
+
+    def test_wsl_companions_are_hashed_but_stremio_runtime_remains_missing(self) -> None:
+        companions = self.result["companions"]
+
+        for name in ("ffmpeg", "ffprobe"):
+            self.assertEqual(companions[name]["status"], "present")
+            self.assertEqual(companions[name]["path"], f"/usr/bin/{name}")
+            self.assertRegex(companions[name]["sha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(companions["stremio-runtime"]["status"], "missing")
+        self.assertEqual(companions["stremio-runtime"]["repair"], "none")
 
 
 if __name__ == "__main__":

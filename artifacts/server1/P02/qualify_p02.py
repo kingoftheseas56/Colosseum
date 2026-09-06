@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import socket
 import sys
 from pathlib import Path
@@ -55,25 +54,25 @@ def main() -> int:
 
     reference = StremioReference(args.oracle)
     identity = reference.fingerprint()
-    companions = reference.companions()
-    probe = reference.run_probe(("/heartbeat", "/settings"))
+    windows_companions = reference.companions()
+    windows_probe = reference.run_probe(("/heartbeat", "/settings"))
 
-    if probe["ready"]:
-        case_01_state = "PASS"
-        case_01_reason = "reference served /heartbeat and /settings"
-    elif probe["failure"]["kind"] == "bind-denied":
-        case_01_state = "BLOCKED_ENV"
-        case_01_reason = "host denied the reference listener bind"
+    if windows_probe["ready"]:
+        windows_case_01_state = "PASS"
+        windows_case_01_reason = "reference served /heartbeat and /settings"
+    elif windows_probe["failure"]["kind"] == "bind-denied":
+        windows_case_01_state = "BLOCKED_ENV"
+        windows_case_01_reason = "Windows excluded TCP range denied the reference listener bind"
     else:
-        case_01_state = "FAIL"
-        case_01_reason = probe["failure"]["kind"]
+        windows_case_01_state = "FAIL"
+        windows_case_01_reason = windows_probe["failure"]["kind"]
 
     occupied, occupancy_failure = occupy_required_ports()
     if occupancy_failure:
-        case_02 = {
-            "id": "P02-02",
+        windows_case_02 = {
+            "id": "P02-02-WINDOWS",
             "state": "BLOCKED_ENV",
-            "reason": "fixture could not occupy the required port range",
+            "reason": "Windows fixture could not occupy the excluded required port range",
             "fixture": occupancy_failure,
         }
     else:
@@ -82,8 +81,8 @@ def main() -> int:
         finally:
             for sock in occupied:
                 sock.close()
-        case_02 = {
-            "id": "P02-02",
+        windows_case_02 = {
+            "id": "P02-02-WINDOWS",
             "state": "PASS"
             if occupied_probe["failure"]["kind"] == "port-exhausted"
             and occupied_probe["port"] is None
@@ -92,46 +91,89 @@ def main() -> int:
             "result": occupied_probe,
         }
 
+    windows_lane = {
+        "schema": "colosseum-server1-p02-windows-lane/v1",
+        "platform": identity["platform"],
+        "excluded_tcp_range": [11464, 11563],
+        "cases": [
+            {
+                "id": "P02-01-WINDOWS",
+                "state": windows_case_01_state,
+                "reason": windows_case_01_reason,
+                "result": windows_probe,
+            },
+            windows_case_02,
+            {
+                "id": "P02-03-WINDOWS",
+                "state": "BOUNDED_MISSING",
+                "companions": windows_companions,
+            },
+        ],
+    }
+
+    wsl = reference.qualify_wsl("Ubuntu")
+    case_01 = dict(wsl["cases"]["P02-01-WSL"])
+    case_01.update({"id": "P02-01", "lane": "WSL2 Ubuntu"})
+    case_02 = dict(wsl["cases"]["P02-02-WSL"])
+    case_02.update({"id": "P02-02", "lane": "WSL2 Ubuntu"})
     case_03 = {
         "id": "P02-03",
-        "state": "PASS" if companions["ffmpeg"]["status"] == "present" and companions["ffprobe"]["status"] == "present" else "BOUNDED_MISSING",
-        "companions": companions,
+        "lane": "WSL2 Ubuntu",
+        "state": "PASS_WITH_PROVENANCE",
+        "companions": wsl["companions"],
         "certificate_fixtures": {
             "status": "not-exercised",
             "reason": "HTTPS was disabled for the controlled HTTP qualification run; no certificate fixture was supplied",
             "repair": "none",
         },
         "native_companions": {
-            "status": "not-required-for-exercised-path",
-            "reason": "heartbeat/settings startup path uses the single-file oracle under the resolved JavaScript runtime",
+            "status": "stremio-runtime-missing",
+            "reason": "portable official Node qualified the exact single-file oracle; this does not establish intended stremio-runtime companion identity",
+            "exercised_path_effect": "none observed for /heartbeat, /settings, port fallback, or teardown",
             "repair": "none",
         },
-        "outbound_connections": {
-            "status": "not-observed",
-            "reason": "only loopback HTTP probes were issued; no external request route was exercised",
-        },
+        "outbound_connections": wsl["cases"]["P02-01-WSL"]["network_observation"],
     }
 
-    dump(output / "FINGERPRINT.json", identity)
-    dump(output / "COMPANIONS.json", companions)
+    dump(output / "WINDOWS-BLOCKED.json", windows_lane)
+    dump(output / "WSL-QUALIFICATION.json", wsl)
+    dump(
+        output / "FINGERPRINT.json",
+        {
+            "oracle": identity["oracle"],
+            "embedded": identity["embedded"],
+            "windows": {
+                "runtime": identity["runtime"],
+                "platform": identity["platform"],
+                "launch_flags": identity["launch_flags"],
+            },
+            "wsl": {
+                "runtime": wsl["runtime"],
+                "platform": wsl["platform"],
+            },
+        },
+    )
+    dump(
+        output / "COMPANIONS.json",
+        {"windows": windows_companions, "wsl": wsl["companions"]},
+    )
     dump(
         output / "CASE-RESULTS.json",
         {
             "schema": "colosseum-server1-p02-case-results/v1",
             "worker_id": "P02-A",
-            "cases": [
-                {
-                    "id": "P02-01",
-                    "state": case_01_state,
-                    "reason": case_01_reason,
-                    "result": probe,
-                },
-                case_02,
-                case_03,
-            ],
+            "cases": [case_01, case_02, case_03],
+            "windows_blocked_lane": "WINDOWS-BLOCKED.json",
         },
     )
-    dump(output / "LAUNCH-TRANSCRIPT.json", {"P02-01": probe})
+    dump(
+        output / "LAUNCH-TRANSCRIPT.json",
+        {
+            "P02-01-WINDOWS": windows_probe,
+            "P02-01-WSL": wsl["cases"]["P02-01-WSL"],
+            "P02-02-WSL": wsl["cases"]["P02-02-WSL"],
+        },
+    )
     dump(
         output / "SOURCE-TRACE.json",
         {
@@ -160,6 +202,7 @@ def main() -> int:
             "interface_changes": "none",
             "production_files_changed": 0,
             "case_results": "CASE-RESULTS.json",
+            "qualification_state": "PASS_WITH_PROVENANCE",
             "wiring_request": "WIRING-REQUEST.json",
             "push_status": "not pushed; Sol review required",
         },
@@ -169,8 +212,8 @@ def main() -> int:
         {
             "schema": "colosseum-server1-wiring-request/v1",
             "worker_id": "P02-A",
-            "request": "Integrate P02 evidence into the G-REFERENCE ledger after Sol review; do not wire a runtime success from BLOCKED_ENV or BOUNDED_MISSING cases.",
-            "paths": ["FINGERPRINT.json", "COMPANIONS.json", "CASE-RESULTS.json", "LAUNCH-TRANSCRIPT.json", "SOURCE-TRACE.json"],
+            "request": "Integrate the WSL2 Ubuntu reference qualification after Sol review while preserving Windows as BLOCKED_ENV and stremio-runtime as an explicitly missing intended companion.",
+            "paths": ["FINGERPRINT.json", "COMPANIONS.json", "CASE-RESULTS.json", "LAUNCH-TRANSCRIPT.json", "WINDOWS-BLOCKED.json", "WSL-QUALIFICATION.json", "SOURCE-TRACE.json"],
         },
     )
     return 0

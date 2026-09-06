@@ -5,16 +5,6 @@
     "stremioRuntimeVersionIsNodeSemver": false,
     "version": "4.21.0"
   },
-  "launch_flags": {
-    "http_port_range": [
-      11470,
-      11474
-    ],
-    "https_disabled": true,
-    "network_interfaces_disabled": true,
-    "probe_host": "127.0.0.1",
-    "reference_listener_bind": "0.0.0.0 (oracle source; not modified)"
-  },
   "oracle": {
     "bytes": 6676503,
     "expected_bytes": 6676503,
@@ -23,31 +13,67 @@
     "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
   },
-  "platform": {
-    "machine": "AMD64",
-    "python": "3.11.9",
-    "release": "10",
-    "system": "Windows"
-  },
-  "runtime": {
-    "command": [
-      "C:\\Program Files\\nodejs\\node.exe",
-      "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
-    ],
-    "executable": {
-      "bytes": 91380224,
-      "exists": true,
+  "windows": {
+    "launch_flags": {
+      "http_port_range": [
+        11470,
+        11474
+      ],
+      "https_disabled": true,
+      "network_interfaces_disabled": true,
+      "probe_host": "127.0.0.1",
+      "reference_listener_bind": "0.0.0.0 (oracle source; not modified)"
+    },
+    "platform": {
+      "machine": "AMD64",
+      "python": "3.11.9",
+      "release": "10",
+      "system": "Windows"
+    },
+    "runtime": {
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
+      ],
+      "executable": {
+        "bytes": 91380224,
+        "exists": true,
+        "path": "C:\\Program Files\\nodejs\\node.exe",
+        "sha256": "63c259c81e5d472b5f11c8d506070130cb04a1ecf84b80377a34ed6ec9048088"
+      },
+      "intended_stremio_runtime": {
+        "name": "stremio-runtime",
+        "path": null,
+        "provenance": "not-found-on-PATH-or-known-install-locations",
+        "status": "missing"
+      },
+      "kind": "node",
       "path": "C:\\Program Files\\nodejs\\node.exe",
-      "sha256": "63c259c81e5d472b5f11c8d506070130cb04a1ecf84b80377a34ed6ec9048088"
+      "version": "v24.14.0"
+    }
+  },
+  "wsl": {
+    "platform": {
+      "distro": "Ubuntu",
+      "machine": "x86_64",
+      "release": "6.18.33.2-microsoft-standard-WSL2",
+      "system": "Linux"
     },
-    "intended_stremio_runtime": {
-      "name": "stremio-runtime",
-      "path": null,
-      "provenance": "not-found-on-PATH-or-known-install-locations",
-      "status": "missing"
-    },
-    "kind": "node",
-    "path": "C:\\Program Files\\nodejs\\node.exe",
-    "version": "v24.14.0"
+    "runtime": {
+      "archive_sha256": "f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e",
+      "bytes": 121509208,
+      "disposable_root": "/tmp/colosseum-server1-p02-_180vlgy",
+      "disposable_storage_removed": true,
+      "installed": false,
+      "kind": "portable-node",
+      "official_checksum_line": "f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e  node-v22.16.0-linux-x64.tar.xz",
+      "official_checksum_match": true,
+      "path": "/tmp/colosseum-server1-p02-_180vlgy/runtime/node-v22.16.0-linux-x64/bin/node",
+      "sha256": "8142d37c6f2f372ef040419e7a111a6baf17df89f8078d02447d6c639ae20c1d",
+      "shasums_sha256": "e1f5ad5e2a5654721e7b89d84d27f406e582c46ca0b5cde304c5dcdd7bab8b31",
+      "shasums_url": "https://nodejs.org/dist/v22.16.0/SHASUMS256.txt",
+      "source_url": "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz",
+      "version": "v22.16.0"
+    }
   }
 }

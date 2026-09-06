@@ -1,5 +1,5 @@
 {
-  "schema": "colosseum-server1-reference-runtime/v1",
+  "schema": "colosseum-server1-reference-runtime/v2",
   "worker_id": "P02-A",
   "branch": "codex/server1-p02-a",
   "base_sha": "1c08a0734acbe6f46b67630f3a735e24df190db1",
@@ -14,39 +14,67 @@
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "server_js_mutated": false
   },
-  "runtime": {
-    "selection": "resolved node interpreter; no stremio-runtime executable was present",
-    "intended_stremio_runtime": {
-      "name": "stremio-runtime",
-      "status": "missing",
-      "provenance": "not found on PATH or known install locations"
-    },
-    "kind": "node",
-    "version": "v24.14.0",
-    "path": "C:/Program Files/nodejs/node.exe",
-    "bytes": 91380224,
-    "sha256": "63c259c81e5d472b5f11c8d506070130cb04a1ecf84b80377a34ed6ec9048088"
+  "qualification_runtime": {
+    "kind": "portable-node",
+    "version": "v22.16.0",
+    "installed": false,
+    "disposable_storage_removed": true,
+    "source_url": "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz",
+    "shasums_url": "https://nodejs.org/dist/v22.16.0/SHASUMS256.txt",
+    "archive_sha256": "f4cb75bb036f0d0eddf6b79d9596df1aaab9ddccd6a20bf489be5abe9467e84e",
+    "official_checksum_match": true,
+    "executable_bytes": 121509208,
+    "executable_sha256": "8142d37c6f2f372ef040419e7a111a6baf17df89f8078d02447d6c639ae20c1d"
   },
-  "launch": {
-    "command": ["node", "server.js"],
+  "intended_companion_identity": {
+    "name": "stremio-runtime",
+    "status": "missing",
+    "provenance": "not present in Windows or WSL Ubuntu; no repair or substituted identity",
+    "portable_node_is_equivalent_identity": false
+  },
+  "media_companions": {
+    "ffmpeg": {
+      "path": "/usr/bin/ffmpeg",
+      "version": "8.0.1-3ubuntu2",
+      "bytes": 453104,
+      "sha256": "bdf6aabffdba7411edff8d36c389d695257fcdf823d196020176e117612862f6"
+    },
+    "ffprobe": {
+      "path": "/usr/bin/ffprobe",
+      "version": "8.0.1-3ubuntu2",
+      "bytes": 216864,
+      "sha256": "a6dac1e9e8631e04075d06854cc4069308aec279bb04683b4a0bca5e4f54b2fe"
+    }
+  },
+  "wsl_lane": {
+    "distro": "Ubuntu",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
     "app_path": "disposable per run",
     "settings_path": "disposable per run",
     "http_probe_host": "127.0.0.1",
     "oracle_listener_bind": "0.0.0.0",
     "http_ports": [11470, 11471, 11472, 11473, 11474],
     "https": "disabled by NO_HTTPS_SERVER for controlled HTTP qualification",
-    "network_interfaces": "disabled by NO_NETWORK_INTERFACES"
+    "network_interfaces": "disabled by NO_NETWORK_INTERFACES",
+    "unexpected_outbound_connections": [],
+    "teardown_alive_after": false
+  },
+  "windows_lane": {
+    "state": "BLOCKED_ENV",
+    "excluded_tcp_range": [11464, 11563],
+    "evidence": "artifacts/server1/P02/WINDOWS-BLOCKED.json",
+    "runtime_success_claim": false
   },
   "qualification": {
-    "P02-01": "BLOCKED_ENV",
-    "P02-02": "BLOCKED_ENV",
-    "P02-03": "BOUNDED_MISSING",
-    "runtime_success_claim": false,
+    "P02-01": "PASS",
+    "P02-02": "PASS",
+    "P02-03": "PASS_WITH_PROVENANCE",
+    "runtime_success_claim": true,
     "evidence": "artifacts/server1/P02/CASE-RESULTS.json"
   },
   "open_risks": [
-    "The host denies binds on 127.0.0.1:11470-11474 with WinError 10013 / Node EACCES, so heartbeat/settings could not be runtime-qualified.",
-    "ffmpeg and ffprobe were not resolved; no repair or fabricated runtime success was applied.",
-    "The oracle listener binds 0.0.0.0; probes remain loopback-only and the oracle was not modified."
+    "The intended stremio-runtime companion identity remains unavailable; portable Node qualification is recorded separately and is not called the companion identity.",
+    "Windows cannot bind the required ports because 11470-11474 are inside excluded TCP range 11464-11563; that lane remains BLOCKED_ENV.",
+    "HTTPS certificate behavior was not exercised because the controlled qualification disabled HTTPS."
   ]
 }
