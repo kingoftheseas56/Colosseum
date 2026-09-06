@@ -9,12 +9,13 @@
     "p00_dependency_lock": "docs/server1/EVIDENCE-LOCK.json",
     "p00_source_hashes": {
       "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
-      "implementation_plan_sha256": "99904741969541b196fc1503ce176f4b5b72e1eb57f28125a80fd8c4feb78db0",
+      "implementation_plan_sha256": "99904719869541b196fc1503ce176f4b5b72e1eb57f28125a80fd8c4feb78db0",
       "input_spec_sha256": "63171d227c639d6d9e23b5f1afad45d66140595be7950b32fd73c24207fd84fb"
     },
     "native_source": {
       "path": "native/CMakeLists.txt",
-      "lines": "86-148",
+      "dependency_lines": "86-148",
+      "consumer_lines": "1737-1740",
       "sha256": "576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14"
     }
   },

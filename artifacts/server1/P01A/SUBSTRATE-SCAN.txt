@@ -5,6 +5,8 @@ worker branch=codex/server1-p01a-a
 integration base=1c08a0734acbe6f46b67630f3a735e24df190db1
 selected application base=81e750b65f3788af7be99392f16b86a9212ff2bd
 native/CMakeLists.txt lines=86-148 target=colosseum_libtorrent
+native/CMakeLists.txt lines=1737-1740 target=torrent_engine_link_harness -> colosseum_libtorrent
+tests/torrent_engine_link_harness.cpp sha256=04ba692567103c0d6ad6f66cc853b1149e50edc2d045b3fe969d3efe271d4d51 bytes=921
 native/CMakeLists.txt sha256=576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14 bytes=111715
 native/build-msvc.bat sha256=232a45b87ba4d58482450dc2a9c91626815cfe5ffe9cbc73af622b1bdd61ebff bytes=1448
 native/player2/CMakeLists.txt sha256=6e413813e8407a49ac4b65f0a8ab1cf7551d4415164397946780eb5aedd35baf bytes=15732
@@ -17,13 +19,21 @@ cl=19.44.35227.0 / 14.44.35227.0 sha256=7a154e5136cc538b42e6944997fc5e3bb4911289
 architecture=x64 language=C++17 crt=/MD generator=Ninja
 
 Native dependency identities:
-libtorrent version=2.0.11.0 revision=6e1587799 header sha256=674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07
+libtorrent header-declared version=2.0.11.0 header-declared revision=6e1587799 header sha256=674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07
 libtorrent static archive sha256=a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30 bytes=320838716
+libtorrent linked runtime version=2.0.11.0 from lt::version(); no linked revision claimed
+libtorrent local-patch provenance=unknown; installed prefix has no build/source receipt or patch manifest
 Boost=1.84.0 header sha256=4c95293960faf1fda21a3c2ae512d3beb0aedb18a33259b80e76fbf9e36a391a
 OpenSSL=3.6.2 header sha256=3fde0187f84a1afd5d38f7a396a1c07920dd1a0381c12b85db23adcecd0a0def
 MpvQt=1.2.0 header sha256=f85a33737b33fd5de24c411bb0b0ebad6a612d4a3519fadc30ac897abbda4fba
 libmpv=0.41.0-923-g7b8915bc1 client API=2.5 dll sha256=f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea
 Player2 FFmpeg default path=C:/tools/ffmpeg-master-latest-win64-gpl-shared exists=false; no Player2 qualification claimed.
+
+Direct native consumer:
+cmake -S native configure exit=0 and selected C:/tools fallback
+cmake --build target=torrent_engine_link_harness exit=0
+torrent_engine_link_harness exit=0 and constructed a libtorrent session
+cmake -S native with LIBTORRENT_ROOT=C:/tools/missing-libtorrent exit=1 at native/CMakeLists.txt:141
 
 Linux lane:
 planned only; no Linux command executed. Qualification lane is Ubuntu 26.04 / WSL2 with apt libtorrent-rasterbar-dev, libboost-all-dev, libssl-dev, pkg-config, libmpv-dev and source-built MpvQt under $HOME/.local/colosseum-deps, using the native Linux branch at CMake lines 66-84 and 143-147.

@@ -1,0 +1,14 @@
+Command: `$prefix = 'C:\tools\libtorrent-2.0-msvc'; $files = Get-ChildItem -LiteralPath $prefix -Recurse -File; $files | ForEach-Object { $_.FullName.Substring($prefix.Length + 1) }; $files | Where-Object { $_.Name -match '(?i)(receipt|patch|source|manifest|build[-_.]?info|provenance)' }`
+Exit: 0
+file_count=279
+top_level=include,lib,share
+non_header_payload:
+lib/torrent-rasterbar.lib
+lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake
+lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfigVersion.cmake
+lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarTargets-release.cmake
+lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarTargets.cmake
+share/cmake/Modules/FindLibtorrentRasterbar.cmake
+receipt_name_matches=(none)
+
+Boundary: this installed-prefix inventory provides no build receipt, source receipt, patch manifest, source tree, or provenance record. Therefore local-patch provenance remains unknown; absence of a matching receipt is not evidence that the archive is unpatched.

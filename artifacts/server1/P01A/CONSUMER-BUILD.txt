@@ -1,8 +1,14 @@
-Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts/server1/P01A/build-valid3 --parallel 2'
+Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts/server1/P01A/native-build-valid --target torrent_engine_link_harness --clean-first --parallel 2 --verbose'
 Exit: 0
-[1/2] Building CXX object CMakeFiles\libtorrent_identity_probe.dir\main.cpp.obj
-[2/2] Linking CXX executable libtorrent_identity_probe.exe
 
-Verbose link/compile evidence from ninja -C build-valid3 -t commands:
-C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe /nologo /TP -DBOOST_ALL_NO_LIB -DHAS_LIBTORRENT=1 -DTORRENT_USE_OPENSSL -D_WIN32_WINNT=0x0A00 -IC:\tools\libtorrent-2.0-msvc\include -IC:\tools\boost-1.84.0 -IC:\tools\openssl-msvc\include /DWIN32 /D_WINDOWS /GR /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD
-C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\link.exe /machine:x64 /INCREMENTAL:NO /subsystem:console C:\tools\libtorrent-2.0-msvc\lib\torrent-rasterbar.lib C:\tools\openssl-msvc\lib\libssl.lib C:\tools\openssl-msvc\lib\libcrypto.lib ws2_32.lib mswsock.lib crypt32.lib iphlpapi.lib bcrypt.lib
+Change Dir: 'C:/b/Colosseum-Server-1.0-workers/P01A-A/artifacts/server1/P01A/native-build-valid'
+Run Clean Command: C:/Qt/Tools/Ninja/ninja.exe -v -j 2 clean
+Cleaning... 3 files.
+Run Build Command(s): C:/Qt/Tools/Ninja/ninja.exe -v -j 2 torrent_engine_link_harness
+[3/5] C:\Users\Suprabha\AppData\Local\Microsoft\WinGet\Links\sccache.exe C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe /nologo /TP -DBOOST_ALL_NO_LIB -DHAS_LIBTORRENT=1 -DTORRENT_USE_OPENSSL -D_WIN32_WINNT=0x0A00 -IC:\b\Colosseum-Server-1.0-workers\P01A-A\artifacts\server1\P01A\native-build-valid\torrent_engine_link_harness_autogen\include -IC:\tools\libtorrent-2.0-msvc\include -IC:\tools\boost-1.84.0 -IC:\tools\openssl-msvc\include /DWIN32 /D_WINDOWS /GR /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD /showIncludes /FoCMakeFiles\torrent_engine_link_harness.dir\C_\b\Colosseum-Server-1.0-workers\P01A-A\tests\torrent_engine_link_harness.cpp.obj /FdCMakeFiles\torrent_engine_link_harness.dir\ /FS -c C:\b\Colosseum-Server-1.0-workers\P01A-A\tests\torrent_engine_link_harness.cpp
+[4/5] C:\WINDOWS\system32\cmd.exe /C "cd . && C:\Qt\Tools\CMake_64\bin\cmake.exe -E vs_link_exe --intdir=CMakeFiles\torrent_engine_link_harness.dir --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\mt.exe --manifests -- C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\link.exe /nologo CMakeFiles\torrent_engine_link_harness.dir\torrent_engine_link_harness_autogen\mocs_compilation.cpp.obj CMakeFiles\torrent_engine_link_harness.dir\C_\b\Colosseum-Server-1.0-workers\P01A-A\tests\torrent_engine_link_harness.cpp.obj /out:torrent_engine_link_harness.exe /implib:torrent_engine_link_harness.lib /pdb:torrent_engine_link_harness.pdb /version:0.0 /machine:x64 /INCREMENTAL:NO /subsystem:console C:\tools\libtorrent-2.0-msvc\lib\torrent-rasterbar.lib C:\tools\openssl-msvc\lib\libssl.lib C:\tools\openssl-msvc\lib\libcrypto.lib ws2_32.lib mswsock.lib crypt32.lib iphlpapi.lib bcrypt.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+
+Built executable:
+path=artifacts/server1/P01A/native-build-valid/torrent_engine_link_harness.exe
+bytes=7613440
+sha256=fc21632d00348498a82a4bbdf8347d610397764126625a28abb06c5da9922207

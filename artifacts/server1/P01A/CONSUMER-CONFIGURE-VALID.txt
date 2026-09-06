@@ -1,18 +1,37 @@
-Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" -S artifacts/server1/P01A/consumer -B artifacts/server1/P01A/build-valid3 -G Ninja -DCMAKE_MAKE_PROGRAM="C:/Qt/Tools/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:/tools/libtorrent-2.0-msvc;C:/tools/openssl-msvc" -DOPENSSL_ROOT_DIR=C:/tools/openssl-msvc -DBOOST_ROOT=C:/tools/boost-1.84.0 -DBoost_NO_SYSTEM_PATHS=ON -Wno-dev'
+Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" -S native -B artifacts/server1/P01A/native-build-valid -G Ninja -DCMAKE_MAKE_PROGRAM="C:/Qt/Tools/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:/Qt/6.11.1/msvc2022_64" -Wno-dev'
 Exit: 0
--- The CXX compiler identification is MSVC 19.44.35227.0
--- Detecting CXX compiler ABI info
--- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
--- Detecting CXX compile features
--- Detecting CXX compile features - done
--- Performing Test CMAKE_HAVE_LIBC_PTHREAD
--- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
--- Looking for pthread_create in pthreads
--- Looking for pthread_create in pthreads - not found
--- Looking for pthread_create in pthread
--- Looking for pthread_create in pthread - not found
--- Found Threads: TRUE
--- Configuring done (8.9s)
--- Generating done (0.1s)
--- Build files have been written to: C:/b/Colosseum-Server-1.0-workers/P01A-A/artifacts/server1/P01A/build-valid3
+
+-- Compiler cache: sccache (C:/Users/Suprabha/AppData/Local/Microsoft/WinGet/Links/sccache.exe)
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR)
+-- Could NOT find Qt6TaskTree (missing: Qt6TaskTree_DIR)
+CMake Warning at C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package):
+  Found package configuration file:
+
+    C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6QmlAssetDownloaderPrivate/Qt6QmlAssetDownloaderPrivateConfig.cmake
+
+  but it set Qt6QmlAssetDownloaderPrivate_FOUND to FALSE so package
+  "Qt6QmlAssetDownloaderPrivate" is considered to be NOT FOUND. Reason given
+  by package:
+
+  Qt6QmlAssetDownloaderPrivate could not be found because dependency
+  Qt6TaskTree could not be found.
+
+Call Stack (most recent call first):
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:142 (find_dependency)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/QmlPlugins/Qt6QmlAssetDownloaderPrivatepluginDependencies.cmake:22 (_qt_internal_find_qt_dependencies)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/QmlPlugins/Qt6QmlAssetDownloaderPrivatepluginConfig.cmake:40 (include)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/QtPublicPluginHelpers.cmake:638 (include)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/Qt6QmlPlugins.cmake:6 (__qt_internal_include_qml_plugin_packages)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/Qt6QmlConfig.cmake:199 (include)
+  C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:142 (find_dependency)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Quick/Qt6QuickDependencies.cmake:50 (_qt_internal_find_qt_dependencies)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake:40 (include)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/Qt6Config.cmake:253 (find_package)
+  CMakeLists.txt:44 (find_package)
+
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR)
+-- libtorrent found via C:/tools fallback: C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib
+-- Configuring done (6.4s)
+-- Generating done (12.0s)
+-- Build files have been written to: C:/b/Colosseum-Server-1.0-workers/P01A-A/artifacts/server1/P01A/native-build-valid

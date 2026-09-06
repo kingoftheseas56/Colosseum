@@ -40,14 +40,18 @@ def validate_hashes(root: Path, records: list[dict]) -> None:
 
 def validate_libtorrent(lock: dict) -> None:
     identity = lock["libtorrent"]
-    compile_time = identity["compile_time"]
+    header = identity["header_declared"]
+    archive = identity["archive_identity"]
     linked = identity["linked_runtime"]
+    patch_provenance = identity["local_patch_provenance"]
     abi = identity["abi"]
-    _require(compile_time["major"] == 2, "libtorrent major version is not 2")
-    _require(compile_time["minor"] == 0, "libtorrent minor version is not 0")
-    _require(not compile_time["version"].startswith("2.1"), "libtorrent 2.1 is forbidden")
-    _require(linked["version"] == compile_time["version"], "header/library version mismatch")
-    _require(linked["revision"] == compile_time["revision"], "header/library revision mismatch")
+    _require(header["major"] == 2, "libtorrent major version is not 2")
+    _require(header["minor"] == 0, "libtorrent minor version is not 0")
+    _require(not header["version"].startswith("2.1"), "libtorrent 2.1 is forbidden")
+    _require(linked["version"] == header["version"], "header/library version mismatch")
+    _require("revision" not in linked, "linked-runtime revision is unsupported by the probe")
+    _require(archive["sha256"] == identity["archive_sha256"], "archive identity mismatch")
+    _require(patch_provenance["state"] == "unknown", "local patch provenance must remain unknown without a receipt")
     _require(abi["architecture"] == "x64", "ABI architecture mismatch")
     _require(abi["crt"] == "/MD", "ABI CRT mismatch")
     _require(abi["language_standard"] == "C++17", "ABI language-standard mismatch")
@@ -55,9 +59,13 @@ def validate_libtorrent(lock: dict) -> None:
     _require("IDENTITY_MISMATCH" not in linked["probe_output"], "runtime identity probe reported mismatch")
 
 
-def validate_consumer(lock: dict) -> None:
+def validate_consumer(root: Path, lock: dict) -> None:
     consumer = lock["consumer_probe"]
-    _require(consumer["target"] == "colosseum_libtorrent", "consumer did not use shared target")
+    duplicate = root / "artifacts/server1/P01A/consumer/CMakeLists.txt"
+    _require(not duplicate.exists(), "duplicate colosseum_libtorrent definition remains")
+    _require(consumer["source"] == "native/CMakeLists.txt", "consumer did not configure native authority")
+    _require(consumer["target"] == "torrent_engine_link_harness", "wrong native consumer target")
+    _require(consumer["dependency_target"] == "colosseum_libtorrent", "native consumer did not link shared target")
     _require(consumer["configure_valid"]["exit"] == 0, "valid consumer configure failed")
     _require(consumer["build"]["exit"] == 0, "consumer build failed")
     _require(consumer["run"]["exit"] == 0, "consumer runtime failed")
@@ -72,7 +80,7 @@ def validate(root: Path) -> tuple[dict, dict]:
     _require(substrate["schema"] == "colosseum-server1-native-substrate/v1", "wrong substrate schema")
     validate_hashes(root, lock["locked_files"])
     validate_libtorrent(lock)
-    validate_consumer(lock)
+    validate_consumer(root, lock)
     compiler = substrate["compiler"]
     _require(compiler["language_standard"] == "C++17", "wrong language standard")
     _require(compiler["crt"] == "/MD", "wrong CRT mode")
@@ -89,7 +97,7 @@ if __name__ == "__main__":
         raise SystemExit(1)
     print(
         "ACCEPTED: "
-        f"libtorrent={dependency_lock['libtorrent']['compile_time']['version']} "
+        f"libtorrent={dependency_lock['libtorrent']['header_declared']['version']} "
         f"target={dependency_lock['native_authority']['target']} "
         f"crt={native_substrate['compiler']['crt']}"
     )

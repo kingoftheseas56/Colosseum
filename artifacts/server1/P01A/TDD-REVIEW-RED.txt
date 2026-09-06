@@ -1,0 +1,11 @@
+Command: python -m unittest -v artifacts\server1\P01A\test_verify_p01a.py
+Exit: 1
+
+test_consumer_proves_success_and_required_dependency_failure ... FAIL
+AssertionError: True is not false : duplicate colosseum_libtorrent definition remains
+
+test_native_lock_freezes_libtorrent_2_0_and_shared_target ... ERROR
+KeyError: 'header_declared'
+
+Ran 4 tests in 0.006s
+FAILED (failures=1, errors=1)

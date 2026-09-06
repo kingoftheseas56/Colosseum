@@ -1,0 +1,18 @@
+Compile command source: exact compile definitions, include paths, CRT mode, architecture, and link inputs emitted by the direct native torrent_engine_link_harness build in CONSUMER-BUILD.txt.
+
+Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && cl.exe /nologo /EHsc /O2 /Ob2 /DNDEBUG /std:c++17 /MD /DBOOST_ALL_NO_LIB /DHAS_LIBTORRENT=1 /DTORRENT_USE_OPENSSL /D_WIN32_WINNT=0x0A00 /I"C:\tools\libtorrent-2.0-msvc\include" /I"C:\tools\boost-1.84.0" /I"C:\tools\openssl-msvc\include" artifacts\server1\P01A\linked_runtime_version_probe.cpp /Foartifacts\server1\P01A\native-build-valid\linked_runtime_version_probe.obj /Feartifacts\server1\P01A\native-build-valid\linked_runtime_version_probe.exe /link "C:\tools\libtorrent-2.0-msvc\lib\torrent-rasterbar.lib" "C:\tools\openssl-msvc\lib\libssl.lib" "C:\tools\openssl-msvc\lib\libcrypto.lib" ws2_32.lib mswsock.lib crypt32.lib iphlpapi.lib bcrypt.lib'
+Exit: 0
+linked_runtime_version_probe.cpp
+
+Built probe:
+path=artifacts/server1/P01A/native-build-valid/linked_runtime_version_probe.exe
+bytes=13312
+sha256=2c0026e0a19bc13535771810275d4659febefe33cade3c1860da5d5f95cb301d
+
+Command: artifacts\server1\P01A\native-build-valid\linked_runtime_version_probe.exe
+Exit: 0
+header_declared_version=2.0.11.0
+header_declared_revision=6e1587799
+linked_runtime_version=2.0.11.0
+
+Boundary: `header_declared_revision` comes only from version.hpp. The linked call reports a version string only; it does not report a revision or prove local-patch provenance.

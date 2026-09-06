@@ -13,13 +13,13 @@
     "exported_target": "LibtorrentRasterbar::torrent-rasterbar",
     "resolution_order": ["LibtorrentRasterbar CONFIG + Boost components + OpenSSL", "Windows C:/tools fallback"],
     "selected_resolution": "Windows C:/tools fallback",
-    "selected_reason": "The installed Boost 1.84 tree supplies headers but no discoverable filesystem library; native CMake therefore selects its existing fallback path.",
+    "selected_reason": "The direct native configure emitted the C:/tools fallback selection; see CONSUMER-CONFIGURE-VALID.txt.",
     "compile_definitions": ["HAS_LIBTORRENT=1", "TORRENT_USE_OPENSSL", "BOOST_ALL_NO_LIB", "_WIN32_WINNT=0x0A00"],
     "link_inputs": ["C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib", "C:/tools/openssl-msvc/lib/libssl.lib", "C:/tools/openssl-msvc/lib/libcrypto.lib", "ws2_32", "mswsock", "crypt32", "iphlpapi", "bcrypt"]
   },
   "libtorrent": {
     "package_root": "C:/tools/libtorrent-2.0-msvc",
-    "compile_time": {
+    "header_declared": {
       "version": "2.0.11.0",
       "major": 2,
       "minor": 0,
@@ -27,13 +27,23 @@
       "revision": "6e1587799",
       "header": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp"
     },
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30",
+    "archive_identity": {
+      "path": "C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib",
+      "bytes": 320838716,
+      "sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+    },
     "linked_runtime": {
-      "mode": "static archive linked into probe executable",
+      "mode": "lt::version() called from a probe compiled with the exact flags and link inputs emitted for the native torrent_engine_link_harness target",
       "version": "2.0.11.0",
-      "revision": "6e1587799",
-      "probe": "artifacts/server1/P01A/CONSUMER-RUN.txt",
+      "probe": "artifacts/server1/P01A/LINKED-RUNTIME-VERSION.txt",
       "probe_exit": 0,
-      "probe_output": "compile_version=2.0.11.0; compile_revision=6e1587799; linked_version=2.0.11.0"
+      "probe_output": "header_declared_version=2.0.11.0; header_declared_revision=6e1587799; linked_runtime_version=2.0.11.0"
+    },
+    "local_patch_provenance": {
+      "state": "unknown",
+      "reason": "An exhaustive 279-file installed-prefix inventory found no build/source receipt, patch manifest, source tree, or provenance record; this absence cannot prove the archive is unpatched.",
+      "evidence": "artifacts/server1/P01A/PROVENANCE-SCAN.txt"
     },
     "abi": {
       "architecture": "x64",
@@ -55,9 +65,14 @@
     "linked_libraries": ["libssl.lib", "libcrypto.lib"]
   },
   "consumer_probe": {
-    "source": "artifacts/server1/P01A/consumer",
-    "target": "colosseum_libtorrent",
-    "authority_source": "native/CMakeLists.txt lines 86-148; harness preserves the same resolution order and fallback link inputs",
+    "source": "native/CMakeLists.txt",
+    "source_sha256": "576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14",
+    "target": "torrent_engine_link_harness",
+    "target_source": "tests/torrent_engine_link_harness.cpp",
+    "target_lines": "native/CMakeLists.txt:1737-1740",
+    "dependency_target": "colosseum_libtorrent",
+    "dependency_target_lines": "native/CMakeLists.txt:93-148",
+    "duplicate_definition": false,
     "configure_valid": {
       "exit": 0,
       "command_evidence": "artifacts/server1/P01A/CONSUMER-CONFIGURE-VALID.txt"
@@ -68,6 +83,7 @@
     },
     "run": {
       "exit": 0,
+      "output": "libtorrent 2.0.11.0 — session constructed OK",
       "command_evidence": "artifacts/server1/P01A/CONSUMER-RUN.txt"
     },
     "configure_without_libtorrent": {
@@ -78,6 +94,8 @@
   },
   "locked_files": [
     {"path": "native/CMakeLists.txt", "bytes": 111715, "sha256": "576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14"},
+    {"path": "tests/torrent_engine_link_harness.cpp", "bytes": 921, "sha256": "04ba692567103c0d6ad6f66cc853b1149e50edc2d045b3fe969d3efe271d4d51"},
+    {"path": "artifacts/server1/P01A/linked_runtime_version_probe.cpp", "bytes": 529, "sha256": "57e604bca7739843185fa5f19d27d24ff4b0f39ca938d244b4cd69a095dc1df8"},
     {"path": "native/build-msvc.bat", "bytes": 1448, "sha256": "232a45b87ba4d58482450dc2a9c91626815cfe5ffe9cbc73af622b1bdd61ebff"},
     {"path": "native/player2/CMakeLists.txt", "bytes": 15732, "sha256": "6e413813e8407a49ac4b65f0a8ab1cf7551d4415164397946780eb5aedd35baf"},
     {"path": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp", "bytes": 2759, "sha256": "674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07"},

@@ -8,18 +8,18 @@
     {
       "id": "P01A-01",
       "state": "test-executed",
-      "expected": "compile-time and linked-runtime identities match frozen libtorrent 2.0; reject 2.1 and ABI/header-library mismatch",
-      "actual": "2.0.11.0 / revision 6e1587799 matched; ABI mutation to x86 rejected; probe returned matching identities",
+      "expected": "header-declared and linked-runtime versions match frozen libtorrent 2.0; reject 2.1 and ABI/header-library mismatch without inferring unsupported provenance",
+      "actual": "header-declared version 2.0.11.0 and linked lt::version() output 2.0.11.0 matched; revision 6e1587799 is header-only, archive identity is SHA-256, local-patch provenance is unknown, and the ABI mutation was rejected",
       "result": "PASS",
-      "evidence": ["CONSUMER-RUN.txt", "TDD-RED-ABI.txt", "TDD-GREEN.txt"]
+      "evidence": ["LINKED-RUNTIME-VERSION.txt", "PROVENANCE-SCAN.txt", "TDD-RED-ABI.txt", "TDD-REVIEW-RED.txt", "TDD-GREEN.txt"]
     },
     {
       "id": "P01A-02",
       "state": "test-executed",
-      "expected": "valid consumer configures/builds through colosseum_libtorrent and missing required dependency fails visibly",
-      "actual": "valid configure/build/run exited 0; removing libtorrent caused CMake configure exit 1 with visible libtorrent error",
+      "expected": "the exact selected native source configures and its existing torrent_engine_link_harness directly consumes colosseum_libtorrent; missing libtorrent fails visibly",
+      "actual": "cmake -S native configured, the native torrent_engine_link_harness built from native/CMakeLists.txt lines 1737-1740 and constructed a session, and removing libtorrent failed at native CMake line 141",
       "result": "PASS",
-      "evidence": ["CONSUMER-CONFIGURE-VALID.txt", "CONSUMER-BUILD.txt", "CONSUMER-MISSING-LIBTORRENT.txt"]
+      "evidence": ["CONSUMER-CONFIGURE-VALID.txt", "CONSUMER-BUILD.txt", "CONSUMER-RUN.txt", "CONSUMER-MISSING-LIBTORRENT.txt"]
     },
     {
       "id": "P01A-03",
