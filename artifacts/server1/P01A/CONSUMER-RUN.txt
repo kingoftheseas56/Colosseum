@@ -1,0 +1,5 @@
+Command: artifacts\server1\P01A\build-valid3\libtorrent_identity_probe.exe
+Exit: 0
+compile_version=2.0.11.0
+compile_revision=6e1587799
+linked_version=2.0.11.0

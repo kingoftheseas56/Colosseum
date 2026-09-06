@@ -1,0 +1,90 @@
+{
+  "schema": "colosseum-server1-native-substrate/v1",
+  "worker_id": "P01A-A",
+  "parent_packet": "P01A",
+  "branch": "codex/server1-p01a-a",
+  "integration_base": "1c08a0734acbe6f46b67630f3a735e24df190db1",
+  "selected_application_base": "81e750b65f3788af7be99392f16b86a9212ff2bd",
+  "source_authority": {
+    "native_cmake": {"path": "native/CMakeLists.txt", "lines": "86-148", "sha256": "576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14"},
+    "build_script": {"path": "native/build-msvc.bat", "lines": "1-29", "sha256": "232a45b87ba4d58482450dc2a9c91626815cfe5ffe9cbc73af622b1bdd61ebff"},
+    "player2_cmake": {"path": "native/player2/CMakeLists.txt", "lines": "1-20", "sha256": "6e413813e8407a49ac4b65f0a8ab1cf7551d4415164397946780eb5aedd35baf"}
+  },
+  "compiler": {
+    "vendor": "Microsoft Visual C++",
+    "toolchain": "Visual Studio Community 2022",
+    "toolchain_version": "17.14.37314.3",
+    "compiler_version": "19.44.35227.0",
+    "architecture": "x64",
+    "language_standard": "C++17",
+    "crt": "/MD",
+    "generator": "Ninja 1.12.1",
+    "cmake": "3.30.5",
+    "compile_evidence": "artifacts/server1/P01A/CONSUMER-BUILD.txt"
+  },
+  "qt": {
+    "version": "6.11.1",
+    "kit": "msvc2022_64",
+    "components_from_native": ["Quick", "Network", "Qml", "Gui", "Sql", "WebEngineQuick", "WebChannel", "WebSockets", "Concurrent"],
+    "prefix": "C:/Qt/6.11.1/msvc2022_64"
+  },
+  "libtorrent": {
+    "version": "2.0.11.0",
+    "revision": "6e1587799",
+    "major": 2,
+    "minor": 0,
+    "linkage": "static",
+    "target": "colosseum_libtorrent",
+    "exported_target": "LibtorrentRasterbar::torrent-rasterbar",
+    "patch_identity": "no local libtorrent patch; package revision 6e1587799",
+    "compile_definitions": ["HAS_LIBTORRENT=1", "TORRENT_USE_OPENSSL", "BOOST_ALL_NO_LIB", "_WIN32_WINNT=0x0A00"],
+    "header": {"path": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp", "bytes": 2759, "sha256": "674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07"},
+    "archive": {"path": "C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib", "bytes": 320838716, "sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"},
+    "identity_probe": "artifacts/server1/P01A/CONSUMER-RUN.txt"
+  },
+  "boost": {
+    "version": "1.84.0",
+    "root": "C:/tools/boost-1.84.0",
+    "mode": "headers discovered; filesystem component unavailable, fallback link path selected",
+    "header_sha256": "4c95293960faf1fda21a3c2ae512d3beb0aedb18a33259b80e76fbf9e36a391a"
+  },
+  "openssl": {
+    "version": "3.6.2",
+    "root": "C:/tools/openssl-msvc",
+    "libraries": ["libssl.lib", "libcrypto.lib"],
+    "header_sha256": "3fde0187f84a1afd5d38f7a396a1c07920dd1a0381c12b85db23adcecd0a0def"
+  },
+  "compression": {
+    "native_miniz": "native/third_party/miniz/miniz.c",
+    "system_or_external": ["OpenSSL compression-independent crypto", "libtorrent internal gzip support"],
+    "ffmpeg": {"player2_default_root": "C:/tools/ffmpeg-master-latest-win64-gpl-shared", "available": false}
+  },
+  "player_media": {
+    "default_player": {"name": "MpvQt", "version": "1.2.0", "library": "MpvQt.lib", "runtime": "MpvQt.dll"},
+    "libmpv": {"file_version": "v0.41.0-923-g7b8915bc1", "client_api": "2.5", "library": "mpv.lib", "runtime": "libmpv-2.dll"},
+    "player2": {"state": "opt-in only; dependency unavailable on host", "no_execution_claim": true}
+  },
+  "native_authority": {
+    "target": "colosseum_libtorrent",
+    "kind": "INTERFACE",
+    "source_lines": "native/CMakeLists.txt:93-148",
+    "consumer_evidence": "artifacts/server1/P01A/CONSUMER-BUILD.txt"
+  },
+  "linux_qualification": {
+    "state": "planned",
+    "lane": "Ubuntu 26.04 under WSL2",
+    "execution_claim": false,
+    "required_packages": ["libtorrent-rasterbar-dev", "libboost-all-dev", "libssl-dev", "pkg-config", "libmpv-dev"],
+    "mpvqt_prefix": "$HOME/.local/colosseum-deps",
+    "source_branch": "native/CMakeLists.txt Linux branches at lines 66-84 and 143-147",
+    "qualification_commands": ["cmake -S native -B native/build-linux -G Ninja", "cmake --build native/build-linux", "ctest --test-dir native/build-linux --output-on-failure"],
+    "unrun_reason": "This worker host is Windows and no Linux execution was performed."
+  },
+  "evidence": {
+    "scan": "artifacts/server1/P01A/SUBSTRATE-SCAN.txt",
+    "consumer_valid_configure": "artifacts/server1/P01A/CONSUMER-CONFIGURE-VALID.txt",
+    "consumer_build": "artifacts/server1/P01A/CONSUMER-BUILD.txt",
+    "consumer_runtime": "artifacts/server1/P01A/CONSUMER-RUN.txt",
+    "consumer_missing_dependency": "artifacts/server1/P01A/CONSUMER-MISSING-LIBTORRENT.txt"
+  }
+}

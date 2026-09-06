@@ -1,0 +1,12 @@
+Command: python -m unittest -v artifacts\server1\P01A\test_verify_p01a.py
+Exit: 0
+test_consumer_proves_success_and_required_dependency_failure ... ok
+test_libtorrent_abi_mismatch_is_rejected ... ok
+test_native_lock_freezes_libtorrent_2_0_and_shared_target ... ok
+test_substrate_records_toolchain_and_linux_lane ... ok
+Ran 4 tests in 0.005s
+OK
+
+Command: python artifacts\server1\P01A\verify_p01a.py
+Exit: 0
+ACCEPTED: libtorrent=2.0.11.0 target=colosseum_libtorrent crt=/MD

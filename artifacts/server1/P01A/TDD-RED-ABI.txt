@@ -1,0 +1,8 @@
+Command: python -m unittest -v artifacts\server1\P01A\test_verify_p01a.py
+Exit: 1
+
+The new ABI regression test failed before the validator check was implemented:
+test_libtorrent_abi_mismatch_is_rejected ... FAIL
+AssertionError: ValidationError not raised
+Ran 4 tests in 0.007s
+FAILED (failures=1)

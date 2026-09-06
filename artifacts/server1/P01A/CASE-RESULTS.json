@@ -1,0 +1,34 @@
+{
+  "schema": "colosseum-server1-p01a-case-results/v1",
+  "worker_id": "P01A-A",
+  "parent_packet": "P01A",
+  "runtime_started": true,
+  "linux_runtime_started": false,
+  "cases": [
+    {
+      "id": "P01A-01",
+      "state": "test-executed",
+      "expected": "compile-time and linked-runtime identities match frozen libtorrent 2.0; reject 2.1 and ABI/header-library mismatch",
+      "actual": "2.0.11.0 / revision 6e1587799 matched; ABI mutation to x86 rejected; probe returned matching identities",
+      "result": "PASS",
+      "evidence": ["CONSUMER-RUN.txt", "TDD-RED-ABI.txt", "TDD-GREEN.txt"]
+    },
+    {
+      "id": "P01A-02",
+      "state": "test-executed",
+      "expected": "valid consumer configures/builds through colosseum_libtorrent and missing required dependency fails visibly",
+      "actual": "valid configure/build/run exited 0; removing libtorrent caused CMake configure exit 1 with visible libtorrent error",
+      "result": "PASS",
+      "evidence": ["CONSUMER-CONFIGURE-VALID.txt", "CONSUMER-BUILD.txt", "CONSUMER-MISSING-LIBTORRENT.txt"]
+    },
+    {
+      "id": "P01A-03",
+      "state": "recorded",
+      "expected": "Qt, compiler, CRT, Boost, OpenSSL, libtorrent flags, player/media dependencies, and concrete Linux lane are recorded",
+      "actual": "Windows MSVC/Qt/native dependencies recorded with hashes; Linux lane recorded as planned and unexecuted",
+      "result": "PASS",
+      "evidence": ["SUBSTRATE-SCAN.txt", "NATIVE-SUBSTRATE.json"]
+    }
+  ],
+  "summary": {"passed": 3, "failed": 0, "linux_claims": 0}
+}

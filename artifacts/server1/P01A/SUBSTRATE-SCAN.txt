@@ -1,0 +1,29 @@
+Command set: cmake --version; ninja --version; qmake -query; vswhere; source/header/package identity reads; SHA-256 file inventory.
+
+Application/source:
+worker branch=codex/server1-p01a-a
+integration base=1c08a0734acbe6f46b67630f3a735e24df190db1
+selected application base=81e750b65f3788af7be99392f16b86a9212ff2bd
+native/CMakeLists.txt lines=86-148 target=colosseum_libtorrent
+native/CMakeLists.txt sha256=576ff7c83cb3ac74290b25cc3a2b7d57ce3b2c37470740b78f5340474474fe14 bytes=111715
+native/build-msvc.bat sha256=232a45b87ba4d58482450dc2a9c91626815cfe5ffe9cbc73af622b1bdd61ebff bytes=1448
+native/player2/CMakeLists.txt sha256=6e413813e8407a49ac4b65f0a8ab1cf7551d4415164397946780eb5aedd35baf bytes=15732
+
+Toolchain:
+cmake=3.30.5 sha256=8c846b65810ba32a5197d0abc9748355b17508c7f887f7c43d273e46d9888c69
+ninja=1.12.1 sha256=5020138b3757035df9dca9a2243624d5810ffa6ae24444bd95f752cbd1b89123
+Visual Studio=17.14.37314.3 Community 2022
+cl=19.44.35227.0 / 14.44.35227.0 sha256=7a154e5136cc538b42e6944997fc5e3bb49112894e41dd88a70940aaff9aa831
+architecture=x64 language=C++17 crt=/MD generator=Ninja
+
+Native dependency identities:
+libtorrent version=2.0.11.0 revision=6e1587799 header sha256=674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07
+libtorrent static archive sha256=a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30 bytes=320838716
+Boost=1.84.0 header sha256=4c95293960faf1fda21a3c2ae512d3beb0aedb18a33259b80e76fbf9e36a391a
+OpenSSL=3.6.2 header sha256=3fde0187f84a1afd5d38f7a396a1c07920dd1a0381c12b85db23adcecd0a0def
+MpvQt=1.2.0 header sha256=f85a33737b33fd5de24c411bb0b0ebad6a612d4a3519fadc30ac897abbda4fba
+libmpv=0.41.0-923-g7b8915bc1 client API=2.5 dll sha256=f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea
+Player2 FFmpeg default path=C:/tools/ffmpeg-master-latest-win64-gpl-shared exists=false; no Player2 qualification claimed.
+
+Linux lane:
+planned only; no Linux command executed. Qualification lane is Ubuntu 26.04 / WSL2 with apt libtorrent-rasterbar-dev, libboost-all-dev, libssl-dev, pkg-config, libmpv-dev and source-built MpvQt under $HOME/.local/colosseum-deps, using the native Linux branch at CMake lines 66-84 and 143-147.

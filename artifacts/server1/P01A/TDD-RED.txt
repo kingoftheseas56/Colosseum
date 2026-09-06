@@ -1,0 +1,14 @@
+Command: python -m unittest -v artifacts\server1\P01A\test_verify_p01a.py
+Exit: 1
+
+test_consumer_proves_success_and_required_dependency_failure ... FAIL
+AssertionError: missing required evidence file: C:\b\Colosseum-Server-1.0-workers\P01A-A\docs\server1\DEPENDENCY-LOCK.json
+
+test_native_lock_freezes_libtorrent_2_0_and_shared_target ... FAIL
+AssertionError: missing required evidence file: C:\b\Colosseum-Server-1.0-workers\P01A-A\docs\server1\DEPENDENCY-LOCK.json
+
+test_substrate_records_toolchain_and_linux_lane ... FAIL
+AssertionError: missing required evidence file: C:\b\Colosseum-Server-1.0-workers\P01A-A\docs\server1\NATIVE-SUBSTRATE.json
+
+Ran 3 tests in 0.005s
+FAILED (failures=3)

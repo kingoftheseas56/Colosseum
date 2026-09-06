@@ -1,0 +1,8 @@
+Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" --build artifacts/server1/P01A/build-valid3 --parallel 2'
+Exit: 0
+[1/2] Building CXX object CMakeFiles\libtorrent_identity_probe.dir\main.cpp.obj
+[2/2] Linking CXX executable libtorrent_identity_probe.exe
+
+Verbose link/compile evidence from ninja -C build-valid3 -t commands:
+C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe /nologo /TP -DBOOST_ALL_NO_LIB -DHAS_LIBTORRENT=1 -DTORRENT_USE_OPENSSL -D_WIN32_WINNT=0x0A00 -IC:\tools\libtorrent-2.0-msvc\include -IC:\tools\boost-1.84.0 -IC:\tools\openssl-msvc\include /DWIN32 /D_WINDOWS /GR /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD
+C:\PROGRA~1\MICROS~1\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\link.exe /machine:x64 /INCREMENTAL:NO /subsystem:console C:\tools\libtorrent-2.0-msvc\lib\torrent-rasterbar.lib C:\tools\openssl-msvc\lib\libssl.lib C:\tools\openssl-msvc\lib\libcrypto.lib ws2_32.lib mswsock.lib crypt32.lib iphlpapi.lib bcrypt.lib

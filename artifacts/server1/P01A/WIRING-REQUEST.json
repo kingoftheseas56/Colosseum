@@ -1,0 +1,9 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P01A-A",
+  "parent_packet": "P01A",
+  "wiring_needed": false,
+  "shared_files_requested": [],
+  "interfaces_changed": [],
+  "reason": "P01A-A freezes dependency and native-substrate evidence only. The existing colosseum_libtorrent target is not edited; downstream P08A consumes the lock and no build, server, runtime, composition, route, test registry, or CI wiring is required."
+}

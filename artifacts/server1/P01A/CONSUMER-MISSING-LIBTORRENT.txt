@@ -1,0 +1,18 @@
+Command: cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && "C:\Qt\Tools\CMake_64\bin\cmake.exe" -S artifacts/server1/P01A/consumer -B artifacts/server1/P01A/build-missing-libtorrent -G Ninja -DCMAKE_MAKE_PROGRAM="C:/Qt/Tools/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:/tools/openssl-msvc" -DOPENSSL_ROOT_DIR=C:/tools/openssl-msvc -DBOOST_ROOT=C:/tools/boost-1.84.0 -DBoost_NO_SYSTEM_PATHS=ON -DLIBTORRENT_ROOT=C:/tools/missing-libtorrent -Wno-dev'
+Exit: 1
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+CMake Error at CMakeLists.txt:37 (message):
+  libtorrent NOT found (find_package or C:/tools fallback)
+
+-- Configuring incomplete, errors occurred!
