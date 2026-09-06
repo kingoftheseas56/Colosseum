@@ -1,0 +1,8 @@
+$ python tools/server_lab/adapters/colosseum01.py --repo-root . --artifact-dir artifacts/server1/P01B
+CONFIGURE=0
+BUILD=0
+CTEST_N=0
+RUNTIME_MPV_PLAYBACK_TEST=8
+RESULT=BASELINE_UNAVAILABLE
+NEXT_DEFICIENCY=FAIL:mpv did not load the native torrent URL
+EXIT=2

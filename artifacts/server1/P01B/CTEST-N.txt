@@ -1,1 +1,22 @@
-NOT_RUN: configure failed.
+$ C:\Qt\Tools\CMake_64\bin\ctest.exe --test-dir C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\build -N -C Release
+Internal ctest changing into directory: C:/Users/Suprabha/AppData/Local/Temp/colosseum-server01-n33l27f_/build
+Test project C:/Users/Suprabha/AppData/Local/Temp/colosseum-server01-n33l27f_/build
+  Test  #1: colosseum_server_integration_smoke
+  Test  #2: scheduler_transport_bridge_test
+  Test  #3: piece_source_block_transport_test
+  Test  #4: libtorrent_block_transport_test
+  Test  #5: torrent_piece_source_test
+  Test  #6: torrent_http_wire_integration_test
+  Test  #7: feature_route_composition_test
+  Test  #8: runtime_composition_test
+  Test  #9: streamserver_native_cutover_test
+  Test #10: runtime_torrent_http_e2e_test
+  Test #11: runtime_lifecycle_test
+  Test #12: runtime_restart_stress_test
+  Test #13: runtime_active_request_shutdown_test
+  Test #14: runtime_mpv_playback_test
+  Test #15: async_media_executor_lifecycle_test
+  Test #16: media_executable_locator_test
+
+Total Tests: 16
+EXIT=0

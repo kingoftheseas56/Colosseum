@@ -5,13 +5,14 @@
     "packet_receipt": "PACKET-RECEIPT.json",
     "required_inputs": "REQUIRED-INPUTS.json",
     "source_receipt": "SOURCE-RECEIPT.json",
+    "toolchain_receipt": "TOOLCHAIN-RECEIPT.json",
     "wiring_request": "WIRING-REQUEST.json"
   },
   "build": {
-    "build_exit": null,
-    "configure_exit": 127,
-    "ctest_n_exit": null,
-    "runtime_exit": null
+    "build_exit": 0,
+    "configure_exit": 0,
+    "ctest_n_exit": 0,
+    "runtime_exit": 8
   },
   "cases": {
     "P01B-01": "PASS",
@@ -21,31 +22,86 @@
   "commands": [
     {
       "argv": [
-        "cmake",
+        "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
         "-G",
         "Ninja",
         "-S",
-        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-nzqsrlo8\\source\\native\\colosseum_server\\tests",
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\source\\native\\colosseum_server\\tests",
         "-B",
-        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-nzqsrlo8\\build",
-        "-DCMAKE_BUILD_TYPE=Release"
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_MAKE_PROGRAM=C:\\Qt\\Tools\\Ninja\\ninja.exe",
+        "-DCMAKE_PREFIX_PATH=C:\\Qt\\6.11.1\\msvc2022_64"
       ],
-      "exit": 127,
+      "exit": 0,
       "name": "configure"
+    },
+    {
+      "argv": [
+        "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+        "--build",
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "--config",
+        "Release",
+        "--parallel"
+      ],
+      "exit": 0,
+      "name": "build"
+    },
+    {
+      "argv": [
+        "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+        "--test-dir",
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "-N",
+        "-C",
+        "Release"
+      ],
+      "exit": 0,
+      "name": "ctest -N"
+    },
+    {
+      "argv": [
+        "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+        "--test-dir",
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-n33l27f_\\build",
+        "-C",
+        "Release",
+        "-R",
+        "^runtime_mpv_playback_test$",
+        "--output-on-failure"
+      ],
+      "exit": 8,
+      "name": "runtime_mpv_playback_test"
     }
   ],
   "ctest": {
     "playback_qualified": false,
-    "runtime_mpv_playback_test_configured": false,
+    "runtime_mpv_playback_test_configured": true,
     "status": "BASELINE_UNAVAILABLE"
   },
   "errors": [
-    "cmake executable was not found on PATH; see CONFIGURE.txt"
+    "runtime_mpv_playback_test failed with exit 8; see RUNTIME-MPV.txt"
   ],
   "parent_packet": "P01B",
   "schema": "colosseum-server01-baseline-result/v1",
   "source_revision": "a3fcaa96ec2650014e1dd94f603d76b2b1e48387",
   "source_tree": "43aa999af0ec175fa8a79d00e79e23b502b4e080",
   "status": "BASELINE_UNAVAILABLE",
+  "toolchain": {
+    "boost_prefix": "C:\\tools\\boost-1.90.0",
+    "cmake": "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+    "cmd": "C:\\Windows\\System32\\cmd.exe",
+    "complete": true,
+    "ctest": "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+    "libmpv_prefix": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix",
+    "libtorrent_prefix": "C:\\tools\\libtorrent-2.0-msvc",
+    "missing": [],
+    "mpvqt_prefix": "C:\\tools\\mpvqt-feasibility\\mpvqt-msvc-install",
+    "ninja": "C:\\Qt\\Tools\\Ninja\\ninja.exe",
+    "openssl_prefix": "C:\\tools\\openssl-msvc",
+    "qt_prefix": "C:\\Qt\\6.11.1\\msvc2022_64",
+    "vcvars64": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+  },
   "worker_id": "P01B-A"
 }

@@ -53,6 +53,48 @@ class Colosseum01AdapterTests(unittest.TestCase):
             self.assertEqual(exit_code, 127)
             self.assertIn("__colosseum01_missing_tool__", output.read_text(encoding="utf-8"))
 
+    def test_installed_windows_toolchain_resolves_from_frozen_paths(self):
+        toolchain = colosseum01.resolve_toolchain()
+
+        self.assertTrue(toolchain["complete"], toolchain["missing"])
+        self.assertEqual(
+            Path(toolchain["cmake"]),
+            Path("C:/Qt/Tools/CMake_64/bin/cmake.exe"),
+        )
+        self.assertEqual(
+            Path(toolchain["ninja"]),
+            Path("C:/Qt/Tools/Ninja/ninja.exe"),
+        )
+        self.assertEqual(
+            Path(toolchain["qt_prefix"]),
+            Path("C:/Qt/6.11.1/msvc2022_64"),
+        )
+        self.assertEqual(
+            Path(toolchain["vcvars64"]),
+            Path("C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat"),
+        )
+
+    def test_vcvars_capture_produces_x64_msvc_environment(self):
+        toolchain = colosseum01.resolve_toolchain()
+        environment = colosseum01._msvc_environment(Path(toolchain["vcvars64"]))
+
+        self.assertEqual(environment["VSCMD_ARG_TGT_ARCH"], "x64")
+        self.assertIn("VCTOOLSINSTALLDIR", environment)
+
+    def test_installed_input_receipt_records_path_size_and_sha256(self):
+        with tempfile.TemporaryDirectory() as directory:
+            installed_input = Path(directory) / "input.lib"
+            installed_input.write_bytes(b"frozen-input")
+
+            receipt = colosseum01.installed_input_receipt({"example": installed_input})
+
+        self.assertEqual(receipt["example"]["path"], str(installed_input))
+        self.assertEqual(receipt["example"]["bytes"], 12)
+        self.assertEqual(
+            receipt["example"]["sha256"],
+            "23b57499cad5e8dd735d7260115bacbd89e8e0fcdb5d548c966f098c707e9040",
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

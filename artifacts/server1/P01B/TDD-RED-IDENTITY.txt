@@ -1,0 +1,10 @@
+$ python artifacts/server1/P01B/test_colosseum01.py
+test_installed_input_receipt_records_path_size_and_sha256 (__main__.Colosseum01AdapterTests.test_installed_input_receipt_records_path_size_and_sha256) ... ERROR
+
+AttributeError: module 'colosseum01' has no attribute 'installed_input_receipt'
+
+----------------------------------------------------------------------
+Ran 7 tests in 7.829s
+
+FAILED (errors=1)
+EXIT=1

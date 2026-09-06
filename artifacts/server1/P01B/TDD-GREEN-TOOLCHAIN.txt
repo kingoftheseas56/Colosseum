@@ -1,20 +1,10 @@
-$ python -m unittest -v artifacts/server1/P01B/test_colosseum01.py
 test_ctest_listing_does_not_call_omitted_playback_a_pass (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_ctest_listing_does_not_call_omitted_playback_a_pass) ... ok
-test_installed_input_receipt_records_path_size_and_sha256 (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_installed_input_receipt_records_path_size_and_sha256) ... ok
 test_installed_windows_toolchain_resolves_from_frozen_paths (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_installed_windows_toolchain_resolves_from_frozen_paths) ... ok
 test_missing_tool_is_preserved_as_bounded_command_failure (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_missing_tool_is_preserved_as_bounded_command_failure) ... ok
 test_required_closure_refuses_reduced_snapshot (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_required_closure_refuses_reduced_snapshot) ... ok
 test_source_receipt_keeps_exact_revision_and_object_identity (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_source_receipt_keeps_exact_revision_and_object_identity) ... ok
-test_vcvars_capture_produces_x64_msvc_environment (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_vcvars_capture_produces_x64_msvc_environment) ... ok
 
 ----------------------------------------------------------------------
-Ran 7 tests in 7.191s
+Ran 5 tests in 0.032s
 
 OK
-
-$ python -m py_compile tools/server_lab/adapters/colosseum01.py artifacts/server1/P01B/test_colosseum01.py
-EXIT=0
-
-Artifact assertions: closure 122/122; toolchain identities 20; configure/build/ctest-N exits 0; runtime test exit 8 classified BASELINE_UNAVAILABLE.
-$ git diff --check
-EXIT=0

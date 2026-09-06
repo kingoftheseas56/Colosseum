@@ -1,3 +1,63 @@
-$ cmake -G Ninja -S C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-nzqsrlo8\source\native\colosseum_server\tests -B C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-nzqsrlo8\build -DCMAKE_BUILD_TYPE=Release
-TOOL_NOT_FOUND: [WinError 2] The system cannot find the file specified
-EXIT=127
+$ C:\Qt\Tools\CMake_64\bin\cmake.exe -G Ninja -S C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\source\native\colosseum_server\tests -B C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-n33l27f_\build -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=C:\Qt\Tools\Ninja\ninja.exe -DCMAKE_PREFIX_PATH=C:\Qt\6.11.1\msvc2022_64
+-- The C compiler identification is MSVC 19.44.35227.0
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR)
+-- Could NOT find Qt6TaskTree (missing: Qt6TaskTree_DIR)
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR)
+-- Configuring done (17.4s)
+-- Generating done (1.2s)
+-- Build files have been written to: C:/Users/Suprabha/AppData/Local/Temp/colosseum-server01-n33l27f_/build
+CMake Warning at C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package):
+  Found package configuration file:
+
+    C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6QmlAssetDownloaderPrivate/Qt6QmlAssetDownloaderPrivateConfig.cmake
+
+  but it set Qt6QmlAssetDownloaderPrivate_FOUND to FALSE so package
+  "Qt6QmlAssetDownloaderPrivate" is considered to be NOT FOUND.  Reason given
+  by package:
+
+  Qt6QmlAssetDownloaderPrivate could not be found because dependency
+  Qt6TaskTree could not be found.
+
+  Configuring with --debug-find-pkg=Qt6TaskTree might reveal details why the
+  package was not found.
+
+  Configuring with -DQT_DEBUG_FIND_PACKAGE=ON will print the values of some
+  of the path variables that find_package uses to try and find the package.
+
+Call Stack (most recent call first):
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:142 (find_dependency)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/QmlPlugins/Qt6QmlAssetDownloaderPrivatepluginDependencies.cmake:22 (_qt_internal_find_qt_dependencies)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/QmlPlugins/Qt6QmlAssetDownloaderPrivatepluginConfig.cmake:40 (include)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/QtPublicPluginHelpers.cmake:638 (include)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/Qt6QmlPlugins.cmake:6 (__qt_internal_include_qml_plugin_packages)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Qml/Qt6QmlConfig.cmake:199 (include)
+  C:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake:76 (find_package)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/QtPublicDependencyHelpers.cmake:142 (find_dependency)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Quick/Qt6QuickDependencies.cmake:50 (_qt_internal_find_qt_dependencies)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake:40 (include)
+  C:/Qt/6.11.1/msvc2022_64/lib/cmake/Qt6/Qt6Config.cmake:253 (find_package)
+  CMakeLists.txt:8 (find_package)
+
+
+EXIT=0

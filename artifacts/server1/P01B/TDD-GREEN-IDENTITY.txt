@@ -1,0 +1,14 @@
+$ python artifacts/server1/P01B/test_colosseum01.py
+test_ctest_listing_does_not_call_omitted_playback_a_pass (__main__.Colosseum01AdapterTests.test_ctest_listing_does_not_call_omitted_playback_a_pass) ... ok
+test_installed_input_receipt_records_path_size_and_sha256 (__main__.Colosseum01AdapterTests.test_installed_input_receipt_records_path_size_and_sha256) ... ok
+test_installed_windows_toolchain_resolves_from_frozen_paths (__main__.Colosseum01AdapterTests.test_installed_windows_toolchain_resolves_from_frozen_paths) ... ok
+test_missing_tool_is_preserved_as_bounded_command_failure (__main__.Colosseum01AdapterTests.test_missing_tool_is_preserved_as_bounded_command_failure) ... ok
+test_required_closure_refuses_reduced_snapshot (__main__.Colosseum01AdapterTests.test_required_closure_refuses_reduced_snapshot) ... ok
+test_source_receipt_keeps_exact_revision_and_object_identity (__main__.Colosseum01AdapterTests.test_source_receipt_keeps_exact_revision_and_object_identity) ... ok
+test_vcvars_capture_produces_x64_msvc_environment (__main__.Colosseum01AdapterTests.test_vcvars_capture_produces_x64_msvc_environment) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 10.725s
+
+OK
+EXIT=0

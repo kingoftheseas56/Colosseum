@@ -1,0 +1,105 @@
+{
+  "inputs": {
+    "boost_version_header": {
+      "bytes": 1117,
+      "path": "C:\\tools\\boost-1.90.0\\boost\\version.hpp",
+      "sha256": "1a3a432bf24fbd21b3c9c90b3f5dce9456f2334f1d2b79b1e3318c780d8b1935"
+    },
+    "cmake": {
+      "bytes": 11710416,
+      "path": "C:\\Qt\\Tools\\CMake_64\\bin\\cmake.exe",
+      "sha256": "8c846b65810ba32a5197d0abc9748355b17508c7f887f7c43d273e46d9888c69"
+    },
+    "cmd": {
+      "bytes": 344064,
+      "path": "C:\\Windows\\System32\\cmd.exe",
+      "sha256": "8dd1ebb0b969370c70a5ee7f7ee347949aa7046aa5e1a33fcd7b1e9415b21fc3"
+    },
+    "ctest": {
+      "bytes": 12671440,
+      "path": "C:\\Qt\\Tools\\CMake_64\\bin\\ctest.exe",
+      "sha256": "4d23f25a110916b0f4bd25f47147f8f425ebd4bd905c76d2ada54c67e7745428"
+    },
+    "libmpv_header": {
+      "bytes": 86136,
+      "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\include\\mpv\\client.h",
+      "sha256": "1acf99ee77c8c2a6f1d1993bd81bbc8a91d27fb5924e80171670e6139a4bd353"
+    },
+    "libmpv_library": {
+      "bytes": 53680,
+      "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\lib\\mpv.lib",
+      "sha256": "064dc62825f74ede1a7fae6f28b1d8cc92a72a7cafc4737179db4daaee367cd7"
+    },
+    "libmpv_runtime": {
+      "bytes": 119757824,
+      "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+      "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea"
+    },
+    "libtorrent_header": {
+      "bytes": 2759,
+      "path": "C:\\tools\\libtorrent-2.0-msvc\\include\\libtorrent\\version.hpp",
+      "sha256": "674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07"
+    },
+    "libtorrent_library": {
+      "bytes": 320838716,
+      "path": "C:\\tools\\libtorrent-2.0-msvc\\lib\\torrent-rasterbar.lib",
+      "sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+    },
+    "mpvqt_config": {
+      "bytes": 1388,
+      "path": "C:\\tools\\mpvqt-feasibility\\mpvqt-msvc-install\\lib\\cmake\\MpvQt\\MpvQtConfig.cmake",
+      "sha256": "727e48f81e9b442d0531f73709bbde5c570304a3740d99bcd2f1dc8c4cdf5233"
+    },
+    "mpvqt_library": {
+      "bytes": 22346,
+      "path": "C:\\tools\\mpvqt-feasibility\\mpvqt-msvc-install\\lib\\MpvQt.lib",
+      "sha256": "ece72e16e08a0b4d72fef431720e4c4f11a5eac82fc70a3c216c84ed883ac20b"
+    },
+    "mpvqt_runtime": {
+      "bytes": 85504,
+      "path": "C:\\tools\\mpvqt-feasibility\\mpvqt-msvc-install\\bin\\MpvQt.dll",
+      "sha256": "80ab26830d418381ab5812a48c906c05554bf5ad0342e74cef7d8917dcc5b8eb"
+    },
+    "mpvqt_version_config": {
+      "bytes": 1904,
+      "path": "C:\\tools\\mpvqt-feasibility\\mpvqt-msvc-install\\lib\\cmake\\MpvQt\\MpvQtConfigVersion.cmake",
+      "sha256": "e3d8da7456202c49fcc0a5a09f5b3d7f0c71afc78b50ba5960610b15488e50ed"
+    },
+    "msvc_compiler": {
+      "bytes": 677736,
+      "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+      "sha256": "7a154e5136cc538b42e6944997fc5e3bb49112894e41dd88a70940aaff9aa831"
+    },
+    "ninja": {
+      "bytes": 3466696,
+      "path": "C:\\Qt\\Tools\\Ninja\\ninja.exe",
+      "sha256": "5020138b3757035df9dca9a2243624d5810ffa6ae24444bd95f752cbd1b89123"
+    },
+    "openssl_crypto_library": {
+      "bytes": 53714296,
+      "path": "C:\\tools\\openssl-msvc\\lib\\libcrypto.lib",
+      "sha256": "857be3bd43ae454d21aae9c904c8c2a400325565fd7255234b1aa17e98b4c0bc"
+    },
+    "openssl_ssl_library": {
+      "bytes": 10711686,
+      "path": "C:\\tools\\openssl-msvc\\lib\\libssl.lib",
+      "sha256": "419c6df2e6ca3bde4aa54991429012e300ed3e9f77b65b1bff7d5e41da712245"
+    },
+    "openssl_version_header": {
+      "bytes": 3578,
+      "path": "C:\\tools\\openssl-msvc\\include\\openssl\\opensslv.h",
+      "sha256": "3fde0187f84a1afd5d38f7a396a1c07920dd1a0381c12b85db23adcecd0a0def"
+    },
+    "qt6_config": {
+      "bytes": 13545,
+      "path": "C:\\Qt\\6.11.1\\msvc2022_64\\lib\\cmake\\Qt6\\Qt6Config.cmake",
+      "sha256": "3805b174b21bf10c476514cd6b082056002a7380be2e02515e8ca867f445246d"
+    },
+    "vcvars64": {
+      "bytes": 39,
+      "path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat",
+      "sha256": "6b516d8fcf543c14b2d861e1f45661e0029230fe0dc48e86ce78522801822209"
+    }
+  },
+  "schema": "colosseum-server01-toolchain-receipt/v1"
+}

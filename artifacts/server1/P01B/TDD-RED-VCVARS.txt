@@ -1,0 +1,23 @@
+test_ctest_listing_does_not_call_omitted_playback_a_pass (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_ctest_listing_does_not_call_omitted_playback_a_pass) ... ok
+test_installed_windows_toolchain_resolves_from_frozen_paths (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_installed_windows_toolchain_resolves_from_frozen_paths) ... ok
+test_missing_tool_is_preserved_as_bounded_command_failure (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_missing_tool_is_preserved_as_bounded_command_failure) ... ok
+test_required_closure_refuses_reduced_snapshot (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_required_closure_refuses_reduced_snapshot) ... ok
+test_source_receipt_keeps_exact_revision_and_object_identity (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_source_receipt_keeps_exact_revision_and_object_identity) ... ok
+test_vcvars_capture_produces_x64_msvc_environment (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_vcvars_capture_produces_x64_msvc_environment) ... ERROR
+
+======================================================================
+ERROR: test_vcvars_capture_produces_x64_msvc_environment (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_vcvars_capture_produces_x64_msvc_environment)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P01B-A\artifacts\server1\P01B\test_colosseum01.py", line 79, in test_vcvars_capture_produces_x64_msvc_environment
+    environment = colosseum01._msvc_environment(Path(toolchain["vcvars64"]))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P01B-A\tools\server_lab\adapters\colosseum01.py", line 103, in _msvc_environment
+    raise RuntimeError(
+RuntimeError: vcvars64 failed with exit 1: '\"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat\"' is not recognized as an internal or external command,
+operable program or batch file.
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.043s
+
+FAILED (errors=1)

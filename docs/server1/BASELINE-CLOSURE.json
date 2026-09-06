@@ -27,6 +27,20 @@
     "receipt": "artifacts/server1/P01B/SOURCE-RECEIPT.json",
     "path_manifest": "artifacts/server1/P01B/CLOSURE-PATHS.json"
   },
+  "toolchain": {
+    "resolution": "deterministic installed Windows paths; no PATH discovery",
+    "cmake": "C:/Qt/Tools/CMake_64/bin/cmake.exe",
+    "ctest": "C:/Qt/Tools/CMake_64/bin/ctest.exe",
+    "ninja": "C:/Qt/Tools/Ninja/ninja.exe",
+    "msvc_environment": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat",
+    "qt_prefix": "C:/Qt/6.11.1/msvc2022_64",
+    "libtorrent_prefix": "C:/tools/libtorrent-2.0-msvc",
+    "boost_prefix": "C:/tools/boost-1.90.0",
+    "openssl_prefix": "C:/tools/openssl-msvc",
+    "mpvqt_prefix": "C:/tools/mpvqt-feasibility/mpvqt-msvc-install",
+    "libmpv_prefix": "C:/tools/mpvqt-feasibility/libmpv-prefix",
+    "identity_receipt": "artifacts/server1/P01B/TOOLCHAIN-RECEIPT.json"
+  },
   "recovered_dependency_inputs": {
     "native/third_party/miniz/miniz.c": {
       "bytes": 330382,
@@ -82,12 +96,15 @@
     },
     "P01B-02": {
       "state": "PASS",
-      "evidence": "all recovered inputs were materialized from the exact source revision and SHA-256 recorded separately",
-      "artifact": "artifacts/server1/P01B/SOURCE-RECEIPT.json"
+      "evidence": "all recovered inputs came from the exact source revision; installed Qt, MSVC, libtorrent, Boost, OpenSSL, MpvQt, and libmpv inputs are fixed-path and SHA-256 identified",
+      "artifacts": [
+        "artifacts/server1/P01B/SOURCE-RECEIPT.json",
+        "artifacts/server1/P01B/TOOLCHAIN-RECEIPT.json"
+      ]
     },
     "P01B-03": {
       "state": "BASELINE_UNAVAILABLE",
-      "evidence": "configure could not start because cmake was not found on PATH; exit 127; ctest -N and runtime_mpv_playback_test were not run",
+      "evidence": "configure exit 0; build exit 0; ctest -N exit 0 listed 16 tests including runtime_mpv_playback_test; exact playback test failed exit 8 with FAIL:mpv did not load the native torrent URL",
       "artifacts": [
         "artifacts/server1/P01B/CONFIGURE.txt",
         "artifacts/server1/P01B/BUILD.txt",

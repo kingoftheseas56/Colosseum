@@ -1,0 +1,19 @@
+test_ctest_listing_does_not_call_omitted_playback_a_pass (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_ctest_listing_does_not_call_omitted_playback_a_pass) ... ok
+test_installed_windows_toolchain_resolves_from_frozen_paths (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_installed_windows_toolchain_resolves_from_frozen_paths) ... ERROR
+test_missing_tool_is_preserved_as_bounded_command_failure (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_missing_tool_is_preserved_as_bounded_command_failure) ... ok
+test_required_closure_refuses_reduced_snapshot (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_required_closure_refuses_reduced_snapshot) ... ok
+test_source_receipt_keeps_exact_revision_and_object_identity (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_source_receipt_keeps_exact_revision_and_object_identity) ... ok
+
+======================================================================
+ERROR: test_installed_windows_toolchain_resolves_from_frozen_paths (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_installed_windows_toolchain_resolves_from_frozen_paths)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P01B-A\artifacts\server1\P01B\test_colosseum01.py", line 57, in test_installed_windows_toolchain_resolves_from_frozen_paths
+    toolchain = colosseum01.resolve_toolchain()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'colosseum01' has no attribute 'resolve_toolchain'
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.040s
+
+FAILED (errors=1)
