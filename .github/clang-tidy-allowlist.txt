@@ -7,5 +7,5 @@ native/engine/ComicDownloader.cpp|1511|clang-analyzer-cplusplus.NewDeleteLeaks|P
 native/engine/MangaDownloader.cpp|455|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
 native/engine/MangaDownloader.cpp|512|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'scope'
 native/engine/MangaDownloader.cpp|935|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'
-native/engine/TankoyomiChapterService.cpp|196|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'scope'
+native/engine/TankoyomiChapterService.cpp|214|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'scope'
 native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks|Potential leak of memory pointed to by 'watcher'

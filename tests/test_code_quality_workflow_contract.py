@@ -69,7 +69,7 @@ class CodeQualityWorkflowContract(unittest.TestCase):
                 "native/engine/MangaDownloader.cpp|455|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/MangaDownloader.cpp|512|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/MangaDownloader.cpp|935|clang-analyzer-cplusplus.NewDeleteLeaks",
-                "native/engine/TankoyomiChapterService.cpp|196|clang-analyzer-cplusplus.NewDeleteLeaks",
+                "native/engine/TankoyomiChapterService.cpp|214|clang-analyzer-cplusplus.NewDeleteLeaks",
                 "native/engine/MangaVolumeArchiveIngestor.cpp|268|clang-analyzer-cplusplus.NewDeleteLeaks"):
             self.assertIn(ownership_false_positive, allowlist)
 

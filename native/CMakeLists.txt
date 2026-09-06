@@ -1606,6 +1606,8 @@ add_executable(manga_downloader_cancel_harness
     engine/MangaImageHostResolver.h
     engine/TankoyomiChapterService.cpp
     engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
     engine/TankoyomiIdentity.cpp
     engine/TankoyomiIdentity.h
     engine/TankoyomiProviderRegistry.cpp
