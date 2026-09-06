@@ -62,6 +62,8 @@ struct ProbeState {
     std::atomic<bool> commandIssued{false};
     std::atomic<bool> commandQueued{false};
     std::atomic<bool> commandIssuedAfterBothAdvertised{false};
+    std::atomic<bool> exactCommandPermit{false};
+    std::atomic<bool> ownedExactAwaitingSent{false};
     std::atomic<bool> exactWire{false};
     std::atomic<bool> pieceReceived{false};
     std::atomic<bool> pieceAccepted{false};
@@ -72,6 +74,8 @@ struct ProbeState {
     std::atomic<int> wireRequests{0};
     std::atomic<int> exactA{0};
     std::atomic<int> exactB{0};
+    std::atomic<int> preCommandExactB{0};
+    std::atomic<int> postCommandExactB{0};
     std::atomic<int> suppressedUnowned{0};
     std::mutex commandMutex;
     std::weak_ptr<lt::peer_connection> bConnection;
@@ -141,10 +145,13 @@ public:
             return;
         }
 
+        state_->exactCommandPermit.store(true);
+        state_->log("COMMAND target=B piece=0 offset=0 length=16384 after_both_advertised=1 ownership_armed=1");
         const bool queued = native->add_request(lt::piece_block{lt::piece_index_t(0), 0});
         state_->commandQueued.store(queued);
         state_->commandIssuedAfterBothAdvertised.store(true);
-        state_->log(std::string("COMMAND target=B piece=0 offset=0 length=16384 after_both_advertised=1 queued=")
+        if (!queued) state_->exactCommandPermit.store(false);
+        state_->log(std::string("COMMAND_QUEUE target=B queued=")
             + (queued ? "1" : "0"));
         native->send_block_requests();
     }
@@ -152,7 +159,14 @@ public:
     bool write_request(lt::peer_request const& request) override
     {
         if (!state_->suppressPicker) return false;
-        if (selected_ && isExact(request)) return false;
+        if (selected_ && isExact(request)) {
+            bool permit = true;
+            if (state_->exactCommandPermit.compare_exchange_strong(permit, false)) {
+                state_->ownedExactAwaitingSent.store(true);
+                state_->log("ALLOW_OWNED peer=B piece=0 offset=0 length=16384");
+                return false;
+            }
+        }
 
         ++state_->suppressedUnowned;
         state_->log(std::string("SUPPRESS peer=") + (selected_ ? "B" : "A")
@@ -165,10 +179,17 @@ public:
     void sent_request(lt::peer_request const& request) override
     {
         ++state_->wireRequests;
+        bool ownedExactB = false;
         if (isExact(request)) {
             if (selected_) {
                 ++state_->exactB;
-                state_->exactWire.store(true);
+                ownedExactB = state_->ownedExactAwaitingSent.exchange(false);
+                if (ownedExactB) {
+                    ++state_->postCommandExactB;
+                    state_->exactWire.store(true);
+                } else {
+                    ++state_->preCommandExactB;
+                }
             } else {
                 ++state_->exactA;
             }
@@ -176,7 +197,8 @@ public:
         state_->log(std::string("WIRE peer=") + (selected_ ? "B" : "A")
             + " piece=" + std::to_string(int(request.piece))
             + " offset=" + std::to_string(request.start)
-            + " length=" + std::to_string(request.length));
+            + " length=" + std::to_string(request.length)
+            + " ownership=" + (ownedExactB ? "command" : "unowned"));
     }
 
     bool on_piece(lt::peer_request const& request, lt::span<char const>) override
@@ -278,6 +300,8 @@ struct PhaseResult {
     int wireRequests;
     int exactA;
     int exactB;
+    int preCommandExactB;
+    int postCommandExactB;
     int suppressedUnowned;
     bool destroyedWithOutstanding;
     bool postDestroyProcessAlive;
@@ -397,6 +421,8 @@ PhaseResult runPhase(fs::path const& control, std::string phase, int aPort, int 
         state->wireRequests.load(),
         state->exactA.load(),
         state->exactB.load(),
+        state->preCommandExactB.load(),
+        state->postCommandExactB.load(),
         state->suppressedUnowned.load(),
         destroyedWithOutstanding,
         postDestroyProcessAlive
@@ -441,6 +467,10 @@ void writeResult(fs::path const& control, PhaseResult const& normal, PhaseResult
 {
     const int controlledUnowned = controlledA.requests + controlledB.requests - controlledB.exact;
     const int lifecycleReplayed = std::max(0, lifecycleB.requests - 1) + lifecycleA.requests;
+    const int controlledPeerRequests = controlledA.requests + controlledB.requests;
+    const int lifecyclePeerRequests = lifecycleA.requests + lifecycleB.requests;
+    const bool controlledCountsMatch = controlled.wireRequests == controlledPeerRequests;
+    const bool lifecycleCountsMatch = lifecycle.wireRequests == lifecyclePeerRequests;
     const bool pickerAvailable = normalA.requests + normalB.requests > 0;
     const bool bothControlledPeersReady = controlled.validHandshakesA > 0 && controlled.validHandshakesB > 0
         && controlled.advertisedA && controlled.advertisedB
@@ -448,6 +478,8 @@ void writeResult(fs::path const& control, PhaseResult const& normal, PhaseResult
         && controlledA.advertisements > 0 && controlledB.advertisements > 0;
     const bool case01 = bothControlledPeersReady && controlled.commandIssuedAfterBothAdvertised
         && controlled.commandQueued && controlled.pieceReceived && controlled.pieceAccepted
+        && controlled.preCommandExactB == 0 && controlled.postCommandExactB == 1
+        && controlled.wireRequests == 1 && controlledPeerRequests == 1 && controlledCountsMatch
         && controlledB.exact == 1 && controlledA.exact == 0;
     const bool case02 = pickerAvailable && controlled.pieceReceived && controlled.pieceAccepted
         && controlled.suppressedUnowned > 0 && controlledUnowned == 0;
@@ -456,6 +488,8 @@ void writeResult(fs::path const& control, PhaseResult const& normal, PhaseResult
         && lifecycleA.handshakes > 0 && lifecycleB.handshakes > 0;
     const bool case03 = lifecycle.destroyedWithOutstanding && lifecycle.postDestroyProcessAlive
         && lifecycle.commandIssuedAfterBothAdvertised && lifecycle.advertisedA && lifecycle.advertisedB
+        && lifecycle.preCommandExactB == 0 && lifecycle.postCommandExactB == 1
+        && lifecycle.wireRequests == 1 && lifecyclePeerRequests == 1 && lifecycleCountsMatch
         && lifecycleB.exact == 1 && lifecycleA.requests == 0 && lifecycleReplayed == 0
         && lifecycleB.lateAfterRelease > 0 && lifecycleB.releaseObserved > 0
         && noOrphaned;
@@ -466,9 +500,9 @@ void writeResult(fs::path const& control, PhaseResult const& normal, PhaseResult
            << "  \"source_tuples\": {\"M814\": {\"lines\": \"72439-72764\", \"sha256\": \"05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e\"}, \"M851\": {\"lines\": \"74856-74884\", \"sha256\": \"2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041\"}, \"oracle_sha256\": \"405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f\"},\n"
            << "  \"source_identity\": {\"source\": \"artifacts/server1/P08A/probe-src/exact_block_probe.cpp\", \"public_api_attempt\": \"torrent_handle::set_piece_deadline(piece)\", \"internal_control\": \"peer_connection::add_request(piece_block) + send_block_requests()\", \"session_option\": \"settings_pack::allow_multiple_connections_per_ip=true (probe-local)\"},\n"
            << "  \"control_phase\": {\"state\": \"" << (pickerAvailable ? "PASS" : "FAIL") << "\", \"wire_requests\": " << normalA.requests + normalB.requests << "},\n"
-           << "  \"case_01\": {\"state\": \"" << (case01 ? "PASS" : "FAIL") << "\", \"commanded_response_received_and_accepted\": " << ((controlled.pieceReceived && controlled.pieceAccepted) ? "true" : "false") << ", \"command_issued_after_both_peers_advertised\": " << (controlled.commandIssuedAfterBothAdvertised ? "true" : "false") << ", \"peer_a_valid_handshakes\": " << controlledA.handshakes << ", \"peer_b_valid_handshakes\": " << controlledB.handshakes << ", \"peer_a_piece_advertisements\": " << controlledA.advertisements << ", \"peer_b_piece_advertisements\": " << controlledB.advertisements << ", \"peer_b_exact_requests\": " << controlledB.exact << ", \"peer_a_exact_requests\": " << controlledA.exact << "},\n"
+           << "  \"case_01\": {\"state\": \"" << (case01 ? "PASS" : "FAIL") << "\", \"commanded_response_received_and_accepted\": " << ((controlled.pieceReceived && controlled.pieceAccepted) ? "true" : "false") << ", \"command_issued_after_both_peers_advertised\": " << (controlled.commandIssuedAfterBothAdvertised ? "true" : "false") << ", \"peer_a_valid_handshakes\": " << controlledA.handshakes << ", \"peer_b_valid_handshakes\": " << controlledB.handshakes << ", \"peer_a_piece_advertisements\": " << controlledA.advertisements << ", \"peer_b_piece_advertisements\": " << controlledB.advertisements << ", \"plugin_sent_requests\": " << controlled.wireRequests << ", \"peer_observed_requests\": " << controlledPeerRequests << ", \"plugin_peer_request_counts_match\": " << (controlledCountsMatch ? "true" : "false") << ", \"plugin_pre_command_exact_b_requests\": " << controlled.preCommandExactB << ", \"plugin_post_command_exact_b_requests\": " << controlled.postCommandExactB << ", \"peer_b_exact_requests\": " << controlledB.exact << ", \"peer_a_exact_requests\": " << controlledA.exact << "},\n"
            << "  \"case_02\": {\"state\": \"" << (case02 ? "PASS" : "FAIL") << "\", \"ordinary_picker_available\": " << (pickerAvailable ? "true" : "false") << ", \"control_phase_wire_requests\": " << normalA.requests + normalB.requests << ", \"controlled_suppressed_picker_attempts\": " << controlled.suppressedUnowned << ", \"controlled_phase_wire_requests\": " << controlledA.requests + controlledB.requests << ", \"unowned_wire_requests\": " << controlledUnowned << "},\n"
-           << "  \"case_03\": {\"state\": \"" << (case03 ? "PASS" : "FAIL") << "\", \"destroyed_with_outstanding\": " << (lifecycle.destroyedWithOutstanding ? "true" : "false") << ", \"post_destroy_process_alive\": " << (lifecycle.postDestroyProcessAlive ? "true" : "false") << ", \"late_peer_event_after_destroy\": " << ((lifecycleB.lateAfterRelease > 0 && lifecycleB.releaseObserved > 0) ? "true" : "false") << ", \"replayed_or_second_requests\": " << lifecycleReplayed << ", \"peer_a_valid_handshakes\": " << lifecycleA.handshakes << ", \"peer_b_valid_handshakes\": " << lifecycleB.handshakes << ", \"connected_peer_handshakes\": " << lifecycleA.handshakes + lifecycleB.handshakes << ", \"client_disconnects\": " << lifecycleA.disconnected + lifecycleB.disconnected << ", \"no_orphaned_client_connections\": " << (noOrphaned ? "true" : "false") << "},\n"
+           << "  \"case_03\": {\"state\": \"" << (case03 ? "PASS" : "FAIL") << "\", \"destroyed_with_outstanding\": " << (lifecycle.destroyedWithOutstanding ? "true" : "false") << ", \"post_destroy_process_alive\": " << (lifecycle.postDestroyProcessAlive ? "true" : "false") << ", \"late_peer_event_after_destroy\": " << ((lifecycleB.lateAfterRelease > 0 && lifecycleB.releaseObserved > 0) ? "true" : "false") << ", \"replayed_or_second_requests\": " << lifecycleReplayed << ", \"plugin_sent_requests\": " << lifecycle.wireRequests << ", \"peer_observed_requests\": " << lifecyclePeerRequests << ", \"plugin_peer_request_counts_match\": " << (lifecycleCountsMatch ? "true" : "false") << ", \"plugin_pre_command_exact_b_requests\": " << lifecycle.preCommandExactB << ", \"plugin_post_command_exact_b_requests\": " << lifecycle.postCommandExactB << ", \"peer_a_valid_handshakes\": " << lifecycleA.handshakes << ", \"peer_b_valid_handshakes\": " << lifecycleB.handshakes << ", \"connected_peer_handshakes\": " << lifecycleA.handshakes + lifecycleB.handshakes << ", \"client_disconnects\": " << lifecycleA.disconnected + lifecycleB.disconnected << ", \"no_orphaned_client_connections\": " << (noOrphaned ? "true" : "false") << "},\n"
            << "  \"seam_classification\": \"version-specific internal header access\",\n"
            << "  \"interface_statement\": \"No production interface changed; this is a disposable feasibility probe.\",\n"
            << "  \"wiring_request\": \"No production wiring requested; P08A remains a feasibility result.\"\n"

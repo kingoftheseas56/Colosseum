@@ -1,0 +1,22 @@
+phase=controlled SAVE_PATH C:\b\Colosseum-Server-1.0-workers\P08A-A\artifacts\server1\P08A\raw\run-20260907-045310022\control\download-controlled
+phase=controlled CONNECT_REQUEST peer=A port=49103
+phase=controlled CONNECT_REQUEST peer=B port=49104
+phase=controlled CONNECT peer=A endpoint=127.0.0.1:49103
+phase=controlled CONNECT peer=B endpoint=127.0.0.1:49104
+phase=controlled CONNECT peer=A endpoint=127.0.0.1:49103
+phase=controlled CONNECT peer=B endpoint=127.0.0.1:49104
+phase=controlled CONNECTED peer=A
+phase=controlled CONNECTED peer=B
+phase=controlled HANDSHAKE_VALID peer=A
+phase=controlled HANDSHAKE_VALID peer=B
+phase=controlled ADVERTISE peer=A piece=0
+phase=controlled SUPPRESS peer=A piece=0 offset=0 length=16384
+phase=controlled SUPPRESS peer=A piece=1 offset=0 length=16384
+phase=controlled ADVERTISE peer=B piece=0
+phase=controlled COMMAND target=B piece=0 offset=0 length=16384 after_both_advertised=1 ownership_armed=1
+phase=controlled COMMAND_QUEUE target=B queued=1
+phase=controlled ALLOW_OWNED peer=B piece=0 offset=0 length=16384
+phase=controlled WIRE peer=B piece=0 offset=0 length=16384 ownership=command
+phase=controlled PIECE_RECEIVED peer=B piece=0 offset=0 length=16384
+phase=controlled SUPPRESS peer=B piece=1 offset=0 length=16384
+phase=controlled PIECE_ACCEPTED num_pieces=1

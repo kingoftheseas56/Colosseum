@@ -1,0 +1,7 @@
+Astra rereview RED source: commit 4b2880baa49cb42497c34c350517b89ff621d109
+Committed lifecycle transcript evidence: WIRE B exact at line 13, COMMAND at line 16, WIRE B exact at line 18.
+
+RED command:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
+Exit: 1
+Observed failure: controlled phase machine-readable ownership/accounting failed

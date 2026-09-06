@@ -100,6 +100,40 @@ finally {
 if ($probeExit -ne 0) { throw "probe failed with exit $probeExit" }
 $resultPath = Join-Path $control 'result.json'
 $result = Get-Content -Raw $resultPath | ConvertFrom-Json
+
+function Assert-OwnedExactWireOrder {
+    param(
+        [Parameter(Mandatory = $true)][string]$PhaseName,
+        [Parameter(Mandatory = $true)][string]$TranscriptPath,
+        [Parameter(Mandatory = $true)][string]$PeerALog,
+        [Parameter(Mandatory = $true)][string]$PeerBLog
+    )
+    $lines = Get-Content -LiteralPath $TranscriptPath
+    $commandLine = (Select-String -LiteralPath $TranscriptPath -SimpleMatch 'COMMAND target=B piece=0 offset=0 length=16384' | Select-Object -First 1).LineNumber
+    $exactPluginLines = @(Select-String -LiteralPath $TranscriptPath -SimpleMatch 'WIRE peer=B piece=0 offset=0 length=16384')
+    $pluginWireCount = @(Select-String -LiteralPath $TranscriptPath -SimpleMatch ' WIRE peer=').Count
+    $peerARequestCount = @(Select-String -LiteralPath $PeerALog -Pattern '^REQUEST ').Count
+    $peerBRequestCount = @(Select-String -LiteralPath $PeerBLog -Pattern '^REQUEST ').Count
+    if ($null -eq $commandLine) { throw "$PhaseName command evidence is missing" }
+    $preCommandExact = @($exactPluginLines | Where-Object { $_.LineNumber -lt $commandLine }).Count
+    $postCommandExact = @($exactPluginLines | Where-Object { $_.LineNumber -gt $commandLine }).Count
+    if ($preCommandExact -ne 0) { throw "$PhaseName emitted $preCommandExact exact B request(s) before command ownership" }
+    if ($postCommandExact -ne 1) { throw "$PhaseName emitted $postCommandExact post-command exact B request(s), expected 1" }
+    if ($peerARequestCount -ne 0 -or $peerBRequestCount -ne 1) {
+        throw "$PhaseName peer ledger mismatch: A=$peerARequestCount B=$peerBRequestCount"
+    }
+    if ($pluginWireCount -ne ($peerARequestCount + $peerBRequestCount)) {
+        throw "$PhaseName plugin/peer request counts differ: plugin=$pluginWireCount peer=$($peerARequestCount + $peerBRequestCount)"
+    }
+}
+
+Assert-OwnedExactWireOrder -PhaseName 'controlled' `
+    -TranscriptPath (Join-Path $control 'lifecycle-controlled.transcript') `
+    -PeerALog $controlledLogA -PeerBLog $controlledLogB
+Assert-OwnedExactWireOrder -PhaseName 'lifecycle' `
+    -TranscriptPath (Join-Path $control 'lifecycle-lifecycle.transcript') `
+    -PeerALog $lifecycleLogA -PeerBLog $lifecycleLogB
+
 $controlledTranscriptPath = Join-Path $control 'lifecycle-controlled.transcript'
 $handshakeALine = (Select-String -LiteralPath $controlledTranscriptPath -SimpleMatch 'HANDSHAKE_VALID peer=A' | Select-Object -First 1).LineNumber
 $handshakeBLine = (Select-String -LiteralPath $controlledTranscriptPath -SimpleMatch 'HANDSHAKE_VALID peer=B' | Select-Object -First 1).LineNumber
@@ -151,7 +185,19 @@ if (-not $result.case_03.no_orphaned_client_connections) { throw 'lifecycle left
 if ($result.case_03.peer_a_valid_handshakes -lt 1 -or $result.case_03.peer_b_valid_handshakes -lt 1) {
     throw 'lifecycle phase did not connect both peers'
 }
+if (-not $result.case_01.plugin_peer_request_counts_match -or
+    $result.case_01.plugin_pre_command_exact_b_requests -ne 0 -or
+    $result.case_01.plugin_post_command_exact_b_requests -ne 1 -or
+    $result.case_01.peer_observed_requests -ne 1) {
+    throw 'controlled phase machine-readable ownership/accounting failed'
+}
+if (-not $result.case_03.plugin_peer_request_counts_match -or
+    $result.case_03.plugin_pre_command_exact_b_requests -ne 0 -or
+    $result.case_03.plugin_post_command_exact_b_requests -ne 1 -or
+    $result.case_03.peer_observed_requests -ne 1) {
+    throw 'lifecycle phase machine-readable ownership/accounting failed'
+}
 if ($result.dependency.probe_executable_sha256 -ne $probeSha256) {
     throw 'result is not bound to the executable used for this run'
 }
-Write-Output "GREEN PASS: $($result.seam_classification); controlled_handshakes=A$($result.case_01.peer_a_valid_handshakes)/B$($result.case_01.peer_b_valid_handshakes); both_advertised_before_command=$($result.case_01.command_issued_after_both_peers_advertised); control_picker_requests=$($result.case_02.control_phase_wire_requests); controlled_suppressed=$($result.case_02.controlled_suppressed_picker_attempts); controlled_B_exact=$($result.case_01.peer_b_exact_requests); controlled_A_exact=$($result.case_01.peer_a_exact_requests); controlled_unowned=$($result.case_02.unowned_wire_requests); lifecycle_handshakes=$($result.case_03.connected_peer_handshakes); lifecycle_replayed=$($result.case_03.replayed_or_second_requests)"
+Write-Output "GREEN PASS: $($result.seam_classification); controlled_handshakes=A$($result.case_01.peer_a_valid_handshakes)/B$($result.case_01.peer_b_valid_handshakes); both_advertised_before_command=$($result.case_01.command_issued_after_both_peers_advertised); control_picker_requests=$($result.case_02.control_phase_wire_requests); controlled_suppressed=$($result.case_02.controlled_suppressed_picker_attempts); controlled_plugin_peer=$($result.case_01.plugin_sent_requests)/$($result.case_01.peer_observed_requests); controlled_pre/post=$($result.case_01.plugin_pre_command_exact_b_requests)/$($result.case_01.plugin_post_command_exact_b_requests); controlled_unowned=$($result.case_02.unowned_wire_requests); lifecycle_plugin_peer=$($result.case_03.plugin_sent_requests)/$($result.case_03.peer_observed_requests); lifecycle_pre/post=$($result.case_03.plugin_pre_command_exact_b_requests)/$($result.case_03.plugin_post_command_exact_b_requests); lifecycle_replayed=$($result.case_03.replayed_or_second_requests)"

@@ -1,11 +1,11 @@
 Fresh compile/link exit: 0
 Fresh compile/link output: exact_block_probe.cpp
-Probe executable SHA-256: cc3db4d36a81606258d9c3360aad59ded32e78c7f043eaa70b846e85d82fd621
+Probe executable SHA-256: a2163855edfd2f49d831d1219536b5924f4d8474ecccecaba260fb8cff04a863
 
 Focused wire-drain test: PASS; 2 request frames logged before delayed responses.
 
-Run run-20260907-043829165 exit: 0
-GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=3; controlled_suppressed=3; controlled_B_exact=1; controlled_A_exact=0; controlled_unowned=0; lifecycle_handshakes=2; lifecycle_replayed=0
+Run run-20260907-045243421 exit: 0
+GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=3; controlled_suppressed=3; controlled_plugin_peer=1/1; controlled_pre/post=0/1; controlled_unowned=0; lifecycle_plugin_peer=1/1; lifecycle_pre/post=0/1; lifecycle_replayed=0
 
-Run run-20260907-043854070 exit: 0
-GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=3; controlled_suppressed=3; controlled_B_exact=1; controlled_A_exact=0; controlled_unowned=0; lifecycle_handshakes=2; lifecycle_replayed=0
+Run run-20260907-045310022 exit: 0
+GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=3; controlled_suppressed=3; controlled_plugin_peer=1/1; controlled_pre/post=0/1; controlled_unowned=0; lifecycle_plugin_peer=1/1; lifecycle_pre/post=0/1; lifecycle_replayed=0
