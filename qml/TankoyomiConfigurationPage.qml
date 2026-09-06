@@ -237,13 +237,19 @@ Item {
                         id: headerColumn
                         width: parent.width
                         spacing: 0
-                        Text { text: "COLOSSEUM · STORE · CONFIGURATION"; color: theme.inkDimmer
-                               font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
+                        Text { id: breadcrumb; objectName: "tankoyomiBreadcrumb"; width: parent.width
+                               text: "COLOSSEUM · STORE · CONFIGURATION"; color: theme.inkDimmer
+                               font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold
+                               elide: Text.ElideRight; maximumLineCount: 1 }
                         Row {
-                            spacing: 16
+                            id: brandRow
+                            width: parent.width
+                            spacing: configurationHeader.compact ? 8 : 16
                             topPadding: 8
                             Item {
-                                width: 58; height: 58
+                                id: logoBox
+                                width: configurationHeader.compact ? 42 : 58
+                                height: width
                                 Accessible.role: Accessible.Graphic
                                 Accessible.name: "Tankoyomi logo"
                                 Rectangle { anchors.fill: parent; radius: 14; color: Qt.rgba(1,1,1,0.06)
@@ -265,8 +271,13 @@ Item {
                                     Accessible.ignored: true
                                 }
                             }
-                            Text { text: "Tankoyomi"; color: theme.ink; anchors.verticalCenter: parent.verticalCenter
-                                   font.family: theme.display; font.pixelSize: 48; font.letterSpacing: -1 }
+                            Text { id: tankoyomiTitle; objectName: "tankoyomiTitle"
+                                   width: Math.max(0, brandRow.width - logoBox.width - brandRow.spacing)
+                                   text: "Tankoyomi"; color: theme.ink; anchors.verticalCenter: parent.verticalCenter
+                                   font.family: theme.display; font.pixelSize: configurationHeader.compact ? 32 : 48; font.letterSpacing: -1
+                                   fontSizeMode: configurationHeader.compact ? Text.HorizontalFit : Text.FixedSize
+                                   minimumPixelSize: configurationHeader.compact ? 20 : 0
+                                   elide: Text.ElideRight; maximumLineCount: 1 }
                         }
                         Item { width: 1; height: 18 }
                         Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
@@ -554,7 +565,11 @@ Item {
                                         Column { id: providerInfo; objectName: "tankoyomiProviderInfo_" + providerRow.providerId
                                             width: Math.max(0, parent.width - (providerRow.compact ? 24 : 38) - (providerRow.compact ? 32 : 42) - (providerRow.compact ? 92 : 120) - (providerRow.compact ? 16 : 36)); anchors.verticalCenter: parent.verticalCenter; spacing: 5
                                             Row { width: parent.width; spacing: 8
-                                                Text { width: detailPanel.width < 600 ? parent.width : implicitWidth
+                                                TextMetrics { id: providerNameMetrics
+                                                              text: providerRow.modelData.name || providerRow.providerId
+                                                              font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                                Text { id: providerName; objectName: "tankoyomiProviderName_" + providerRow.providerId
+                                                       width: detailPanel.width < 600 ? parent.width : Math.min(providerNameMetrics.width, parent.width)
                                                        elide: Text.ElideRight
                                                        text: providerRow.modelData.name || providerRow.providerId; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                                                 Text { visible: detailPanel.width >= 600
