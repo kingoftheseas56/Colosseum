@@ -75,19 +75,22 @@ Item {
         property bool nyaaEnabled: false
         property bool tankoyomiEnabled: false
         property int revision: 0
+        signal changed()
         function installed() {
             return [
                 { "id": "colosseum.well.nyaa", "enabled": nyaaEnabled },
                 { "id": "colosseum.well.tankoyomi", "enabled": tankoyomiEnabled }
             ]
         }
-        function setTankoyomiEnabled(v) { tankoyomiEnabled = v; revision += 1 }
+        function setTankoyomiEnabled(v) { tankoyomiEnabled = v; revision += 1; changed() }
     }
 
     component FakeMangaEngine: QtObject {
         property int catalogueCalls: 0
         property string lastLanguage: ""
-        property string chapterDefaultLanguageValue: "en"
+        // Match MangaEngine's Q_PROPERTY shape. The production bridge exposes
+        // chapterDefaultLanguage as a QString property (and invokable getter).
+        property string chapterDefaultLanguage: "en"
         signal chapterConfigurationChanged()
         signal chapterCatalogueResults(string requestId, string sourceSeriesId, var rows)
         signal chapterCatalogueFailed(string requestId, string message)
@@ -101,9 +104,8 @@ Item {
                 { "code": "fr", "label": "Fran?ais", "providerCount": 4 }
             ]
         }
-        function chapterDefaultLanguage() { return chapterDefaultLanguageValue }
         function setChapterDefaultLanguage(language) {
-            chapterDefaultLanguageValue = String(language || "")
+            chapterDefaultLanguage = String(language || "")
             chapterConfigurationChanged()
         }
         function chapterCatalogueForLanguage(requestId, title, language) {
@@ -316,18 +318,38 @@ Item {
                "case6c: disabled state must name Tankoyomi honestly")
 
             fakeExtensions.setTankoyomiEnabled(true)
-            p6c._loadChapterCatalogue(true)
             ck(p6c.tankoyomiEnabled === true, "case6d: page must observe Tankoyomi enabled")
             ck(fakeMangaEngine.catalogueCalls === 1,
-               "case6d: enabling Tankoyomi must allow the Chapter Mode provider call")
+               "case6d: enabling Tankoyomi must reload the Chapter Mode provider call")
             ck(fakeMangaEngine.lastLanguage === "en",
                "case6d: enabled Tankoyomi preserves the selected language")
+
+            // ── Case 6d.1: live master disable/re-enable invalidates a stale request ──
+            var requestBeforeDisable = p6c._chapterRequestId
+            var callsBeforeDisable = fakeMangaEngine.catalogueCalls
+            fakeExtensions.setTankoyomiEnabled(false)
+            ck(p6c._chapterRequestId === "",
+               "case6d.1: disabling Tankoyomi must invalidate the active request id")
+            ck(p6c.chaptersModel.length === 0 && p6c.chapterSourceSeriesId === "",
+               "case6d.1: disabling Tankoyomi must clear stale Chapter Mode results")
+            ck(fakeMangaEngine.catalogueCalls === callsBeforeDisable,
+               "case6d.1: disabling Tankoyomi must make no provider calls")
+            fakeMangaEngine.chapterCatalogueResults(requestBeforeDisable, "stale-series",
+                                                     [{ "id": "stale-chapter" }])
+            ck(p6c.chaptersModel.length === 0 && p6c.chapterSourceSeriesId === "",
+               "case6d.1: a late pre-disable result must be ignored")
+
+            fakeExtensions.setTankoyomiEnabled(true)
+            ck(fakeMangaEngine.catalogueCalls === callsBeforeDisable + 1,
+               "case6d.1: re-enabling Tankoyomi must reload Chapter Mode")
+            ck(p6c._chapterRequestId !== "" && p6c._chapterRequestId !== requestBeforeDisable,
+               "case6d.1: re-enable must issue a fresh request id")
 
             // ── Case 6e (Task 2): Chapter Mode adopts the configured default language ──
             // A page with no explicit in-page choice must request the persisted default,
             // not the historical English literal.
             p6c._enterTankobanMode()
-            fakeMangaEngine.chapterDefaultLanguageValue = "es"
+            fakeMangaEngine.chapterDefaultLanguage = "es"
             fakeMangaEngine.catalogueCalls = 0
             var p6e = makePage("1", "Monster")
             p6e.extensionsRef = fakeExtensions
@@ -358,7 +380,7 @@ Item {
                "case6g: configuration changes still reload the explicitly selected route")
 
             // ── Case 6h: a later Chapter Mode entry uses the new default when no choice exists ──
-            fakeMangaEngine.chapterDefaultLanguageValue = "es"
+            fakeMangaEngine.chapterDefaultLanguage = "es"
             var p6h = makePage("1", "Monster")
             p6h.extensionsRef = fakeExtensions
             p6h.mangaEngineRef = fakeMangaEngine
@@ -374,7 +396,7 @@ Item {
                "case6h: the next Chapter Mode entry must see a live default change")
 
             // ── Case 6i: unsupported configured languages never silently become English ──
-            fakeMangaEngine.chapterDefaultLanguageValue = "xx"
+            fakeMangaEngine.chapterDefaultLanguage = "xx"
             fakeMangaEngine.catalogueCalls = 0
             var p6i = makePage("1", "Monster")
             p6i.extensionsRef = fakeExtensions

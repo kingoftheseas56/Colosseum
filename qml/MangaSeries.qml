@@ -48,6 +48,7 @@ Item {
     property var mangaEngineRef: (typeof Manga !== "undefined") ? Manga : null
     property var downloadsRef: (typeof Downloads !== "undefined") ? Downloads : null
     property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
+    property bool _lastTankoyomiEnabled: false
     readonly property bool tankoyomiEnabled: {
         var ext = page.extensionsRef
         if (!ext) return false
@@ -196,6 +197,14 @@ Item {
         return false
     }
 
+    function _configuredChapterLanguage() {
+        var bridge = page.mangaEngineRef
+        if (!bridge) return ""
+        var member = bridge.chapterDefaultLanguage
+        if (typeof member === "function") member = member()
+        return String(member || "").trim().toLowerCase()
+    }
+
     function _refreshChapterLanguages() {
         var rows = (page.mangaEngineRef && page.mangaEngineRef.chapterLanguages)
             ? (page.mangaEngineRef.chapterLanguages() || []) : []
@@ -205,11 +214,11 @@ Item {
         if (page._chapterLanguageExplicit)
             page._chapterLanguageExplicit = false
 
-        var hasDefaultGetter = page.mangaEngineRef
-            && page.mangaEngineRef.chapterDefaultLanguage
+        var defaultMember = page.mangaEngineRef
+            ? page.mangaEngineRef.chapterDefaultLanguage : undefined
+        var hasDefaultGetter = defaultMember !== undefined && defaultMember !== null
         if (hasDefaultGetter) {
-            var configured = String(page.mangaEngineRef.chapterDefaultLanguage() || "")
-                .trim().toLowerCase()
+            var configured = page._configuredChapterLanguage()
             // A stale/unsupported persisted value is an honest empty state. It
             // must never silently route a request through another language.
             page.selectedChapterLanguage = page._chapterLanguageAvailable(configured)
@@ -266,6 +275,25 @@ Item {
         page.chaptersLoading = true
         var title = page.sourceSearchTitle.length ? page.sourceSearchTitle : page.seriesTitle
         page.mangaEngineRef.chapterCatalogueForLanguage(page._chapterRequestId, title, page.selectedChapterLanguage)
+    }
+
+    function _handleTankoyomiEnabledChanged() {
+        var enabled = page.tankoyomiEnabled
+        if (enabled === page._lastTankoyomiEnabled) return
+        page._lastTankoyomiEnabled = enabled
+        if (!page.chapterMode) return
+
+        page._invalidateChapterRequest()
+        page._clearPendingChapterRead()
+        page.chapterSourceSeriesId = ""
+        page.chaptersModel = []
+        page.chaptersError = ""
+        if (enabled) {
+            page._loadChapterCatalogue(true)
+        } else {
+            page.chaptersLoading = false
+            page.chaptersError = "Tankoyomi is off. Enable it in Extensions to load chapters."
+        }
     }
 
     function _enterChapterMode() {
@@ -662,6 +690,12 @@ Item {
     }
 
     Connections {
+        target: page.extensionsRef
+        ignoreUnknownSignals: true
+        function onChanged() { page._handleTankoyomiEnabledChanged() }
+    }
+
+    Connections {
         target: page.downloadsRef
         ignoreUnknownSignals: true
         function onFinished(chapterId) {
@@ -737,6 +771,7 @@ Item {
 
     onSeriesTitleChanged: resolve()
     onMangaEngineRefChanged: page._refreshChapterLanguages()
+    onExtensionsRefChanged: page._lastTankoyomiEnabled = page.tankoyomiEnabled
     Component.onCompleted: {
         page._refreshChapterLanguages()
         if (seriesTitle.length) resolve()
