@@ -100,7 +100,6 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
         const QJsonArray providers = languageObject.value(QStringLiteral("providers")).toArray();
         for (const QJsonValue &providerValue : providers) {
             const QJsonObject providerObject = providerValue.toObject();
-            if (providerObject.value(QStringLiteral("enabled")).toBool(true) == false) continue;
 
             TankoyomiProviderDescriptor provider;
             provider.id = providerObject.value(QStringLiteral("id")).toString().trimmed();
@@ -108,6 +107,7 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
             provider.language = language.code;
             provider.entry = providerObject.value(QStringLiteral("entry")).toString().trimmed();
             provider.priority = providerObject.value(QStringLiteral("priority")).toInt(999);
+            provider.manifestEnabled = providerObject.value(QStringLiteral("enabled")).toBool(true);
             if (provider.id.isEmpty() || provider.name.isEmpty() || !safeEntry(provider.entry)
                 || providerIds.contains(provider.id)) {
                 m_error = QStringLiteral("Tankoyomi manifest contains an invalid or duplicate provider");
@@ -172,7 +172,6 @@ QVariantList TankoyomiProviderRegistry::languages() const
     QVariantList out;
     if (!isValid()) return out;
     for (const LanguageDescriptor &language : m_languages) {
-        if (language.providers.isEmpty()) continue;
         out.append(QVariantMap{
             {QStringLiteral("code"), language.code},
             {QStringLiteral("label"), language.label},

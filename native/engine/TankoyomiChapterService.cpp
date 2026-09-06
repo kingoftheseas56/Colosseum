@@ -9,11 +9,20 @@
 #include <memory>
 
 TankoyomiChapterService::TankoyomiChapterService(QNetworkAccessManager *nam, QObject *parent)
+    : TankoyomiChapterService(nam, nullptr, parent)
+{
+}
+
+TankoyomiChapterService::TankoyomiChapterService(
+    QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration, QObject *parent)
     : QObject(parent),
       m_registry(TankoyomiProviderRegistry::fromResource())
 {
     Q_UNUSED(nam);
     if (!m_registry.isValid()) return;
+    m_configuration = configuration;
+    if (!m_configuration)
+        m_configuration = new TankoyomiConfigurationStore(m_registry, this);
 
     const QVariantList languageRows = m_registry.languages();
     for (const QVariant &languageValue : languageRows) {
@@ -26,6 +35,13 @@ TankoyomiChapterService::TankoyomiChapterService(QNetworkAccessManager *nam, QOb
             m_providers.insert(providerKey(descriptor.language, descriptor.id), provider);
         }
     }
+}
+
+QList<TankoyomiProviderDescriptor> TankoyomiChapterService::candidateProviders(
+    const QString &language) const
+{
+    if (!m_configuration) return {};
+    return m_configuration->providersForLanguage(language);
 }
 QString TankoyomiChapterService::providerKey(const QString &language,
                                              const QString &providerId) const
@@ -49,10 +65,9 @@ void TankoyomiChapterService::fetchCatalogue(const QString &requestId,
         return;
     }
     const QString normalized = language.trimmed().isEmpty()
-        ? m_registry.defaultLanguage()
+        ? m_configuration->defaultLanguage()
         : TankoyomiProviderRegistry::normalizeLanguage(language);
-    const QList<TankoyomiProviderDescriptor> providers =
-        m_registry.providersForLanguage(normalized);
+    const QList<TankoyomiProviderDescriptor> providers = candidateProviders(normalized);
     if (providers.isEmpty()) {
         emit catalogueFailed(
             requestId,

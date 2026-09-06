@@ -312,6 +312,8 @@ add_executable(colosseum
     engine/WeebCentralScraper.h
     engine/TankoyomiChapterService.cpp
     engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
     engine/TankoyomiScriptProvider.cpp
     engine/TankoyomiScriptProvider.h
     engine/TankoyomiProviderRegistry.cpp
@@ -678,6 +680,16 @@ add_executable(tankoyomi_provider_registry_harness
     engine/TankoyomiProviderRegistry.h)
 target_include_directories(tankoyomi_provider_registry_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_provider_registry_harness PRIVATE Qt6::Core)
+
+add_executable(tankoyomi_configuration_store_harness
+    ../tests/tankoyomi_configuration_store_harness.cpp
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h)
+target_include_directories(tankoyomi_configuration_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_configuration_store_harness PRIVATE Qt6::Core)
+
 add_executable(tankoyomi_identity_harness
     ../tests/tankoyomi_identity_harness.cpp
     engine/TankoyomiIdentity.cpp
@@ -689,6 +701,8 @@ add_executable(tankoyomi_service_runtime_harness
     ../tests/tankoyomi_service_runtime_harness.cpp
     engine/TankoyomiChapterService.cpp
     engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
     engine/TankoyomiIdentity.cpp
     engine/TankoyomiIdentity.h
     engine/TankoyomiProviderRegistry.cpp
@@ -698,6 +712,25 @@ add_executable(tankoyomi_service_runtime_harness
 target_include_directories(tankoyomi_service_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_service_runtime_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 qt_add_resources(tankoyomi_service_runtime_harness "tankoyomi_service_runtime_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
+    FILES ${TANKOYOMI_RESOURCE_FILES})
+
+add_executable(tankoyomi_service_configuration_harness
+    ../tests/tankoyomi_service_configuration_harness.cpp
+    engine/TankoyomiChapterService.cpp
+    engine/TankoyomiChapterService.h
+    engine/TankoyomiConfigurationStore.cpp
+    engine/TankoyomiConfigurationStore.h
+    engine/TankoyomiIdentity.cpp
+    engine/TankoyomiIdentity.h
+    engine/TankoyomiProviderRegistry.cpp
+    engine/TankoyomiProviderRegistry.h
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h)
+target_include_directories(tankoyomi_service_configuration_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_service_configuration_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
+qt_add_resources(tankoyomi_service_configuration_harness "tankoyomi_service_configuration_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
     FILES ${TANKOYOMI_RESOURCE_FILES})

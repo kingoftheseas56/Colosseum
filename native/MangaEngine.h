@@ -29,6 +29,8 @@
 
 class MangaEngine : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString chapterDefaultLanguage READ chapterDefaultLanguage
+               NOTIFY chapterConfigurationChanged)
 public:
     explicit MangaEngine(QObject *parent = nullptr) : QObject(parent) {
         m_nam = new QNetworkAccessManager(this);
@@ -94,6 +96,11 @@ public:
                 [this](const QString &, const QVariantList &pages) { emit pagesResult(pages); });
         connect(m_tankoyomi, &TankoyomiChapterService::pagesFailed, this,
                 [this](const QString &, const QString &message) { emit engineError(message); });
+        if (m_tankoyomi->configuration()) {
+            connect(m_tankoyomi->configuration(),
+                    &TankoyomiConfigurationStore::configurationChanged,
+                    this, &MangaEngine::chapterConfigurationChanged);
+        }
     }
 
     // QML entry points. Results arrive on the matching signal (async).
@@ -105,6 +112,42 @@ public:
     // language-aware callers can opt into an explicit language.
     Q_INVOKABLE QVariantList chapterLanguages() const {
         return m_tankoyomi ? m_tankoyomi->languages() : QVariantList{};
+    }
+    Q_INVOKABLE QString chapterDefaultLanguage() const {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            ? m_tankoyomi->configuration()->defaultLanguage() : QString();
+    }
+    Q_INVOKABLE QVariantList chapterProviders(const QString &language) const {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            ? m_tankoyomi->configuration()->providers(language) : QVariantList{};
+    }
+    Q_INVOKABLE bool setChapterDefaultLanguage(const QString &language) {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->setDefaultLanguage(language);
+    }
+    Q_INVOKABLE bool setChapterProviderEnabled(const QString &language,
+                                                const QString &providerId,
+                                                bool enabled) {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->setProviderEnabled(language, providerId, enabled);
+    }
+    Q_INVOKABLE bool moveChapterProvider(const QString &language,
+                                         const QString &providerId,
+                                         int newIndex) {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->moveProvider(language, providerId, newIndex);
+    }
+    Q_INVOKABLE bool moveChapterProviderUp(const QString &language, const QString &providerId) {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->moveProviderUp(language, providerId);
+    }
+    Q_INVOKABLE bool moveChapterProviderDown(const QString &language, const QString &providerId) {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->moveProviderDown(language, providerId);
+    }
+    Q_INVOKABLE bool resetChapterProviderOrder(const QString &language) {
+        return m_tankoyomi && m_tankoyomi->configuration()
+            && m_tankoyomi->configuration()->resetProviderOrder(language);
     }
     Q_INVOKABLE void chapterCatalogue(const QString &requestId, const QString &title) {
         m_tankoyomi->fetchCatalogue(requestId, title, QStringLiteral("en"));
@@ -270,6 +313,7 @@ signals:
     void chapterCatalogueResults(const QString &requestId, const QString &sourceSeriesId,
                                  const QVariantList &chapters);
     void chapterCatalogueFailed(const QString &requestId, const QString &message);
+    void chapterConfigurationChanged();
     void pagesResult(const QVariantList &pages);
     void detailResult(const QVariantMap &detail);
     void artResult(const QVariantMap &art);
