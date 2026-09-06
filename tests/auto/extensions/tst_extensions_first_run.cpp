@@ -213,6 +213,66 @@ private slots:
                  QStringLiteral("Tankoyomi"));
     }
 
+    void existing_tankoyomi_row_refreshes_configuration_metadata()
+    {
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        int originalIndex = -1;
+        QStringList originalOrder;
+        {
+            ExtensionsStore seeded(nullptr);
+            const QVariantList before = seeded.installed();
+            for (int i = 0; i < before.size(); ++i) {
+                const QVariantMap row = before.at(i).toMap();
+                originalOrder.append(row.value(QStringLiteral("id")).toString());
+                if (row.value(QStringLiteral("id")).toString()
+                    == QStringLiteral("colosseum.well.tankoyomi")) {
+                    originalIndex = i;
+                }
+            }
+        }
+        QVERIFY(originalIndex >= 0);
+
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
+        in.close();
+        QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
+        QVERIFY(originalIndex < rows.size());
+        QJsonObject stale = rows.at(originalIndex).toObject();
+        stale.insert(QStringLiteral("enabled"), true); // explicit user choice must survive
+        QJsonObject staleManifest = stale.value(QStringLiteral("manifest")).toObject();
+        staleManifest.remove(QStringLiteral("behaviorHints"));
+        stale.insert(QStringLiteral("manifest"), staleManifest);
+        rows.replace(originalIndex, stale);
+        root.insert(QStringLiteral("defaultsVersion"), 12);
+        root.insert(QStringLiteral("extensions"), rows);
+        QFile out(path);
+        QVERIFY(out.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        out.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        out.close();
+
+        ExtensionsStore migrated(nullptr);
+        const QVariantList after = migrated.installed();
+        QCOMPARE(after.size(), originalOrder.size());
+        for (int i = 0; i < after.size(); ++i) {
+            QCOMPARE(after.at(i).toMap().value(QStringLiteral("id")).toString(), originalOrder.at(i));
+        }
+
+        const QVariantMap tankoyomi = after.at(originalIndex).toMap();
+        QCOMPARE(tankoyomi.value(QStringLiteral("id")).toString(),
+                 QStringLiteral("colosseum.well.tankoyomi"));
+        QVERIFY(tankoyomi.value(QStringLiteral("enabled")).toBool());
+        QVERIFY(tankoyomi.value(QStringLiteral("manifest")).toMap()
+                    .value(QStringLiteral("behaviorHints")).toMap()
+                    .value(QStringLiteral("configurable")).toBool());
+
+        QFile verify(path);
+        QVERIFY(verify.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 13);
+    }
+
     void configured_manifest_urls_keep_query_before_manifest_suffix()
     {
         ExtensionsStore store(nullptr);
