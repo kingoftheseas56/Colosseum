@@ -569,7 +569,7 @@ Item {
                                                               text: providerRow.modelData.name || providerRow.providerId
                                                               font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                                                 Text { id: providerName; objectName: "tankoyomiProviderName_" + providerRow.providerId
-                                                       width: detailPanel.width < 600 ? parent.width : Math.min(providerNameMetrics.width, parent.width)
+                                                       width: detailPanel.width < 600 ? parent.width : Math.min(providerNameMetrics.advanceWidth + 2, parent.width)
                                                        elide: Text.ElideRight
                                                        text: providerRow.modelData.name || providerRow.providerId; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                                                 Text { visible: detailPanel.width >= 600

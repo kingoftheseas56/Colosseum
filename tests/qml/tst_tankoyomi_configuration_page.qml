@@ -155,6 +155,14 @@ TestCase {
         compare(page.activeTab, "configuration")
     }
 
+    function test_desktop_provider_name_does_not_elide_short_label() {
+        wait(0)
+        var providerName = byName(page, "tankoyomiProviderName_es-one")
+        verify(providerName !== null)
+        compare(providerName.text, "Español One")
+        verify(!providerName.truncated)
+    }
+
     function test_minimum_supported_width_keeps_layout_inside_scroll() {
         page.width = 1024
         page.height = 640
