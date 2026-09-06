@@ -154,4 +154,39 @@ TestCase {
         page.activeTab = "configuration"
         compare(page.activeTab, "configuration")
     }
+
+    function test_minimum_supported_width_keeps_layout_inside_scroll() {
+        page.width = 1024
+        page.height = 640
+        wait(0)
+        var scroll = byName(page, "tankoyomiConfigurationScroll")
+        var languages = byName(page, "tankoyomiLanguagePanel")
+        var providers = byName(page, "tankoyomiProviderPanel")
+        var logo = byName(page, "tankoyomiLogoImage")
+        verify(scroll !== null)
+        verify(languages !== null && providers !== null)
+        verify(providers.x + providers.width <= scroll.width + 1)
+        verify(scroll.contentHeight > scroll.height)
+        verify(logo !== null && String(logo.source).indexOf("tankoyomi.png") >= 0)
+    }
+
+    function test_pip_width_stacks_panels_without_negative_geometry() {
+        page.width = 360
+        page.height = 240
+        wait(0)
+        var scroll = byName(page, "tankoyomiConfigurationScroll")
+        var languages = byName(page, "tankoyomiLanguagePanel")
+        var providers = byName(page, "tankoyomiProviderPanel")
+        var info = byName(page, "tankoyomiProviderInfo_es-one")
+        var header = byName(page, "tankoyomiConfigurationHeader")
+        var master = byName(page, "tankoyomiMasterSwitch")
+        verify(languages.width === scroll.width)
+        verify(providers.width === scroll.width)
+        verify(providers.y > languages.y + languages.height)
+        verify(info.width >= 0)
+        verify(providers.x + providers.width <= scroll.width + 1)
+        verify(header !== null && master !== null)
+        var masterPos = master.mapToItem(scroll, 0, 0)
+        verify(masterPos.x >= -1 && masterPos.x + master.width <= scroll.width + 1)
+    }
 }

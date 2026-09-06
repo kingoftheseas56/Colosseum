@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const page = fs.readFileSync('qml/TankoyomiConfigurationPage.qml', 'utf8');
 const extensions = fs.readFileSync('qml/ExtensionsPage.qml', 'utf8');
+const main = fs.readFileSync('qml/Main.qml', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('extensions/tankoyomi/manifest.json', 'utf8'));
 const store = fs.readFileSync('native/engine/ExtensionsStore.cpp', 'utf8');
 let failures = 0;
@@ -51,6 +52,17 @@ check(extensions.includes('colosseum.well.tankoyomi')
   'ExtensionsPage routes the Tankoyomi house row into the native subpage');
 check(extensions.includes('function openConfiguration'),
   'ExtensionsPage exposes a testable configuration route');
+check(/onConfigureRequested:[\s\S]{0,260}root\.openConfiguration\(entry\)/.test(extensions),
+  'ExtensionsSources routes Tankoyomi Settings into the in-app page');
+check(page.includes('../assets/addon-logos/tankoyomi.png')
+      && page.includes('asynchronous: true') && page.includes('cache: true'),
+  'configuration header uses the real bundled Tankoyomi logo');
+check(page.includes('root.width < 1050') && page.includes('languagePanel.height + 18'),
+  'configuration switches to a stacked layout below the desktop breakpoint');
+check(extensions.includes('function requestEscape')
+      && /case "extensions":[\s\S]{0,260}requestEscape\(\)/.test(main)
+      && /requestEscape\(\)[\s\S]{0,260}closeExtensionsPage\(\)/.test(main),
+  'Escape backs out of nested configuration before closing Extensions');
 
 if (failures) process.exit(1);
 console.log('\nPASS — Tankoyomi configuration page contract');

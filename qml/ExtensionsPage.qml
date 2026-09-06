@@ -43,6 +43,15 @@ Item {
         root.configuringExtensionId = ""
         Qt.callLater(function() { root.takeKeyboardFocus() })
     }
+    // Main's one global Escape command delegates here before closing the whole
+    // Extensions layer. A nested Tankoyomi sheet therefore behaves like every
+    // other shell surface: first Escape backs out of the sheet, second Escape
+    // backs out of Extensions itself.
+    function requestEscape() {
+        if (!root.configuringExtensionId.length) return false
+        root.closeConfiguration()
+        return true
+    }
 
     // ---- registry bindings ----
     property var installedList: []
@@ -573,6 +582,7 @@ Item {
                     query: root.query
                     onRemoveRequested: function (entry) { root.askRemove(entry) }
                     onConfigureRequested: function (entry) {
+                        if (root.openConfiguration(entry)) return;
                         var url = root.configureUrl(entry.transportUrl);
                         if (url.length) Qt.openUrlExternally(url);
                     }

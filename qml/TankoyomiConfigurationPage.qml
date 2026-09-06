@@ -215,11 +215,23 @@ Item {
             width: page.width
             spacing: 0
 
-            Row {
+            Item {
+                id: configurationHeader
+                objectName: "tankoyomiConfigurationHeader"
                 width: parent.width
-                spacing: 18
+                property bool compact: width < 720
+                implicitHeight: compact
+                    ? headerLead.height + 18 + masterColumn.height
+                    : Math.max(headerLead.height, masterColumn.height)
+                height: implicitHeight
                 Item {
-                    width: parent.width - masterColumn.width - 18
+                    id: headerLead
+                    x: 0
+                    y: 0
+                    width: configurationHeader.compact
+                        ? configurationHeader.width
+                        : configurationHeader.width - masterColumn.width - 18
+                    height: headerColumn.implicitHeight
                     implicitHeight: headerColumn.implicitHeight
                     Column {
                         id: headerColumn
@@ -230,12 +242,29 @@ Item {
                         Row {
                             spacing: 16
                             topPadding: 8
-                            Text { text: "T"; width: 58; height: 58; horizontalAlignment: Text.AlignHCenter
-                                   verticalAlignment: Text.AlignVCenter; color: theme.gold
-                                   font.family: theme.display; font.pixelSize: 34
-                                   font.weight: Font.DemiBold
-                                   Rectangle { anchors.fill: parent; radius: 14; color: Qt.rgba(1,1,1,0.06)
-                                              border.width: 1; border.color: theme.edge; z: -1 } }
+                            Item {
+                                width: 58; height: 58
+                                Accessible.role: Accessible.Graphic
+                                Accessible.name: "Tankoyomi logo"
+                                Rectangle { anchors.fill: parent; radius: 14; color: Qt.rgba(1,1,1,0.06)
+                                           border.width: 1; border.color: theme.edge }
+                                Image {
+                                    objectName: "tankoyomiLogoImage"
+                                    anchors.fill: parent
+                                    anchors.margins: 7
+                                    source: "../assets/addon-logos/tankoyomi.png"
+                                    fillMode: Image.PreserveAspectFit
+                                    horizontalAlignment: Image.AlignHCenter
+                                    verticalAlignment: Image.AlignVCenter
+                                    asynchronous: true
+                                    cache: true
+                                    smooth: true
+                                    mipmap: true
+                                    sourceSize.width: 96
+                                    sourceSize.height: 96
+                                    Accessible.ignored: true
+                                }
+                            }
                             Text { text: "Tankoyomi"; color: theme.ink; anchors.verticalCenter: parent.verticalCenter
                                    font.family: theme.display; font.pixelSize: 48; font.letterSpacing: -1 }
                         }
@@ -248,9 +277,15 @@ Item {
                 }
                 Column {
                     id: masterColumn
-                    width: Math.min(260, parent.width * 0.27)
+                    x: configurationHeader.compact ? 0 : headerLead.width + 18
+                    y: configurationHeader.compact
+                        ? headerLead.height + 18
+                        : (configurationHeader.height - height) / 2
+                    width: configurationHeader.compact
+                        ? configurationHeader.width
+                        : Math.min(260, configurationHeader.width * 0.27)
+                    height: implicitHeight
                     spacing: 10
-                    anchors.verticalCenter: parent.verticalCenter
                     Row {
                         spacing: 12
                         anchors.right: parent.right
@@ -334,16 +369,24 @@ Item {
                 }
             }
 
-            Row {
+            Item {
                 id: configurationBody
                 visible: root.activeTab === "configuration"
                 width: parent.width
-                topPadding: 26
-                spacing: 18
+                property bool compact: root.width < 1050
+                property int topInset: 26
+                implicitHeight: topInset + (compact
+                    ? languagePanel.implicitHeight + detailPanel.implicitHeight + 18
+                    : Math.max(languagePanel.implicitHeight, detailPanel.implicitHeight))
+                height: visible ? implicitHeight : 0
                 Item {
                     id: languagePanel
                     objectName: "tankoyomiLanguagePanel"
-                    width: Math.max(310, (parent.width - 18) * 0.34)
+                    y: configurationBody.topInset
+                    width: configurationBody.compact
+                        ? configurationBody.width
+                        : Math.max(310, (configurationBody.width - 18) * 0.34)
+                    height: languageColumn.implicitHeight
                     implicitHeight: languageColumn.implicitHeight
                     Rectangle { anchors.fill: parent; radius: 18; color: Qt.rgba(0.04,0.05,0.08,0.78)
                                 border.width: 1; border.color: theme.edge }
@@ -441,7 +484,14 @@ Item {
                 Item {
                     id: detailPanel
                     objectName: "tankoyomiProviderPanel"
-                    width: parent.width - languagePanel.width - 18
+                    x: configurationBody.compact ? 0 : languagePanel.width + 18
+                    y: configurationBody.compact
+                        ? configurationBody.topInset + languagePanel.height + 18
+                        : configurationBody.topInset
+                    width: configurationBody.compact
+                        ? configurationBody.width
+                        : configurationBody.width - languagePanel.width - 18
+                    height: detailColumn.implicitHeight
                     implicitHeight: detailColumn.implicitHeight
                     Rectangle { anchors.fill: parent; radius: 18; color: Qt.rgba(0.04,0.05,0.08,0.78)
                                 border.width: 1; border.color: theme.edge }
@@ -484,6 +534,7 @@ Item {
                                     required property int index
                                     property string providerId: String(modelData.id || "")
                                     property bool providerEnabled: modelData.enabled === true
+                                    property bool compact: detailPanel.width < 600
                                     property bool canMoveUp: index > 0
                                     property bool canMoveDown: index < root.providerRows.length - 1
                                     objectName: "tankoyomiProvider_" + providerId
@@ -492,32 +543,38 @@ Item {
                                     opacity: providerEnabled ? 1 : 0.48
                                     Rectangle { anchors.fill: parent; radius: 14; color: Qt.rgba(1,1,1,0.035); border.width: 1; border.color: Qt.rgba(1,1,1,0.09) }
                                     Row {
-                                        anchors.fill: parent; anchors.margins: 12; spacing: 12
-                                         Item { width: 38; height: 62; anchors.verticalCenter: parent.verticalCenter
+                                        anchors.fill: parent; anchors.margins: providerRow.compact ? 8 : 12
+                                        spacing: providerRow.compact ? 8 : 12
+                                         Item { width: providerRow.compact ? 24 : 38; height: 62; anchors.verticalCenter: parent.verticalCenter
                                              Text { anchors.centerIn: parent; text: providerRow.index + 1; color: providerRow.index === 0 ? "#191407" : theme.gold; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Bold
                                                     Rectangle { anchors.fill: parent; anchors.margins: 3; radius: 18; color: providerRow.index === 0 ? theme.gold : "#151821"; border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.65); z: -1 } } }
-                                         Text { width: 42; height: 42; anchors.verticalCenter: parent.verticalCenter; text: String(providerRow.modelData.name || providerRow.providerId).slice(0,1).toUpperCase()
+                                         Text { width: providerRow.compact ? 32 : 42; height: providerRow.compact ? 32 : 42; anchors.verticalCenter: parent.verticalCenter; text: String(providerRow.modelData.name || providerRow.providerId).slice(0,1).toUpperCase()
                                                color: theme.gold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.family: theme.display; font.pixelSize: 24
                                                Rectangle { anchors.fill: parent; radius: 11; color: Qt.rgba(1,1,1,0.055); border.width: 1; border.color: theme.edge; z: -1 } }
-                                        Column { width: parent.width - 38 - 42 - 120 - 36; anchors.verticalCenter: parent.verticalCenter; spacing: 5
-                                            Row { spacing: 8
-                                                Text { text: providerRow.modelData.name || providerRow.providerId; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
-                                                Text { text: providerRow.providerEnabled ? "ACTIVE" : "DISABLED"; color: providerRow.providerEnabled ? "#72d487" : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold } }
-                                             Text { text: "Rank " + (providerRow.index + 1) + " · " + providerRow.providerId; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
+                                        Column { id: providerInfo; objectName: "tankoyomiProviderInfo_" + providerRow.providerId
+                                            width: Math.max(0, parent.width - (providerRow.compact ? 24 : 38) - (providerRow.compact ? 32 : 42) - (providerRow.compact ? 92 : 120) - (providerRow.compact ? 16 : 36)); anchors.verticalCenter: parent.verticalCenter; spacing: 5
+                                            Row { width: parent.width; spacing: 8
+                                                Text { width: detailPanel.width < 600 ? parent.width : implicitWidth
+                                                       elide: Text.ElideRight
+                                                       text: providerRow.modelData.name || providerRow.providerId; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                                Text { visible: detailPanel.width >= 600
+                                                       text: providerRow.providerEnabled ? "ACTIVE" : "DISABLED"; color: providerRow.providerEnabled ? "#72d487" : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                                             Text { width: parent.width; elide: Text.ElideRight
+                                                    text: "Rank " + (providerRow.index + 1) + " · " + providerRow.providerId; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
                                         }
-                                        Row { width: 120; anchors.verticalCenter: parent.verticalCenter; spacing: 5
-                                             Item { id: providerToggle; objectName: "tankoyomiProviderToggle_" + providerRow.providerId; width: 40; height: 22
+                                        Row { width: providerRow.compact ? 92 : 120; anchors.verticalCenter: parent.verticalCenter; spacing: providerRow.compact ? 2 : 5
+                                             Item { id: providerToggle; objectName: "tankoyomiProviderToggle_" + providerRow.providerId; width: providerRow.compact ? 34 : 40; height: 22
                                                  Rectangle { anchors.fill: parent; radius: 11; color: providerRow.providerEnabled ? theme.gold : Qt.rgba(1,1,1,0.14); border.width: 1; border.color: providerRow.providerEnabled ? theme.gold : theme.edge }
                                                  Rectangle { width: 16; height: 16; radius: 8; y: 2.5; x: providerRow.providerEnabled ? 21 : 2.5; color: providerRow.providerEnabled ? "#1a1306" : theme.inkDim }
                                                  MouseArea { anchors.fill: parent; onClicked: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) }
                                                  KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: (providerRow.providerEnabled ? "Disable " : "Enable ") + (providerRow.modelData.name || providerRow.providerId)
                                                      onTriggered: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) } }
-                                             Item { id: upControl; width: 28; height: 28
+                                             Item { id: upControl; width: providerRow.compact ? 24 : 28; height: 28
                                                  Text { anchors.centerIn: parent; text: "↑"; color: providerRow.canMoveUp ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveUp; onClicked: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) }
                                                  KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveUp; enabled: providerRow.canMoveUp; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " up"
                                                      onTriggered: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) } }
-                                             Item { id: downControl; width: 28; height: 28
+                                             Item { id: downControl; width: providerRow.compact ? 24 : 28; height: 28
                                                  Text { anchors.centerIn: parent; text: "↓"; color: providerRow.canMoveDown ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveDown; onClicked: root.moveProviderDown(root.selectedLanguage, providerRow.providerId) }
                                                  KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveDown; enabled: providerRow.canMoveDown; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " down"
@@ -535,7 +592,7 @@ Item {
 
             Rectangle {
                 visible: root.activeTab === "configuration"
-                width: parent.width; height: behaviorColumn.implicitHeight + 44; radius: 18
+                width: parent.width; height: visible ? behaviorColumn.implicitHeight + 44 : 0; radius: 18
                 color: Qt.rgba(0.04,0.05,0.08,0.68); border.width: 1; border.color: theme.edge
                 Column { id: behaviorColumn; width: parent.width; padding: 22; spacing: 12
                     Text { text: "Behavior"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }

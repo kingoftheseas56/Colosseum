@@ -707,7 +707,10 @@ Window {
         case "update": win.closeUpdatePage(); return
         case "keyboardGuide": win.closeKeyboardGuide(); return
         case "settings": win.closeSettingsPage(); return
-        case "extensions": win.closeExtensionsPage(); return
+        case "extensions":
+            if (extensionsLayer.item && extensionsLayer.item.requestEscape
+                    && extensionsLayer.item.requestEscape()) return
+            win.closeExtensionsPage(); return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
         case "book": win.closeBook(); return
