@@ -1,0 +1,56 @@
+import fs from 'node:fs';
+
+const page = fs.readFileSync('qml/TankoyomiConfigurationPage.qml', 'utf8');
+const extensions = fs.readFileSync('qml/ExtensionsPage.qml', 'utf8');
+const manifest = JSON.parse(fs.readFileSync('extensions/tankoyomi/manifest.json', 'utf8'));
+const store = fs.readFileSync('native/engine/ExtensionsStore.cpp', 'utf8');
+let failures = 0;
+const check = (ok, message) => {
+  console.log(`${ok ? '  ok  ' : '  FAIL'} ${message}`);
+  if (!ok) failures++;
+};
+
+check(manifest.behaviorHints?.configurable === true,
+  'Tankoyomi advertises an in-app configuration surface');
+check(store.includes('constexpr int kHouseDefaultsVersion = 13;'),
+  'house defaults version advances for the configuration metadata migration');
+check(store.includes('manifest("colosseum.well.tankoyomi", "Tankoyomi"')
+      && store.includes('{}, true));'),
+  'the seeded Tankoyomi row carries configurable metadata');
+check(/if \(onlyMissing\s*&& m_items\.at\(at\)\.value\(QStringLiteral\("manifest"\)\)\.toMap\(\) != m\)/s.test(store),
+  'house metadata refresh preserves the existing installed row and enabled state');
+
+check(page.includes('objectName: "tankoyomiConfigurationPage"'),
+  'configuration page has a stable automation identity');
+check(page.includes('Configuration') && page.includes('About'),
+  'configuration page exposes Configuration and About tabs');
+check(page.includes('chapterLanguages') && page.includes('chapterDefaultLanguage')
+      && page.includes('chapterProviders'),
+  'page consumes the native language/default/provider projections');
+for (const method of [
+  'setChapterDefaultLanguage', 'setChapterProviderEnabled',
+  'moveChapterProviderUp', 'moveChapterProviderDown', 'resetChapterProviderOrder'
+]) {
+  check(page.includes(method), `page wires ${method}()`);
+}
+check(page.includes('Extensions.setEnabled') || page.includes('extensionsRef.setEnabled')
+      || page.includes('source.setEnabled'),
+  'master switch delegates to ExtensionsStore');
+check(page.includes('same-language') || page.includes('Same language'),
+  'page states the same-language-only fallback rule');
+check(page.includes('KeyboardAction') && page.includes('focusEnabled')
+      && page.includes('activeFocusOnTab'),
+  'interactive controls expose keyboard actions and traversal');
+check(!/WeebCentral|VoraToon|Kiryuu|Manga Night/.test(page),
+  'page does not hard-code oracle demo provider inventory');
+
+check(extensions.includes('configuringExtensionId'),
+  'ExtensionsPage owns configuration subpage state');
+check(extensions.includes('colosseum.well.tankoyomi')
+      && extensions.includes('TankoyomiConfigurationPage'),
+  'ExtensionsPage routes the Tankoyomi house row into the native subpage');
+check(extensions.includes('function openConfiguration'),
+  'ExtensionsPage exposes a testable configuration route');
+
+if (failures) process.exit(1);
+console.log('\nPASS — Tankoyomi configuration page contract');

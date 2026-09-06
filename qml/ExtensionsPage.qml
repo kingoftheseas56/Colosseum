@@ -23,7 +23,25 @@ Item {
     Theme { id: theme }
 
     function takeKeyboardFocus() {
+        if (root.configuringExtensionId.length && tankoyomiConfiguration.visible) {
+            tankoyomiConfiguration.takeKeyboardFocus()
+            return
+        }
         page.forceActiveFocus(Qt.TabFocusReason)
+    }
+
+    property string configuringExtensionId: ""
+    function openConfiguration(entry) {
+        if (!entry || String(entry.id || "") !== "colosseum.well.tankoyomi") return false
+        root.configuringExtensionId = String(entry.id)
+        Qt.callLater(function() {
+            if (tankoyomiConfiguration.visible) tankoyomiConfiguration.takeKeyboardFocus()
+        })
+        return true
+    }
+    function closeConfiguration() {
+        root.configuringExtensionId = ""
+        Qt.callLater(function() { root.takeKeyboardFocus() })
     }
 
     // ---- registry bindings ----
@@ -269,6 +287,7 @@ Item {
     Flickable {
         id: page
         objectName: "extensionsPageScroll"
+        visible: !root.configuringExtensionId.length
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.implicitHeight + 150
@@ -1263,9 +1282,9 @@ Item {
                                                     accessibleName: parent.text + " " + (irow.manifest.name || irow.modelData.id)
                                                     showFocusFrame: false
                                                     onTriggered: {
-                                                        if (irow.isHouse) {
-                                                            // Stage 4 builds the in-app sheet. Until then
-                                                            // say so rather than opening a dead URL.
+                                                        if (irow.modelData.id === "colosseum.well.tankoyomi") {
+                                                            root.openConfiguration(irow.modelData)
+                                                        } else if (irow.isHouse) {
                                                             root.notice = (irow.manifest.name || "This well")
                                                                         + " settings arrive with the indexer sheet."
                                                             noticeTimer.restart()
@@ -1297,8 +1316,21 @@ Item {
         }
     }
 
+    TankoyomiConfigurationPage {
+        id: tankoyomiConfiguration
+        anchors.fill: parent
+        visible: root.configuringExtensionId === "colosseum.well.tankoyomi"
+        backdrop: root.backdrop
+        onBackRequested: root.closeConfiguration()
+        onSearchClicked: root.searchClicked()
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onCloseRequested: root.closeRequested()
+    }
+
     // ---- top chrome: back · minimize · power (fullscreen-only vocabulary) ----
     Item {
+        visible: !root.configuringExtensionId.length
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 24
@@ -1323,6 +1355,7 @@ Item {
         }
     }
     BackAction {
+        visible: !root.configuringExtensionId.length
         variant: "capsule"; tip: "Back"
         anchors.top: parent.top
         anchors.left: parent.left

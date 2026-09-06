@@ -32,7 +32,7 @@ constexpr int kDescriptionCap = 400;
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 12;
+constexpr int kHouseDefaultsVersion = 13;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -239,8 +239,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
     add("colosseum.well.tankoyomi", "colosseum://well/tankoyomi", false,
         manifest("colosseum.well.tankoyomi", "Tankoyomi",
-                 "Language-aware chapter sources for Tankoban Chapter Mode.",
-                 { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
+                  "Language-aware chapter sources for Tankoban Chapter Mode.",
+                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true));
     add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
         manifest("colosseum.well.getcomics.issues", "GetComics", "",
                  { QStringLiteral("stream") }, { QStringLiteral("comic") }, {}, false));

@@ -9,7 +9,7 @@ const check = (ok, msg) => {
   if (!ok) failures++;
 };
 
-check(store.includes('constexpr int kHouseDefaultsVersion = 12;'),
+check(store.includes('constexpr int kHouseDefaultsVersion = 13;'),
   'house defaults version bumps for Tankoyomi migration');
 check(store.includes('add("colosseum.well.tankoyomi", "colosseum://well/tankoyomi"'),
   'Tankoyomi is seeded as the Tankoban chapter well');
@@ -20,10 +20,10 @@ const tankSeedEnd = tankSeedAt >= 0 ? store.indexOf('\n    add(', tankSeedAt + 5
 const tankSeed = tankSeedAt >= 0 ? store.slice(tankSeedAt, tankSeedEnd >= 0 ? tankSeedEnd : tankSeedAt + 700) : '';
 check(/manifest\("colosseum\.well\.tankoyomi", "Tankoyomi",\s*"[^"]+"/s.test(tankSeed),
   'Tankoyomi source row has real extension copy');
-check(tankSeed.includes('{}, false'),
-  'Tankoyomi does not advertise a dead global Settings surface');
-check(packageManifest.behaviorHints?.configurable !== true,
-  'Tankoyomi package manifest does not claim a separate global configure surface');
+check(tankSeed.includes('{}, true'),
+  'Tankoyomi advertises the in-app configuration surface');
+check(packageManifest.behaviorHints?.configurable === true,
+  'Tankoyomi package manifest advertises the in-app configuration surface');
 check(!store.includes('add("colosseum.well.weebcentral.pages"'),
   'WeebCentral is no longer a standalone seeded source');
 check(store.includes('"colosseum.well.weebcentral.pages"'),

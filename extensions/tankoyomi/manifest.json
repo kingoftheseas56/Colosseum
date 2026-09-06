@@ -16,7 +16,7 @@
   "defaultLanguage": "en",
   "fallbackPolicy": "same-language-only",
   "behaviorHints": {
-    "configurable": false
+    "configurable": true
   },
   "providerContract": {
     "version": 1,
