@@ -87,6 +87,8 @@ Item {
     component FakeMangaEngine: QtObject {
         property int catalogueCalls: 0
         property string lastLanguage: ""
+        property string chapterDefaultLanguageValue: "en"
+        signal chapterConfigurationChanged()
         signal chapterCatalogueResults(string requestId, string sourceSeriesId, var rows)
         signal chapterCatalogueFailed(string requestId, string message)
         signal pagesResult(var rows)
@@ -98,6 +100,11 @@ Item {
                 { "code": "pt", "label": "Portugu?s (Brasil)", "providerCount": 3 },
                 { "code": "fr", "label": "Fran?ais", "providerCount": 4 }
             ]
+        }
+        function chapterDefaultLanguage() { return chapterDefaultLanguageValue }
+        function setChapterDefaultLanguage(language) {
+            chapterDefaultLanguageValue = String(language || "")
+            chapterConfigurationChanged()
         }
         function chapterCatalogueForLanguage(requestId, title, language) {
             catalogueCalls += 1
@@ -315,6 +322,68 @@ Item {
                "case6d: enabling Tankoyomi must allow the Chapter Mode provider call")
             ck(fakeMangaEngine.lastLanguage === "en",
                "case6d: enabled Tankoyomi preserves the selected language")
+
+            // ── Case 6e (Task 2): Chapter Mode adopts the configured default language ──
+            // A page with no explicit in-page choice must request the persisted default,
+            // not the historical English literal.
+            p6c._enterTankobanMode()
+            fakeMangaEngine.chapterDefaultLanguageValue = "es"
+            fakeMangaEngine.catalogueCalls = 0
+            var p6e = makePage("1", "Monster")
+            p6e.extensionsRef = fakeExtensions
+            p6e.mangaEngineRef = fakeMangaEngine
+            p6e._enterChapterMode()
+            ck(p6e.selectedChapterLanguage === "es",
+               "case6e: Chapter Mode must initialize from Manga.chapterDefaultLanguage()")
+            ck(fakeMangaEngine.catalogueCalls === 1 && fakeMangaEngine.lastLanguage === "es",
+               "case6e: initial Chapter Mode request must use the configured default language")
+
+            // ── Case 6f: a live configuration change invalidates and reloads the active route ──
+            var callsBeforeDefaultChange = fakeMangaEngine.catalogueCalls
+            fakeMangaEngine.setChapterDefaultLanguage("pt")
+            ck(p6e.selectedChapterLanguage === "pt",
+               "case6f: an unqualified page must adopt a live default-language change")
+            ck(fakeMangaEngine.catalogueCalls === callsBeforeDefaultChange + 1
+               && fakeMangaEngine.lastLanguage === "pt",
+               "case6f: default-language changes must reload the active Chapter Mode route")
+
+            // ── Case 6g: explicit in-page language survives a later default change ──
+            p6e._selectChapterLanguage("fr")
+            var callsBeforeExplicitDefaultChange = fakeMangaEngine.catalogueCalls
+            fakeMangaEngine.setChapterDefaultLanguage("en")
+            ck(p6e.selectedChapterLanguage === "fr",
+               "case6g: an explicit in-page language must not be overwritten by a default change")
+            ck(fakeMangaEngine.catalogueCalls === callsBeforeExplicitDefaultChange + 1
+               && fakeMangaEngine.lastLanguage === "fr",
+               "case6g: configuration changes still reload the explicitly selected route")
+
+            // ── Case 6h: a later Chapter Mode entry uses the new default when no choice exists ──
+            fakeMangaEngine.chapterDefaultLanguageValue = "es"
+            var p6h = makePage("1", "Monster")
+            p6h.extensionsRef = fakeExtensions
+            p6h.mangaEngineRef = fakeMangaEngine
+            p6h._enterChapterMode()
+            ck(p6h.selectedChapterLanguage === "es"
+               && fakeMangaEngine.lastLanguage === "es",
+               "case6h: a new Chapter Mode page must use the current configured default")
+            p6h._enterTankobanMode()
+            fakeMangaEngine.setChapterDefaultLanguage("pt")
+            p6h._enterChapterMode()
+            ck(p6h.selectedChapterLanguage === "pt"
+               && fakeMangaEngine.lastLanguage === "pt",
+               "case6h: the next Chapter Mode entry must see a live default change")
+
+            // ── Case 6i: unsupported configured languages never silently become English ──
+            fakeMangaEngine.chapterDefaultLanguageValue = "xx"
+            fakeMangaEngine.catalogueCalls = 0
+            var p6i = makePage("1", "Monster")
+            p6i.extensionsRef = fakeExtensions
+            p6i.mangaEngineRef = fakeMangaEngine
+            p6i._enterChapterMode()
+            ck(p6i.selectedChapterLanguage !== "en",
+               "case6i: an unsupported configured language must not fall back to English")
+            ck(fakeMangaEngine.catalogueCalls === 0,
+               "case6i: an unsupported configured language must make zero provider calls")
 
             // 7a: the catalog starts not-ready — malId-open must stay honestly unresolved,
             // never a guess (mirrors resolve()'s existing "id>0 but no row found" path).

@@ -64,6 +64,10 @@ Item {
     property bool chapterMode: false
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
+    // A configured default owns the initial selection. Once the user chooses a
+    // language on this page, live configuration changes may refresh its route but
+    // must not silently replace that explicit choice.
+    property bool _chapterLanguageExplicit: false
     property string chapterSourceSeriesId: ""
     property var chaptersModel: []
     property bool chaptersLoading: false
@@ -182,19 +186,47 @@ Item {
         return "Chapter"
     }
 
+    function _chapterLanguageAvailable(code) {
+        var wanted = String(code || "").trim().toLowerCase()
+        if (!wanted.length) return false
+        for (var i = 0; i < page.chapterLanguages.length; ++i) {
+            if (String(page.chapterLanguages[i].code || "").trim().toLowerCase() === wanted)
+                return true
+        }
+        return false
+    }
+
     function _refreshChapterLanguages() {
         var rows = (page.mangaEngineRef && page.mangaEngineRef.chapterLanguages)
             ? (page.mangaEngineRef.chapterLanguages() || []) : []
         page.chapterLanguages = rows.length ? rows : [{ "code": "en", "label": "English", "providerCount": 1 }]
-        var found = false
-        for (var i = 0; i < page.chapterLanguages.length; ++i)
-            if (String(page.chapterLanguages[i].code || "") === page.selectedChapterLanguage) found = true
-        if (!found) page.selectedChapterLanguage = "en"
+        if (page._chapterLanguageExplicit && page._chapterLanguageAvailable(page.selectedChapterLanguage))
+            return
+        if (page._chapterLanguageExplicit)
+            page._chapterLanguageExplicit = false
+
+        var hasDefaultGetter = page.mangaEngineRef
+            && page.mangaEngineRef.chapterDefaultLanguage
+        if (hasDefaultGetter) {
+            var configured = String(page.mangaEngineRef.chapterDefaultLanguage() || "")
+                .trim().toLowerCase()
+            // A stale/unsupported persisted value is an honest empty state. It
+            // must never silently route a request through another language.
+            page.selectedChapterLanguage = page._chapterLanguageAvailable(configured)
+                ? configured : ""
+            return
+        }
+
+        // Keep legacy bare-page construction usable when no Manga bridge exists.
+        if (!page._chapterLanguageAvailable(page.selectedChapterLanguage))
+            page.selectedChapterLanguage = page._chapterLanguageAvailable("en") ? "en" : ""
     }
 
     function _selectChapterLanguage(code) {
         var next = String(code || "").trim().toLowerCase()
-        if (!next.length || next === page.selectedChapterLanguage) return
+        if (!page._chapterLanguageAvailable(next)) return
+        page._chapterLanguageExplicit = true
+        if (next === page.selectedChapterLanguage) return
         page.selectedChapterLanguage = next
         page._clearPendingChapterRead()
         if (page.chapterMode) page._loadChapterCatalogue(true)
@@ -209,6 +241,15 @@ Item {
             page.chaptersModel = []
             page.chaptersLoading = false
             page.chaptersError = "Tankoyomi is off. Enable it in Extensions to load chapters."
+            return
+        }
+        if (!page._chapterLanguageAvailable(page.selectedChapterLanguage)) {
+            page._chapterRequestGeneration += 1
+            page._chapterRequestId = ""
+            page.chapterSourceSeriesId = ""
+            page.chaptersModel = []
+            page.chaptersLoading = false
+            page.chaptersError = "Chapter language unavailable."
             return
         }
         if (!force && page.chaptersModel.length && page.chapterSourceSeriesId.length) return
@@ -232,6 +273,7 @@ Item {
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
+        page._refreshChapterLanguages()
         page.chapterMode = true
         page._loadChapterCatalogue(false)
     }
@@ -599,6 +641,10 @@ Item {
     Connections {
         target: page.mangaEngineRef
         ignoreUnknownSignals: true
+        function onChapterConfigurationChanged() {
+            page._refreshChapterLanguages()
+            if (page.chapterMode) page._loadChapterCatalogue(true)
+        }
         function onChapterCatalogueResults(requestId, sourceSeriesId, rows) {
             if (String(requestId) !== page._chapterRequestId || !page.chapterMode) return
             page.chapterSourceSeriesId = String(sourceSeriesId || "")

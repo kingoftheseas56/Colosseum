@@ -11,8 +11,11 @@ const check = (ok, msg) => { console.log(`${ok ? '  ok  ' : '  FAIL'} ${msg}`); 
 check(engine.includes('chapterLanguages() const'), 'MangaEngine exposes Tankoyomi languages to QML');
 check(engine.includes('m_tankoyomi->languages()'), 'language list comes from the Tankoyomi registry');
 check(page.includes('property string selectedChapterLanguage: "en"'), 'series page defaults Chapter Mode to English');
+check(page.includes('chapterDefaultLanguage()'), 'Chapter Mode reads the persisted Tankoyomi default language');
+check(page.includes('onChapterConfigurationChanged'), 'Chapter Mode listens for live Tankoyomi configuration changes');
 check(page.includes('chapterCatalogueForLanguage(page._chapterRequestId, title, page.selectedChapterLanguage)'),
   'Chapter Mode loads through the language-aware catalogue seam');
+check(page.includes('Chapter language unavailable.'), 'unsupported Chapter languages fail without an English fallback');
 check(page.includes('function _selectChapterLanguage(code)'), 'series page owns language-change correlation');
 check(header.includes('objectName: "mangaLanguageSelector"'), 'shared masthead owns one language selector geometry');
 check(header.includes('enabled: !root.tankobanMode'), 'language selector is disabled in Tankoban Mode');
