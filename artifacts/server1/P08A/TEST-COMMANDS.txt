@@ -1,0 +1,24 @@
+Worktree: C:/b/Colosseum-Server-1.0-workers/P08A-A
+Branch: codex/server1-p08a-a
+Base: 83b945ebaf05f097851b3aa498647f9473acb07f
+
+RED command:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase red
+Expected RED outcome: exit 1; probe executable is not present.
+Evidence: artifacts/server1/P08A/raw/TDD-RED.txt and TDD-SOL-RED.txt
+
+Compile/link command:
+cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && cl.exe /nologo /TP /std:c++17 /EHsc /O2 /MD /D HAS_LIBTORRENT=1 /D TORRENT_USE_OPENSSL /D BOOST_ALL_NO_LIB /D _WIN32_WINNT=0x0A00 /I"C:\tools\libtorrent-2.0-msvc\include" /I"C:\tools\boost-1.84.0" /I"C:\tools\openssl-msvc\include" artifacts/server1/P08A/probe-src/exact_block_probe.cpp /Fo:artifacts/server1/P08A/bin/exact_block_probe.obj /Fe:artifacts/server1/P08A/bin/exact_block_probe.exe /link /LIBPATH:"C:\tools\libtorrent-2.0-msvc\lib" torrent-rasterbar.lib /LIBPATH:"C:\tools\openssl-msvc\lib" libssl.lib libcrypto.lib ws2_32.lib mswsock.lib crypt32.lib iphlpapi.lib bcrypt.lib advapi32.lib user32.lib'
+Compile/link exit: 0
+Linked runtime evidence: 2.0.11.0 in the latest run control/dependency_identity.txt and result.json.
+Archive SHA-256: a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30
+
+Independent test command 1:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
+Exit: 0
+Independent test command 2:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
+Exit: 0
+Python syntax command:
+python -c "compile(open(r'artifacts/server1/P08A/probe-src/tiny_peer.py', encoding='utf-8').read(), r'tiny_peer.py', 'exec')"
+Exit: 0

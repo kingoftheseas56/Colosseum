@@ -1,0 +1,13 @@
+{
+  "schema": "colosseum-server1-p08a-feasibility/v2",
+  "dependency": {"header_path": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp", "header_sha256": "674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07", "header_declared_version": "2.0.11.0", "header_declared_revision": "6e1587799", "linked_runtime_version": "2.0.11.0", "archive_path": "C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib", "archive_bytes": 320838716, "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"},
+  "source_tuples": {"M814": {"lines": "72439-72764", "sha256": "05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e"}, "M851": {"lines": "74856-74884", "sha256": "2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041"}, "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"},
+  "source_identity": {"source": "artifacts/server1/P08A/probe-src/exact_block_probe.cpp", "public_api_attempt": "torrent_handle::set_piece_deadline(piece)", "internal_control": "peer_connection::add_request(piece_block) + send_block_requests()"},
+  "control_phase": {"state": "PASS", "wire_requests": 1},
+  "case_01": {"state": "PASS", "commanded_response_received_and_accepted": true, "peer_b_exact_requests": 1, "peer_a_exact_requests": 0},
+  "case_02": {"state": "PASS", "ordinary_picker_available": true, "control_phase_wire_requests": 1, "controlled_phase_wire_requests": 1, "unowned_wire_requests": 0},
+  "case_03": {"state": "PASS", "destroyed_with_outstanding": true, "post_destroy_process_alive": true, "late_peer_event_after_destroy": true, "replayed_or_second_requests": 0, "connected_peer_handshakes": 1, "client_disconnects": 1, "no_orphaned_client_connections": true},
+  "seam_classification": "version-specific internal header access",
+  "interface_statement": "No production interface changed; this is a disposable feasibility probe.",
+  "wiring_request": "No production wiring requested; P08A remains a feasibility result."
+}

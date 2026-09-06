@@ -1,0 +1,9 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "packet": "P08A",
+  "decision": "NO_PRODUCTION_WIRING",
+  "reason": "The frozen substrate is feasible only through a version-specific internal peer_connection header seam; this disposable probe does not establish production safety or parity.",
+  "requested_paths": [],
+  "interface_change": false,
+  "next_gate": "Sol review before any P08A integration decision"
+}

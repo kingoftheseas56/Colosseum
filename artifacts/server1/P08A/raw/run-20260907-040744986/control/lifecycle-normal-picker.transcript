@@ -1,0 +1,7 @@
+phase=normal-picker SAVE_PATH C:\b\Colosseum-Server-1.0-workers\P08A-A\artifacts\server1\P08A\raw\run-20260907-040744986\control\download-normal-picker
+phase=normal-picker CONNECT_REQUEST peer=A port=49101
+phase=normal-picker CONNECT_REQUEST peer=B port=49102
+phase=normal-picker CONNECT peer=B endpoint=127.0.0.1:49102
+phase=normal-picker CONNECT peer=B endpoint=127.0.0.1:49102
+phase=normal-picker WIRE peer=B piece=1 offset=0 length=16384
+phase=normal-picker WIRE peer=B piece=0 offset=0 length=16384

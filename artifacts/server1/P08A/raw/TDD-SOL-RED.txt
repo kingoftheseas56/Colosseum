@@ -1,0 +1,8 @@
+P08A review RED checkpoint; green claim prohibited until corrected.
+Finding 1: runner invocation and C++ argc/argument contract are inconsistent.
+Finding 2: tiny peer PIECE frame omitted the begin offset field.
+Finding 3: cases 01/02 accepted sent_request without requiring received/accepted piece data.
+Finding 4: ordinary_picker_available was a self-assertion with no unsuppressed control phase.
+Finding 5: lifecycle evidence was not phase-separated and hardcoded post-destroy survival.
+Finding 6: M814/M851 source tuples and frozen dependency identity were absent from result evidence.
+Existing RED evidence retained at artifacts/server1/P08A/raw/TDD-RED.txt.

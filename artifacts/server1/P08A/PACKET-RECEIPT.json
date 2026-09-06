@@ -1,0 +1,32 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "packet": "P08A",
+  "worker": "P08A-A",
+  "branch": "codex/server1-p08a-a",
+  "integration_base": "83b945ebaf05f097851b3aa498647f9473acb07f",
+  "source_files": [
+    "artifacts/server1/P08A/probe-src/exact_block_probe.cpp",
+    "artifacts/server1/P08A/probe-src/tiny_peer.py",
+    "artifacts/server1/P08A/test_probe.ps1"
+  ],
+  "feasibility": "docs/server1/P08A-FEASIBILITY.json",
+  "wiring_request": "artifacts/server1/P08A/WIRING-REQUEST.json",
+  "latest_run": "artifacts/server1/P08A/raw/run-20260907-040744986",
+  "raw_evidence": [
+    "artifacts/server1/P08A/raw/TDD-RED.txt",
+    "artifacts/server1/P08A/raw/TDD-SOL-RED.txt",
+    "artifacts/server1/P08A/raw/TDD-GREEN.txt",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/probe.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/control/result.json",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/control/lifecycle-normal-picker.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/control/lifecycle-controlled.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/control/lifecycle-lifecycle.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/control-peer-A-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/control-peer-B-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/controlled-peer-A-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/controlled-peer-B-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/lifecycle-peer-A-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-040744986/lifecycle-peer-B-wire.log"
+  ],
+  "scope": "Selected P08A packet snapshot; not the entire repository."
+}
