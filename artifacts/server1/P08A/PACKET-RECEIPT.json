@@ -1,5 +1,5 @@
 {
-  "schema": "colosseum-server1-packet-receipt/v1",
+  "schema": "colosseum-server1-packet-receipt/v2",
   "packet": "P08A",
   "worker": "P08A-A",
   "branch": "codex/server1-p08a-a",
@@ -7,26 +7,55 @@
   "source_files": [
     "artifacts/server1/P08A/probe-src/exact_block_probe.cpp",
     "artifacts/server1/P08A/probe-src/tiny_peer.py",
+    "artifacts/server1/P08A/probe-src/test_tiny_peer_drain.py",
     "artifacts/server1/P08A/test_probe.ps1"
   ],
+  "probe_executable": {
+    "path": "artifacts/server1/P08A/bin/exact_block_probe.exe",
+    "bytes": 7822848,
+    "sha256": "cc3db4d36a81606258d9c3360aad59ded32e78c7f043eaa70b846e85d82fd621"
+  },
   "feasibility": "docs/server1/P08A-FEASIBILITY.json",
   "wiring_request": "artifacts/server1/P08A/WIRING-REQUEST.json",
-  "latest_run": "artifacts/server1/P08A/raw/run-20260907-040744986",
+  "test_commands": "artifacts/server1/P08A/TEST-COMMANDS.txt",
+  "latest_run": "artifacts/server1/P08A/raw/run-20260907-043854070",
+  "verification_runs": [
+    {
+      "path": "artifacts/server1/P08A/raw/run-20260907-043829165",
+      "test_exit": 0,
+      "case_01": "PASS",
+      "case_02": "PASS",
+      "case_03": "PASS",
+      "probe_executable_sha256": "cc3db4d36a81606258d9c3360aad59ded32e78c7f043eaa70b846e85d82fd621"
+    },
+    {
+      "path": "artifacts/server1/P08A/raw/run-20260907-043854070",
+      "test_exit": 0,
+      "case_01": "PASS",
+      "case_02": "PASS",
+      "case_03": "PASS",
+      "probe_executable_sha256": "cc3db4d36a81606258d9c3360aad59ded32e78c7f043eaa70b846e85d82fd621"
+    }
+  ],
   "raw_evidence": [
     "artifacts/server1/P08A/raw/TDD-RED.txt",
     "artifacts/server1/P08A/raw/TDD-SOL-RED.txt",
+    "artifacts/server1/P08A/raw/TDD-SOL-ASTRA-RED.txt",
     "artifacts/server1/P08A/raw/TDD-GREEN.txt",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/probe.transcript",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/control/result.json",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/control/lifecycle-normal-picker.transcript",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/control/lifecycle-controlled.transcript",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/control/lifecycle-lifecycle.transcript",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/control-peer-A-wire.log",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/control-peer-B-wire.log",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/controlled-peer-A-wire.log",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/controlled-peer-B-wire.log",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/lifecycle-peer-A-wire.log",
-    "artifacts/server1/P08A/raw/run-20260907-040744986/lifecycle-peer-B-wire.log"
+    "artifacts/server1/P08A/raw/run-20260907-043854070/tiny-peer-drain.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/probe.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control/dependency_identity.txt",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control/info_hash.txt",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control/result.json",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control/lifecycle-normal-picker.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control/lifecycle-controlled.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control/lifecycle-lifecycle.transcript",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control-peer-A-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/control-peer-B-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/controlled-peer-A-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/controlled-peer-B-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/lifecycle-peer-A-wire.log",
+    "artifacts/server1/P08A/raw/run-20260907-043854070/lifecycle-peer-B-wire.log"
   ],
   "scope": "Selected P08A packet snapshot; not the entire repository."
 }

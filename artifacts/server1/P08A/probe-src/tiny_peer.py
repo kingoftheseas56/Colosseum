@@ -7,7 +7,6 @@ import threading
 import time
 
 
-PIECE_LENGTH = 16 * 1024
 PSTR = b"BitTorrent protocol"
 
 
@@ -53,10 +52,24 @@ class TinyPeer:
         self.log("RELEASE_TIMEOUT")
         return False
 
+    def respond_to_request(self, conn, send_lock, piece, start, request_length):
+        time.sleep(self.delay_ms / 1000.0)
+        released = self.wait_for_release()
+        block = b"P" * request_length
+        # PIECE payload: message id, piece index, begin offset, block.
+        piece_body = bytes([7]) + struct.pack(">II", piece, start) + block
+        try:
+            with send_lock:
+                conn.sendall(struct.pack(">I", len(piece_body)) + piece_body)
+            self.log("LATE_PIECE_SENT_AFTER_RELEASE" if released else "PIECE_SENT")
+        except OSError:
+            self.log("LATE_PIECE_DROPPED_AFTER_RELEASE" if released else "PIECE_DROPPED")
+
     def handle(self, conn, address):
         # Allow the initial handshake to arrive in multiple scheduler slices;
         # the steady-state ledger remains responsive below.
         conn.settimeout(2.0)
+        send_lock = threading.Lock()
         try:
             handshake = self.recv_exact(conn, 68)
             if handshake is None:
@@ -74,6 +87,7 @@ class TinyPeer:
             # Two advertised pieces; the control phase uses piece 1 and the
             # commanded phase reserves piece 0 for selected peer B.
             conn.sendall(b"\x00\x00\x00\x02\x05\xC0")
+            self.log("BITFIELD_SENT pieces=0,1")
             conn.sendall(b"\x00\x00\x00\x01\x01")
             while not self.stop.is_set():
                 try:
@@ -98,16 +112,11 @@ class TinyPeer:
                 elif message_id == 6 and len(payload) == 12:
                     piece, start, request_length = struct.unpack(">III", payload)
                     self.log(f"REQUEST piece={piece} start={start} length={request_length}")
-                    time.sleep(self.delay_ms / 1000.0)
-                    released = self.wait_for_release()
-                    block = b"P" * PIECE_LENGTH
-                    # PIECE payload: message id, piece index, begin offset, block.
-                    piece_body = bytes([7]) + struct.pack(">II", piece, start) + block
-                    try:
-                        conn.sendall(struct.pack(">I", len(piece_body)) + piece_body)
-                        self.log("LATE_PIECE_SENT_AFTER_RELEASE" if released else "PIECE_SENT")
-                    except OSError:
-                        self.log("LATE_PIECE_DROPPED_AFTER_RELEASE" if released else "PIECE_DROPPED")
+                    threading.Thread(
+                        target=self.respond_to_request,
+                        args=(conn, send_lock, piece, start, request_length),
+                        daemon=True,
+                    ).start()
                 elif message_id == 8:
                     self.log("CANCEL")
                 else:
@@ -116,7 +125,8 @@ class TinyPeer:
             self.log("CLIENT_DISCONNECTED")
         finally:
             try:
-                conn.close()
+                with send_lock:
+                    conn.close()
             except OSError:
                 pass
 

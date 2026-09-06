@@ -1,0 +1,9 @@
+Sol RED command:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
+Exit: 1
+Observed failure: controlled peer A did not complete a valid info-hash handshake
+
+Astra RED command:
+python artifacts/server1/P08A/probe-src/test_tiny_peer_drain.py
+Exit: 1
+Observed failure: receive loop failed to drain both queued request frames before delayed response; logged=1

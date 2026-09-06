@@ -2,23 +2,45 @@ Worktree: C:/b/Colosseum-Server-1.0-workers/P08A-A
 Branch: codex/server1-p08a-a
 Base: 83b945ebaf05f097851b3aa498647f9473acb07f
 
-RED command:
-pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase red
-Expected RED outcome: exit 1; probe executable is not present.
-Evidence: artifacts/server1/P08A/raw/TDD-RED.txt and TDD-SOL-RED.txt
+Review RED command 1:
+pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
+Exit: 1
+Output: controlled peer A did not complete a valid info-hash handshake
+Evidence: artifacts/server1/P08A/raw/TDD-SOL-ASTRA-RED.txt
 
-Compile/link command:
+Review RED command 2:
+python artifacts/server1/P08A/probe-src/test_tiny_peer_drain.py
+Exit: 1
+Output: receive loop failed to drain both queued request frames before delayed response; logged=1
+Evidence: artifacts/server1/P08A/raw/TDD-SOL-ASTRA-RED.txt
+
+Fresh compile/link command:
 cmd.exe /d /c 'call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && cl.exe /nologo /TP /std:c++17 /EHsc /O2 /MD /D HAS_LIBTORRENT=1 /D TORRENT_USE_OPENSSL /D BOOST_ALL_NO_LIB /D _WIN32_WINNT=0x0A00 /I"C:\tools\libtorrent-2.0-msvc\include" /I"C:\tools\boost-1.84.0" /I"C:\tools\openssl-msvc\include" artifacts/server1/P08A/probe-src/exact_block_probe.cpp /Fo:artifacts/server1/P08A/bin/exact_block_probe.obj /Fe:artifacts/server1/P08A/bin/exact_block_probe.exe /link /LIBPATH:"C:\tools\libtorrent-2.0-msvc\lib" torrent-rasterbar.lib /LIBPATH:"C:\tools\openssl-msvc\lib" libssl.lib libcrypto.lib ws2_32.lib mswsock.lib crypt32.lib iphlpapi.lib bcrypt.lib advapi32.lib user32.lib'
-Compile/link exit: 0
-Linked runtime evidence: 2.0.11.0 in the latest run control/dependency_identity.txt and result.json.
+Exit: 0
+Output: exact_block_probe.cpp
+
+Probe executable: artifacts/server1/P08A/bin/exact_block_probe.exe
+Probe executable bytes: 7822848
+Probe executable SHA-256: cc3db4d36a81606258d9c3360aad59ded32e78c7f043eaa70b846e85d82fd621
+
+Frozen dependency identity:
+Header-declared version: 2.0.11.0
+Header revision: 6e1587799
+Header SHA-256: 674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07
 Archive SHA-256: a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30
 
-Independent test command 1:
+Full test command 1:
 pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
 Exit: 0
-Independent test command 2:
+Output: GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=3; controlled_suppressed=3; controlled_B_exact=1; controlled_A_exact=0; controlled_unowned=0; lifecycle_handshakes=2; lifecycle_replayed=0
+Selected run: artifacts/server1/P08A/raw/run-20260907-043829165
+
+Full test command 2:
 pwsh -NoProfile -File artifacts/server1/P08A/test_probe.ps1 -Phase green
 Exit: 0
-Python syntax command:
-python -c "compile(open(r'artifacts/server1/P08A/probe-src/tiny_peer.py', encoding='utf-8').read(), r'tiny_peer.py', 'exec')"
-Exit: 0
+Output: GREEN PASS: version-specific internal header access; controlled_handshakes=A1/B1; both_advertised_before_command=True; control_picker_requests=3; controlled_suppressed=3; controlled_B_exact=1; controlled_A_exact=0; controlled_unowned=0; lifecycle_handshakes=2; lifecycle_replayed=0
+Selected run: artifacts/server1/P08A/raw/run-20260907-043854070
+
+M814: lines 72439-72764; SHA-256 05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e
+M851: lines 74856-74884; SHA-256 2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041
+Oracle SHA-256: 405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f

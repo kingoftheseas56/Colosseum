@@ -1,0 +1,20 @@
+phase=lifecycle SAVE_PATH C:\b\Colosseum-Server-1.0-workers\P08A-A\artifacts\server1\P08A\raw\run-20260907-043854070\control\download-lifecycle
+phase=lifecycle CONNECT_REQUEST peer=A port=49105
+phase=lifecycle CONNECT_REQUEST peer=B port=49106
+phase=lifecycle CONNECT peer=A endpoint=127.0.0.1:49105
+phase=lifecycle CONNECT peer=B endpoint=127.0.0.1:49106
+phase=lifecycle CONNECT peer=A endpoint=127.0.0.1:49105
+phase=lifecycle CONNECT peer=B endpoint=127.0.0.1:49106
+phase=lifecycle CONNECTED peer=A
+phase=lifecycle CONNECTED peer=B
+phase=lifecycle HANDSHAKE_VALID peer=B
+phase=lifecycle HANDSHAKE_VALID peer=A
+phase=lifecycle ADVERTISE peer=B piece=0
+phase=lifecycle WIRE peer=B piece=0 offset=0 length=16384
+phase=lifecycle SUPPRESS peer=B piece=1 offset=0 length=16384
+phase=lifecycle ADVERTISE peer=A piece=0
+phase=lifecycle COMMAND target=B piece=0 offset=0 length=16384 after_both_advertised=1 queued=1
+phase=lifecycle SUPPRESS peer=A piece=0 offset=0 length=16384
+phase=lifecycle WIRE peer=B piece=0 offset=0 length=16384
+phase=lifecycle SESSION_DESTROY_PENDING outstanding=1
+phase=lifecycle SESSION_DESTROYED release_marker_created=1 late_peer_observed=1 both_peers_disconnected=1 process_alive=1

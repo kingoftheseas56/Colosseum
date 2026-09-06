@@ -35,8 +35,9 @@ constexpr int kBlockSize = 16 * 1024;
 constexpr int kPayloadSize = 2 * kBlockSize;
 
 struct ProbeState {
-    ProbeState(int bPort, fs::path transcriptPath, std::string phase, bool commandEnabled, bool suppressPicker)
-        : bPort(bPort)
+    ProbeState(int aPort, int bPort, fs::path transcriptPath, std::string phase, bool commandEnabled, bool suppressPicker)
+        : aPort(aPort)
+        , bPort(bPort)
         , transcript(std::move(transcriptPath), std::ios::app)
         , phase(std::move(phase))
         , commandEnabled(commandEnabled)
@@ -51,6 +52,7 @@ struct ProbeState {
         transcript.flush();
     }
 
+    int aPort;
     int bPort;
     std::ofstream transcript;
     std::string phase;
@@ -59,13 +61,20 @@ struct ProbeState {
     std::mutex mutex;
     std::atomic<bool> commandIssued{false};
     std::atomic<bool> commandQueued{false};
+    std::atomic<bool> commandIssuedAfterBothAdvertised{false};
     std::atomic<bool> exactWire{false};
     std::atomic<bool> pieceReceived{false};
     std::atomic<bool> pieceAccepted{false};
+    std::atomic<int> validHandshakesA{0};
+    std::atomic<int> validHandshakesB{0};
+    std::atomic<bool> advertisedA{false};
+    std::atomic<bool> advertisedB{false};
     std::atomic<int> wireRequests{0};
     std::atomic<int> exactA{0};
     std::atomic<int> exactB{0};
     std::atomic<int> suppressedUnowned{0};
+    std::mutex commandMutex;
+    std::weak_ptr<lt::peer_connection> bConnection;
 };
 
 bool isExact(lt::peer_request const& request)
@@ -82,11 +91,51 @@ public:
     {
     }
 
+    bool on_handshake(lt::span<char const>) override
+    {
+        if (selected_) {
+            ++state_->validHandshakesB;
+            std::lock_guard<std::mutex> lock(state_->commandMutex);
+            state_->bConnection = peer_.native_handle();
+        } else {
+            ++state_->validHandshakesA;
+        }
+        state_->log(std::string("HANDSHAKE_VALID peer=") + (selected_ ? "B" : "A"));
+        maybeIssueCommand();
+        return true;
+    }
+
+    bool on_bitfield(lt::bitfield const& pieces) override
+    {
+        const bool advertisesPieceZero = pieces.size() > 0 && pieces[0];
+        if (advertisesPieceZero) {
+            if (selected_) state_->advertisedB.store(true);
+            else state_->advertisedA.store(true);
+            state_->log(std::string("ADVERTISE peer=") + (selected_ ? "B" : "A") + " piece=0");
+        }
+        maybeIssueCommand();
+        return false;
+    }
+
     void on_connected() override
     {
-        if (!state_->commandEnabled || !selected_ || state_->commandIssued.exchange(true)) return;
+        state_->log(std::string("CONNECTED peer=") + (selected_ ? "B" : "A"));
+    }
 
-        auto native = peer_.native_handle();
+    void maybeIssueCommand()
+    {
+        if (!state_->commandEnabled) return;
+
+        std::shared_ptr<lt::peer_connection> native;
+        {
+            std::lock_guard<std::mutex> lock(state_->commandMutex);
+            if (state_->validHandshakesA.load() < 1 || state_->validHandshakesB.load() < 1
+                || !state_->advertisedA.load() || !state_->advertisedB.load()
+                || state_->commandIssued.exchange(true))
+                return;
+            native = state_->bConnection.lock();
+        }
+
         if (!native) {
             state_->log("COMMAND target=B native_handle=null");
             return;
@@ -94,7 +143,8 @@ public:
 
         const bool queued = native->add_request(lt::piece_block{lt::piece_index_t(0), 0});
         state_->commandQueued.store(queued);
-        state_->log(std::string("COMMAND target=B piece=0 offset=0 length=16384 queued=")
+        state_->commandIssuedAfterBothAdvertised.store(true);
+        state_->log(std::string("COMMAND target=B piece=0 offset=0 length=16384 after_both_advertised=1 queued=")
             + (queued ? "1" : "0"));
         native->send_block_requests();
     }
@@ -154,9 +204,11 @@ public:
     std::shared_ptr<lt::peer_plugin> new_connection(lt::peer_connection_handle const& peer) override
     {
         const bool selected = peer.remote().port() == state_->bPort;
-        state_->log(std::string("CONNECT peer=") + (selected ? "B" : "A")
+        const bool expectedA = peer.remote().port() == state_->aPort;
+        state_->log(std::string("CONNECT peer=") + (selected ? "B" : (expectedA ? "A" : "UNKNOWN"))
             + " endpoint=" + peer.remote().address().to_string()
             + ":" + std::to_string(peer.remote().port()));
+        if (!selected && !expectedA) return {};
         return std::make_shared<ProbePeerPlugin>(peer, selected, state_);
     }
 
@@ -215,9 +267,14 @@ void writePrepare(fs::path const& control)
 
 struct PhaseResult {
     bool commandQueued;
+    bool commandIssuedAfterBothAdvertised;
     bool exactWire;
     bool pieceReceived;
     bool pieceAccepted;
+    int validHandshakesA;
+    int validHandshakesB;
+    bool advertisedA;
+    bool advertisedB;
     int wireRequests;
     int exactA;
     int exactB;
@@ -226,11 +283,21 @@ struct PhaseResult {
     bool postDestroyProcessAlive;
 };
 
+bool fileContains(fs::path const& path, std::string const& token)
+{
+    std::ifstream input(path);
+    std::string line;
+    while (std::getline(input, line)) {
+        if (line.find(token) != std::string::npos) return true;
+    }
+    return false;
+}
+
 PhaseResult runPhase(fs::path const& control, std::string phase, int aPort, int bPort,
     bool commandEnabled, bool suppressPicker, fs::path releaseFile)
 {
     const auto state = std::make_shared<ProbeState>(
-        bPort, control / ("lifecycle-" + phase + ".transcript"), phase, commandEnabled, suppressPicker);
+        aPort, bPort, control / ("lifecycle-" + phase + ".transcript"), phase, commandEnabled, suppressPicker);
     bool destroyedWithOutstanding = false;
     bool postDestroyProcessAlive = false;
     {
@@ -240,6 +307,7 @@ PhaseResult runPhase(fs::path const& control, std::string phase, int aPort, int 
         settings.set_bool(lt::settings_pack::enable_lsd, false);
         settings.set_bool(lt::settings_pack::enable_upnp, false);
         settings.set_bool(lt::settings_pack::enable_natpmp, false);
+        settings.set_bool(lt::settings_pack::allow_multiple_connections_per_ip, true);
         settings.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_disabled);
         settings.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_disabled);
 
@@ -291,22 +359,41 @@ PhaseResult runPhase(fs::path const& control, std::string phase, int aPort, int 
             destroyedWithOutstanding = state->exactWire.load() && !state->pieceReceived.load();
             state->log(std::string("SESSION_DESTROY_PENDING outstanding=")
                 + (destroyedWithOutstanding ? "1" : "0"));
-            std::this_thread::sleep_for(std::chrono::milliseconds(80));
         }
     }
 
     if (!releaseFile.empty()) {
         std::ofstream(releaseFile, std::ios::trunc).close();
-        postDestroyProcessAlive = true;
-        state->log("SESSION_DESTROYED release_marker_created=1 process_alive=1");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+        const fs::path wireDir = releaseFile.parent_path();
+        const fs::path wireA = wireDir / "lifecycle-peer-A-wire.log";
+        const fs::path wireB = wireDir / "lifecycle-peer-B-wire.log";
+        bool latePeerObserved = false;
+        bool bothPeersDisconnected = false;
+        for (int i = 0; i < 400; ++i) {
+            latePeerObserved = fileContains(wireB, "LATE_PIECE_SENT_AFTER_RELEASE")
+                || fileContains(wireB, "LATE_PIECE_DROPPED_AFTER_RELEASE");
+            bothPeersDisconnected = fileContains(wireA, "CLIENT_DISCONNECTED")
+                && fileContains(wireB, "CLIENT_DISCONNECTED");
+            if (latePeerObserved && bothPeersDisconnected) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        postDestroyProcessAlive = latePeerObserved && bothPeersDisconnected;
+        state->log(std::string("SESSION_DESTROYED release_marker_created=1 late_peer_observed=")
+            + (latePeerObserved ? "1" : "0")
+            + " both_peers_disconnected=" + (bothPeersDisconnected ? "1" : "0")
+            + " process_alive=" + (postDestroyProcessAlive ? "1" : "0"));
     }
 
     return {
         state->commandQueued.load(),
+        state->commandIssuedAfterBothAdvertised.load(),
         state->exactWire.load(),
         state->pieceReceived.load(),
         state->pieceAccepted.load(),
+        state->validHandshakesA.load(),
+        state->validHandshakesB.load(),
+        state->advertisedA.load(),
+        state->advertisedB.load(),
         state->wireRequests.load(),
         state->exactA.load(),
         state->exactB.load(),
@@ -323,6 +410,7 @@ struct WireCounts {
     int releaseObserved = 0;
     int disconnected = 0;
     int handshakes = 0;
+    int advertisements = 0;
 };
 
 WireCounts readWire(fs::path const& path)
@@ -336,6 +424,7 @@ WireCounts readWire(fs::path const& path)
         if (line.find("HANDSHAKE remote=") != std::string::npos
             && line.find("info_hash_match=1") != std::string::npos)
             ++counts.handshakes;
+        if (line.find("BITFIELD_SENT pieces=0,1") != std::string::npos) ++counts.advertisements;
         if (line.find("LATE_PIECE_SENT_AFTER_RELEASE") != std::string::npos
             || line.find("LATE_PIECE_DROPPED_AFTER_RELEASE") != std::string::npos)
             ++counts.lateAfterRelease;
@@ -347,32 +436,39 @@ WireCounts readWire(fs::path const& path)
 
 void writeResult(fs::path const& control, PhaseResult const& normal, PhaseResult const& controlled,
     PhaseResult const& lifecycle, WireCounts normalA, WireCounts normalB,
-    WireCounts controlledA, WireCounts controlledB, WireCounts lifecycleA, WireCounts lifecycleB)
+    WireCounts controlledA, WireCounts controlledB, WireCounts lifecycleA, WireCounts lifecycleB,
+    std::string const& probeExecutableSha256)
 {
     const int controlledUnowned = controlledA.requests + controlledB.requests - controlledB.exact;
     const int lifecycleReplayed = std::max(0, lifecycleB.requests - 1) + lifecycleA.requests;
     const bool pickerAvailable = normalA.requests + normalB.requests > 0;
-    const bool case01 = controlled.commandQueued && controlled.pieceReceived && controlled.pieceAccepted
+    const bool bothControlledPeersReady = controlled.validHandshakesA > 0 && controlled.validHandshakesB > 0
+        && controlled.advertisedA && controlled.advertisedB
+        && controlledA.handshakes > 0 && controlledB.handshakes > 0
+        && controlledA.advertisements > 0 && controlledB.advertisements > 0;
+    const bool case01 = bothControlledPeersReady && controlled.commandIssuedAfterBothAdvertised
+        && controlled.commandQueued && controlled.pieceReceived && controlled.pieceAccepted
         && controlledB.exact == 1 && controlledA.exact == 0;
     const bool case02 = pickerAvailable && controlled.pieceReceived && controlled.pieceAccepted
-        && controlledUnowned == 0;
+        && controlled.suppressedUnowned > 0 && controlledUnowned == 0;
     const bool noOrphaned = lifecycleA.handshakes == lifecycleA.disconnected
         && lifecycleB.handshakes == lifecycleB.disconnected
-        && lifecycleA.handshakes + lifecycleB.handshakes > 0;
+        && lifecycleA.handshakes > 0 && lifecycleB.handshakes > 0;
     const bool case03 = lifecycle.destroyedWithOutstanding && lifecycle.postDestroyProcessAlive
+        && lifecycle.commandIssuedAfterBothAdvertised && lifecycle.advertisedA && lifecycle.advertisedB
         && lifecycleB.exact == 1 && lifecycleA.requests == 0 && lifecycleReplayed == 0
         && lifecycleB.lateAfterRelease > 0 && lifecycleB.releaseObserved > 0
         && noOrphaned;
     std::ofstream result(control / "result.json", std::ios::trunc);
     result << "{\n"
            << "  \"schema\": \"colosseum-server1-p08a-feasibility/v2\",\n"
-           << "  \"dependency\": {\"header_path\": \"C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp\", \"header_sha256\": \"674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07\", \"header_declared_version\": \"2.0.11.0\", \"header_declared_revision\": \"6e1587799\", \"linked_runtime_version\": \"" << lt::version() << "\", \"archive_path\": \"C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib\", \"archive_bytes\": 320838716, \"archive_sha256\": \"a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30\"},\n"
+           << "  \"dependency\": {\"header_path\": \"C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp\", \"header_sha256\": \"674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07\", \"header_declared_version\": \"2.0.11.0\", \"header_declared_revision\": \"6e1587799\", \"linked_runtime_version\": \"" << lt::version() << "\", \"archive_path\": \"C:/tools/libtorrent-2.0-msvc/lib/torrent-rasterbar.lib\", \"archive_bytes\": 320838716, \"archive_sha256\": \"a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30\", \"probe_executable_sha256\": \"" << probeExecutableSha256 << "\"},\n"
            << "  \"source_tuples\": {\"M814\": {\"lines\": \"72439-72764\", \"sha256\": \"05eba72a8229b9705b0e657af5a4223fb88809f1b90325614cb33a5ecefb005e\"}, \"M851\": {\"lines\": \"74856-74884\", \"sha256\": \"2d42fa6b493e0786b631c7e6a49b5a235283cf49ab3a617e31ee5402ad4ff041\"}, \"oracle_sha256\": \"405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f\"},\n"
-           << "  \"source_identity\": {\"source\": \"artifacts/server1/P08A/probe-src/exact_block_probe.cpp\", \"public_api_attempt\": \"torrent_handle::set_piece_deadline(piece)\", \"internal_control\": \"peer_connection::add_request(piece_block) + send_block_requests()\"},\n"
+           << "  \"source_identity\": {\"source\": \"artifacts/server1/P08A/probe-src/exact_block_probe.cpp\", \"public_api_attempt\": \"torrent_handle::set_piece_deadline(piece)\", \"internal_control\": \"peer_connection::add_request(piece_block) + send_block_requests()\", \"session_option\": \"settings_pack::allow_multiple_connections_per_ip=true (probe-local)\"},\n"
            << "  \"control_phase\": {\"state\": \"" << (pickerAvailable ? "PASS" : "FAIL") << "\", \"wire_requests\": " << normalA.requests + normalB.requests << "},\n"
-           << "  \"case_01\": {\"state\": \"" << (case01 ? "PASS" : "FAIL") << "\", \"commanded_response_received_and_accepted\": " << (controlled.pieceAccepted ? "true" : "false") << ", \"peer_b_exact_requests\": " << controlledB.exact << ", \"peer_a_exact_requests\": " << controlledA.exact << "},\n"
-           << "  \"case_02\": {\"state\": \"" << (case02 ? "PASS" : "FAIL") << "\", \"ordinary_picker_available\": " << (pickerAvailable ? "true" : "false") << ", \"control_phase_wire_requests\": " << normalA.requests + normalB.requests << ", \"controlled_phase_wire_requests\": " << controlledA.requests + controlledB.requests << ", \"unowned_wire_requests\": " << controlledUnowned << "},\n"
-           << "  \"case_03\": {\"state\": \"" << (case03 ? "PASS" : "FAIL") << "\", \"destroyed_with_outstanding\": " << (lifecycle.destroyedWithOutstanding ? "true" : "false") << ", \"post_destroy_process_alive\": " << (lifecycle.postDestroyProcessAlive ? "true" : "false") << ", \"late_peer_event_after_destroy\": " << ((lifecycleB.lateAfterRelease > 0 && lifecycleB.releaseObserved > 0) ? "true" : "false") << ", \"replayed_or_second_requests\": " << lifecycleReplayed << ", \"connected_peer_handshakes\": " << lifecycleA.handshakes + lifecycleB.handshakes << ", \"client_disconnects\": " << lifecycleA.disconnected + lifecycleB.disconnected << ", \"no_orphaned_client_connections\": " << (noOrphaned ? "true" : "false") << "},\n"
+           << "  \"case_01\": {\"state\": \"" << (case01 ? "PASS" : "FAIL") << "\", \"commanded_response_received_and_accepted\": " << ((controlled.pieceReceived && controlled.pieceAccepted) ? "true" : "false") << ", \"command_issued_after_both_peers_advertised\": " << (controlled.commandIssuedAfterBothAdvertised ? "true" : "false") << ", \"peer_a_valid_handshakes\": " << controlledA.handshakes << ", \"peer_b_valid_handshakes\": " << controlledB.handshakes << ", \"peer_a_piece_advertisements\": " << controlledA.advertisements << ", \"peer_b_piece_advertisements\": " << controlledB.advertisements << ", \"peer_b_exact_requests\": " << controlledB.exact << ", \"peer_a_exact_requests\": " << controlledA.exact << "},\n"
+           << "  \"case_02\": {\"state\": \"" << (case02 ? "PASS" : "FAIL") << "\", \"ordinary_picker_available\": " << (pickerAvailable ? "true" : "false") << ", \"control_phase_wire_requests\": " << normalA.requests + normalB.requests << ", \"controlled_suppressed_picker_attempts\": " << controlled.suppressedUnowned << ", \"controlled_phase_wire_requests\": " << controlledA.requests + controlledB.requests << ", \"unowned_wire_requests\": " << controlledUnowned << "},\n"
+           << "  \"case_03\": {\"state\": \"" << (case03 ? "PASS" : "FAIL") << "\", \"destroyed_with_outstanding\": " << (lifecycle.destroyedWithOutstanding ? "true" : "false") << ", \"post_destroy_process_alive\": " << (lifecycle.postDestroyProcessAlive ? "true" : "false") << ", \"late_peer_event_after_destroy\": " << ((lifecycleB.lateAfterRelease > 0 && lifecycleB.releaseObserved > 0) ? "true" : "false") << ", \"replayed_or_second_requests\": " << lifecycleReplayed << ", \"peer_a_valid_handshakes\": " << lifecycleA.handshakes << ", \"peer_b_valid_handshakes\": " << lifecycleB.handshakes << ", \"connected_peer_handshakes\": " << lifecycleA.handshakes + lifecycleB.handshakes << ", \"client_disconnects\": " << lifecycleA.disconnected + lifecycleB.disconnected << ", \"no_orphaned_client_connections\": " << (noOrphaned ? "true" : "false") << "},\n"
            << "  \"seam_classification\": \"version-specific internal header access\",\n"
            << "  \"interface_statement\": \"No production interface changed; this is a disposable feasibility probe.\",\n"
            << "  \"wiring_request\": \"No production wiring requested; P08A remains a feasibility result.\"\n"
@@ -382,7 +478,7 @@ void writeResult(fs::path const& control, PhaseResult const& normal, PhaseResult
 int run(fs::path const& control, int controlA, int controlB, fs::path const& normalLogA,
     fs::path const& normalLogB, int controlledA, int controlledB, fs::path const& controlledLogA,
     fs::path const& controlledLogB, int lifecycleA, int lifecycleB, fs::path const& lifecycleLogA,
-    fs::path const& lifecycleLogB, fs::path const& releaseFile)
+    fs::path const& lifecycleLogB, fs::path const& releaseFile, std::string const& probeExecutableSha256)
 {
     const auto normal = runPhase(control, "normal-picker", controlA, controlB, false, false, {});
     const auto controlled = runPhase(control, "controlled", controlledA, controlledB, true, true, {});
@@ -394,7 +490,7 @@ int run(fs::path const& control, int controlA, int controlB, fs::path const& nor
     const auto lifecycleWireA = readWire(lifecycleLogA);
     const auto lifecycleWireB = readWire(lifecycleLogB);
     writeResult(control, normal, controlled, lifecycle, normalWireA, normalWireB,
-        controlledWireA, controlledWireB, lifecycleWireA, lifecycleWireB);
+        controlledWireA, controlledWireB, lifecycleWireA, lifecycleWireB, probeExecutableSha256);
     std::cout << "P08A probe complete; linked_runtime=" << lt::version()
               << "; normal_picker_requests=" << normalWireA.requests + normalWireB.requests
               << "; controlled_B_exact=" << controlledWireB.exact
@@ -412,15 +508,15 @@ int main(int argc, char** argv)
             writePrepare(argv[2]);
             return 0;
         }
-        if (argc == 16 && std::string(argv[1]) == "--run") {
+        if (argc == 17 && std::string(argv[1]) == "--run") {
             return run(argv[2], std::stoi(argv[3]), std::stoi(argv[4]), argv[5], argv[6],
                 std::stoi(argv[7]), std::stoi(argv[8]), argv[9], argv[10], std::stoi(argv[11]),
-                std::stoi(argv[12]), argv[13], argv[14], argv[15]);
+                std::stoi(argv[12]), argv[13], argv[14], argv[15], argv[16]);
         }
         std::cerr << "usage: exact_block_probe --prepare CONTROL_DIR\n"
                   << "   or: exact_block_probe --run CONTROL_DIR CONTROL_A CONTROL_B CONTROL_LOG_A CONTROL_LOG_B"
                      " CONTROLLED_A CONTROLLED_B CONTROLLED_LOG_A CONTROLLED_LOG_B"
-                     " LIFECYCLE_A LIFECYCLE_B LIFECYCLE_LOG_A LIFECYCLE_LOG_B RELEASE_FILE\n";
+                     " LIFECYCLE_A LIFECYCLE_B LIFECYCLE_LOG_A LIFECYCLE_LOG_B RELEASE_FILE PROBE_EXE_SHA256\n";
         return 2;
     } catch (std::exception const& error) {
         std::cerr << "probe failure: " << error.what() << '\n';
