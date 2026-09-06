@@ -662,6 +662,16 @@ add_custom_command(TARGET colosseum POST_BUILD
             "-DOUTPUT_FILE=$<TARGET_FILE_DIR:colosseum>/qml-build.manifest"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/bootstrap/write_qml_build_manifest.cmake"
     VERBATIM)
+# Source-tree launchers need the manifest refreshed even when only runtime QML
+# changed and the native executable itself is already up to date. This target
+# remains always out-of-date, but runs only after the native target succeeds.
+add_custom_target(colosseum_runtime_ready
+    COMMAND ${CMAKE_COMMAND}
+            "-DQML_ROOT=${CMAKE_CURRENT_SOURCE_DIR}/../qml"
+            "-DOUTPUT_FILE=$<TARGET_FILE_DIR:colosseum>/qml-build.manifest"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/bootstrap/write_qml_build_manifest.cmake"
+    DEPENDS colosseum
+    VERBATIM)
 if(WIN32)
     # Windows exe/taskbar icon (colosseum.ico) + Windows-only system libs (arc-17 Linux port:
     # both are meaningless off Windows, so they move here instead of the shared source/link list).

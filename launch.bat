@@ -32,6 +32,8 @@ echo Commit:   %COMMIT%
 echo.
 
 if not defined COLOSSEUM_ACCOUNT_SERVICE_URL set "COLOSSEUM_ACCOUNT_SERVICE_URL=https://colosseum-account-service.onrender.com"
+set "QT_FORCE_STDERR_LOGGING=1"
+set "APP_LOG=%APPDATA%\Brotherhood\Colosseum\logs\colosseum.log"
 
 if not defined QT_ROOT set "QT_ROOT=C:\Qt\6.11.1\msvc2022_64"
 if exist "%QT_ROOT%\bin" set "PATH=%QT_ROOT%\bin;%PATH%"
@@ -70,7 +72,7 @@ if exist "C:\tools\mpvqt-feasibility\mpvqt-msvc-install\bin" set "PATH=C:\tools\
 if exist "C:\tools\mpvqt-feasibility\libmpv-prefix\bin" set "PATH=C:\tools\mpvqt-feasibility\libmpv-prefix\bin;%PATH%"
 if exist "C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin" set "PATH=C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin;%PATH%"
 
-cmake --build "%BUILD_DIR%" --target colosseum --parallel 4
+cmake --build "%BUILD_DIR%" --target colosseum_runtime_ready --parallel 4
 if errorlevel 1 (
   echo.
   echo   The current master checkout did not build successfully.
@@ -94,7 +96,7 @@ if "%EXIT_CODE%"=="-1073741819" (
   echo.
   echo   Windows reported an access violation in the generated build.
   echo   Rebuilding generated files cleanly and retrying once...
-  cmake --build "%BUILD_DIR%" --target colosseum --clean-first --parallel 4
+  cmake --build "%BUILD_DIR%" --target colosseum_runtime_ready --clean-first --parallel 4
   if errorlevel 1 (
     echo.
     echo   The clean repair build failed.
@@ -108,6 +110,7 @@ if "%EXIT_CODE%"=="-1073741819" (
 if not "%EXIT_CODE%"=="0" (
   echo.
   echo   Colosseum exited with error code %EXIT_CODE%.
+  echo   Application log: %APP_LOG%
   pause
 )
 
