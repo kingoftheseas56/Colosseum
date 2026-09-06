@@ -1,0 +1,11 @@
+COMMAND: python -m unittest -v test_verify_p00.py
+WORKDIR: <worktree>/artifacts/server1/P00
+EXIT: 0
+
+test_manifest_reports_missing_duplicate_escape_and_unmanifested_paths ... ok
+test_mismatched_embedded_version_is_rejected ... ok
+test_one_byte_oracle_mutation_is_rejected_before_runtime ... ok
+
+Ran 3 tests in 0.104s
+OK
+GREEN_REPLAY_EXIT=0

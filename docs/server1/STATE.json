@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-state/v1",
+  "plan_version": "2.1",
+  "source_parallel_plan_sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
+  "master_packet_count": 64,
+  "worker_count": 109,
+  "planned_case_count": 193,
+  "initial_state": "planned",
+  "all_master_packets_state": "planned",
+  "all_workers_state": "planned",
+  "implementation_green_count": 0,
+  "master_packet_ids": [
+    "P00","P01A","P08A","P01B","P02","P03","P04","P05","P02S","P06","P07","P08","K00","K01","K13","H00","M00","K02","K05","N00","M01","N01","N07","K03","K06","K09","A00","M02","M03","N03","K04","K07","A01","A02","A03","A04","A06","A07","M07","M04","K10","K08","A05","M05","K11","N02","K12","N05","H01","M06","N04","N06","H02","E00","A08","C00","C01","C02","C03","Q00","Q01","Q02","Q03","Q04"
+  ],
+  "worker_ids": [
+    "P00-A","P01A-A","P08A-A","P01B-A","P02-A","P03-A","P04-A","P05-A","P05-B","P02S-A","P06-A","P06-B","P06-C","P07-A","P07-B","P07-C","P08-A","K00-A","K01-A","K13-A","K13-B","H00-A","M00-A","K02-A","K05-A","N00-A","M01-A","N01-A","N07-A","K03-A","K06-A","K09-A","K09-B","A00-A","A00-B","A00-C","M02-A","M02-B","M03-A","M03-B","M03-C","N03-A","N03-B","N03-C","K04-A","K07-A","A01-A","A02-A","A03-A","A04-A","A06-A","A07-A","A07-B","M07-A","M07-B","M04-A","M04-B","M04-C","M04-D","K10-A","K08-A","A05-A","M05-A","M05-B","K11-A","N02-A","N02-B","N02-C","K12-A","N05-A","H01-A","H01-B","M06-A","M06-B","N04-A","N06-A","N06-B","N06-C","N06-D","H02-A","H02-B","E00-A","E00-B","A08-A","A08-B","C00-A","C00-B","C00-C","C01-A","C02-A","C02-B","C02-C","C03-A","C03-B","Q00-A","Q00-B","Q01-A","Q01-B","Q02-A","Q02-B","Q02-C","Q03-A","Q04-A","INT-W1","INT-W2","INT-W3","INT-W5","INT-W6","INT-W7"
+  ],
+  "execution_notes": {
+    "P00-A": "P00 evidence work may execute while the project ledger remains planned.",
+    "P01B-A": "Blocked by P00-A; nonblocking to Server 1.0 correctness and release gates.",
+    "P03-A": "Skeleton/build implementation remains blocked by P00-A, P01A-A, and P08A-A.",
+    "worktree": "Provisioned before W0 writes by current user instruction; this does not advance P03."
+  }
+}

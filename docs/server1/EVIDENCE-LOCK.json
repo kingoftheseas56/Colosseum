@@ -1,0 +1,136 @@
+{
+  "schema": "colosseum-server1-evidence-lock/v1",
+  "worker_id": "P00-A",
+  "parent_packet": "P00",
+  "branch": "feature/colosseum-server-1.0",
+  "immutable_base": "81e750b65f3788af7be99392f16b86a9212ff2bd",
+  "source_authority": {
+    "parallel_work_items": {
+      "path": "parallel-plan/PARALLEL-WORK-ITEMS.json",
+      "bytes": 670883,
+      "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7"
+    },
+    "work_items": {
+      "path": "source-pack/WORK-ITEMS.json",
+      "bytes": 279062,
+      "sha256": "1863e5cfa27198170ff637b64def46d4f524277fcfb5c0957a6900b5d626a2d4"
+    },
+    "implementation_plan": {
+      "path": "source-pack/IMPLEMENTATION-PLAN.md",
+      "bytes": 209512,
+      "sha256": "99904719869541b196fc1503ce176f4b5b72e1eb57f28125a80fd8c4feb78db0"
+    },
+    "input_verification_record": {
+      "path": "source-pack/analysis/INPUT-VERIFICATION.json",
+      "sha256": "d34ba12239d21bb7f6d54ba306ab9128cf0de8aab03433d1c8022d6fbc922933"
+    },
+    "plan_integrity_record": {
+      "path": "source-pack/analysis/PLAN-INTEGRITY.json",
+      "sha256": "f605dd1ae302832c7280cd9315098ea88fab6b316f1df91bcf64dc7049a3fd53"
+    },
+    "final_verification_record": {
+      "path": "source-pack/analysis/FINAL-VERIFICATION.json",
+      "sha256": "75675347f44e41fb7002da8a9744c019c660b277f100729b9581d390d60d86a7"
+    },
+    "input_spec": {
+      "path": "source-pack/evidence-pack/SPEC.md",
+      "bytes": 11480,
+      "sha256": "63171d227c639d6d9e23b5f1afad45d66140595be7950b32fd73c24207fd84fb",
+      "modified": false
+    }
+  },
+  "input_verification": {
+    "archive": "Colosseum-Server-1.0-Planning-Pack.zip",
+    "archive_bytes": 3295570,
+    "archive_sha256": "e91c086e6cf346d9915e9f6a8253d34130b10af128a741af0ebcea7592d5e38a",
+    "zip_crc_error": null,
+    "manifest_rows": 142,
+    "manifest_failures": [],
+    "actual_payload_files": 143,
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "oracle_bytes": 6676503,
+    "node_version": "v22.16.0",
+    "node_syntax_exit": 0,
+    "node_syntax_stderr": "",
+    "runtime_executed": false
+  },
+  "supplied_v2_1_transport": {
+    "path": "delivery/Colosseum-Server-1.0-Execution-Plan-Pack-v2.1.zip",
+    "bytes": 3555636,
+    "sha256": "8047b060cbbdffae242dd2f9c1fececef12f83cd60e64a45917dacf1f417ad83",
+    "zip_crc_error": null,
+    "file_entries": 160,
+    "duplicate_entry_names": 0,
+    "relationship": "Transport archive for the derived v2.1 execution-plan pack; distinct from the original input archive recorded above."
+  },
+  "manifest_layers": [
+    {
+      "path": "SHA256SUMS.txt",
+      "manifest_sha256": "b419ea8b8cf934702bc54ec2d21b92184b1d219dadbc541bcf15d8c02dcdf4db",
+      "rows": 159,
+      "payload_files": 159,
+      "duplicate_paths": 0,
+      "failures": []
+    },
+    {
+      "path": "evidence-pack/SHA256SUMS.txt",
+      "manifest_sha256": "8d372655621144bc45ff5ac5915fb5234ca014bf45b461b40fb414e106ea1f90",
+      "rows": 142,
+      "payload_files": 142,
+      "payload_files_including_manifest": 143,
+      "duplicate_paths": 0,
+      "failures": []
+    }
+  ],
+  "oracle": {
+    "official_source": "https://dl.strem.io/server/v4.21.1/desktop/server.js",
+    "pack_path": "evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "cdn_version": "v4.21.1",
+    "embedded_package_name": "stremio-server",
+    "embedded_version": "4.21.0",
+    "bytes": 6676503,
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "runtime_executed": false
+  },
+  "source_trace": [
+    {
+      "module": 413,
+      "lines": "35868-35959",
+      "start_byte": 1969494,
+      "end_byte": 1974901,
+      "bytes": 5407,
+      "sha256": "778189038cbd3b935199924b20b7a0db61c05471864cf5d022c17c719c6bf0ba"
+    },
+    {
+      "module": 564,
+      "lines": "46578-46979",
+      "start_byte": 2625953,
+      "end_byte": 2651031,
+      "bytes": 25078,
+      "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"
+    }
+  ],
+  "historical_identities": {
+    "server_0_1_specimen_commit": "a3fcaa96ec2650014e1dd94f603d76b2b1e48387",
+    "historical_application_master_commit": "2deed52cb8a930219affd3791f2c6486ec8c37be",
+    "authority": "comparison_only"
+  },
+  "plan_identity": {
+    "version": "2.1",
+    "master_packets": 64,
+    "planned_cases": 193,
+    "requirements": 20,
+    "gates": 21,
+    "parallel_workers": 109,
+    "dependency_graph_acyclic": true,
+    "all_implementation_states_initially": "planned"
+  },
+  "evidence": {
+    "case_results": "artifacts/server1/P00/CASE-RESULTS.json",
+    "packet_receipt": "artifacts/server1/P00/PACKET-RECEIPT.json",
+    "raw_red": "artifacts/server1/P00/TDD-RED.txt",
+    "raw_green": "artifacts/server1/P00/TDD-GREEN.txt",
+    "raw_pack_validation": "artifacts/server1/P00/PACK-VALIDATION.txt",
+    "raw_source_trace": "artifacts/server1/P00/ORACLE-TRACE.txt"
+  }
+}

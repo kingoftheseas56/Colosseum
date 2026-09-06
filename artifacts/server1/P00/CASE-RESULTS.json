@@ -1,0 +1,45 @@
+{
+  "schema": "colosseum-server1-p00-case-results/v1",
+  "worker_id": "P00-A",
+  "parent_packet": "P00",
+  "runtime_started": false,
+  "cases": [
+    {
+      "id": "P00-01",
+      "state": "test-executed",
+      "input": "one-byte oracle mutation",
+      "expected": "reject before runtime",
+      "actual": "rejected on oracle byte/hash identity mismatch before runtime marker creation",
+      "result": "PASS"
+    },
+    {
+      "id": "P00-02",
+      "state": "test-executed",
+      "input": "embedded-version claim 4.21.1",
+      "expected": "reject and accept only CDN v4.21.1 / embedded 4.21.0",
+      "actual": "mismatched claim rejected; correct identity pair accepted",
+      "result": "PASS"
+    },
+    {
+      "id": "P00-03",
+      "state": "test-executed",
+      "input": ["missing path","duplicate path","escaping path","unmanifested path"],
+      "expected": "report every invalid manifest condition",
+      "actual": ["missing reported","duplicate reported","escaping reported","unmanifested reported"],
+      "result": "PASS"
+    }
+  ],
+  "valid_lock": {
+    "state": "test-executed",
+    "oracle_identity": "PASS",
+    "outer_manifest_159": "PASS",
+    "evidence_manifest_142": "PASS",
+    "result": "PASS"
+  },
+  "raw_evidence": [
+    "TDD-RED.txt",
+    "TDD-GREEN.txt",
+    "PACK-VALIDATION.txt",
+    "ORACLE-TRACE.txt"
+  ]
+}

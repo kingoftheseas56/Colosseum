@@ -1,0 +1,16 @@
+COMMAND: python -m unittest -v test_verify_p00.py
+WORKDIR: <worktree>/artifacts/server1/P00
+EXIT: 1
+SETUP: verify_p00.py temporarily withheld, then restored in a finally block
+
+test_verify_p00 (unittest.loader._FailedTest.test_verify_p00) ... ERROR
+
+ImportError: Failed to import test module: test_verify_p00
+ModuleNotFoundError: No module named 'verify_p00'
+
+Ran 1 test in 0.001s
+FAILED (errors=1)
+
+RED_REPLAY_EXIT=1
+
+Interpretation: the test-first suite fails with the validator absent. The original pre-implementation run also failed before verify_p00.py existed; this replay uses the exact GREEN command and working directory to remove import-path ambiguity.

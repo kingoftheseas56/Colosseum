@@ -1,0 +1,34 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "worker_id": "P00-A",
+  "parent_packet": "P00",
+  "branch": "feature/colosseum-server-1.0",
+  "base_sha": "81e750b65f3788af7be99392f16b86a9212ff2bd",
+  "source_trace": [
+    {"module":"M413","lines":"35868-35959","bytes":5407,"sha256":"778189038cbd3b935199924b20b7a0db61c05471864cf5d022c17c719c6bf0ba"},
+    {"module":"M564","lines":"46578-46979","bytes":25078,"sha256":"d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"}
+  ],
+  "commands": [
+    {"command":"python -m unittest -v test_verify_p00.py","working_directory":"<worktree>/artifacts/server1/P00","exit":1,"phase":"RED_REPLAY","result":"validator source temporarily withheld; module absence detected"},
+    {"command":"python -m unittest -v test_verify_p00.py","working_directory":"<worktree>/artifacts/server1/P00","exit":0,"phase":"GREEN_REPLAY","result":"validator restored; 3 tests passed"},
+    {"command":"python verify_p00.py --manifest <source-pack>/SHA256SUMS.txt --manifest <source-pack>/evidence-pack/SHA256SUMS.txt --oracle <source-pack>/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js --cdn-version v4.21.1 --embedded-version 4.21.0 --oracle-sha256 405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f --oracle-bytes 6676503","working_directory":"<worktree>/artifacts/server1/P00","exit":0,"phase":"VALID","result":"oracle and both manifest layers accepted"},
+    {"command":"node --check <source-pack>/evidence-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js","working_directory":"<worktree>","exit":0,"phase":"SYNTAX","result":"Node v24.14.0 accepted syntax"}
+  ],
+  "counts": {
+    "master_packets": 64,
+    "planned_cases": 193,
+    "workers": 109,
+    "requirements": 20,
+    "gates": 21,
+    "outer_manifest_rows": 159,
+    "evidence_manifest_rows": 142
+  },
+  "interfaces_consumed": [],
+  "interfaces_produced": ["EvidenceLock","RequirementsLedger"],
+  "interface_changes": "none",
+  "production_files_changed": 0,
+  "wiring_request": "WIRING-REQUEST.json",
+  "push_status": "not pushed; Sol review required",
+  "commit_sha": null,
+  "commit_sha_recorded_in": ".superpowers/sdd/PARALLEL-EXECUTION-PLAN/P00-A-report.md"
+}

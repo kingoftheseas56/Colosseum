@@ -1,0 +1,9 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P00-A",
+  "parent_packet": "P00",
+  "wiring_needed": false,
+  "shared_files_requested": [],
+  "interfaces_changed": [],
+  "reason": "P00-A produces only packet-owned ledgers and evidence artifacts; no build, test registry, runtime, composition, route, application, or CI wiring is required."
+}
