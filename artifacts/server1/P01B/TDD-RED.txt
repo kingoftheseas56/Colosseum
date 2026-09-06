@@ -1,0 +1,27 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\unittest\__main__.py", line 18, in <module>
+    main(module=None)
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\unittest\main.py", line 101, in __init__
+    self.parseArgs(argv)
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\unittest\main.py", line 150, in parseArgs
+    self.createTests()
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\unittest\main.py", line 161, in createTests
+    self.test = self.testLoader.loadTestsFromNames(self.testNames,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\unittest\loader.py", line 232, in loadTestsFromNames
+    suites = [self.loadTestsFromName(name, module) for name in names]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\unittest\loader.py", line 232, in <listcomp>
+    suites = [self.loadTestsFromName(name, module) for name in names]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\unittest\loader.py", line 162, in loadTestsFromName
+    module = __import__(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P01B-A\artifacts\server1\P01B\test_colosseum01.py", line 13, in <module>
+    SPEC.loader.exec_module(colosseum01)
+  File "<frozen importlib._bootstrap_external>", line 936, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 1073, in get_code
+  File "<frozen importlib._bootstrap_external>", line 1130, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\b\\Colosseum-Server-1.0-workers\\P01B-A\\tools\\server_lab\\adapters\\colosseum01.py'

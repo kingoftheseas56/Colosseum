@@ -1,0 +1,3 @@
+$ cmake -G Ninja -S C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-nzqsrlo8\source\native\colosseum_server\tests -B C:\Users\Suprabha\AppData\Local\Temp\colosseum-server01-nzqsrlo8\build -DCMAKE_BUILD_TYPE=Release
+TOOL_NOT_FOUND: [WinError 2] The system cannot find the file specified
+EXIT=127

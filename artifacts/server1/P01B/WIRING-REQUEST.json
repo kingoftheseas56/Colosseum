@@ -1,0 +1,9 @@
+{
+  "interfaces_changed": [],
+  "parent_packet": "P01B",
+  "reason": "P01B emits packet-local OptionalServer01Baseline evidence; no Server 1.0 source, build, test, runtime, or CI wiring is requested.",
+  "schema": "colosseum-server1-wiring-request/v1",
+  "shared_files_requested": [],
+  "wiring_needed": false,
+  "worker_id": "P01B-A"
+}

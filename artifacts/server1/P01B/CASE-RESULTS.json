@@ -1,0 +1,41 @@
+{
+  "build": {
+    "build_exit": null,
+    "configure_exit": 127,
+    "ctest_n_exit": null,
+    "runtime_exit": null
+  },
+  "cases": {
+    "P01B-01": "PASS",
+    "P01B-02": "PASS",
+    "P01B-03": "BASELINE_UNAVAILABLE"
+  },
+  "commands": [
+    {
+      "argv": [
+        "cmake",
+        "-G",
+        "Ninja",
+        "-S",
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-nzqsrlo8\\source\\native\\colosseum_server\\tests",
+        "-B",
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\colosseum-server01-nzqsrlo8\\build",
+        "-DCMAKE_BUILD_TYPE=Release"
+      ],
+      "exit": 127,
+      "name": "configure"
+    }
+  ],
+  "ctest": {
+    "playback_qualified": false,
+    "runtime_mpv_playback_test_configured": false,
+    "status": "BASELINE_UNAVAILABLE"
+  },
+  "errors": [
+    "cmake executable was not found on PATH; see CONFIGURE.txt"
+  ],
+  "parent_packet": "P01B",
+  "schema": "colosseum-server1-case-results/v1",
+  "status": "BASELINE_UNAVAILABLE",
+  "worker_id": "P01B-A"
+}

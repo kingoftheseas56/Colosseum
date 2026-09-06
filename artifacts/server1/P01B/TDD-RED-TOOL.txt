@@ -1,0 +1,29 @@
+test_ctest_listing_does_not_call_omitted_playback_a_pass (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_ctest_listing_does_not_call_omitted_playback_a_pass) ... ok
+test_missing_tool_is_preserved_as_bounded_command_failure (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_missing_tool_is_preserved_as_bounded_command_failure) ... ERROR
+test_required_closure_refuses_reduced_snapshot (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_required_closure_refuses_reduced_snapshot) ... ok
+test_source_receipt_keeps_exact_revision_and_object_identity (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_source_receipt_keeps_exact_revision_and_object_identity) ... ok
+
+======================================================================
+ERROR: test_missing_tool_is_preserved_as_bounded_command_failure (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_missing_tool_is_preserved_as_bounded_command_failure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\b\Colosseum-Server-1.0-workers\P01B-A\artifacts\server1\P01B\test_colosseum01.py", line 51, in test_missing_tool_is_preserved_as_bounded_command_failure
+    exit_code = colosseum01._run(["__colosseum01_missing_tool__"], Path(directory), output)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\b\Colosseum-Server-1.0-workers\P01B-A\tools\server_lab\adapters\colosseum01.py", line 71, in _run
+    completed = subprocess.run(
+                ^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 1538, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [WinError 2] The system cannot find the file specified
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.082s
+
+FAILED (errors=1)

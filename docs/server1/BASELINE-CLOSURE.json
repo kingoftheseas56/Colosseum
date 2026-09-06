@@ -1,0 +1,103 @@
+{
+  "schema": "colosseum-server1-baseline-closure/v1",
+  "worker_id": "P01B-A",
+  "parent_packet": "P01B",
+  "integration_base": "1c08a0734acbe6f46b67630f3a735e24df190db1",
+  "source": {
+    "revision": "a3fcaa96ec2650014e1dd94f603d76b2b1e48387",
+    "tree": "43aa999af0ec175fa8a79d00e79e23b502b4e080",
+    "authority": "verified Git object in worker repository",
+    "target": "native/colosseum_server/tests",
+    "library_target": "colosseum_server_native",
+    "closure_path_count": 122,
+    "source_ranges": [
+      {
+        "path": "native/colosseum_server/CMakeLists.txt",
+        "lines": "1-116",
+        "git_object": "ae9e0420a03ccc390fa2daab103a096f73cdfa2d",
+        "sha256": "9688214949f5e4db8c249c08b9bfd7c3d9015dbe5c6e44c290a5dfff81309b33"
+      },
+      {
+        "path": "native/colosseum_server/tests/CMakeLists.txt",
+        "lines": "1-126",
+        "git_object": "8c3dced3cdcc1c2ba44725e452b11dd954261be9",
+        "sha256": "5909c3a52e35769c904a3eafc22facd14ed27e42b8a9bb0d5f1c9142965ddfbf"
+      }
+    ],
+    "receipt": "artifacts/server1/P01B/SOURCE-RECEIPT.json",
+    "path_manifest": "artifacts/server1/P01B/CLOSURE-PATHS.json"
+  },
+  "recovered_dependency_inputs": {
+    "native/third_party/miniz/miniz.c": {
+      "bytes": 330382,
+      "git_object": "8d0032f9e4fb858352a6de1c25bca83ec8d5f17e",
+      "sha256": "9912e2394970dfbd4259e60a40a63bde289692bcf764286d0d332620c78bc678"
+    },
+    "native/third_party/miniz/miniz.h": {
+      "bytes": 72542,
+      "git_object": "9fcfffcc8cd7ac9e9d9af271cffdbc8d0a58a9ea",
+      "sha256": "28949a75d9a95d60d373674bdf1cac5cd8377f8802a4651e5b42d51c2fc143b3"
+    },
+    "native/torrent/engine/DebugLogBuffer.cpp": {
+      "bytes": 3713,
+      "git_object": "08c8ff4299deeb63d9a985cec2d48c9ec19de0bd",
+      "sha256": "8fe29c9c3b999142d5f73d5f47e50615b0009d1046cd82feb43e34f4d7040e8a"
+    },
+    "native/torrent/engine/DebugLogBuffer.h": {
+      "bytes": 3053,
+      "git_object": "965e9d7f20ad659f82488b540e2d947865205946",
+      "sha256": "e440c18a4f2f09ec4a8d65339331b46c047a8da66a8d669cf8735e769ad73c4f"
+    },
+    "native/player/mpvitem.cpp": {
+      "bytes": 34833,
+      "git_object": "ae7cfe819dfd4c19b12864775ee64c3705a90ac9",
+      "sha256": "24cd132f284ce00873d3bf3852b02ea6dd9a8ea88b65d6e70a328c368f7f0621"
+    },
+    "native/player/mpvitem.h": {
+      "bytes": 10795,
+      "git_object": "c5777c566dd9d588076c72ef28287a567eedce4e",
+      "sha256": "1f6665e5155ef08c764c96aee196376671bbc908f06917b74cfb117a50b596aa"
+    },
+    "native/player/streamserver.cpp": {
+      "bytes": 10129,
+      "git_object": "f2737d51330c656bffda4764e7a4e76514feb554",
+      "sha256": "ba521f819931d1c701da5dd9b97814a82929c3a608b7b108b78d6b8537d0d666"
+    },
+    "native/player/streamserver.h": {
+      "bytes": 5632,
+      "git_object": "d0d2000cb324777c95cf4ac9c87aef20d6772dad",
+      "sha256": "cd807be803684860e03cfe12b419bc09e8c6ca22a291eaeda9b0fdaf0bf7a4a4"
+    },
+    "tests/fixtures/vault/media/tiny.mp4": {
+      "bytes": 2771,
+      "git_object": "16b4361d4eb7c07baece81bd1ee6823da64079c3",
+      "sha256": "92d18113b1a74254407da1de8a356847b023b120a7ef6b810787ec53514be131"
+    }
+  },
+  "cases": {
+    "P01B-01": {
+      "state": "PASS",
+      "evidence": "122/122 archived closure paths present; no reduced target accepted",
+      "artifact": "artifacts/server1/P01B/REQUIRED-INPUTS.json"
+    },
+    "P01B-02": {
+      "state": "PASS",
+      "evidence": "all recovered inputs were materialized from the exact source revision and SHA-256 recorded separately",
+      "artifact": "artifacts/server1/P01B/SOURCE-RECEIPT.json"
+    },
+    "P01B-03": {
+      "state": "BASELINE_UNAVAILABLE",
+      "evidence": "configure could not start because cmake was not found on PATH; exit 127; ctest -N and runtime_mpv_playback_test were not run",
+      "artifacts": [
+        "artifacts/server1/P01B/CONFIGURE.txt",
+        "artifacts/server1/P01B/BUILD.txt",
+        "artifacts/server1/P01B/CTEST-N.txt",
+        "artifacts/server1/P01B/RUNTIME-MPV.txt"
+      ]
+    }
+  },
+  "status": "BASELINE_UNAVAILABLE",
+  "server1_blocking": false,
+  "interface": "OptionalServer01Baseline",
+  "interface_changes": "none"
+}

@@ -1,0 +1,9 @@
+test_ctest_listing_does_not_call_omitted_playback_a_pass (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_ctest_listing_does_not_call_omitted_playback_a_pass) ... ok
+test_missing_tool_is_preserved_as_bounded_command_failure (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_missing_tool_is_preserved_as_bounded_command_failure) ... ok
+test_required_closure_refuses_reduced_snapshot (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_required_closure_refuses_reduced_snapshot) ... ok
+test_source_receipt_keeps_exact_revision_and_object_identity (artifacts.server1.P01B.test_colosseum01.Colosseum01AdapterTests.test_source_receipt_keeps_exact_revision_and_object_identity) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.020s
+
+OK
