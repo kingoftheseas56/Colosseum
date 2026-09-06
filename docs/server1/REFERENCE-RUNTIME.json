@@ -1,0 +1,52 @@
+{
+  "schema": "colosseum-server1-reference-runtime/v1",
+  "worker_id": "P02-A",
+  "branch": "codex/server1-p02-a",
+  "base_sha": "1c08a0734acbe6f46b67630f3a735e24df190db1",
+  "oracle": {
+    "source": "source-pack/oracle/stremio-service-v4.21.1-server-bundle/server.js",
+    "cdn_selector": "v4.21.1",
+    "embedded_name": "stremio-server",
+    "embedded_version": "4.21.0",
+    "stremioRuntimeVersion": "4.0",
+    "stremioRuntimeVersion_is_node_semver": false,
+    "bytes": 6676503,
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "server_js_mutated": false
+  },
+  "runtime": {
+    "selection": "resolved node interpreter; no stremio-runtime executable was present",
+    "intended_stremio_runtime": {
+      "name": "stremio-runtime",
+      "status": "missing",
+      "provenance": "not found on PATH or known install locations"
+    },
+    "kind": "node",
+    "version": "v24.14.0",
+    "path": "C:/Program Files/nodejs/node.exe",
+    "bytes": 91380224,
+    "sha256": "63c259c81e5d472b5f11c8d506070130cb04a1ecf84b80377a34ed6ec9048088"
+  },
+  "launch": {
+    "command": ["node", "server.js"],
+    "app_path": "disposable per run",
+    "settings_path": "disposable per run",
+    "http_probe_host": "127.0.0.1",
+    "oracle_listener_bind": "0.0.0.0",
+    "http_ports": [11470, 11471, 11472, 11473, 11474],
+    "https": "disabled by NO_HTTPS_SERVER for controlled HTTP qualification",
+    "network_interfaces": "disabled by NO_NETWORK_INTERFACES"
+  },
+  "qualification": {
+    "P02-01": "BLOCKED_ENV",
+    "P02-02": "BLOCKED_ENV",
+    "P02-03": "BOUNDED_MISSING",
+    "runtime_success_claim": false,
+    "evidence": "artifacts/server1/P02/CASE-RESULTS.json"
+  },
+  "open_risks": [
+    "The host denies binds on 127.0.0.1:11470-11474 with WinError 10013 / Node EACCES, so heartbeat/settings could not be runtime-qualified.",
+    "ffmpeg and ffprobe were not resolved; no repair or fabricated runtime success was applied.",
+    "The oracle listener binds 0.0.0.0; probes remain loopback-only and the oracle was not modified."
+  ]
+}

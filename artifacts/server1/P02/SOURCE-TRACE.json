@@ -1,0 +1,36 @@
+{
+  "authorities": [
+    {
+      "behavior": "APP_PATH resolution",
+      "lines": "19677-19683",
+      "module": "M194"
+    },
+    {
+      "behavior": "bridge/status and teardown references",
+      "lines": "19683-19716;46585,46957-46978",
+      "module": "M195"
+    },
+    {
+      "behavior": "embedded package identity and dependency metadata",
+      "lines": "35868-35959",
+      "module": "M413"
+    },
+    {
+      "behavior": "ffprobe companion use",
+      "lines": "37615-37625",
+      "module": "M433"
+    },
+    {
+      "behavior": "ffmpeg/ffprobe search paths",
+      "lines": "46584-46588",
+      "module": "M436"
+    },
+    {
+      "behavior": "server entry, routes, ports, settings",
+      "lines": "46578-46979",
+      "module": "M564"
+    }
+  ],
+  "oracle_bytes": 6676503,
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+}

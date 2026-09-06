@@ -1,0 +1,12 @@
+{
+  "paths": [
+    "FINGERPRINT.json",
+    "COMPANIONS.json",
+    "CASE-RESULTS.json",
+    "LAUNCH-TRANSCRIPT.json",
+    "SOURCE-TRACE.json"
+  ],
+  "request": "Integrate P02 evidence into the G-REFERENCE ledger after Sol review; do not wire a runtime success from BLOCKED_ENV or BOUNDED_MISSING cases.",
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P02-A"
+}

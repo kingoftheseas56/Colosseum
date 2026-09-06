@@ -1,0 +1,20 @@
+{
+  "base_sha": "1c08a0734acbe6f46b67630f3a735e24df190db1",
+  "branch": "codex/server1-p02-a",
+  "case_results": "CASE-RESULTS.json",
+  "interface_changes": "none",
+  "interfaces_consumed": [
+    "EvidenceLock",
+    "RequirementsLedger"
+  ],
+  "interfaces_produced": [
+    "ReferenceRuntimeIdentity",
+    "ReferenceQualificationCases"
+  ],
+  "parent_packet": "P02",
+  "production_files_changed": 0,
+  "push_status": "not pushed; Sol review required",
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "wiring_request": "WIRING-REQUEST.json",
+  "worker_id": "P02-A"
+}

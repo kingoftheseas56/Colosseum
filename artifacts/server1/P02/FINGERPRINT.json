@@ -1,0 +1,53 @@
+{
+  "embedded": {
+    "name": "stremio-server",
+    "stremioRuntimeVersion": "4.0",
+    "stremioRuntimeVersionIsNodeSemver": false,
+    "version": "4.21.0"
+  },
+  "launch_flags": {
+    "http_port_range": [
+      11470,
+      11474
+    ],
+    "https_disabled": true,
+    "network_interfaces_disabled": true,
+    "probe_host": "127.0.0.1",
+    "reference_listener_bind": "0.0.0.0 (oracle source; not modified)"
+  },
+  "oracle": {
+    "bytes": 6676503,
+    "expected_bytes": 6676503,
+    "expected_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "identity_match": true,
+    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "platform": {
+    "machine": "AMD64",
+    "python": "3.11.9",
+    "release": "10",
+    "system": "Windows"
+  },
+  "runtime": {
+    "command": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
+    ],
+    "executable": {
+      "bytes": 91380224,
+      "exists": true,
+      "path": "C:\\Program Files\\nodejs\\node.exe",
+      "sha256": "63c259c81e5d472b5f11c8d506070130cb04a1ecf84b80377a34ed6ec9048088"
+    },
+    "intended_stremio_runtime": {
+      "name": "stremio-runtime",
+      "path": null,
+      "provenance": "not-found-on-PATH-or-known-install-locations",
+      "status": "missing"
+    },
+    "kind": "node",
+    "path": "C:\\Program Files\\nodejs\\node.exe",
+    "version": "v24.14.0"
+  }
+}
