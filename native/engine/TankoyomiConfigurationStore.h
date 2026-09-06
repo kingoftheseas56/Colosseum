@@ -9,6 +9,7 @@
 #include <QVariantList>
 
 #include <memory>
+#include <optional>
 
 // User-owned overlay over TankoyomiProviderRegistry's immutable manifest
 // inventory. The registry remains responsible for validating identities,

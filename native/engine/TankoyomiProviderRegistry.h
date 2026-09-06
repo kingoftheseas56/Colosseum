@@ -37,7 +37,13 @@ public:
     QString defaultLanguage() const { return m_defaultLanguage; }
     QString fallbackPolicy() const { return m_fallbackPolicy; }
 
+    // Legacy runtime projection. This preserves the original meaning of this
+    // API: only providers whose manifest default is enabled are returned.
     QList<TankoyomiProviderDescriptor> providersForLanguage(const QString &language) const;
+    // Complete validated inventory projection for configuration and provider
+    // construction. It includes manifest-default-disabled providers while
+    // retaining manifest priority order and same-language resolution.
+    QList<TankoyomiProviderDescriptor> allProvidersForLanguage(const QString &language) const;
     std::optional<TankoyomiProviderDescriptor> provider(const QString &language,
                                                         const QString &providerId) const;
     QVariantList languages() const;

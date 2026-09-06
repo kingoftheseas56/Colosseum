@@ -144,10 +144,26 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
         m_error = QStringLiteral("Tankoyomi default language is not installed");
         return;
     }
+    for (const LanguageDescriptor &language : m_languages) {
+        if (language.code == m_defaultLanguage && language.providers.isEmpty()) {
+            m_error = QStringLiteral("Tankoyomi default language has no inventory providers");
+            return;
+        }
+    }
 }
 
 QList<TankoyomiProviderDescriptor>
 TankoyomiProviderRegistry::providersForLanguage(const QString &requested) const
+{
+    QList<TankoyomiProviderDescriptor> enabled;
+    for (const TankoyomiProviderDescriptor &provider : allProvidersForLanguage(requested)) {
+        if (provider.manifestEnabled) enabled.append(provider);
+    }
+    return enabled;
+}
+
+QList<TankoyomiProviderDescriptor>
+TankoyomiProviderRegistry::allProvidersForLanguage(const QString &requested) const
 {
     if (!isValid()) return {};
     const QString language = requested.trimmed().isEmpty()

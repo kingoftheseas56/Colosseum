@@ -27,8 +27,11 @@ TankoyomiChapterService::TankoyomiChapterService(
     const QVariantList languageRows = m_registry.languages();
     for (const QVariant &languageValue : languageRows) {
         const QString language = languageValue.toMap().value(QStringLiteral("code")).toString();
+        // The legacy m_registry.providersForLanguage(language) projection
+        // remains manifest-enabled-only; construction needs the complete
+        // validated inventory so a user can enable a manifest-disabled source.
         for (const TankoyomiProviderDescriptor &descriptor
-             : m_registry.providersForLanguage(language)) {
+             : m_registry.allProvidersForLanguage(language)) {
             auto *provider = new TankoyomiScriptProvider(
                 descriptor.id, descriptor.language, descriptor.resourcePath,
                 descriptor.allowedHosts, this);

@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     QList<TankoyomiProviderDescriptor> manifest;
     for (const QVariant &rowValue : registry.languages()) {
         const QString candidate = rowValue.toMap().value(QStringLiteral("code")).toString();
-        const auto providers = registry.providersForLanguage(candidate);
+        const auto providers = registry.allProvidersForLanguage(candidate);
         if (providers.size() > 1) {
             language = candidate;
             manifest = providers;
@@ -68,6 +68,18 @@ int main(int argc, char **argv)
               "service resolves the current configured provider order");
         check(service.candidateProviders(QStringLiteral("zz")).isEmpty(),
               "service never crosses language boundaries for unsupported requests");
+
+        bool failedWithoutCandidates = false;
+        QObject::connect(&service, &TankoyomiChapterService::catalogueFailed, &app,
+                         [&](const QString &requestId, const QString &) {
+            if (requestId == QLatin1String("disabled")) failedWithoutCandidates = true;
+        });
+        for (const auto &provider : manifest)
+            check(store.setProviderEnabled(language, provider.id, false),
+                  "service policy can disable every provider in a language");
+        service.fetchCatalogue(QStringLiteral("disabled"), QStringLiteral("No Network"), language);
+        check(failedWithoutCandidates,
+              "fetchCatalogue consumes the current empty candidate ladder without network fallback");
     }
 
     if (failures) return 1;

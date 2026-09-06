@@ -50,6 +50,13 @@ colosseum_register_harness(reader2_stores_harness        unit;reader2)
 colosseum_register_harness(reader2_bridge_harness        unit;reader2)
 colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
 
+# Tankoyomi configuration policy: deterministic manifest/inventory, persisted
+# overlay, and service candidate selection. The network runtime probe remains
+# intentionally unregistered; these harnesses cover the no-network boundary.
+colosseum_register_harness(tankoyomi_provider_registry_harness unit;tankoyomi)
+colosseum_register_harness(tankoyomi_configuration_store_harness unit;tankoyomi)
+colosseum_register_harness(tankoyomi_service_configuration_harness unit;tankoyomi)
+
 if(WIN32)
     add_test(NAME colosseum.reader2_logic
         COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"

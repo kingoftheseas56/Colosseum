@@ -76,7 +76,7 @@ QList<TankoyomiProviderDescriptor> TankoyomiConfigurationStore::manifestProvider
     const QString &language) const
 {
     if (language.trimmed().isEmpty()) return {};
-    return m_registry.providersForLanguage(language);
+    return m_registry.allProvidersForLanguage(language);
 }
 
 std::optional<TankoyomiProviderDescriptor> TankoyomiConfigurationStore::manifestProvider(
@@ -101,12 +101,19 @@ void TankoyomiConfigurationStore::load()
 
     const QString storedDefault = TankoyomiProviderRegistry::normalizeLanguage(
         root.value(QStringLiteral("defaultLanguage")).toString());
-    if (m_states.contains(storedDefault)) m_defaultLanguage = storedDefault;
+    if (m_states.contains(storedDefault) && !manifestProviders(storedDefault).isEmpty())
+        m_defaultLanguage = storedDefault;
 
     const QJsonObject languages = root.value(QStringLiteral("languages")).toObject();
     for (auto languageIt = languages.constBegin(); languageIt != languages.constEnd(); ++languageIt) {
-        const QString language = canonicalLanguage(languageIt.key());
+        // Persisted object names are explicit language identities. They must
+        // never use canonicalLanguage()'s empty-means-current-default behavior;
+        // empty, whitespace, and unsupported keys are corrupt/stale data.
+        const QString rawLanguage = languageIt.key().trimmed();
+        if (rawLanguage.isEmpty()) continue;
+        const QString language = TankoyomiProviderRegistry::normalizeLanguage(rawLanguage);
         if (language.isEmpty() || !languageIt.value().isObject()) continue;
+        if (!m_states.contains(language)) continue;
         LanguageState *state = stateFor(language);
         if (!state) continue;
         const QJsonObject stored = languageIt.value().toObject();
@@ -246,7 +253,8 @@ QList<TankoyomiProviderDescriptor> TankoyomiConfigurationStore::providersForLang
 bool TankoyomiConfigurationStore::setDefaultLanguage(const QString &language)
 {
     const QString canonical = TankoyomiProviderRegistry::normalizeLanguage(language);
-    if (!m_states.contains(canonical) || canonical == m_defaultLanguage) return m_states.contains(canonical);
+    if (!m_states.contains(canonical) || manifestProviders(canonical).isEmpty()) return false;
+    if (canonical == m_defaultLanguage) return true;
     const QString previous = m_defaultLanguage;
     m_defaultLanguage = canonical;
     if (!persist()) {

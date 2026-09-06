@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QSettings>
 #include <QTemporaryDir>
 
 static int failures = 0;
@@ -94,6 +95,34 @@ int main(int argc, char **argv)
           "fully-disabled language yields an empty runtime ladder");
     check(reopened.providersForLanguage(QStringLiteral("fr")).isEmpty(),
           "unsupported language does not fall back to another language");
+
+    const QString corruptPath = temp.filePath(QStringLiteral("corrupt.ini"));
+    QSettings corruptSettings(corruptPath, QSettings::IniFormat);
+    corruptSettings.setValue(
+        QStringLiteral("tankoyomi/configuration"),
+        QByteArray(R"JSON({"defaultLanguage":"en","languages":{
+          "":{"enabled":{"first":false}},
+          "   ":{"enabled":{"second":false}},
+          "zz":{"enabled":{"first":false}},
+          "en":{"order":["stale","first","second"]}
+        }})JSON"));
+    corruptSettings.sync();
+    TankoyomiConfigurationStore corrupt(registry, corruptPath);
+    check(ids(corrupt.providersForLanguage(QStringLiteral("en")))
+              == QStringList{QStringLiteral("first"), QStringLiteral("second")},
+          "empty, whitespace, and unsupported persisted language keys cannot mutate the default");
+    check(corrupt.providers(QStringLiteral("en")).size() == 3,
+          "valid persisted language objects still retain all inventory rows");
+
+    const QString malformedPath = temp.filePath(QStringLiteral("malformed.ini"));
+    QSettings malformedSettings(malformedPath, QSettings::IniFormat);
+    malformedSettings.setValue(QStringLiteral("tankoyomi/configuration"), QByteArray("not-json"));
+    malformedSettings.sync();
+    TankoyomiConfigurationStore malformed(registry, malformedPath);
+    check(malformed.defaultLanguage() == QStringLiteral("en")
+              && ids(malformed.providersForLanguage(QStringLiteral("en")))
+                  == QStringList{QStringLiteral("first"), QStringLiteral("second")},
+          "malformed persisted configuration falls back to manifest defaults");
 
     if (failures) return 1;
     qInfo() << "PASS — Tankoyomi configuration store contract";
