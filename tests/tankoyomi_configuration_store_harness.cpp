@@ -18,12 +18,12 @@ static QByteArray validManifest()
       "defaultLanguage":"en",
       "fallbackPolicy":"same-language-only",
       "languages":[
-        {"code":"en","label":"English","providers":[
+        {"code":"en","label":"English","countryCode":"GB","providers":[
           {"id":"first","name":"First","entry":"languages/en/first.js","priority":1,"enabled":true,"allowedHosts":["first.example"]},
           {"id":"second","name":"Second","entry":"languages/en/second.js","priority":2,"enabled":true,"allowedHosts":["second.example"]},
           {"id":"manifest-off","name":"Manifest Off","entry":"languages/en/off.js","priority":3,"enabled":false,"allowedHosts":["off.example"]}
         ]},
-        {"code":"pt","label":"Português","providers":[
+        {"code":"pt","label":"Português","countryCode":"BR","providers":[
           {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"allowedHosts":["pt.example"]}
         ]}
       ]
@@ -72,6 +72,14 @@ int main(int argc, char **argv)
               == QStringLiteral("manifest-off")
               && !summaries.at(2).toMap().value(QStringLiteral("enabled")).toBool(),
           "summaries expose configured rank and enabled state");
+    check(store.languages().size() == 2
+              && store.languages().at(0).toMap().value(QStringLiteral("countryCode")).toString()
+                     == QStringLiteral("GB"),
+          "language summaries preserve manifest-backed country codes");
+    check(summaries.size() == 3
+              && summaries.at(0).toMap().value(QStringLiteral("allowedHosts")).toStringList()
+                     == QStringList{QStringLiteral("off.example")},
+          "provider summaries preserve manifest host identity");
 
     check(store.resetProviderOrder(QStringLiteral("en")), "provider order can be reset");
     check(ids(store.providersForLanguage(QStringLiteral("en")))

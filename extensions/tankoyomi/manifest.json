@@ -30,6 +30,7 @@
     {
       "code": "en",
       "label": "English",
+      "countryCode": "GB",
       "providers": [
         {
           "id": "weebcentral",
@@ -46,6 +47,7 @@
     {
       "code": "es",
       "label": "Español",
+      "countryCode": "ES",
       "providers": [
         {
           "id": "zonatmo",
@@ -72,6 +74,7 @@
     {
       "code": "pt",
       "label": "Português (Brasil)",
+      "countryCode": "BR",
       "providers": [
         {
           "id": "taiyo",
@@ -110,6 +113,7 @@
     {
       "code": "fr",
       "label": "Français",
+      "countryCode": "FR",
       "providers": [
         {
           "id": "sushiscan-fr",

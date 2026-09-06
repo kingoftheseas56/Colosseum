@@ -28,6 +28,17 @@ check(page.includes('Configuration') && page.includes('About'),
 check(page.includes('chapterLanguages') && page.includes('chapterDefaultLanguage')
       && page.includes('chapterProviders'),
   'page consumes the native language/default/provider projections');
+const expectedCountryCodes = { en: 'GB', es: 'ES', pt: 'BR', fr: 'FR' };
+for (const language of manifest.languages || []) {
+  if (expectedCountryCodes[language.code]) {
+    check(language.countryCode === expectedCountryCodes[language.code],
+      `${language.code} manifest carries the approved country code`);
+  }
+}
+check(page.includes('TankoyomiFlag') && page.includes('countryCode'),
+  'page renders manifest-backed vector flags for language rows and detail header');
+check(page.includes('allowedHosts') && page.includes('providerHost'),
+  'page renders provider website identity from manifest host allowlists');
 for (const method of [
   'setChapterDefaultLanguage', 'setChapterProviderEnabled',
   'moveChapterProviderUp', 'moveChapterProviderDown', 'resetChapterProviderOrder'

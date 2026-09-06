@@ -16,12 +16,12 @@ static QByteArray validManifest()
       "defaultLanguage":"en",
       "fallbackPolicy":"same-language-only",
       "languages":[
-        {"code":"en","label":"English","providers":[
+        {"code":"en","label":"English","countryCode":"GB","providers":[
           {"id":"second","name":"Second","entry":"languages/en/second.js","priority":2,"enabled":true,"allowedHosts":["second.example"]},
           {"id":"first","name":"First","entry":"languages/en/first.js","priority":1,"enabled":true,"allowedHosts":["first.example","api.first.example"]},
           {"id":"disabled","name":"Disabled by manifest","entry":"languages/en/disabled.js","priority":3,"enabled":false,"allowedHosts":["disabled.example"]}
         ]},
-        {"code":"pt","label":"Português (Brasil)","providers":[
+        {"code":"pt","label":"Português (Brasil)","countryCode":"BR","providers":[
           {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"allowedHosts":["pt.example"]}
         ]}
       ]
@@ -35,7 +35,7 @@ static QByteArray emptyDefaultLanguageManifest()
       "fallbackPolicy":"same-language-only",
       "languages":[
         {"code":"en","label":"English","providers":[]},
-        {"code":"pt","label":"Português (Brasil)","providers":[
+        {"code":"pt","label":"Português (Brasil)","countryCode":"BR","providers":[
           {"id":"pt-one","name":"PT One","entry":"languages/pt/one.js","priority":1,"enabled":true,"allowedHosts":["pt.example"]}
         ]}
       ]
@@ -96,6 +96,10 @@ int main()
           && languages.at(0).toMap().value(QStringLiteral("code")).toString() == QStringLiteral("en")
           && languages.at(1).toMap().value(QStringLiteral("code")).toString() == QStringLiteral("pt"),
           "registry projects ordered language metadata for QML");
+    check(languages.size() == 2
+          && languages.at(0).toMap().value(QStringLiteral("countryCode")).toString() == QStringLiteral("GB")
+          && languages.at(1).toMap().value(QStringLiteral("countryCode")).toString() == QStringLiteral("BR"),
+          "registry projects manifest-backed country codes for QML");
 
     TankoyomiProviderRegistry emptyDefault(emptyDefaultLanguageManifest());
     check(!emptyDefault.isValid(), "manifest default language with no inventory providers fails closed");

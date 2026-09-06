@@ -91,6 +91,7 @@ void TankoyomiProviderRegistry::parse(const QByteArray &manifestJson, const QStr
         LanguageDescriptor language;
         language.code = normalizeLanguage(languageObject.value(QStringLiteral("code")).toString());
         language.label = languageObject.value(QStringLiteral("label")).toString().trimmed();
+        language.countryCode = languageObject.value(QStringLiteral("countryCode")).toString().trimmed().toUpper();
         if (language.code.isEmpty() || language.label.isEmpty() || languageCodes.contains(language.code)) {
             m_error = QStringLiteral("Tankoyomi manifest contains an invalid or duplicate language");
             return;
@@ -191,6 +192,7 @@ QVariantList TankoyomiProviderRegistry::languages() const
         out.append(QVariantMap{
             {QStringLiteral("code"), language.code},
             {QStringLiteral("label"), language.label},
+            {QStringLiteral("countryCode"), language.countryCode},
             {QStringLiteral("providerCount"), language.providers.size()}
         });
     }

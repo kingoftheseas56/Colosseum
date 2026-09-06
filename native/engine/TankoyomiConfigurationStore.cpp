@@ -219,6 +219,7 @@ QVariantList TankoyomiConfigurationStore::providers(const QString &language) con
             {QStringLiteral("id"), descriptor.id},
             {QStringLiteral("name"), descriptor.name},
             {QStringLiteral("language"), descriptor.language},
+            {QStringLiteral("allowedHosts"), descriptor.allowedHosts},
             {QStringLiteral("enabled"), state->enabled.value(descriptor.id, descriptor.manifestEnabled)},
             {QStringLiteral("manifestEnabled"), descriptor.manifestEnabled},
             {QStringLiteral("rank"), rank++},

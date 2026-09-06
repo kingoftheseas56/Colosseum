@@ -21,15 +21,19 @@ TestCase {
             signal chapterConfigurationChanged()
             property string chapterDefaultLanguage: "es"
             property var languageRows: [
-                { code: "en", label: "English", providerCount: 1, enabledProviderCount: 1, default: false },
-                { code: "es", label: "Español", providerCount: 2, enabledProviderCount: 2, default: true }
+                { code: "en", label: "English", countryCode: "GB", providerCount: 1, enabledProviderCount: 1, default: false },
+                { code: "es", label: "Español", countryCode: "ES", providerCount: 2, enabledProviderCount: 2, default: true },
+                { code: "pt", label: "Português (Brasil)", countryCode: "BR", providerCount: 1, enabledProviderCount: 1, default: false },
+                { code: "fr", label: "Français", countryCode: "FR", providerCount: 1, enabledProviderCount: 1, default: false }
             ]
             property var providerRows: ({
-                en: [ { id: "en-one", name: "English One", enabled: true, rank: 0 } ],
+                en: [ { id: "en-one", name: "WeebCentral", allowedHosts: ["weebcentral.com"], enabled: true, rank: 0 } ],
                 es: [
-                    { id: "es-one", name: "Español One", enabled: true, rank: 0 },
-                    { id: "es-two", name: "Español Two", enabled: false, rank: 1 }
-                ]
+                    { id: "es-one", name: "ZonaTMO", allowedHosts: ["zonatmo.org"], enabled: true, rank: 0 },
+                    { id: "es-two", name: "NiAdd", allowedHosts: ["es.niadd.com"], enabled: false, rank: 1 }
+                ],
+                pt: [ { id: "pt-one", name: "Taiyō", allowedHosts: ["taiyo.moe"], enabled: true, rank: 0 } ],
+                fr: [ { id: "fr-one", name: "Sushiscan.fr", allowedHosts: ["sushiscan.fr"], enabled: true, rank: 0 } ]
             })
             property var calls: []
             function chapterLanguages() { return languageRows }
@@ -125,6 +129,21 @@ TestCase {
         verify(byName(page, "tankoyomiProviderLadder") !== null)
     }
 
+    function test_manifest_flags_render_for_every_supported_language() {
+        compare(byName(page, "tankoyomiLanguageFlag_en").countryCode, "GB")
+        compare(byName(page, "tankoyomiLanguageFlag_es").countryCode, "ES")
+        compare(byName(page, "tankoyomiLanguageFlag_pt").countryCode, "BR")
+        compare(byName(page, "tankoyomiLanguageFlag_fr").countryCode, "FR")
+        compare(byName(page, "tankoyomiDetailFlag").countryCode, "ES")
+    }
+
+    function test_provider_rows_render_manifest_name_and_primary_host() {
+        var providerName = byName(page, "tankoyomiProviderName_es-one")
+        var providerHost = byName(page, "tankoyomiProviderHost_es-one")
+        compare(providerName.text, "ZonaTMO")
+        compare(providerHost.text, "zonatmo.org")
+    }
+
     function test_provider_actions_delegate_to_native_policy() {
         verify(page.toggleProvider("es", "es-two", true))
         verify(page.moveProviderUp("es", "es-two"))
@@ -159,7 +178,7 @@ TestCase {
         wait(0)
         var providerName = byName(page, "tankoyomiProviderName_es-one")
         verify(providerName !== null)
-        compare(providerName.text, "Español One")
+        compare(providerName.text, "ZonaTMO")
         verify(!providerName.truncated)
     }
 

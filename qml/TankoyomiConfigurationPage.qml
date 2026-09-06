@@ -46,6 +46,24 @@ Item {
         return String(row && row.code || "").trim().toLowerCase()
     }
 
+    function _languageRow(code) {
+        var target = String(code || "").trim().toLowerCase()
+        for (var i = 0; i < root.languageRows.length; ++i) {
+            if (root._languageCode(root.languageRows[i]) === target)
+                return root.languageRows[i]
+        }
+        return null
+    }
+
+    function _countryCode(row) {
+        return String(row && (row.countryCode || row.flag) || "").trim().toUpperCase()
+    }
+
+    function _providerHost(row) {
+        var hosts = row && row.allowedHosts
+        return hosts && hosts.length ? String(hosts[0] || "").trim() : ""
+    }
+
     function _defaultLanguage() {
         var source = root.mangaRef
         if (!source) return ""
@@ -430,10 +448,9 @@ Item {
                                                 border.width: 1; border.color: root.selectedLanguage === langRow.code ? Qt.rgba(0.94,0.77,0.29,0.28) : "transparent" }
                                     Row {
                                         anchors.fill: parent; anchors.margins: 10; spacing: 12
-                                        Text { width: 38; height: 38; text: String(langRow.code || "?").toUpperCase().slice(0,2)
-                                               color: theme.gold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                                               font.family: theme.ui; font.pixelSize: 12; font.weight: Font.Bold
-                                               Rectangle { anchors.fill: parent; radius: 9; color: Qt.rgba(1,1,1,0.06); border.width: 1; border.color: theme.edge; z: -1 } }
+                                        TankoyomiFlag { objectName: "tankoyomiLanguageFlag_" + langRow.code
+                                                        width: 38; height: 38
+                                                        countryCode: root._countryCode(langRow.modelData) }
                                         Column { width: parent.width - 38 - 16 - 70; anchors.verticalCenter: parent.verticalCenter; spacing: 3
                                             Text { text: langRow.modelData.label || langRow.code; color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
                                             Text { text: langRow.code + " · " + (langRow.modelData.providerCount || 0) + " source" + ((langRow.modelData.providerCount || 0) === 1 ? "" : "s")
@@ -512,10 +529,31 @@ Item {
                         padding: 20
                         spacing: 0
                         Text { text: "Auto-pick route"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5; font.weight: Font.DemiBold }
-                        Text { text: { for (var i=0;i<root.languageRows.length;i++) if (root._languageCode(root.languageRows[i]) === root.selectedLanguage) return root.languageRows[i].label; return root.selectedLanguage }
-                               color: theme.ink; font.family: theme.display; font.pixelSize: 25; topPadding: 5 }
-                        Text { text: root.providerRows.length + " configured source" + (root.providerRows.length === 1 ? "" : "s") + " · same-language fallback only"
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; topPadding: 5 }
+                        Row {
+                            id: detailHeader
+                            objectName: "tankoyomiDetailHeader"
+                            width: parent.width
+                            topPadding: 5
+                            bottomPadding: 5
+                            spacing: 12
+                            TankoyomiFlag {
+                                objectName: "tankoyomiDetailFlag"
+                                width: 50; height: 50
+                                anchors.verticalCenter: parent.verticalCenter
+                                countryCode: root._countryCode(root._languageRow(root.selectedLanguage))
+                            }
+                            Column {
+                                width: parent.width - 50 - parent.spacing
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 3
+                                Text { text: { var row = root._languageRow(root.selectedLanguage); return row ? row.label : root.selectedLanguage }
+                                       color: theme.ink; font.family: theme.display; font.pixelSize: 25
+                                       elide: Text.ElideRight; width: parent.width }
+                                Text { text: root.providerRows.length + " configured source" + (root.providerRows.length === 1 ? "" : "s") + " · same-language fallback only"
+                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                       elide: Text.ElideRight; width: parent.width }
+                            }
+                        }
                         Row {
                             width: parent.width
                             topPadding: 18; bottomPadding: 12
@@ -574,6 +612,10 @@ Item {
                                                        text: providerRow.modelData.name || providerRow.providerId; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                                                 Text { visible: detailPanel.width >= 600
                                                        text: providerRow.providerEnabled ? "ACTIVE" : "DISABLED"; color: providerRow.providerEnabled ? "#72d487" : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                                             Text { objectName: "tankoyomiProviderHost_" + providerRow.providerId
+                                                    width: parent.width; elide: Text.ElideRight
+                                                    text: root._providerHost(providerRow.modelData); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                                                    visible: text.length > 0 }
                                              Text { width: parent.width; elide: Text.ElideRight
                                                     text: "Rank " + (providerRow.index + 1) + " · " + providerRow.providerId; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
                                         }

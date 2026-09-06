@@ -52,6 +52,7 @@ private:
     struct LanguageDescriptor {
         QString code;
         QString label;
+        QString countryCode;
         QList<TankoyomiProviderDescriptor> providers;
     };
 
