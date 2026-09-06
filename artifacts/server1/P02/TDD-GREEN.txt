@@ -17,3 +17,13 @@ FINAL COMMAND: $env:STREMIO_SERVER_JS='<source-pack>/oracle/stremio-service-v4.2
 WORKING_DIRECTORY: <worker>
 EXIT: 0
 RESULT: 8 tests ran; 6 passed and 2 Windows-only tests skipped after explicit BLOCKED_ENV assertions
+
+SOURCE-AUTHORITY REPAIR COMMAND: python -m unittest -v tools.server_lab.tests.test_reference_identity.SourceAuthorityTraceTests
+WORKING_DIRECTORY: <worker>
+EXIT: 0
+RESULT: the artifact's six module/range/SHA tuples and authority-file identity matched the authoritative P02-A worker JSON
+
+FRESH REPLAY COMMAND: $env:STREMIO_SERVER_JS='<source-pack>/oracle/stremio-service-v4.21.1-server-bundle/server.js'; python -m unittest -v tools.server_lab.tests.test_reference_identity
+WORKING_DIRECTORY: <worker>
+EXIT: 0
+RESULT: 9 tests ran in 50.937 seconds; 7 passed and 2 Windows-only tests skipped after explicit BLOCKED_ENV assertions; all four WSL qualification tests passed

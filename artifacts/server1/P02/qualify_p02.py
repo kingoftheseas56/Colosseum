@@ -177,15 +177,57 @@ def main() -> int:
     dump(
         output / "SOURCE-TRACE.json",
         {
+            "schema": "colosseum-server1-p02-source-trace/v2",
             "oracle_sha256": identity["oracle"]["sha256"],
             "oracle_bytes": identity["oracle"]["bytes"],
+            "authority_source": {
+                "path": r"C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json",
+                "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
+                "worker_id": "P02-A",
+            },
             "authorities": [
-                {"module": "M194", "lines": "19677-19683", "behavior": "APP_PATH resolution"},
-                {"module": "M195", "lines": "19683-19716;46585,46957-46978", "behavior": "bridge/status and teardown references"},
-                {"module": "M413", "lines": "35868-35959", "behavior": "embedded package identity and dependency metadata"},
-                {"module": "M433", "lines": "37615-37625", "behavior": "ffprobe companion use"},
-                {"module": "M436", "lines": "46584-46588", "behavior": "ffmpeg/ffprobe search paths"},
-                {"module": "M564", "lines": "46578-46979", "behavior": "server entry, routes, ports, settings"},
+                {
+                    "module": "M194",
+                    "authority_lines": "19675-19682",
+                    "authority_sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843",
+                    "observed_lines": "19677-19683",
+                    "observed_behavior": "APP_PATH resolution",
+                },
+                {
+                    "module": "M195",
+                    "authority_lines": "19682-19707",
+                    "authority_sha256": "7756e8b85a0ed5bcee2c3770d30dbd8649e943709e2b7b347e9d5977019e0b87",
+                    "observed_lines": "19683-19716;46585,46957-46978",
+                    "observed_behavior": "bridge/status and teardown references",
+                },
+                {
+                    "module": "M413",
+                    "authority_lines": "35868-35959",
+                    "authority_sha256": "778189038cbd3b935199924b20b7a0db61c05471864cf5d022c17c719c6bf0ba",
+                    "observed_lines": "35868-35959",
+                    "observed_behavior": "embedded package identity and dependency metadata",
+                },
+                {
+                    "module": "M433",
+                    "authority_lines": "37687-37693",
+                    "authority_sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602",
+                    "observed_lines": "37615-37625",
+                    "observed_behavior": "ffprobe companion use",
+                },
+                {
+                    "module": "M436",
+                    "authority_lines": "37824-37826",
+                    "authority_sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0",
+                    "observed_lines": "46584-46588",
+                    "observed_behavior": "ffmpeg/ffprobe search paths",
+                },
+                {
+                    "module": "M564",
+                    "authority_lines": "46578-46979",
+                    "authority_sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
+                    "observed_lines": "46578-46979",
+                    "observed_behavior": "server entry, routes, ports, settings",
+                },
             ],
         },
     )

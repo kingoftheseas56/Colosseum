@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -13,6 +16,47 @@ from pathlib import Path
 ORACLE = os.environ.get("STREMIO_SERVER_JS")
 HAS_ORACLE = bool(ORACLE and Path(ORACLE).is_file())
 HAS_WSL = bool(shutil.which("wsl.exe"))
+PARALLEL_WORK_ITEMS = Path(
+    os.environ.get(
+        "PARALLEL_WORK_ITEMS_JSON",
+        r"C:\Users\Suprabha\Desktop\Preflight-Architect\arcs\44-native-stream-server\plans\server1-v2.1-parallel\PARALLEL-WORK-ITEMS.json",
+    )
+)
+SOURCE_TRACE = Path(__file__).resolve().parents[3] / "artifacts" / "server1" / "P02" / "SOURCE-TRACE.json"
+
+
+class SourceAuthorityTraceTests(unittest.TestCase):
+    def test_source_trace_matches_all_six_p02_authorities_from_worker_plan(self) -> None:
+        plan_bytes = PARALLEL_WORK_ITEMS.read_bytes()
+        self.assertEqual(
+            hashlib.sha256(plan_bytes).hexdigest(),
+            "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
+        )
+        plan = json.loads(plan_bytes)
+        worker = next(item for item in plan["workers"] if item["worker_id"] == "P02-A")
+        modules = ("M194", "M195", "M413", "M433", "M436", "M564")
+        pattern = re.compile(r"^(M\d+) lines (.+) SHA-256 ([0-9a-f]{64})$")
+        expected = []
+        for authority in worker["source_authority"]:
+            match = pattern.fullmatch(authority)
+            if match and match.group(1) in modules:
+                expected.append(match.groups())
+
+        self.assertEqual(tuple(item[0] for item in expected), modules)
+        trace = json.loads(SOURCE_TRACE.read_text(encoding="utf-8"))
+        self.assertEqual(
+            trace.get("authority_source"),
+            {
+                "path": str(PARALLEL_WORK_ITEMS),
+                "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
+                "worker_id": "P02-A",
+            },
+        )
+        actual = [
+            (item["module"], item["authority_lines"], item["authority_sha256"])
+            for item in trace["authorities"]
+        ]
+        self.assertEqual(actual, expected)
 
 
 @unittest.skipUnless(HAS_ORACLE, "STREMIO_SERVER_JS must name the supplied oracle")

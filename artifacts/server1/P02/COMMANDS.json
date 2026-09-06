@@ -19,7 +19,12 @@
     {
       "command": "python -m unittest -v tools.server_lab.tests.test_reference_identity",
       "exit": 0,
-      "result": "8 tests ran: 6 passed and 2 Windows-only tests skipped after explicit BLOCKED_ENV assertions"
+      "result": "9 tests ran in the fresh source-authority repair replay: 7 passed and 2 Windows-only tests skipped after explicit BLOCKED_ENV assertions; all four WSL qualification tests passed"
+    },
+    {
+      "command": "python -m unittest -v tools.server_lab.tests.test_reference_identity.SourceAuthorityTraceTests",
+      "exit": 0,
+      "result": "all six P02-A authority module/range/SHA tuples and the authority-file SHA matched PARALLEL-WORK-ITEMS.json"
     },
     {
       "command": "python -m py_compile tools/server_lab/adapters/stremio.py tools/server_lab/tests/test_reference_identity.py artifacts/server1/P02/qualify_p02.py",

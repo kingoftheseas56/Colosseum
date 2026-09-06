@@ -1,36 +1,54 @@
 {
+  "authority_source": {
+    "path": "C:\\Users\\Suprabha\\Desktop\\Preflight-Architect\\arcs\\44-native-stream-server\\plans\\server1-v2.1-parallel\\PARALLEL-WORK-ITEMS.json",
+    "sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
+    "worker_id": "P02-A"
+  },
   "authorities": [
     {
-      "behavior": "APP_PATH resolution",
-      "lines": "19677-19683",
+      "authority_lines": "19675-19682",
+      "authority_sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843",
+      "observed_behavior": "APP_PATH resolution",
+      "observed_lines": "19677-19683",
       "module": "M194"
     },
     {
-      "behavior": "bridge/status and teardown references",
-      "lines": "19683-19716;46585,46957-46978",
+      "authority_lines": "19682-19707",
+      "authority_sha256": "7756e8b85a0ed5bcee2c3770d30dbd8649e943709e2b7b347e9d5977019e0b87",
+      "observed_behavior": "bridge/status and teardown references",
+      "observed_lines": "19683-19716;46585,46957-46978",
       "module": "M195"
     },
     {
-      "behavior": "embedded package identity and dependency metadata",
-      "lines": "35868-35959",
+      "authority_lines": "35868-35959",
+      "authority_sha256": "778189038cbd3b935199924b20b7a0db61c05471864cf5d022c17c719c6bf0ba",
+      "observed_behavior": "embedded package identity and dependency metadata",
+      "observed_lines": "35868-35959",
       "module": "M413"
     },
     {
-      "behavior": "ffprobe companion use",
-      "lines": "37615-37625",
+      "authority_lines": "37687-37693",
+      "authority_sha256": "fb6d9de8a521b2f0a9e1093502728f41186a1cb8f0f69ef59104a33cdb4aa602",
+      "observed_behavior": "ffprobe companion use",
+      "observed_lines": "37615-37625",
       "module": "M433"
     },
     {
-      "behavior": "ffmpeg/ffprobe search paths",
-      "lines": "46584-46588",
+      "authority_lines": "37824-37826",
+      "authority_sha256": "5029b37ff330f4d35fa11767885507fbe0b7dd6697a7056baa58761f0f8e73e0",
+      "observed_behavior": "ffmpeg/ffprobe search paths",
+      "observed_lines": "46584-46588",
       "module": "M436"
     },
     {
-      "behavior": "server entry, routes, ports, settings",
-      "lines": "46578-46979",
+      "authority_lines": "46578-46979",
+      "authority_sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569",
+      "observed_behavior": "server entry, routes, ports, settings",
+      "observed_lines": "46578-46979",
       "module": "M564"
     }
   ],
   "oracle_bytes": 6676503,
-  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "schema": "colosseum-server1-p02-source-trace/v2"
 }

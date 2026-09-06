@@ -12,3 +12,8 @@ REPAIR COMMAND: python -m unittest -v tools.server_lab.tests.test_reference_iden
 WORKING_DIRECTORY: <worker>
 EXIT: 1
 RESULT: expected repair RED; network_observation was absent from the WSL result
+
+SOURCE-AUTHORITY REPAIR COMMAND: python -m unittest -v tools.server_lab.tests.test_reference_identity.SourceAuthorityTraceTests
+WORKING_DIRECTORY: <worker>
+EXIT: 1
+RESULT: expected repair RED; SOURCE-TRACE.json had no authority_source and substituted observed behavior ranges for the six required plan authority tuples

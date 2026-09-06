@@ -14,6 +14,12 @@
     "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
     "server_js_mutated": false
   },
+  "source_authority": {
+    "worker_id": "P02-A",
+    "parallel_work_items_sha256": "777319421c8c8d50348492ace51d7c51eb8c6b14e8e225d5d1e8962bdb1c3dc7",
+    "modules": ["M194", "M195", "M413", "M433", "M436", "M564"],
+    "evidence": "artifacts/server1/P02/SOURCE-TRACE.json"
+  },
   "qualification_runtime": {
     "kind": "portable-node",
     "version": "v22.16.0",
