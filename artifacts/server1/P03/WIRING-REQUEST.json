@@ -1,0 +1,16 @@
+{
+  "schema": "server1-packet-wiring-request/v1",
+  "worker_id": "P03-A",
+  "packet": "P03",
+  "branch": "feature/colosseum-server-1.0",
+  "status": "ready_for_sol_review",
+  "requested_wiring": "Review and integrate the standalone Server 1.0 skeleton packet into the selected Server 1.0 branch.",
+  "owned_targets": ["server1_runtime", "server1_host"],
+  "source_root": "native/colosseum_server_v1",
+  "no_root_cmake_change": true,
+  "no_server_0_1_change": true,
+  "streaming_ready": false,
+  "push": false,
+  "evidence_root": "artifacts/server1/P03",
+  "receipt_scope": "selected packet snapshot, not entire repository"
+}

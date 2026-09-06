@@ -1,0 +1,3 @@
+ninja: Entering directory `C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build'
+ninja: no work to do.
+exit=0

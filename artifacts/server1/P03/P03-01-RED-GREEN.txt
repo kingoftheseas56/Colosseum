@@ -1,0 +1,2 @@
+-- P03 RED: standalone skeleton paths exist
+exit=0

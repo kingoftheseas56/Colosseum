@@ -1,0 +1,9 @@
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="Release"
+  CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreadedDLL"
+
+-- Configuring done (1.1s)
+-- Generating done (0.3s)
+-- Build files have been written to: C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build
+exit=0

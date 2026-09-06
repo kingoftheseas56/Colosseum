@@ -1,0 +1,7 @@
+-- Configuring incomplete, errors occurred!
+CMake Error at CMakeLists.txt:35 (message):
+  P03 locked dependency unavailable:
+  C:/tools/libtorrent-2.0-msvc/lib/does-not-exist.lib
+
+
+exit=1

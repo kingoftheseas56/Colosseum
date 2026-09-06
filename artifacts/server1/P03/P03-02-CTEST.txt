@@ -1,0 +1,9 @@
+Internal ctest changing into directory: C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build
+Test project C:/b/Colosseum-Server-1.0/artifacts/server1/P03/build
+    Start 1: P03-02-server1-host
+1/1 Test #1: P03-02-server1-host ..............   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.04 sec
+exit=0

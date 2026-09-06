@@ -1,0 +1,6 @@
+CMake Error at native/colosseum_server_v1/tests/cmake/p03_red_contract.cmake:15 (message):
+  P03 RED: required skeleton path is missing:
+  C:/b/Colosseum-Server-1.0/native/colosseum_server_v1/CMakeLists.txt
+
+
+exit=1

@@ -1,0 +1,689 @@
+P03-03 branch/worktree evidence
+branch=feature/colosseum-server-1.0
+HEAD=
+0d002c6d8af49ba3647d9f729f753aa4c7d3b532
+creation_base_expected=81e750b65f3788af7be99392f16b86a9212ff2bd
+reflog:
+0d002c6d cherry-pick: fix(server1): bind P08A exact request ownership
+d1f63094 cherry-pick: fix(server1): close P08A wire evidence gaps
+4c395392 cherry-pick: feat(server1): add P08A exact-block feasibility evidence
+043f274c cherry-pick: test(server1): bind P02 trace to plan authorities
+ed841977 cherry-pick: test(server1): qualify reference runtime in WSL
+515ffffd cherry-pick: feat(server1): qualify reference runtime in isolated lab
+83b945eb cherry-pick: docs(server1): record fresh checkout identity proof
+a5b97f52 cherry-pick: fix(server1): normalize tracked lock identities
+2f8de0ab cherry-pick: fix(server1): resolve archived baseline toolchain
+2ac81fbf cherry-pick: feat(server1): recover server 0.1 baseline closure
+2e13a065 cherry-pick: fix(server1): prove native libtorrent authority
+28774684 cherry-pick: docs(server1): freeze native substrate lock
+1c08a073 commit: docs(server1): lock P00 evidence and initialize ledger
+81e750b6 branch: Created from 81e750b65f3788af7be99392f16b86a9212ff2bd
+worktree:
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum
+HEAD 2de572e770947f729a65f6a1c9d22fd8fd9d6f16
+branch refs/heads/master
+
+worktree C:/b/arc44-ab-master
+HEAD 2deed52cb8a930219affd3791f2c6486ec8c37be
+detached
+
+worktree C:/b/Colosseum-Server-1.0
+HEAD 0d002c6d8af49ba3647d9f729f753aa4c7d3b532
+branch refs/heads/feature/colosseum-server-1.0
+
+worktree C:/b/Colosseum-Server-1.0-workers/P01A-A
+HEAD 16b4beaa1fdf5939145176f0bd80273c1aefab55
+branch refs/heads/codex/server1-p01a-a
+
+worktree C:/b/Colosseum-Server-1.0-workers/P01B-A
+HEAD ea1ae967aa76d62bc5a0be9690cef078e373266d
+branch refs/heads/codex/server1-p01b-a
+
+worktree C:/b/Colosseum-Server-1.0-workers/P02-A
+HEAD 674b364f419b212cfcc5382aefd015dbc10a227d
+branch refs/heads/codex/server1-p02-a
+
+worktree C:/b/Colosseum-Server-1.0-workers/P08A-A
+HEAD b0cde036f53efb3e9a57425215cda9551049c016
+branch refs/heads/codex/server1-p08a-a
+
+worktree C:/c30
+HEAD dd5766344923a0638ad57d688e4f540006e17582
+branch refs/heads/preflight/arc30-function-0009-unit-proof
+
+worktree C:/c30base
+HEAD dd5766344923a0638ad57d688e4f540006e17582
+detached
+
+worktree C:/c30final
+HEAD 7af670930100906e02a18a773b098b9db12183ee
+branch refs/heads/preflight/arc30-function-0009-unit-proof-final-7af67093
+
+worktree C:/c30seal
+HEAD 577480458058092d39e8f94a63bc8d07366e5a87
+branch refs/heads/preflight/arc30-function-0009-unit-proof-final-57748045
+
+worktree C:/c30seal2
+HEAD d0dc7d8925ff85f2a5ca8094a8baa14718b36159
+branch refs/heads/preflight/arc30-function-0009-unit-proof-final-d0dc7d89
+
+worktree C:/cmf
+HEAD 38b85ffedf202332a69118a87b0dbc6259d1fc0b
+branch refs/heads/preflight/colosseum-marketing-finish
+
+worktree C:/cw/acct
+HEAD 9c679a93e4411dbf7294a77f1024d9baae0ce839
+branch refs/heads/feature/account-explicit-content-setting
+
+worktree C:/nwcap
+HEAD 4ce7bc986d9307243ee2e528b3cb61ceb5344888
+branch refs/heads/experiment/night-watch-trailer-capture
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-android-media3-a02-plan
+HEAD 3fe9b58a3e3305e4fe2241430255e4f3a9fe6feb
+branch refs/heads/feature/android-media3-a02-planning
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-android-w02
+HEAD f909abca3fd517a275961c429c36672960014f7b
+branch refs/heads/feature/android-platform-services-w02
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-android-w06-reader
+HEAD 06c00a3cacb117e51f59f7908a4fd8c87db9e834
+branch refs/heads/feature/android-reader-w06
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-android-w07-tv
+HEAD ad02c0f813c913f37a7e4bfbdc15d673baa2325e
+branch refs/heads/feature/android-tv-w07
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-android-w08-apk
+HEAD fc1ad8aa261372ae7dee598bf29d1e71d0f21c1d
+branch refs/heads/feature/android-apk-ndk-w08
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-android-w4-player-aqueduct
+HEAD 26864cf509db278e305a55fe398c1ce5848c5164
+branch refs/heads/feature/android-w4-player-aqueduct
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc27-function-0006
+HEAD ef0f30c41b1d40187749a7aaa283a44874a168da
+branch refs/heads/feature/arc27-function-0006-comic-reader-runtime-hardening
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc29-function-0008
+HEAD 5fe8c9de27812aebe2b0ae0bcc76f126f5e2ae30
+branch refs/heads/integration/arc33-f0008-to-master
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n00-integrated
+HEAD 8b9d2b8c6edd6420db3bb152dc78bf953675fc8b
+branch refs/heads/integration/arc36-n00-sealed
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n00-integrated-v2
+HEAD 4dcaa39dfe6cb12e38ddcd16ba7a6f49639d5902
+branch refs/heads/integration/arc36-n00-sealed-v2
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n00a-native-seal
+HEAD ec99a49e9b560f7448715d0bd9a04436f694a930
+branch refs/heads/integration/arc36-n00a-native-seal
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n00b-qml-seal
+HEAD db145b6375f730fb719c6627c3981177088c36cc
+branch refs/heads/integration/arc36-n00b-qml-seal
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n00c-verification-seal
+HEAD a08502d3779a8b934edfb8d3588ce4ec7d86a6fd
+branch refs/heads/integration/arc36-n00c-verification-seal
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n00d-lanista-seal
+HEAD adf82c8651732c4245f22dab72206e2f129df856
+branch refs/heads/integration/arc36-n00d-lanista-seal
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n00e-test-seal
+HEAD de0a1185fcc4ced8567c8cef950872b779cfa8c6
+branch refs/heads/integration/arc36-n00e-native-test-seal
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n01-migration
+HEAD e90e6f4ee57d123d5dcbbe4b4da970ea5ba1e23e
+branch refs/heads/feature/arc36-n01-migration-0005
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n02-wire-contract
+HEAD 2929931ca6a2ac149b64dca56e7309f78fc3a41f
+branch refs/heads/feature/arc36-n02-wire-contract
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n03-history-merge
+HEAD 31c7f6fa82c2fcab300d69e05fe7841c26bbb6ca
+branch refs/heads/feature/arc36-n03-history-merge
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n04-canonical-current
+HEAD e69351a3d3098b71ad11b0fd355978c10a91952c
+branch refs/heads/feature/arc36-n04-canonical-current
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n05-canonical-pull
+HEAD 71c09ed94d9d3ce27477a990d801bd6eaae2dd55
+branch refs/heads/feature/arc36-n05-canonical-pull
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n06-watch-state-domain
+HEAD b00c14872867b53b3fa296f6129d2facb163b023
+branch refs/heads/feature/arc36-n06-watch-state-domain
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n07-watch-state-adapter
+HEAD 0b47581452531fdd51298a6e57d7f6e284331906
+branch refs/heads/feature/arc36-n07-watch-state-adapter
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n08-activity-portable
+HEAD 507f191bec7367657657ac86bcd64e6b6626c4ab
+branch refs/heads/feature/arc36-n08-activity-portable
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n09-activity-adapter
+HEAD 7f835e7cb97b7e9f5da59adb223e450aff990fb3
+branch refs/heads/feature/arc36-n09-activity-adapter
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n10-activity-service
+HEAD 5cd4e6f1f48031c63b8b335206ecae1a59c5cf8e
+branch refs/heads/feature/arc36-n10-activity-service
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n10a-activity-hlc-schema
+HEAD 65e89e4246589ffe6631a4bdf22ccc04e26ab34a
+branch refs/heads/feature/arc36-n10a-activity-hlc-schema
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n11-unified-activity-pull
+HEAD 2167fd158854dcff06676c2f686323075ad8f52a
+branch refs/heads/feature/arc36-n11-unified-activity-pull
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n12-attachment-server
+HEAD b9e2eb76409c86bd3f73b9dab06c2ffeac13c683
+branch refs/heads/feature/arc36-n12-attachment-server
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n13-attachment-wire
+HEAD b230022698a5756ca01248fa7fe76ceb19b977b6
+branch refs/heads/feature/arc36-n13-attachment-wire
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n14-attachment-receipt
+HEAD 28c194b64c664ff89c02da705902c428d189a8e3
+branch refs/heads/feature/arc36-n14-attachment-receipt
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n15-sync-engine-attachment
+HEAD 857ab93c8ccb3e84638a10da7ae505c7ed1b7dfe
+branch refs/heads/feature/arc36-n15-sync-engine-attachment
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n16-attachment-coordinator
+HEAD fc14419288f84d237c420517be5488cda1a447a1
+branch refs/heads/feature/arc36-n16-attachment-coordinator
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n17-runtime-lifecycle
+HEAD bfa35cf35c9a557e08f399febc9f4d9abbb69b25
+branch refs/heads/feature/arc36-n17-runtime-lifecycle
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n18-crash-proof
+HEAD 227db107b169013bf27d104d739937910eed68ad
+branch refs/heads/feature/arc36-n18-crash-proof
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n19-pool-timeouts
+HEAD bd5568711bec8b7cd6631d0b5e6113ee767ba6ce
+branch refs/heads/feature/arc36-n19-pool-timeouts
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n20-migrate-command
+HEAD 072140caeb2e9eed6533c314474f4750ceca469a
+branch refs/heads/feature/arc36-n20-migrate-command
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n21-deploy-readiness
+HEAD d6384f5de567ee0caf282ee9afe98137468095cd
+branch refs/heads/feature/arc36-n21-deploy-readiness
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n22-server-convergence
+HEAD 5bd0e825bbc7beca908cd2879ba86cb004076d08
+branch refs/heads/feature/arc36-n22-server-convergence
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n23-desktop-integration
+HEAD 495c77689892b25753458f4ef6995b143796009e
+branch refs/heads/feature/arc36-n23-desktop-integration
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-n24-ui-lanista
+HEAD 1151ffd16a391c72694bec4b3f357f49580156af
+branch refs/heads/feature/arc36-n24-ui-lanista
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-native-a2
+HEAD 9bd5d3b18846cc691d05c129dff2ac5af35ded99
+branch refs/heads/feature/arc36-local-device-native-a2
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-qml-b2
+HEAD 21bc2786cb1d203713b2447bf6dd7acc714b6fdf
+branch refs/heads/feature/arc36-local-device-qml-b2
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-qml-baseline
+HEAD 2f20ca8aac20bc462fb9af9c1ee2a2a6385c8fb1
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave1-integrated
+HEAD 52a998865c6e2de0111783fea00d33c0e70bd910
+branch refs/heads/integration/arc36-wave1-contracts
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave2-integrated
+HEAD e0801ca208646e36d91ade945846536f5d4fd75d
+branch refs/heads/integration/arc36-wave2-complete
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave2-n03-integrated
+HEAD 31c7f6fa82c2fcab300d69e05fe7841c26bbb6ca
+branch refs/heads/integration/arc36-wave2-n03
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave2-n04-integrated
+HEAD e69351a3d3098b71ad11b0fd355978c10a91952c
+branch refs/heads/integration/arc36-wave2-n04
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave2-n05-n06-integrated
+HEAD 1672c0f29e91880077173edd873b10dee9179fed
+branch refs/heads/integration/arc36-wave2-n05-n06
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave3-integrated
+HEAD 0964a120da6a24efdd7c6bb2863aec768d627a93
+branch refs/heads/integration/arc36-wave3-complete
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave4a-integrated
+HEAD 925aaa5754f2e9615fa0349c5050f823a83150ea
+branch refs/heads/integration/arc36-wave4a-complete
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave4b-integrated
+HEAD 227db107b169013bf27d104d739937910eed68ad
+branch refs/heads/integration/arc36-wave4b-complete
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc36-wave6-complete
+HEAD a7c5cb19ef8a0b7ec3a41136a4740d335eb55f16
+branch refs/heads/integration/arc36-wave6-complete
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc39-manga-chapter
+HEAD 6f989918c8c49eefe8ff37b77a0887cc89ba0a2b
+branch refs/heads/feature/arc39-manga-chapter-mode-restoration
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc41-k00-foundation-shell
+HEAD c32b01f2127cd3e3f4df8d7a33ed52acc2ccc7ba
+branch refs/heads/feature/arc41-k00-foundation-shell
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc41-k01-readers
+HEAD c32b01f2127cd3e3f4df8d7a33ed52acc2ccc7ba
+branch refs/heads/feature/arc41-k01-readers
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc41-keyboard-lanista
+HEAD 64e816b4fcfcbedc750dc933bc324d893394bf46
+branch refs/heads/experiment/arc41-keyboard-lanista
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc41-live-merge
+HEAD 1cd783c3226e348bf16243b9b2b0ed010871ed5a
+branch refs/heads/integration/arc41-keyboard-live-merge
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-arc41-packet-source
+HEAD c3e9cf72f6f9fee8c5f0f1d5dffa03f0a7c910f7
+branch refs/heads/integration/arc41-packet-source
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-asan-recon
+HEAD ae60edd0cae4d5160268af7e571e56d92e02b91c
+branch refs/heads/preflight/asan-recon
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-ci-clang-rescue
+HEAD 70956c16abbd02adf53edd91214e9c3b179ffaa6
+branch refs/heads/fix/desktop-ci-clang-rescue
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-clang-tidy-a
+HEAD 45ea57c64132fa214cd914a34ef7e9c8c875d23c
+branch refs/heads/agent-a/clang-tidy-lifecycle
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-clang-tidy-a2
+HEAD c294e1b3e291dddf8e04439b451974da858adcc8
+branch refs/heads/agent-a/clang-tidy-lifecycle-t01
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-clang-tidy-b
+HEAD bf51a88f726141960c69b3a4251790215307875e
+branch refs/heads/agent-b/clang-tidy-t02
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-clang-tidy-c
+HEAD 53d1023546c3b620082641120f01e373a1ad6f70
+branch refs/heads/agent-c/clang-tidy-comic
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-clang-tidy-d
+HEAD 4c535077761bfeb90811a7377c76b53c8f31b18b
+branch refs/heads/agent-d/clang-tidy-update
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-codeql-a
+HEAD c294e1b3e291dddf8e04439b451974da858adcc8
+branch refs/heads/agent-a/codeql-vault
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-codeql-b
+HEAD c294e1b3e291dddf8e04439b451974da858adcc8
+branch refs/heads/agent-b/codeql-t02
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-codeql-triage-20260829
+HEAD c5dde5ad615a2da3ea0bcc902798ad2076253f97
+branch refs/heads/security/codeql-triage-20260829
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-dcau-integration
+HEAD 5b5f0b745d0f2d86aefe1e93656bd41ad24f4bbf
+branch refs/heads/integration/dcau-universe-qml-20260901
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0005-audit
+HEAD 9aa8696a3d12454837d7cf1d75cfdb990876c487
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0005-hardening
+HEAD 23ba1650b3963ed4df2e2d02bb1bb12cb3b84e05
+branch refs/heads/feature/function-0005-durable-consumption-state-hardening
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0006-audit
+HEAD 9aa8696a3d12454837d7cf1d75cfdb990876c487
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0006-reaudit
+HEAD ef0f30c41b1d40187749a7aaa283a44874a168da
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0008-audit
+HEAD 9aa8696a3d12454837d7cf1d75cfdb990876c487
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0008-repair-verify
+HEAD 9aa8696a3d12454837d7cf1d75cfdb990876c487
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0009-audit
+HEAD 9aa8696a3d12454837d7cf1d75cfdb990876c487
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0010-adoption
+HEAD 766f9765a4b234439f2e919fb1a303a0b4bedaf5
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function-0010-audit
+HEAD 766f9765a4b234439f2e919fb1a303a0b4bedaf5
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function0007-verify
+HEAD 9aa8696a3d12454837d7cf1d75cfdb990876c487
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-function0008-final-proof
+HEAD f177a71a7d550b4d9474ad921a21bfee10b03212
+branch refs/heads/integration/function0008-final-proof
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-keyboard-merge
+HEAD 0e7c16db2522f096d7326a985e2c1bf1429cb618
+branch refs/heads/integrate/keyboard-guide
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-one-piece-color
+HEAD 7a001cbf112b3a8f08d4cb55f2f170da05871f4a
+branch refs/heads/feature/one-piece-color-shelf
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-onepiece-eastblue
+HEAD 7a001cbf112b3a8f08d4cb55f2f170da05871f4a
+branch refs/heads/feature/one-piece-east-blue-qml
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-onepiece-eastblue-plate4
+HEAD 2deed52cb8a930219affd3791f2c6486ec8c37be
+branch refs/heads/feature/one-piece-east-blue-plate4-qml
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-pre-manga-destruction
+HEAD 6a0a4275a012676c97c4cf73d8f4cba861058f31
+detached
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-sccache-msvc
+HEAD 6f95d58fde5316402e78ed459f29b8a6b24a9b52
+branch refs/heads/build/sccache-msvc
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-star-wars-universe
+HEAD 6f989918c8c49eefe8ff37b77a0887cc89ba0a2b
+branch refs/heads/feature/star-wars-bespoke-universe
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-tankomanga
+HEAD 76a89edbf5d61d36a645af85796b368d563f1af2
+branch refs/heads/feature/tankomanga-language-providers
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/colosseum-tankoyomi-configuration
+HEAD 91636adf87f37b4522dda63478a919a2769eb1a1
+branch refs/heads/codex/tankoyomi-configuration
+
+worktree C:/Users/Suprabha/Desktop/AgentWorktrees/onepiece-catalog-shared
+HEAD 7a001cbf112b3a8f08d4cb55f2f170da05871f4a
+detached
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-buildgraph
+HEAD 71e6d0ceac0377134a23b4b9cf75fd4fb88363ba
+branch refs/heads/feature/android-buildgraph
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-colosseum-server-a04-plan
+HEAD afb6a576b9a62003bae8aff780533d3418b49656
+branch refs/heads/feature/android-colosseum-server-a04-planning
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-foundation
+HEAD 67d5b650a683b60929bd3a6d0cea0335e3fe6b77
+branch refs/heads/feature/android-foundation
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-foundation-forwardport
+HEAD 35cee8aea4821e27321976bf9632d5537942b7c7
+branch refs/heads/integration/android-foundation-forwardport-2026-09-04
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-foundation-lead-integration
+HEAD 174f4c4754a0c05334cec3a667855dd997409d4c
+branch refs/heads/recon/android-master-2026-09-05
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-m308-build-graph
+HEAD aa0a20fb15c2871cb2c901564e97a538080214a7
+branch refs/heads/feature/android-m308-build-graph
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-m308-qualification
+HEAD daafee44e6207ab17a369386d61d512fb64e0530
+detached
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-media3-antigravity-m306j
+HEAD e80f6dbbd634d3a1218d7722f3896cf449059e31
+branch refs/heads/feature/android-media3-antigravity-m306j
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-media3-parallel/java-host
+HEAD e485a04f2c59143290022ab5abcf82474dbd36a4
+branch refs/heads/feature/android-media3-java-host
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-media3-parallel/packaging
+HEAD 0ec5cf6e21e848473a6354128a5c0e21cc369126
+branch refs/heads/feature/android-media3-packaging
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-media3-parallel/renderer
+HEAD ab71b4b6de726e8bed65e395f82bd2d574f91c25
+branch refs/heads/feature/android-media3-renderer
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-media3-parallel/source-policy
+HEAD f7ca9e925a3c42cd02ea5bbabac400d65082e5c2
+branch refs/heads/feature/android-media3-source-policy
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-media3-parallel/state-core
+HEAD 7ae0f1c50a37fd47c749e2b62b0414b4528d890f
+branch refs/heads/feature/android-media3-state-core
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-platform-services
+HEAD 67d5b650a683b60929bd3a6d0cea0335e3fe6b77
+branch refs/heads/feature/android-platform-services
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-player-aqueduct
+HEAD 67d5b650a683b60929bd3a6d0cea0335e3fe6b77
+branch refs/heads/feature/android-player-aqueduct
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-qml-adaptive
+HEAD 8172363edb39a0cade54944da6db5022f0c5569a
+branch refs/heads/feature/android-qml-adaptive
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-tablet-readiness
+HEAD a6678f1a2a4f3c8edefedd927d79fb50671261c2
+branch refs/heads/integration/android-tablet-readiness-2026-09-04
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/android-vault-platform
+HEAD c57c35a15bbf49e58341dad1246f2230e9067a6e
+branch refs/heads/feature/android-vault-platform
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-integration
+HEAD 95daf5ef396a1985ddc7237f4ca0615088719220
+branch refs/heads/arc44/lead-integration
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-integration-parallel/lane-b-route-composition
+HEAD 6b82a206f18b87c6428f738ea519534364fa780d
+branch refs/heads/arc44/integration-route-composition
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-integration-parallel/lane-c-integration-audit
+HEAD 2fe9a3082491944b70aeda7f9691c3565849f030
+branch refs/heads/arc44/integration-audit
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-native-stream-server
+HEAD 9efe4a49ec6b97312e9bb48075e45b00babf75dc
+branch refs/heads/arc/aqueduct-native-stream-server
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w01-core-server-kernel
+HEAD 6c6eda4d687b41741d040ada2a25af83d8ee397e
+branch refs/heads/arc44/w01-core-server-kernel
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w02-settings-cache
+HEAD 4ad6086c46e4a51da5ff06c0c00824d161640c3c
+branch refs/heads/arc44/w02-settings-cache
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w03-enginefs-control-plane
+HEAD 73464c1770b316a93a5c9dc2f3832ead2c5c984d
+branch refs/heads/arc44/w03-enginefs-control-plane
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w04-torrent-metadata-model
+HEAD 90fb1ce863b5813a31c6400f533fed60eb98108c
+branch refs/heads/arc44/w04-torrent-metadata-model
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w05-torrent-storage-discovery
+HEAD 6d2a8eb730fcb0f7af7c6a88a36692405b97dfe0
+branch refs/heads/arc44/w05-torrent-storage-discovery
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w06-scheduler-spine
+HEAD fb55526eee0c08335a6b71bad7e3f9b6c9ec3a7f
+branch refs/heads/arc44/w06-scheduler-spine
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w07-torrent-http-surface
+HEAD 746088f0e87d3bb25bd09a808a1f783383638c89
+branch refs/heads/arc44/w07-torrent-http-surface
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w08-media-pipeline
+HEAD d7a4c47aed2e3b3be0f0472e156d6b6376e1f95d
+branch refs/heads/arc44/w08-media-pipeline
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w09-network-app-services
+HEAD 779a0841fa558caee94ef17e93f695734171409e
+branch refs/heads/arc44/w09-network-app-services
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/aqueduct-parallel/w10-remote-archive-backends
+HEAD a57ad19723e31098f9c8c9788881ec610554679c
+branch refs/heads/arc44/w10-remote-archive-backends
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/arc36-ci-unblock
+HEAD 96e1b8b782485f464b1e64d9051baffbe0860493
+branch refs/heads/fix/arc36-sync-test-reconcile
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/arc41-completion
+HEAD 091c86dedfbf26ce8bcecd78a5298ec1b219ba55
+branch refs/heads/codex/arc41-completion
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/arc41-master-integration
+HEAD 7da9d26696c2229905d943004ef365d688cd3a5a
+branch refs/heads/integration/arc41-master-merge
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/arc44-power-backup
+HEAD 0983edba19ee455d7cb50d4fcaf757d8e26beb67
+branch refs/heads/backup/arc44-power-snapshot-20260905
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/arc45-activity-sync
+HEAD 2a63ca61ddb4190551b25e50e37b039c4318a1bc
+detached
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/clang-tidy-reconnaissance
+HEAD c294e1b3e291dddf8e04439b451974da858adcc8
+detached
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/code-quality-remediation
+HEAD 65a3124bfb0ff82398f44d5fd032ba3bc4e10f90
+branch refs/heads/ci/code-quality-remediation
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/codex-colosseum-marketing-phase1
+HEAD 38b85ffedf202332a69118a87b0dbc6259d1fc0b
+branch refs/heads/codex/colosseum-marketing-phase1
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/dcau-universe-qml
+HEAD 5ecf423774f8da786fcf4a7343bbb568c4572ab4
+branch refs/heads/feature/dcau-universe-qml
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/desktop-ci-tankoyomi
+HEAD 81e750b65f3788af7be99392f16b86a9212ff2bd
+branch refs/heads/fix/desktop-ci-tankoyomi
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/fix-isolation
+HEAD 6a4492e955ebdb5592a8be561cfc3021975398b3
+branch refs/heads/fix/store-isolation
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/immersive-yield-forwardport-current-l1
+HEAD f03ebfce1a832c66d6c4b910d0ce4da9fb46a242
+branch refs/heads/integration/immersive-yield-forwardport-current-l1
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/immersive-yield-forwardport-l1
+HEAD 58b34865144a84e856a2a10d0408e5bdea41f685
+detached
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/known-good
+HEAD 2a63ca61ddb4190551b25e50e37b039c4318a1bc
+detached
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/library-stage2
+HEAD d18535f10ed4ca579c49fd8e98b50cec6cce26af
+branch refs/heads/agent0/library-stage2
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/nightlab-deep-coverage
+HEAD c25759164bdd85ceda3db3692c6529587b8b4e66
+branch refs/heads/nightlab/deep-coverage-spec
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/onepiece-universe-functional
+HEAD 396c5b0331e99d7692094d1914276b7c7390037c
+branch refs/heads/feature/onepiece-universe-functional
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/player-gui-stall-residue
+HEAD 300021847822d4d44eec6e0e8f046b40f630f8ae
+branch refs/heads/codex/player-gui-stall-residue
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/rust-core-poc
+HEAD 2646d194f5958dd9e9842962d6ee7b149dc2df70
+detached
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/stream-runtime-fail-fast
+HEAD 802152cdc3fc836d6525414cbda7559e5bd7179e
+branch refs/heads/codex/stream-runtime-fail-fast
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/tankoban-theatre-look
+HEAD ce954b8b8a95586f906ff0d08caad94980091c78
+branch refs/heads/agent1/tankoban-theatre-look
+locked initializing
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/tray-bridge
+HEAD 8a14059b813ea06e75133ec33bdccc9703c0aec5
+branch refs/heads/vis/tray-bridge
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/vis-runtime
+HEAD 83363a9f0b47097d40e2d6ed9171f7ab6728072b
+branch refs/heads/vis/runtime
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/wallpaper-restructure
+HEAD e44a0b1d3336d090b6dd831d9b72fffa51c14059
+branch refs/heads/agent5/wallpaper-restructure
+
+worktree C:/Users/Suprabha/Desktop/Brotherhood/colosseum-readme-115-refresh
+HEAD 7da9d26696c2229905d943004ef365d688cd3a5a
+branch refs/heads/docs/readme-115-refresh
+
+worktree C:/Users/Suprabha/Desktop/c15
+HEAD ea6950353c27e9b30806811ce660c75480621ed7
+branch refs/heads/preflight/arc15-watch-party-completion
+
+worktree C:/Users/Suprabha/Desktop/Colosseum-Worktrees/biblio-lanista-integration
+HEAD eec07eec7fa34e27f1b2955131ff5674481cb2d7
+branch refs/heads/integration/biblio-lanista
+
+worktree C:/Users/Suprabha/Desktop/Colosseum-Worktrees/qwen-biblio-lanista
+HEAD fae107783e7ad101a90a217f89f895afb5c307f0
+branch refs/heads/experiment/qwen-biblio-lanista
+
+worktree C:/w7-base
+HEAD ef0f30c41b1d40187749a7aaa283a44874a168da
+detached
+
+old_implementation_directory_exists=False tracked_old_implementation_files:
+canonical_checkout_head=2de572e770947f729a65f6a1c9d22fd8fd9d6f16 canonical_checkout_status_entries=151 canonical_checkout_snapshot_is_read_only=true current_status:
+?? native/colosseum_server_v1/

@@ -1,0 +1,129 @@
+{
+  "schema": "colosseum-server1-dependency-lock/v2",
+  "worker_id": "P01A-A",
+  "parent_packet": "P01A",
+  "branch": "codex/server1-p01a-a",
+  "integration_base": "1c08a0734acbe6f46b67630f3a735e24df190db1",
+  "selected_application_base": "81e750b65f3788af7be99392f16b86a9212ff2bd",
+  "native_authority": {
+    "source": "native/CMakeLists.txt",
+    "lines": "86-148",
+    "target": "colosseum_libtorrent",
+    "kind": "INTERFACE",
+    "exported_target": "LibtorrentRasterbar::torrent-rasterbar",
+    "resolution_order": ["LibtorrentRasterbar CONFIG + Boost components + OpenSSL", "Windows C:/tools fallback"],
+    "selected_resolution": "Windows C:/tools fallback",
+    "selected_reason": "The direct native configure emitted the C:/tools fallback selection; see CONSUMER-CONFIGURE-VALID.txt.",
+    "compile_definitions": ["HAS_LIBTORRENT=1", "TORRENT_USE_OPENSSL", "BOOST_ALL_NO_LIB", "_WIN32_WINNT=0x0A00"],
+    "link_inputs": ["C:/tools/libtorrent-2.0-msvc/lib/does-not-exist.lib", "C:/tools/openssl-msvc/lib/libssl.lib", "C:/tools/openssl-msvc/lib/libcrypto.lib", "ws2_32", "mswsock", "crypt32", "iphlpapi", "bcrypt"]
+  },
+  "libtorrent": {
+    "package_root": "C:/tools/libtorrent-2.0-msvc",
+    "header_declared": {
+      "version": "2.0.11.0",
+      "major": 2,
+      "minor": 0,
+      "tiny": 11,
+      "revision": "6e1587799",
+      "header": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp"
+    },
+    "archive_sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30",
+    "archive_identity": {
+      "path": "C:/tools/libtorrent-2.0-msvc/lib/does-not-exist.lib",
+      "bytes": 320838716,
+      "sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"
+    },
+    "linked_runtime": {
+      "mode": "lt::version() called from a probe compiled with the exact flags and link inputs emitted for the native torrent_engine_link_harness target",
+      "version": "2.0.11.0",
+      "probe": "artifacts/server1/P01A/LINKED-RUNTIME-VERSION.txt",
+      "probe_exit": 0,
+      "probe_output": "header_declared_version=2.0.11.0; header_declared_revision=6e1587799; linked_runtime_version=2.0.11.0"
+    },
+    "local_patch_provenance": {
+      "state": "unknown",
+      "reason": "An exhaustive 279-file installed-prefix inventory found no build/source receipt, patch manifest, source tree, or provenance record; this absence cannot prove the archive is unpatched.",
+      "evidence": "artifacts/server1/P01A/PROVENANCE-SCAN.txt"
+    },
+    "abi": {
+      "architecture": "x64",
+      "compiler": "MSVC 19.44.35227.0",
+      "crt": "/MD",
+      "language_standard": "C++17",
+      "linkage": "static libtorrent; dynamic CRT/OpenSSL runtime as selected by native build"
+    }
+  },
+  "boost": {
+    "version": "1.84.0",
+    "include_root": "C:/tools/boost-1.84.0",
+    "components": ["headers"],
+    "filesystem_component": "not discoverable on this host; native fallback does not link Boost::filesystem"
+  },
+  "openssl": {
+    "version": "3.6.2",
+    "root": "C:/tools/openssl-msvc",
+    "linked_libraries": ["libssl.lib", "libcrypto.lib"]
+  },
+  "consumer_probe": {
+    "source": "native/CMakeLists.txt",
+    "source_identity": {
+      "mode": "git_blob",
+      "git_blob_oid": "1fb80a155dcb35763827249f545181993022c660",
+      "canonical_bytes": 109383,
+      "canonical_sha256": "a72c30e58a97e6d626e25178c84190a3c1977156c9babc9d692a8f5148835fd7"
+    },
+    "target": "torrent_engine_link_harness",
+    "target_source": "tests/torrent_engine_link_harness.cpp",
+    "target_lines": "native/CMakeLists.txt:1737-1740",
+    "dependency_target": "colosseum_libtorrent",
+    "dependency_target_lines": "native/CMakeLists.txt:93-148",
+    "duplicate_definition": false,
+    "configure_valid": {
+      "exit": 0,
+      "command_evidence": "artifacts/server1/P01A/CONSUMER-CONFIGURE-VALID.txt"
+    },
+    "build": {
+      "exit": 0,
+      "command_evidence": "artifacts/server1/P01A/CONSUMER-BUILD.txt"
+    },
+    "run": {
+      "exit": 0,
+      "output": "libtorrent 2.0.11.0 — session constructed OK",
+      "command_evidence": "artifacts/server1/P01A/CONSUMER-RUN.txt"
+    },
+    "configure_without_libtorrent": {
+      "exit": 1,
+      "output": "CMake Error: libtorrent NOT found (find_package or C:/tools fallback)",
+      "command_evidence": "artifacts/server1/P01A/CONSUMER-MISSING-LIBTORRENT.txt"
+    }
+  },
+  "tracked_files": [
+    {"path": "native/CMakeLists.txt", "identity": "git_blob", "git_blob_oid": "1fb80a155dcb35763827249f545181993022c660", "canonical_bytes": 109383, "canonical_sha256": "a72c30e58a97e6d626e25178c84190a3c1977156c9babc9d692a8f5148835fd7"},
+    {"path": "tests/torrent_engine_link_harness.cpp", "identity": "git_blob", "git_blob_oid": "7b87dd9b9635c783020fb6d6469bded2253f6db7", "canonical_bytes": 897, "canonical_sha256": "9da5cba211137164ae453d2542a14dbae8c80d7298c7b46ec835883de777ae2d"},
+    {"path": "artifacts/server1/P01A/linked_runtime_version_probe.cpp", "identity": "git_blob", "git_blob_oid": "8c8bd230924fe523fe4e2d9a617e36324decc367", "canonical_bytes": 529, "canonical_sha256": "57e604bca7739843185fa5f19d27d24ff4b0f39ca938d244b4cd69a095dc1df8"},
+    {"path": "native/build-msvc.bat", "identity": "git_blob", "git_blob_oid": "7b499f5a96dc1a2992108218b96decb8eb349f3d", "canonical_bytes": 1417, "canonical_sha256": "b65fe689e53c88f6b74dc6f764b4e099bfa49ff56ba8c5d4a96dd6744e30e774"},
+    {"path": "native/player2/CMakeLists.txt", "identity": "git_blob", "git_blob_oid": "7dd1b5355ee7264775bb21e82de251b5ab7a8808", "canonical_bytes": 15357, "canonical_sha256": "d32ac1338f527c6d5ac374d1d07078cef6f28036f06795a82d53bf475645c98a"}
+  ],
+  "external_files": [
+    {"path": "C:/tools/libtorrent-2.0-msvc/include/libtorrent/version.hpp", "identity": "raw_disk", "bytes": 2759, "sha256": "674fe75760cca96c5b1c9ca162501e222944025d5b43af3964a30d15d33edf07"},
+    {"path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake", "identity": "raw_disk", "bytes": 756, "sha256": "5ae6857c3d170c4a4e4be175aa5c7419baf23de23d60fe19a99cecc5b9d19832"},
+    {"path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfigVersion.cmake", "identity": "raw_disk", "bytes": 1905, "sha256": "aad782cd610f5cfb1ca0d4af4ee3c2c9761dc45abafff8040d04a8f65c8f9116"},
+    {"path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarTargets.cmake", "identity": "raw_disk", "bytes": 5050, "sha256": "f57b2b183fbfee0e3bfc56d4aa629da7621a9568f6fa887615b9ce1b787d584c"},
+    {"path": "C:/tools/libtorrent-2.0-msvc/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarTargets-release.cmake", "identity": "raw_disk", "bytes": 1002, "sha256": "f6c61fef24cfbce62066be0f5c3d48c8b1bdaf1b6ba38d9cc6f3e8a65909684f"},
+    {"path": "C:/tools/libtorrent-2.0-msvc/lib/does-not-exist.lib", "identity": "raw_disk", "bytes": 320838716, "sha256": "a2d67f24710303750aaf068d1945380d95434e4791ad611b68b0b3b055d89a30"},
+    {"path": "C:/tools/boost-1.84.0/boost/version.hpp", "identity": "raw_disk", "bytes": 1149, "sha256": "4c95293960faf1fda21a3c2ae512d3beb0aedb18a33259b80e76fbf9e36a391a"},
+    {"path": "C:/tools/openssl-msvc/include/openssl/opensslv.h", "identity": "raw_disk", "bytes": 3578, "sha256": "3fde0187f84a1afd5d38f7a396a1c07920dd1a0381c12b85db23adcecd0a0def"},
+    {"path": "C:/tools/openssl-msvc/lib/libssl.lib", "identity": "raw_disk", "bytes": 10711686, "sha256": "419c6df2e6ca3bde4aa54991429012e300ed3e9f77b65b1bff7d5e41da712245"},
+    {"path": "C:/tools/openssl-msvc/lib/libcrypto.lib", "identity": "raw_disk", "bytes": 53714296, "sha256": "857be3bd43ae454d21aae9c904c8c2a400325565fd7255234b1aa17e98b4c0bc"},
+    {"path": "C:/Qt/6.11.1/msvc2022_64/include/QtCore/qglobal.h", "identity": "raw_disk", "bytes": 1991, "sha256": "ffb6e6d34a463b0b60525a8ef3068befbef5681b4b82b46e1532d400a9f239f3"},
+    {"path": "C:/tools/mpvqt-feasibility/mpvqt-msvc-install/include/MpvQt/mpvqt_version.h", "identity": "raw_disk", "bytes": 304, "sha256": "f85a33737b33fd5de24c411bb0b0ebad6a612d4a3519fadc30ac897abbda4fba"},
+    {"path": "C:/tools/mpvqt-feasibility/mpvqt-msvc-install/lib/MpvQt.lib", "identity": "raw_disk", "bytes": 22346, "sha256": "ece72e16e08a0b4d72fef431720e4c4f11a5eac82fc70a3c216c84ed883ac20b"},
+    {"path": "C:/tools/mpvqt-feasibility/mpvqt-msvc-install/bin/MpvQt.dll", "identity": "raw_disk", "bytes": 85504, "sha256": "80ab26830d418381ab5812a48c906c05554bf5ad0342e74cef7d8917dcc5b8eb"},
+    {"path": "C:/tools/mpvqt-feasibility/libmpv-prefix/include/mpv/client.h", "identity": "raw_disk", "bytes": 86136, "sha256": "1acf99ee77c8c2a6f1d1993bd81bbc8a91d27fb5924e80171670e6139a4bd353"},
+    {"path": "C:/tools/mpvqt-feasibility/libmpv-prefix/lib/mpv.lib", "identity": "raw_disk", "bytes": 53680, "sha256": "064dc62825f74ede1a7fae6f28b1d8cc92a72a7cafc4737179db4daaee367cd7"},
+    {"path": "C:/tools/mpvqt-feasibility/libmpv-prefix/bin/libmpv-2.dll", "identity": "raw_disk", "bytes": 119757824, "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea"},
+    {"path": "C:/Qt/Tools/CMake_64/bin/cmake.exe", "identity": "raw_disk", "bytes": 11710416, "sha256": "8c846b65810ba32a5197d0abc9748355b17508c7f887f7c43d273e46d9888c69"},
+    {"path": "C:/Qt/Tools/Ninja/ninja.exe", "identity": "raw_disk", "bytes": 3466696, "sha256": "5020138b3757035df9dca9a2243624d5810ffa6ae24444bd95f752cbd1b89123"},
+    {"path": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe", "identity": "raw_disk", "bytes": 677736, "sha256": "7a154e5136cc538b42e6944997fc5e3bb49112894e41dd88a70940aaff9aa831"}
+  ]
+}
