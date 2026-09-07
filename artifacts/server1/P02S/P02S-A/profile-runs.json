@@ -1,135 +1,508 @@
 {
-  "schema": "colosseum-server1-p02s-a-profile-runs/v1",
-  "oracle": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
-  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "schema": "colosseum-server1-p02s-a-profile-runs/v2",
+  "worker_id": "P02S-A",
+  "oracle": {
+    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "unchanged": true
+  },
+  "host": {
+    "system": "Windows",
+    "release": "10",
+    "machine": "AMD64",
+    "python": "3.11.9"
+  },
+  "runtime": {
+    "kind": "portable-node",
+    "selection": "P05_QUALIFIED_NODE",
+    "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+    "version": "v22.16.0",
+    "bytes": 85119640,
+    "sha256": "c5ff4c736112dd483c750fd4149d30c8a116db1a49b8b3ec88be4b65e6c86c19"
+  },
+  "companions": {
+    "ffmpeg": {
+      "status": "missing",
+      "path": null,
+      "provenance": "host PATH; no repair or substituted path"
+    },
+    "ffprobe": {
+      "status": "missing",
+      "path": null,
+      "provenance": "host PATH; no repair or substituted path"
+    }
+  },
+  "port_range": [
+    11470,
+    11474
+  ],
+  "accepted_external_evidence": {
+    "status": "PASS_WITH_PROVENANCE",
+    "source": "artifacts/server1/P02/CASE-RESULTS.json",
+    "receipt_sha256": "8e5d7b2db68d5c1d258a803d86afe64c079f80a50385ea0f32d322c444cec795",
+    "case_id": "P02-01",
+    "lane": "WSL2 Ubuntu",
+    "runtime": "/tmp/colosseum-server1-p02-_180vlgy/runtime/node-v22.16.0-linux-x64/bin/node",
+    "runtime_version": "v22.16.0",
+    "port": 11470,
+    "observed_surfaces": [
+      "service.enginefs",
+      "side-effect.http-listener",
+      "route.heartbeat",
+      "route.settings-get"
+    ],
+    "not_a_windows_profile_substitution": true
+  },
   "profiles": [
     {
       "profile_id": "desktop-default",
-      "env": {
+      "platform": "desktop",
+      "runtime": {
+        "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "version": "v22.16.0"
+      },
+      "port_range": [
+        11470,
+        11474
+      ],
+      "observed_surfaces": [
+        "service.enginefs",
+        "side-effect.http-listener",
+        "route.heartbeat",
+        "route.settings-get",
+        "route.network-info"
+      ],
+      "observations": {
+        "/heartbeat": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "Date": "Mon, 07 Sep 2026 07:08:33 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"success\":true}"
+        },
+        "/settings": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "Cache-Control": "no-store",
+            "Date": "Mon, 07 Sep 2026 07:08:33 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"C:\\\\b\\\\Colosseum-Server-1.0-workers\\\\P02S-A\\\\artifacts\\\\server1\\\\P02S\\\\P02S-A\\\\p02s-a-desktop-default-0_f0kssi\\\\app\",\"cacheRoot\":\"C:\\\\b\\\\Colosseum-Server-1.0-workers\\\\P02S-A\\\\artifacts\\\\server1\\\\P02S\\\\P02S-A\\\\p02s-a-desktop-default-0_f0kssi\\\\app\",\"cacheSize\":2147483648,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":false,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://100.73.198.126:11470\"}"
+        },
+        "/network-info": {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+            "Date": "Mon, 07 Sep 2026 07:08:33 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"availableInterfaces\":[]}"
+        }
+      },
+      "status": "PASS",
+      "state": "RUNTIME_OBSERVED",
+      "reason": "startup handshake and core probes passed",
+      "ready": true,
+      "port": 11470,
+      "command": [
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
+      ],
+      "environment": {
+        "APP_PATH": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-0_f0kssi\\app",
+        "SETTINGS_PATH": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-0_f0kssi\\settings",
         "NO_HTTPS_SERVER": "1",
         "NO_NETWORK_INTERFACES": "1"
       },
-      "probes": {
-        "/heartbeat": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        },
-        "/settings": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        },
-        "/network-info": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        }
+      "paths": {
+        "run_root": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-0_f0kssi",
+        "app": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-0_f0kssi\\app",
+        "settings": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-0_f0kssi\\settings",
+        "settings_json": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-0_f0kssi\\settings\\server-settings.json"
       },
-      "started": true,
+      "settings_json_created": true,
+      "port_preflight": {
+        "range": [
+          11470,
+          11474
+        ],
+        "ports": {
+          "11470": {
+            "status": "available",
+            "family": 23
+          },
+          "11471": {
+            "status": "available",
+            "family": 23
+          },
+          "11472": {
+            "status": "available",
+            "family": 23
+          },
+          "11473": {
+            "status": "available",
+            "family": 23
+          },
+          "11474": {
+            "status": "available",
+            "family": 23
+          }
+        },
+        "available_candidates": [
+          11470,
+          11471,
+          11472,
+          11473,
+          11474
+        ],
+        "selection": "first-available-source-fallback-range"
+      },
+      "teardown": {
+        "method": "taskkill-process-tree",
+        "command": [
+          "taskkill",
+          "/PID",
+          "24000",
+          "/T",
+          "/F"
+        ],
+        "taskkill_exit": 0,
+        "taskkill_stdout": "SUCCESS: The process with PID 24000 (child process of PID 20848) has been terminated.\n",
+        "taskkill_stderr": "",
+        "exit": 1,
+        "alive_after": false
+      },
       "exit_code": 1,
+      "cleanup": {
+        "removed": true
+      },
       "paths_removed_after_cleanup": true,
-      "stdout_tail": "Cannot update settings ENOENT: no such file or directory, open 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-7mi2vlgs\\settings\\server-settings.json'\nhls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-default-7mi2vlgs\\app\nEnabling casting...\n(node:26512) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:26512) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:26512) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:26512) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-win,nvenc-win,amf\nhls-converter - Testing video hw accel for profile: qsv-win\n(node:26512) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-win&maxWidth=1200 \nTypeError [ERR_INVALID_ARG_TYPE]: The \"file\" argument must be of type string. Received undefined\n    at normalizeSpawnArguments (node:child_process:568:3)\n    at spawn (node:child_process:789:13)\n    at module.exports.create (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76510:48)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37625:50\n    at new Promise (<anonymous>)\n    at module.exports (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37621:16)\n    at Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76849:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76908:82)\n    at async module.exports.playlist (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76945:21)\n    at async C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:74937:28 {\n  code: 'ERR_INVALID_ARG_TYPE'\n}\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/destroy \nhls-converter 11470-qsv-win-video-hevc.mkv has been requested to be destroyed\nhls-converter 11470-qsv-win-video-hevc.mkv destoyed\nhls-converter - Tests failed for [video] hw accel profile: qsv-win\nhls-converter - Some tests failed for hw accel profile: qsv-win\nhls-converter - Testing video hw accel for profile: nvenc-win\n-> GET /hlsv2/11470-nvenc-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=nvenc-win&maxWidth=1200 \nhls-converter 11470-qsv-win-video-hevc.mkv will be destroyed due to passing concurrency of 1\nTypeError [ERR_INVALID_ARG_TYPE]: The \"file\" argument must be of type string. Received undefined\n    at normalizeSpawnArguments (node:child_process:568:3)\n    at spawn (node:child_process:789:13)\n    at module.exports.create (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76510:48)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37625:50\n    at new Promise (<anonymous>)\n    at module.exports (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37621:16)\n    at Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76849:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76908:82)\n    at async module.exports.playlist (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76945:21)\n    at async C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:74937:28 {\n  code: 'ERR_INVALID_ARG_TYPE'\n}\n-> GET /hlsv2/11470-nvenc-win-video-hevc.mkv/destroy \nhls-converter 11470-nvenc-win-video-hevc.mkv has been requested to be destroyed\nhls-converter 11470-nvenc-win-video-hevc.mkv destoyed\nhls-converter - Tests failed for [video] hw accel profile: nvenc-win\nhls-converter - Some tests failed for hw accel profile: nvenc-win\nhls-converter - Testing video hw accel for profile: amf\n-> GET /hlsv2/11470-amf-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=amf&maxWidth=1200 \n"
+      "stdout_tail": "EP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-win,nvenc-win,amf\nhls-converter - Testing video hw accel for profile: qsv-win\n(node:24000) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-win&maxWidth=1200 \nTypeError [ERR_INVALID_ARG_TYPE]: The \"file\" argument must be of type string. Received undefined\n    at normalizeSpawnArguments (node:child_process:539:3)\n    at spawn (node:child_process:746:13)\n    at module.exports.create (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76510:48)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37625:50\n    at new Promise (<anonymous>)\n    at module.exports (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37621:16)\n    at Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76849:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76908:82)\n    at async module.exports.playlist (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76945:21)\n    at async C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:74937:28 {\n  code: 'ERR_INVALID_ARG_TYPE'\n}\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/destroy \nhls-converter 11470-qsv-win-video-hevc.mkv has been requested to be destroyed\nhls-converter 11470-qsv-win-video-hevc.mkv destoyed\nhls-converter - Tests failed for [video] hw accel profile: qsv-win\nhls-converter - Some tests failed for hw accel profile: qsv-win\nhls-converter - Testing video hw accel for profile: nvenc-win\n-> GET /hlsv2/11470-nvenc-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=nvenc-win&maxWidth=1200 \nhls-converter 11470-qsv-win-video-hevc.mkv will be destroyed due to passing concurrency of 1\nTypeError [ERR_INVALID_ARG_TYPE]: The \"file\" argument must be of type string. Received undefined\n    at normalizeSpawnArguments (node:child_process:539:3)\n    at spawn (node:child_process:746:13)\n    at module.exports.create (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76510:48)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37625:50\n    at new Promise (<anonymous>)\n    at module.exports (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37621:16)\n    at Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76849:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76908:82)\n    at async module.exports.playlist (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76945:21)\n    at async C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:74937:28 {\n  code: 'ERR_INVALID_ARG_TYPE'\n}\n-> GET /hlsv2/11470-nvenc-win-video-hevc.mkv/destroy \nhls-converter 11470-nvenc-win-video-hevc.mkv has been requested to be destroyed\nhls-converter 11470-nvenc-win-video-hevc.mkv destoyed\nhls-converter - Tests failed for [video] hw accel profile: nvenc-win\nhls-converter - Some tests failed for hw accel profile: nvenc-win\nhls-converter - Testing video hw accel for profile: amf\n-> GET /heartbeat \n-> GET /hlsv2/11470-amf-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=amf&maxWidth=1200 \nhls-converter 11470-nvenc-win-video-hevc.mkv will be destroyed due to passing concurrency of 1\nTypeError [ERR_INVALID_ARG_TYPE]: The \"file\" argument must be of type string. Received undefined\n    at normalizeSpawnArguments (node:child_process:539:3)\n    at spawn (node:child_process:746:13)\n    at module.exports.create (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76510:48)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37625:50\n    at new Promise (<anonymous>)\n    at module.exports (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37621:16)\n    at Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76849:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76908:82)\n    at async module.exports.playlist (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76945:21)\n    at async C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:74937:28 {\n  code: 'ERR_INVALID_ARG_TYPE'\n}\n-> GET /settings \n-> GET /hlsv2/11470-amf-video-hevc.mkv/destroy \nhls-converter 11470-amf-video-hevc.mkv has been requested to be destroyed\nhls-converter 11470-amf-video-hevc.mkv destoyed\nhls-converter - Tests failed for [video] hw accel profile: amf\nhls-converter - Some tests failed for hw accel profile: amf\nhls-converter - Tests for hardware accelerated transcoding finished, no viable acceleration profiles detected\n-> GET /network-info \n"
     },
     {
       "profile_id": "desktop-tv-env",
-      "env": {
+      "platform": "desktop",
+      "runtime": {
+        "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "version": "v22.16.0"
+      },
+      "port_range": [
+        11470,
+        11474
+      ],
+      "observed_surfaces": [
+        "service.enginefs",
+        "side-effect.http-listener",
+        "route.heartbeat",
+        "route.settings-get",
+        "route.network-info"
+      ],
+      "observations": {
+        "/heartbeat": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "Date": "Mon, 07 Sep 2026 07:08:36 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"success\":true}"
+        },
+        "/settings": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "Cache-Control": "no-store",
+            "Date": "Mon, 07 Sep 2026 07:08:36 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"C:\\\\b\\\\Colosseum-Server-1.0-workers\\\\P02S-A\\\\artifacts\\\\server1\\\\P02S\\\\P02S-A\\\\p02s-a-desktop-tv-env-tj_bxv71\\\\app\",\"cacheRoot\":\"C:\\\\b\\\\Colosseum-Server-1.0-workers\\\\P02S-A\\\\artifacts\\\\server1\\\\P02S\\\\P02S-A\\\\p02s-a-desktop-tv-env-tj_bxv71\\\\app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":false,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://100.73.198.126:11470\"}"
+        },
+        "/network-info": {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+            "Date": "Mon, 07 Sep 2026 07:08:36 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"availableInterfaces\":[]}"
+        }
+      },
+      "status": "PASS",
+      "state": "RUNTIME_OBSERVED",
+      "reason": "startup handshake and core probes passed",
+      "ready": true,
+      "port": 11470,
+      "command": [
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
+      ],
+      "environment": {
+        "APP_PATH": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-tj_bxv71\\app",
+        "SETTINGS_PATH": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-tj_bxv71\\settings",
         "TV_ENV": "1",
         "NO_HTTPS_SERVER": "1",
         "NO_NETWORK_INTERFACES": "1"
       },
-      "probes": {
-        "/heartbeat": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        },
-        "/settings": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        },
-        "/network-info": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        }
+      "paths": {
+        "run_root": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-tj_bxv71",
+        "app": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-tj_bxv71\\app",
+        "settings": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-tj_bxv71\\settings",
+        "settings_json": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-tj_bxv71\\settings\\server-settings.json"
       },
-      "started": true,
+      "settings_json_created": true,
+      "port_preflight": {
+        "range": [
+          11470,
+          11474
+        ],
+        "ports": {
+          "11470": {
+            "status": "available",
+            "family": 23
+          },
+          "11471": {
+            "status": "available",
+            "family": 23
+          },
+          "11472": {
+            "status": "available",
+            "family": 23
+          },
+          "11473": {
+            "status": "available",
+            "family": 23
+          },
+          "11474": {
+            "status": "available",
+            "family": 23
+          }
+        },
+        "available_candidates": [
+          11470,
+          11471,
+          11472,
+          11473,
+          11474
+        ],
+        "selection": "first-available-source-fallback-range"
+      },
+      "teardown": {
+        "method": "taskkill-process-tree",
+        "command": [
+          "taskkill",
+          "/PID",
+          "30632",
+          "/T",
+          "/F"
+        ],
+        "taskkill_exit": 0,
+        "taskkill_stdout": "SUCCESS: The process with PID 30632 (child process of PID 20848) has been terminated.\n",
+        "taskkill_stderr": "",
+        "exit": 1,
+        "alive_after": false
+      },
       "exit_code": 1,
+      "cleanup": {
+        "removed": true
+      },
       "paths_removed_after_cleanup": true,
-      "stdout_tail": "Cannot update settings ENOENT: no such file or directory, open 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-uhfzgmbj\\settings\\server-settings.json'\nhls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-tv-env-uhfzgmbj\\app\n(node:24688) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:24688) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:24688) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:24688) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-win,nvenc-win,amf\nhls-converter - Testing video hw accel for profile: qsv-win\n(node:24688) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-win&maxWidth=1200 \nError: Cannot parse path\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18248:20\n    at handleTorrent (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18250:11)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at sendDLNAHeaders (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/destroy \n"
+      "stdout_tail": "4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: nvenc-win\nhls-converter - Some tests failed for hw accel profile: nvenc-win\nhls-converter - Testing video hw accel for profile: amf\n-> GET /hlsv2/11470-amf-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=amf&maxWidth=1200 \nError: Cannot parse path\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18248:20\n    at handleTorrent (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18250:11)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at sendDLNAHeaders (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\n-> GET /hlsv2/11470-amf-video-hevc.mkv/destroy \nError: Cannot parse path\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18248:20\n    at handleTorrent (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18250:11)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at sendDLNAHeaders (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: amf\nhls-converter - Some tests failed for hw accel profile: amf\nhls-converter - Tests for hardware accelerated transcoding finished, no viable acceleration profiles detected\n-> GET /network-info \n"
     },
     {
       "profile_id": "desktop-unity-env",
-      "env": {
+      "platform": "desktop",
+      "runtime": {
+        "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "version": "v22.16.0"
+      },
+      "port_range": [
+        11470,
+        11474
+      ],
+      "observed_surfaces": [
+        "service.enginefs",
+        "side-effect.http-listener",
+        "route.heartbeat",
+        "route.settings-get",
+        "route.network-info"
+      ],
+      "observations": {
+        "/heartbeat": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "Date": "Mon, 07 Sep 2026 07:08:39 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"success\":true}"
+        },
+        "/settings": {
+          "status": 200,
+          "headers": {
+            "content-type": "application/json",
+            "Cache-Control": "no-store",
+            "Date": "Mon, 07 Sep 2026 07:08:39 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"options\":[{\"id\":\"localAddonEnabled\",\"label\":\"ENABLE_LOCAL_FILES_ADDON\",\"type\":\"checkbox\"},{\"id\":\"remoteHttps\",\"label\":\"ENABLE_REMOTE_HTTPS_CONN\",\"type\":\"select\",\"class\":\"https\",\"icon\":true,\"selections\":[{\"name\":\"Disabled\",\"val\":\"\"}]},{\"id\":\"cacheSize\",\"label\":\"CACHING\",\"type\":\"select\",\"class\":\"caching\",\"icon\":true,\"selections\":[{\"name\":\"no caching\",\"val\":0},{\"name\":\"2GB\",\"val\":2147483648},{\"name\":\"5GB\",\"val\":5368709120},{\"name\":\"10GB\",\"val\":10737418240},{\"name\":\"\u221e\",\"val\":null}]}],\"values\":{\"serverVersion\":\"4.21.0\",\"appPath\":\"C:\\\\b\\\\Colosseum-Server-1.0-workers\\\\P02S-A\\\\artifacts\\\\server1\\\\P02S\\\\P02S-A\\\\p02s-a-desktop-unity-env-0b_1l3l9\\\\app\",\"cacheRoot\":\"C:\\\\b\\\\Colosseum-Server-1.0-workers\\\\P02S-A\\\\artifacts\\\\server1\\\\P02S\\\\P02S-A\\\\p02s-a-desktop-unity-env-0b_1l3l9\\\\app\",\"cacheSize\":0,\"btMaxConnections\":55,\"btHandshakeTimeout\":20000,\"btRequestTimeout\":4000,\"btDownloadSpeedSoftLimit\":2621440,\"btDownloadSpeedHardLimit\":3670016,\"btMinPeersForStable\":5,\"remoteHttps\":\"\",\"localAddonEnabled\":false,\"transcodeHorsepower\":0.75,\"transcodeMaxBitRate\":0,\"transcodeConcurrency\":1,\"transcodeTrackConcurrency\":1,\"transcodeHardwareAccel\":false,\"transcodeProfile\":null,\"allTranscodeProfiles\":[],\"transcodeMaxWidth\":1920,\"proxyStreamsEnabled\":false},\"baseUrl\":\"http://100.73.198.126:11470\"}"
+        },
+        "/network-info": {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+            "Date": "Mon, 07 Sep 2026 07:08:39 GMT",
+            "Connection": "close",
+            "Transfer-Encoding": "chunked"
+          },
+          "body": "{\"availableInterfaces\":[]}"
+        }
+      },
+      "status": "PASS",
+      "state": "RUNTIME_OBSERVED",
+      "reason": "startup handshake and core probes passed",
+      "ready": true,
+      "port": 11470,
+      "command": [
+        "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js"
+      ],
+      "environment": {
+        "APP_PATH": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-0b_1l3l9\\app",
+        "SETTINGS_PATH": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-0b_1l3l9\\settings",
         "UNITY_ENV": "1",
         "NO_HTTPS_SERVER": "1",
         "NO_NETWORK_INTERFACES": "1"
       },
-      "probes": {
-        "/heartbeat": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        },
-        "/settings": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        },
-        "/network-info": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        }
+      "paths": {
+        "run_root": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-0b_1l3l9",
+        "app": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-0b_1l3l9\\app",
+        "settings": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-0b_1l3l9\\settings",
+        "settings_json": "C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-0b_1l3l9\\settings\\server-settings.json"
       },
-      "started": true,
+      "settings_json_created": true,
+      "port_preflight": {
+        "range": [
+          11470,
+          11474
+        ],
+        "ports": {
+          "11470": {
+            "status": "available",
+            "family": 23
+          },
+          "11471": {
+            "status": "available",
+            "family": 23
+          },
+          "11472": {
+            "status": "available",
+            "family": 23
+          },
+          "11473": {
+            "status": "available",
+            "family": 23
+          },
+          "11474": {
+            "status": "available",
+            "family": 23
+          }
+        },
+        "available_candidates": [
+          11470,
+          11471,
+          11472,
+          11473,
+          11474
+        ],
+        "selection": "first-available-source-fallback-range"
+      },
+      "teardown": {
+        "method": "taskkill-process-tree",
+        "command": [
+          "taskkill",
+          "/PID",
+          "4396",
+          "/T",
+          "/F"
+        ],
+        "taskkill_exit": 0,
+        "taskkill_stdout": "SUCCESS: The process with PID 4396 (child process of PID 20848) has been terminated.\n",
+        "taskkill_stderr": "",
+        "exit": 1,
+        "alive_after": false
+      },
       "exit_code": 1,
+      "cleanup": {
+        "removed": true
+      },
       "paths_removed_after_cleanup": true,
-      "stdout_tail": "Cannot update settings ENOENT: no such file or directory, open 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-hdwqp5qz\\settings\\server-settings.json'\nhls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-unity-env-hdwqp5qz\\app\n(node:31756) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:31756) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:31756) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:31756) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-win,nvenc-win,amf\nhls-converter - Testing video hw accel for profile: qsv-win\n(node:31756) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-win&maxWidth=1200 \nError: Cannot parse path\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18248:20\n    at handleTorrent (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18250:11)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at sendDLNAHeaders (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/destroy \n"
+      "stdout_tail": "4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: nvenc-win\nhls-converter - Some tests failed for hw accel profile: nvenc-win\nhls-converter - Testing video hw accel for profile: amf\n-> GET /hlsv2/11470-amf-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=amf&maxWidth=1200 \nError: Cannot parse path\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18248:20\n    at handleTorrent (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18250:11)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at sendDLNAHeaders (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\n-> GET /hlsv2/11470-amf-video-hevc.mkv/destroy \nError: Cannot parse path\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18248:20\n    at handleTorrent (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18250:11)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at sendDLNAHeaders (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:18292:17)\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at next (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57396:67)\n    at Route.dispatch (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:57397:11)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11857:19\n    at Layer.handle_request (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:26231:13)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11769:74\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11810:57)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at param (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11817:40)\n    at Router.process_params (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11830:9)\nhls-converter - Tests failed for [video] hw accel profile: amf\nhls-converter - Some tests failed for hw accel profile: amf\nhls-converter - Tests for hardware accelerated transcoding finished, no viable acceleration profiles detected\n-> GET /network-info \n"
     },
     {
       "profile_id": "desktop-ios-env",
-      "env": {
-        "IOS_APP": "1",
-        "NO_HTTPS_SERVER": "1",
-        "NO_NETWORK_INTERFACES": "1"
+      "platform": "ios",
+      "runtime": {
+        "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "version": "v22.16.0"
       },
-      "probes": {
-        "/heartbeat": {
-          "error": "URLError",
-          "message": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
-        },
-        "/settings": {
-          "error": "URLError",
-          "message": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
-        },
-        "/network-info": {
-          "error": "URLError",
-          "message": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"
-        }
+      "port_range": [
+        11470,
+        11474
+      ],
+      "observed_surfaces": [],
+      "observations": {},
+      "status": "NOT_RUN",
+      "state": "SOURCE_TRACED_ONLY",
+      "reason": "source-traced-only",
+      "ready": false,
+      "teardown": {
+        "method": "not-started",
+        "alive_after": false
       },
-      "started": false,
-      "exit_code": 1,
-      "paths_removed_after_cleanup": true,
-      "stdout_tail": "Cannot update settings ENOENT: no such file or directory, open 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-desktop-ios-env-314uszc2\\settings\\server-settings.json'\nnode:internal/bootstrap/realm:169\n      mod = bindingObj[module] = getLinkedBinding(module);\n                                 ^\n\nError: No such binding was linked: apple_bridge\n    at process._linkedBinding (node:internal/bootstrap/realm:169:34)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:19692:46)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46585:689)\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46978:8)\n    at __webpack_require__ (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:11:34)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:45:36\n    at Object.<anonymous> (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:46:3)\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n    at Object..js (node:internal/modules/cjs/loader:1943:10) {\n  code: 'ERR_INVALID_MODULE'\n}\n\nNode.js v24.14.0\n"
+      "cleanup": {
+        "removed": true,
+        "method": "not-started"
+      }
     },
     {
       "profile_id": "android-default",
-      "env": {
-        "NO_HTTPS_SERVER": "1",
-        "NO_NETWORK_INTERFACES": "1"
+      "platform": "android",
+      "runtime": {
+        "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+        "version": "v22.16.0"
       },
-      "probes": {
-        "/heartbeat": {
-          "status": 200,
-          "body": "{\"success\":true}"
-        },
-        "/settings": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        },
-        "/network-info": {
-          "error": "TimeoutError",
-          "message": "timed out"
-        }
+      "port_range": [
+        11470,
+        11474
+      ],
+      "observed_surfaces": [],
+      "observations": {},
+      "status": "NOT_RUN",
+      "state": "SOURCE_TRACED_ONLY",
+      "reason": "source-traced-only",
+      "ready": false,
+      "teardown": {
+        "method": "not-started",
+        "alive_after": false
       },
-      "started": true,
-      "exit_code": 1,
-      "paths_removed_after_cleanup": true,
-      "stdout_tail": "Cannot update settings ENOENT: no such file or directory, open 'C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-android-default-3g0wtbf9\\settings\\server-settings.json'\nhls executables located ->  { ffmpeg: null, ffsplit: null, ffprobe: undefined }\nUsing app path -> C:\\b\\Colosseum-Server-1.0-workers\\P02S-A\\artifacts\\server1\\P02S\\P02S-A\\p02s-a-android-default-3g0wtbf9\\app\nEnabling casting...\n(node:25312) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n(node:25312) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n(node:25312) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.\n(node:25312) [DEP0176] DeprecationWarning: fs.X_OK is deprecated, use fs.constants.X_OK instead\nEngineFS server started at http://127.0.0.1:11470\nhls-converter - Initiating tests for hardware accelerated transcoding support, possible options: qsv-win,nvenc-win,amf\nhls-converter - Testing video hw accel for profile: qsv-win\n(node:25312) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=qsv-win&maxWidth=1200 \nTypeError [ERR_INVALID_ARG_TYPE]: The \"file\" argument must be of type string. Received undefined\n    at normalizeSpawnArguments (node:child_process:568:3)\n    at spawn (node:child_process:789:13)\n    at module.exports.create (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76510:48)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37625:50\n    at new Promise (<anonymous>)\n    at module.exports (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37621:16)\n    at Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76849:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76908:82)\n    at async module.exports.playlist (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76945:21)\n    at async C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:74937:28 {\n  code: 'ERR_INVALID_ARG_TYPE'\n}\n-> GET /hlsv2/11470-qsv-win-video-hevc.mkv/destroy \nhls-converter 11470-qsv-win-video-hevc.mkv has been requested to be destroyed\nhls-converter 11470-qsv-win-video-hevc.mkv destoyed\nhls-converter - Tests failed for [video] hw accel profile: qsv-win\nhls-converter - Some tests failed for hw accel profile: qsv-win\nhls-converter - Testing video hw accel for profile: nvenc-win\n-> GET /heartbeat \n-> GET /hlsv2/11470-nvenc-win-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=nvenc-win&maxWidth=1200 \nhls-converter 11470-qsv-win-video-hevc.mkv will be destroyed due to passing concurrency of 1\nTypeError [ERR_INVALID_ARG_TYPE]: The \"file\" argument must be of type string. Received undefined\n    at normalizeSpawnArguments (node:child_process:568:3)\n    at spawn (node:child_process:789:13)\n    at module.exports.create (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76510:48)\n    at C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37625:50\n    at new Promise (<anonymous>)\n    at module.exports (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:37621:16)\n    at Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76849:70)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async Object.get (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76908:82)\n    at async module.exports.playlist (C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:76945:21)\n    at async C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js:74937:28 {\n  code: 'ERR_INVALID_ARG_TYPE'\n}\n-> GET /settings \n-> GET /hlsv2/11470-nvenc-win-video-hevc.mkv/destroy \nhls-converter 11470-nvenc-win-video-hevc.mkv has been requested to be destroyed\nhls-converter 11470-nvenc-win-video-hevc.mkv destoyed\nhls-converter - Tests failed for [video] hw accel profile: nvenc-win\nhls-converter - Some tests failed for hw accel profile: nvenc-win\nhls-converter - Testing video hw accel for profile: amf\n-> GET /hlsv2/11470-amf-video-hevc.mkv/video0.m3u8?mediaURL=http%3A%2F%2F127.0.0.1%3A11470%2Fsamples%2Fhevc.mkv&profile=amf&maxWidth=1200 \n"
+      "cleanup": {
+        "removed": true,
+        "method": "not-started"
+      }
     }
   ]
 }

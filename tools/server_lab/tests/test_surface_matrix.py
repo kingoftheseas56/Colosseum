@@ -13,6 +13,12 @@ MATRIX_PATH = ROOT / "docs/server1/RUNTIME-SURFACE-MATRIX.json"
 PROFILES_PATH = ROOT / "tools/server_lab/scenarios/reference_profiles.json"
 CASE_PATH = ROOT / "tools/server_lab/cases/P02S-A.json"
 ARTIFACT_ROOT = ROOT / "artifacts/server1/P02S/P02S-A"
+RUNNER_PATH = ARTIFACT_ROOT / "run_reference_profiles.py"
+PROFILE_RUNS_PATH = ARTIFACT_ROOT / "profile-runs.json"
+QUALIFICATION_PATH = ARTIFACT_ROOT / "QUALIFICATION-SUMMARY.json"
+QUALIFIED_NODE = Path(
+    r"C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0"
+) / "node-v22.16.0-win-x64" / "node.exe"
 CLASSIFICATIONS = {
     "always_initialized",
     "always_mounted",
@@ -108,6 +114,70 @@ class SurfaceMatrixTests(unittest.TestCase):
         self.assertEqual(case["parent_packet"], "P02S")
         self.assertEqual([item["id"] for item in case["cases"]], ["P02S-01", "P02S-02", "P02S-03"])
         self.assertTrue(ARTIFACT_ROOT.is_dir())
+
+    def test_profile_contract_does_not_inject_invalid_companion_paths(self) -> None:
+        profiles = load_json(PROFILES_PATH)
+        qualification = profiles["qualification"]
+        self.assertEqual(qualification["runtime_env"], "P05_QUALIFIED_NODE")
+        self.assertEqual(qualification["required_version"], "v22.16.0")
+        self.assertEqual(qualification["companion_policy"], "record-missing-without-override")
+        for profile in profiles["profiles"].values():
+            self.assertNotIn("FFMPEG_BIN", profile.get("env", {}))
+            self.assertNotIn("FFPROBE_BIN", profile.get("env", {}))
+
+    def test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection(self) -> None:
+        source = RUNNER_PATH.read_text(encoding="utf-8")
+        self.assertIn("P05_QUALIFIED_NODE", source)
+        self.assertNotIn('["node"', source)
+        self.assertNotIn(".readline(", source)
+        self.assertIn("CREATE_NEW_PROCESS_GROUP", source)
+        self.assertIn("taskkill", source)
+        self.assertIn("server-settings.json", source)
+        self.assertIn("PORT_START", source)
+        self.assertIn("SO_EXCLUSIVEADDRUSE", source)
+        self.assertNotIn("/usr/bin/ffmpeg", source)
+        self.assertNotIn("/usr/bin/ffprobe", source)
+
+    def test_profile_receipts_separate_failed_runs_from_observation(self) -> None:
+        runs = load_json(PROFILE_RUNS_PATH)
+        summary = load_json(QUALIFICATION_PATH)
+        self.assertEqual(runs["runtime"]["path"], str(QUALIFIED_NODE))
+        self.assertEqual(runs["runtime"]["version"], "v22.16.0")
+        self.assertEqual(summary["qualified_runtime"]["path"], str(QUALIFIED_NODE))
+        self.assertEqual(summary["qualified_runtime"]["qualification_case"], "P05-02")
+        self.assertEqual(summary["qualified_runtime"]["qualification_state"], "PASS")
+        for result in runs["profiles"]:
+            self.assertIn(result["status"], {"PASS", "UNSUPPORTED", "NOT_RUN", "ERROR"})
+            if result["status"] != "PASS":
+                self.assertEqual(result["observed_surfaces"], [])
+                self.assertEqual(result["observations"], {})
+            else:
+                self.assertTrue(result["ready"])
+                self.assertTrue(result["observations"])
+
+    def test_matrix_separates_source_accounting_from_runtime_observation(self) -> None:
+        matrix = load_json(MATRIX_PATH)
+        runtime = matrix["runtime_observation"]
+        self.assertTrue(runtime["failed_runs_supply_no_observation"])
+        self.assertEqual(
+            set(runtime["profiles"]),
+            set(matrix["required_profile_ids"]),
+        )
+        for result in runtime["profiles"].values():
+            if result["status"] != "PASS":
+                self.assertEqual(result["observed_surfaces"], [])
+        planned = matrix["planned_packet_scope"]
+        accounted = set(matrix["source_accounting"]["required_surface_ids"])
+        scoped = set().union(*(set(ids) for ids in planned.values()))
+        self.assertTrue({
+            "media",
+            "network",
+            "archive",
+            "local",
+            "casting",
+            "downloader",
+        }.issubset(planned))
+        self.assertEqual(scoped, accounted)
 
 
 if __name__ == "__main__":

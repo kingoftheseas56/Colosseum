@@ -1,23 +1,79 @@
 {
-  "schema": "colosseum-server1-p02s-a-qualification/v1",
+  "schema": "colosseum-server1-p02s-a-qualification/v2",
   "worker_id": "P02S-A",
+  "parent_packet": "P02S",
   "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "runtime_selection": {
+    "environment": "P05_QUALIFIED_NODE",
+    "kind": "portable-node",
+    "version": "v22.16.0",
+    "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+    "sha256": "c5ff4c736112dd483c750fd4149d30c8a116db1a49b8b3ec88be4b65e6c86c19",
+    "source": "artifacts/server1/P05/P05-B/TEST-GREEN.raw.txt"
+  },
+  "qualified_runtime": {
+    "path": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe",
+    "version": "v22.16.0",
+    "qualification_case": "P05-02",
+    "qualification_state": "PASS",
+    "evidence": "artifacts/server1/P05/P05-B/TEST-GREEN.raw.txt"
+  },
+  "companions": {
+    "ffmpeg": {"state": "missing", "path": null, "provenance": "Windows host PATH; no repair or substituted path"},
+    "ffprobe": {"state": "missing", "path": null, "provenance": "Windows host PATH; no repair or substituted path"}
+  },
+  "port_range": {
+    "source_fallback": [11470, 11471, 11472, 11473, 11474],
+    "selection": "collision-free preflight plus source handshake"
+  },
   "profiles": {
-    "desktop-default": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Windows host Node is v24.14.0, accepted qualification runtime is portable Node v22.16.0; ffmpeg/ffprobe unavailable; /heartbeat, /settings, /network-info timed out after source startup."},
-    "desktop-tv-env": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Source startup observed with TV_ENV composition; controlled probes blocked by missing accepted companion/runtime."},
-    "desktop-unity-env": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Source startup observed with UNITY_ENV composition; controlled probes blocked by missing accepted companion/runtime."},
-    "desktop-ios-env": {"state":"blocked-env", "evidence":"profile-runs.json", "reason":"Unmodified source requires native apple_bridge binding under IOS_APP; binding is unavailable on desktop host."},
-    "android-default": {"state":"source-started-blocked-env", "evidence":"profile-runs.json", "reason":"Process.platform remains win32 on this host; android-only branch is source-traced, not simulated or promoted."}
+    "desktop-default": {
+      "state": "PASS",
+      "execution_status": "RUNTIME_OBSERVED",
+      "evidence": "profile-runs.json",
+      "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"],
+      "limitations": ["Windows ffmpeg and ffprobe are missing; no transcoder capability is claimed"]
+    },
+    "desktop-tv-env": {
+      "state": "PASS",
+      "execution_status": "RUNTIME_OBSERVED",
+      "evidence": "profile-runs.json",
+      "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"],
+      "limitations": ["Windows ffmpeg and ffprobe are missing; no transcoder capability is claimed"]
+    },
+    "desktop-unity-env": {
+      "state": "PASS",
+      "execution_status": "RUNTIME_OBSERVED",
+      "evidence": "profile-runs.json",
+      "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"],
+      "limitations": ["Windows ffmpeg and ffprobe are missing; no transcoder capability is claimed"]
+    },
+    "desktop-ios-env": {
+      "state": "SOURCE_TRACED_ONLY",
+      "execution_status": "NOT_RUN",
+      "evidence": "SOURCE-TRACE.json and profile-runs.json",
+      "observed_surfaces": [],
+      "reason": "A Windows host cannot genuinely execute the IOS_APP apple_bridge binding; no iOS runtime claim is made"
+    },
+    "android-default": {
+      "state": "SOURCE_TRACED_ONLY",
+      "execution_status": "NOT_RUN",
+      "evidence": "SOURCE-TRACE.json and profile-runs.json",
+      "observed_surfaces": [],
+      "reason": "A Windows host cannot genuinely execute process.platform=android; no Android runtime claim is made"
+    }
   },
   "accepted_differential_lane": {
-    "state":"PASS_WITH_PROVENANCE",
-    "source":"artifacts/server1/P02/CASE-RESULTS.json",
-    "profile":"WSL2 Ubuntu controlled HTTP lane",
-    "reason":"Accepted P02 execution used official portable Node v22.16.0, exact oracle SHA, /heartbeat and /settings, port fallback, teardown, and missing companion provenance. Reused as full-server evidence; no Windows PASS claim made."
+    "state": "PASS_WITH_PROVENANCE",
+    "source": "artifacts/server1/P02/CASE-RESULTS.json",
+    "source_receipt_sha256": "8e5d7b2db68d5c1d258a803d86afe64c079f80a50385ea0f32d322c444cec795",
+    "profile": "WSL2 Ubuntu controlled HTTP lane",
+    "reason": "Accepted P02 execution used official portable Node v22.16.0, exact oracle SHA, disposable app/settings roots, /heartbeat and /settings, source port fallback, deterministic process-group teardown, and missing-companion provenance. It is reused only for the listed WSL surfaces and is not a Windows/iOS/Android substitution.",
+    "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get"]
   },
   "cases": {
-    "P02S-01":"differentially-qualified-with-blocked-desktop-runtime",
-    "P02S-02":"source-traced-and-test-executed",
-    "P02S-03":"test-executed-with-deletion-mutation-RED"
+    "P02S-01": "test-executed-and-desktop-profiles-runtime-observed; iOS/Android-source-only",
+    "P02S-02": "source-traced-and-test-executed",
+    "P02S-03": "test-executed-with-deletion-mutation-RED; all-required-surfaces-accounted"
   }
 }

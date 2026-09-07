@@ -6,6 +6,30 @@
   "source_authority": {"M564": {"lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"}},
   "required_profile_ids": ["desktop-default", "desktop-tv-env", "desktop-unity-env", "desktop-ios-env", "android-default"],
   "profiles": {"source": "tools/server_lab/scenarios/reference_profiles.json", "execution": "artifacts/server1/P02S/P02S-A/profile-runs.json", "qualification": "artifacts/server1/P02S/P02S-A/QUALIFICATION-SUMMARY.json"},
+  "profile_state_semantics": "profile_states are source-composition labels, not runtime observations; runtime_observation is the only execution-evidence lane",
+  "runtime_observation": {
+    "source": "artifacts/server1/P02S/P02S-A/profile-runs.json",
+    "runtime_selection": "P05_QUALIFIED_NODE",
+    "required_version": "v22.16.0",
+    "failed_runs_supply_no_observation": true,
+    "profiles": {
+      "desktop-default": {"status": "PASS", "state": "RUNTIME_OBSERVED", "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"]},
+      "desktop-tv-env": {"status": "PASS", "state": "RUNTIME_OBSERVED", "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"]},
+      "desktop-unity-env": {"status": "PASS", "state": "RUNTIME_OBSERVED", "observed_surfaces": ["service.enginefs", "side-effect.http-listener", "route.heartbeat", "route.settings-get", "route.network-info"]},
+      "desktop-ios-env": {"status": "NOT_RUN", "state": "SOURCE_TRACED_ONLY", "observed_surfaces": []},
+      "android-default": {"status": "NOT_RUN", "state": "SOURCE_TRACED_ONLY", "observed_surfaces": []}
+    }
+  },
+  "planned_packet_scope": {
+    "media": ["route.hls-v2", "route.samples", "route.hls-v1", "route.probe", "route.tracks", "route.youtube-json", "route.youtube-redirect", "route.subtitle-tracks", "route.opensub-hash", "route.subtitles", "route.hwaccel-profiler", "route.proxy"],
+    "network": ["route.network-info", "route.device-info", "route.get-https", "side-effect.http-listener", "side-effect.https-listener"],
+    "archive": ["route.archive-rar", "route.archive-zip", "route.archive-7zip", "route.archive-tar", "route.archive-tgz", "route.archive-ftp", "route.archive-nzb"],
+    "local": ["route.local-addon", "side-effect.local-addon-indexing", "route.root-redirect", "side-effect.open-browser"],
+    "casting": ["route.casting"],
+    "downloader": ["route.ipc-downloader"],
+    "control": ["service.enginefs", "side-effect.executable-discovery", "side-effect.app-path", "side-effect.cors-middleware", "route.settings-get", "route.settings-post", "route.heartbeat", "side-effect.engine-lifecycle", "side-effect.ios-lifecycle"],
+    "dependencies": ["dependency.hls-converter", "dependency.bridge", "dependency.cache", "dependency.ffmpeg", "dependency.ffprobe"]
+  },
   "source_accounting": {"required_surface_ids": [
     "service.enginefs", "side-effect.executable-discovery", "side-effect.app-path", "side-effect.cors-middleware", "route.hls-v2", "route.samples", "route.hls-v1", "route.probe", "route.tracks", "route.youtube-json", "route.youtube-redirect", "route.casting", "route.subtitle-tracks", "route.opensub-hash", "route.subtitles", "route.network-info", "route.device-info", "route.settings-get", "route.settings-post", "route.heartbeat", "route.local-addon", "side-effect.local-addon-indexing", "route.get-https", "route.hwaccel-profiler", "route.root-redirect", "route.proxy", "side-effect.http-listener", "side-effect.https-listener", "side-effect.open-browser", "side-effect.engine-lifecycle", "side-effect.ios-lifecycle", "route.archive-rar", "route.archive-zip", "route.archive-7zip", "route.archive-tar", "route.archive-tgz", "route.archive-ftp", "route.archive-nzb", "route.ipc-downloader", "dependency.hls-converter", "dependency.bridge", "dependency.cache", "dependency.ffmpeg", "dependency.ffprobe"
   ]},

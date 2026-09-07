@@ -1,9 +1,14 @@
-test_case_packet_and_evidence_contract (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_case_packet_and_evidence_contract) ... ok
-test_p02s_01_profiles_change_only_source_composition (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_01_profiles_change_only_source_composition) ... ok
-test_p02s_02_dependency_only_is_not_a_mount (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_02_dependency_only_is_not_a_mount) ... ok
-test_p02s_03_completeness_rejects_deleted_observed_surface (tools.server_lab.tests.test_surface_matrix.SurfaceMatrixTests.test_p02s_03_completeness_rejects_deleted_observed_surface) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 0.010s
-
-OK
+command: python -m unittest tools.server_lab.tests.test_surface_matrix -v
+qualified_node: C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p05-b-node-v22.16.0\\node-v22.16.0-win-x64\\node.exe
+qualified_node_version: v22.16.0
+exit: 0
+result:
+test_case_packet_and_evidence_contract ... ok
+test_matrix_separates_source_accounting_from_runtime_observation ... ok
+test_p02s_01_profiles_change_only_source_composition ... ok
+test_p02s_02_dependency_only_is_not_a_mount ... ok
+test_p02s_03_completeness_rejects_deleted_observed_surface ... ok
+test_profile_contract_does_not_inject_invalid_companion_paths ... ok
+test_profile_receipts_separate_failed_runs_from_observation ... ok
+test_runner_uses_bounded_isolated_observation_and_exact_runtime_selection ... ok
+summary: 8 tests, 0 failures, 0 errors

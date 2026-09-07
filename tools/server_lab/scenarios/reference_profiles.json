@@ -3,36 +3,59 @@
   "worker_id": "P02S-A",
   "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
   "source_entrypoint": "server.js:46581-46585",
+  "qualification": {
+    "runtime_env": "P05_QUALIFIED_NODE",
+    "required_version": "v22.16.0",
+    "companion_policy": "record-missing-without-override"
+  },
+  "runner_defaults": {
+    "env": {"NO_HTTPS_SERVER": "1", "NO_NETWORK_INTERFACES": "1"},
+    "port_range": [11470, 11471, 11472, 11473, 11474],
+    "probe_paths": ["/heartbeat", "/settings", "/network-info"]
+  },
   "profiles": {
     "desktop-default": {
       "platform": "desktop",
-      "env": {"APP_PATH": "<run>/app", "SETTINGS_PATH": "<run>/settings", "FFMPEG_BIN": "/usr/bin/ffmpeg", "FFPROBE_BIN": "/usr/bin/ffprobe", "NO_HTTPS_SERVER": "1", "NO_NETWORK_INTERFACES": "1"},
+      "env": {},
       "source_composition_overrides": {},
-      "required_for": ["default desktop entrypoint"]
+      "required_for": ["default desktop entrypoint"],
+      "execution": {"windows": "execute", "non_windows": "execute"}
     },
     "desktop-tv-env": {
       "platform": "desktop",
       "env": {"TV_ENV": "1"},
       "source_composition_overrides": {"casting": "disabled", "caching": "disabled", "cors": "disabled", "hls_v2": "disabled"},
-      "required_for": ["TV_ENV entrypoint rewrite"]
+      "required_for": ["TV_ENV entrypoint rewrite"],
+      "execution": {"windows": "execute", "non_windows": "execute"}
     },
     "desktop-unity-env": {
       "platform": "desktop",
       "env": {"UNITY_ENV": "1"},
       "source_composition_overrides": {"casting": "disabled", "caching": "disabled", "cors": "disabled", "hls_v2": "disabled", "network_interfaces": "disabled"},
-      "required_for": ["UNITY_ENV entrypoint rewrite"]
+      "required_for": ["UNITY_ENV entrypoint rewrite"],
+      "execution": {"windows": "execute", "non_windows": "execute"}
     },
     "desktop-ios-env": {
-      "platform": "desktop",
+      "platform": "ios",
       "env": {"IOS_APP": "1"},
       "source_composition_overrides": {"casting": "disabled", "hls_v2": "disabled", "https": "disabled"},
-      "required_for": ["IOS_APP entrypoint rewrite and lifecycle handlers"]
+      "required_for": ["IOS_APP entrypoint rewrite and lifecycle handlers"],
+      "execution": {
+        "windows": "source-traced-only",
+        "non_windows": "source-traced-only",
+        "reason": "IOS_APP requires a genuine native apple_bridge binding"
+      }
     },
     "android-default": {
       "platform": "android",
       "env": {},
       "source_composition_overrides": {"casting": "disabled", "local_addon_indexing": "disabled"},
-      "required_for": ["platform guards at M564:46702 and M564:46820"]
+      "required_for": ["platform guards at M564:46702 and M564:46820"],
+      "execution": {
+        "windows": "source-traced-only",
+        "non_windows": "source-traced-only",
+        "reason": "process.platform cannot be Android on this desktop host"
+      }
     }
   }
 }
