@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-p03-case-inputs/v1",
+  "worker_id": "P03-A",
+  "parent_packet": "P03",
+  "oracle_modules": [],
+  "oracle_modules_note": "P03 is build-only and has no oracle modules or module/range tuples.",
+  "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "cases": [
+    {
+      "id": "P03-01",
+      "purpose": "Independent clean configure/build succeeds with locked dependencies; missing required dependency fails visibly.",
+      "build_dir": "artifacts/server1/P03/build-valid",
+      "missing_dependency_build_dir": "artifacts/server1/P03/build-missing-libtorrent"
+    },
+    {
+      "id": "P03-02",
+      "purpose": "QCoreApplication host initializes and shuts down an empty skeleton and reports not streaming-ready."
+    },
+    {
+      "id": "P03-03",
+      "purpose": "Machine-check selected branch/worktree/reflog evidence and preserve canonical checkout as read-only snapshot."
+    }
+  ]
+}

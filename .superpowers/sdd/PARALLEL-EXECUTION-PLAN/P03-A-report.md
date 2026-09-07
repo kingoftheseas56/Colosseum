@@ -8,11 +8,11 @@ Changed only `native/colosseum_server_v1/tests/CMakeLists.txt` and P03-owned rep
 
 ## Case states
 
-P03-01 — PROVEN PASS. Fresh standalone configure exited 0 at `artifacts/server1/P03/repair-build-20260907`; fresh Ninja build exited 0 and produced `server1_host.exe`. Controlled missing-lock configure exited 1 and named `C:/tools/libtorrent-2.0-msvc/lib/does-not-exist.lib`. Exact commands, exits, and raw output are in `P03-01-CONFIGURE.txt`, `P03-01-BUILD.txt`, and `P03-01-MISSING-DEPENDENCY.txt`.
+P03-01 — PROVEN PASS: source-traced, test-authored, compiled, and test-executed. Fresh standalone configure exited 0 at `artifacts/server1/P03/repair-build-20260907`; fresh Ninja build exited 0 and produced `server1_host.exe`. Controlled missing-lock configure exited 1 and named `C:/tools/libtorrent-2.0-msvc/lib/does-not-exist.lib`. Exact commands, exits, and raw output are in `P03-01-CONFIGURE.txt`, `P03-01-BUILD.txt`, and `P03-01-MISSING-DEPENDENCY.txt`.
 
-P03-02 — PROVEN PASS. Direct host execution exited 0 with Qt `bin` derived from the locked `QtCore/qglobal.h` path and reported `streaming-ready=NO` on initialization and shutdown. CTest launched with PATH restricted to Windows system directories passed 1/1, exit 0, proving the packet-local registry supplies Qt runtime discovery. Exact commands and raw output are in `P03-02-HOST.txt` and `P03-02-CTEST.txt`; the pre-fix Sol failure is retained there as contrast.
+P03-02 — PROVEN PASS: source-traced, test-authored, compiled, and test-executed. Direct host execution exited 0 with Qt `bin` derived from the locked `QtCore/qglobal.h` path and reported `streaming-ready=NO` on initialization and shutdown. CTest launched with PATH restricted to Windows system directories passed 1/1, exit 0, proving the packet-local registry supplies Qt runtime discovery. Exact commands and raw output are in `P03-02-HOST.txt` and `P03-02-CTEST.txt`; the pre-fix Sol failure is retained there as contrast.
 
-P03-03 — PROVEN PROVENANCE, CURRENT SNAPSHOT REQUIRED. Reflog records `branch: Created from 81e750b...` before the accepted prerequisite commits through `0d002c6d`; current HEAD is not the selected base. The integration predecessor is `0d002c6d`, while the repair starts from `39b2b9b7`; neither is claimed to equal `81e750b`. The post-commit branch/worktree snapshot is in `P03-03-BRANCH-WORKTREE.txt`.
+P03-03 — ACCEPTED PROVENANCE-ONLY STATE: source-traced and evidence-executed, not compiled or test-executed. Reflog records `branch: Created from 81e750b...` before the accepted prerequisite commits through `0d002c6d`; current HEAD is not the selected base. The integration predecessor is `0d002c6d`, while the repair starts from `39b2b9b7`; neither is claimed to equal `81e750b`. The branch/worktree provenance snapshot is in `P03-03-BRANCH-WORKTREE.txt`.
 
 ## Interfaces and no-change statement
 
@@ -22,7 +22,7 @@ No routes, streaming transport, torrent/process ports, Server 0.1 files, root/sh
 
 ## Exact artifact paths
 
-Evidence root: `artifacts/server1/P03/`. Relevant files: `RED-CONTRACT.txt`, `P03-01-RED-GREEN.txt`, `P03-01-CONFIGURE.txt`, `P03-01-BUILD.txt`, `P03-01-MISSING-DEPENDENCY.txt`, `P03-02-HOST.txt`, `P03-02-CTEST.txt`, `P03-03-BRANCH-WORKTREE.txt`, `CASE-INPUTS.json`, `missing-dependency-lock.json`, and `WIRING-REQUEST.json`. Disposable build directories are local evidence inputs only and are not committed.
+Evidence root: `artifacts/server1/P03/`. Relevant files: `RED-CONTRACT.txt`, `P03-01-RED-GREEN.txt`, `P03-01-CONFIGURE.txt`, `P03-01-BUILD.txt`, `P03-01-MISSING-DEPENDENCY.txt`, `P03-02-HOST.txt`, `P03-02-CTEST.txt`, `P03-03-BRANCH-WORKTREE.txt`, `CASE-INPUTS.json`, `missing-dependency-lock.json`, and `WIRING-REQUEST.json`. Disposable build/cache directories are ignored local content and are absent from commits; `CASE-INPUTS.json` is force-added as the required committed case-input receipt.
 
 ## Open failures and risks
 

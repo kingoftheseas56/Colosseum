@@ -36,7 +36,7 @@ branch=feature/colosseum-server-1.0
 HEAD=39b2b9b7f00386302e01e22b72e92a838492d611
 repair_source=native/colosseum_server_v1/tests/CMakeLists.txt
 repair_evidence=artifacts/server1/P03/P03-01-CONFIGURE.txt; artifacts/server1/P03/P03-01-BUILD.txt; artifacts/server1/P03/P03-01-MISSING-DEPENDENCY.txt; artifacts/server1/P03/P03-02-HOST.txt; artifacts/server1/P03/P03-02-CTEST.txt; artifacts/server1/P03/P03-01-RED-GREEN.txt; artifacts/server1/P03/RED-CONTRACT.txt; .superpowers/sdd/PARALLEL-EXECUTION-PLAN/P03-A-report.md
-temporary_builds_removed_before_commit=true
+build_cache_state=ignored local build/cache directories remain on disk and are absent from commits.
 post_commit_clean_status=verified by final worker command; this file intentionally records the pre-commit snapshot and does not claim that snapshot was taken after the new commit.
 
 worktree C:/b/Colosseum-Server-1.0-workers/P01A-A
