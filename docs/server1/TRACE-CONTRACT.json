@@ -23,6 +23,21 @@
     "normalized_trace": { "allowed": false, "comparison_role": "none", "diagnostic_role": "none" },
     "payload_key_presence": "exact; omitted and null are distinct"
   },
+  "contract_validation": {
+    "phase": "before raw equality",
+    "trace_container": "array",
+    "required_field_types": {
+      "seq": "integer",
+      "generation": "integer",
+      "kind": "string",
+      "identity": "string",
+      "payload": "object"
+    },
+    "sequence": "integer, contiguous, one-based",
+    "terminal_key": ["identity", "generation"],
+    "malformed_actual_rule_family": "candidate contract validation",
+    "malformed_expected_rule": "oracle-contract-invalid"
+  },
   "comparison_rules": {
     "cardinality": "exact",
     "terminal_event_uniqueness": "one stream.terminal per identity per generation",

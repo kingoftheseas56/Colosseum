@@ -1,0 +1,10 @@
+command: python -m unittest -v tools.server_lab.tests.test_comparator
+base_commit: 18775c7fadeb50968734a83fd35b27a014c2f811
+qualified_node: v22.16.0
+exit: 1
+result: 11 tests ran; 3 failures
+failures:
+- identical duplicate-terminal trace returned {"accepted": true, "rejection": null}
+- missing payload fell through to payload-key comparison
+- wrong seq type fell through to raw-event comparison
+root_cause: compare() returned PASS on expected == actual before trace contract validation

@@ -7,6 +7,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 
@@ -26,12 +27,82 @@ def rejection(identity: str, path: str, rule: str) -> dict:
     return {"accepted": False, "rejection": {"identity": identity, "path": path, "rule": rule}}
 
 
+def contract_rejection(source: str, identity: str, path: str, rule: str) -> dict:
+    if source == "oracle":
+        return rejection("oracle", path, "oracle-contract-invalid")
+    return rejection(identity, path, rule)
+
+
 class TraceComparator:
     """Raw trace comparator; this deliberately does not normalize either input."""
 
+    @staticmethod
+    def _validate_trace(trace: list[dict], *, source: str, required_fields: list[str]) -> dict | None:
+        if not isinstance(trace, list):
+            return contract_rejection(source, source, "trace", "trace-is-list")
+
+        terminal_identities: set[tuple[str, int]] = set()
+        for index, event in enumerate(trace):
+            event_path = f"trace[{index}]"
+            if not isinstance(event, dict):
+                return contract_rejection(source, source, event_path, "event-is-object")
+
+            for field in required_fields:
+                if field not in event:
+                    return contract_rejection(
+                        source,
+                        event.get("identity", source),
+                        f"{event_path}.{field}",
+                        "required-field-present",
+                    )
+
+            identity = event["identity"] if isinstance(event["identity"], str) else source
+            if not isinstance(event["seq"], int) or isinstance(event["seq"], bool):
+                return contract_rejection(source, identity, f"{event_path}.seq", "seq-is-integer")
+            if event["seq"] != index + 1:
+                return contract_rejection(
+                    source,
+                    identity,
+                    f"{event_path}.seq",
+                    "seq-is-contiguous",
+                )
+            if not isinstance(event["generation"], int) or isinstance(event["generation"], bool):
+                return contract_rejection(
+                    source,
+                    identity,
+                    f"{event_path}.generation",
+                    "generation-is-integer",
+                )
+            if not isinstance(event["kind"], str):
+                return contract_rejection(source, identity, f"{event_path}.kind", "kind-is-string")
+            if not isinstance(event["identity"], str):
+                return contract_rejection(
+                    source,
+                    source,
+                    f"{event_path}.identity",
+                    "identity-is-string",
+                )
+            if not isinstance(event["payload"], dict):
+                return contract_rejection(
+                    source,
+                    identity,
+                    f"{event_path}.payload",
+                    "payload-is-object",
+                )
+
+            if event["kind"] == "stream.terminal":
+                terminal_key = (event["identity"], event["generation"])
+                if terminal_key in terminal_identities:
+                    return contract_rejection(
+                        source,
+                        identity,
+                        event_path,
+                        "terminal-event-cardinality-one",
+                    )
+                terminal_identities.add(terminal_key)
+        return None
+
     def compare(self, expected: list[dict], actual: list[dict], *, trace_context: dict) -> dict:
-        if not isinstance(expected, list) or not isinstance(actual, list):
-            raise TypeError("trace must be a list")
         contract = load_contract()
         required_context = {
             "oracle_sha256": contract["oracle"]["sha256"],
@@ -42,6 +113,21 @@ class TraceComparator:
         }
         if trace_context != required_context:
             return rejection("trace-context", "trace_context", "trace-context-identity")
+        required_fields = contract["event_schema"]["required_fields"]
+        expected_contract_error = self._validate_trace(
+            expected,
+            source="oracle",
+            required_fields=required_fields,
+        )
+        if expected_contract_error is not None:
+            return expected_contract_error
+        actual_contract_error = self._validate_trace(
+            actual,
+            source="actual",
+            required_fields=required_fields,
+        )
+        if actual_contract_error is not None:
+            return actual_contract_error
         if expected == actual:
             return {"accepted": True, "rejection": None}
 
@@ -217,6 +303,74 @@ class TraceComparatorMutationTests(unittest.TestCase):
     def test_wrong_cancellation_generation_is_rejected_with_identity_path_and_rule(self) -> None:
         self.assert_mutation_rejected("P05-01-wrong-cancellation-generation")
 
+    def test_identical_duplicate_terminal_trace_is_rejected_as_oracle_contract_error(self) -> None:
+        fixture = self.fixtures["P05-01-duplicate-terminal-event"]
+        malformed = fixture["mutated_trace"]
+        result = TraceComparator().compare(
+            malformed,
+            malformed,
+            trace_context=self.definition["trace_context"],
+        )
+        self.assertEqual(
+            result,
+            rejection("oracle", "trace[2]", "oracle-contract-invalid"),
+        )
+
+    def test_missing_required_field_in_actual_is_rejected_before_equality(self) -> None:
+        fixture = self.fixtures["P05-01-callback-removal"]
+        malformed = deepcopy(fixture["baseline_trace"])
+        del malformed[0]["payload"]
+        result = TraceComparator().compare(
+            fixture["baseline_trace"],
+            malformed,
+            trace_context=self.definition["trace_context"],
+        )
+        self.assertEqual(
+            result,
+            rejection(
+                "request:p05-fixture-request-001",
+                "trace[0].payload",
+                "required-field-present",
+            ),
+        )
+
+    def test_wrong_type_and_non_contiguous_sequence_are_rejected_before_equality(self) -> None:
+        fixture = self.fixtures["P05-01-callback-removal"]
+        malformed = deepcopy(fixture["baseline_trace"])
+        malformed[0]["seq"] = "1"
+        result = TraceComparator().compare(
+            fixture["baseline_trace"],
+            malformed,
+            trace_context=self.definition["trace_context"],
+        )
+        self.assertEqual(
+            result,
+            rejection("request:p05-fixture-request-001", "trace[0].seq", "seq-is-integer"),
+        )
+
+    def test_duplicate_sequence_is_rejected_before_equality(self) -> None:
+        fixture = self.fixtures["P05-01-callback-removal"]
+        malformed = deepcopy(fixture["baseline_trace"])
+        malformed[1]["seq"] = 1
+        result = TraceComparator().compare(
+            fixture["baseline_trace"],
+            malformed,
+            trace_context=self.definition["trace_context"],
+        )
+        self.assertEqual(
+            result,
+            rejection("callback:completion:4", "trace[1].seq", "seq-is-contiguous"),
+        )
+
+    def test_non_list_actual_trace_is_rejected_as_candidate_contract_error(self) -> None:
+        fixture = self.fixtures["P05-01-callback-removal"]
+        result = TraceComparator().compare(
+            fixture["baseline_trace"],
+            {"not": "a trace"},
+            trace_context=self.definition["trace_context"],
+        )
+        self.assertEqual(result, rejection("actual", "trace", "trace-is-list"))
+
 
 class QualifiedNodeOrderingTests(unittest.TestCase):
     def test_immediate_nexttick_promise_and_timer_classes_are_distinct_and_ordered(self) -> None:
@@ -243,6 +397,11 @@ class TraceContractTests(unittest.TestCase):
         self.assertTrue(contract["event_schema"]["raw_trace_is_authoritative"])
         self.assertFalse(contract["event_schema"]["normalized_trace"]["allowed"])
         self.assertEqual(contract["event_schema"]["payload_key_presence"], "exact; omitted and null are distinct")
+        self.assertEqual(contract["contract_validation"]["phase"], "before raw equality")
+        self.assertEqual(contract["contract_validation"]["trace_container"], "array")
+        self.assertEqual(contract["contract_validation"]["sequence"], "integer, contiguous, one-based")
+        self.assertEqual(contract["contract_validation"]["terminal_key"], ["identity", "generation"])
+        self.assertEqual(contract["contract_validation"]["malformed_expected_rule"], "oracle-contract-invalid")
         self.assertEqual(contract["comparison_rules"]["cardinality"], "exact")
         self.assertEqual(contract["comparison_rules"]["terminal_event_uniqueness"], "one stream.terminal per identity per generation")
         self.assertEqual(contract["qualified_node_runtime"]["expected_order"], ["immediate", "nextTick", "promise", "timer"])

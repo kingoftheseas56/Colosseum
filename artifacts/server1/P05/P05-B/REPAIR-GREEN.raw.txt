@@ -1,0 +1,12 @@
+command: python -m unittest -v tools.server_lab.tests.test_comparator
+qualified_node: C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe
+qualified_node_version: v22.16.0
+exit: 0
+result: 13 tests passed, 0 failed
+duration_seconds: 0.271
+new validation cases:
+- identical malformed duplicate-terminal trace -> identity=oracle, path=trace[2], rule=oracle-contract-invalid
+- missing required payload -> identity=request:p05-fixture-request-001, path=trace[0].payload, rule=required-field-present
+- wrong seq type -> identity=request:p05-fixture-request-001, path=trace[0].seq, rule=seq-is-integer
+- duplicate seq -> identity=callback:completion:4, path=trace[1].seq, rule=seq-is-contiguous
+- non-list actual trace -> identity=actual, path=trace, rule=trace-is-list

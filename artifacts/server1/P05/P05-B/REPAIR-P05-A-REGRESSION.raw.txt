@@ -1,0 +1,5 @@
+command: C:\Users\Suprabha\AppData\Local\Temp\p05-b-node-v22.16.0\node-v22.16.0-win-x64\node.exe --test artifacts/server1/P05/P05-A/test_p05_a.mjs
+qualified_node_version: v22.16.0
+exit: 0
+result: 5 tests passed, 0 failed, 0 skipped
+duration_ms: 17066.789

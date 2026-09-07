@@ -1,0 +1,12 @@
+command: python -m py_compile tools/server_lab/tests/test_comparator.py
+exit: 0
+command: python -m json.tool docs/server1/TRACE-CONTRACT.json
+exit: 0
+command: python -m json.tool tools/server_lab/cases/P05-B.json
+exit: 0
+command: python -m json.tool artifacts/server1/P05/P05-B/WIRING-REQUEST.json
+exit: 0
+command: python -m json.tool artifacts/server1/P05/P05-B/CASE-RECEIPT.json
+exit: 0
+command: git diff --check
+exit: 0
