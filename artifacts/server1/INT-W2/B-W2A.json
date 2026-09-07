@@ -5,6 +5,7 @@
   "branch": "feature/colosseum-server-1.0",
   "integration_base": "0202977c0477efaee12b01a8701ad6b3bd1c6b23",
   "integrated_sha": "bd39020125eed2180ba59043f1e1088be11ad73a",
+  "pushed_head": "0519371ad02e20982b8d054c64008d4ae29b3926",
   "predecessor_barrier": "B-W1D",
   "predecessor_integrated_sha": "9898964da604ba4a4d6d4d70036e26b09d8d87bc",
   "accepted_inputs": {
@@ -105,5 +106,5 @@
   "runtime": "not run; no runtime claim",
   "unresolved_failures": [],
   "status": "accepted",
-  "push": false
+  "push": true
 }

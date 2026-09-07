@@ -34,7 +34,8 @@
     "barriers": {"B-W1A": "accepted", "B-W1B": "accepted", "B-W1C": "accepted", "B-W1D": "accepted", "B-W2A": "accepted"},
     "releases": {"P05-A": "released", "P06-A": "released", "P06-B": "released", "P05-B": "completed_at_B-W1C", "P06-C": "completed_at_B-W1C", "P02S-A": "completed_at_B-W1D", "P07-A": "completed_at_B-W1D", "P07-B": "completed_at_B-W1D", "P07-C": "completed_at_B-W1D", "P08-A": "completed_at_B-W1D"},
     "integrated_sha": "bd39020125eed2180ba59043f1e1088be11ad73a",
+    "pushed_head": "0519371ad02e20982b8d054c64008d4ae29b3926",
     "receipt": "artifacts/server1/INT-W2/B-W2A.json",
-    "push": false
+    "push": true
   }
 }
