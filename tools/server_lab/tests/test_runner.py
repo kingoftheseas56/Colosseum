@@ -38,8 +38,16 @@ TOY_SUBJECT = textwrap.dedent(
             child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
             Path(root, "descendant.pid").write_text(str(child.pid), encoding="ascii")
         if mode == "hold":
-            with socket.create_connection(("127.0.0.1", int(os.environ["LAB_PORT"])), timeout=2):
-                Path(root, "listener-connected").write_text("yes", encoding="ascii")
+            deadline = time.time() + 2.5
+            while True:
+                try:
+                    with socket.create_connection(("127.0.0.1", int(os.environ["LAB_PORT"])), timeout=0.2):
+                        Path(root, "listener-connected").write_text("yes", encoding="ascii")
+                    break
+                except OSError:
+                    if time.time() >= deadline:
+                        raise
+                    time.sleep(0.02)
         time.sleep(30)
     if mode == "crash":
         raise SystemExit(7)
@@ -282,13 +290,59 @@ class P04RunnerTests(unittest.TestCase):
         with patch("tools.server_lab.lab._wait_for_release", return_value=["output handles still held: stderr.txt"]):
             receipt = lab.LabRunner().run(
                 subject=self.subject,
-                mode="crash",
+                mode="hold",
                 data_root=self.root / "termination-data",
                 evidence_dir=self.root / "termination-evidence",
                 run_id="termination-error",
             )
         self.assertEqual(receipt["result"], "ERROR")
         self.assertTrue(any("output handles still held" in error for error in receipt["errors"]))
+
+    def test_cleanup_reaps_exact_native_identity_when_cim_is_unavailable(self) -> None:
+        from tools.server_lab import lab
+
+        data = self.root / "native-cleanup"
+        run_root = data / "owned"
+        run_root.mkdir(parents=True)
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+        try:
+            identity = lab._native_process_identity(child.pid)
+            self.assertIsNotNone(identity)
+            (run_root / "ownership.json").write_text(json.dumps({
+                "pid": child.pid,
+                "command": [sys.executable, "-c", "owned"],
+                "identity": {"creation": identity["creation"], "image": identity["image"], "subject": "not-used", "mode": "orphan", "token": "not-used"},
+                "controller": {},
+            }), encoding="utf-8")
+            with patch("tools.server_lab.lab._process_identity", return_value=None):
+                cleanup = lab.cleanup_orphans(data)
+            self.assertIn(child.pid, cleanup["removed_pids"])
+            self.assertFalse(lab._pid_alive(child.pid))
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=3)
+
+    def test_cleanup_preserves_creation_or_image_mismatch(self) -> None:
+        from tools.server_lab import lab
+
+        for field, value in (("creation", "wrong-creation"), ("image", "C:\\wrong\\image.exe")):
+            with self.subTest(field=field):
+                data = self.root / f"mismatch-{field}"
+                run_root = data / "owned"
+                run_root.mkdir(parents=True)
+                child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+                try:
+                    identity = lab._native_process_identity(child.pid)
+                    expected = {"creation": identity["creation"], "image": identity["image"], "subject": "not-used", "mode": "orphan", "token": "not-used"}
+                    expected[field] = value
+                    (run_root / "ownership.json").write_text(json.dumps({"pid": child.pid, "identity": expected, "controller": {}}), encoding="utf-8")
+                    cleanup = lab.cleanup_orphans(data)
+                    self.assertIn(str(run_root), cleanup["skipped_mismatches"])
+                    self.assertTrue(lab._pid_alive(child.pid))
+                finally:
+                    child.kill()
+                    child.wait(timeout=3)
 
     def test_schema_round_trip_and_raw_normalized_lanes_are_separate(self) -> None:
         exit_code, receipt, evidence = self.run_cli("byte", "run-roundtrip")
@@ -356,7 +410,7 @@ class P04RunnerTests(unittest.TestCase):
             (root / 'protocol-response.txt').write_text('HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\nexpected', encoding='latin-1')
             (root / 'descendant.pid').write_text('4242', encoding='ascii')
         """), encoding="utf-8")
-        with patch("tools.server_lab.lab._process_identity", side_effect=lambda pid: {"command": "owned", "creation": "same"} if pid == 4242 else None):
+        with patch("tools.server_lab.lab._pid_alive", side_effect=lambda pid: pid == 4242):
             receipt = LabRunner().run(subject=subject, mode="pass", data_root=self.root / "data", evidence_dir=self.root / "evidence" / "event-order", run_id="run-event-order")
         self.assertEqual(receipt["result"], "ERROR")
         events = [json.loads(line) for line in Path(receipt["paths"]["event_file"]).read_text(encoding="utf-8").splitlines()]
@@ -426,7 +480,7 @@ class P04RunnerTests(unittest.TestCase):
     def test_cleanup_failure_cannot_pass(self) -> None:
         from unittest.mock import patch
         from tools.server_lab.lab import LabRunner
-        with patch("tools.server_lab.lab._process_identity", side_effect=lambda pid: {"command": "owned", "creation": "same"} if pid == 4242 else None):
+        with patch("tools.server_lab.lab._pid_alive", side_effect=lambda pid: pid == 4242):
             subject = self.root / "cleanup-failure.py"
             subject.write_text(textwrap.dedent("""
                 import json, os

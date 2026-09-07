@@ -9,6 +9,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -41,36 +42,58 @@ class LabRunner:
         stdout_path = run_root / "stdout.txt"
         stderr_path = run_root / "stderr.txt"
         lease_path = run_root / "ownership.json"
+        pending_lease_path = run_root / "ownership.pending.json"
         timed_out = False
         exit_code: int | None = None
         process: subprocess.Popen[str] | None = None
         lease: dict[str, Any] | None = None
         termination_errors: list[str] = []
+        terminated = False
+        accept_thread: threading.Thread | None = None
         try:
             environment = {**os.environ, "LAB_RUN_ROOT": str(run_root), "LAB_EVENT_FILE": str(event_file), "LAB_PORT": str(port), "LAB_OWNERSHIP_TOKEN": token}
             popen_options = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
             with stdout_path.open("w", encoding="utf-8") as stdout_stream, stderr_path.open("w", encoding="utf-8") as stderr_stream:
                 process = subprocess.Popen(command, cwd=run_root, env=environment, stdout=stdout_stream, stderr=stderr_stream, text=True, **popen_options)
-                lease = {"token": token, "pid": process.pid, "command": command, "started_at": started, "controller": {"pid": os.getpid(), "identity": {"creation": _process_creation(os.getpid())}}, "identity": {"subject": str(subject), "mode": mode, "token": token, "command": subprocess.list2cmdline(command), "creation": _process_creation(process.pid), "pending": False}}
-                lease_path.write_text(json.dumps(lease, indent=2) + "\n", encoding="utf-8")
+                accept_thread = threading.Thread(target=_accept_one, args=(listener,), name="p04-readiness-accept", daemon=True)
+                accept_thread.start()
+                lease = {"token": token, "pid": process.pid, "command": command, "started_at": started, "controller": {"pid": os.getpid(), "identity": {"creation": None, "image": None}}, "identity": {"subject": str(subject), "mode": mode, "token": token, "command": subprocess.list2cmdline(command), "creation": None, "image": None, "pending": True}}
+                pending_lease_path.write_text(json.dumps(lease, indent=2) + "\n", encoding="utf-8")
+                identity = {"creation": _process_handle_creation(process._handle), "image": str(Path(sys.executable).resolve())}
+                controller_identity = {"creation": _native_process_creation(os.getpid()), "image": str(Path(sys.executable).resolve())}
+                lease["controller"]["identity"] = {"creation": controller_identity.get("creation"), "image": controller_identity.get("image")}
+                lease["identity"].update({"creation": identity.get("creation"), "image": identity.get("image"), "pending": not bool(identity.get("creation"))})
+                if lease["identity"]["creation"]:
+                    replacement = run_root / "ownership.ready.json"
+                    replacement.write_text(json.dumps(lease, indent=2) + "\n", encoding="utf-8")
+                    os.replace(replacement, lease_path)
+                    pending_lease_path.unlink(missing_ok=True)
                 try:
                     exit_code = process.wait(timeout=30.0 if mode == "orphan" else (3.0 if mode == "hold" else 1.0))
                 except subprocess.TimeoutExpired:
                     timed_out = True
+                    terminated = True
                     _terminate_tree(process.pid)
                     exit_code = process.wait(timeout=2.0)
         finally:
             if process and process.poll() is None:
-                _terminate_tree(process.pid)
                 try:
-                    process.wait(timeout=2.0)
+                    process.wait(timeout=0)
                 except subprocess.TimeoutExpired:
-                    termination_errors.append(f"owned process did not exit: {process.pid}")
-            if process:
+                    terminated = True
+                    _terminate_tree(process.pid)
+                    try:
+                        process.wait(timeout=2.0)
+                    except subprocess.TimeoutExpired:
+                        termination_errors.append(f"owned process did not exit: {process.pid}")
+            if process and terminated:
                 termination_errors.extend(_wait_for_release(run_root, process.pid, (stdout_path, stderr_path)))
             listener.close()
+            if accept_thread:
+                accept_thread.join(timeout=0.2)
             if process and process.poll() is not None:
                 lease_path.unlink(missing_ok=True)
+                pending_lease_path.unlink(missing_ok=True)
         response_path = run_root / "subject-response.json"
         response = json.loads(response_path.read_text(encoding="utf-8")) if response_path.is_file() else None
         result, errors = classify(mode, response, timed_out=timed_out, exit_code=exit_code)
@@ -85,14 +108,14 @@ class LabRunner:
             if marker_path.is_file():
                 try:
                     marker_pid = int(marker_path.read_text(encoding="ascii"))
-                    if _process_identity(marker_pid):
+                    if _pid_alive(marker_pid):
                         owned_children_after.append(marker_pid)
                 except (OSError, ValueError):
                     cleanup_errors.append(f"invalid owned child marker: {marker}")
         if lease_path.exists():
             try:
                 owned_pid = int(json.loads(lease_path.read_text(encoding="utf-8"))["pid"])
-                if _process_identity(owned_pid):
+                if _pid_alive(owned_pid):
                     owned_children_after.append(owned_pid)
             except (OSError, ValueError, KeyError, TypeError):
                 cleanup_errors.append("unresolved ownership lease")
@@ -141,30 +164,49 @@ def cleanup_orphans(data_root: Path) -> dict[str, Any]:
         except (OSError, ValueError, KeyError, TypeError):
             skipped.append(str(lease_path.parent))
             continue
-        current = _process_identity(pid)
+        current = _native_process_identity(pid)
         controller = lease.get("controller", {})
         controller_pid = int(controller.get("pid", 0) or 0)
         controller_identity = controller.get("identity") or {}
-        current_controller = {"creation": _process_creation(controller_pid)} if controller_pid else None
+        current_controller = _native_process_identity(controller_pid) if controller_pid else None
         if current_controller and controller_identity.get("creation") == current_controller.get("creation"):
             active.append(str(lease_path.parent))
             continue
+        if controller_pid and _pid_alive(controller_pid) and current_controller is None:
+            active.append(str(lease_path.parent))
+            continue
         if current is None:
+            if _pid_alive(pid):
+                skipped.append(f"identity unavailable: {lease_path.parent}")
+                continue
             stale.append(str(lease_path.parent))
             lease_path.unlink(missing_ok=True)
             continue
-        if not current or expected.get("creation") != _process_creation(pid) or expected.get("subject", "").lower() not in current.get("command", "").lower() or expected.get("mode", "").lower() not in current.get("command", "").lower() or expected.get("token", "").lower() not in current.get("command", "").lower():
+        if expected.get("creation") != current.get("creation") or (expected.get("image") and expected.get("image").lower() != current.get("image", "").lower()):
+            skipped.append(str(lease_path.parent))
+            continue
+        audit = _process_identity(pid)
+        if audit and (expected.get("subject", "").lower() not in audit.get("command", "").lower() or expected.get("mode", "").lower() not in audit.get("command", "").lower() or expected.get("token", "").lower() not in audit.get("command", "").lower()):
             skipped.append(str(lease_path.parent))
             continue
         _terminate_tree(pid)
-        if _process_identity(pid) is None:
+        release_errors = _wait_for_release(lease_path.parent, pid, (lease_path.parent / "stdout.txt", lease_path.parent / "stderr.txt"))
+        if not release_errors:
             removed.append(pid)
             verified.append(pid)
             orphaned_runs.append(str(lease_path.parent))
             lease_path.unlink(missing_ok=True)
         else:
-            skipped.append(str(lease_path.parent))
+            skipped.append(f"cleanup unresolved: {lease_path.parent}")
     return {"removed_pids": removed, "verified_pids": verified, "skipped_mismatches": skipped, "active_leases": active, "stale_leases": stale, "orphaned_runs": orphaned_runs}
+
+
+def _accept_one(listener: socket.socket) -> None:
+    try:
+        connection, _ = listener.accept()
+        connection.close()
+    except (OSError, socket.timeout):
+        pass
 
 
 def _terminate_tree(pid: int) -> None:
@@ -238,22 +280,68 @@ def _pid_alive(pid: int) -> bool:
 
 
 def _process_creation(pid: int) -> str | None:
+    return _native_process_creation(pid)
+
+
+def _native_process_creation(pid: int) -> str | None:
     if os.name != "nt":
-        return None
-    import ctypes
+        try:
+            return Path(f"/proc/{pid}/stat").read_text(encoding="ascii").split()[21]
+        except (OSError, IndexError):
+            return None
+    from ctypes import wintypes
     kernel32 = _kernel32()
     handle = kernel32.OpenProcess(0x1000 | 0x0400, False, pid)
     if _invalid_handle(handle):
         return None
-    created = ctypes.wintypes.FILETIME()
-    exited = ctypes.wintypes.FILETIME()
-    kernel = ctypes.wintypes.FILETIME()
-    user = ctypes.wintypes.FILETIME()
+    try:
+        return _process_handle_creation(handle)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _process_handle_creation(handle) -> str | None:
+    if os.name != "nt":
+        return None
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = _kernel32()
+    created = wintypes.FILETIME()
+    exited = wintypes.FILETIME()
+    kernel = wintypes.FILETIME()
+    user = wintypes.FILETIME()
+    if not kernel32.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(exited), ctypes.byref(kernel), ctypes.byref(user)):
+        return None
+    return str((created.dwHighDateTime << 32) | created.dwLowDateTime)
+
+
+def _native_process_identity(pid: int) -> dict[str, str] | None:
+    if os.name != "nt":
+        try:
+            stat_fields = Path(f"/proc/{pid}/stat").read_text(encoding="ascii").split()
+            image = str(Path(f"/proc/{pid}/exe").resolve())
+            return {"creation": stat_fields[21], "image": image}
+        except (OSError, IndexError):
+            return None
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = _kernel32()
+    handle = kernel32.OpenProcess(0x1000 | 0x0400, False, pid)
+    if _invalid_handle(handle):
+        return None
+    created = wintypes.FILETIME()
+    exited = wintypes.FILETIME()
+    kernel = wintypes.FILETIME()
+    user = wintypes.FILETIME()
+    image_buffer = ctypes.create_unicode_buffer(32768)
+    image_size = wintypes.DWORD(len(image_buffer))
     try:
         if not kernel32.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(exited), ctypes.byref(kernel), ctypes.byref(user)):
             return None
+        if not kernel32.QueryFullProcessImageNameW(handle, 0, image_buffer, ctypes.byref(image_size)):
+            return None
         value = (created.dwHighDateTime << 32) | created.dwLowDateTime
-        return str(value)
+        return {"creation": str(value), "image": image_buffer.value}
     finally:
         kernel32.CloseHandle(handle)
 
@@ -272,6 +360,8 @@ def _kernel32():
     kernel32.GetExitCodeProcess.restype = wintypes.BOOL
     kernel32.GetProcessTimes.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.FILETIME), ctypes.POINTER(wintypes.FILETIME), ctypes.POINTER(wintypes.FILETIME), ctypes.POINTER(wintypes.FILETIME)]
     kernel32.GetProcessTimes.restype = wintypes.BOOL
+    kernel32.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
     return kernel32
 
 

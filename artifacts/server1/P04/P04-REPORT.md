@@ -12,15 +12,15 @@ Authorities are recorded in `tools/server_lab/cases/P04.json`: the P04 brief SHA
 
 ## Chronology
 
-The exact interleaved test was reproduced 10/10 before repair (`repeat-red/summary.json`): every run exited 1 with the readiness assertion and the WinError 32 cleanup error. Boundary capture recorded a live toy-subject/LabRunner tree and a held `stderr.txt` after taskkill. Root cause was synchronous Windows CIM identity lookup before publishing `ownership.json`, combined with treating taskkill return/process wait as proof that descendants and inherited output handles were gone.
+The exact interleaved test was reproduced 10/10 before repair (`repeat-red/summary.json`): every run exited 1 with the readiness assertion and the WinError 32 cleanup error. Boundary capture recorded a live toy-subject/LabRunner tree and a held `stderr.txt` after taskkill. Root cause was a lifecycle dependency on slow/unavailable CIM identity: a live subject with no CIM record was classified stale, its lease was removed, and its tree/output handle remained. A second publication defect delayed the authoritative lease replacement until after the subject wait, so the readiness test could observe only the pending lease.
 
-The repair publishes the lease using the known command and cheap process-creation timestamp, preserves controller/PID protection by creation timestamp, and conditionally polls owned PIDs plus exclusive output-file access after termination. The slow-identity and termination-error regressions pass. The exact interleaved test remains red on this host: the toy subject's loopback readiness/cleanup path does not complete before the test deadline, so the packet is not claimed green.
+The repair uses native identity as the lifecycle authority: Windows process-creation FILETIME plus `QueryFullProcessImageNameW`, and Linux `/proc/<pid>/stat` start time plus resolved `/proc/<pid>/exe`. CIM remains optional audit evidence. The authoritative `ownership.json` is atomically replaced from a separate pending file immediately after fast identity capture, before waiting on the subject. Missing identity is conservative for live PIDs, and cleanup verification polls native PID/creation, descendant markers, and exclusive output-file access. Termination errors promote the result to `ERROR`.
 
 ## Exact verification
 
 Command: `python -m unittest tools.server_lab.tests.test_runner tools.server_lab.tests.test_reference_identity -v`
 
-Pre-repair: `10/10` exact-target failures, `0` passes. Post-change stress: `10/10` failures. Targeted Sol regressions: `2/2` pass. Full P04/P02 command: `22 tests, 1 failure, 1 error, 8 skips`; not green.
+Pre-repair: `10/10` exact-target failures, `0` passes (`repeat-red/summary.json`). Post-fix exact-target stress: `10/10` passes, `0` failures (`postfix-stress/summary.json`). Deterministic ownership/termination regressions pass, including CIM-unavailable exact identity, creation/image mismatch preservation, pending-publication ordering, and termination-error promotion. Full P04/P02 command: `24 tests, 0 failures, 0 errors, 8 skips`, exit 0; the 24 includes the two new deterministic regressions.
 
 The full raw output, exact command, and exit are in `TEST-RUN.txt`. The committed replay fixture is `fixtures/replay_subject.py`, SHA256 `52a6d76187328ab64fb607405a37a22d3174e54ce2d54626cf9d8ee65d89c0c4`. Packet-local `.gitattributes` enforces LF for the replay fixture and configuration so checkout materialization preserves this identity. The committed replay configuration is `fixtures/replay-config.json`. The regenerated sample is `SAMPLE-RUN.json`, SHA256 `e5e66c259d728931ce5bb70884a4c38298934a17aad59b7e5b735b27e193e23e`, also recorded in `MUTATION-EVIDENCE.json`.
 
@@ -30,4 +30,4 @@ The full raw output, exact command, and exit are in `TEST-RUN.txt`. The committe
 
 No native, shared, P02 adapter/state, or CI files were changed. No merge or push was performed. `.superpowers/sdd/PARALLEL-EXECUTION-PLAN/P04-A-brief.md` remains uncommitted.
 
-State: authored in P04 paths; compiled: not applicable (Python); tested: 20 tests, 8 skips, exit 0; replay executed: yes; runtime-verified: committed toy-subprocess scope; integrated: no.
+State: authored in P04 paths; compiled: not applicable (Python); tested: 24 tests, 8 skips, exit 0; exact stress: 10/10 pass; replay executed: yes; runtime-verified: committed toy-subprocess scope; integrated: no.
