@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "packet": "P03",
-  "state": "test-authored",
+  "state": "implementation-authored",
   "accepted": false,
   "branch": "feature/colosseum-server-1.0-preflight",
   "recorded_base_sha": "1548f6998e9dd852cda25a4c8950b55194a3ab7c",
@@ -10,10 +10,22 @@
     "P01A": "accepted",
     "P08A": "accepted"
   },
-  "candidate": "absent at RED-test authoring time",
+  "tdd": {
+    "red_run_id": 34154839384,
+    "red_result": "required candidate shape absent: 1 failure, 3 dependent checks skipped"
+  },
+  "candidate": {
+    "library": "colosseum_server_v1",
+    "host": "colosseum_server_v1_host",
+    "language": "C++17",
+    "qt": "Qt6::Core only",
+    "dependency_authority": "colosseum_libtorrent target; standalone builds consume a generated fragment extracted from live native/CMakeLists.txt",
+    "streaming_ready": false,
+    "capabilities": []
+  },
   "acceptance_blockers": [
-    "P03 contract test has not yet observed the absent candidate failure",
-    "candidate has not been authored, configured, compiled, or executed",
+    "green configure/build/test/host evidence has not yet executed",
+    "missing-libtorrent negative configure has not yet executed",
     "Laptop 1 isolated-worktree non-mutation proof requires DevSpace and is not yet available in this conversation"
   ]
 }

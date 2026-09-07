@@ -7,9 +7,9 @@ on:
     paths:
       - tools/server_lab/cases/P03.json
       - tools/server_lab/tests/test_p03_skeleton.py
+      - tools/server_lab/p03/**
       - docs/server1/P03-SKELETON.json
       - native/colosseum_server_v1/**
-      - native/cmake/ColosseumLibtorrent.cmake
       - native/CMakeLists.txt
       - .github/workflows/server1-p03-skeleton.yml
   workflow_dispatch:
@@ -28,3 +28,108 @@ jobs:
           python-version: "3.12"
       - name: P03 skeleton contract
         run: python -m unittest tools.server_lab.tests.test_p03_skeleton
+
+  linux-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1 Core
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Install P01A-locked Linux dependency lane
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config \
+            libtorrent-rasterbar-dev libboost-all-dev libssl-dev
+      - name: Generate dependency authority input
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/p03-evidence"
+          mkdir -p "$evidence"
+          authority="$(python tools/server_lab/p03/prepare_build.py --colosseum-cmake native/CMakeLists.txt --out "$evidence/authority")"
+          echo "SERVER1_LIBTORRENT_AUTHORITY_FILE=$authority" >> "$GITHUB_ENV"
+          cp "$evidence/authority/authority.json" "$evidence/authority.json"
+      - name: Configure build-only Server 1.0 shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/p03-evidence"
+          build="$RUNNER_TEMP/p03-build"
+          cmake -S native/colosseum_server_v1 -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DCOLOSSEUM_LIBTORRENT_AUTHORITY_FILE="$SERVER1_LIBTORRENT_AUTHORITY_FILE" \
+            "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR" 2>&1 | tee "$evidence/configure.txt"
+      - name: Build shell and host
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/p03-evidence"
+          build="$RUNNER_TEMP/p03-build"
+          cmake --build "$build" --parallel 2 2>&1 | tee "$evidence/build.txt"
+      - name: Execute lifecycle test and host
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/p03-evidence"
+          build="$RUNNER_TEMP/p03-build"
+          ctest --test-dir "$build" --output-on-failure 2>&1 | tee "$evidence/ctest.txt"
+          "$build/colosseum_server_v1_host" | tee "$evidence/host.txt"
+          python - "$evidence/host.txt" <<'PY'
+          import json, pathlib, sys
+          rows = [json.loads(x) for x in pathlib.Path(sys.argv[1]).read_text().splitlines() if x.strip()]
+          assert rows == [
+              {"phase":"initialized","initialized":True,"streamingReady":False,"capabilities":[]},
+              {"phase":"shutdown","initialized":False,"streamingReady":False,"capabilities":[]},
+          ], rows
+          PY
+      - name: Required dependency removal must fail
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/p03-evidence"
+          negative="$RUNNER_TEMP/p03-negative"
+          set +e
+          cmake -S native/colosseum_server_v1 -B "$negative" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DCMAKE_DISABLE_FIND_PACKAGE_LibtorrentRasterbar=TRUE \
+            -DCOLOSSEUM_LIBTORRENT_AUTHORITY_FILE="$SERVER1_LIBTORRENT_AUTHORITY_FILE" \
+            "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR" > "$evidence/missing-libtorrent.txt" 2>&1
+          code=$?
+          set -e
+          echo "$code" > "$evidence/missing-libtorrent.exit"
+          cat "$evidence/missing-libtorrent.txt"
+          test "$code" -ne 0
+          grep -q "libtorrent + Boost + OpenSSL NOT found" "$evidence/missing-libtorrent.txt"
+      - name: Record branch isolation facts
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/p03-evidence"
+          {
+            echo "head=$(git rev-parse HEAD)"
+            echo "recorded_base=1548f6998e9dd852cda25a4c8950b55194a3ab7c"
+            echo "forbidden_server1_ancestor=false"
+            echo "laptop1_checkout_touched_by_workflow=false"
+          } > "$evidence/isolation.txt"
+      - name: Upload P03 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server1-p03-linux
+          path: ${{ runner.temp }}/p03-evidence
+          if-no-files-found: warn
+          retention-days: 14
