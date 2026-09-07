@@ -1,3 +1,5 @@
+"""Synthetic unit fixture only; never a runtime player or qualification source."""
+
 import json
 import os
 import sys
@@ -16,5 +18,9 @@ events = [
 ]
 event_file = Path(os.environ["COLOSSEUM_PLAYER_PROBE_EVENT_FILE"])
 time.sleep(0.05)
-event_file.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
+metadata = {"evidence_class": "synthetic_unit_fixture", "runtime_qualification": "forbidden"}
+event_file.write_text(
+    json.dumps(metadata) + "\n" + "".join(json.dumps(event) + "\n" for event in events),
+    encoding="utf-8",
+)
 time.sleep(0.2)

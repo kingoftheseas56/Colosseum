@@ -1,19 +1,13 @@
 {
   "byte_counts": [],
   "configuration": {
-    "command": [
-      "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-      "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-      "http://127.0.0.1:9/media.mp4",
-      "--start",
-      "12.5"
-    ],
     "config": {
       "bytes": 1631,
       "path": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\tools\\server_lab\\cases\\P07-B.json",
       "sha256": "16bd2496388ad132d0a7193a8f7db1d72bc003417fb5ead3930bc594bf1d883f",
       "state": "PASS"
     },
+    "evidence_class": "native_libmpv_adapter",
     "interfaces_consumed": {
       "LabRunner": {
         "state": "UNAVAILABLE"
@@ -25,33 +19,63 @@
         "state": "UNAVAILABLE"
       }
     },
-    "media_url": "http://127.0.0.1:9/media.mp4",
-    "player_executable": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-    "player_sha256": "ab6b1a5e70c190949b80230fae2a11cb55905eeb5a30387c816de37aa3ca8850",
-    "player_version": {
-      "available": true,
-      "command": [
-        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-        "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-        "--version"
-      ],
-      "exit_code": 0,
-      "stderr": "",
-      "stdout": "fake-player 7.2.1\n",
-      "text": "fake-player 7.2.1"
+    "media_url": "file:///C:/b/Colosseum-Server-1.0-workers/P07-B/tests/fixtures/vault/media/tiny.mp4",
+    "native_control": "ctypes_client_api_and_software_render",
+    "player_backend": "libmpv",
+    "player_executable": null,
+    "player_identity": {
+      "backend": "libmpv",
+      "bytes": 119757824,
+      "client_api": "2.5",
+      "client_api_numeric": 131077,
+      "expected_sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+      "file_version": "v0.41.0-923-g7b8915bc1",
+      "hash_match": true,
+      "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+      "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea"
     },
-    "seek_seconds": 12.5,
+    "player_options": {
+      "ao": "null",
+      "config": "no",
+      "hwdec": "no",
+      "idle": "yes",
+      "keep-open": "yes",
+      "load-scripts": "no",
+      "msg-level": "all=error",
+      "osc": "no",
+      "terminal": "no",
+      "video-sync": "audio",
+      "vo": "libmpv",
+      "ytdl": "no"
+    },
+    "player_sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+    "player_version": {
+      "backend": "libmpv",
+      "bytes": 119757824,
+      "client_api": "2.5",
+      "client_api_numeric": 131077,
+      "expected_sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+      "file_version": "v0.41.0-923-g7b8915bc1",
+      "hash_match": true,
+      "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+      "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea"
+    },
+    "qualification_scope": "packet_local_unit",
+    "seek_seconds": 0.1,
     "timeout_seconds": 5.0
   },
   "engine": {
+    "control_seam": "libmpv_ctypes",
     "name": "pinned-player-probe",
-    "version": "1"
+    "version": "2"
   },
   "environment": {
     "platform": "win32",
     "python": "3.11.9"
   },
-  "errors": [],
+  "errors": [
+    "native adapter evidence is packet-local; P07-C/B-W1D owns runtime qualification"
+  ],
   "fixture_identifiers": {
     "case_inputs": {
       "file_index": 2,
@@ -69,84 +93,118 @@
         "state": "NOT_RUN"
       },
       "first_presented_frame": {
-        "at_ms": 30,
+        "format": "rgb0",
+        "frame_sha256": "2a589ae1f2fa2a6328223ff195a29c9244bec633dca49139f6f231e1d79c0eb2",
+        "height": 180,
         "name": "first_presented_frame",
-        "state": "PASS"
+        "presentation": "native_software_surface",
+        "render_api": "libmpv:sw",
+        "render_target": "software:rgb0",
+        "source": "mpv_render_context_render",
+        "state": "PASS",
+        "stride": 1280,
+        "width": 320
       },
       "http_readiness": {
         "name": "http_readiness",
         "reason": "readiness check not configured",
-        "state": "UNAVAILABLE"
+        "state": "NOT_RUN"
       },
       "process_start": {
+        "launch_boundary": "mpv_create+mpv_initialize",
         "name": "process_start",
+        "process_model": "in_process_libmpv",
         "state": "PASS"
       },
       "seek_completion": {
-        "at_ms": 60,
+        "completion_signal": "mpv_event_playback_restart",
         "name": "seek_completion",
         "state": "PASS",
-        "target_seconds": 12.5
+        "target_seconds": 0.1
       },
       "stall": {
-        "at_ms": 80,
-        "duration_ms": 40,
         "name": "stall",
-        "state": "PASS"
+        "reason": "no paused-for-cache transition observed",
+        "state": "UNAVAILABLE"
       },
       "timeout": {
+        "limit_seconds": 5.0,
         "name": "timeout",
-        "state": "NOT_RUN"
+        "state": "PASS"
       },
       "unavailable_telemetry": {
         "fields": [
-          "http_readiness"
+          "stall"
         ],
         "name": "unavailable_telemetry",
         "state": "UNAVAILABLE"
       },
       "valid_media_decode": {
-        "at_ms": 20,
+        "format": "rgb0",
+        "frame_sha256": "2a589ae1f2fa2a6328223ff195a29c9244bec633dca49139f6f231e1d79c0eb2",
+        "height": 180,
         "name": "valid_media_decode",
-        "state": "PASS"
+        "render_api": "libmpv:sw",
+        "render_target": "software:rgb0",
+        "source": "mpv_render_context_render",
+        "state": "PASS",
+        "stride": 1280,
+        "width": 320
       }
     }
   },
   "observations": [
     {
+      "launch_boundary": "mpv_create+mpv_initialize",
       "name": "process_start",
+      "process_model": "in_process_libmpv",
       "state": "PASS"
     },
     {
       "name": "http_readiness",
       "reason": "readiness check not configured",
+      "state": "NOT_RUN"
+    },
+    {
+      "format": "rgb0",
+      "frame_sha256": "2a589ae1f2fa2a6328223ff195a29c9244bec633dca49139f6f231e1d79c0eb2",
+      "height": 180,
+      "name": "valid_media_decode",
+      "render_api": "libmpv:sw",
+      "render_target": "software:rgb0",
+      "source": "mpv_render_context_render",
+      "state": "PASS",
+      "stride": 1280,
+      "width": 320
+    },
+    {
+      "format": "rgb0",
+      "frame_sha256": "2a589ae1f2fa2a6328223ff195a29c9244bec633dca49139f6f231e1d79c0eb2",
+      "height": 180,
+      "name": "first_presented_frame",
+      "presentation": "native_software_surface",
+      "render_api": "libmpv:sw",
+      "render_target": "software:rgb0",
+      "source": "mpv_render_context_render",
+      "state": "PASS",
+      "stride": 1280,
+      "width": 320
+    },
+    {
+      "completion_signal": "mpv_event_playback_restart",
+      "name": "seek_completion",
+      "state": "PASS",
+      "target_seconds": 0.1
+    },
+    {
+      "name": "stall",
+      "reason": "no paused-for-cache transition observed",
       "state": "UNAVAILABLE"
     },
     {
-      "at_ms": 20,
-      "name": "valid_media_decode",
-      "state": "PASS"
-    },
-    {
-      "at_ms": 30,
-      "name": "first_presented_frame",
-      "state": "PASS"
-    },
-    {
-      "at_ms": 60,
-      "name": "seek_completion",
-      "state": "PASS",
-      "target_seconds": 12.5
-    },
-    {
-      "at_ms": 80,
-      "duration_ms": 40,
-      "name": "stall",
-      "state": "PASS"
-    },
-    {
+      "limit_seconds": 5.0,
       "name": "timeout",
-      "state": "NOT_RUN"
+      "state": "PASS"
     },
     {
       "name": "cancellation",
@@ -154,7 +212,7 @@
     },
     {
       "fields": [
-        "http_readiness"
+        "stall"
       ],
       "name": "unavailable_telemetry",
       "state": "UNAVAILABLE"
@@ -162,10 +220,9 @@
   ],
   "paths": {
     "config": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\tools\\server_lab\\cases\\P07-B.json",
-    "event_file": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\data\\p07-02-green-4\\player-events.jsonl",
-    "run_root": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\data\\p07-02-green-4",
-    "stderr": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\data\\p07-02-green-4\\stderr.txt",
-    "stdout": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\data\\p07-02-green-4\\stdout.txt"
+    "run_root": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5",
+    "stderr": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5\\stderr.txt",
+    "stdout": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\p07-02-native-libmpv-tiny-20260907-final5\\stdout.txt"
   },
   "peer_observations": [
     {
@@ -175,42 +232,627 @@
     }
   ],
   "raw_lane": {
+    "backend": "libmpv",
+    "elapsed_ms": 5406.0,
+    "error": null,
     "events": [
       {
-        "at_ms": 20,
-        "event": "valid_media_decode"
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "time-pos"
       },
       {
-        "at_ms": 30,
-        "event": "presented_frame"
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "duration"
       },
       {
-        "at_ms": 60,
-        "event": "seek_complete",
-        "target_seconds": 12.5
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "paused-for-cache"
       },
       {
-        "at_ms": 80,
-        "duration_ms": 40,
-        "event": "stall"
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "eof-reached"
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "demuxer-cache-time"
+      },
+      {
+        "error_code": 0,
+        "event": "start_file",
+        "event_id": 6
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "file_loaded",
+        "event_id": 8
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.0
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "duration",
+        "value": 1.0
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 3,
+        "property": "eof-reached",
+        "value": false
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 3,
+        "property": "paused-for-cache",
+        "value": false
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "demuxer-cache-time",
+        "value": 0.625
+      },
+      {
+        "error_code": 0,
+        "event": "seek",
+        "event_id": 20
+      },
+      {
+        "error_code": 0,
+        "event": "video_reconfig",
+        "event_id": 17
+      },
+      {
+        "error_code": 0,
+        "event": "video_reconfig",
+        "event_id": 17
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.1
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "playback_restart",
+        "event_id": 21
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.125
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "demuxer-cache-time"
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.25
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.375
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.75
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.875
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 3,
+        "property": "eof-reached",
+        "value": true
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
+      },
+      {
+        "error_code": 0,
+        "event": "none",
+        "event_id": 0
       }
     ],
-    "exit_code": 0,
-    "launch_error": null,
+    "frame": {
+      "format": "rgb0",
+      "frame_sha256": "2a589ae1f2fa2a6328223ff195a29c9244bec633dca49139f6f231e1d79c0eb2",
+      "height": 180,
+      "render_api": "libmpv:sw",
+      "render_target": "software:rgb0",
+      "stride": 1280,
+      "width": 320
+    },
+    "options": {
+      "ao": "null",
+      "config": "no",
+      "hwdec": "no",
+      "idle": "yes",
+      "keep-open": "yes",
+      "load-scripts": "no",
+      "msg-level": "all=error",
+      "osc": "no",
+      "terminal": "no",
+      "video-sync": "audio",
+      "vo": "libmpv",
+      "ytdl": "no"
+    },
+    "properties": [
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "time-pos"
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "duration"
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "paused-for-cache"
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "eof-reached"
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "demuxer-cache-time"
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.0
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "duration",
+        "value": 1.0
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 3,
+        "property": "eof-reached",
+        "value": false
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 3,
+        "property": "paused-for-cache",
+        "value": false
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "demuxer-cache-time",
+        "value": 0.625
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.1
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.125
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 0,
+        "property": "demuxer-cache-time"
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.25
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.375
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.75
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 5,
+        "property": "time-pos",
+        "value": 0.875
+      },
+      {
+        "error_code": 0,
+        "event": "property_change",
+        "event_id": 22,
+        "format": 3,
+        "property": "eof-reached",
+        "value": true
+      }
+    ],
     "stderr": "",
     "stdout": ""
   },
   "replay": {
-    "event_file": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\data\\p07-02-green-4\\player-events.jsonl",
-    "exact_command": [
-      "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-      "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-      "http://127.0.0.1:9/media.mp4",
-      "--start",
-      "12.5"
+    "backend": "libmpv",
+    "commands": [
+      {
+        "argv": [
+          "loadfile",
+          "file:///C:/b/Colosseum-Server-1.0-workers/P07-B/tests/fixtures/vault/media/tiny.mp4",
+          "replace"
+        ],
+        "operation": "loadfile",
+        "status": 0
+      },
+      {
+        "argv": [
+          "seek",
+          "0.1",
+          "absolute+exact"
+        ],
+        "operation": "seek",
+        "status": 0
+      }
     ],
+    "exact_media_url": "file:///C:/b/Colosseum-Server-1.0-workers/P07-B/tests/fixtures/vault/media/tiny.mp4",
+    "libmpv_path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+    "libmpv_sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
     "required_substitutions": [
-      "executable",
+      "libmpv_path",
       "media_url",
       "data_root",
       "evidence_dir",
@@ -219,22 +861,27 @@
   },
   "request_sequence": [
     {
-      "argv": [
-        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-        "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-        "--version"
-      ],
-      "operation": "version"
+      "operation": "libmpv_identity",
+      "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+      "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea"
     },
     {
       "argv": [
-        "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-        "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-        "http://127.0.0.1:9/media.mp4",
-        "--start",
-        "12.5"
+        "loadfile",
+        "file:///C:/b/Colosseum-Server-1.0-workers/P07-B/tests/fixtures/vault/media/tiny.mp4",
+        "replace"
       ],
-      "operation": "launch"
+      "operation": "loadfile",
+      "status": 0
+    },
+    {
+      "argv": [
+        "seek",
+        "0.1",
+        "absolute+exact"
+      ],
+      "operation": "seek",
+      "status": 0
     }
   ],
   "resource_observations": [
@@ -245,19 +892,21 @@
     }
   ],
   "responses": [],
-  "result": "PASS",
-  "run_id": "p07-02-green-4",
+  "result": "NOT_RUN",
+  "run_id": "p07-02-native-libmpv-tiny-20260907-final5",
   "scenario": "P07-02",
   "schema": "colosseum-server1-lab-run/v1",
   "selected_file": null,
   "source": {
     "authority": "P07-B",
-    "identity": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-    "sha256": "ab6b1a5e70c190949b80230fae2a11cb55905eeb5a30387c816de37aa3ca8850"
+    "backend": "libmpv",
+    "evidence_class": "native_libmpv_adapter",
+    "identity": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+    "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea"
   },
   "timestamps": {
-    "finished": "2026-09-07T06:29:05.382465+00:00",
-    "started": "2026-09-07T06:29:03.694537+00:00"
+    "finished": "2026-09-07T07:27:53.005275+00:00",
+    "started": "2026-09-07T07:27:44.433428+00:00"
   },
   "torrent": null
 }

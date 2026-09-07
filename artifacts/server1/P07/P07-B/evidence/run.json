@@ -1,21 +1,27 @@
 {
   "byte_counts": [],
   "configuration": {
-    "command": [
-      "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-      "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-      "http://127.0.0.1:9/media.mp4",
-      "--start",
-      "12.5"
-    ],
     "config": {
-      "path": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\P07-B.json",
-      "reason": "config path is not a file",
-      "state": "UNAVAILABLE"
+      "bytes": 1631,
+      "path": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\tools\\server_lab\\cases\\P07-B.json",
+      "sha256": "16bd2496388ad132d0a7193a8f7db1d72bc003417fb5ead3930bc594bf1d883f",
+      "state": "PASS"
+    },
+    "evidence_class": "synthetic_unit_fixture",
+    "interfaces_consumed": {
+      "LabRunner": {
+        "state": "UNAVAILABLE"
+      },
+      "QualifiedFixtureCorpus": {
+        "state": "UNAVAILABLE"
+      },
+      "QualifiedReferenceRuntime": {
+        "state": "UNAVAILABLE"
+      }
     },
     "media_url": "http://127.0.0.1:9/media.mp4",
     "player_executable": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-    "player_sha256": "ab6b1a5e70c190949b80230fae2a11cb55905eeb5a30387c816de37aa3ca8850",
+    "player_sha256": "069d347f0638bc6380bfed56b30595d8e44a4c175cbf14cebd2af85a0d218d23",
     "player_version": {
       "available": true,
       "command": [
@@ -28,22 +34,22 @@
       "stdout": "fake-player 7.2.1\n",
       "text": "fake-player 7.2.1"
     },
-    "reference_runtime": {
-      "state": "UNAVAILABLE"
-    },
+    "qualification_scope": "packet_local_unit",
     "seek_seconds": 12.5,
+    "synthetic_fixture": true,
     "timeout_seconds": 5.0
   },
   "engine": {
+    "control_seam": "libmpv_ctypes",
     "name": "pinned-player-probe",
-    "version": "1"
+    "version": "2"
   },
   "environment": {
     "platform": "win32",
     "python": "3.11.9"
   },
   "errors": [
-    "player exited with 1"
+    "synthetic fixture evidence is unit-only and cannot qualify runtime"
   ],
   "fixture_identifiers": {
     "case_inputs": {
@@ -62,49 +68,44 @@
         "state": "NOT_RUN"
       },
       "first_presented_frame": {
+        "at_ms": 30,
         "name": "first_presented_frame",
-        "reason": "no player telemetry yet",
-        "state": "UNAVAILABLE"
+        "state": "PASS"
       },
       "http_readiness": {
         "name": "http_readiness",
         "reason": "readiness check not configured",
-        "state": "UNAVAILABLE"
+        "state": "NOT_RUN"
       },
       "process_start": {
         "name": "process_start",
         "state": "PASS"
       },
       "seek_completion": {
+        "at_ms": 60,
         "name": "seek_completion",
-        "reason": "no player telemetry yet",
-        "state": "UNAVAILABLE"
+        "state": "PASS",
+        "target_seconds": 12.5
       },
       "stall": {
+        "at_ms": 80,
+        "duration_ms": 40,
         "name": "stall",
-        "reason": "no player telemetry yet",
-        "state": "UNAVAILABLE"
+        "state": "PASS"
       },
       "timeout": {
         "name": "timeout",
         "state": "NOT_RUN"
       },
       "unavailable_telemetry": {
-        "fields": [
-          "http_readiness",
-          "valid_media_decode",
-          "first_presented_frame",
-          "seek_completion",
-          "stall",
-          "unavailable_telemetry"
-        ],
+        "fields": [],
         "name": "unavailable_telemetry",
-        "state": "UNAVAILABLE"
+        "state": "PASS"
       },
       "valid_media_decode": {
+        "at_ms": 20,
         "name": "valid_media_decode",
-        "reason": "no player telemetry yet",
-        "state": "UNAVAILABLE"
+        "state": "PASS"
       }
     }
   },
@@ -116,27 +117,29 @@
     {
       "name": "http_readiness",
       "reason": "readiness check not configured",
-      "state": "UNAVAILABLE"
+      "state": "NOT_RUN"
     },
     {
+      "at_ms": 20,
       "name": "valid_media_decode",
-      "reason": "no player telemetry yet",
-      "state": "UNAVAILABLE"
+      "state": "PASS"
     },
     {
+      "at_ms": 30,
       "name": "first_presented_frame",
-      "reason": "no player telemetry yet",
-      "state": "UNAVAILABLE"
+      "state": "PASS"
     },
     {
+      "at_ms": 60,
       "name": "seek_completion",
-      "reason": "no player telemetry yet",
-      "state": "UNAVAILABLE"
+      "state": "PASS",
+      "target_seconds": 12.5
     },
     {
+      "at_ms": 80,
+      "duration_ms": 40,
       "name": "stall",
-      "reason": "no player telemetry yet",
-      "state": "UNAVAILABLE"
+      "state": "PASS"
     },
     {
       "name": "timeout",
@@ -147,24 +150,16 @@
       "state": "NOT_RUN"
     },
     {
-      "fields": [
-        "http_readiness",
-        "valid_media_decode",
-        "first_presented_frame",
-        "seek_completion",
-        "stall",
-        "unavailable_telemetry"
-      ],
+      "fields": [],
       "name": "unavailable_telemetry",
-      "state": "UNAVAILABLE"
+      "state": "PASS"
     }
   ],
   "paths": {
-    "config": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\P07-B.json",
-    "event_file": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\player-events.jsonl",
-    "run_root": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green",
-    "stderr": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\stderr.txt",
-    "stdout": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\stdout.txt"
+    "config": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\tools\\server_lab\\cases\\P07-B.json",
+    "run_root": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final",
+    "stderr": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final\\stderr.txt",
+    "stdout": "C:\\Users\\Suprabha\\AppData\\Local\\Temp\\p07-b-repair-evidence\\synthetic-data\\p07-02-synthetic-unit-repaired-evidence-final\\stdout.txt"
   },
   "peer_observations": [
     {
@@ -174,14 +169,36 @@
     }
   ],
   "raw_lane": {
-    "events": [],
-    "exit_code": 1,
+    "cancelled": false,
+    "events": [
+      {
+        "at_ms": 20,
+        "event": "valid_media_decode"
+      },
+      {
+        "at_ms": 30,
+        "event": "presented_frame"
+      },
+      {
+        "at_ms": 60,
+        "event": "seek_complete",
+        "target_seconds": 12.5
+      },
+      {
+        "at_ms": 80,
+        "duration_ms": 40,
+        "event": "stall"
+      }
+    ],
+    "exit_code": 0,
     "launch_error": null,
-    "stderr": "Traceback (most recent call last):\n  File \"C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py\", line 19, in <module>\n    event_file.write_text(\"\".join(json.dumps(event) + \"\\n\" for event in events), encoding=\"utf-8\")\n  File \"C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pathlib.py\", line 1078, in write_text\n    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\pathlib.py\", line 1044, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'artifacts\\\\server1\\\\P07\\\\P07-B\\\\data\\\\p07-02-green\\\\player-events.jsonl'\n",
-    "stdout": ""
+    "stderr": "",
+    "stdout": "",
+    "synthetic_protocol": "COLOSSEUM_PLAYER_PROBE_EVENT_FILE",
+    "timed_out": false
   },
   "replay": {
-    "event_file": "artifacts\\server1\\P07\\P07-B\\data\\p07-02-green\\player-events.jsonl",
+    "backend": "synthetic_fixture",
     "exact_command": [
       "C:\\Users\\Suprabha\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
       "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
@@ -214,7 +231,7 @@
         "--start",
         "12.5"
       ],
-      "operation": "launch"
+      "operation": "synthetic_fixture"
     }
   ],
   "resource_observations": [
@@ -225,19 +242,20 @@
     }
   ],
   "responses": [],
-  "result": "ERROR",
-  "run_id": "p07-02-green",
+  "result": "NOT_RUN",
+  "run_id": "p07-02-synthetic-unit-repaired-evidence-final",
   "scenario": "P07-02",
   "schema": "colosseum-server1-lab-run/v1",
   "selected_file": null,
   "source": {
     "authority": "P07-B",
+    "evidence_class": "synthetic_unit_fixture",
     "identity": "C:\\b\\Colosseum-Server-1.0-workers\\P07-B\\artifacts\\server1\\P07\\P07-B\\fake_player.py",
-    "sha256": "ab6b1a5e70c190949b80230fae2a11cb55905eeb5a30387c816de37aa3ca8850"
+    "sha256": "069d347f0638bc6380bfed56b30595d8e44a4c175cbf14cebd2af85a0d218d23"
   },
   "timestamps": {
-    "finished": "2026-09-07T06:21:34.580606+00:00",
-    "started": "2026-09-07T06:21:33.785048+00:00"
+    "finished": "2026-09-07T07:31:37.468694+00:00",
+    "started": "2026-09-07T07:31:36.320970+00:00"
   },
   "torrent": null
 }

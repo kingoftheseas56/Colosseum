@@ -1,5 +1,13 @@
-P07-B RED evidence
-command: python -c "import tools.server_lab.probes.player"
-exit: 1
-failure: ModuleNotFoundError: No module named 'tools.server_lab.probes'
-meaning: the owned PlayerProbe implementation was absent before implementation.
+P07-B repair RED evidence
+
+Command:
+python -m unittest discover -s artifacts/server1/P07/P07-B -p test_player_probe.py -v
+
+Exit: 1
+
+Observed failure before the repair:
+ImportError: cannot import name 'LibMpvAdapter' from 'tools.server_lab.probes.player'
+
+The RED run stopped at test discovery (0 tests executed). The focused tests
+required a native-player adapter symbol and therefore could not pass against
+the rejected fake-event implementation.

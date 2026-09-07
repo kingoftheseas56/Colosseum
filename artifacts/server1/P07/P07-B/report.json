@@ -2,8 +2,8 @@
   "schema": "colosseum-server1-p07-b-report/v1",
   "worker_id": "P07-B",
   "parent_packet": "P07",
-  "status": "implementation-authored",
-  "implementation_sha256": "f4cdea9d946805e9b077e9b7f49c7b71105b6ea6c9cb14321c87619d780c35c0",
+  "status": "test-executed",
+  "implementation_sha256": "92258ac52301e46b47eda250d0db05cbe86be765b085d7f0803d9d3620b2953e",
   "case_sha256": "16bd2496388ad132d0a7193a8f7db1d72bc003417fb5ead3930bc594bf1d883f",
   "source_authority": {
     "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
@@ -12,7 +12,49 @@
   },
   "case_states": {"P07-02": "test-executed"},
   "receipt": "artifacts/server1/P07/P07-B/evidence-final-2/run.json",
-  "runtime_claim": "No qualified native player runtime was available in this worker; absent telemetry remains UNAVAILABLE.",
+  "evidence_provenance": {
+    "red": "artifacts/server1/P07/P07-B/RED.txt",
+    "green": "artifacts/server1/P07/P07-B/GREEN.txt",
+    "receipt_result": "NOT_RUN",
+    "receipt_evidence_class": "native_libmpv_adapter",
+    "qualification_scope": "packet_local_unit",
+    "synthetic_fixture_runtime_claim": "forbidden",
+    "custom_player_event_protocol": "synthetic_unit_fixture_only"
+  },
+  "native_player_identity": {
+    "backend": "libmpv",
+    "path": "C:\\tools\\mpvqt-feasibility\\libmpv-prefix\\bin\\libmpv-2.dll",
+    "bytes": 119757824,
+    "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+    "file_version": "v0.41.0-923-g7b8915bc1",
+    "client_api": "2.5",
+    "dependency_lock_sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+    "hash_match": true
+  },
+  "native_player_options": {
+    "config": "no",
+    "terminal": "no",
+    "msg-level": "all=error",
+    "ao": "null",
+    "vo": "libmpv",
+    "hwdec": "no",
+    "ytdl": "no",
+    "load-scripts": "no",
+    "osc": "no",
+    "idle": "yes",
+    "keep-open": "yes",
+    "video-sync": "audio"
+  },
+  "media_fixture": {
+    "path": "tests/fixtures/vault/media/tiny.mp4",
+    "bytes": 2771,
+    "sha256": "92d18113b1a74254407da1de8a356847b023b120a7ef6b810787ec53514be131"
+  },
+  "runtime_claim": "NOT_RUN: packet-local libmpv adapter smoke is not P07-C/B-W1D runtime qualification; no external mpv executable or runtime_mpv_playback_test harness was found.",
   "shared_interface_changes": [],
-  "open_risks": ["Native mpv/qualified-reference integration remains for P07-C/B-W1D."]
+  "open_risks": [
+    "P07-C/B-W1D owns real runtime qualification and must supply server HTTP routing plus repeated playback.",
+    "Stall remains UNAVAILABLE in the local media smoke because no paused-for-cache transition was observed; the timeout boundary is recorded as PASS at the declared limit.",
+    "P04/reference and P05/P06 predecessor regressions were rerun; exact exits are recorded in artifacts/server1/P07/P07-B/REGRESSIONS.txt."
+  ]
 }
