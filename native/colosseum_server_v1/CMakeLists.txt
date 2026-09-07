@@ -50,5 +50,7 @@ add_executable(server1_host host/main.cpp)
 target_link_libraries(server1_host PRIVATE server1_runtime)
 
 include(CTest)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/K00.cmake")
+server1_register_k00_packet()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/packets/P03.cmake")
 server1_register_p03_tests()
