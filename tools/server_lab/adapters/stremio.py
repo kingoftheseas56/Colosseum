@@ -178,16 +178,20 @@ def missing_media(bundle: Bundle, out: Path) -> dict[str, Any]:
     finally:
         stop(proc, so, se)
     stdout_text = (out / "stdout.txt").read_text(encoding="utf-8", errors="replace")
+    stderr_text = (out / "stderr.txt").read_text(encoding="utf-8", errors="replace")
     no_ffmpeg = "ffmpeg: null" in stdout_text
-    no_ffprobe = "ffprobe: null" in stdout_text
+    no_ffprobe = "ffprobe: null" in stdout_text or "ffprobe: undefined" in stdout_text
+    hw_probe_error = "ERR_INVALID_ARG_TYPE" in stderr_text and '"file" argument must be of type string' in stderr_text
     return {
         "case": "P02-03-media",
-        "passed": no_ffmpeg and no_ffprobe and heartbeat.get("success") is True,
+        "passed": no_ffmpeg and no_ffprobe and hw_probe_error and heartbeat.get("success") is True,
         "port": port,
         "heartbeat": heartbeat,
         "server_version": settings.get("values", {}).get("serverVersion"),
         "ffmpeg_missing_attributed": no_ffmpeg,
         "ffprobe_missing_attributed": no_ffprobe,
+        "hardware_probe_spawn_error_attributed": hw_probe_error,
+        "observed_ffprobe_marker": "undefined" if "ffprobe: undefined" in stdout_text else "null",
         "runtime_sha256": sha256_file(runtime_copy),
         "server_sha256": sha256_file(server_copy),
     }
