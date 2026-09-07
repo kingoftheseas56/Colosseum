@@ -1,0 +1,59 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-B",
+  "request_type": "shared-wiring",
+  "implementation_commit": "f7a626ff9660a0684be03a5736e329709dfb9029",
+  "destination_branch": "feature/colosseum-server-1.0",
+  "destination_marker": "B-W2B",
+  "requested_owner": "B-W2B",
+  "consumer_owner": "K13-B",
+  "integration_owner": "INT-W2",
+  "pushed": false,
+  "ownership_correction": {
+    "original_assumption": "K13-B owned only two implementation sources, one test, and two packet manifests; no public header was listed.",
+    "live_evidence": "CachePolicyContract and FilesystemDiskPorts require legal production declarations; test-local redeclarations did not provide a downstream interface.",
+    "authorized_additions": [
+      "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+      "native/colosseum_server_v1/include/server1/platform/DiskSpace.h"
+    ],
+    "affected_workers": ["K13-B", "B-W2B"],
+    "barrier": "B-W2B",
+    "topology_changed": false,
+    "evidence": "artifacts/server1/K13/K13-B/OWNERSHIP-CORRECTION.md"
+  },
+  "worker_scope_guard": {
+    "shared_files_modified": false,
+    "forbidden_paths_changed": [],
+    "build_outputs_committed": false
+  },
+  "include_requests": [
+    {
+      "shared_file": "native/colosseum_server_v1/CMakeLists.txt",
+      "action": "INT-W2/B-W2B should include the K13 packet manifest; do not edit K13-A source/header."
+    },
+    {
+      "shared_file": "native/colosseum_server_v1/tests/CMakeLists.txt",
+      "action": "INT-W2/B-W2B should include the K13-B test manifest."
+    },
+    {
+      "owned_by_K13-B": "native/colosseum_server_v1/cmake/packets/K13.cmake",
+      "action": "Build SettingsStore.cpp, CachePolicy.cpp, and DiskSpace.cpp with the production include root."
+    },
+    {
+      "owned_by_K13-B": "native/colosseum_server_v1/tests/cmake/K13.cmake",
+      "action": "Register the three K13-B tests and consume the public CachePolicy and DiskSpace headers."
+    }
+  ],
+  "public_contract": {
+    "settings_header_consumed": "native/colosseum_server_v1/include/server1/settings/SettingsStore.h",
+    "cache_header": "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+    "disk_header": "native/colosseum_server_v1/include/server1/platform/DiskSpace.h",
+    "contracts": ["CachePolicyContract", "FilesystemDiskPorts"]
+  },
+  "acceptance_evidence": [
+    "artifacts/server1/K13/K13-B/PACKET-RECEIPT.json",
+    "artifacts/server1/K13/K13-B/GREEN-EVIDENCE.json",
+    "artifacts/server1/K13/K13-B/DIFFERENTIAL-EVIDENCE.json",
+    "artifacts/server1/K13/K13-B/HASHES.json"
+  ]
+}

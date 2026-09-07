@@ -1,0 +1,131 @@
+{
+  "packet": "K13",
+  "worker_id": "K13-B",
+  "status": "READY_FOR_B-W2B",
+  "branch": "codex/server1-k13-b",
+  "base": "9f68c56dcfe9f60be9accd9bb78bebbbb6330358",
+  "implementation_commit": "f7a626ff9660a0684be03a5736e329709dfb9029",
+  "merge_endpoint": {
+    "destination_branch": "feature/colosseum-server-1.0",
+    "destination_marker": "B-W2B",
+    "condition": "accepted K13-A plus K13-B commits merge at B-W2B; otherwise retire this branch",
+    "pushed": false
+  },
+  "dependencies": {
+    "B-W2A": "accepted and pushed",
+    "B-W1A": "accepted",
+    "B-W1C": "accepted",
+    "K13-A": "accepted handoff 9f68c56dcfe9f60be9accd9bb78bebbbb6330358"
+  },
+  "source_authority": {
+    "path": "C:\\b\\Colosseum-Server-1.0-Planning-Pack\\oracle\\stremio-service-v4.21.1-server-bundle\\server.js",
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "range_hashes": [
+      {"module": "M106", "lines": "12792-12833", "sha256": "12b723abb6dd833967bb40ad214679a4584bbe3c8b6d2b97cafbc19e3fc52179"},
+      {"module": "M194", "lines": "19675-19682", "sha256": "b55829ef3824da2c446073bfd42c764b6871effd46136f64fd67d2a6c1c69843"},
+      {"module": "M400", "lines": "34767-34775", "sha256": "868936ff7407bd2a05aecd8205ae465b097b09656c09b3c3265b8188949c5fde"},
+      {"module": "M414", "lines": "35959-36170", "sha256": "16b1c32e135ce079b4d718a627c0a6405f34bb0878a6804f1dbecd51a5b5770d"},
+      {"module": "M564", "lines": "46578-46979", "sha256": "d02004f3597ab40da72799e55f852428db0946210ee93dba9533800d1b0b0569"}
+    ]
+  },
+  "scope": {
+    "original_owned_files": [
+      "native/colosseum_server_v1/src/settings/CachePolicy.cpp",
+      "native/colosseum_server_v1/src/platform/DiskSpace.cpp",
+      "native/colosseum_server_v1/tests/test_settings_cache.cpp",
+      "native/colosseum_server_v1/cmake/packets/K13.cmake",
+      "native/colosseum_server_v1/tests/cmake/K13.cmake"
+    ],
+    "authorized_ownership_correction": [
+      "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+      "native/colosseum_server_v1/include/server1/platform/DiskSpace.h"
+    ],
+    "owned_files_changed": [
+      "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+      "native/colosseum_server_v1/include/server1/platform/DiskSpace.h",
+      "native/colosseum_server_v1/src/settings/CachePolicy.cpp",
+      "native/colosseum_server_v1/src/platform/DiskSpace.cpp",
+      "native/colosseum_server_v1/tests/test_settings_cache.cpp",
+      "native/colosseum_server_v1/cmake/packets/K13.cmake",
+      "native/colosseum_server_v1/tests/cmake/K13.cmake"
+    ],
+    "shared_files_modified": [],
+    "forbidden_paths_changed": [],
+    "topology_unchanged": true,
+    "affected_workers": ["K13-B", "B-W2B"],
+    "affected_barrier": "B-W2B",
+    "integration_owner": "INT-W2",
+    "build_outputs_committed": false
+  },
+  "interfaces": {
+    "consumed": [
+      "CompatibilityValueContract",
+      "RuntimeSkeleton",
+      "PacketLocalBuildManifestContract",
+      "TraceComparator",
+      "EffectiveSettingsContract"
+    ],
+    "produced": ["CachePolicyContract", "FilesystemDiskPorts"],
+    "production_headers": [
+      "native/colosseum_server_v1/include/server1/settings/CachePolicy.h",
+      "native/colosseum_server_v1/include/server1/platform/DiskSpace.h"
+    ],
+    "k13_a_header_consumed": "native/colosseum_server_v1/include/server1/settings/SettingsStore.h"
+  },
+  "implementation": {
+    "behavior": [
+      "translates fresh desktop and no-cache effective settings values",
+      "enumerates regular cache files and omits active engine files from deletion",
+      "sorts eviction by stable descending file atime and clamps target for required disk space",
+      "coalesces delayed cache-size changes and uses the latest value",
+      "falls back to the system temporary directory when stremio-cache creation fails",
+      "uses Windows access-time APIs and POSIX stat atime with unknown-time error fallback; never mtime fallback"
+    ],
+    "interface_change": "Adds the smallest authorized public production declaration surface; no topology or shared-file redesign.",
+    "interface_assumptions": [
+      "K13-A SettingsStore.h is the production settings interface consumed by CachePolicy.h.",
+      "INT-W2/B-W2B wires packet-local manifests into shared CMake without editing K13-A source/header.",
+      "Full-server runtime wiring is outside this worker checkpoint."
+    ]
+  },
+  "evidence_state": {
+    "planned": "recorded in source plan",
+    "source_traced": "complete",
+    "test_authored": "complete; packet-local CTest cases and atime/mtime ordering fixture",
+    "implementation_authored": "complete",
+    "compiled": "verified with production headers; configure/build exit 0",
+    "test_executed": "K13-01, K13-02, K13-03 focused CTest 3/3 passed; direct cases exit 0",
+    "differentially_qualified": "complete; nine source/candidate lines, zero differences",
+    "integrated": "not integrated; waiting for B-W2B",
+    "runtime": "not claimed; no full-server runtime execution"
+  },
+  "cases": {
+    "K13-02": "GREEN, atime ordering PASS on Windows, and differentially qualified",
+    "K13-01": "GREEN through combined settings/cache convergence test",
+    "K13-03": "GREEN for fallback cache directory, delayed cleaning, and cache-location behavior"
+  },
+  "commands": [
+    {"kind": "RED-configure", "command_file": "artifacts/server1/K13/K13-B/red/RED-CONFIGURE-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-B/red/RED-CONFIGURE-OUTPUT.txt", "exit_code": 1},
+    {"kind": "configure", "command_file": "artifacts/server1/K13/K13-B/green/FINAL-CONFIGURE-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-B/green/FINAL-CONFIGURE-OUTPUT.txt", "exit_code": 0},
+    {"kind": "compile", "command_file": "artifacts/server1/K13/K13-B/green/FINAL-BUILD-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-B/green/FINAL-BUILD-OUTPUT.txt", "exit_code": 0},
+    {"kind": "focused-ctest", "command_file": "artifacts/server1/K13/K13-B/green/FINAL-CTEST-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-B/green/FINAL-CTEST-OUTPUT.txt", "exit_code": 0},
+    {"kind": "source-trace", "command_file": "artifacts/server1/K13/K13-B/comparison/SOURCE-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-B/comparison/source.raw.txt", "exit_code": 0},
+    {"kind": "candidate-trace", "command_file": "artifacts/server1/K13/K13-B/comparison/CANDIDATE-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-B/comparison/candidate.raw.txt", "exit_code": 0},
+    {"kind": "differential", "command_file": "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON-COMMAND.txt", "raw_output": "artifacts/server1/K13/K13-B/comparison/RAW-COMPARISON.txt", "exit_code": 0}
+  ],
+  "artifacts": [
+    "artifacts/server1/K13/K13-B/SOURCE-TRACE.md",
+    "artifacts/server1/K13/K13-B/OWNERSHIP-CORRECTION.md",
+    "artifacts/server1/K13/K13-B/HASHES.json",
+    "artifacts/server1/K13/K13-B/GREEN-EVIDENCE.json",
+    "artifacts/server1/K13/K13-B/DIFFERENTIAL-EVIDENCE.json",
+    "artifacts/server1/K13/K13-B/cases/K13-02-GOLDEN.json",
+    "artifacts/server1/K13/K13-B/red/RED-TEST-EVIDENCE.json",
+    "artifacts/server1/K13/K13-B/WIRING-REQUEST.json"
+  ],
+  "blocked_evidence": [
+    "K13-B is not integrated into feature/colosseum-server-1.0 until B-W2B.",
+    "No full-server runtime claim is made; this checkpoint proves packet-local compile, focused tests, and source/candidate differential only."
+  ],
+  "push_status": "not pushed"
+}
