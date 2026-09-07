@@ -1,0 +1,183 @@
+name: server1-p01a-substrate
+
+on:
+  push:
+    branches:
+      - feature/colosseum-server-1.0-preflight
+    paths:
+      - artifacts/server1/P01A/**
+      - .github/workflows/server1-p01a-substrate.yml
+      - native/CMakeLists.txt
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-substrate:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      VCPKG_TAG: "2026.07.29"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1 Core
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Enable MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        with:
+          arch: x64
+      - name: Install the frozen native dependency set
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $vcpkg = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone --depth 1 --branch $env:VCPKG_TAG https://github.com/microsoft/vcpkg.git $vcpkg
+          & "$vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$vcpkg/vcpkg.exe" install `
+            libtorrent:x64-windows `
+            openssl:x64-windows `
+            boost-filesystem:x64-windows `
+            boost-system:x64-windows `
+            ecm:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "VCPKG_ROOT=$vcpkg" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$vcpkg/installed/x64-windows/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Generate the minimal consumer from the live authority
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $project = Join-Path $env:RUNNER_TEMP "server1-p01a-project"
+          python artifacts/server1/P01A/probe-src/make_project.py `
+            --colosseum-cmake native/CMakeLists.txt `
+            --probe-source artifacts/server1/P01A/probe-src/substrate_probe.cpp `
+            --out $project
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build and execute the exact-target consumer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $project = Join-Path $env:RUNNER_TEMP "server1-p01a-project"
+          $build = Join-Path $env:RUNNER_TEMP "server1-p01a-build"
+          $evidence = Join-Path $env:RUNNER_TEMP "p01a-evidence-windows"
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $prefix = "$env:QT_ROOT_DIR;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake --version | Tee-Object -FilePath (Join-Path $evidence "cmake-version.txt")
+          ninja --version | Tee-Object -FilePath (Join-Path $evidence "ninja-version.txt")
+          (cl 2>&1 | Select-Object -First 5) | Tee-Object -FilePath (Join-Path $evidence "compiler-version.txt")
+          & "$env:VCPKG_ROOT/vcpkg.exe" list | Tee-Object -FilePath (Join-Path $evidence "vcpkg-list.txt")
+          cmake -S $project -B $build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DCMAKE_PREFIX_PATH=$prefix"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build $build --target server1_p01a_probe --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:PATH = "$env:QT_ROOT_DIR/bin;$env:VCPKG_ROOT/installed/x64-windows/bin;$env:PATH"
+          $exe = Join-Path $build "server1_p01a_probe.exe"
+          & $exe | Tee-Object -FilePath (Join-Path $evidence "identity.txt")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dumpbin /dependents $exe | Tee-Object -FilePath (Join-Path $evidence "dependents.txt")
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "sha256=$hash" | Set-Content (Join-Path $evidence "binary-sha256.txt")
+          Copy-Item (Join-Path $project "authority.json") (Join-Path $evidence "authority.json")
+          "qt_root=$env:QT_ROOT_DIR" | Set-Content (Join-Path $evidence "qt-root.txt")
+      - name: Upload Windows substrate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: server1-p01a-windows
+          path: ${{ runner.temp }}/p01a-evidence-windows
+          if-no-files-found: error
+          retention-days: 14
+
+  linux-substrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1 Core
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: "6.11.1"
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Install the selected Linux dependency set
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config \
+            libtorrent-rasterbar-dev libboost-all-dev libssl-dev
+      - name: Generate the minimal consumer from the live authority
+        run: |
+          python artifacts/server1/P01A/probe-src/make_project.py \
+            --colosseum-cmake native/CMakeLists.txt \
+            --probe-source artifacts/server1/P01A/probe-src/substrate_probe.cpp \
+            --out "$RUNNER_TEMP/server1-p01a-project"
+      - name: Build, execute, and identify the exact-target consumer
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/server1-p01a-project"
+          build="$RUNNER_TEMP/server1-p01a-build"
+          evidence="$RUNNER_TEMP/p01a-evidence-linux"
+          mkdir -p "$evidence"
+          cmake --version | tee "$evidence/cmake-version.txt"
+          ninja --version | tee "$evidence/ninja-version.txt"
+          c++ --version | head -1 | tee "$evidence/compiler-version.txt"
+          dpkg-query -W -f='${Package}=${Version}\n' \
+            libtorrent-rasterbar-dev libtorrent-rasterbar2.0 \
+            libboost-dev libboost-filesystem-dev libboost-system-dev \
+            libssl-dev 2>&1 | tee "$evidence/dpkg-versions.txt"
+          cmake -S "$project" -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR"
+          cmake --build "$build" --target server1_p01a_probe --parallel 2
+          "$build/server1_p01a_probe" | tee "$evidence/identity.txt"
+          ldd "$build/server1_p01a_probe" | tee "$evidence/linked-libraries.txt"
+          sha256sum "$build/server1_p01a_probe" | tee "$evidence/binary-sha256.txt"
+          cp "$project/authority.json" "$evidence/authority.json"
+      - name: Prove missing libtorrent fails visibly
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/server1-p01a-project"
+          negative="$RUNNER_TEMP/server1-p01a-negative"
+          evidence="$RUNNER_TEMP/p01a-evidence-linux"
+          set +e
+          cmake -S "$project" -B "$negative" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR" \
+            -DCMAKE_DISABLE_FIND_PACKAGE_LibtorrentRasterbar=TRUE \
+            >"$evidence/missing-dependency.log" 2>&1
+          code=$?
+          set -e
+          cat "$evidence/missing-dependency.log"
+          echo "exit_code=$code" | tee "$evidence/missing-dependency-exit.txt"
+          if [ "$code" -eq 0 ]; then
+            echo "P01A_FAIL missing libtorrent configured successfully" >&2
+            exit 31
+          fi
+          grep -F "libtorrent + Boost + OpenSSL NOT found via find_package" \
+            "$evidence/missing-dependency.log"
+      - name: Upload Linux substrate evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: server1-p01a-linux
+          path: ${{ runner.temp }}/p01a-evidence-linux
+          if-no-files-found: error
+          retention-days: 14
