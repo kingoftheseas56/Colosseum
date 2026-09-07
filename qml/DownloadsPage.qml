@@ -145,7 +145,7 @@ Item {
     }
 
     readonly property var worlds: [
-        { key: "tankoban", title: "Tankoban", unit: "chapters & issues" },
+        { key: "tankoban", title: "Tankoban", unit: "chapters, volumes & issues" },
         { key: "biblio",   title: "Biblio",   unit: "books" },
         { key: "theatre",  title: "Theatre",  unit: "files" }
     ]
@@ -1286,13 +1286,10 @@ Item {
                                                     anchors.bottom: parent.bottom
                                                     anchors.leftMargin: 12; anchors.rightMargin: 10; anchors.bottomMargin: 10
                                                     textFormat: Text.StyledText
-                                                    text: "<b><font color='#f7f7f5'>" + card.modelData.itemCount + "</font></b> "
-                                                          + (card.modelData.kind === "book" ? "edition"
-                                                             + (card.modelData.itemCount === 1 ? "" : "s")
-                                                             : card.modelData.kind === "comic" ? "issues · western"
-                                                             : card.modelData.kind === "manga" ? "chapters · manga"
-                                                             : card.modelData.kind === "episode" ? "episodes"
-                                                             : "film")
+                                                    text: card.modelData.unitText
+                                                          || (card.modelData.itemCount
+                                                              + (card.modelData.itemCount === 1
+                                                                 ? " item" : " items"))
                                                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
                                                 }
                                             }

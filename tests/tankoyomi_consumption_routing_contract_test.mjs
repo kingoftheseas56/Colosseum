@@ -4,6 +4,7 @@ const engine = fs.readFileSync('native/MangaEngine.h', 'utf8');
 const downloaderH = fs.readFileSync('native/engine/MangaDownloader.h', 'utf8');
 const downloader = fs.readFileSync('native/engine/MangaDownloader.cpp', 'utf8');
 const result = fs.readFileSync('native/engine/MangaResult.h', 'utf8');
+const transport = fs.readFileSync('native/engine/MangaPageTransport.cpp', 'utf8');
 let failures = 0;
 function check(ok, message) {
   console.log(`${ok ? '  ok  ' : '  FAIL'} ${message}`);
@@ -25,10 +26,12 @@ check(downloader.includes('WeebCentralScraper'),
 check(/fetchThumb[\s\S]{0,5000}TankoyomiIdentity::isQualifiedChapter/.test(downloader),
   'qualified chapter thumbnails resolve through the provider router');
 check(result.includes('QString referer;'), 'page model can carry provider-specific image referer');
-check(downloader.includes('job->pages[pageIndex].referer'),
-  'page image requests use provider-specific referer metadata');
+check(/MangaPageTransport::requestForPage\(\s*job->pages\[pageIndex\],\s*job->chapterId\)/.test(downloader),
+  'page image requests use the shared provider-aware transport contract');
+check(transport.includes('page.referer') && transport.includes('setRawHeader("Referer"'),
+  'shared transport applies provider-specific referer metadata on the request');
 check(downloader.includes('QCryptographicHash::hash(chapterId.toUtf8()'),
   'filesystem identity still hashes the full qualified chapter id');
 
 if (failures) process.exit(1);
-console.log('\nPASS — Tankoyomi reader/download consumption routing contract');
+console.log('\nPASS - Tankoyomi reader/download consumption routing contract');

@@ -1,5 +1,6 @@
 #include "MangaDownloader.h"
 #include "DownloadFileOps.h"
+#include "MangaPageTransport.h"
 #include "WeebCentralScraper.h"
 #include "TankoyomiChapterService.h"
 #include "TankoyomiIdentity.h"
@@ -8,6 +9,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -39,27 +41,6 @@ MangaDownloader::MangaDownloader(QNetworkAccessManager* nam, QObject* parent,
 
 MangaDownloader::~MangaDownloader() = default;
 
-static QList<PageInfo> tankoyomiPageInfos(const QVariantList& rows)
-{
-    QList<PageInfo> out;
-    int fallbackIndex = 0;
-    for (const QVariant& value : rows) {
-        const QVariantMap row = value.toMap();
-        const QString url = row.value(QStringLiteral("url")).toString();
-        if (url.isEmpty()) continue;
-        PageInfo page;
-        page.index = row.contains(QStringLiteral("index"))
-            ? row.value(QStringLiteral("index")).toInt() : fallbackIndex;
-        page.imageUrl = url;
-        page.referer = row.value(QStringLiteral("referer")).toString();
-        page.pageGroup = row.contains(QStringLiteral("group"))
-            ? row.value(QStringLiteral("group")).toInt() : -1;
-        out.append(page);
-        ++fallbackIndex;
-    }
-    return out;
-}
-
 // ---------------------------------------------------------------------------
 // disk paths
 // ---------------------------------------------------------------------------
@@ -67,6 +48,14 @@ QString MangaDownloader::baseDir() const
 {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
                         + QStringLiteral("/manga");
+    QDir().mkpath(dir);
+    return dir;
+}
+
+QString MangaDownloader::thumbCacheDir() const
+{
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                        + QStringLiteral("/manga-thumbs");
     QDir().mkpath(dir);
     return dir;
 }
@@ -497,11 +486,17 @@ void MangaDownloader::pumpThumbs()
             QObject* scope = new QObject(this);
             const QString requestId = QStringLiteral("thumb|") + cid;
             connect(m_tankoyomi, &TankoyomiChapterService::pagesReady, scope,
-                    [scope, requestId, settle](const QString& got, const QVariantList& pages) {
+                    [this, scope, requestId, settle, cid](const QString& got,
+                                                         const QVariantList& pages) {
                 if (got != requestId) return;
                 scope->deleteLater();
-                const QList<PageInfo> parsed = tankoyomiPageInfos(pages);
-                settle(parsed.isEmpty() ? QString() : parsed.first().imageUrl, true);
+                const QList<PageInfo> parsed =
+                    MangaPageTransport::normalizeTankoyomiPages(pages, cid);
+                if (parsed.isEmpty()) {
+                    settle(QString(), false);
+                    return;
+                }
+                fetchThumbImage(cid, parsed.first(), settle);
             });
             connect(m_tankoyomi, &TankoyomiChapterService::pagesFailed, scope,
                     [scope, requestId, settle](const QString& got, const QString&) {
@@ -515,9 +510,13 @@ void MangaDownloader::pumpThumbs()
 
         auto* sc = new WeebCentralScraper(m_nam, this);
         connect(sc, &MangaScraper::pagesReady, sc,
-                [sc, settle](const QList<PageInfo>& pages) {
+                [this, sc, settle, cid](const QList<PageInfo>& pages) {
             sc->deleteLater();
-            settle(pages.isEmpty() ? QString() : pages.first().imageUrl, true);
+            if (pages.isEmpty()) {
+                settle(QString(), false);
+                return;
+            }
+            fetchThumbImage(cid, pages.first(), settle);
         });
         connect(sc, &MangaScraper::errorOccurred, sc,
                 [sc, settle](const QString&) {
@@ -526,6 +525,117 @@ void MangaDownloader::pumpThumbs()
         });
         sc->fetchPages(cid);
     }
+}
+
+void MangaDownloader::fetchThumbImage(
+    const QString& chapterId, const PageInfo& page,
+    std::function<void(const QString&, bool)> settle, int attempt)
+{
+    if (!m_thumbInflight.contains(chapterId)) return;
+    if (!m_nam) {
+        settle(QString(), false);
+        return;
+    }
+
+    const QByteArray digest = QCryptographicHash::hash(
+        chapterId.toUtf8() + '\n' + page.imageUrl.toUtf8(),
+        QCryptographicHash::Sha256).toHex();
+    QDir cacheDir(thumbCacheDir());
+    const QString prefix = QString::fromLatin1(digest);
+    const QStringList cached = cacheDir.entryList(
+        {prefix + QStringLiteral(".*")}, QDir::Files, QDir::Name);
+    for (const QString& name : cached) {
+        const QString path = cacheDir.filePath(name);
+        if (QFileInfo(path).size() > MIN_VALID_BYTES) {
+            settle(QUrl::fromLocalFile(path).toString(), true);
+            return;
+        }
+    }
+
+    QNetworkRequest request = MangaPageTransport::requestForPage(page, chapterId);
+    QUrl requestUrl = request.url();
+    if (!requestUrl.isValid()
+        || (requestUrl.scheme() != QLatin1String("http")
+            && requestUrl.scheme() != QLatin1String("https"))) {
+        settle(QString(), false);
+        return;
+    }
+
+    const QString host = requestUrl.host().toLower();
+    if (!host.isEmpty() && !m_pins.contains(host)
+        && (!m_pinTried.contains(host) || m_hostResolver.hasInFlight(host))) {
+        m_pinTried.insert(host);
+        m_hostResolver.resolve(
+            host,
+            [this, host, chapterId, page, settle = std::move(settle), attempt](
+                const QString& ipv4) mutable {
+                if (!m_thumbInflight.contains(chapterId)) return;
+                if (!ipv4.isEmpty()) m_pins.insert(host, ipv4);
+                fetchThumbImage(chapterId, page, std::move(settle), attempt);
+            });
+        return;
+    }
+
+    const QString ipv4 = m_pins.value(host);
+    if (!ipv4.isEmpty()) {
+        request.setRawHeader("Host", host.toUtf8());
+        request.setPeerVerifyName(host);
+        request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+        requestUrl.setHost(ipv4);
+        request.setUrl(requestUrl);
+    }
+
+    QNetworkReply* reply = m_nam->get(request);
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply, chapterId, page, settle = std::move(settle),
+             attempt, prefix]() mutable {
+        const QNetworkReply::NetworkError error = reply->error();
+        const QByteArray data = reply->readAll();
+        const QString contentType =
+            reply->header(QNetworkRequest::ContentTypeHeader).toString();
+        reply->deleteLater();
+
+        if (classifyPageReply(error, data, contentType) == PageVerdict::Accept) {
+            const QString extension = extForContentType(contentType, page.imageUrl);
+            const QString outputPath = thumbCacheDir() + QLatin1Char('/')
+                + prefix + QLatin1Char('.') + extension;
+            auto* watcher = new QFutureWatcher<bool>(this);
+            connect(watcher, &QFutureWatcher<bool>::finished, this,
+                    [this, watcher, chapterId, page, settle = std::move(settle),
+                     attempt, outputPath]() mutable {
+                const bool saved = watcher->result();
+                watcher->deleteLater();
+                if (saved) {
+                    settle(QUrl::fromLocalFile(outputPath).toString(), true);
+                    return;
+                }
+                if (attempt + 1 < MAX_IMAGE_RETRIES) {
+                    QTimer::singleShot(2000 << attempt, this,
+                        [this, chapterId, page, settle = std::move(settle), attempt]() mutable {
+                            fetchThumbImage(chapterId, page, std::move(settle), attempt + 1);
+                        });
+                    return;
+                }
+                settle(QString(), false);
+            });
+            watcher->setFuture(QtConcurrent::run([outputPath, data]() {
+                QSaveFile file(outputPath);
+                return file.open(QIODevice::WriteOnly)
+                    && file.write(data) == data.size()
+                    && file.commit();
+            }));
+            return;
+        }
+
+        if (attempt + 1 < MAX_IMAGE_RETRIES) {
+            QTimer::singleShot(2000 << attempt, this,
+                [this, chapterId, page, settle = std::move(settle), attempt]() mutable {
+                    fetchThumbImage(chapterId, page, std::move(settle), attempt + 1);
+                });
+            return;
+        }
+        settle(QString(), false);
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -649,7 +759,9 @@ void MangaDownloader::beginJob(Job* job)
             job->scraperPending = false;
             job->pageResolverScope = nullptr;
             scope->deleteLater();
-            onPagesReady(job, tankoyomiPageInfos(rows));
+            onPagesReady(job,
+                         MangaPageTransport::normalizeTankoyomiPages(
+                             rows, job->chapterId));
         });
         connect(m_tankoyomi, &TankoyomiChapterService::pagesFailed, scope,
                 [this, lifetime, scope, requestId](const QString& got,
@@ -815,16 +927,9 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
         return;
     }
 
-    QNetworkRequest req{u};
-    req.setRawHeader("User-Agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36");
-    const QString referer = job->pages[pageIndex].referer.trimmed();
-    req.setRawHeader("Referer", referer.isEmpty()
-        ? QByteArray("https://weebcentral.com/") : referer.toUtf8());
-    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    req.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);   // we persist to disk ourselves
-    req.setTransferTimeout(30000);
+    QNetworkRequest req = MangaPageTransport::requestForPage(
+        job->pages[pageIndex], job->chapterId);
+    u = req.url();
 
     // IPv4 pin (dead-IPv6 machine): rewrite host → IP, keep the real hostname for TLS
     // (peerVerifyName) and the Host header, HTTP/2 off — same recipe as CachingNam.

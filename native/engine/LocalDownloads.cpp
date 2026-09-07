@@ -1,5 +1,6 @@
 #include "LocalDownloads.h"
 
+#include "LocalDownloadsProjection.h"
 #include "MangaDownloader.h"
 #include "BookDownloader.h"
 #include "ComicDownloader.h"
@@ -43,6 +44,11 @@ QString failureTitleFallback(const QString &world, const QString &id) {
     const QRegularExpressionMatch match = volumeId.match(id);
     if (match.hasMatch())
         return QStringLiteral("Vol. ") + match.captured(1);
+
+    if (world == QStringLiteral("tankoban")
+        && id.startsWith(QStringLiteral("tankoyomi:"), Qt::CaseInsensitive)) {
+        return LocalDownloadsProjection::chapterLabel(id, QString());
+    }
 
     // A routing-shaped id is an implementation detail, never a humane title.
     if (world == QStringLiteral("tankoban")
@@ -188,7 +194,8 @@ QVariantList LocalDownloads::portableDownloadIntents() const {
             QVariantMap intent;
             for (const QString &field : {
                      QStringLiteral("id"), QStringLiteral("world"),
-                     QStringLiteral("kind"), QStringLiteral("title"),
+                     QStringLiteral("kind"), QStringLiteral("itemKind"),
+                     QStringLiteral("title"),
                      QStringLiteral("subtitle"), QStringLiteral("seriesTitle"),
                      QStringLiteral("season"), QStringLiteral("episode"),
                      QStringLiteral("seriesId"), QStringLiteral("label"),
@@ -227,15 +234,10 @@ QVariantList LocalDownloads::availableElsewhere() const {
             + QLatin1Char('/') + row.value(QStringLiteral("id")).toString();
         if (localKeys.contains(key))
             continue;
-        const QString world = row.value(QStringLiteral("world")).toString();
-        const QString kind = row.value(QStringLiteral("kind")).toString();
         row.insert(QStringLiteral("availableElsewhere"), true);
         row.insert(QStringLiteral("missing"), true);
         row.insert(QStringLiteral("canRedownload"),
-                   world == QStringLiteral("theatre")
-                   || world == QStringLiteral("biblio")
-                   || (world == QStringLiteral("tankoban")
-                       && kind == QStringLiteral("manga")));
+                   LocalDownloadsProjection::canRedownload(row));
         result.append(row);
     }
     return result;
@@ -280,7 +282,7 @@ QVariantMap LocalDownloads::redownload(const QVariantMap &item) {
     }
 
     if (world == QStringLiteral("tankoban")
-        && item.value(QStringLiteral("kind")).toString() == QStringLiteral("manga")
+        && LocalDownloadsProjection::itemKind(item) == QStringLiteral("chapter")
         && m_manga) {
         m_manga->downloadChapter(
             id,
@@ -327,6 +329,8 @@ void LocalDownloads::rememberFailure(const QString &world, const QString &id,
     }
     row.insert(QStringLiteral("world"), world);
     row.insert(QStringLiteral("id"), id);
+    row.insert(QStringLiteral("itemKind"),
+               LocalDownloadsProjection::itemKind(row));
     if (row.value(QStringLiteral("title")).toString().isEmpty())
         row.insert(QStringLiteral("title"), failureTitleFallback(world, id));
     row.insert(QStringLiteral("state"), QStringLiteral("failed"));
@@ -361,11 +365,16 @@ QVariantList LocalDownloads::tankobanItems() const {
             QVariantMap e = v.toMap();
             e.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
             e.insert(QStringLiteral("kind"), QStringLiteral("manga"));
+            e.insert(QStringLiteral("itemKind"), QStringLiteral("chapter"));
             e.insert(QStringLiteral("seriesKey"),
                      QStringLiteral("manga:") + e.value(QStringLiteral("seriesId")).toString());
-            e.insert(QStringLiteral("title"), e.value(QStringLiteral("label")).toString());
+            const QString label = LocalDownloadsProjection::chapterLabel(
+                e.value(QStringLiteral("id")).toString(),
+                e.value(QStringLiteral("label")).toString());
+            e.insert(QStringLiteral("label"), label);
+            e.insert(QStringLiteral("title"), label);
             e.insert(QStringLiteral("subtitle"),
-                     QStringLiteral("%1 pages").arg(e.value(QStringLiteral("pages")).toInt()));
+                     QStringLiteral("%1 pages · chapter").arg(e.value(QStringLiteral("pages")).toInt()));
             out.append(e);
         }
     }
@@ -375,6 +384,7 @@ QVariantList LocalDownloads::tankobanItems() const {
             QVariantMap e = v.toMap();
             e.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
             e.insert(QStringLiteral("kind"), QStringLiteral("comic"));
+            e.insert(QStringLiteral("itemKind"), QStringLiteral("issue"));
             e.insert(QStringLiteral("seriesKey"),
                      QStringLiteral("comic:") + e.value(QStringLiteral("seriesId")).toString());
             e.insert(QStringLiteral("title"), e.value(QStringLiteral("label")).toString());
@@ -392,6 +402,7 @@ QVariantList LocalDownloads::tankobanItems() const {
             QVariantMap e = v.toMap();
             e.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
             e.insert(QStringLiteral("kind"), QStringLiteral("manga"));
+            e.insert(QStringLiteral("itemKind"), QStringLiteral("volume"));
             e.insert(QStringLiteral("seriesKey"),
                      QStringLiteral("manga:") + e.value(QStringLiteral("seriesId")).toString());
             e.insert(QStringLiteral("title"), e.value(QStringLiteral("label")).toString());
@@ -412,6 +423,7 @@ QVariantList LocalDownloads::biblioItems() const {
         QVariantMap e = v.toMap();
         e.insert(QStringLiteral("world"), QStringLiteral("biblio"));
         e.insert(QStringLiteral("kind"), QStringLiteral("book"));
+        e.insert(QStringLiteral("itemKind"), QStringLiteral("edition"));
         // Cluster by author when the engine knows one (new entries persist it);
         // otherwise each book stands as its own card. Honest, never guessed.
         const QString author = e.value(QStringLiteral("author")).toString();
@@ -441,6 +453,8 @@ QVariantList LocalDownloads::theatreItems() const {
         QVariantMap e = v.toMap();
         e.insert(QStringLiteral("world"), QStringLiteral("theatre"));
         const bool episode = e.value(QStringLiteral("kind")).toString() == QStringLiteral("episode");
+        e.insert(QStringLiteral("itemKind"),
+                 episode ? QStringLiteral("episode") : QStringLiteral("film"));
         const QString seriesTitle = e.value(QStringLiteral("seriesTitle")).toString();
         e.insert(QStringLiteral("seriesKey"),
                  episode && !seriesTitle.isEmpty()
@@ -468,44 +482,7 @@ QVariantList LocalDownloads::itemsForWorld(const QString &world) const {
 }
 
 QVariantList LocalDownloads::series(const QString &world) const {
-    // Aggregate items by seriesKey, newest activity first.
-    QHash<QString, QVariantMap> agg;
-    QStringList order;
-    const QVariantList all = itemsForWorld(world);
-    for (const QVariant &v : all) {
-        const QVariantMap e = v.toMap();
-        const QString key = e.value(QStringLiteral("seriesKey")).toString();
-        auto it = agg.find(key);
-        if (it == agg.end()) {
-            order.append(key);
-            it = agg.insert(key, QVariantMap{
-                {QStringLiteral("key"), key},
-                {QStringLiteral("world"), world},
-                {QStringLiteral("title"), e.value(QStringLiteral("seriesTitle"))},
-                {QStringLiteral("kind"), e.value(QStringLiteral("kind"))},
-                {QStringLiteral("itemCount"), 0},
-                {QStringLiteral("bytes"), 0.0},
-                {QStringLiteral("updatedAt"), 0.0},
-                {QStringLiteral("art"), QString()}
-            });
-        }
-        QVariantMap &s = it.value();
-        if (s.value(QStringLiteral("art")).toString().isEmpty())
-            s[QStringLiteral("art")] = e.value(QStringLiteral("art")).toString();
-        s[QStringLiteral("itemCount")] = s.value(QStringLiteral("itemCount")).toInt() + 1;
-        s[QStringLiteral("bytes")] = s.value(QStringLiteral("bytes")).toDouble()
-                                     + e.value(QStringLiteral("bytes")).toDouble();
-        s[QStringLiteral("updatedAt")] = qMax(s.value(QStringLiteral("updatedAt")).toDouble(),
-                                              e.value(QStringLiteral("addedAt")).toDouble());
-    }
-    QVariantList out;
-    for (const QString &key : order)
-        out.append(agg.value(key));
-    std::sort(out.begin(), out.end(), [](const QVariant &a, const QVariant &b) {
-        return a.toMap().value(QStringLiteral("updatedAt")).toDouble()
-             > b.toMap().value(QStringLiteral("updatedAt")).toDouble();
-    });
-    return out;
+    return LocalDownloadsProjection::aggregateSeries(itemsForWorld(world), world);
 }
 
 QVariantList LocalDownloads::items(const QString &world, const QString &seriesKey) const {
@@ -527,14 +504,23 @@ QVariantList LocalDownloads::activeJobs() const {
         const QVariantList jobs = m_manga->activeChapterJobs();
         for (const QVariant &v : jobs) {
             QVariantMap j = v.toMap();
+            const QString chapterId = j.value(QStringLiteral("id")).toString();
+            const QString seriesTitle = j.value(QStringLiteral("seriesTitle")).toString();
+            const QString label = LocalDownloadsProjection::chapterLabel(
+                chapterId, j.value(QStringLiteral("label")).toString());
+            const QString title = seriesTitle.isEmpty()
+                ? label : QStringLiteral("%1 — %2").arg(seriesTitle, label);
             const int done = j.value(QStringLiteral("done")).toInt();
             const int total = j.value(QStringLiteral("total")).toInt();
             out.append(QVariantMap{
                 {QStringLiteral("world"), QStringLiteral("tankoban")},
-                {QStringLiteral("id"), j.value(QStringLiteral("id"))},
-                {QStringLiteral("title"), QStringLiteral("%1 — %2")
-                    .arg(j.value(QStringLiteral("seriesTitle")).toString(),
-                         j.value(QStringLiteral("label")).toString())},
+                {QStringLiteral("id"), chapterId},
+                {QStringLiteral("seriesId"), j.value(QStringLiteral("seriesId"))},
+                {QStringLiteral("seriesTitle"), seriesTitle},
+                {QStringLiteral("label"), label},
+                {QStringLiteral("kind"), QStringLiteral("manga")},
+                {QStringLiteral("itemKind"), QStringLiteral("chapter")},
+                {QStringLiteral("title"), title},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("ratio"), total > 0 ? double(done) / double(total) : 0.0},
                 {QStringLiteral("detail"), total > 0
@@ -559,6 +545,9 @@ QVariantList LocalDownloads::activeJobs() const {
                 {QStringLiteral("world"), QStringLiteral("tankoban")},
                 {QStringLiteral("id"), j.value(QStringLiteral("id"))},
                 {QStringLiteral("seriesTitle"), j.value(QStringLiteral("seriesTitle"))},
+                {QStringLiteral("label"), j.value(QStringLiteral("label"))},
+                {QStringLiteral("kind"), QStringLiteral("manga")},
+                {QStringLiteral("itemKind"), QStringLiteral("volume")},
                 {QStringLiteral("title"), title},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("ratio"), total > 0 ? done / total : 0.0},
@@ -588,6 +577,9 @@ QVariantList LocalDownloads::activeJobs() const {
                 {QStringLiteral("world"), QStringLiteral("tankoban")},
                 {QStringLiteral("id"), j.value(QStringLiteral("id"))},
                 {QStringLiteral("seriesTitle"), j.value(QStringLiteral("seriesTitle"))},
+                {QStringLiteral("label"), j.value(QStringLiteral("label"))},
+                {QStringLiteral("kind"), QStringLiteral("comic")},
+                {QStringLiteral("itemKind"), QStringLiteral("issue")},
                 {QStringLiteral("title"), QStringLiteral("%1 — %2")
                     .arg(j.value(QStringLiteral("seriesTitle")).toString(),
                          j.value(QStringLiteral("label")).toString())},
@@ -613,6 +605,8 @@ QVariantList LocalDownloads::activeJobs() const {
             out.append(QVariantMap{
                 {QStringLiteral("world"), QStringLiteral("biblio")},
                 {QStringLiteral("id"), j.value(QStringLiteral("id"))},
+                {QStringLiteral("kind"), QStringLiteral("book")},
+                {QStringLiteral("itemKind"), QStringLiteral("edition")},
                 {QStringLiteral("title"), j.value(QStringLiteral("title"))},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("ratio"), total > 0 ? done / total : 0.0},
@@ -670,6 +664,8 @@ QVariantList LocalDownloads::activeJobs() const {
         const QString world = row.value(QStringLiteral("world")).toString();
         const QString state = row.value(QStringLiteral("state")).toString();
         const bool theatre = world == QStringLiteral("theatre");
+        row.insert(QStringLiteral("itemKind"),
+                   LocalDownloadsProjection::itemKind(row));
         row.insert(QStringLiteral("canPlay"), theatre
             && !row.value(QStringLiteral("url")).toString().isEmpty()
             && state != QStringLiteral("failed"));

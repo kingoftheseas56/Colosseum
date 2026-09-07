@@ -2,6 +2,7 @@
 // Visual oracle: Preflight Arc 39 mockups/chapter-mode-theatre-oracle-v1.html.
 // One page selector only; every page materializes at most ten chapter thumbnail delegates.
 import QtQuick
+import QtQuick.Controls
 import "MangaChapterGrouping.js" as Grouping
 
 Item {
@@ -32,7 +33,7 @@ Item {
     readonly property bool extensionGateVisible: !root.sourceEnabled
 
     property int currentPageIndex: 0
-    property bool pageMenuOpen: false
+    readonly property bool pageMenuOpen: pagePopup.opened
     readonly property int pageSelectorControlCount: 1
     readonly property var groupedResult: Grouping.group(root.chapters || [], root.exactRangeRecord || ({}), root.seriesId)
     readonly property var pageWindows: {
@@ -70,15 +71,24 @@ Item {
     signal openExtensionsRequested()
 
     function requestExtensions() { root.openExtensionsRequested() }
+    function setPageMenuOpen(open) {
+        if (open && root.pageCount > 0) pagePopup.open()
+        else pagePopup.close()
+    }
+    function togglePageMenu() { root.setPageMenuOpen(!pagePopup.opened) }
     function selectPage(index) {
         var i = Math.max(0, Math.min(Number(index), root.pageCount - 1))
         if (!isFinite(i)) i = 0
         root.currentPageIndex = i
-        root.pageMenuOpen = false
+        pagePopup.close()
     }
     onPageCountChanged: {
-        if (root.pageCount <= 0) root.currentPageIndex = 0
-        else if (root.currentPageIndex >= root.pageCount) root.currentPageIndex = root.pageCount - 1
+        if (root.pageCount <= 0) {
+            root.currentPageIndex = 0
+            pagePopup.close()
+        } else if (root.currentPageIndex >= root.pageCount) {
+            root.currentPageIndex = root.pageCount - 1
+        }
     }
 
     Theme { id: theme }
@@ -142,10 +152,10 @@ Item {
                     Accessible.name: "Chapter page selector"
                     Rectangle { anchors.fill: parent; radius: 17; color: theme.glassTint; border.width: 1; border.color: root.pageMenuOpen ? theme.gold : theme.edge }
                     Text { anchors.centerIn: parent; text: root.pageSelectorLabel + "  ▾"; color: root.pageMenuOpen ? theme.gold : theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.pageMenuOpen = !root.pageMenuOpen }
-                    Keys.onReturnPressed: root.pageMenuOpen = !root.pageMenuOpen
-                    Keys.onEnterPressed: root.pageMenuOpen = !root.pageMenuOpen
-                    Keys.onEscapePressed: root.pageMenuOpen = false
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.togglePageMenu() }
+                    Keys.onReturnPressed: root.togglePageMenu()
+                    Keys.onEnterPressed: root.togglePageMenu()
+                    Keys.onEscapePressed: pagePopup.close()
                 }
             }
             Item {
@@ -343,38 +353,66 @@ Item {
             }
         }
     }
-    Rectangle {
-        id: pageDropdown
-        visible: root.pageMenuOpen && root.pageCount > 0
-        z: 200
-        x: pageSelector.mapToItem(root, 0, 0).x
-        y: pageSelector.mapToItem(root, 0, pageSelector.height + 6).y
+    Popup {
+        id: pagePopup
+        parent: pageSelector
+        objectName: "mangaChapterPagePopup"
+        x: pageSelector.width - width
+        y: pageSelector.height + 6
         width: 150
         height: Math.min(root.pageCount * 36 + 12, 300)
-        radius: 12
-        color: Qt.rgba(.035,.04,.06,.98)
-        border.width: 1; border.color: theme.edge
+        padding: 6
+        modal: false
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+        onOpened: {
+            pageList.currentIndex = root.currentPageIndex
+            pageList.positionViewAtIndex(pageList.currentIndex, ListView.Contain)
+            pageList.forceActiveFocus(Qt.PopupFocusReason)
+        }
+        onClosed: if (pageSelector.visible) pageSelector.forceActiveFocus(Qt.PopupFocusReason)
 
-        ListView {
+        background: Rectangle {
+            radius: 12
+            color: Qt.rgba(.035,.04,.06,.98)
+            border.width: 1
+            border.color: theme.edge
+        }
+
+        contentItem: ListView {
             id: pageList
-            anchors.fill: parent; anchors.margins: 6
             clip: true
             model: root.pageCount
             currentIndex: root.currentPageIndex
+            boundsBehavior: Flickable.StopAtBounds
+            Keys.onReturnPressed: root.selectPage(currentIndex)
+            Keys.onEnterPressed: root.selectPage(currentIndex)
+            Keys.onEscapePressed: pagePopup.close()
             delegate: Rectangle {
                 required property int index
-                width: pageList.width; height: 36; radius: 7
-                color: index === root.currentPageIndex ? theme.glassHi : (pageOptionMouse.containsMouse ? theme.glassTint : "transparent")
-                Text { anchors.left: parent.left; anchors.leftMargin: 10; anchors.verticalCenter: parent.verticalCenter; text: "Page " + (index + 1); color: index === root.currentPageIndex ? theme.gold : theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-                MouseArea { id: pageOptionMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.selectPage(index) }
+                width: pageList.width
+                height: 36
+                radius: 7
+                color: index === root.currentPageIndex
+                    ? theme.glassHi
+                    : (pageOptionMouse.containsMouse ? theme.glassTint : "transparent")
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Page " + (index + 1)
+                    color: index === root.currentPageIndex ? theme.gold : theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                }
+                MouseArea {
+                    id: pageOptionMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.selectPage(index)
+                }
             }
         }
-    }
-
-    MouseArea {
-        visible: root.pageMenuOpen
-        z: 190
-        anchors.fill: parent
-        onClicked: root.pageMenuOpen = false
     }
 }

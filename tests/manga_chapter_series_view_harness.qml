@@ -27,6 +27,22 @@ Item {
     property int extensionRequests: 0
     function fail(msg) { console.error("MANGA_CHAPTER_VIEW_FAIL: " + msg); Qt.exit(1) }
     function check(ok, msg) { if (!ok) fail(msg) }
+    function findNamed(root, wanted) {
+        if (!root) return null
+        if (String(root.objectName || "") === wanted) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; ++i) {
+            var found = findNamed(kids[i], wanted)
+            if (found) return found
+        }
+        var data = root.data || []
+        for (var j = 0; j < data.length; ++j) {
+            if (kids.indexOf(data[j]) >= 0) continue
+            var foundData = findNamed(data[j], wanted)
+            if (foundData) return foundData
+        }
+        return null
+    }
     function chapters(n) {
         var out = []
         for (var i = 1; i <= n; ++i)
@@ -49,6 +65,27 @@ Item {
         check(view.activeChapterCount === 10, "Page 1 must contain 10 chapters")
         check(view.activeThumbnailDelegateCount <= 10, "active thumbnail delegate budget")
         check(downloads.requested.length === 10, "inactive pages must not request thumbnails")
+        view.setPageMenuOpen(true)
+        Qt.callLater(verifyPageMenuOpen)
+    }
+
+    function verifyPageMenuOpen() {
+        check(view.pageMenuOpen === true, "page selector opens its Popup")
+        var selector = findNamed(view, "mangaChapterPageSelector")
+        var popup = findNamed(view, "mangaChapterPagePopup")
+        check(selector !== null, "page selector remains discoverable")
+        check(popup !== null, "page menu is a real Popup object")
+        check(popup.parent === selector, "Popup coordinate owner is the page selector")
+        check(Math.abs(popup.x - (selector.width - popup.width)) < 0.5,
+              "Popup right edge stays aligned to selector")
+        check(Math.abs(popup.y - (selector.height + 6)) < 0.5,
+              "Popup opens immediately below selector")
+        view.setPageMenuOpen(false)
+        Qt.callLater(verifyPageMenuClosed)
+    }
+
+    function verifyPageMenuClosed() {
+        check(view.pageMenuOpen === false, "page Popup closes without changing selection")
         view.selectPage(1)
         Qt.callLater(verifySecondPage)
     }

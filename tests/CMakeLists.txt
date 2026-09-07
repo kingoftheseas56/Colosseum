@@ -339,6 +339,10 @@ add_executable(tst_local_downloads_failure
     auto/downloads/local_downloads_test_stubs.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloads.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloads.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloadsProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloadsProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiIdentity.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/MangaDownloader.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/BookDownloader.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/ComicDownloader.h"
@@ -357,6 +361,50 @@ add_test(NAME colosseum.qttest.local_downloads_failure
          COMMAND tst_local_downloads_failure)
 set_tests_properties(colosseum.qttest.local_downloads_failure PROPERTIES
     LABELS "unit;qttest"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Tankoyomi image transport: qualified chapters inherit their provider chapter
+# locator as Referer, never the legacy WeebCentral fallback.
+add_executable(tst_manga_page_transport
+    auto/manga/tst_manga_page_transport.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/MangaPageTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MangaPageTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiIdentity.h")
+target_include_directories(tst_manga_page_transport PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_manga_page_transport PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+set_target_properties(tst_manga_page_transport PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_manga_page_transport POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.manga_page_transport COMMAND tst_manga_page_transport)
+set_tests_properties(colosseum.qttest.manga_page_transport PROPERTIES
+    LABELS "unit;qttest;tankoyomi"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
+# Downloads projection: one manga series may contain both chapter and volume
+# acquisitions without lying about their counts or redownload owner.
+add_executable(tst_local_downloads_projection
+    auto/downloads/tst_local_downloads_projection.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloadsProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/LocalDownloadsProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/TankoyomiIdentity.h")
+target_include_directories(tst_local_downloads_projection PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_local_downloads_projection PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_local_downloads_projection PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_local_downloads_projection POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.local_downloads_projection COMMAND tst_local_downloads_projection)
+set_tests_properties(colosseum.qttest.local_downloads_projection PROPERTIES
+    LABELS "unit;qttest;downloads;tankoyomi"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 

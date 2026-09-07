@@ -1,11 +1,31 @@
+#include "engine/MangaPageTransport.h"
 #include "engine/TankoyomiChapterService.h"
 #include "engine/TankoyomiIdentity.h"
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QTimer>
 #include <QVariantMap>
+
+namespace {
+
+bool looksLikeImage(const QByteArray &data, const QString &contentType)
+{
+    if (data.size() < 12) return false;
+    const unsigned char *bytes =
+        reinterpret_cast<const unsigned char *>(data.constData());
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return true;
+    if (bytes[0] == 0x89 && bytes[1] == 0x50
+        && bytes[2] == 0x4E && bytes[3] == 0x47) return true;
+    if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) return true;
+    if (data.startsWith("RIFF") && data.mid(8, 4) == QByteArrayLiteral("WEBP")) return true;
+    return contentType.trimmed().toLower().startsWith(QLatin1String("image/"));
+}
+
+} // namespace
 
 int main(int argc, char **argv)
 {
@@ -21,6 +41,7 @@ int main(int argc, char **argv)
 
     QNetworkAccessManager nam;
     TankoyomiChapterService service(&nam);
+    QString selectedChapterId;
     QTimer timeout;
     timeout.setSingleShot(true);
     timeout.setInterval(90000);
@@ -43,10 +64,20 @@ int main(int argc, char **argv)
             app.exit(72);
             return;
         }
-        const QVariantMap first = chapters.first().toMap();
-        const QString chapterId = first.value(QStringLiteral("id")).toString();
-        const QString provider = first.value(QStringLiteral("source")).toString();
-        const QString rowLanguage = first.value(QStringLiteral("language")).toString();
+        QVariantMap sample = chapters.first().toMap();
+        double bestNumber = sample.value(QStringLiteral("number")).toDouble();
+        for (const QVariant &chapterValue : chapters) {
+            const QVariantMap candidate = chapterValue.toMap();
+            bool ok = false;
+            const double number = candidate.value(QStringLiteral("number")).toDouble(&ok);
+            if (ok && number > bestNumber) {
+                bestNumber = number;
+                sample = candidate;
+            }
+        }
+        const QString chapterId = sample.value(QStringLiteral("id")).toString();
+        const QString provider = sample.value(QStringLiteral("source")).toString();
+        const QString rowLanguage = sample.value(QStringLiteral("language")).toString();
         const auto parsed = TankoyomiIdentity::parseChapter(chapterId);
         if (!parsed || parsed->providerId != provider || parsed->language != rowLanguage) {
             qCritical().noquote() << "FAIL qualified identity mismatch" << chapterId;
@@ -58,9 +89,10 @@ int main(int argc, char **argv)
             app.exit(74);
             return;
         }
+        selectedChapterId = chapterId;
         qInfo().noquote() << "CATALOGUE" << rowLanguage << provider
                           << "chapters" << chapters.size() << sourceSeriesId;
-        service.fetchPages(QStringLiteral("pages"), chapterId);
+        service.fetchPages(QStringLiteral("pages"), selectedChapterId);
     });
 
     QObject::connect(&service, &TankoyomiChapterService::pagesFailed, &app,
@@ -72,19 +104,54 @@ int main(int argc, char **argv)
     QObject::connect(&service, &TankoyomiChapterService::pagesReady, &app,
                      [&](const QString &requestId, const QVariantList &pages) {
         if (requestId != QLatin1String("pages")) return;
-        if (pages.isEmpty()) {
+        const QList<PageInfo> normalized =
+            MangaPageTransport::normalizeTankoyomiPages(pages, selectedChapterId);
+        if (normalized.isEmpty()) {
             qCritical().noquote() << "FAIL empty pages";
             app.exit(76);
             return;
         }
-        const QString url = pages.first().toMap().value(QStringLiteral("url")).toString();
-        if (!url.startsWith(QStringLiteral("https://"))) {
-            qCritical().noquote() << "FAIL bad page url" << url;
+
+        const PageInfo firstPage = normalized.first();
+        QNetworkRequest request =
+            MangaPageTransport::requestForPage(firstPage, selectedChapterId);
+        if (!request.url().isValid()
+            || request.url().scheme() != QLatin1String("https")) {
+            qCritical().noquote() << "FAIL bad page url" << request.url();
             app.exit(77);
             return;
         }
-        qInfo().noquote() << "PASS service runtime pages" << pages.size() << url.left(120);
-        app.exit(0);
+        qInfo().noquote() << "IMAGE REQUEST" << request.url().toString().left(120)
+                          << "Referer" << request.rawHeader("Referer");
+
+        QNetworkReply *reply = nam.get(request);
+        QObject::connect(reply, &QNetworkReply::finished, &app,
+                         [&, reply, pageCount = normalized.size()]() {
+            const QNetworkReply::NetworkError error = reply->error();
+            const QString errorText = reply->errorString();
+            const QByteArray body = reply->readAll();
+            const QString contentType =
+                reply->header(QNetworkRequest::ContentTypeHeader).toString();
+            const int status =
+                reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            reply->deleteLater();
+
+            if (body.size() <= 1024 || !looksLikeImage(body, contentType)) {
+                qCritical().noquote() << "FAIL image bytes"
+                                      << "status" << status
+                                      << "error" << int(error) << errorText
+                                      << "contentType" << contentType
+                                      << "bytes" << body.size();
+                app.exit(78);
+                return;
+            }
+            qInfo().noquote() << "PASS service runtime image"
+                              << "pages" << pageCount
+                              << "status" << status
+                              << "contentType" << contentType
+                              << "bytes" << body.size();
+            app.exit(0);
+        });
     });
 
     timeout.start();

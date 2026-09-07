@@ -329,6 +329,8 @@ add_executable(colosseum
     engine/ComickCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/MangaPageTransport.cpp
+    engine/MangaPageTransport.h
     engine/MangaImageHostResolver.cpp
     engine/MangaImageHostResolver.h
     engine/BookDownloader.cpp
@@ -359,6 +361,8 @@ add_executable(colosseum
     engine/CatalogVaultClient.h
     engine/LocalDownloads.cpp
     engine/LocalDownloads.h
+    engine/LocalDownloadsProjection.cpp
+    engine/LocalDownloadsProjection.h
     engine/ExtensionsStore.cpp
     engine/ExtensionsStore.h
     # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
@@ -699,6 +703,8 @@ target_link_libraries(tankoyomi_identity_harness PRIVATE Qt6::Core)
 
 add_executable(tankoyomi_service_runtime_harness
     ../tests/tankoyomi_service_runtime_harness.cpp
+    engine/MangaPageTransport.cpp
+    engine/MangaPageTransport.h
     engine/TankoyomiChapterService.cpp
     engine/TankoyomiChapterService.h
     engine/TankoyomiConfigurationStore.cpp
@@ -1598,6 +1604,8 @@ add_executable(manga_downloader_cancel_harness
     ../tests/manga_downloader_cancel_harness.cpp
     # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/MangaPageTransport.cpp
+    engine/MangaPageTransport.h
     engine/DownloadFileOps.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h

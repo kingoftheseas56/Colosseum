@@ -205,6 +205,7 @@ private:
 
     // disk + index
     QString baseDir() const;                       // <appdata>/manga
+    QString thumbCacheDir() const;                 // <cache>/manga-thumbs
     QString chapterDir(const QString& seriesId, const QString& chapterId) const;
     static QString safeSeg(const QString& v);      // path-segment sanitiser
     static QString extForContentType(const QString& ct, const QString& fallbackUrl);
@@ -241,6 +242,9 @@ private:
     QQueue<ThumbReq>        m_thumbQueue;
     int m_thumbActive = 0;
     void pumpThumbs();
+    void fetchThumbImage(const QString& chapterId, const PageInfo& page,
+                         std::function<void(const QString&, bool)> settle,
+                         int attempt = 0);
 
     static constexpr int MAX_CONCURRENT_CHAPTERS = 2;
     static constexpr int THUMB_CONCURRENCY       = 3;
