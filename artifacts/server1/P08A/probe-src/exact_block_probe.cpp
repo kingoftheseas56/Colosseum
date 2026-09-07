@@ -77,18 +77,7 @@ public:
         , target_(int(pc_.remote().port()) == state_->target_port)
     {
         state_->peers.fetch_add(1, std::memory_order_relaxed);
-        if (!state_->control)
-        {
-            auto native = pc_.native_handle();
-            if (!native)
-            {
-                state_->injection_failures.fetch_add(1, std::memory_order_relaxed);
-            }
-            else
-            {
-                native->no_download(true);
-            }
-        }
+        suppress_picker();
 
         std::lock_guard<std::mutex> lock(state_->output_mutex);
         std::cout << "P08A_PEER_CONNECTED port=" << pc_.remote().port()
@@ -100,64 +89,39 @@ public:
 
     bool on_handshake(lt::span<char const>) override
     {
-        if (!state_->control)
-        {
-            auto native = pc_.native_handle();
-            if (native) native->no_download(true);
-        }
+        suppress_picker();
         return true;
     }
 
     bool on_bitfield(lt::bitfield const&) override
     {
-        state_->peers_with_piece.fetch_add(1, std::memory_order_relaxed);
-        if (!state_->control) send_interested(pc_);
+        note_piece_available();
         return false;
     }
 
     bool on_have(lt::piece_index_t piece) override
     {
-        if (piece == lt::piece_index_t(0))
-            state_->peers_with_piece.fetch_add(1, std::memory_order_relaxed);
-        if (!state_->control) send_interested(pc_);
+        if (piece == lt::piece_index_t(0)) note_piece_available();
         return false;
     }
 
     bool on_have_all() override
     {
-        state_->peers_with_piece.fetch_add(1, std::memory_order_relaxed);
-        if (!state_->control) send_interested(pc_);
+        note_piece_available();
         return false;
     }
 
     bool on_unchoke() override
     {
+        unchoked_ = true;
         if (!state_->control) send_interested(pc_);
+        maybe_inject_owned_request();
         return false;
     }
 
     void tick() override
     {
-        if (state_->control || injected_ || !target_) return;
-
-        auto native = pc_.native_handle();
-        if (!native)
-        {
-            state_->injection_failures.fetch_add(1, std::memory_order_relaxed);
-            return;
-        }
-        native->no_download(true);
-
-        if (pc_.is_choked() || !pc_.has_piece(lt::piece_index_t(0))) return;
-
-        send_interested(pc_);
-        send_exact_request(pc_);
-        injected_ = true;
-        state_->target_sent.fetch_add(1, std::memory_order_release);
-
-        std::lock_guard<std::mutex> lock(state_->output_mutex);
-        std::cout << "P08A_OWNED_REQUEST_QUEUED peer_port=" << pc_.remote().port()
-                  << " piece=0 offset=0 length=16384\n";
+        maybe_inject_owned_request();
     }
 
     void sent_request(lt::peer_request const& r) override
@@ -177,7 +141,7 @@ public:
             && r.start == 0 && r.length == 16384
             && int(buf.size()) == 16384)
         {
-            state_->target_received.fetch_add(1, std::memory_order_release);
+            state_->target_received.store(1, std::memory_order_release);
             std::lock_guard<std::mutex> lock(state_->output_mutex);
             std::cout << "P08A_OWNED_RESPONSE_RECEIVED peer_port=" << pc_.remote().port()
                       << " piece=0 offset=0 length=16384\n";
@@ -192,10 +156,60 @@ public:
     }
 
 private:
+    void suppress_picker()
+    {
+        if (state_->control) return;
+        auto native = pc_.native_handle();
+        if (!native)
+        {
+            state_->injection_failures.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+        native->no_download(true);
+    }
+
+    void note_piece_available()
+    {
+        if (!piece_available_)
+        {
+            piece_available_ = true;
+            state_->peers_with_piece.fetch_add(1, std::memory_order_relaxed);
+        }
+        if (!state_->control) send_interested(pc_);
+        maybe_inject_owned_request();
+    }
+
+    void maybe_inject_owned_request()
+    {
+        if (state_->control || injected_ || !target_ || !piece_available_ || !unchoked_)
+            return;
+
+        suppress_picker();
+        if (state_->injection_failures.load(std::memory_order_relaxed) != 0) return;
+
+        int expected = 0;
+        if (!state_->target_sent.compare_exchange_strong(
+                expected, 1, std::memory_order_acq_rel, std::memory_order_acquire))
+        {
+            injected_ = true;
+            return;
+        }
+
+        send_interested(pc_);
+        send_exact_request(pc_);
+        injected_ = true;
+
+        std::lock_guard<std::mutex> lock(state_->output_mutex);
+        std::cout << "P08A_OWNED_REQUEST_QUEUED peer_port=" << pc_.remote().port()
+                  << " piece=0 offset=0 length=16384\n";
+    }
+
     lt::peer_connection_handle pc_;
     std::shared_ptr<SharedState> state_;
     bool target_ = false;
     bool injected_ = false;
+    bool piece_available_ = false;
+    bool unchoked_ = false;
 };
 
 class TorrentProbe final : public lt::torrent_plugin
