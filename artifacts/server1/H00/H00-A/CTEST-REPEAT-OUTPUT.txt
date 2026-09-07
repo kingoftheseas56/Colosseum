@@ -1,0 +1,5 @@
+command=$ctest = 'C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe'; $testDir = 'C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build'; $overall = 0; for ($run = 1; $run -le 3; $run++) { Write-Output ("RUN=" + $run); & $ctest --test-dir $testDir -R 'H00-0[123]-http-contract' --output-on-failure; $exit = $LASTEXITCODE; Write-Output ("RUN_EXIT=" + $exit); if ($exit -ne 0) { $overall = $exit } }; exit $overall
+exit=0
+raw_output=RUN=1; H00-01 Passed 0.06 sec; H00-02 Passed 0.05 sec; H00-03 Passed 1.13 sec; 100% tests passed, 0 tests failed out of 3; Total Test time 1.26 sec; RUN_EXIT=0
+raw_output=RUN=2; H00-01 Passed 0.06 sec; H00-02 Passed 0.05 sec; H00-03 Passed 1.13 sec; 100% tests passed, 0 tests failed out of 3; Total Test time 1.27 sec; RUN_EXIT=0
+raw_output=RUN=3; H00-01 Passed 0.05 sec; H00-02 Passed 0.05 sec; H00-03 Passed 1.14 sec; 100% tests passed, 0 tests failed out of 3; Total Test time 1.26 sec; RUN_EXIT=0

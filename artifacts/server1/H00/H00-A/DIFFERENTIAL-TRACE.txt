@@ -1,14 +1,16 @@
 worker_id=H00-A
 parent_packet=H00
 oracle_sha256=405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f
-source_vectors=M100:11691-11866;M109:12895-13072;M172:18110-18500;M178:18569-18607;M586:48443-48511
-source_expected=body parser precedes external router; external routes run before root routes; repeated query values survive; params decode after segment matching; connect prefixes require slash/dot boundary; GET handles HEAD
-command="C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build\server1_h00_http_contract.exe" --trace
+source_vectors=M50:8724-8779;M100:11691-11866;M109:12895-13072;M172:18110-18500;M178:18569-18607;M586:48443-48511
+source_expected=body parser precedes external router; external routes run before root routes; repeated query values survive; params decode after segment matching; connect prefixes require slash/dot boundary; GET handles HEAD; JSON/body/header and transport errors remain separate from route validation; listener output stays bounded through actual socket drain
+command=$env:Path = 'C:\Qt\6.11.1\msvc2022_64\bin;' + $env:Path; & 'C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build\server1_h00_http_contract.exe' --trace; Write-Output ("TRACE_EXIT=" + $LASTEXITCODE); exit $LASTEXITCODE
 exit=0
 candidate H00-01 result=1 method=POST path=/submit query=tag:one|tag:two|name:hello world body-kind=1 duplicate-x-trace=2 keep-alive=true
 candidate H00-02 target=/hlsv2/status status=200 body=external-hls
 candidate H00-02 target=/yt/id status=200 body=yt:id
 candidate H00-02 target=/proxy/anything status=200 body=external-proxy
 candidate H00-02 target=/local-addon/manifest.json status=200 body=external-addon
+TRACE_EXIT=0
 comparison=PASS for source-derived parser/order/parameter vectors; no separate oracle process was claimed for this worker
-H00-03=covered by real listener CTest, not promoted to oracle-runtime parity
+H00-01-repair=covered by CTest: complete oversized headers 431; oversized chunked payload and maximal chunk size 413; mixed/repeated transfer codings 400; oversized chunked trailers 431
+H00-03=real loopback listener CTest asserts full body before close, post-resume total pending cap, multi-connection pending cap, and disconnect cleanup; not promoted to oracle-runtime parity

@@ -4,7 +4,7 @@
   "parent_packet": "H00",
   "integration_owner": "INT-W2",
   "destination": "B-W2B on feature/colosseum-server-1.0",
-  "implementation_commit_sha": "409eade0c60bce3fef3b54819dc60a84fca98b13",
+  "implementation_commit_sha": "f42a394f26c80ab73b4525e7db2f9301455b05a4",
   "requested_wiring": [
     {
       "surface": "native/colosseum_server_v1/CMakeLists.txt",
@@ -25,5 +25,5 @@
   ],
   "shared_files_edited_by_worker": [],
   "forbidden_shared_files_touched": [],
-  "integration_note": "The implementation uses packet-local C ABI declarations because the worker-owned file list contains no shared HTTP header. INT-W2 should expose or retain the equivalent HttpConnectionContract and RouterContract declarations at the shared integration seam without changing route order or parser limits."
+  "integration_note": "The implementation uses packet-local C ABI declarations because the worker-owned file list contains no shared HTTP header. INT-W2 should expose or retain the equivalent HttpConnectionContract and RouterContract declarations at the shared integration seam without changing route order, parser limits, total pending-byte accounting, or close-after-drain semantics. server1_http_server_queued_bytes now reports aggregate application-plus-QTcpSocket pending bytes."
 }

@@ -1,19 +1,19 @@
-command="C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir artifacts/server1/H00/H00-A/cmake-build -R "H00-0[123]-http-contract" --output-on-failure
+command="C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir "C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build" -R "H00-0[123]-http-contract" --output-on-failure
 exit=0
 Internal ctest changing into directory: C:/b/Colosseum-Server-1.0-workers/H00-A/artifacts/server1/H00/H00-A/cmake-build
 Test project C:/b/Colosseum-Server-1.0-workers/H00-A/artifacts/server1/H00/H00-A/cmake-build
     Start 1: H00-01-http-contract
-1/3 Test #1: H00-01-http-contract .............   Passed    0.20 sec
+1/3 Test #1: H00-01-http-contract .............   Passed    0.11 sec
     Start 2: H00-02-http-contract
-2/3 Test #2: H00-02-http-contract .............   Passed    0.10 sec
+2/3 Test #2: H00-02-http-contract .............   Passed    0.05 sec
     Start 3: H00-03-http-contract
-3/3 Test #3: H00-03-http-contract .............   Passed    0.11 sec
+3/3 Test #3: H00-03-http-contract .............   Passed    1.15 sec
 
 100% tests passed, 0 tests failed out of 3
 
 Label Time Summary:
-http       =   0.40 sec*proc (3 tests)
-server1    =   0.40 sec*proc (3 tests)
-unit       =   0.40 sec*proc (3 tests)
+http       =   1.31 sec*proc (3 tests)
+server1    =   1.31 sec*proc (3 tests)
+unit       =   1.31 sec*proc (3 tests)
 
-Total Test time (real) =   0.43 sec
+Total Test time (real) =   1.33 sec

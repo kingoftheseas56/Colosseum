@@ -1,0 +1,25 @@
+worker_id=H00-A
+parent_packet=H00
+state=test-authored; repair RED confirmed before production edits
+
+H00-03 command=cmd.exe /d /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir "C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build" -R "H00-03-http-contract" --output-on-failure'
+H00-03 exit=1
+H00-03 raw_output=H00 FAIL: multiple large responses never exceed the configured total pending-byte cap
+H00-03 interpretation=old Connection.cpp counted only application queue bytes and allowed two paused responses to exceed the configured server cap
+
+H00-01-chunked command=cmd.exe /d /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir "C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build" -R "H00-01-http-contract" --output-on-failure'
+H00-01-chunked exit=1
+H00-01-chunked raw_output=H00 FAIL: oversized chunked body reports Payload Too Large
+H00-01-chunked interpretation=old parseChunkedBody returned false with body.size() at or below max and tryParse mapped the failure to 400
+
+H00-01-header command=cmd.exe /d /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir "C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build" -R "H00-01-http-contract" --output-on-failure'
+H00-01-header exit=1
+H00-01-header raw_output=H00 FAIL: a complete header block above 64 KiB is rejected
+H00-01-header interpretation=old RequestParsing.cpp checked kMaxHeaderBytes only when CRLFCRLF was absent
+
+H00-01-transfer command=cmd.exe /d /c '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir "C:\b\Colosseum-Server-1.0-workers\H00-A\artifacts\server1\H00\H00-A\cmake-build" -R "H00-01-http-contract" --output-on-failure'
+H00-01-transfer exit=1
+H00-01-transfer raw_output=H00 FAIL: unsupported transfer coding combination is rejected
+H00-01-transfer interpretation=old RequestParsing.cpp accepted mixed/repeated transfer codings whenever one value contained the token chunked
+
+additional_raw_regression=maximal hexadecimal chunk size above body limit; expected explicit 413 and overflow-safe framing
