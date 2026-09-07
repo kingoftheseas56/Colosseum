@@ -1,0 +1,14 @@
+{
+  "packet": "P06-A",
+  "case": "P06-01",
+  "request": "Consume the deterministic torrent fixtures and loopback scripted peer ledger from the P06-C runner.",
+  "provider_api": [
+    "build_single_file_torrent()",
+    "build_multi_file_torrent()",
+    "validate_torrent_fixture(fixture)",
+    "ScriptedPeerServer(fixture, actions).start()/join()",
+    "ScriptedPeerServer.ledger"
+  ],
+  "network_scope": "127.0.0.1 only",
+  "status": "PENDING_P06_C"
+}

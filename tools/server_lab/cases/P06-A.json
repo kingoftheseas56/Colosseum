@@ -1,0 +1,36 @@
+{
+  "schema": "colosseum-server1-p06-a-case/v1",
+  "packet": "P06-A",
+  "case": "P06-01",
+  "integration_base": "ce9961ea0666bea2d2c3563117ddcceb516f7a08",
+  "owned_files": [
+    "tools/server_lab/fixtures/torrents.py",
+    "tools/server_lab/fixtures/peer_server.py"
+  ],
+  "fixture_goldens": {
+    "single": {
+      "metainfo_sha256": "cd0b58f0f611b13a6b2f3f6dae8bd7c42602e4aa48f99ff7060f337aa6b25221",
+      "infohash_sha1": "938822d490b34f7fd0e2bfdd67cf55440725e9ae",
+      "payload_sha256": {"single.bin": "5c524d56617ad79af85cc28e191d1725fa88167fabc1a4565871e10b6d277148"},
+      "piece_sha1": ["c355a0f1b4e03f31b109462c6c207cafb0f0eca9", "00f3b4a49b0018c1cd72442958286b1f44399d6d"],
+      "piece_lengths": [16384, 6144],
+      "total_length": 22528
+    },
+    "multi": {
+      "metainfo_sha256": "ccf92b5f879c3d0a24d8258c6c4f53435407930826850218e3d85f5c7605a64c",
+      "infohash_sha1": "162dae3eff2d775bae50d0c8b410d3048af998ff",
+      "payload_sha256": {
+        "alpha.bin": "30d27cdcb6c3872e9a5e7f564dbd24e722c5bdd01c3bd278a1f9b3528363ff47",
+        "nested/beta.bin": "97ebf713356344c1a176508fddd44c7ea291d3c20e8ff256eccf4f43480a428c",
+        "gamma.bin": "34846b853e446e55dabc3f6654adf013353e4103492f0696cb2fe5d5d634726c"
+      },
+      "piece_sha1": ["6abf14208b1d04da427418a4f7b83a92af9f823e", "421a185dece613c60ef4902b423846df0e59237e", "aeab98443eec6ee6e02a7d719e1c3dd3d6858a9b"],
+      "piece_lengths": [16384, 16384, 232],
+      "file_offsets": [0, 7000, 21000],
+      "total_length": 33000
+    }
+  },
+  "test_command": "python -m unittest discover -s artifacts/server1/P06/P06-A -p test_*.py -v",
+  "parent_acceptance": "NOT_RUN_PENDING_P06_C_AND_LATER_ENVIRONMENT",
+  "stremio_01_consumption": "NOT_RUN_PENDING_P06_C_AND_LATER_ENVIRONMENT"
+}
