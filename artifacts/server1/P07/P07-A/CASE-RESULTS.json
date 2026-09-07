@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-case-results/v1",
+  "worker_id": "P07-A",
+  "parent_packet": "P07",
+  "status": "TEST_EXECUTED",
+  "cases": {
+    "P07-01": {
+      "status": "PASS",
+      "test": "headers without a valid byte/frame do not win startup",
+      "red_exit": 1,
+      "green_exit": 0,
+      "evidence": "RAW-TEST-OUTPUT.txt"
+    }
+  },
+  "commands": [
+    {"command": "python -m unittest -v artifacts.server1.P07.P07-A.test_p07_a", "exit": 0},
+    {"command": "python -m py_compile tools/server_lab/probes/http_bytes.py tools/server_lab/probes/resources.py", "exit": 0},
+    {"command": "python -c json.loads(P07-A.json)", "exit": 0},
+    {"command": "python -m unittest discover -s tools/server_lab/tests -v", "exit": 1, "note": "45 pass, 8 skip, 3 unrelated predecessor/environment failures"}
+  ],
+  "thresholds_frozen_before_1_0": true,
+  "baseline_0_1": "BASELINE_UNAVAILABLE_OPTIONAL",
+  "artifacts": ["RAW-TEST-OUTPUT.txt", "P07-A.json", "PACKET-RECEIPT.json", "WIRING-REQUEST.json"]
+}

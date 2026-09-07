@@ -1,0 +1,43 @@
+{
+  "schema": "colosseum-server1-p07-a-case/v1",
+  "packet": "P07-A",
+  "case": "P07-01",
+  "integration_base": "ca0520af8410231bbdfbe4ced973c69904dbd1d5",
+  "authorities": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "m172_lines": "18110-18500",
+    "m172_slice_sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486",
+    "m846_lines": "74730-74772",
+    "m846_slice_sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"
+  },
+  "observation_definitions": {
+    "header_observed": "HTTP status line and header terminator are received; this never establishes startup success.",
+    "first_valid_byte": "The first byte after the HTTP header terminator that is accepted by the byte-validity predicate.",
+    "first_valid_frame": "The earliest body prefix accepted by the frame-validity predicate; default accepts any non-empty body byte.",
+    "startup_success": "true only when first_valid_frame is observed before first_frame_deadline and without timeout, cancellation, or read error.",
+    "resource_sample": "A timestamped process/resource snapshot with raw values; deltas are computed only between samples from the same run.",
+    "clock": "Monotonic elapsed seconds are authoritative for deadlines; wall-clock timestamps are reporting-only.",
+    "timeout": "A deadline is exceeded when monotonic elapsed time is greater than or equal to the configured boundary.",
+    "cancellation": "Cancellation is terminal, records the cancellation timestamp/reason, and cannot be converted to startup success.",
+    "errors": "Operational failures are preserved as structured error strings and yield ERROR unless cancellation or timeout is the recorded terminal state."
+  },
+  "thresholds_frozen_before_1_0": {
+    "header_deadline_seconds": 1.0,
+    "first_byte_deadline_seconds": 2.0,
+    "first_frame_deadline_seconds": 5.0,
+    "resource_sample_interval_seconds": 0.25
+  },
+  "fixture": {
+    "headers_immediate": "HTTP/1.1 200 OK\\r\\nContent-Type: video/mp4\\r\\n\\r\\n",
+    "body": "",
+    "expected": "FAIL",
+    "reason": "HTTP headers without a valid byte/frame must not win startup."
+  },
+  "red_green": {
+    "red": "The test harness imports ByteProbe and ResourceProbe before their implementation exists.",
+    "green": "P07-01 rejects headers-only startup and records definitions, boundaries, cancellation, errors, and resource samples."
+  },
+  "interfaces_consumed": ["LabRunner", "EvidenceSchema", "QualifiedFixtureCorpus", "QualifiedReferenceRuntime"],
+  "interfaces_produced": ["ByteProbe", "ResourceProbe"],
+  "status": "TEST_AUTHORED"
+}

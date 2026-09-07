@@ -1,0 +1,9 @@
+{
+  "schema": "colosseum-server1-wiring-request/v1",
+  "worker_id": "P07-A",
+  "parent_packet": "P07",
+  "wiring_needed": false,
+  "shared_files_requested": [],
+  "interfaces_changed": [],
+  "reason": "ByteProbe and ResourceProbe are packet-local additions. INT-W1/B-W1D may consume them after review; no registry, build, route, Runtime, transport, or CI wiring is requested by this worker."
+}

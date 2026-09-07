@@ -1,0 +1,24 @@
+{
+  "schema": "colosseum-server1-packet-receipt/v1",
+  "worker_id": "P07-A",
+  "parent_packet": "P07",
+  "integration_base": "ca0520af8410231bbdfbe4ced973c69904dbd1d5",
+  "source_authority": {
+    "oracle_sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+    "m172_lines": "18110-18500",
+    "m172_slice_sha256": "bf9f64c9a27d9121f4360f2bd759206af4e7692c9592d44d164514d8d4230486",
+    "m846_lines": "74730-74772",
+    "m846_slice_sha256": "fdff76e6c1b5a55a544a9de1d52f7882a63aef8a8d64a3425cd9f0218391c727"
+  },
+  "candidate_files": {
+    "tools/server_lab/probes/http_bytes.py": "6425e908c0b6d0fb7a335c5208b2d8e387a1df4b69122906453e466e2aa83a1",
+    "tools/server_lab/probes/resources.py": "3cd5a7599100847315cf32c9db81cc12868f2265a492e54620e5d2c50e25a6bb",
+    "tools/server_lab/cases/P07-A.json": "07a1c053c294b915182bfa1469402476889166feb1e5661bead3f2d7610d53c7"
+  },
+  "interfaces_produced": ["ByteProbe", "ResourceProbe"],
+  "interface_changes": "new packet-local Python probe interfaces; no shared interface or production wiring changed",
+  "case_status": {"P07-01": "PASS"},
+  "evidence_state": ["source-traced", "test-authored", "implementation-authored", "compiled", "test-executed"],
+  "review_status": "pending Sol acceptance",
+  "push_status": "not pushed"
+}
